@@ -1,0 +1,43 @@
+# Veloria PoS — ignores
+node_modules/
+dist/
+dist-electron/
+release/
+out/
+*.log
+logs/
+
+# Electron / native
+*.node
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# User data (never commit a real POS database)
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
+*.vposdb
+!database/migrations/*.sql
+
+# Backups
+backups/
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Test / coverage
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo

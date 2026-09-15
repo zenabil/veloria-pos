@@ -1,0 +1,42 @@
+appId: com.veloria.pos
+productName: Veloria PoS
+copyright: Copyright © Veloria
+directories:
+  output: release
+  buildResources: public
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - package.json
+  # Runtime natif (Phase 14) : seul better-sqlite3 (+ son loader `bindings`)
+  # est requis dans le main (le renderer est déjà bundlé par Vite).
+  - node_modules/better-sqlite3/**/*
+  - node_modules/bindings/**/*
+extraResources:
+  - from: database/migrations
+    to: database/migrations
+asar: true
+asarUnpack:
+  - "**/*.node"
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  icon: public/icons/icon.ico
+  legalTrademarks: Veloria
+  verifyUpdateCodeSignature: false
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Veloria PoS
+  uninstallDisplayName: Veloria PoS
+  deleteAppDataOnUninstall: false
+  warningsAsErrors: false
+portable:
+  artifactName: Veloria-PoS-Portable-${version}.exe
+artifactName: Veloria-PoS-Setup-${version}.${ext}
+publish: []

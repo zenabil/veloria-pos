@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "outDir": "dist-electron",
+    "rootDir": "electron",
+    "composite": true,
+    "declaration": true,
+    "declarationMap": false,
+    "baseUrl": ".",
+    "paths": {
+      "@electron/*": ["electron/*"]
+    },
+    "types": ["node"]
+  },
+  "include": ["electron/**/*.ts"]
+}
