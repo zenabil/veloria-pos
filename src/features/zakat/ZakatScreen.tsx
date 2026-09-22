@@ -1,153 +1,379 @@
-// Veloria PoS — Screen: Zakat (Phase 8, reporting uniquement).
-// Sources 100 % SQLite ; taux/nisab/hypothèses explicites et configurables.
+// Veloria PoS — Écran : Zakat (calcul reporting + historique).
+// Paramètres déplacés dans Paramètres → Documents. Reporting seul, jamais un registre.
 import { useEffect, useState } from "react";
+import { Calculator, Download, Printer } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
+import { useCompany } from "@shared/company/use-company.ts";
 import { formatDzd } from "@domain/money/money.ts";
-import { calculateZakat } from "@domain/finance/zakat.ts";
-import { Button, Card, TextInput, Field } from "@shared/ui/primitives.tsx";
+import { downloadCsv } from "@shared/export/csv.ts";
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Kpi,
+  Modal,
+  Pager,
+  Select,
+} from "@shared/ui/primitives.tsx";
+import { ZakatCalculationDialog } from "./ZakatDialogs.tsx";
+import { computeZakat } from "@domain/zakat/zakat-rules.ts";
+import {
+  HIJRI_YEARS,
+  nisabMethodLabel,
+  type ZakatCalculation,
+  type ZakatSources,
+} from "./types.ts";
 
-interface Sources {
-  cash: { paid: number; total: number };
-  inventory: { v: number };
-  customerDebts: { d: number };
-  supplierDebts: { d: number };
-  params: { ratePercent: number; nisabMinor: number };
-}
+import type { Notify } from "@shared/ui/primitives.tsx";
+import { frError } from "@shared/errors/fr-map.ts";
 
-export function ZakatScreen({
-  notify,
-}: {
-  notify: (m: string, k?: "ok" | "err") => void;
-}): React.JSX.Element {
-  const [src, setSrc] = useState<Sources | null>(null);
-  const [rate, setRate] = useState("2.5");
-  const [nisab, setNisab] = useState("");
+const PAGE_SIZE = 20;
+
+export function ZakatScreen({ notify }: { notify: Notify }): React.JSX.Element {
+  const [hijriYear, setHijriYear] = useState("1448");
+  const [sources, setSources] = useState<ZakatSources | null>(null);
+  const [calcOpen, setCalcOpen] = useState(false);
+  const [history, setHistory] = useState<ZakatCalculation[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [preview, setPreview] = useState<{
+    htmlA4: string;
+    payload: Record<string, unknown>;
+  } | null>(null);
+  // Fiche entreprise : source unique partagée (rapport).
+  const { record: companyRecord } = useCompany();
 
   async function load(): Promise<void> {
     try {
-      const s = (await api.zakatSources()) as Sources;
-      setSrc(s);
-      setRate(String(s.params.ratePercent));
-      setNisab(s.params.nisabMinor > 0 ? String(s.params.nisabMinor / 100) : "");
+      const s = (await api.zakatSources()) as ZakatSources;
+      setSources(s);
     } catch (e) {
-      notify(e instanceof Error ? e.message : "Chargement impossible.", "err");
+      notify(frError(e, "Chargement impossible."), "err");
+    }
+  }
+
+  async function loadHistory(p = 1): Promise<void> {
+    try {
+      const res = (await api.zakatHistory({ page: p, pageSize: PAGE_SIZE })) as {
+        rows: ZakatCalculation[];
+        total: number;
+      };
+      setHistory(res.rows);
+      setTotal(res.total);
+      setPage(p);
+    } catch {
+      /* historique optionnel */
     }
   }
 
   useEffect(() => {
     void load();
+    void loadHistory(1);
   }, []);
 
-  async function save(): Promise<void> {
+  // H-1 fail-safe display: corrupt DB aggregates must show "—", never crash render.
+  let net = 0;
+  let preview_calc: { net: number; zakat: number; above: boolean } | null = null;
+  if (sources != null) {
     try {
-      await api.zakatSave({
-        ratePercent: Number(rate.replace(",", ".")),
-        nisabMinor: Math.round(Number(nisab || "0") * 100),
+      preview_calc = computeZakat({
+        cashMinor: 0,
+        bankMinor: 0,
+        stockMinor: sources.inventory.v,
+        receivablesMinor: sources.customerDebts.d,
+        otherMinor: 0,
+        liabilitiesMinor: sources.supplierDebts.d,
+        nisabMinor: sources.params.nisabMinor,
+        ratePercent: sources.params.ratePercent,
       });
-      notify("Paramètres zakat enregistrés.", "ok");
-      await load();
-    } catch (e) {
-      notify(e instanceof Error ? e.message : "Enregistrement impossible.", "err");
+      net = preview_calc.net;
+    } catch {
+      net = 0;
+      preview_calc = null;
     }
   }
 
-  let result: { zakatableBaseMinor: number; zakatDueMinor: number; aboveNisab: boolean } | null =
-    null;
-  let err = "";
-  if (src) {
+  function exportHistory(): void {
+    if (history.length === 0) {
+      notify("Rien à exporter.", "err");
+      return;
+    }
+    downloadCsv(
+      `zakat-${new Date().toISOString().slice(0, 10)}.csv`,
+      history.map((h) => ({
+        Date: h.calc_date,
+        "Année hégirienne": h.hijri_year,
+        "Montant zakatable": formatDzd(h.net_minor),
+        Nisab: formatDzd(h.nisab_minor),
+        Zakat: formatDzd(h.zakat_minor),
+        Statut: h.status === "paid" ? "Payée" : "Calculée",
+      })),
+    );
+    notify(`${history.length} ligne(s) exportée(s).`, "ok");
+  }
+
+  async function printLast(): Promise<void> {
+    const last = history[0];
+    if (!last) {
+      notify("Aucun calcul à imprimer.", "err");
+      return;
+    }
     try {
-      result = calculateZakat({
-        cashMinor: src.cash.paid,
-        inventoryValueMinor: Math.round(src.inventory.v),
-        customerDebtsMinor: src.customerDebts.d,
-        supplierDebtsMinor: src.supplierDebts.d,
-        nisabMinor: Math.round(Number(nisab || "0") * 100),
-        ratePercent: Number(rate.replace(",", ".")),
-      });
+      const payload = {
+        title: `Rapport Zakat — ${last.hijri_year}`,
+        period: `Calculé le ${last.calc_date.slice(0, 10)}`,
+        company: companyRecord?.["company_name"] ?? "Veloria",
+        kpis: [
+          { label: "Montant zakatable", value: formatDzd(last.net_minor) },
+          { label: "Nisab", value: formatDzd(last.nisab_minor) },
+          { label: "Zakat estimée", value: formatDzd(last.zakat_minor) },
+        ],
+        charts: [],
+        tables: [
+          {
+            title: "Détail",
+            headers: ["Poste", "Montant"],
+            rows: [
+              ["Espèces", formatDzd(last.cash_minor)],
+              ["Banque", formatDzd(last.bank_minor)],
+              ["Stock", formatDzd(last.stock_minor)],
+              ["Créances", formatDzd(last.receivables_minor)],
+              ["Autres", formatDzd(last.other_minor)],
+              ["Dettes", formatDzd(last.liabilities_minor)],
+              ["Net zakatable", formatDzd(last.net_minor)],
+              [`Taux ${last.rate_percent} %`, formatDzd(last.zakat_minor)],
+            ],
+          },
+        ],
+        footer: "Zakat — reporting seul, jamais un registre.",
+      };
+      const pv = (await api.reportPreview(payload)) as { htmlA4: string };
+      setPreview({ htmlA4: pv.htmlA4, payload });
     } catch (e) {
-      err = e instanceof Error ? e.message : "";
+      notify(frError(e, "Aperçu indisponible."), "err");
     }
   }
 
   return (
-    <div className="space-y-3">
-      <div>
-        <h1 className="text-2xl font-extrabold">Zakat</h1>
-        <p className="text-sm text-slate-400">
-          Calcul documenté — ni registre comptable, ni écriture automatique
+    <div className="flex h-full flex-col gap-4">
+      {/* En-tête de page */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-xl font-extrabold tracking-tight">Zakat</h2>
+          <p className="text-xs text-slate-500">
+            Reporting annuel ·{" "}
+            {preview_calc && preview_calc.above
+              ? `estimée ${formatDzd(preview_calc.zakat)}`
+              : "sous le nisab (hors caisse/banque)"}
+          </p>
+        </div>
+        <Select
+          value={hijriYear}
+          onChange={(e) => setHijriYear(e.target.value)}
+          aria-label="Année hégirienne"
+          title="Année hégirienne"
+        >
+          {HIJRI_YEARS.map((y) => (
+            <option key={y} value={y}>
+              {y} H
+            </option>
+          ))}
+        </Select>
+        <Button onClick={() => setCalcOpen(true)} title="Nouveau calcul">
+          <Calculator size={16} aria-hidden="true" /> Calculer
+        </Button>
+      </div>
+
+      {/* Paramètres (lecture seule, édition dans Paramètres → Documents) */}
+      <Card className="flex flex-wrap items-center gap-3 p-4">
+        <div className="min-w-0 flex-1 text-sm">
+          <strong>Nisab :</strong> {sources ? formatDzd(sources.params.nisabMinor) : "—"} (
+          {sources ? nisabMethodLabel(sources.params.nisabMethod) : "—"}) · <strong>Taux :</strong>{" "}
+          {sources ? `${sources.params.ratePercent} %` : "—"} · <strong>Hawl :</strong>{" "}
+          {sources?.params.hawlDate ?? "—"}
+        </div>
+        <span className="text-xs text-slate-500">Réglages : Paramètres → Documents → Zakat</span>
+      </Card>
+
+      {/* Cartes résumé (sources live) */}
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
+        <Kpi
+          label="Stock"
+          value={sources ? formatDzd(sources.inventory.v) : "—"}
+          sub="Valeur d'achat"
+        />
+        <Kpi
+          label="Créances"
+          value={sources ? formatDzd(sources.customerDebts.d) : "—"}
+          sub="Clients"
+        />
+        <Kpi
+          label="Dettes"
+          value={sources ? formatDzd(sources.supplierDebts.d) : "—"}
+          sub="Fournisseurs"
+        />
+        <Kpi label="Base nette" value={formatDzd(net)} sub="Stock + créances − dettes" />
+        <Kpi
+          label="Zakat estimée"
+          value={preview_calc ? formatDzd(preview_calc.zakat) : "—"}
+          sub={preview_calc && preview_calc.above ? "Au-dessus du nisab" : "Sous le nisab"}
+        />
+      </div>
+
+      {/* Détail du calcul courant */}
+      <Card className="space-y-2.5 p-4 text-sm">
+        <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">
+          Base de calcul (sources comptables)
+        </div>
+        <div className="grid gap-x-8 gap-y-1.5 sm:grid-cols-2">
+          <span className="flex justify-between gap-3">
+            <span className="text-slate-500">Espèces (ventes encaissées)</span>
+            <strong className="tabular-nums">{sources ? formatDzd(sources.cash.paid) : "—"}</strong>
+          </span>
+          <span className="flex justify-between gap-3">
+            <span className="text-slate-500">Ventes totales</span>
+            <strong className="tabular-nums">
+              {sources ? formatDzd(sources.cash.total) : "—"}
+            </strong>
+          </span>
+          <span className="flex justify-between gap-3">
+            <span className="text-slate-500">Stock</span>
+            <strong className="tabular-nums">
+              {sources ? formatDzd(sources.inventory.v) : "—"}
+            </strong>
+          </span>
+          <span className="flex justify-between gap-3">
+            <span className="text-slate-500">Créances clients</span>
+            <strong className="tabular-nums">
+              {sources ? formatDzd(sources.customerDebts.d) : "—"}
+            </strong>
+          </span>
+          <span className="flex justify-between gap-3">
+            <span className="text-slate-500">Dettes fournisseurs</span>
+            <strong className="tabular-nums">
+              {sources ? formatDzd(sources.supplierDebts.d) : "—"}
+            </strong>
+          </span>
+          <span className="flex justify-between gap-3">
+            <span className="text-slate-500">Caisse/banque</span>
+            <strong className="tabular-nums">Saisie manuelle (dialogue)</strong>
+          </span>
+        </div>
+        <p className="text-xs text-slate-500">
+          La caisse et la banque ne sont pas suivies par l'application : saisissez-les dans le
+          dialogue de calcul. Reporting seul, jamais un registre.
         </p>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <Card className="space-y-2 p-4">
-          <h2 className="font-bold">Valeurs sources (base locale)</h2>
-          {src ? (
-            <dl className="space-y-1 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-slate-400">Encaissements ventes</dt>
-                <dd className="tabular-nums">{formatDzd(src.cash.paid)}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-slate-400">Valeur du stock (coût)</dt>
-                <dd className="tabular-nums">{formatDzd(Math.round(src.inventory.v))}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-slate-400">Créances clients</dt>
-                <dd className="tabular-nums">{formatDzd(src.customerDebts.d)}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-slate-400">Dettes fournisseurs (−)</dt>
-                <dd className="tabular-nums">{formatDzd(src.supplierDebts.d)}</dd>
-              </div>
-            </dl>
-          ) : (
-            <p className="text-sm text-slate-500">Chargement…</p>
-          )}
-          <div className="grid grid-cols-2 gap-2 border-t border-white/5 pt-3">
-            <Field label="Taux (%)">
-              <TextInput value={rate} onChange={(e) => setRate(e.target.value)} />
-            </Field>
-            <Field label="Nisab (DZD)">
-              <TextInput value={nisab} onChange={(e) => setNisab(e.target.value)} />
-            </Field>
+      </Card>
+
+      {/* Historique */}
+      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="flex items-center justify-between gap-2 border-b border-white/[0.07] px-4 py-3">
+          <h3 className="text-sm font-extrabold">Historique des calculs</h3>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={exportHistory} title="Exporter CSV">
+              <Download size={15} aria-hidden="true" /> CSV
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => void printLast()}
+              title="Imprimer le dernier"
+            >
+              <Printer size={15} aria-hidden="true" /> Imprimer
+            </Button>
           </div>
-          <div className="flex justify-end">
-            <Button onClick={() => void save()}>Enregistrer les hypothèses</Button>
-          </div>
-        </Card>
-        <Card className="space-y-2 p-4">
-          <h2 className="font-bold">Résultat</h2>
-          {err ? (
-            <div role="alert" className="text-sm text-red-300">
-              {err}
-            </div>
-          ) : result ? (
-            <>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-400">Base zakatable</span>
-                <strong className="tabular-nums">{formatDzd(result.zakatableBaseMinor)}</strong>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-400">Seuil (nisab) atteint</span>
-                <strong>{result.aboveNisab ? "Oui" : "Non"}</strong>
-              </div>
-              <div className="flex justify-between border-t border-white/5 pt-2 text-lg">
-                <span className="font-bold">Zakat due</span>
-                <strong className="tabular-nums text-emerald-300">
-                  {formatDzd(result.zakatDueMinor)}
-                </strong>
-              </div>
-              <p className="text-xs text-slate-500">
-                Hypothèses : taux {rate} % · nisab{" "}
-                {nisab ? formatDzd(Math.round(Number(nisab) * 100)) : "non défini"} · base =
-                encaissements + stock + créances − dettes. Vérifiez avec votre référent avant tout
-                versement.
-              </p>
-            </>
+        </div>
+        <div className="min-h-0 flex-1 overflow-auto">
+          {history.length === 0 ? (
+            <EmptyState
+              title="Aucun calcul"
+              hint="Lancez votre premier calcul avec le bouton « Calculer »."
+            />
           ) : (
-            <p className="text-sm text-slate-500">—</p>
+            <table className="w-full min-w-[760px] text-sm">
+              <thead className="sticky top-0 bg-[#111a2e] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
+                <tr>
+                  <th className="px-3 py-2.5">Date</th>
+                  <th className="px-3 py-2.5">Année H.</th>
+                  <th className="px-3 py-2.5 text-right">Montant zakatable</th>
+                  <th className="px-3 py-2.5 text-right">Nisab</th>
+                  <th className="px-3 py-2.5 text-right">Zakat</th>
+                  <th className="px-3 py-2.5">Statut</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((h) => (
+                  <tr key={h.id} className="border-t border-white/[0.06]">
+                    <td className="whitespace-nowrap px-3 py-2 tabular-nums text-slate-300">
+                      {h.calc_date.slice(0, 10)}
+                    </td>
+                    <td className="px-3 py-2 tabular-nums">{h.hijri_year}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{formatDzd(h.net_minor)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-slate-400">
+                      {formatDzd(h.nisab_minor)}
+                    </td>
+                    <td className="px-3 py-2 text-right font-bold tabular-nums text-amber-200">
+                      {formatDzd(h.zakat_minor)}
+                    </td>
+                    <td className="px-3 py-2">
+                      <Badge tone={h.zakat_minor > 0 ? "green" : "grey"}>
+                        {h.zakat_minor > 0 ? "Exigible" : "Sous nisab"}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
-        </Card>
-      </div>
+        </div>
+        <div className="flex items-center justify-between gap-2 border-t border-white/[0.07] px-4 py-3">
+          <Pager
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={total}
+            onPage={(p) => void loadHistory(p)}
+          />
+        </div>
+      </Card>
+
+      {/* Nouveau calcul */}
+      {calcOpen && sources ? (
+        <ZakatCalculationDialog
+          hijriYear={hijriYear}
+          sources={sources}
+          onClose={() => setCalcOpen(false)}
+          onSaved={() => {
+            setCalcOpen(false);
+            void loadHistory(1);
+          }}
+          notify={notify}
+        />
+      ) : null}
+
+      {/* Aperçu impression */}
+      {preview ? (
+        <Modal label="Rapport zakat" title="Rapport zakat" onClose={() => setPreview(null)} wide>
+          <iframe
+            sandbox=""
+            srcDoc={preview.htmlA4}
+            title="Aperçu rapport zakat"
+            className="h-[50vh] w-full rounded-xl border border-white/10 bg-white"
+          />
+          <div className="mt-3">
+            <Button
+              onClick={() => {
+                api
+                  .reportPrint(preview.payload)
+                  .then(() => notify("Rapport envoyé.", "ok"))
+                  .catch((e: unknown) => notify(frError(e, "Impression impossible."), "err"));
+              }}
+              className="w-full"
+            >
+              <Printer size={15} aria-hidden="true" /> Imprimer
+            </Button>
+          </div>
+        </Modal>
+      ) : null}
     </div>
   );
 }

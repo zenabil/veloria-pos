@@ -1,19 +1,6 @@
 // Veloria PoS — IPC client (renderer): typed calls over the preload bridge.
 // Renderer never touches SQLite/Node directly.
 
-export interface IpcOk<T> {
-  ok: true;
-  data: T;
-}
-
-export interface IpcFail {
-  ok: false;
-  code: string;
-  message: string;
-}
-
-export type IpcResult<T> = IpcOk<T> | IpcFail;
-
 function bridge(): NonNullable<Window["veloria"]> {
   if (!window.veloria) throw new Error("Pont applicatif indisponible (preload).");
   return window.veloria;
@@ -32,31 +19,97 @@ export async function call<T>(
 }
 
 export const api = {
-  dashboard: () => call((a) => a.reports.dashboard()),
   fullReport: (p: unknown) => call((a) => a.reports.full(p)),
   productSearch: (p: unknown) => call((a) => a.products.search(p)),
+  productGet: (p: unknown) => call((a) => a.products.get(p)),
   productByBarcode: (p: unknown) => call((a) => a.products.getByBarcode(p)),
+  productMatchBatch: (p: unknown) => call((a) => a.products.matchBatch(p)),
+  productBarcodes: (p: unknown) => call((a) => a.products.barcodes(p)),
   productCreate: (p: unknown) => call((a) => a.products.create(p)),
   productUpdate: (p: unknown) => call((a) => a.products.update(p)),
+  productArchive: (p: unknown) => call((a) => a.products.archive(p)),
+  productRestore: (p: unknown) => call((a) => a.products.restore(p)),
+  productDelete: (p: unknown) => call((a) => a.products.remove(p)),
+  productSuppliers: (p: unknown) => call((a) => a.products.suppliers(p)),
+  productSetSuppliers: (p: unknown) => call((a) => a.products.setSuppliers(p)),
   productsImport: (p: unknown) => call((a) => a.productsExtra.import(p)),
   customerSearch: (p: unknown) => call((a) => a.customers.search(p)),
   customerCreate: (p: unknown) => call((a) => a.customers.create(p)),
   customerUpdate: (p: unknown) => call((a) => a.customers.update(p)),
   customerStatement: (p: unknown) => call((a) => a.customers.statement(p)),
+  customerStats: () => call((a) => a.customers.stats()),
   customerPayment: (p: unknown) => call((a) => a.customers.recordPayment(p)),
+  customerArchive: (p: unknown) => call((a) => a.customers.archive(p)),
+  customerRestore: (p: unknown) => call((a) => a.customers.restore(p)),
+  supplierUpdate: (p: unknown) => call((a) => a.suppliers.update(p)),
+  breadUpdateQty: (p: unknown) => call((a) => a.bread.updateQty(p)),
+  breadConvert: (p: unknown) => call((a) => a.bread.convert(p)),
+  printerGet: () => call((a) => a.printer.get()),
+  printerSave: (p: unknown) => call((a) => a.printer.save(p)),
+  printerTest: () => call((a) => a.printer.test()),
+  backupStatus: () => call((a) => a.backup.status()),
+  backupExport: (p: unknown) => call((a) => a.backup.export(p)),
+  backupAutoGet: () => call((a) => a.backup.autoGet()),
+  backupAutoSave: (p: unknown) => call((a) => a.backup.autoSave(p)),
+  categoriesList: () => call((a) => a.categories.list()),
+  categoryCreate: (p: unknown) => call((a) => a.categories.create(p)),
+  expenseUpdate: (p: unknown) => call((a) => a.expenses.update(p)),
   customersImport: (p: unknown) => call((a) => a.customers.import(p)),
   settingsGet: (p: unknown) => call((a) => a.settings.get(p)),
   settingsSave: (p: unknown) => call((a) => a.settings.save(p)),
   saleCreate: (p: unknown) => call((a) => a.sales.create(p)),
+  cartsSave: (p: unknown) => call((a) => a.carts.save(p)),
+  cartsLoad: () => call((a) => a.carts.load()),
+  cartsClear: () => call((a) => a.carts.clear()),
   saleGet: (p: unknown) => call((a) => a.sales.get(p)),
   salesHistory: (p: unknown) => call((a) => a.sales.history(p)),
   returnCreate: (p: unknown) => call((a) => a.returns.create(p)),
   returnsList: (p: unknown) => call((a) => a.returns.list(p)),
+  returnDetail: (p: unknown) => call((a) => a.returns.detail(p)),
+  returnSaleItems: (p: unknown) => call((a) => a.returns.saleItems(p)),
+  returnIntakeItems: (p: unknown) => call((a) => a.returns.intakeItems(p)),
+  returnRefund: (p: unknown) => call((a) => a.returns.refund(p)),
+  returnCancel: (p: unknown) => call((a) => a.returns.cancel(p)),
+  returnStats: () => call((a) => a.returns.stats()),
   expenseCreate: (p: unknown) => call((a) => a.expenses.create(p)),
   expensesList: (p: unknown) => call((a) => a.expenses.list(p)),
+  expenseDelete: (p: unknown) => call((a) => a.expenses.remove(p)),
+  expenseStats: () => call((a) => a.expenses.stats()),
   backupCreate: () => call((a) => a.backup.create()),
+  backupList: () => call((a) => a.backup.list()),
+  backupRestore: (p: unknown) => call((a) => a.backup.restore(p)),
+  dbHealth: () => call((a) => a.database.health()),
+  dbLocation: () => call((a) => a.database.location()),
+  dbIntegrity: () => call((a) => a.database.integrity()),
+  dbOptimize: () => call((a) => a.database.optimize()),
+  dbRelocate: (p: unknown) => call((a) => a.database.relocate(p)),
+  systemOpenDataFolder: () => call((a) => a.system.openDataFolder()),
+  systemSelectFolder: () => call((a) => a.system.selectFolder()),
+  systemSelectLogo: () => call((a) => a.system.selectLogo()),
+  systemOpenLogsFolder: () => call((a) => a.system.openLogsFolder()),
+  appVersion: () => call((a) => a.app.getVersion()),
+  appDiagnostics: () => call((a) => a.app.diagnostics()),
+  appRestart: () => call((a) => a.app.restart()),
+  windowMinimize: () => call((a) => a.window.minimize()),
+  windowToggleMaximize: () => call<{ maximized: boolean }>((a) => a.window.toggleMaximize()),
+  windowClose: () => call((a) => a.window.close()),
+  windowIsMaximized: () => call<{ maximized: boolean }>((a) => a.window.isMaximized()),
+  printersList: () => call((a) => a.printing.listPrinters()),
   companyGet: () => call((a) => a.company.get()),
+  companyUpdate: (p: unknown) => call((a) => a.company.update(p)),
+  saleCancel: (p: unknown) => call((a) => a.sales.cancel(p)),
+  saleSetDueDate: (p: unknown) => call((a) => a.sales.setDueDate(p)),
+  printReceipt: (p: unknown) => call((a) => a.printing.printReceipt(p)),
+  printA4: (p: unknown) => call((a) => a.printing.printA4(p)),
+  printPreview: (p: unknown) => call((a) => a.printing.preview(p)),
+  exportReceiptPdf: (p: unknown) => call((a) => a.printing.exportReceiptPdf(p)),
+  exportA4Pdf: (p: unknown) => call((a) => a.printing.exportA4Pdf(p)),
+  proformaPreview: (p: unknown) => call((a) => a.printing.previewProforma(p)),
+  proformaPrintA4: (p: unknown) => call((a) => a.printing.printProformaA4(p)),
   stockOverview: () => call((a) => a.stock.overview()),
+  stockProducts: (p: unknown) => call((a) => a.stock.products(p)),
+  stockMovements: (p: unknown) => call((a) => a.stock.movements(p)),
+  stockInventory: (p: unknown) => call((a) => a.stock.inventory(p)),
   stockLow: (p: unknown) => call((a) => a.stock.lowStock(p)),
   stockLedger: (p: unknown) => call((a) => a.stock.ledger(p)),
   stockAdjust: (p: unknown) => call((a) => a.stock.adjust(p)),
@@ -65,20 +118,73 @@ export const api = {
   stockValuation: () => call((a) => a.stock.valuation()),
   supplierSearch: (p: unknown) => call((a) => a.suppliers.search(p)),
   supplierCreate: (p: unknown) => call((a) => a.suppliers.create(p)),
+  supplierDelete: (p: unknown) => call((a) => a.suppliers.remove(p)),
+  suppliersDeleteMany: (p: unknown) => call((a) => a.suppliers.removeMany(p)),
   supplierPay: (p: unknown) => call((a) => a.suppliers.pay(p)),
   supplierStatement: (p: unknown) => call((a) => a.suppliers.statement(p)),
+  supplierProducts: (p: unknown) => call((a) => a.suppliers.products(p)),
+  supplierStats: () => call((a) => a.suppliers.stats()),
+  purchaseCreate: (p: unknown) => call((a) => a.purchase.create(p)),
+  purchaseList: (p: unknown) => call((a) => a.purchase.list(p)),
+  purchaseDetail: (p: unknown) => call((a) => a.purchase.detail(p)),
+  purchaseOrder: (p: unknown) => call((a) => a.purchase.order(p)),
+  purchaseCancel: (p: unknown) => call((a) => a.purchase.cancel(p)),
+  purchaseReceive: (p: unknown) => call((a) => a.purchase.receive(p)),
   proformaCreate: (p: unknown) => call((a) => a.proformas.create(p)),
   proformasList: (p: unknown) => call((a) => a.proformas.list(p)),
+  proformaUpdate: (p: unknown) => call((a) => a.proformas.update(p)),
+  proformaDelete: (p: unknown) => call((a) => a.proformas.remove(p)),
+  proformaDetail: (p: unknown) => call((a) => a.proformas.detail(p)),
+  proformaStats: () => call((a) => a.proformas.stats()),
   proformaStatus: (p: unknown) => call((a) => a.proformas.status(p)),
   proformaConvert: (p: unknown) => call((a) => a.proformas.convert(p)),
   debtsList: (p: unknown) => call((a) => a.debts.list(p)),
+  debtDetail: (p: unknown) => call((a) => a.debts.detail(p)),
+  debtsStats: () => call((a) => a.debts.stats()),
+  historyList: (p: unknown) => call((a) => a.history.list(p)),
+  historyDetail: (p: unknown) => call((a) => a.history.detail(p)),
+  historyStats: (p?: unknown) => call((a) => a.history.stats(p)),
   closingsGet: (p: unknown) => call((a) => a.closings.get(p)),
   closingCreate: (p: unknown) => call((a) => a.closings.create(p)),
   zakatSources: () => call((a) => a.zakat.sources()),
   zakatSave: (p: unknown) => call((a) => a.zakat.saveParams(p)),
+  zakatHistory: (p: unknown) => call((a) => a.zakat.history(p)),
+  zakatSaveCalc: (p: unknown) => call((a) => a.zakat.save(p)),
+  reportSummary: (p: unknown) => call((a) => a.reports.summary(p)),
+  dashboardSummary: (p: unknown) => call((a) => a.dashboard.summary(p)),
+  reportPreview: (p: unknown) => call((a) => a.printing.previewReport(p)),
+  reportPrint: (p: unknown) => call((a) => a.printing.printReport(p)),
+  labelsPreview: (p: unknown) => call((a) => a.printing.previewLabels(p)),
+  labelsPrint: (p: unknown) => call((a) => a.printing.printLabels(p)),
   breadCreate: (p: unknown) => call((a) => a.bread.create(p)),
   breadList: (p: unknown) => call((a) => a.bread.list(p)),
   breadPay: (p: unknown) => call((a) => a.bread.pay(p)),
-  breadPickup: (p: unknown) => call((a) => a.bread.pickup(p)),
   breadTransfer: (p: unknown) => call((a) => a.bread.transfer(p)),
+  breadUpdate: (p: unknown) => call((a) => a.bread.update(p)),
+  breadStatus: (p: unknown) => call((a) => a.bread.status(p)),
+  breadStats: () => call((a) => a.bread.stats()),
+  breadDetail: (p: unknown) => call((a) => a.bread.detail(p)),
+  ocrSelectFile: () => call((a) => a.ocr.selectFile()),
+  ocrAnalyze: (p: unknown) => call((a) => a.ocr.analyze(p)),
+  ocrCancel: (p: unknown) => call((a) => a.ocr.cancel(p)),
+  ocrDispose: (p: unknown) => call((a) => a.ocr.dispose(p)),
+  licenseStatus: () => call((a) => a.license.status()),
+  licenseHardwareId: () => call((a) => a.license.hardwareId()),
+  licenseImport: () => call((a) => a.license.importLicense()),
+  licenseValidate: () => call((a) => a.license.validate()),
+  licenseInfo: () => call((a) => a.license.info()),
+  licensePermissions: () => call((a) => a.license.permissions()),
 };
+
+/** Progression OCR (événement main→renderer, hors VeloriaOutcome). */
+export function ocrOnProgress(
+  cb: (value: {
+    fileId: string;
+    phase: string;
+    page: number;
+    pages: number;
+    progress: number;
+  }) => void,
+): () => void {
+  return bridge().ocr.onProgress(cb);
+}

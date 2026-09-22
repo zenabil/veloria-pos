@@ -1,8 +1,11 @@
 // Veloria PoS — Domain: product rules.
 
 import { DomainError } from "../common/errors.ts";
-
-export type StockStatus = "in_stock" | "low_stock" | "out_of_stock";
+import { assertValidQuantity } from "../common/quantity.ts";
+import { assertSafeMinor } from "../money/money.ts";
+import { isRealCalendarDate } from "../common/dates.ts";
+import { normalizeUnitCodeStrict } from "../units/units.ts";
+import { validateBarcode } from "../barcode/barcode-rules.ts";
 
 export interface ProductDraft {
   name: string;
@@ -12,6 +15,8 @@ export interface ProductDraft {
   sellingPriceMinor: number;
   quantity: number;
   minStockLevel: number;
+  /** 0 = aucun plafond (optionnel, page Stock). */
+  maxStockLevel?: number;
   expirationDate: string | null;
   supplierId: number | null;
   barcodes: string[];
@@ -36,32 +41,30 @@ export function validateProductDraft(d: ProductDraft): void {
   if (d.name.trim().length > 200) {
     throw new DomainError("PRODUCT_ERROR", "Le nom du produit est trop long.");
   }
-  if (!Number.isInteger(d.purchasePriceMinor) || d.purchasePriceMinor < 0) {
-    throw new DomainError("PRODUCT_ERROR", "Prix d'achat invalide.");
+  // P3 : unité connue (jamais de code libre silencieux).
+  normalizeUnitCodeStrict(d.unitCode);
+  assertSafeMinor(d.purchasePriceMinor, { label: "Prix d'achat invalide" });
+  assertSafeMinor(d.sellingPriceMinor, { label: "Prix de vente invalide" });
+  // P3 : péremption calendaire réelle ou null (jamais de date impossible).
+  if (d.expirationDate !== null && !isRealCalendarDate(d.expirationDate)) {
+    throw new DomainError("PRODUCT_ERROR", "Date de péremption invalide.");
   }
-  if (!Number.isInteger(d.sellingPriceMinor) || d.sellingPriceMinor < 0) {
-    throw new DomainError("PRODUCT_ERROR", "Prix de vente invalide.");
-  }
-  if (!Number.isFinite(d.quantity)) {
-    throw new DomainError("PRODUCT_ERROR", "Quantité invalide.");
-  }
-  if (d.quantity < 0) {
-    throw new DomainError("PRODUCT_ERROR", "Quantité négative interdite sauf paramètre explicite.");
-  }
-  if (!Number.isFinite(d.minStockLevel) || d.minStockLevel < 0) {
-    throw new DomainError("PRODUCT_ERROR", "Seuil de stock invalide.");
+  // M-7: unified quantity limits (MAX 1M + 3 decimals, same as sales/intake).
+  assertValidQuantity(d.quantity, { allowZero: true });
+  assertValidQuantity(d.minStockLevel, { allowZero: true });
+  const maxLevel = d.maxStockLevel ?? 0;
+  assertValidQuantity(maxLevel, { allowZero: true });
+  if (maxLevel > 0 && maxLevel < d.minStockLevel) {
+    throw new DomainError("PRODUCT_ERROR", "Stock maximum incohérent (sous le seuil).");
   }
   const seen = new Set<string>();
   for (const b of d.barcodes) {
     const t = b.trim();
     if (t.length === 0) throw new DomainError("PRODUCT_ERROR", "Code-barres vide.");
+    if (t.length > 64) throw new DomainError("PRODUCT_ERROR", "Code-barres trop long (max 64).");
     if (seen.has(t)) throw new DomainError("PRODUCT_ERROR", "Code-barres dupliqué.");
+    // P3 : contrôle EAN-8/13 quand applicable (autres formats acceptés).
+    validateBarcode(t);
     seen.add(t);
   }
-}
-
-export function computeStockStatus(quantity: number, minLevel: number): StockStatus {
-  if (quantity <= 0) return "out_of_stock";
-  if (quantity <= minLevel) return "low_stock";
-  return "in_stock";
 }

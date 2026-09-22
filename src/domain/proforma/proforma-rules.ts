@@ -3,6 +3,13 @@
 // créée par le repo main dans la même transaction (proforma + vente liées).
 
 import { DomainError } from "../common/errors.ts";
+import { assertValidQuantity } from "../common/quantity.ts";
+import {
+  assertSafeMinor,
+  assertSafeTotal,
+  multiplyMinorByQuantity,
+  sumSafeMinors,
+} from "../money/money.ts";
 
 export type ProformaStatus = "draft" | "sent" | "converted" | "cancelled";
 
@@ -19,28 +26,25 @@ export function computeProformaTotals(
   deliveryMinor: number,
 ): { subtotalMinor: number; totalMinor: number } {
   if (lines.length === 0) throw new DomainError("PROFORMA_ERROR", "Devis vide.");
-  if (!Number.isInteger(discountMinor) || discountMinor < 0) {
-    throw new DomainError("PROFORMA_ERROR", "Remise invalide.");
-  }
-  if (!Number.isInteger(deliveryMinor) || deliveryMinor < 0) {
-    throw new DomainError("PROFORMA_ERROR", "Frais de livraison invalides.");
-  }
-  let subtotal = 0;
+  if (lines.length > 500)
+    throw new DomainError("PROFORMA_ERROR", "Devis trop volumineux (max 500 lignes).");
+  assertSafeMinor(discountMinor, { label: "Remise invalide" });
+  assertSafeMinor(deliveryMinor, { label: "Frais de livraison invalides" });
+  const lineTotals: number[] = [];
   for (const l of lines) {
     if (l.productName.trim().length === 0)
       throw new DomainError("PROFORMA_ERROR", "Ligne sans nom.");
-    if (!Number.isInteger(l.unitPriceMinor) || l.unitPriceMinor < 0) {
-      throw new DomainError("PROFORMA_ERROR", "Prix de ligne invalide.");
-    }
-    if (!Number.isFinite(l.quantity) || l.quantity <= 0) {
-      throw new DomainError("PROFORMA_ERROR", "Quantité de ligne invalide.");
-    }
-    subtotal += Math.round(l.unitPriceMinor * l.quantity);
+    assertSafeMinor(l.unitPriceMinor, { label: "Prix de ligne invalide" });
+    assertValidQuantity(l.quantity);
+    lineTotals.push(multiplyMinorByQuantity(l.unitPriceMinor, l.quantity));
   }
+  const subtotal = sumSafeMinors(lineTotals, "Sous-total devis invalide");
   if (discountMinor > subtotal) {
     throw new DomainError("PROFORMA_ERROR", "La remise dépasse le sous-total.");
   }
-  return { subtotalMinor: subtotal, totalMinor: subtotal - discountMinor + deliveryMinor };
+  const total = subtotal - discountMinor + deliveryMinor;
+  assertSafeTotal(total, "Total devis invalide");
+  return { subtotalMinor: subtotal, totalMinor: total };
 }
 
 const TRANSITIONS: Record<ProformaStatus, ProformaStatus[]> = {

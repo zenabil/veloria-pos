@@ -1,22 +1,50 @@
 @import "tailwindcss";
 
 @theme {
-  --color-surface-950: #0b0f14;
-  --color-surface-900: #11161d;
-  --color-surface-850: #161c25;
-  --color-surface-800: #1c2330;
-  --color-surface-700: #2a3342;
-  --color-accent-400: #34d399;
-  --color-accent-500: #10b981;
-  --color-accent-600: #059669;
-  --font-sans: "Inter", "Segoe UI", system-ui, sans-serif;
+  --color-ink-950: #0c1220;
+  --color-ink-900: #111a2e;
+  --color-ink-800: #16213a;
+  --color-ink-700: #1f2c4d;
+  --color-accent-300: #fcd34d;
+  --color-accent-400: #fbbf24;
+  --color-accent-500: #f59e0b;
+  --color-accent-600: #d97706;
+  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 
 :root {
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --focus-ring: 0 0 0 2px rgba(52, 211, 153, 0.6);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --focus-ring: 0 0 0 2px rgba(251, 191, 36, 0.65);
+
+  /* Chrome frameless (système Nova) : aplats, pas de dégradés. */
+  --titlebar-height: 44px;
+  --titlebar-bg: #0a0f1c;
+  --titlebar-border: rgba(255, 255, 255, 0.07);
+  --titlebar-app: #e2e8f0;
+  --titlebar-sub: #64748b;
+  --titlebar-page: #94a3b8;
+  --caption-fg: #94a3b8;
+  --caption-hover: rgba(255, 255, 255, 0.08);
+  --caption-pressed: rgba(255, 255, 255, 0.14);
+  --caption-close-hover: #c42b1c;
+  --caption-close-pressed: #a4261f;
+}
+
+/* Thème clair : réservé (l'application est sombre uniquement pour l'instant ;
+   ces variables rendent le chrome prêt sans toucher au JSX). */
+[data-theme="light"] {
+  --titlebar-bg: #f1f5f9;
+  --titlebar-border: rgba(15, 23, 42, 0.1);
+  --titlebar-app: #0f172a;
+  --titlebar-sub: #94a3b8;
+  --titlebar-page: #475569;
+  --caption-fg: #475569;
+  --caption-hover: rgba(15, 23, 42, 0.07);
+  --caption-pressed: rgba(15, 23, 42, 0.13);
+  --caption-close-hover: #c42b1c;
+  --caption-close-pressed: #a4261f;
 }
 
 html,
@@ -26,17 +54,27 @@ body,
 }
 
 body {
-  background: var(--color-surface-950);
-  color: #e8edf3;
+  /* Fenêtre frameless : fond transparent, le fond opaque vit sur la coquille
+     React (coins arrondis + ombre). */
+  background: transparent;
+  color: #edf1f7;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
-/* Visible keyboard focus everywhere (a11y baseline) */
+/* Chrome frameless : zone de déplacement + contrôles exclus du drag. */
+.wb-drag {
+  -webkit-app-region: drag;
+}
+.wb-no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* Focus clavier visible partout (base accessibilité) */
 *:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -46,13 +84,13 @@ body {
   }
 }
 
-/* Dense desktop scrollbars */
+/* Barres de défilement discrètes */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2a3342;
+  background: #2b3a5c;
   border-radius: 8px;
 }
 ::-webkit-scrollbar-track {

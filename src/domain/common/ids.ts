@@ -1,18 +1,6 @@
 // Veloria PoS — Domain: barcode + identifiers.
 // UUIDv7 (sortable) generated without external dependency.
 
-import { DomainError } from "./errors.ts";
-
-export function normalizeBarcode(raw: string): string {
-  const v = raw.trim();
-  if (v.length === 0) throw new DomainError("BARCODE_ERROR", "Code-barres vide.");
-  if (v.length > 64) throw new DomainError("BARCODE_ERROR", "Code-barres trop long.");
-  if (!/^[0-9A-Za-z\-_.]+$/.test(v)) {
-    throw new DomainError("BARCODE_ERROR", "Code-barres invalide.");
-  }
-  return v;
-}
-
 /** Minimal UUIDv7 generator (RFC 9562) using crypto.getRandomValues. */
 export function newUuidV7(nowMs: number = Date.now()): string {
   const bytes = new Uint8Array(16);
@@ -36,10 +24,4 @@ export function newUuidV7(nowMs: number = Date.now()): string {
 /** Idempotency / operation id: client-generated once per command retry cycle. */
 export function newOperationId(): string {
   return newUuidV7();
-}
-
-export function assertUuid(value: string): void {
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) {
-    throw new DomainError("VALIDATION_ERROR", "Identifiant invalide.");
-  }
 }

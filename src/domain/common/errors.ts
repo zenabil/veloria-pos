@@ -16,6 +16,7 @@ export type DomainErrorCode =
   | "SUPPLIER_ERROR"
   | "CLOSING_ERROR"
   | "IMPORT_ERROR"
+  | "ZAKAT_ERROR"
   | "CONFLICTING_OPERATION";
 
 export class DomainError extends Error {
@@ -26,8 +27,4 @@ export class DomainError extends Error {
     this.name = "DomainError";
     this.code = code;
   }
-}
-
-export function validationError(message: string): DomainError {
-  return new DomainError("VALIDATION_ERROR", message);
 }
