@@ -1,0 +1,51 @@
+appId: com.veloria.license-manager
+productName: Veloria License Manager
+copyright: Copyright © Veloria
+directories:
+  output: release
+  buildResources: public
+extraMetadata:
+  main: dist-license-manager/license-manager/main/main.js
+files:
+  - dist-license-manager/**/*
+  - dist-license-manager-renderer/**/*
+  - package.json
+  - node_modules/better-sqlite3/**/*
+  - node_modules/bindings/**/*
+  - "!node_modules/pdfjs-dist/**/*"
+  - "!node_modules/tesseract.js*/**/*"
+# P10: clé publique de vérification du manifeste manager (comme le POS).
+extraResources:
+  - from: resources/license
+    to: license
+asar: true
+asarUnpack:
+  - "**/*.node"
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  icon: public/icons/manager-icon.ico
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  # Machine (tous utilisateurs) comme le POS : défaut
+  # `C:\Program Files\Veloria License Manager`, modifiable, élévation UAC.
+  # (Même note de migration HKCU→HKLM que le POS : désinstaller l'ancien.)
+  perMachine: true
+  installerLanguages: fr_FR
+  installerIcon: public/icons/manager-icon.ico
+  uninstallerIcon: public/icons/manager-icon.ico
+  createDesktopShortcut: false
+  createStartMenuShortcut: true
+  menuCategory: Veloria
+  shortcutName: Veloria License Manager
+  uninstallDisplayName: Veloria License Manager
+  deleteAppDataOnUninstall: false
+  warningsAsErrors: false
+portable:
+  artifactName: Veloria-License-Manager-Portable-${version}.exe
+artifactName: Veloria-License-Manager-Setup-${version}.${ext}
+publish: []
