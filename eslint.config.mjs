@@ -29,6 +29,7 @@ export default tseslint.config(
             "scripts/licensing/sign-integrity.mjs",
             "scripts/licensing/sign-manager-integrity.mjs",
             "scripts/licensing/keygen.mjs",
+            "scripts/licensing/manager-smoke.mjs",
             "scripts/licensing/import-local-license.cjs",
             "scripts/licensing/issue-local-license.cjs",
             "scripts/quality/verify-perf.mjs",

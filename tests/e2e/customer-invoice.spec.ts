@@ -71,13 +71,17 @@ test("fiche client depuis la vente + aperçu facture 80mm/A4", async () => {
     .click();
 
   // Requête 1 : entrée directe à la fiche depuis le nom en caisse.
-  await page.getByRole("button", { name: /Fiche$/ }).click();
+  // (le nom accessible vient de l'aria-label « Ouvrir la fiche de … »,
+  // pas du texte visible « · Fiche » qu'il remplace).
+  await page.getByRole("button", { name: /Ouvrir la fiche de/ }).click();
   await expect(page.getByText("Dette actuelle")).toBeVisible();
   await page.getByRole("button", { name: /Voir les factures/ }).click();
   await expect(page.getByText(invoice, { exact: false }).first()).toBeVisible();
   // Requête 2 : aperçu facture depuis la fiche, deux formats.
+  // (nom accessible = aria-label « Apercevoir la facture … », pas le texte
+  // visible « Aperçu / Réimprimer » qu'il remplace — même piège que la fiche).
   await page
-    .getByRole("button", { name: /Aperçu \/ Réimprimer/ })
+    .getByRole("button", { name: new RegExp(`Apercevoir la facture ${invoice}`) })
     .first()
     .click();
   await expect(page.getByRole("tab", { name: "Facture A4" })).toBeVisible();
