@@ -7,6 +7,7 @@ import {
   gotoModule,
   launchActivatedApp,
   readSuccessToast,
+  settlePayment,
   uniqueTag,
   expect,
   type AppContext,
@@ -76,8 +77,7 @@ test("vente comptant : historique, stock et aperçu sans imprimante", async () =
     .click();
   await page.getByRole("button", { name: `Augmenter ${name}` }).click();
   await page.getByRole("button", { name: "Encaisser [F10]" }).click();
-  await page.getByLabel("Montant reçu", { exact: true }).fill("200");
-  await page.getByRole("button", { name: /Valider ·/ }).click();
+  await settlePayment(page, "200", false);
   const toast = await readSuccessToast(page, /Vente .* enregistrée/);
   const invoice = /FAC-\S+/.exec(toast)?.[0] ?? "";
   expect(invoice).toMatch(/FAC-/);

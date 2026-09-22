@@ -6,6 +6,7 @@ import {
   gotoModule,
   launchActivatedApp,
   readSuccessToast,
+  settlePayment,
   uniqueTag,
   expect,
   type AppContext,
@@ -66,6 +67,9 @@ test("vente à crédit : reste impayé avec client autorisé", async () => {
   // Paiement partiel : 50 sur 100 → reste à crédit.
   await page.getByLabel("Montant reçu", { exact: true }).fill("50");
   await expect(page.getByText("Reste (crédit client)")).toBeVisible();
+  await page.getByRole("button", { name: "Continuer" }).click();
+  await page.getByLabel("Échéance du crédit", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "Continuer" }).click();
   await page.getByRole("button", { name: /Valider ·/ }).click();
   const toast = await readSuccessToast(page, /Vente .* enregistrée/);
   expect(toast).toMatch(/FAC-/);
@@ -84,8 +88,7 @@ test("retour client : remboursement partiel depuis une facture", async () => {
     .click();
   await page.getByRole("button", { name: `Augmenter ${product}` }).click();
   await page.getByRole("button", { name: "Encaisser [F10]" }).click();
-  await page.getByLabel("Montant reçu", { exact: true }).fill("200");
-  await page.getByRole("button", { name: /Valider ·/ }).click();
+  await settlePayment(page, "200", false);
   const toast = await readSuccessToast(page, /Vente .* enregistrée/);
   const invoice = /FAC-\S+/.exec(toast)?.[0] ?? "";
   expect(invoice).toMatch(/FAC-/);

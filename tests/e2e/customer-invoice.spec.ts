@@ -7,6 +7,7 @@ import {
   launchActivatedApp,
   makeIsolatedDirs,
   readSuccessToast,
+  settlePayment,
   uniqueTag,
   expect,
   type AppContext,
@@ -54,13 +55,20 @@ test("fiche client depuis la vente + aperçu facture 80mm/A4", async () => {
     .first()
     .click();
   await page.getByRole("button", { name: "Encaisser [F10]" }).click();
-  await page.getByLabel("Montant reçu", { exact: true }).fill("100");
-  await page.getByRole("button", { name: /Valider ·/ }).click();
+  await settlePayment(page, "100", false);
   const toast = await readSuccessToast(page, /Vente .* enregistrée/);
   const invoice = /FAC-\S+/.exec(toast)?.[0] ?? "";
   expect(invoice).toMatch(/FAC-/);
   // Fermer l'aperçu de vente (Échap) pour retrouver la caisse.
   await page.keyboard.press("Escape");
+
+  // La vente vide le panier (comportement caisse voulu) : re-sélectionner
+  // le client pour ouvrir sa fiche depuis la caisse.
+  await page.getByLabel("Rechercher un client").fill(who.slice(0, 14));
+  await page
+    .getByRole("button", { name: new RegExp(who.slice(0, 10)) })
+    .first()
+    .click();
 
   // Requête 1 : entrée directe à la fiche depuis le nom en caisse.
   await page.getByRole("button", { name: /Fiche$/ }).click();
@@ -99,8 +107,7 @@ test("historique : aperçu facture 80mm + A4", async () => {
     .first()
     .click();
   await page.getByRole("button", { name: "Encaisser [F10]" }).click();
-  await page.getByLabel("Montant reçu", { exact: true }).fill("50");
-  await page.getByRole("button", { name: /Valider ·/ }).click();
+  await settlePayment(page, "50", false);
   const toast = await readSuccessToast(page, /Vente .* enregistrée/);
   const invoice = /FAC-\S+/.exec(toast)?.[0] ?? "";
   expect(invoice).toMatch(/FAC-/);

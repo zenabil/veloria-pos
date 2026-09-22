@@ -10,6 +10,7 @@ import {
   killStaleTestInstances,
   launchActivatedApp,
   readSuccessToast,
+  settlePayment,
   relaunchApp,
   uniqueTag,
   waitForProcessExit,
@@ -46,8 +47,7 @@ test("restart : la vente reste enregistrée après redémarrage", async () => {
     .first()
     .click();
   await page.getByRole("button", { name: "Encaisser [F10]" }).click();
-  await page.getByLabel("Montant reçu", { exact: true }).fill("100");
-  await page.getByRole("button", { name: /Valider ·/ }).click();
+  await settlePayment(page, "100", false);
   const toast = await readSuccessToast(page, /Vente .* enregistrée/);
   const invoice = /FAC-\S+/.exec(toast)?.[0] ?? "";
   expect(invoice).toMatch(/FAC-/);
