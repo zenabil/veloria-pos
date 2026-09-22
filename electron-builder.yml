@@ -8,16 +8,47 @@ files:
   - dist/**/*
   - dist-electron/**/*
   - package.json
-  # Runtime natif (Phase 14) : seul better-sqlite3 (+ son loader `bindings`)
-  # est requis dans le main (le renderer est déjà bundlé par Vite).
+  # Natif : `better-sqlite3` + `bindings` DOIVENT rester en `dependencies`
+  # (pas dev) — l'inclusion node_modules vient du graphe de dépendances PROD
+  # (`getNodeModuleFileMatcher`), les motifs ci-dessous sont une ceinture
+  # de sécurité, pas le mécanisme principal (ADR-005).
   - node_modules/better-sqlite3/**/*
   - node_modules/bindings/**/*
+  # OCR local : moteur + données linguistiques embarqués (aucun réseau).
+  - node_modules/tesseract.js/**/*
+  - node_modules/tesseract.js-core/package.json
+  - node_modules/tesseract.js-core/index.js
+  - node_modules/tesseract.js-core/LICENSE
+  - node_modules/tesseract.js-core/tesseract-core-lstm.js
+  - node_modules/tesseract.js-core/tesseract-core-lstm.wasm
+  - node_modules/tesseract.js-core/tesseract-core-simd-lstm.js
+  - node_modules/tesseract.js-core/tesseract-core-simd-lstm.wasm
+  - node_modules/tesseract.js-core/tesseract-core-relaxedsimd-lstm.js
+  - node_modules/tesseract.js-core/tesseract-core-relaxedsimd-lstm.wasm
+  - "!node_modules/pdfjs-dist/**/*"
+  - node_modules/pdfjs-dist/package.json
+  - node_modules/pdfjs-dist/legacy/build/pdf.mjs
 extraResources:
+  # Icône de fenêtre (BrowserWindow) : `public/` n'est PAS empaqueté dans
+  # l'asar, donc exposée via resourcesPath (résolue dans window-manager).
+  - from: public/icons
+    to: icons
   - from: database/migrations
     to: database/migrations
+  # Clé PUBLIQUE de vérification des licences (vérification seule, committable).
+  # Sans elle, le POS packagé refuse toute activation (fail-closed).
+  - from: resources/license
+    to: license
+  # Données linguistiques Tesseract (fra+eng) : hors asar (lecture directe).
+  - from: resources/ocr/lang
+    to: ocr/lang
 asar: true
 asarUnpack:
   - "**/*.node"
+  # worker_threads Node + Emscripten exigent de vrais fichiers (pas l'asar).
+  - "node_modules/tesseract.js/**/*"
+  - "node_modules/tesseract.js-core/**/*"
+  - "node_modules/pdfjs-dist/legacy/build/pdf.mjs"
 win:
   target:
     - target: nsis
@@ -28,13 +59,37 @@ win:
   legalTrademarks: Veloria
   verifyUpdateCodeSignature: false
 nsis:
+  # Assistant classique (pas one-click) : choix du dossier, sans offres.
   oneClick: false
   allowToChangeInstallationDirectory: true
+  # Installation MACHINE (tous utilisateurs) : dossier par défaut
+  # `C:\Program Files\Veloria PoS`, modifiable sur la page dossier
+  # (oneClick:false + allowToChangeInstallationDirectory). Exige l'élévation
+  # UAC (RequestExecutionLevel admin) — voulu : écriture sous Program Files.
+  # Données hors dossier d'install (PROGRAMDATA/APPDATA) : aucun risque de
+  # perte à la mise à jour/désinstallation (voir database-path).
+  # NOTE migration : les installs per-user précédentes (HKCU) coexistent
+  # dans le registre — désinstaller l'ancienne version d'abord (données
+  # conservées), puis installer celle-ci.
+  perMachine: true
+  # Français : langue de l'assistant (sélecteur masqué, une seule langue).
+  installerLanguages: fr_FR
+  # Marque : icônes + visuels sobres (bleu nuit / ambre, sans texte).
+  installerIcon: public/icons/icon.ico
+  uninstallerIcon: public/icons/icon.ico
+  installerHeader: public/icons/installer-header.bmp
+  installerSidebar: public/icons/installer-sidebar.bmp
+  # Raccourcis : bureau + menu Démarrer (Veloria > Veloria PoS) + désinstalleur.
   createDesktopShortcut: true
   createStartMenuShortcut: true
+  menuCategory: Veloria
   shortcutName: Veloria PoS
   uninstallDisplayName: Veloria PoS
+  # Données JAMAIS supprimées : base (%PROGRAMDATA%), sauvegardes, réglages
+  # (%APPDATA%) vivent hors du dossier d'installation (voir database-path).
   deleteAppDataOnUninstall: false
+  # Mises à jour : même appId (GUID stable) → détection + remplacement des
+  # seuls fichiers applicatifs, base/sauvegardes/réglages conservés.
   warningsAsErrors: false
 portable:
   artifactName: Veloria-PoS-Portable-${version}.exe

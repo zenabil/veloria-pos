@@ -6,9 +6,6 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "src"),
       "@domain": path.resolve(__dirname, "src/domain"),
-      "@app": path.resolve(__dirname, "src/application"),
-      "@ports": path.resolve(__dirname, "src/ports"),
-      "@infra": path.resolve(__dirname, "src/infrastructure"),
       "@shared": path.resolve(__dirname, "src/shared"),
       "@features": path.resolve(__dirname, "src/features"),
     },
@@ -25,6 +22,14 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "html"],
       include: ["src/domain/**/*.ts", "src/application/**/*.ts"],
+      // P3 : seuils bloquants — toute baisse sous ces planchers fait échouer
+      // `test:coverage` (jamais de métrique vanité toujours verte).
+      thresholds: {
+        statements: 80,
+        branches: 75,
+        functions: 88,
+        lines: 80,
+      },
     },
     testTimeout: 15000,
   },

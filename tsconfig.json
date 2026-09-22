@@ -17,18 +17,23 @@
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
     "forceConsistentCasingInFileNames": true,
+    "disableSourceOfProjectReferenceRedirect": true,
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
       "@domain/*": ["src/domain/*"],
-      "@app/*": ["src/application/*"],
-      "@ports/*": ["src/ports/*"],
-      "@infra/*": ["src/infrastructure/*"],
       "@shared/*": ["src/shared/*"],
       "@features/*": ["src/features/*"]
     },
     "types": ["vite/client", "node"]
   },
-  "include": ["src", "tests", "scripts", "vite.config.ts", "vitest.config.ts"],
-  "references": [{ "path": "./tsconfig.electron.json" }]
+  "include": [
+    "src",
+    "tests",
+    "scripts",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "playwright.config.ts"
+  ],
+  "references": [{ "path": "./tsconfig.electron.json" }, { "path": "./tsconfig.manager.json" }]
 }

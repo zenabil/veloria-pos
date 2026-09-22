@@ -60,4 +60,4 @@ pouvant créer des symlinks (ou mode développeur Windows).
   (incompatible avec le Node hôte 26, c'est attendu).
 - Exécutables : `Veloria-PoS-Setup-2.0.0.exe` (NSIS, 87,7 Mo) +
   `Veloria-PoS-Portable-2.0.0.exe` (87,4 Mo), checksums SHA-256 dans
-  `PHASE_3_REPORT.md`.
+  `../reports/PHASE_3_REPORT.md`.

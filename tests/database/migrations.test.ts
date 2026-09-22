@@ -36,14 +36,17 @@ describe("SQLite migrations + integrity", () => {
       const sql = fs.readFileSync(path.join(migDir, f), "utf-8");
       db.exec(sql);
     }
-    // CHECK constraint: overpayment must fail
+    // CHECK constraint: overpayment must fail (customer 1 is credit-authorized).
     db.prepare(
-      "INSERT INTO sales (uuid, invoice_number, subtotal_minor, total_minor, amount_paid_minor, remaining_balance_minor, payment_status, created_at, updated_at) VALUES ('u1','FAC-2026-00001',1000,1000,500,500,'partial','2026-01-01','2026-01-01')",
+      "INSERT INTO customers (uuid, first_name, last_name, search_name, credit_allowed, created_at, updated_at) VALUES ('c1','Amine','Benali','amine benali',1,'2026-01-01','2026-01-01')",
+    ).run();
+    db.prepare(
+      "INSERT INTO sales (uuid, invoice_number, customer_id, subtotal_minor, total_minor, amount_paid_minor, remaining_balance_minor, payment_status, created_at, updated_at) VALUES ('u1','FAC-2026-00001',1,1000,1000,500,500,'partial','2026-01-01','2026-01-01')",
     ).run();
     expect(() =>
       db
         .prepare(
-          "INSERT INTO sales (uuid, invoice_number, subtotal_minor, total_minor, amount_paid_minor, remaining_balance_minor, payment_status, created_at, updated_at) VALUES ('u2','FAC-2026-00002',1000,1000,1500,-500,'partial','2026-01-01','2026-01-01')",
+          "INSERT INTO sales (uuid, invoice_number, customer_id, subtotal_minor, total_minor, amount_paid_minor, remaining_balance_minor, payment_status, created_at, updated_at) VALUES ('u2','FAC-2026-00002',1,1000,1000,1500,-500,'partial','2026-01-01','2026-01-01')",
         )
         .run(),
     ).toThrow();
@@ -62,11 +65,14 @@ describe("SQLite migrations + integrity", () => {
       .sort()) {
       db.exec(fs.readFileSync(path.join(migDir, f), "utf-8"));
     }
-    // total != subtotal - discount + delivery must fail
+    // total != subtotal - discount + delivery must fail (authorized customer).
+    db.prepare(
+      "INSERT INTO customers (uuid, first_name, last_name, search_name, credit_allowed, created_at, updated_at) VALUES ('c9','Lina','Haddad','lina haddad',1,'2026-01-01','2026-01-01')",
+    ).run();
     expect(() =>
       db
         .prepare(
-          "INSERT INTO sales (uuid, invoice_number, subtotal_minor, discount_amount_minor, delivery_fee_minor, total_minor, amount_paid_minor, remaining_balance_minor, payment_status, created_at, updated_at) VALUES ('u9','FAC-2026-00009',1000,0,0,500,0,500,'unpaid','2026-01-01','2026-01-01')",
+          "INSERT INTO sales (uuid, invoice_number, customer_id, subtotal_minor, discount_amount_minor, delivery_fee_minor, total_minor, amount_paid_minor, remaining_balance_minor, payment_status, created_at, updated_at) VALUES ('u9','FAC-2026-00009',1,1000,0,0,500,0,500,'unpaid','2026-01-01','2026-01-01')",
         )
         .run(),
     ).toThrow();
@@ -84,12 +90,12 @@ describe("SQLite migrations + integrity", () => {
     expect(files.length).toBeGreaterThanOrEqual(4);
     const read = (f: string): string => fs.readFileSync(path.join(migDir, f), "utf-8");
     for (const f of files.filter((f) => !f.startsWith("0004"))) db.exec(read(f));
-    // Seed: one customer + one sale + one sale-linked payment (pre-0004 schema).
+    // Seed: one credit-authorized customer + one sale + one sale-linked payment.
     db.prepare(
-      "INSERT INTO customers (uuid, first_name, last_name, search_name, created_at, updated_at) VALUES ('c1','Amine','Benali','amine benali','2026-01-01','2026-01-01')",
+      "INSERT INTO customers (uuid, first_name, last_name, search_name, credit_allowed, created_at, updated_at) VALUES ('c1','Amine','Benali','amine benali',1,'2026-01-01','2026-01-01')",
     ).run();
     db.prepare(
-      "INSERT INTO sales (uuid, invoice_number, subtotal_minor, total_minor, amount_paid_minor, remaining_balance_minor, payment_status, created_at, updated_at) VALUES ('u1','FAC-2026-00001',1000,1000,500,500,'partial','2026-01-01','2026-01-01')",
+      "INSERT INTO sales (uuid, invoice_number, customer_id, subtotal_minor, total_minor, amount_paid_minor, remaining_balance_minor, payment_status, created_at, updated_at) VALUES ('u1','FAC-2026-00001',1,1000,1000,500,500,'partial','2026-01-01','2026-01-01')",
     ).run();
     const saleId = Number(
       (
@@ -135,6 +141,77 @@ describe("SQLite migrations + integrity", () => {
       )
       .get() as { c: number };
     expect(idx.c).toBe(2);
+    db.close();
+  });
+
+  it("0005 adds phase 6-9 indexes and seeds the inventory policy", () => {
+    const db = new DatabaseSync(path.join(tmp, "p5.sqlite"));
+    db.exec("PRAGMA foreign_keys = ON;");
+    const migDir = path.join(process.cwd(), "database", "migrations");
+    for (const f of fs
+      .readdirSync(migDir)
+      .filter((x) => x.endsWith(".sql"))
+      .sort()) {
+      db.exec(fs.readFileSync(path.join(migDir, f), "utf-8"));
+    }
+    db.exec("PRAGMA foreign_keys = ON;");
+    const idx = db
+      .prepare(
+        "SELECT COUNT(*) AS c FROM sqlite_master WHERE type = 'index' AND name IN ('idx_proformas_customer_created','idx_proformas_status','idx_bread_pickup_date','idx_closings_date','idx_customers_debt_status','idx_products_stock_status')",
+      )
+      .get() as { c: number };
+    expect(idx.c).toBe(6);
+    const inv = db.prepare("SELECT value_json FROM app_settings WHERE key = 'inventory'").get() as {
+      value_json: string;
+    };
+    expect(JSON.parse(inv.value_json) as { allowNegativeStock: boolean }).toEqual({
+      allowNegativeStock: false,
+    });
+    db.close();
+  });
+
+  it("0016 upgrades an old database: order_name backfilled, recurring defaults to 0", () => {
+    // Base ancienne (0001..0015) avec une commande existante, puis 0016 seule.
+    const db = new DatabaseSync(path.join(tmp, "p16.sqlite"));
+    db.exec("PRAGMA foreign_keys = ON;");
+    const migDir = path.join(process.cwd(), "database", "migrations");
+    const files = fs
+      .readdirSync(migDir)
+      .filter((x) => x.endsWith(".sql"))
+      .sort();
+    expect(files.filter((f) => f.startsWith("0016"))).toHaveLength(1);
+    for (const f of files.filter((f) => !f.startsWith("0016"))) {
+      db.exec(fs.readFileSync(path.join(migDir, f), "utf-8"));
+    }
+    db.exec("PRAGMA foreign_keys = ON;");
+    db.prepare(
+      "INSERT INTO bread_orders (uuid, order_number, bread_type, order_date, pickup_date, quantity, unit_price_minor, total_amount_minor, payment_status, pickup_status, created_at, updated_at) VALUES ('b16','PAIN-2026-00016','Pain maison','2026-01-01','2026-01-02',5,1500,7500,'unpaid','pending','2026-01-01','2026-01-01')",
+    ).run();
+    const m0016 = files.find((f) => f.startsWith("0016")) as string;
+    db.exec(fs.readFileSync(path.join(migDir, m0016), "utf-8"));
+    db.exec("PRAGMA foreign_keys = ON;");
+    const backfill = db
+      .prepare("SELECT order_name, is_recurring FROM bread_orders WHERE uuid = 'b16'")
+      .get() as { order_name: string; is_recurring: number };
+    expect(backfill.order_name).toBe("Pain maison");
+    expect(backfill.is_recurring).toBe(0);
+    // Lignes fraîches : défaut ponctuel, flag contraint.
+    db.prepare(
+      "INSERT INTO bread_orders (uuid, order_number, bread_type, order_name, is_recurring, order_date, pickup_date, quantity, unit_price_minor, total_amount_minor, payment_status, pickup_status, created_at, updated_at) VALUES ('b16b','PAIN-2026-00017','Pain','Quotidienne',1,'2026-01-01','2026-01-02',2,1500,3000,'unpaid','pending','2026-01-01','2026-01-01')",
+    ).run();
+    expect(() =>
+      db
+        .prepare(
+          "INSERT INTO bread_orders (uuid, order_number, bread_type, is_recurring, order_date, pickup_date, quantity, unit_price_minor, total_amount_minor, payment_status, pickup_status, created_at, updated_at) VALUES ('b16c','PAIN-2026-00018','Pain',2,'2026-01-01','2026-01-02',2,1500,3000,'unpaid','pending','2026-01-01','2026-01-01')",
+        )
+        .run(),
+    ).toThrow();
+    const idx = db
+      .prepare(
+        "SELECT COUNT(*) AS c FROM sqlite_master WHERE type = 'index' AND name = 'idx_bread_recurring'",
+      )
+      .get() as { c: number };
+    expect(idx.c).toBe(1);
     db.close();
   });
 });

@@ -20,24 +20,71 @@ $env:VITE_DEV_SERVER_URL="http://localhost:5173"; npx electron .
 ## Qualité
 
 ```powershell
-npm run typecheck
+npm run typecheck          # renderer + tests
+npm run typecheck:electron # main/preload (strict + noUncheckedIndexedAccess)
+npm run typecheck:manager  # License Manager (outil vendor)
 npm run lint
-npm run test
+npm run test               # 394 tests / 63 fichiers (unitaires + intégration/base SQLite)
 npm run test:db
+node scripts/database/integrity.js        # base réelle, lecture seule
+npm run verify:migrations
+npm run license:scan       # aucun secret/bypass dans le POS
+node scripts/quality/verify-domain.ts
+node scripts/quality/verify-perf.mjs
 ```
+
+## Tests E2E (Playwright + Electron réel)
+
+```powershell
+npm run build              # renderer requis par l'app empaquetée en test
+npm run build:electron     # main/preload requis
+npm run test:e2e           # 10 scénarios, ~3 min, 1 worker
+```
+
+- Chaque test démarre la vraie application avec une base **vierge**
+  (`PROGRAMDATA` + `userData` temporaires par test) : aucune donnée de
+  production, répétable, indépendant de l'ordre d'exécution.
+- Installeur NSIS : `npm run test:e2e:installer` (après `npm run package:win` ;
+  ignoré proprement sinon). Vérifie install silencieuse, branding
+  (nom/version/éditeur), raccourcis, réinstallation sans perte, désinstallation
+  sans toucher base/sauvegardes/réglages.
+- Couvert : ouverture, création produit, panier + quantités + totaux, vente
+  comptant, historique, stock après vente, aperçu d'impression (80mm, sans
+  imprimante), vente à crédit, retour client, réception fournisseur,
+  sauvegarde, restauration, redémarrage avec persistance.
+- Non couvert : impression physique (aucune imprimante en test), dialogues
+  natifs hors `confirm`, mise à jour/packaging, multi-fenêtres.
+- Pas de `sleep` arbitraire (attentes Playwright + seuls polls justifiés :
+  sortie processus et verrou single-instance après restart).
 
 ## Production
 
 ```powershell
-npm run package:win   # release/Veloria-PoS-Setup-*.exe + portable
+npm run package:win         # release/Veloria-PoS-Setup-*.exe + portable
 node scripts/release/smoke.js
+npm run release:checksums   # release/SHA256SUMS.txt
 ```
 
 La base vit dans `%PROGRAMDATA%\Veloria PoS\Data\Veloria POS DB.sqlite`
 (repli `userData` si non inscriptible), jamais dans `Program Files`/`app.asar`.
 Sauvegardes via `VACUUM INTO` (`.vposdb`), restauration avec snapshot de sécurité.
 
+## Licences (offline-first, par client)
+
+Chaque poste s'active par fichier `.vlic` signé (Ed25519, clé privée vendor
+jamais distribuée) : pages (17) + fonctions (14) par licence, plans
+BASIC/STANDARD/PRO/ENTERPRISE/CUSTOM comme presets modifiables, badge d'état
+dans l'en-tête. Vérification 100 % locale (main uniquement, jamais le
+renderer). Détail : `docs/licensing/` (`CAPABILITIES.md`, `ACTIVATION.md`).
+
+```powershell
+npm run build:manager      # main du Manager (+ client : build:manager-client)
+npm run dev:manager        # lancer le License Manager en dev
+npm run license:keygen     # rotation des clés vendor (machine vendor)
+npm run license:scan       # garde-fou : aucun secret dans le POS
+```
+
 ## Spécification
 
-`VELORIA_POS_FROM_SCRATCH_MARKDOWN/` est la source of truth.
-Décisions d'ingénierie : `docs/ADR-*.md`. Avancement : `PHASE_X_REPORT.md`.
+`docs/specs-archive/` est la source of truth.
+Décisions d'ingénierie : `docs/ADR-*.md`. Avancement : `docs/reports/PHASE_X_REPORT.md`.

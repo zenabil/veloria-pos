@@ -1,6 +1,7 @@
 # PHASE 1-2 — Fondation + Domaine + SQLite + Electron + UI socle (2026-09-14)
 
 ## Completed
+
 - **Configs** : `package.json` (versions épinglées), `tsconfig.json` + `tsconfig.electron.json` (strict), `vite.config.ts` (`base:"./"`, alias), `vitest.config.ts`, `electron-builder.yml` (NSIS + portable, `deleteAppDataOnUninstall:false`, asarUnpack `.node`), ESLint strict (`no-explicit-any`, retours explicites), Prettier, `.npmrc`, `.gitignore` (jamais de `.sqlite` commité).
 - **Domaine** : `money` (centimes, `formatDzd` fr-FR), `common` (ids UUIDv7, quantity, invoice-number, errors FR), `product-rules`, `sale-rules` (`computeSaleTotals` déterministe), `debt-rules`, `stock-rules`, `return-rules`, `zakat` (reporting, taux/nisab explicites).
 - **Application** : `CreateSale` (totaux domaine + `operationId` idempotent), `CreateProduct`.
@@ -13,23 +14,28 @@
 - **Tests** : vitest unitaires (money/sale/debt/stock/product) + intégration migrations ; vérifications exécutées sans dépendances : voir ci-dessous.
 
 ## Files Created
+
 ~45 fichiers (voir git status). Points d'entrée : `src/main.tsx`, `electron/main/main.ts`, `electron/preload/preload.ts`.
 
 ## Tests
+
 - `node scripts/database/verify-migrations.mjs` → **MIGRATIONS VERIFIED** (3 migrations, CHECK overpayment rejeté, UNIQUE barcode, integrity ok, FK 0).
 - `node scripts/quality/verify-domain.ts` → **DOMAIN VERIFIED** (12 assertions : centimes, totaux vente 18500, crédit, over-limit, zakat 8250, retour 30000).
 - vitest complet + `npm run typecheck/lint/build` : **en attente réseau** (ping registry 47s ; `npm install` à relancer avec `--ignore-scripts`).
 
 ## Problems
+
 - Réseau extrêmement lent (npm PONG 47s) : install complet (Electron ~100Mo) impossible dans les timeouts courts ; contourné par vérifications sans dépendances (node:sqlite + type-stripping natifs).
 - Node système v26 vs LTS 22 ciblé : `engines` assoupli (`>=20`) ; CI/build doivent utiliser Node 22 + `npm run rebuild`.
 
 ## Decisions
+
 - Pas de Dexie/Firebase/Sheets/sync/tenantId/rôles : supprimés du scope (00/01 + audit 02).
 - `sales.operation_id UNIQUE` : base de l'idempotence retry-UI.
 - Paiement client sans vente : `sale_payments.sale_id` réutilisé avec garde applicative (amélioration schéma prévue : migration 0004 nullable).
 
 ## Remaining Work
+
 1. `npm install --ignore-scripts` (réseau OK) → `typecheck` → `lint` → `vitest` → `vite build` → `electron-builder` → smoke `scripts/release/smoke.js`.
 2. Phase 6 : stock/entrées/fournisseurs UI. Phase 7 : UI retours. Phase 8 : dépenses/rapports/clôture Z/zakat UI. Phase 9 : pain/proformas UI.
 3. Migration 0004 : `sale_payments.sale_id` nullable + index ; import CSV produits/clients validé-avant-commit.

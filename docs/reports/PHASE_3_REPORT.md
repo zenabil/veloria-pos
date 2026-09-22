@@ -14,7 +14,7 @@ clôturées ci-dessous : aucun placeholder, 14/14 modules réels et branchés.
 - **Main** : `electron/ipc/handlers/inventory.repo.ts` (`receiveStockAtomic` :
   entrée + lignes + mouvements + quantités + solde fournisseur + audit = 1 tx ;
   `adjustStockAtomic`), `suppliers.repo.ts` (CRUD + `recordSupplierPaymentAtomic`
-  + relevé).
+  - relevé).
 - **UI** : `src/features/stock/StockScreen.tsx` (KPI, alertes bas/rupture,
   nouvelle entrée avec recherche produit, ajustement, fournisseurs + paiement,
   valorisation).
@@ -39,7 +39,7 @@ clôturées ci-dessous : aucun placeholder, 14/14 modules réels et branchés.
 - **Main** : `finance.repo.ts` (`listDebts`, `getPeriodReport` : ventes,
   encaissements standalone, charges, remboursements, top 10, dettes, stock ;
   `createDailyClosingAtomic` : `clôture = ouverture + espèces + encaissements −
-  dépenses − remboursements`, unicité par date ; `getZakatSources`).
+dépenses − remboursements`, unicité par date ; `getZakatSources`).
 - **Domaine** : `src/domain/closings/closing-rules.ts` (formule + date
   AAAA-MM-JJ) ; zakat existant réutilisé (reporting seul).
 - **UI** : `DebtsScreen` (filtres toutes/dues/dépassements, total, **encaissement
@@ -87,7 +87,7 @@ clôturées ci-dessous : aucun placeholder, 14/14 modules réels et branchés.
   3. `better-sqlite3` absent du paquet (lock désync, `dev:true`) →
      `dependencies` + lock régénéré + `files` + `asarUnpack`.
 - **Boot vérifié 3×** (dev + empaqueté) : `startup.begin → database.opened
-  schemaVersion 5 → database.ready → startup.ready`, stderr vide.
+schemaVersion 5 → database.ready → startup.ready`, stderr vide.
 - **Artefacts** (`release/`, non commités — `.gitignore`) :
   - `Veloria-PoS-Setup-2.0.0.exe` (NSIS, 87,7 Mo) — SHA-256
     `392FBA9280E245BDC2B74EBE42EEC1DD918B69031E5E00A63F3D926FC2FF012A`
@@ -153,7 +153,7 @@ clôturées ci-dessous : aucun placeholder, 14/14 modules réels et branchés.
   `dist-electron` au runtime est une dépendance de production.
 - Pas de signature de code (aucun certificat) : `signtool` = métadonnées
   uniquement ; à prévoir avant distribution publique.
-- Specs `VELORIA_POS_FROM_SCRATCH_MARKDOWN/` et rapports exclus du formatage
+- Specs `docs/specs-archive/` et rapports exclus du formatage
   (inchangé depuis Phase 2).
 
 ## Remaining Work (hors machine — distribution & terrain)

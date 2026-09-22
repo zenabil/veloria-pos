@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
   fromDzd,
+  parseDzdInputStrict,
   formatDzd,
   percentOfMinor,
   multiplyMinorByQuantity,
+  sumSignedMinors,
 } from "@/domain/money/money.ts";
 
 describe("Money (DZD minor units)", () => {
@@ -18,9 +20,27 @@ describe("Money (DZD minor units)", () => {
     expect(percentOfMinor(999, 10)).toBe(100); // rounded
   });
 
+  it("parses French form input strict (comma supported, never NaN)", () => {
+    expect(parseDzdInputStrict("12,5")).toBe(1250);
+    expect(parseDzdInputStrict(" 10.25 ")).toBe(1025);
+    expect(parseDzdInputStrict("0")).toBe(0);
+    // P1-5/P1-8 : invalide = erreur FR contrôlée, jamais NaN.
+    expect(() => parseDzdInputStrict("")).toThrow("vide");
+    expect(() => parseDzdInputStrict("abc")).toThrow("non numérique");
+    expect(() => parseDzdInputStrict("-5")).toThrow("négatif");
+  });
+
   it("formats French DZD", () => {
     const s = formatDzd(81000);
     expect(s).toContain("810");
     expect(s).toContain("DZD");
+  });
+
+  it("sums signed minors (discounts + surcharges bounded)", () => {
+    expect(sumSignedMinors([2000, -500, 0])).toBe(1500);
+    expect(sumSignedMinors([])).toBe(0);
+    expect(() => sumSignedMinors([100_000_000_001])).toThrow();
+    expect(() => sumSignedMinors([100_000_000_000, 1])).toThrow();
+    expect(() => sumSignedMinors([NaN])).toThrow();
   });
 });

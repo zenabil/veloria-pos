@@ -3,6 +3,7 @@ import { computeIntakeTotals, validateAdjustment } from "@/domain/inventory/inta
 import {
   applySupplierIntakeBalance,
   applySupplierPayment,
+  validateSupplierDraft,
 } from "@/domain/suppliers/supplier-rules.ts";
 import {
   computeProformaTotals,
@@ -52,6 +53,10 @@ describe("Phase 6 — entrées & ajustements", () => {
       movementType: "adjust_out",
     });
     expect(() => validateAdjustment({ currentQty: 5, newQty: 5, reason: "Inventaire" })).toThrow();
+  });
+  it("valide la fiche fournisseur", () => {
+    expect(() => validateSupplierDraft({ name: "Moulin", phone: null })).not.toThrow();
+    expect(() => validateSupplierDraft({ name: "X", phone: null })).toThrow();
   });
   it("maintient le solde fournisseur", () => {
     expect(applySupplierIntakeBalance(10000, 25000)).toBe(35000);
@@ -116,7 +121,16 @@ describe("Import CSV validé-avant-commit", () => {
   });
   it("rejette tout le fichier sur une ligne invalide", () => {
     expect(() => parseProductsCsv("nom;prix\n;50\n")).toThrow();
-    expect(() => parseProductsCsv("nom;prix\nFarine;10\nSemoule;10\n")).not.toThrow();
+    // P1-5 : ligne courte (sans achat/qté) = rejet, fini les zéros silencieux.
+    expect(() => parseProductsCsv("nom;prix\nFarine;10\nSemoule;10\n")).toThrow();
+    expect(() =>
+      parseProductsCsv("nom;vente;achat;quantite\nFarine;50;40;10\nSemoule;60;50;5\n"),
+    ).not.toThrow();
+  });
+  it("ne confond pas un produit avec l'en-tête", () => {
+    const rows = parseProductsCsv("Nominal;10;8;5\nSemoule;20;15;3\n");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.name).toBe("Nominal");
   });
   it("parse les clients", () => {
     const rows = parseCustomersCsv("prenom;nom;tel\nAmine;Benali;0550\n");

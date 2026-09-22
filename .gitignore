@@ -2,6 +2,8 @@
 node_modules/
 dist/
 dist-electron/
+dist-license-manager/
+dist-license-manager-renderer/
 release/
 out/
 *.log
@@ -20,6 +22,13 @@ desktop.ini
 .env.*
 !.env.example
 
+# Licensing — vendor private keys & customer licenses (NEVER commit)
+private/
+*.vlic
+license-manager/*.sqlite
+license-manager/*.sqlite-wal
+license-manager/*.sqlite-shm
+
 # User data (never commit a real POS database)
 *.sqlite
 *.sqlite-wal
@@ -30,6 +39,9 @@ desktop.ini
 
 # Backups
 backups/
+*.zip
+*.7z
+*.rar
 
 # IDE
 .vscode/*

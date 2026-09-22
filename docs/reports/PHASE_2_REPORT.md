@@ -12,7 +12,7 @@
   thème sombre desktop. `xl:grid-cols-14` invalide retiré (Tailwind max 12 ; 7 colonnes
   × 2 lignes = 14 modules).
 - **Format** : `prettier --write` sur `src electron tests scripts` + configs racine
-  (specs `VELORIA_POS_FROM_SCRATCH_MARKDOWN/` et rapports volontairement exclus).
+  (specs `docs/specs-archive/` et rapports volontairement exclus).
 - **Chaîne qualité complète (AGENTS.md §8), tout vert** : voir Tests ci-dessous.
 
 ## Files Created/Changed

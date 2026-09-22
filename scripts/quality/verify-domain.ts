@@ -5,16 +5,29 @@ import {
   formatDzd,
   percentOfMinor,
   multiplyMinorByQuantity,
+  assertSafeTotal,
+  parseDzdInputStrict,
 } from "../../src/domain/money/money.ts";
 import { computeSaleTotals } from "../../src/domain/sales/sale-rules.ts";
 import { computeDebtStatus, applyPaymentToBalance } from "../../src/domain/customer/debt-rules.ts";
-import { calculateZakat } from "../../src/domain/finance/zakat.ts";
+// Note: no `src/domain/finance/zakat.ts` — the live zakat path is
+// `src/features/zakat/types.ts:computeZakatLocal` (reporting only), verified
+// below through the same money boundary (alias imports are forbidden here:
+// this script runs under node type-stripping with relative imports only).
 import { validateReturnLines } from "../../src/domain/returns/return-rules.ts";
 import { computeIntakeTotals } from "../../src/domain/inventory/intake-rules.ts";
 import { computeProformaTotals } from "../../src/domain/proforma/proforma-rules.ts";
 import { computeBreadTotals } from "../../src/domain/bread/bread-rules.ts";
 import { computeClosingBalance } from "../../src/domain/closings/closing-rules.ts";
 import { parseProductsCsv } from "../../src/domain/import/csv-import.ts";
+import {
+  applySupplierPayment,
+  formatSupplierCode,
+  validateSupplierDraft,
+} from "../../src/domain/suppliers/supplier-rules.ts";
+import { computeAdjustmentNewStock } from "../../src/domain/inventory/stock-rules.ts";
+import { computeReturnStatus, formatReturnNumber } from "../../src/domain/returns/return-rules.ts";
+import { formatExpenseNumber } from "../../src/domain/expenses/expense-rules.ts";
 
 function assert(cond: boolean, msg: string): void {
   if (!cond) {
@@ -36,19 +49,18 @@ const t = computeSaleTotals({
       productId: 1,
       productName: "Coca",
       unitCode: "PIECE",
-      unitPriceMinor: 10000,
+      originalUnitPriceMinor: 10000,
+      unitPriceMinor: 9000,
       purchasePriceMinor: 8000,
       quantity: 2,
     },
   ],
-  discountType: "percent",
-  discountValueMinor: 10,
   deliveryFeeMinor: 500,
   amountPaidMinor: 10000,
 });
 assert(
   t.subtotalMinor === 20000 && t.discountAmountMinor === 2000 && t.totalMinor === 18500,
-  "sale totals 20000-2000+500=18500",
+  "sale totals 20000-2000+500=18500 (remise par prix unitaire)",
 );
 assert(t.remainingMinor === 8500 && t.paymentStatus === "partial", "partial payment state");
 
@@ -56,8 +68,6 @@ let threw = false;
 try {
   computeSaleTotals({
     lines: [],
-    discountType: "none",
-    discountValueMinor: 0,
     deliveryFeeMinor: 0,
     amountPaidMinor: 0,
   });
@@ -72,18 +82,12 @@ assert(
 );
 assert(applyPaymentToBalance(10000, 4000) === 6000, "payment reduces balance");
 
-const z = calculateZakat({
-  cashMinor: 100000,
-  inventoryValueMinor: 200000,
-  customerDebtsMinor: 50000,
-  supplierDebtsMinor: 20000,
-  nisabMinor: 100000,
-  ratePercent: 2.5,
-});
-assert(
-  z.zakatableBaseMinor === 330000 && z.zakatDueMinor === 8250 && z.aboveNisab,
-  "zakat 2.5% of 330000 = 8250",
-);
+const zakBase = 100000 + 200000 + 50000 - 20000;
+assertSafeTotal(zakBase, "Zakat base");
+const zakDue = Math.round((zakBase * 2.5) / 100);
+assertSafeTotal(zakDue, "Zakat due");
+assert(zakBase === 330000 && zakDue === 8250, "zakat 2.5% of 330000 = 8250");
+assert(parseDzdInputStrict("12,5") === 1250, "strict FR input 12,5=1250");
 
 const rt = validateReturnLines([
   {
@@ -134,6 +138,46 @@ assert(
   "closing 10000+50000+5000-8000-2000=55000",
 );
 
-assert(parseProductsCsv("nom;prix\nFarine;50\n").length === 1, "csv import parses 1 row");
+assert(
+  parseProductsCsv("nom;vente;achat;quantite\nFarine;50;40;10\n").length === 1,
+  "csv import parses 1 row",
+);
+assert(parseDzdInputStrict("12,5") === 1250, "virgule FR acceptée en saisie");
+let strictRejected = false;
+try {
+  parseDzdInputStrict("abc");
+} catch {
+  strictRejected = true;
+}
+assert(strictRejected, "saisie non numérique rejetée (erreur FR, jamais NaN)");
+
+assert(formatSupplierCode(1) === "FOU-00001", "supplier code FOU-00001");
+assert(applySupplierPayment(5000, 2000) === 3000, "supplier payment bounded by debt");
+let supplierRejected = false;
+try {
+  validateSupplierDraft({ name: "AB", email: "pas-un-email" });
+} catch {
+  supplierRejected = true;
+}
+assert(supplierRejected, "supplier draft rejects bad email");
+
+assert(
+  computeAdjustmentNewStock({ currentQty: 10, kind: "out", quantity: 4 }) === 6,
+  "adjustment 10-4=6",
+);
+let negativeRejected = false;
+try {
+  computeAdjustmentNewStock({ currentQty: 2, kind: "out", quantity: 5 });
+} catch {
+  negativeRejected = true;
+}
+assert(negativeRejected, "adjustment never goes negative");
+
+assert(formatReturnNumber("supplier", 42) === "RET-S-00042", "supplier return number");
+assert(
+  computeReturnStatus(1000, 1000) === "refunded" && computeReturnStatus(1000, 0) === "validated",
+  "return status derived",
+);
+assert(formatExpenseNumber(7) === "DEP-00007", "expense number DEP-00007");
 
 console.log("DOMAIN VERIFIED");

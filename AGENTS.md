@@ -10,3 +10,4 @@
 8. After structural changes: format → typecheck → tests → build.
 9. Native modules: document Electron target; verify packaged runtime loads better-sqlite3.
 10. Record significant decisions in `docs/ADR-*.md`; phase progress in `PHASE_X_REPORT.md`.
+11. Migrations are IMMUTABLE once applied to any database: never edit `database/migrations/*.sql` in place (checksum guard refuses to open drifted databases). Every schema change is a NEW numbered migration + `verify-migrations` green.
