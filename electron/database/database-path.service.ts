@@ -6,6 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { app } from "electron";
+import { assertSafeUserFolder, isAllowedDatabaseFile } from "../security/security";
 
 export const LOGICAL_DB_NAME = "veloria POS DB";
 export const PHYSICAL_DB_FILENAME = "Veloria POS DB.sqlite";
@@ -38,12 +39,15 @@ export function defaultDbPath(): string {
 }
 
 export function getConfiguredDbPath(): string {
+  // P6: config.json non fiable par construction (même utilisateur) : schéma
+  // strict + politique centrale sur le DOSSIER PARENT (pas de mkdir aveugle).
   try {
     const raw = fs.readFileSync(configFile(), "utf-8");
-    const cfg = JSON.parse(raw) as DbConfig;
-    if (typeof cfg.dbPath === "string" && cfg.dbPath.endsWith(".sqlite")) {
-      fs.mkdirSync(path.dirname(cfg.dbPath), { recursive: true });
-      return cfg.dbPath;
+    const cfg = JSON.parse(raw) as Partial<DbConfig>;
+    if (typeof cfg.dbPath === "string" && isAllowedDatabaseFile(cfg.dbPath)) {
+      assertSafeUserFolder(path.dirname(path.normalize(cfg.dbPath)));
+      fs.mkdirSync(path.dirname(path.normalize(cfg.dbPath)), { recursive: true });
+      return path.normalize(cfg.dbPath);
     }
   } catch {
     // fall through to default
@@ -53,16 +57,22 @@ export function getConfiguredDbPath(): string {
 
 /** Persist a new DB path ONLY after the new location has been verified by the caller. */
 export function persistDbPath(newPath: string): void {
+  // P6: validation atomique (extension + dossier sûr) AVANT mkdir/write.
+  // Seul .sqlite est persistable (contrat historique) ; .vposdb reste lisible
+  // (sauvegardes/restaurations) sans devenir chemin de travail.
   const normalized = path.normalize(newPath);
   if (!normalized.toLowerCase().endsWith(".sqlite")) {
     throw new Error("Le chemin de la base doit se terminer par .sqlite");
   }
+  assertSafeUserFolder(path.dirname(normalized));
   fs.mkdirSync(path.dirname(normalized), { recursive: true });
+  const tmp = `${configFile()}.tmp`;
   fs.writeFileSync(
-    configFile(),
+    tmp,
     JSON.stringify({ dbPath: normalized } satisfies DbConfig, null, 2),
     "utf-8",
   );
+  fs.renameSync(tmp, configFile());
 }
 
 export function getDataFolder(): string {
