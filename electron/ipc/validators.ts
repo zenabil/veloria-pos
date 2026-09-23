@@ -841,6 +841,15 @@ export const relocateSchema = z.object({
   folder: z.string().min(1).max(500),
 });
 
+// Réinitialisation d'usine (zone dangereuse) : preuve de confirmation
+// LITTÉRALE tapée par l'opérateur + operationId d'appelant (rejouabilité
+// sûre : un second appel retrouve la base déjà vide sans tout casser).
+// L'UI exige en plus une confirmation tapée identique côté renderer.
+export const databaseResetSchema = z.object({
+  confirmation: z.literal("REINITIALISER"),
+  operationId: z.string().uuid(),
+});
+
 export const companyUpdateSchema = z.object({
   company_name: z.string().min(1).max(200).nullable().optional(),
   commercial_name: z.string().max(200).nullable().optional(),
@@ -940,10 +949,20 @@ export const printPayloadSchema = z
       }
     }
     const sum = v.lines.reduce((a, l) => a + l.lineTotalMinor, 0);
-    if (v.subtotalMinor !== sum) {
+    // P04-fix: deux sémantiques de remise coexistent dans le domaine —
+    // (a) VENTES : sous-total = Σ prix d'ORIGINE, remise portée par les lignes
+    //     (prix facturés) → c'est (sous-total − remise) qui égale Σ lignes ;
+    // (b) DEVIS : sous-total = Σ lignes (prix pleins), remise GLOBALE en sus
+    //     → c'est le sous-total seul qui égale Σ lignes.
+    // L'ancienne forme (a seule) rejetait les devis remisés, et avant elle la
+    // forme (b seule) rejetait les ventes remisées (« Document d'impression
+    // invalide. » sur l'aperçu). Les deux formes cohérentes sont acceptées ;
+    // tout le reste (somme fausse, remise > sous-total, total faux) est rejeté.
+    const chargedSum = v.subtotalMinor - v.discountMinor;
+    if (sum !== v.subtotalMinor && sum !== chargedSum) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Sous-total incohérent avec les lignes.",
+        message: "Sous-total/remise incohérents avec les lignes.",
         path: ["subtotalMinor"],
       });
     }
@@ -975,6 +994,41 @@ export const printPayloadSchema = z
 export const pdfFilePathSchema = z.object({
   filePath: z.string().max(2000).nullable().optional(),
 });
+
+// Reçu de règlement de dette (ticket تسديد الدين) : aperçu + impression
+// 80mm/A4 après encaissement (client / fournisseur / pain). Cohérence
+// arithmétique exigée : nouveau solde = ancien − montant (jamais négatif).
+export const paymentTicketSchema = z
+  .object({
+    company: z.string().max(200).default("Veloria"),
+    companyPhone: z.string().max(30).default(""),
+    companyAddress: z.string().max(300).default(""),
+    companyCity: z.string().max(100).default(""),
+    companyEmail: z.string().max(100).default(""),
+    companyRc: z.string().max(50).default(""),
+    companyNif: z.string().max(50).default(""),
+    companyLogo: z.string().max(600_000).default(""),
+    partyLabel: z.string().min(1).max(200),
+    kind: z.enum(["customer", "supplier", "bread"]),
+    reference: z.string().max(50).default(""),
+    date: z.string().max(50).default(""),
+    amountMinor: z.number().int().min(1).max(1_000_000_000),
+    paymentMethod: z.enum(["cash", "cheque", "transfer"]).nullable().optional(),
+    prevBalanceMinor: moneyMinor,
+    newBalanceMinor: moneyMinor,
+    notes: z.string().max(500).default(""),
+    footerText: z.string().max(500).default(""),
+    thankYouMessage: z.string().max(500).default(""),
+  })
+  .superRefine((v, ctx) => {
+    if (v.newBalanceMinor !== v.prevBalanceMinor - v.amountMinor) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Soldes incohérents (nouveau = ancien − montant).",
+        path: ["newBalanceMinor"],
+      });
+    }
+  });
 
 export const categoryCreateSchema = z.object({
   name: z.string().min(2).max(100),

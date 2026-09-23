@@ -21,6 +21,7 @@ import {
   Select,
   TextInput,
 } from "@shared/ui/primitives.tsx";
+import { PaymentTicketModal, type PaymentTicketInput } from "@shared/documents/payment-preview.tsx";
 import type { BreadDetailData } from "./BreadScreen.tsx";
 import {
   NEXT_STATUSES,
@@ -708,6 +709,8 @@ export function BreadPayDialog({
   );
   const [method, setMethod] = useDefaultMethod();
   const [busy, setBusy] = useState(false);
+  // Reçu de règlement (ticket تسديد الدين) proposé après succès.
+  const [ticket, setTicket] = useState<PaymentTicketInput | null>(null);
   // P1-5 : strict (bornes H-1, jamais NaN) ; invalide → -1 = refusé par `valid`.
   const amount = strictOrNeg(amountText, "Montant");
   const valid = Number.isInteger(amount) && amount > 0 && amount <= o.remaining_amount_minor;
@@ -723,7 +726,18 @@ export function BreadPayDialog({
       notify(`Encaissé ${formatDzd(amount)}.`, "ok");
       // P5 : encaissement = caisse.
       playSound("cash");
-      onSaved();
+      // Ticket de règlement proposé (aperçu + impression 80mm/A4).
+      setTicket({
+        kind: "bread",
+        partyLabel: orderCustomerName(o),
+        reference: o.order_number,
+        date: todayUtcDate(),
+        amountMinor: amount,
+        method,
+        prevBalanceMinor: o.remaining_amount_minor,
+        newBalanceMinor: o.remaining_amount_minor - amount,
+        notes: "",
+      });
     } catch (e) {
       notify(frError(e, "Encaissement impossible."), "err");
     } finally {
@@ -732,59 +746,71 @@ export function BreadPayDialog({
   }
 
   return (
-    <Modal label="Encaissement pain" title={`Encaisser — ${o.order_number}`} onClose={onClose}>
-      <form
-        className="space-y-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void save();
-        }}
-      >
-        <dl className="space-y-1.5 rounded-xl bg-black/25 p-4 text-sm">
-          <div className="flex items-baseline justify-between border-t border-white/10 pt-2">
-            <dt className="font-extrabold">Reste dû</dt>
-            <dd className="text-xl font-extrabold tabular-nums text-amber-300">
-              {formatDzd(o.remaining_amount_minor)}
-            </dd>
+    <>
+      <Modal label="Encaissement pain" title={`Encaisser — ${o.order_number}`} onClose={onClose}>
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void save();
+          }}
+        >
+          <dl className="space-y-1.5 rounded-xl bg-black/25 p-4 text-sm">
+            <div className="flex items-baseline justify-between border-t border-white/10 pt-2">
+              <dt className="font-extrabold">Reste dû</dt>
+              <dd className="text-xl font-extrabold tabular-nums text-amber-300">
+                {formatDzd(o.remaining_amount_minor)}
+              </dd>
+            </div>
+            <div className="flex justify-between font-bold text-emerald-300">
+              <dt>Nouveau reste</dt>
+              <dd className="tabular-nums">
+                {formatDzd(valid ? o.remaining_amount_minor - amount : o.remaining_amount_minor)}
+              </dd>
+            </div>
+          </dl>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Montant (DZD)">
+              <TextInput
+                value={amountText}
+                onChange={(e) => setAmountText(e.target.value)}
+                inputMode="decimal"
+                placeholder="0,00"
+                aria-label="Montant"
+              />
+            </Field>
+            <Field label="Moyen">
+              <Select
+                value={method}
+                onChange={(e) => setMethod(e.target.value as Method)}
+                aria-label="Moyen de paiement"
+              >
+                <option value="cash">Espèces</option>
+                <option value="cheque">Chèque</option>
+                <option value="transfer">Virement</option>
+              </Select>
+            </Field>
           </div>
-          <div className="flex justify-between font-bold text-emerald-300">
-            <dt>Nouveau reste</dt>
-            <dd className="tabular-nums">
-              {formatDzd(valid ? o.remaining_amount_minor - amount : o.remaining_amount_minor)}
-            </dd>
+          <div className="flex gap-2">
+            <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
+              Annuler
+            </Button>
+            <Button type="submit" disabled={busy || !valid} className="flex-[2]">
+              {busy ? "Enregistrement…" : "Encaisser"}
+            </Button>
           </div>
-        </dl>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Montant (DZD)">
-            <TextInput
-              value={amountText}
-              onChange={(e) => setAmountText(e.target.value)}
-              inputMode="decimal"
-              placeholder="0,00"
-              aria-label="Montant"
-            />
-          </Field>
-          <Field label="Moyen">
-            <Select
-              value={method}
-              onChange={(e) => setMethod(e.target.value as Method)}
-              aria-label="Moyen de paiement"
-            >
-              <option value="cash">Espèces</option>
-              <option value="cheque">Chèque</option>
-              <option value="transfer">Virement</option>
-            </Select>
-          </Field>
-        </div>
-        <div className="flex gap-2">
-          <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
-            Annuler
-          </Button>
-          <Button type="submit" disabled={busy || !valid} className="flex-[2]">
-            {busy ? "Enregistrement…" : "Encaisser"}
-          </Button>
-        </div>
-      </form>
-    </Modal>
+        </form>
+      </Modal>
+      {ticket ? (
+        <PaymentTicketModal
+          ticket={ticket}
+          onClose={() => {
+            setTicket(null);
+            onSaved();
+          }}
+          notify={notify}
+        />
+      ) : null}
+    </>
   );
 }

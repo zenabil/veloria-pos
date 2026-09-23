@@ -16,6 +16,7 @@ export const IPC_CHANNELS = {
   "database.relocate": "database.relocate",
   "database.integrity": "database.integrity",
   "database.optimize": "database.optimize",
+  "database.reset": "database.reset",
   // products
   "products.search": "products.search",
   "products.getByBarcode": "products.getByBarcode",
@@ -152,6 +153,8 @@ export const IPC_CHANNELS = {
   "printing.printReport": "printing.printReport",
   "printing.previewLabels": "printing.previewLabels",
   "printing.printLabels": "printing.printLabels",
+  "printing.previewPayment": "printing.previewPayment",
+  "printing.printPayment": "printing.printPayment",
   "printing.exportReceiptPdf": "printing.exportReceiptPdf",
   "printing.exportA4Pdf": "printing.exportA4Pdf",
   "printing.testPage": "printing.testPage",

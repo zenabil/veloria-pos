@@ -18,6 +18,7 @@ import {
 } from "../licensing/license-service";
 import {
   labelsPayloadSchema,
+  paymentTicketSchema,
   pdfFilePathSchema,
   printerSaveSchema,
   printPayloadSchema,
@@ -26,12 +27,15 @@ import {
 import {
   buildA4Html,
   buildLabelsHtml,
+  buildPaymentText,
+  buildPaymentTicketA4Html,
   buildProformaA4Html,
   buildProformaText,
   buildReceiptText,
   buildReportHtml,
   escapePreText,
   proformaFromReceipt,
+  toPaymentTicketData,
   toReceiptData,
   toReportData,
   type LabelItem,
@@ -398,6 +402,62 @@ function enrichReceipt(raw: unknown): ReceiptData {
   );
 }
 
+/** Reçu de règlement : même pipeline logo+identité+réglages que les factures. */
+function withLogoPayment<T extends { companyLogo: string }>(d: T): T {
+  try {
+    const row = getDb().prepare(`SELECT logo_path FROM company_profile WHERE id = 1`).get() as
+      | { logo_path: string | null }
+      | undefined;
+    const dataUrl = readLogoDataUrlFromFile(row?.logo_path);
+    return dataUrl ? { ...d, companyLogo: dataUrl } : d;
+  } catch (err) {
+    log("WARN", "printing", "logo.unreadable", { error: String(err) });
+    return d;
+  }
+}
+
+function withCompanyIdentityPayment<T extends { companyRc: string; companyNif: string }>(d: T): T {
+  if (d.companyRc && d.companyNif) return d;
+  try {
+    const row = getDb().prepare(`SELECT rc_number, nif FROM company_profile WHERE id = 1`).get() as
+      | { rc_number: string | null; nif: string | null }
+      | undefined;
+    return {
+      ...d,
+      companyRc: d.companyRc || row?.rc_number || "",
+      companyNif: d.companyNif || row?.nif || "",
+    };
+  } catch {
+    return d;
+  }
+}
+
+function applyPaymentSettings<
+  T extends { footerText: string; thankYouMessage: string; companyLogo: string },
+>(d: T): T {
+  try {
+    const row = getDb()
+      .prepare(`SELECT value_json FROM app_settings WHERE key = 'invoice'`)
+      .get() as { value_json: string } | undefined;
+    if (!row) return d;
+    const cfg = JSON.parse(row.value_json) as {
+      footerText?: string;
+      thankYouMessage?: string;
+      showLogo?: boolean;
+    };
+    return {
+      ...d,
+      companyLogo: cfg.showLogo === false ? "" : d.companyLogo,
+      footerText: typeof cfg.footerText === "string" ? cfg.footerText : d.footerText,
+      thankYouMessage:
+        typeof cfg.thankYouMessage === "string" ? cfg.thankYouMessage : d.thankYouMessage,
+    };
+  } catch (err) {
+    log("WARN", "printing", "invoiceSettings.unreadable", { error: String(err) });
+    return d;
+  }
+}
+
 function proformaWithSettings(raw: unknown): ProformaData {
   const receipt = enrichReceipt(raw);
   return proformaFromReceipt(receipt);
@@ -716,6 +776,66 @@ export function registerPrintingIpc(getMainWindow: () => BrowserWindow | null): 
     } catch (err) {
       log("ERROR", "printing", "test.failed", { error: String(err) });
       return unavailable("Échec d'impression. Vérifiez l'imprimante.");
+    }
+  });
+
+  // Reçu de règlement de dette (ticket تسديد الدين) : aperçu + impression
+  // 80mm/A4 après encaissement client/fournisseur/pain. Garde : ticket 80mm
+  // + au moins une page dettes (clients/fournisseurs/pain) — le renderer ne
+  // peut pas imprimer un règlement d'un module non licencié.
+  function paymentOf(raw: unknown): {
+    text80: string;
+    htmlA4: string;
+  } {
+    // Validation Zod d'abord (montants/soldes), normalisation ensuite
+    // (null → "" pour les libellés masquables).
+    const parsed = paymentTicketSchema.parse(raw);
+    const d = withCompanyIdentityPayment(
+      applyPaymentSettings(withLogoPayment(toPaymentTicketData(parsed))),
+    );
+    return { text80: buildPaymentText(d), htmlA4: buildPaymentTicketA4Html(d) };
+  }
+
+  ipcMain.handle(IPC_CHANNELS["printing.previewPayment"], (_e, raw: unknown) => {
+    const denied = guardPrint("receipt-80mm", [
+      "customers",
+      "suppliers",
+      "debts",
+      "breadOrders",
+      "pain",
+    ]);
+    if (denied) return denied;
+    try {
+      return { ok: true, data: paymentOf(raw) };
+    } catch (err) {
+      log("ERROR", "printing", "previewPayment.failed", { error: String(err) });
+      if (isValidationError(err)) return validationError();
+      return { ok: false, code: "PREVIEW_FAILED", message: "Aperçu du reçu impossible." };
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS["printing.printPayment"], async (_e, raw: unknown) => {
+    const denied = guardPrint("receipt-80mm", [
+      "customers",
+      "suppliers",
+      "debts",
+      "breadOrders",
+      "pain",
+    ]);
+    if (denied) return denied;
+    if (!getMainWindow()) return unavailable("Fenêtre d'impression indisponible.");
+    try {
+      await assertConfiguredPrinterAvailable(getMainWindow);
+      const { text80, htmlA4 } = paymentOf(raw);
+      // 80mm par défaut (reçu thermique) ; A4 via export générique si besoin.
+      const useA4 = (raw as { format?: unknown } | null)?.format === "A4";
+      if (useA4) await printHtml(htmlA4, 400);
+      else await printHtml(thermalHtml(text80), 300);
+      return { ok: true, data: { printed: true } };
+    } catch (err) {
+      log("ERROR", "printing", "printPayment.failed", { error: String(err) });
+      if (isValidationError(err)) return validationError();
+      return unavailable("Échec d'impression du reçu. Vérifiez l'imprimante.");
     }
   });
 }

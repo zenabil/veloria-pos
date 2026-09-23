@@ -20,6 +20,7 @@ const api = {
     integrity: () => invoke(IPC_CHANNELS["database.integrity"]),
     optimize: () => invoke(IPC_CHANNELS["database.optimize"]),
     relocate: (p: unknown) => invoke(IPC_CHANNELS["database.relocate"], p),
+    reset: (p: unknown) => invoke(IPC_CHANNELS["database.reset"], p),
   },
   system: {
     openDataFolder: () => invoke(IPC_CHANNELS["system.openDataFolder"]),
@@ -187,6 +188,8 @@ const api = {
     printReceipt: (p: unknown) => invoke(IPC_CHANNELS["printing.printReceipt"], p),
     printA4: (p: unknown) => invoke(IPC_CHANNELS["printing.printA4"], p),
     preview: (p: unknown) => invoke(IPC_CHANNELS["printing.preview"], p),
+    previewPayment: (p: unknown) => invoke(IPC_CHANNELS["printing.previewPayment"], p),
+    printPayment: (p: unknown) => invoke(IPC_CHANNELS["printing.printPayment"], p),
     previewProforma: (p: unknown) => invoke(IPC_CHANNELS["printing.previewProforma"], p),
     printProformaA4: (p: unknown) => invoke(IPC_CHANNELS["printing.printProformaA4"], p),
     previewReport: (p: unknown) => invoke(IPC_CHANNELS["printing.previewReport"], p),

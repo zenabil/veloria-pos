@@ -4,13 +4,19 @@ import { useEffect, useState } from "react";
 import { Pencil, ReceiptText, RotateCcw, Trash2, Wallet } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { InvoicePreviewModal } from "@shared/documents/invoice-preview.tsx";
+import { PaymentTicketModal, type PaymentTicketInput } from "@shared/documents/payment-preview.tsx";
 import { callChecked, paymentAckSchema } from "@shared/types/ipc-contracts.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { formatDzd, parseDzdInputStrict } from "@domain/money/money.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import { playSound } from "@shared/sound/sound.ts";
 import { newOperationId } from "@domain/common/ids.ts";
-import { PAYMENT_METHOD_LABELS, formatDateTimeFr } from "@shared/formatters/format.ts";
+import {
+  PAYMENT_METHOD_LABELS,
+  formatCustomerCode,
+  formatDateTimeFr,
+} from "@shared/formatters/format.ts";
+import { todayUtcDate } from "@shared/dates/dates.ts";
 import {
   Badge,
   Button,
@@ -542,6 +548,8 @@ export function PaymentDialog({
   // Idempotence (migration 0020) : rejouer le même UUID retrouve le paiement
   // au lieu de le dupliquer (retry IPC, double-clic avant le verrou `busy`).
   const [operationId, setOperationId] = useState<string>(() => newOperationId());
+  // Reçu de règlement (ticket تسديد الدين) proposé après succès.
+  const [ticket, setTicket] = useState<PaymentTicketInput | null>(null);
 
   // P1-5 : strict (bornes H-1, jamais NaN) ; invalide → règlement refusé.
   let parsed = 0;
@@ -568,7 +576,7 @@ export function PaymentDialog({
     }
     setBusy(true);
     try {
-      await callChecked(
+      const ack = await callChecked(
         (a) =>
           a.customers.recordPayment({
             operationId,
@@ -583,7 +591,18 @@ export function PaymentDialog({
       notify(`Paiement de ${formatDzd(parsed)} enregistré.`, "ok");
       // P5 : encaissement = caisse.
       playSound("cash");
-      onSaved();
+      // Ticket de règlement proposé (aperçu + impression 80mm/A4).
+      setTicket({
+        kind: "customer",
+        partyLabel: `${fullName(customer)} — ${formatCustomerCode(customer.id)}`,
+        reference: ack.paymentId > 0 ? `PAY-${String(ack.paymentId).padStart(5, "0")}` : "",
+        date: todayUtcDate(),
+        amountMinor: parsed,
+        method,
+        prevBalanceMinor: customer.outstanding_balance_minor,
+        newBalanceMinor: customer.outstanding_balance_minor - parsed,
+        notes: "",
+      });
     } catch (e) {
       notify(frError(e, "Règlement impossible."), "err");
     } finally {
@@ -592,63 +611,75 @@ export function PaymentDialog({
   }
 
   return (
-    <Modal label="Règlement client" title={`Règlement — ${fullName(customer)}`} onClose={onClose}>
-      <form
-        className="space-y-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void save();
-        }}
-      >
-        <dl className="space-y-1.5 rounded-xl bg-black/25 p-4 text-sm">
-          <div className="flex justify-between text-slate-300">
-            <dt>Client</dt>
-            <dd className="font-semibold">{fullName(customer)}</dd>
+    <>
+      <Modal label="Règlement client" title={`Règlement — ${fullName(customer)}`} onClose={onClose}>
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void save();
+          }}
+        >
+          <dl className="space-y-1.5 rounded-xl bg-black/25 p-4 text-sm">
+            <div className="flex justify-between text-slate-300">
+              <dt>Client</dt>
+              <dd className="font-semibold">{fullName(customer)}</dd>
+            </div>
+            <div className="flex items-baseline justify-between border-t border-white/10 pt-2">
+              <dt className="font-extrabold">Dette actuelle</dt>
+              <dd className="text-xl font-extrabold tabular-nums text-red-300">
+                {formatDzd(customer.outstanding_balance_minor)}
+              </dd>
+            </div>
+            <div className="flex items-baseline justify-between">
+              <dt className="font-extrabold">Nouveau solde</dt>
+              <dd className="text-lg font-extrabold tabular-nums text-emerald-300">
+                {newBalance != null ? formatDzd(newBalance) : "—"}
+              </dd>
+            </div>
+          </dl>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Montant (DZD)">
+              <TextInput
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                inputMode="decimal"
+                placeholder="0,00"
+                aria-label="Montant du règlement"
+              />
+            </Field>
+            <Field label="Moyen de paiement">
+              <Select
+                value={method}
+                onChange={(e) => setMethod(e.target.value as "cash" | "cheque" | "transfer")}
+                aria-label="Moyen de paiement"
+              >
+                <option value="cash">{PAYMENT_METHOD_LABELS["cash"]}</option>
+                <option value="cheque">{PAYMENT_METHOD_LABELS["cheque"]}</option>
+                <option value="transfer">{PAYMENT_METHOD_LABELS["transfer"]}</option>
+              </Select>
+            </Field>
           </div>
-          <div className="flex items-baseline justify-between border-t border-white/10 pt-2">
-            <dt className="font-extrabold">Dette actuelle</dt>
-            <dd className="text-xl font-extrabold tabular-nums text-red-300">
-              {formatDzd(customer.outstanding_balance_minor)}
-            </dd>
+          <div className="flex gap-2">
+            <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
+              Annuler
+            </Button>
+            <Button type="submit" disabled={busy} className="flex-[2]">
+              {busy ? "Enregistrement…" : "Enregistrer le paiement"}
+            </Button>
           </div>
-          <div className="flex items-baseline justify-between">
-            <dt className="font-extrabold">Nouveau solde</dt>
-            <dd className="text-lg font-extrabold tabular-nums text-emerald-300">
-              {newBalance != null ? formatDzd(newBalance) : "—"}
-            </dd>
-          </div>
-        </dl>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Montant (DZD)">
-            <TextInput
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              inputMode="decimal"
-              placeholder="0,00"
-              aria-label="Montant du règlement"
-            />
-          </Field>
-          <Field label="Moyen de paiement">
-            <Select
-              value={method}
-              onChange={(e) => setMethod(e.target.value as "cash" | "cheque" | "transfer")}
-              aria-label="Moyen de paiement"
-            >
-              <option value="cash">{PAYMENT_METHOD_LABELS["cash"]}</option>
-              <option value="cheque">{PAYMENT_METHOD_LABELS["cheque"]}</option>
-              <option value="transfer">{PAYMENT_METHOD_LABELS["transfer"]}</option>
-            </Select>
-          </Field>
-        </div>
-        <div className="flex gap-2">
-          <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
-            Annuler
-          </Button>
-          <Button type="submit" disabled={busy} className="flex-[2]">
-            {busy ? "Enregistrement…" : "Enregistrer le paiement"}
-          </Button>
-        </div>
-      </form>
-    </Modal>
+        </form>
+      </Modal>
+      {ticket ? (
+        <PaymentTicketModal
+          ticket={ticket}
+          onClose={() => {
+            setTicket(null);
+            onSaved();
+          }}
+          notify={notify}
+        />
+      ) : null}
+    </>
   );
 }

@@ -8,6 +8,7 @@ import { useCompany } from "@shared/company/use-company.ts";
 import { useAppSettings } from "@shared/settings/use-app-settings.ts";
 import { formatDzd } from "@domain/money/money.ts";
 import { formatDzdSafe } from "@shared/formatters/format.ts";
+import { PaymentTicketModal, type PaymentTicketInput } from "@shared/documents/payment-preview.tsx";
 import { strictOrNeg } from "@shared/money/parse.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { buildSaleTicketPayload } from "@shared/documents/sale-ticket.ts";
@@ -327,6 +328,8 @@ export function DebtPaymentDialog({
   const [busy, setBusy] = useState(false);
   // Idempotence (migration 0020) : un UUID par dialogue, régénéré après succès.
   const [operationId, setOperationId] = useState<string>(() => newOperationId());
+  // Reçu de règlement (ticket تسديد الدين) proposé après succès.
+  const [ticket, setTicket] = useState<PaymentTicketInput | null>(null);
   const touched = useRef(false);
   const { value: supplierDefaults } = useAppSettings<{
     defaultPaymentMethod: "cash" | "cheque" | "transfer";
@@ -350,11 +353,12 @@ export function DebtPaymentDialog({
     setBusy(true);
     try {
       // P2 : accusés validés (jamais de cast).
+      let paymentId = 0;
       if (row.debt_type === "customer") {
         const det = (await api.debtDetail({ debtType: "customer", id: row.entity_id })) as {
           header: { customer_id: number | null };
         };
-        await callChecked(
+        const ack = await callChecked(
           (a) =>
             a.customers.recordPayment({
               operationId,
@@ -368,8 +372,9 @@ export function DebtPaymentDialog({
             }),
           paymentAckSchema,
         );
+        paymentId = ack.paymentId;
       } else {
-        await callChecked(
+        const ack = await callChecked(
           (a) =>
             a.suppliers.pay({
               operationId,
@@ -382,12 +387,24 @@ export function DebtPaymentDialog({
             }),
           paymentAckSchema,
         );
+        paymentId = ack.paymentId;
       }
       setOperationId(newOperationId());
       notify(`Paiement ${formatDzd(amount)} enregistré.`, "ok");
       // P5 : encaissement = caisse.
       playSound("cash");
-      onSaved();
+      // Ticket de règlement proposé (aperçu + impression 80mm/A4).
+      setTicket({
+        kind: row.debt_type === "supplier" ? "supplier" : "customer",
+        partyLabel: row.party_name,
+        reference: paymentId > 0 ? `PAY-${String(paymentId).padStart(5, "0")}` : row.ref,
+        date,
+        amountMinor: amount,
+        method,
+        prevBalanceMinor: row.remaining_minor,
+        newBalanceMinor: row.remaining_minor - amount,
+        notes: notes.trim(),
+      });
     } catch (e) {
       notify(frError(e, "Paiement impossible."), "err");
     } finally {
@@ -396,100 +413,112 @@ export function DebtPaymentDialog({
   }
 
   return (
-    <Modal
-      label={row.debt_type === "customer" ? "Encaissement" : "Paiement fournisseur"}
-      title={`${row.debt_type === "customer" ? "Encaisser" : "Payer"} — ${row.party_name}`}
-      onClose={onClose}
-    >
-      <form
-        className="space-y-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void save();
-        }}
+    <>
+      <Modal
+        label={row.debt_type === "customer" ? "Encaissement" : "Paiement fournisseur"}
+        title={`${row.debt_type === "customer" ? "Encaisser" : "Payer"} — ${row.party_name}`}
+        onClose={onClose}
       >
-        <dl className="space-y-1.5 rounded-xl bg-black/25 p-4 text-sm">
-          <div className="flex justify-between text-slate-300">
-            <dt>Référence</dt>
-            <dd className="font-mono font-bold">{row.ref}</dd>
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void save();
+          }}
+        >
+          <dl className="space-y-1.5 rounded-xl bg-black/25 p-4 text-sm">
+            <div className="flex justify-between text-slate-300">
+              <dt>Référence</dt>
+              <dd className="font-mono font-bold">{row.ref}</dd>
+            </div>
+            <div className="flex items-baseline justify-between border-t border-white/10 pt-2">
+              <dt className="font-extrabold">Reste dû</dt>
+              <dd className="text-xl font-extrabold tabular-nums text-red-300">
+                {formatDzd(row.remaining_minor)}
+              </dd>
+            </div>
+            <div className="flex justify-between font-bold text-emerald-300">
+              <dt>Nouveau solde</dt>
+              <dd className="tabular-nums">
+                {formatDzd(valid ? row.remaining_minor - amount : row.remaining_minor)}
+              </dd>
+            </div>
+          </dl>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Montant (DZD)">
+              <TextInput
+                value={amountText}
+                onChange={(e) => setAmountText(e.target.value)}
+                inputMode="decimal"
+                placeholder="0,00"
+                aria-label="Montant du paiement"
+              />
+            </Field>
+            <Field label="Moyen de paiement">
+              <Select
+                value={method}
+                onChange={(e) => {
+                  touched.current = true;
+                  setMethod(e.target.value as "cash" | "cheque" | "transfer");
+                }}
+                aria-label="Moyen de paiement"
+              >
+                <option value="cash">{PAYMENT_METHOD_LABELS["cash"]}</option>
+                <option value="cheque">{PAYMENT_METHOD_LABELS["cheque"]}</option>
+                <option value="transfer">{PAYMENT_METHOD_LABELS["transfer"]}</option>
+              </Select>
+            </Field>
           </div>
-          <div className="flex items-baseline justify-between border-t border-white/10 pt-2">
-            <dt className="font-extrabold">Reste dû</dt>
-            <dd className="text-xl font-extrabold tabular-nums text-red-300">
-              {formatDzd(row.remaining_minor)}
-            </dd>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Date de paiement">
+              <TextInput
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                aria-label="Date de paiement"
+              />
+            </Field>
+            <Field label="Référence" hint="Optionnel.">
+              <TextInput
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+                placeholder="Ex. : CHQ-123"
+                aria-label="Référence"
+              />
+            </Field>
           </div>
-          <div className="flex justify-between font-bold text-emerald-300">
-            <dt>Nouveau solde</dt>
-            <dd className="tabular-nums">
-              {formatDzd(valid ? row.remaining_minor - amount : row.remaining_minor)}
-            </dd>
-          </div>
-        </dl>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Montant (DZD)">
+          <Field label="Notes" hint="Optionnel.">
             <TextInput
-              value={amountText}
-              onChange={(e) => setAmountText(e.target.value)}
-              inputMode="decimal"
-              placeholder="0,00"
-              aria-label="Montant du paiement"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Ex. : acompte…"
+              aria-label="Notes du paiement"
             />
           </Field>
-          <Field label="Moyen de paiement">
-            <Select
-              value={method}
-              onChange={(e) => {
-                touched.current = true;
-                setMethod(e.target.value as "cash" | "cheque" | "transfer");
-              }}
-              aria-label="Moyen de paiement"
-            >
-              <option value="cash">{PAYMENT_METHOD_LABELS["cash"]}</option>
-              <option value="cheque">{PAYMENT_METHOD_LABELS["cheque"]}</option>
-              <option value="transfer">{PAYMENT_METHOD_LABELS["transfer"]}</option>
-            </Select>
-          </Field>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Date de paiement">
-            <TextInput
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              aria-label="Date de paiement"
-            />
-          </Field>
-          <Field label="Référence" hint="Optionnel.">
-            <TextInput
-              value={reference}
-              onChange={(e) => setReference(e.target.value)}
-              placeholder="Ex. : CHQ-123"
-              aria-label="Référence"
-            />
-          </Field>
-        </div>
-        <Field label="Notes" hint="Optionnel.">
-          <TextInput
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Ex. : acompte…"
-            aria-label="Notes du paiement"
-          />
-        </Field>
-        <div className="flex gap-2">
-          <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
-            Annuler
-          </Button>
-          <Button type="submit" disabled={busy || !valid} className="flex-[2]">
-            {busy ? "Enregistrement…" : `Enregistrer ${formatDzd(valid ? amount : 0)}`}
-          </Button>
-        </div>
-        <p className="text-xs text-slate-500">
-          Paiement borné par le reste dû (aucun dépassement accepté).
-        </p>
-      </form>
-    </Modal>
+          <div className="flex gap-2">
+            <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
+              Annuler
+            </Button>
+            <Button type="submit" disabled={busy || !valid} className="flex-[2]">
+              {busy ? "Enregistrement…" : `Enregistrer ${formatDzd(valid ? amount : 0)}`}
+            </Button>
+          </div>
+          <p className="text-xs text-slate-500">
+            Paiement borné par le reste dû (aucun dépassement accepté).
+          </p>
+        </form>
+      </Modal>
+      {ticket ? (
+        <PaymentTicketModal
+          ticket={ticket}
+          onClose={() => {
+            setTicket(null);
+            onSaved();
+          }}
+          notify={notify}
+        />
+      ) : null}
+    </>
   );
 }
 

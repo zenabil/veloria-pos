@@ -426,3 +426,77 @@ describe("Expense draft", () => {
     ).not.toThrow();
   });
 });
+
+describe("printPayloadSchema P04 (coherence ticket)", () => {
+  const base = {
+    company: "Veloria",
+    invoice: "FAC-2026-00001",
+    date: "22/09/2026",
+    paymentMethod: "cash" as const,
+    lines: [
+      {
+        name: "Coca",
+        qty: 2,
+        unit: "PIECE",
+        unitPriceMinor: 9000,
+        lineTotalMinor: 18000,
+        ref: "00001",
+      },
+    ],
+    // Vente REMISEE (domaine) : sous-total = somme origine (20000),
+    // remise = 2000, lignes au prix FACTURE (somme = 18000).
+    subtotalMinor: 20000,
+    discountMinor: 2000,
+    deliveryMinor: 0,
+    totalMinor: 18000,
+    paidMinor: 18000,
+  };
+
+  it("accepte une vente remisee coherente (sous-total - remise = somme lignes)", async () => {
+    const { printPayloadSchema } = await import("../../electron/ipc/validators");
+    expect(() => printPayloadSchema.parse(base)).not.toThrow();
+  });
+
+  it("rejette un sous-total incoherent avec les lignes", async () => {
+    const { printPayloadSchema } = await import("../../electron/ipc/validators");
+    expect(() => printPayloadSchema.parse({ ...base, subtotalMinor: 99999 })).toThrow();
+  });
+
+  it("accepte un devis a remise globale (sous-total = somme lignes)", async () => {
+    const { printPayloadSchema } = await import("../../electron/ipc/validators");
+    expect(() =>
+      printPayloadSchema.parse({
+        ...base,
+        lines: [
+          {
+            name: "Lot",
+            qty: 2,
+            unit: "PIECE",
+            unitPriceMinor: 10000,
+            lineTotalMinor: 20000,
+            ref: "",
+          },
+        ],
+        subtotalMinor: 20000,
+        discountMinor: 1000,
+        deliveryMinor: 500,
+        totalMinor: 19500,
+        paidMinor: 0,
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejette une ligne incoherente (total != prix x qte)", async () => {
+    const { printPayloadSchema } = await import("../../electron/ipc/validators");
+    expect(() =>
+      printPayloadSchema.parse({
+        ...base,
+        lines: [{ ...base.lines[0], lineTotalMinor: 1 }],
+        subtotalMinor: 2000,
+        discountMinor: 1999,
+        totalMinor: 1,
+        paidMinor: 1,
+      }),
+    ).toThrow();
+  });
+});

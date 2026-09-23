@@ -20,6 +20,7 @@ interface Window {
       integrity(): Promise<VeloriaOutcome>;
       optimize(): Promise<VeloriaOutcome>;
       relocate(p: unknown): Promise<VeloriaOutcome>;
+      reset(p: unknown): Promise<VeloriaOutcome>;
     };
     system: {
       openDataFolder(): Promise<VeloriaOutcome>;
@@ -185,6 +186,8 @@ interface Window {
       printReport(p: unknown): Promise<VeloriaOutcome>;
       previewLabels(p: unknown): Promise<VeloriaOutcome>;
       printLabels(p: unknown): Promise<VeloriaOutcome>;
+      previewPayment(p: unknown): Promise<VeloriaOutcome>;
+      printPayment(p: unknown): Promise<VeloriaOutcome>;
       exportReceiptPdf(p: unknown): Promise<VeloriaOutcome>;
       exportA4Pdf(p: unknown): Promise<VeloriaOutcome>;
       // P12: alias unique conservé = printer.test (même canal printing.testPage).

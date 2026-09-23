@@ -513,6 +513,38 @@ function toOptionalNumber(value: unknown): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
+/** Reçu de règlement : charge validée → données typées (jamais de throw). */
+export function toPaymentTicketData(raw: unknown): PaymentTicketData {
+  const p: Record<string, unknown> =
+    typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {};
+  const str = (v: unknown): string => (typeof v === "string" ? v : "");
+  const int = (v: unknown): number =>
+    typeof v === "number" && Number.isSafeInteger(v) && v >= 0 ? v : 0;
+  const kind: PaymentTicketKind =
+    p["kind"] === "supplier" ? "supplier" : p["kind"] === "bread" ? "bread" : "customer";
+  return {
+    company: str(p["company"]) || "Veloria",
+    companyPhone: str(p["companyPhone"]),
+    companyAddress: str(p["companyAddress"]),
+    companyCity: str(p["companyCity"]),
+    companyEmail: str(p["companyEmail"]),
+    companyRc: str(p["companyRc"]),
+    companyNif: str(p["companyNif"]),
+    companyLogo: str(p["companyLogo"]),
+    partyLabel: str(p["partyLabel"]),
+    kind,
+    reference: str(p["reference"]),
+    date: str(p["date"]) || new Date().toLocaleString("fr-FR"),
+    amountMinor: int(p["amountMinor"]),
+    paymentMethod: str(p["paymentMethod"]),
+    prevBalanceMinor: int(p["prevBalanceMinor"]),
+    newBalanceMinor: int(p["newBalanceMinor"]),
+    notes: str(p["notes"]),
+    footerText: str(p["footerText"]),
+    thankYouMessage: str(p["thankYouMessage"]),
+  };
+}
+
 function toReceiptLines(value: unknown): ReceiptLine[] {
   if (!Array.isArray(value)) return [];
   const out: ReceiptLine[] = [];
@@ -844,5 +876,113 @@ ${companyHead(
 <div><span class="stamp">Document non comptabilisé</span></div>
 <div class="signs"><div>Signature client</div><div>Signature / Cachet</div></div>
 ${legalFooter(d)}
+</body></html>`;
+}
+
+// ---------------------------------------------------------------------------
+// Reçu de règlement de dette (ticket تسديد الدين) : reçu client/fournisseur/
+// pain après encaissement d'un paiement (comptant partiel ou total).
+// Pur et déterministe comme les autres builders (zéro import).
+// ---------------------------------------------------------------------------
+
+export type PaymentTicketKind = "customer" | "supplier" | "bread";
+
+export interface PaymentTicketData {
+  company: string;
+  companyPhone: string;
+  companyAddress: string;
+  companyCity: string;
+  companyEmail: string;
+  companyRc: string;
+  companyNif: string;
+  companyLogo: string;
+  /** Libellé partie : « Nom — CL-00125 » / « Fournisseur … » / client pain. */
+  partyLabel: string;
+  kind: PaymentTicketKind;
+  /** Référence du paiement (ex. « PAY-00042 ») ou vide. */
+  reference: string;
+  date: string;
+  amountMinor: number;
+  paymentMethod: string;
+  prevBalanceMinor: number;
+  newBalanceMinor: number;
+  notes: string;
+  footerText: string;
+  thankYouMessage: string;
+}
+
+export function paymentTicketKindLabel(kind: PaymentTicketKind): string {
+  if (kind === "supplier") return "RÈGLEMENT FOURNISSEUR";
+  if (kind === "bread") return "RÈGLEMENT PAIN";
+  return "REÇU DE RÈGLEMENT";
+}
+
+/** Reçu 80mm (thermique) : montants FR, soldes avant/après, mode masqué si inconnu. */
+export function buildPaymentText(d: PaymentTicketData): string {
+  const fmt = (m: number): string =>
+    `${new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2 }).format(m / 100)} DA`;
+  const out: string[] = [];
+  out.push(`*** ${d.company} ***`);
+  out.push(paymentTicketKindLabel(d.kind));
+  if (d.reference) out.push(`Réf : ${d.reference}`);
+  out.push(`Date : ${d.date}`);
+  out.push(`Partie : ${d.partyLabel}`);
+  out.push(`--------------------------------`);
+  out.push(`Montant réglé         ${fmt(d.amountMinor)}`);
+  out.push(`Ancien solde          ${fmt(d.prevBalanceMinor)}`);
+  out.push(`Nouveau solde         ${fmt(d.newBalanceMinor)}`);
+  const method = paymentMethodLabel(d.paymentMethod);
+  if (method) out.push(`Mode : ${method.toUpperCase()}`);
+  if (d.notes) out.push(`Note : ${d.notes}`);
+  out.push(`--------------------------------`);
+  if (d.thankYouMessage) out.push(d.thankYouMessage);
+  else {
+    out.push(`Merci pour votre règlement`);
+    out.push(`À bientôt !`);
+  }
+  out.push(`----------------`);
+  out.push(`Veloria POS`);
+  return out.join("\n");
+}
+
+/** Reçu A4 (maquette : cartouche, partie, tableau du règlement, soldes, signatures). */
+export function buildPaymentTicketA4Html(d: PaymentTicketData): string {
+  const title = paymentTicketKindLabel(d.kind);
+  const method = paymentMethodLabel(d.paymentMethod);
+  return `<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<title>${escapeHtml(title)}${d.reference ? ` ${escapeHtml(d.reference)}` : ""}</title>
+<style>@page{size:A4;margin:15mm}body{font-family:Arial,sans-serif;color:#111;font-size:13px}
+h1{font-size:22px;margin:0}.brand{display:flex;gap:12px;align-items:flex-start}
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.docbox{border:2px solid #111;padding:10px 14px;min-width:220px}
+.docbox h1{font-size:20px;text-align:center;margin-bottom:6px}
+.muted{color:#555;font-size:12px}.lbl{color:#555}
+.client{border:1px solid #999;padding:10px 12px;margin:16px 0;display:grid;grid-template-columns:1fr 1fr;gap:4px 16px}
+.client h2{grid-column:1/-1;font-size:13px;margin:0 0 4px;text-transform:uppercase;letter-spacing:.08em}
+table.items{width:100%;border-collapse:collapse}
+.items th,.items td{border:1px solid #999;padding:6px 8px;text-align:left}
+.items th{background:#eee}.num{text-align:right;white-space:nowrap}
+.totals{margin-left:auto;width:300px;border-collapse:collapse}
+.totals td{border:1px solid #999;padding:6px 8px}
+.totals .nb{border:none}.grand{font-weight:bold;font-size:15px}
+.signs{display:flex;gap:24px;margin-top:28px}
+.signs div{flex:1;border:1px solid #999;min-height:90px;padding:8px;font-size:12px;color:#555}
+.pagefoot{margin-top:24px;border-top:1px solid #999;padding-top:8px;font-size:11px;color:#555;text-align:center}</style>
+</head><body>
+${companyHead(
+  d,
+  title,
+  `<div>${d.reference ? `Réf : ${escapeHtml(d.reference)}` : "Sans référence"}</div><div>Date : ${escapeHtml(d.date)}</div>`,
+)}
+<div class="client"><h2>Partie</h2><div><span class="lbl">Nom :</span> ${escapeHtml(d.partyLabel || "—")}</div>${method ? `<div><span class="lbl">Mode :</span> ${escapeHtml(method)}</div>` : ""}</div>
+<table class="items"><thead><tr><th>Désignation</th><th class="num">Montant</th></tr></thead>
+<tbody><tr><td>Règlement${d.notes ? ` — ${escapeHtml(d.notes)}` : ""}</td><td class="num">${fmtDzd(d.amountMinor)}</td></tr></tbody></table>
+<table class="totals"><tbody>
+<tr><td>Ancien solde</td><td class="num">${fmtDzd(d.prevBalanceMinor)}</td></tr>
+<tr><td>Montant réglé</td><td class="num">${fmtDzd(d.amountMinor)}</td></tr>
+<tr class="grand"><td>Nouveau solde</td><td class="num">${fmtDzd(d.newBalanceMinor)}</td></tr>
+</tbody></table>
+<div class="signs"><div>Signature client</div><div>Signature / Cachet</div></div>
+${legalFooter({ ...d, footerText: d.footerText })}
 </body></html>`;
 }
