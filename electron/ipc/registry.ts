@@ -16,6 +16,7 @@ import {
   openDatabase,
   checkpoint,
   checkpointAndClose,
+  factoryResetDatabase,
   optimizeDatabase,
   verifyDbFileCopy,
   reopenWithRetry,
@@ -231,6 +232,8 @@ const LICENSE_PROTECTED_CHANNELS: ReadonlySet<string> = new Set([
   // réactivation). Root: mutations gardées côté main, jamais renderer.
   IPC_CHANNELS["settings.save"],
   IPC_CHANNELS["company.update"],
+  // EL-04+: réinitialisation d'usine = mutation destructive (base vierge).
+  IPC_CHANNELS["database.reset"],
 ]);
 
 /**
@@ -345,6 +348,8 @@ const PAGE_GATED_CHANNELS: Readonly<Record<string, readonly string[]>> = {
   [IPC_CHANNELS["categories.list"]]: ["products", "stock", "reports"],
   // P2: diagnostic technique (chemins/tailles/état licence) réservé settings.
   [IPC_CHANNELS["app.diagnostics"]]: ["settings"],
+  // Zone dangereuse (réinitialisation d'usine) : page settings uniquement.
+  [IPC_CHANNELS["database.reset"]]: ["settings"],
   [IPC_CHANNELS["printing.printReceipt"]]: ["sales"],
   [IPC_CHANNELS["printing.preview"]]: ["sales"],
   [IPC_CHANNELS["printing.printA4"]]: ["invoices"],
@@ -1262,6 +1267,10 @@ export function registerIpc(): void {
     return check;
   });
   handle(IPC_CHANNELS["database.optimize"], null, () => optimizeDatabase());
+  // Réinitialisation d'usine (zone dangereuse, paramètres) : base vierge,
+  // sauvegardes *.vposdb conservées. Gardée par la licence (mutation
+  // destructive) + page settings, preuve littérale exigée par le schéma.
+  handle(IPC_CHANNELS["database.reset"], V.databaseResetSchema, () => factoryResetDatabase());
 
   // app diagnostics (Settings > Diagnostics — spec 23 : version, OS, base,
   // taille, schéma, santé, sauvegardes, imprimante, journaux ; jamais de secret)

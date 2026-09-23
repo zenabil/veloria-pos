@@ -359,6 +359,33 @@ export function checkpointAndClose(): void {
   }
 }
 
+/**
+ * Réinitialisation d'usine (paramètres > base de données, zone dangereuse) :
+ * ferme la base, SUPPRIME le fichier + compagnons WAL, rouvre une base
+ * VIERGE (les migrations rejouent le schéma courant). Les sauvegardes
+ * `*.vposdb` sont CONSERVÉES (filet de sécurité : restauration possible).
+ * Irréversible pour les données courantes — l'UI exige une confirmation
+ * tapée + le canal une preuve `confirmation` littérale.
+ */
+export function factoryResetDatabase(): { path: string; schemaVersion: number } {
+  const target = db ? dbPath : getConfiguredDbPath();
+  log("WARN", "database", "database.factory_reset", { path: target });
+  checkpointAndClose();
+  removeWalCompanions(target);
+  try {
+    fs.unlinkSync(target);
+  } catch (err) {
+    throw new Error("Réinitialisation impossible : fichier de base inaccessible.");
+  }
+  removeWalCompanions(target);
+  const opened = reopenWithRetry("database.factory_reset");
+  log("WARN", "database", "database.factory_reset_done", {
+    path: opened.path,
+    schemaVersion: opened.schemaVersion,
+  });
+  return opened;
+}
+
 /** Safe copy helper for backup/relocation: checkpoint then copy file. */
 export function checkpoint(): void {
   if (!db) return;

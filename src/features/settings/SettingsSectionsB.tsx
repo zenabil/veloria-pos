@@ -3,7 +3,9 @@ import { useEffect, useState } from "react";
 import { api } from "@shared/types/ipc-client.ts";
 import { strictOrNeg } from "@shared/money/parse.ts";
 import { Field, Select, TextInput } from "@shared/ui/primitives.tsx";
+import { Button, Modal } from "@shared/ui/primitives.tsx";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
+import { newOperationId } from "@domain/common/ids.ts";
 import { saveAppSettings, useAppSettings } from "@shared/settings/use-app-settings.ts";
 import { confirmDeletesEnabled, setConfirmDeletesEnabled } from "@shared/ui/confirm.ts";
 import { SaveBar, Section, SwitchRow, useBusyFlag } from "./bits.tsx";
@@ -482,6 +484,30 @@ export function DatabaseSection({ notify }: { notify: Notify }): React.JSX.Eleme
     });
   }
 
+  // Zone dangereuse : réinitialisation d'usine (base VIERGE, sauvegardes
+  // *.vposdb conservées). Double verrou : confirmation tapée
+  // « REINITIALISER » côté renderer + preuve littérale exigée côté main.
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetText, setResetText] = useState("");
+
+  function resetFactory(): void {
+    void run(async () => {
+      try {
+        if (resetText.trim() !== "REINITIALISER") {
+          notify("Tapez REINITIALISER pour confirmer.", "err");
+          return;
+        }
+        setResetOpen(false);
+        setResetText("");
+        await api.dbReset({ confirmation: "REINITIALISER", operationId: newOperationId() });
+        notify("Base réinitialisée. Redémarrage…", "ok");
+        await api.appRestart();
+      } catch (e) {
+        notify(frError(e, "Réinitialisation impossible."), "err");
+      }
+    });
+  }
+
   return (
     <Section title="Base de données" hint="SQLite locale, source unique de vérité.">
       <dl className="space-y-2.5">
@@ -505,6 +531,62 @@ export function DatabaseSection({ notify }: { notify: Notify }): React.JSX.Eleme
         Optimiser = VACUUM + ANALYZE (compacte, ne supprime rien). Déplacer = copie vérifiée puis
         bascule.
       </p>
+      <div className="rounded-xl border border-red-500/40 bg-[#1c1113] p-4">
+        <div className="text-sm font-extrabold text-red-200">Zone dangereuse</div>
+        <p className="mt-1 text-xs text-slate-400">
+          Réinitialiser efface TOUTES les données courantes (base vierge). Les sauvegardes *.vposdb
+          sont conservées.
+        </p>
+        <div className="mt-2">
+          <SaveBar busy={busy} onSave={() => setResetOpen(true)} label="Réinitialiser…" danger />
+        </div>
+      </div>
+      {resetOpen ? (
+        <Modal
+          label="Réinitialisation d'usine"
+          title="Réinitialisation d'usine"
+          onClose={() => {
+            setResetOpen(false);
+            setResetText("");
+          }}
+        >
+          <div className="space-y-4">
+            <p role="alert" className="text-sm font-bold text-red-200">
+              Action IRRÉVERSIBLE : toutes les ventes, produits, clients et dettes seront effacés.
+              Faites une sauvegarde avant.
+            </p>
+            <Field label="Tapez REINITIALISER pour confirmer">
+              <TextInput
+                value={resetText}
+                onChange={(e) => setResetText(e.target.value)}
+                placeholder="REINITIALISER"
+                aria-label="Confirmation de réinitialisation"
+              />
+            </Field>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setResetOpen(false);
+                  setResetText("");
+                }}
+                className="flex-1"
+              >
+                Annuler
+              </Button>
+              <Button
+                type="button"
+                disabled={busy || resetText.trim() !== "REINITIALISER"}
+                onClick={resetFactory}
+                className="flex-[2]"
+              >
+                {busy ? "Réinitialisation…" : "Tout effacer"}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      ) : null}
     </Section>
   );
 }
