@@ -11,6 +11,7 @@ interface Window {
   veloriaManager?: {
     appInfo(): Promise<ManagerOutcome>;
     keyStatus(): Promise<ManagerOutcome>;
+    keyImport(): Promise<ManagerOutcome>;
     licensesList(): Promise<ManagerOutcome>;
     licenseDetail(p: unknown): Promise<ManagerOutcome>;
     licenseCreate(p: unknown): Promise<ManagerOutcome>;

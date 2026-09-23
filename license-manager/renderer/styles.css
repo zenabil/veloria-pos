@@ -1,6 +1,18 @@
 @import "tailwindcss";
 
+/* Thème sombre natif : les popups <select>/<option> du système suivent le
+ * dark scheme au lieu d'afficher du blanc sur blanc (plan, durée…). */
+:root {
+  color-scheme: dark;
+}
+
 body {
   background: #0c1220;
+  color: #e2e8f0;
+}
+
+/* Liste déroulante native : fond nuit + texte clair, comme le champ lui-même. */
+select option {
+  background-color: #0c1220;
   color: #e2e8f0;
 }

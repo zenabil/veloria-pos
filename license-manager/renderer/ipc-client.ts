@@ -15,6 +15,7 @@ export async function mcall<T>(
 export const mapi = {
   appInfo: () => mcall((a) => a.appInfo()),
   keyStatus: () => mcall((a) => a.keyStatus()),
+  keyImport: () => mcall((a) => a.keyImport()),
   licensesList: () => mcall((a) => a.licensesList()),
   licenseDetail: (p: unknown) => mcall((a) => a.licenseDetail(p)),
   licenseCreate: (p: unknown) => mcall((a) => a.licenseCreate(p)),

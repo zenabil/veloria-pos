@@ -11,5 +11,6 @@ export const MANAGER_CHANNELS = {
   "manager.licenseCapabilities": "manager.licenseCapabilities",
   "manager.licenseStanding": "manager.licenseStanding",
   "manager.keyStatus": "manager.keyStatus",
+  "manager.keyImport": "manager.keyImport",
   "manager.backup": "manager.backup",
 } as const;

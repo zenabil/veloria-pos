@@ -16,6 +16,8 @@ import {
   rebindFingerprint,
 } from "./licenses";
 import { buildSignedLicense, editionFromPlan, loadVendorPrivateKey } from "../signing";
+import { getManagerWindow } from "../main/window-manager";
+import { validateVendorPrivateKeyPem, vendorKeysDir } from "../signing";
 
 function ok<T>(data: T): { ok: true; data: T } {
   return { ok: true, data };
@@ -73,6 +75,38 @@ export function registerManagerIpc(): void {
     keyConfigured: keyConfigured(),
   }));
   handle(MANAGER_CHANNELS["manager.keyStatus"], null, () => ({ configured: keyConfigured() }));
+  // Import guidé de la clé privée vendor (premier lancement) : dialogue
+  // fichier main → validation Ed25519 stricte → copie dans userData/keys
+  // (domicile lu en premier par loadVendorPrivateKey). La clé ne transite
+  // JAMAIS par le renderer et n'est JAMAIS incluse dans l'installeur.
+  handle(MANAGER_CHANNELS["manager.keyImport"], null, () => {
+    const win = getManagerWindow();
+    const opts = {
+      title: "Importer la clé privée vendor",
+      filters: [
+        { name: "Clé privée (PEM)", extensions: ["key", "pem"] },
+        { name: "Tous", extensions: ["*"] },
+      ],
+      properties: ["openFile" as const],
+    };
+    const picked = win ? dialog.showOpenDialogSync(win, opts) : dialog.showOpenDialogSync(opts);
+    const file = picked?.[0];
+    if (!file) return { imported: false, configured: keyConfigured() };
+    let pem: string;
+    try {
+      const stat = fs.statSync(file);
+      if (stat.size <= 0 || stat.size > 100_000) throw new Error("bad size");
+      pem = fs.readFileSync(file, "utf-8");
+    } catch {
+      throw new Error("Fichier de clé illisible.");
+    }
+    validateVendorPrivateKeyPem(pem);
+    const dir = vendorKeysDir();
+    fs.mkdirSync(dir, { recursive: true });
+    const dest = path.join(dir, "private.key");
+    fs.writeFileSync(dest, pem, { encoding: "utf-8", mode: 0o600 });
+    return { imported: true, configured: keyConfigured() };
+  });
   // P3 : sauvegarde du registre vendor (rotation 10, sans secret).
   handle(MANAGER_CHANNELS["manager.backup"], null, () => exportManagerBackup());
   handle(MANAGER_CHANNELS["manager.licensesList"], null, () => listLicenses(openManagerDb(), ""));

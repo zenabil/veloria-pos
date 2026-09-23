@@ -33,3 +33,15 @@ Refuse d'écraser sans `--force` (rotation = procédure ci-dessous).
 
 Rotation immédiate + audit `license_events` + ré-émission. Les licences
 existantes restent valides jusqu'à MAJ du POS (fenêtre assumée, documentée).
+
+## Installation au premier lancement (canal manager.keyImport)
+
+Le Manager ne bloque plus sur un message d'erreur : si la cle est absente,
+l'ecran propose 'Importer la cle privee...' : dialogue fichier main ->
+validation stricte (PEM + Ed25519 chargeable, validee par
+validateVendorPrivateKeyPem, testee) -> copie dans
+userData/keys/private.key (mode 0600 best-effort). La cle ne transite jamais
+par le renderer et n'est jamais affichee.
+
+Rappel : la cle n'est JAMAIS cuite dans l'installeur (un .exe se desassemble
+et la cle extraite permettrait de forger des licences illimitees).

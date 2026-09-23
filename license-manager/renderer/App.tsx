@@ -221,6 +221,23 @@ export function ManagerApp(): React.JSX.Element {
       .catch(() => undefined);
   }, []);
 
+  // Import guidé de la clé privée (premier lancement) : dialogue main →
+  // copie validée dans userData/keys. La clé ne transite jamais par l'UI.
+  async function importKey(): Promise<void> {
+    setBusy(true);
+    try {
+      const r = (await mapi.keyImport()) as { imported: boolean; configured: boolean };
+      if (r.imported && r.configured) say("Clé privée installée.");
+      else if (!r.imported) say("Import annulé.");
+      else say("Clé importée mais illisible : vérifiez le fichier.");
+      refresh();
+    } catch (e) {
+      say(e instanceof Error ? e.message : "Import impossible.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   useEffect(() => {
     refresh();
   }, [refresh]);
@@ -416,8 +433,19 @@ export function ManagerApp(): React.JSX.Element {
             role="alert"
             className="rounded-xl border border-red-500/30 bg-[#1c1113] px-4 py-3 text-sm text-red-100"
           >
-            Clé privée vendor introuvable : placez-la dans le dossier keys (voir KEY_MANAGEMENT).
-            Aucune création/export possible sans elle.
+            <p className="font-bold">Clé privée vendor absente.</p>
+            <p className="mt-1 text-red-200/80">
+              Importez-la une seule fois : elle sera copiée dans le dossier keys du Manager (jamais
+              affichée, jamais exportée).
+            </p>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void importKey()}
+              className="mt-2 rounded-lg bg-red-400 px-4 py-2 text-sm font-bold text-black hover:bg-red-300 disabled:opacity-50"
+            >
+              Importer la clé privée…
+            </button>
           </div>
         ) : null}
         {toast ? (

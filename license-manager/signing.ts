@@ -49,6 +49,36 @@ export function loadVendorPrivateKey(): string {
   );
 }
 
+/**
+ * Valide un PEM candidat AVANT installation (pur, testable) : en-tête,
+ * taille bornée, clé Ed25519 privée chargeable. Jamais de log du contenu.
+ */
+export function validateVendorPrivateKeyPem(pem: string): void {
+  if (typeof pem !== "string" || pem.length < 64 || pem.length > 100_000) {
+    throw new Error("Fichier de clé invalide (taille).");
+  }
+  if (!pem.includes("PRIVATE KEY")) {
+    throw new Error("Fichier de clé invalide (PEM attendu).");
+  }
+  let key: unknown;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { createPrivateKey } = require("node:crypto") as typeof import("node:crypto");
+    key = createPrivateKey(pem);
+  } catch {
+    throw new Error("Clé privée illisible ou corrompue.");
+  }
+  const kind = (key as { asymmetricKeyType?: unknown }).asymmetricKeyType;
+  if (kind !== "ed25519") {
+    throw new Error("La clé vendor doit être Ed25519.");
+  }
+}
+
+/** Dossier keys du Manager (userData) — domicile installé de la clé privée. */
+export function vendorKeysDir(): string {
+  return path.join(app.getPath("userData"), "keys");
+}
+
 export interface NewLicenseInput {
   customerRef: string;
   clientId?: string | null;

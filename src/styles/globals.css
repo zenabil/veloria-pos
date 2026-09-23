@@ -18,6 +18,10 @@
   --radius-lg: 18px;
   --focus-ring: 0 0 0 2px rgba(251, 191, 36, 0.65);
 
+  /* Contrôles natifs (popups <select>, calendriers) en thème sombre :
+   * jamais de blanc sur blanc imposé par le système. */
+  color-scheme: dark;
+
   /* Chrome frameless (système Nova) : aplats, pas de dégradés. */
   --titlebar-height: 44px;
   --titlebar-bg: #0a0f1c;
