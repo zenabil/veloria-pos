@@ -1275,7 +1275,7 @@ export function SellScreen({
         </div>
       </div>
 
-      {/* Encaissement en 3 étapes (P4 : sell/PayDialog) */}
+      {/* Encaissement en 1 étape (sell/PayDialog) */}
       {payOpen && totals ? (
         <PayDialog
           totals={totals}

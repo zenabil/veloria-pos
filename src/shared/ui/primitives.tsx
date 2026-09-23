@@ -30,6 +30,9 @@ export function Button({
   return (
     <button
       {...props}
+      // Entrée universelle des dialogues : le bouton primaire est la cible
+      // du raccourci Entrée (Modal) quand aucun formulaire ne soumet déjà.
+      data-primary={variant === "primary" ? "" : undefined}
       className={cn(
         "inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-150 focus-visible:outline-none active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100",
         variant === "primary" &&
@@ -180,6 +183,28 @@ export function Modal({
       if (e.key === "Escape") {
         onClose();
         return;
+      }
+      // Entrée universelle : dans un champ de saisie SANS formulaire parent
+      // (les formulaires soumettent nativement), Entrée active le bouton
+      // primaire du dialogue (ex. Valider l'encaissement). Jamais de double
+      // déclenchement : on s'efface dès qu'un <form> gère déjà la touche.
+      if (e.key === "Enter" && boxRef.current) {
+        const target = e.target as HTMLElement | null;
+        const isField =
+          target != null &&
+          target.tagName === "INPUT" &&
+          (target as HTMLInputElement).type !== "checkbox";
+        const inForm = target?.closest("form") != null;
+        if (isField && !inForm) {
+          const primary = boxRef.current.querySelector<HTMLButtonElement>(
+            "button[data-primary]:not([disabled])",
+          );
+          if (primary) {
+            e.preventDefault();
+            primary.click();
+            return;
+          }
+        }
       }
       if (e.key !== "Tab" || !boxRef.current) return;
       const focusables = boxRef.current.querySelectorAll<HTMLElement>(
@@ -425,7 +450,29 @@ export function Drawer({
       aria-label={label}
       onClick={onClose}
       onKeyDown={(e) => {
-        if (e.key === "Escape") onClose();
+        if (e.key === "Escape") {
+          onClose();
+          return;
+        }
+        // Entrée universelle (comme Modal) : champ sans formulaire parent →
+        // bouton primaire du tiroir. Les formulaires soumettent nativement.
+        if (e.key === "Enter") {
+          const target = e.target as HTMLElement | null;
+          const isField =
+            target != null &&
+            target.tagName === "INPUT" &&
+            (target as HTMLInputElement).type !== "checkbox";
+          const inForm = target?.closest("form") != null;
+          if (isField && !inForm) {
+            const box = e.currentTarget.querySelector<HTMLButtonElement>(
+              "button[data-primary]:not([disabled])",
+            );
+            if (box) {
+              e.preventDefault();
+              box.click();
+            }
+          }
+        }
       }}
       className="fixed inset-0 z-50 bg-black/70 backdrop-blur-[2px]"
     >

@@ -65,12 +65,7 @@ test("vente à crédit : reste impayé avec client autorisé", async () => {
     .click();
   await page.getByRole("button", { name: "Encaisser [F10]" }).click();
   // Paiement partiel : 50 sur 100 → reste à crédit.
-  await page.getByLabel("Montant reçu", { exact: true }).fill("50");
-  await expect(page.getByText("Reste (crédit client)")).toBeVisible();
-  await page.getByRole("button", { name: "Continuer" }).click();
-  await page.getByLabel("Échéance du crédit", { exact: true }).waitFor();
-  await page.getByRole("button", { name: "Continuer" }).click();
-  await page.getByRole("button", { name: /Valider ·/ }).click();
+  await settlePayment(page, "50", true);
   const toast = await readSuccessToast(page, /Vente .* enregistrée/);
   expect(toast).toMatch(/FAC-/);
 });

@@ -361,10 +361,9 @@ export function acceptNextConfirm(page: Page): void {
 }
 
 /**
- * Traverse le wizard d'encaissement (PayDialog, 3 étapes) jusqu'à la vente :
- * 1 montant → « Continuer » → [2 échéance crédit → « Continuer »] → 3 « Valider · ».
- * L'étape crédit n'existe que si reste > 0 (`expectCreditStep` explicite :
- * jamais d'attente conditionnelle flaky).
+ * Encaissement en UNE SEULE ÉTAPE (PayDialog) : saisit le montant, renseigne
+ * l'échéance si crédit, puis « Valider · ». `expectCreditStep` attend le champ
+ * d'échéance (crédit partiel) avant de valider.
  */
 export async function settlePayment(
   page: Page,
@@ -372,10 +371,8 @@ export async function settlePayment(
   expectCreditStep: boolean,
 ): Promise<void> {
   await page.getByLabel("Montant reçu", { exact: true }).fill(amount);
-  await page.getByRole("button", { name: "Continuer" }).click();
   if (expectCreditStep) {
     await page.getByLabel("Échéance du crédit", { exact: true }).waitFor();
-    await page.getByRole("button", { name: "Continuer" }).click();
   }
   await page.getByRole("button", { name: /Valider ·/ }).click();
 }
