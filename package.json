@@ -11,10 +11,13 @@
   "scripts": {
     "dev": "vite",
     "dev:electron": "npm run build:electron && electron .",
+    "clean": "node -e \"for (const p of ['dist','dist-electron','dist-license-manager','dist-license-manager-renderer','dist-license-manager/license-manager/renderer','tsconfig.tsbuildinfo','tsconfig.electron.tsbuildinfo','dist-license-manager/tsconfig.manager.tsbuildinfo','test-results','coverage','playwright-report'] ) require('fs').rmSync(p,{recursive:true,force:true})\"",
+    "clean:logs": "node -e \"const fs=require('fs'),path=require('path');for (const f of fs.readdirSync('.')){if(f.endsWith('.log'))try{fs.rmSync(f)}catch{}};for (const p of ['logs']){try{fs.rmSync(p,{recursive:true,force:true})}catch{}}\"",
     "build": "tsc -b && vite build",
-    "build:electron": "tsc -p tsconfig.electron.json && npx esbuild electron/preload/preload.ts --bundle --platform=node --packages=external --external:electron --format=cjs --outfile=dist-electron/preload/preload.js --log-level=warning && node scripts/release/stamp-electron-pkg.js && node scripts/licensing/sign-integrity.mjs",
+    "build:electron": "tsc -p tsconfig.electron.json && npx esbuild electron/preload/preload.ts --bundle --platform=node --packages=external --external:electron --format=cjs --outfile=dist-electron/preload/preload.js --log-level=warning && node scripts/release/stamp-electron-pkg.js && node scripts/licensing/sign-integrity.mjs --if-key-present",
     "preview": "vite preview",
     "typecheck": "tsc -b",
+    "posttypecheck": "node scripts/licensing/sign-integrity.mjs --if-key-present",
     "typecheck:electron": "tsc -p tsconfig.electron.json --noEmit",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
@@ -40,13 +43,14 @@
     "license:integrity-manager": "node scripts/licensing/sign-manager-integrity.mjs",
     "typecheck:manager": "tsc -p tsconfig.manager.json --noEmit",
     "build:manager-client": "vite build --config vite.license-manager.config.ts",
-    "build:manager": "tsc -p tsconfig.manager.json && node -e \"require('fs').rmSync('dist-license-manager/license-manager/renderer',{recursive:true,force:true})\" && npx esbuild license-manager/preload/preload.ts --bundle --platform=node --packages=external --external:electron --format=cjs --outfile=dist-license-manager/license-manager/preload/preload.js --log-level=warning && node scripts/release/stamp-electron-pkg.js",
+    "build:manager": "tsc -p tsconfig.manager.json && node --input-type=commonjs -e \"require('fs').rmSync('dist-license-manager/license-manager/renderer',{recursive:true,force:true})\" && npx esbuild license-manager/preload/preload.ts --bundle --platform=node --packages=external --external:electron --format=cjs --outfile=dist-license-manager/license-manager/preload/preload.js --log-level=warning && node scripts/release/stamp-electron-pkg.js",
+    "build:pos": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.electron.json && vite build",
     "dev:manager": "npm run build:manager-client && npm run build:manager && electron ./dist-license-manager/license-manager/main/main.js",
     "prepackage": "npm run license:scan",
-    "package:pos": "npm run license:scan && npm run build && npm run build:electron && npm run license:integrity && electron-builder --win",
+    "package:pos": "npm run package:win",
     "package:manager": "npm run license:scan && npm run build:manager-client && npm run build:manager && npm run license:integrity-manager && electron-builder --win -c electron-builder.license-manager.yml",
     "verify:migrations": "node scripts/database/verify-migrations.mjs",
-    "verify:domain": "node scripts/quality/verify-domain.ts",
+    "verify:domain": "node --experimental-strip-types scripts/quality/verify-domain.ts",
     "verify:perf": "node scripts/quality/verify-perf.mjs"
   },
   "dependencies": {
@@ -55,6 +59,7 @@
     "clsx": "2.1.1",
     "lucide-react": "0.469.0",
     "pdfjs-dist": "6.3.289",
+    "qrcode": "^1.5.4",
     "react": "19.1.1",
     "react-dom": "19.1.1",
     "tailwind-merge": "2.6.0",
@@ -67,6 +72,7 @@
     "@playwright/test": "^1.63.0",
     "@tailwindcss/vite": "4.1.5",
     "@types/node": "22.10.5",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "19.1.4",
     "@types/react-dom": "19.1.5",
     "@vitejs/plugin-react": "4.3.4",
@@ -83,6 +89,6 @@
     "vitest": "3.1.1"
   },
   "engines": {
-    "node": ">=22.5"
+    "node": ">=22.5 <23"
   }
 }

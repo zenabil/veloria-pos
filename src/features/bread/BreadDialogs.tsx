@@ -1,7 +1,7 @@
 // Veloria PoS — Pain : tiroir détail + formulaire + statut + encaissement.
 // Branchés sur le bridge window.veloria (jamais de SQLite côté renderer).
 import { useState } from "react";
-import { HandCoins, Pencil, Printer, Search } from "lucide-react";
+import { FileDown, HandCoins, Pencil, Printer, Search } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { useCompany } from "@shared/company/use-company.ts";
 import { useDefaultMethod } from "@shared/settings/use-app-settings.ts";
@@ -175,6 +175,16 @@ export function BreadDetailsDrawer({
     }
   }
 
+  async function exportTicketPdf(): Promise<void> {
+    if (!ticketPreview) return;
+    try {
+      const res = (await api.reportExportPdf(ticketPreview.payload)) as { path: string };
+      notify(`PDF enregistré : ${res.path}`, "ok");
+    } catch (e) {
+      notify(frError(e, "Export PDF impossible."), "err");
+    }
+  }
+
   async function duplicateTomorrow(): Promise<void> {
     if (busy) return;
     if (
@@ -329,8 +339,11 @@ export function BreadDetailsDrawer({
             title="Aperçu bon de commande"
             className="h-[50vh] w-full rounded-xl border border-white/10 bg-white"
           />
-          <div className="mt-3">
-            <Button onClick={() => void printTicket()} className="w-full">
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Button variant="secondary" onClick={() => void exportTicketPdf()}>
+              <FileDown size={15} aria-hidden="true" /> PDF
+            </Button>
+            <Button onClick={() => void printTicket()}>
               <Printer size={15} aria-hidden="true" /> Imprimer
             </Button>
           </div>
@@ -709,7 +722,7 @@ export function BreadPayDialog({
   );
   const [method, setMethod] = useDefaultMethod();
   const [busy, setBusy] = useState(false);
-  // Reçu de règlement (ticket تسديد الدين) proposé après succès.
+  // Reçu de règlement proposé après succès.
   const [ticket, setTicket] = useState<PaymentTicketInput | null>(null);
   // P1-5 : strict (bornes H-1, jamais NaN) ; invalide → -1 = refusé par `valid`.
   const amount = strictOrNeg(amountText, "Montant");

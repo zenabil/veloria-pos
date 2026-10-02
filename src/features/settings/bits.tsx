@@ -28,15 +28,23 @@ export function SwitchRow({
   checked,
   onChange,
   ariaLabel,
+  disabled = false,
 }: {
   label: string;
   hint?: string;
   checked: boolean;
   onChange: (v: boolean) => void;
   ariaLabel: string;
+  /** true = contrôle inactif (ex. état serveur pas encore chargé). */
+  disabled?: boolean;
 }): React.JSX.Element {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-sm font-semibold">
+    <label
+      className={cn(
+        "flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-sm font-semibold",
+        disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
+      )}
+    >
       <span>
         {label}
         {hint ? <span className="block text-xs font-normal text-slate-500">{hint}</span> : null}
@@ -46,6 +54,7 @@ export function SwitchRow({
         role="switch"
         aria-checked={checked}
         aria-label={ariaLabel}
+        disabled={disabled}
         onClick={() => onChange(!checked)}
         className={cn(
           "relative h-7 w-12 shrink-0 rounded-full transition-colors",

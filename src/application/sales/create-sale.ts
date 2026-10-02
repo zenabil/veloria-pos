@@ -26,7 +26,7 @@ export interface SaleDraft {
   operationId: string;
 }
 
-export interface SalePayload {
+interface SalePayload {
   operationId: string;
   customerId: number | null;
   lines: {

@@ -88,6 +88,8 @@ export const licenseCreateSchema = z
 
 export const licenseIdSchema = z.object({ id: z.number().int().positive() });
 
+export const backupRestoreSchema = z.object({ file: z.string().min(1).max(500) });
+
 export const licenseRenewSchema = z
   .object({
     id: z.number().int().positive(),

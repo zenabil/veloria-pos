@@ -370,11 +370,11 @@ export async function settlePayment(
   amount: string,
   expectCreditStep: boolean,
 ): Promise<void> {
-  await page.getByLabel("Montant reçu", { exact: true }).fill(amount);
+  await page.getByLabel("Montant donné", { exact: true }).fill(amount);
   if (expectCreditStep) {
     await page.getByLabel("Échéance du crédit", { exact: true }).waitFor();
   }
-  await page.getByRole("button", { name: /Valider ·/ }).click();
+  await page.getByRole("button", { name: /Valider & Encaisser/ }).click();
 }
 
 export { expect };

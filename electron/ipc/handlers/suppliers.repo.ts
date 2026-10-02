@@ -4,7 +4,15 @@
 
 import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
-import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./idempotency";
+import {
+  auditOperationId,
+  claimIdempotency,
+  claimOptional,
+  peekIdempotency,
+  peekOptional,
+  storeIdempotencyResult,
+  storeOptional,
+} from "./idempotency";
 
 export type SupplierStatusFilter = "all" | "active" | "inactive";
 export type SupplierPaymentFilter = "all" | "with_debt" | "settled";
@@ -207,10 +215,15 @@ export function createSupplier(
   throw lastErr instanceof Error ? lastErr : new Error("Code fournisseur déjà utilisé.");
 }
 
-export function updateSupplier(args: SupplierUpsert & { id: number; now: string }): void {
+export function updateSupplier(
+  args: SupplierUpsert & { id: number; now: string; operationId?: string | null },
+): void {
   const db = getDb();
+  const fast = peekOptional<{ updated: boolean }>(args.operationId, "suppliers.update");
+  if (fast) return;
   const n = normalizeUpsert(args);
   const tx = db.transaction(() => {
+    claimOptional(args.operationId, "suppliers.update", args.now);
     const existing = db.prepare(`SELECT id FROM suppliers WHERE id = ?`).get(args.id) as
       | { id: number }
       | undefined;
@@ -235,9 +248,28 @@ export function updateSupplier(args: SupplierUpsert & { id: number; now: string 
     );
     db.prepare(
       `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at) VALUES (?, 'supplier.updated', 'supplier', ?, ?, ?, ?)`,
-    ).run(randomUUID(), String(args.id), randomUUID(), JSON.stringify({ name: n.name }), args.now);
+    ).run(
+      randomUUID(),
+      String(args.id),
+      auditOperationId(args.operationId, "supplier.updated", args.id, { name: n.name }),
+      JSON.stringify({ name: n.name }),
+      args.now,
+    );
+    storeOptional(args.operationId, { updated: true });
   });
-  (tx as unknown as () => void)();
+  try {
+    (tx as unknown as () => void)();
+  } catch (err) {
+    if (
+      args.operationId &&
+      err instanceof Error &&
+      /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
+    ) {
+      const retry = peekOptional<{ updated: boolean }>(args.operationId, "suppliers.update");
+      if (retry) return;
+    }
+    throw err;
+  }
 }
 
 function assertDeletable(

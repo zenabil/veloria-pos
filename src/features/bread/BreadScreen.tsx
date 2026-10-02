@@ -12,6 +12,7 @@ import {
   Card,
   EmptyState,
   Kpi,
+  PageHeader,
   Pager,
   RowAction,
   Select,
@@ -19,6 +20,8 @@ import {
   cn,
 } from "@shared/ui/primitives.tsx";
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
+import { useLoadSeq } from "@shared/ui/use-load-seq.ts";
+import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
 import {
   BreadDetailsDrawer,
   BreadFormDialog,
@@ -81,6 +84,7 @@ export function BreadScreen({ notify }: { notify: Notify }): React.JSX.Element {
   });
   const [selection, setSelection] = useState<Set<number>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  const { next: nextSeq, isCurrent: isSeqCurrent } = useLoadSeq();
   // Confirmation non bloquante (modale applicative).
   const confirmAsync = useConfirm();
   const [drawer, setDrawer] = useState<BreadDetailData | null>(null);
@@ -88,7 +92,7 @@ export function BreadScreen({ notify }: { notify: Notify }): React.JSX.Element {
   const [editing, setEditing] = useState<BreadDetailData | null>(null);
   const [statusFor, setStatusFor] = useState<BreadDetailData | null>(null);
   const [payFor, setPayFor] = useState<BreadDetailData | null>(null);
-  const queryTimer = useRef<number | null>(null);
+  const queryTimer = useDebouncedTimer();
   const searchRef = useRef<HTMLInputElement>(null);
 
   // F3 : focus recherche (comme en caisse).
@@ -102,12 +106,6 @@ export function BreadScreen({ notify }: { notify: Notify }): React.JSX.Element {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (queryTimer.current != null) window.clearTimeout(queryTimer.current);
-    };
   }, []);
 
   interface Filters {
@@ -137,6 +135,9 @@ export function BreadScreen({ notify }: { notify: Notify }): React.JSX.Element {
   }
 
   async function load(f: Filters, p: number): Promise<void> {
+    // Garde anti-course (même motif que les autres écrans) : une réponse
+    // périmée d'une page/filtre précédent ne doit pas écraser la plus récente.
+    const seq = nextSeq();
     setLoading(true);
     try {
       const res = (await api.breadList({
@@ -152,12 +153,14 @@ export function BreadScreen({ notify }: { notify: Notify }): React.JSX.Element {
         page: p,
         pageSize: PAGE_SIZE,
       })) as { rows: BreadOrder[]; total: number };
+      if (!isSeqCurrent(seq)) return;
       setRows(res.rows);
       setTotal(res.total);
     } catch (err) {
+      if (!isSeqCurrent(seq)) return;
       notify(frError(err, "Chargement impossible."), "err");
     } finally {
-      setLoading(false);
+      if (isSeqCurrent(seq)) setLoading(false);
     }
   }
 
@@ -204,10 +207,9 @@ export function BreadScreen({ notify }: { notify: Notify }): React.JSX.Element {
   function onQueryChange(q: string): void {
     setQuery(q);
     setPage(1);
-    if (queryTimer.current != null) window.clearTimeout(queryTimer.current);
-    queryTimer.current = window.setTimeout(() => {
+    queryTimer.schedule(250, () => {
       void load({ ...current(), q }, 1);
-    }, 250);
+    });
   }
 
   function changePage(p: number): void {
@@ -300,69 +302,90 @@ export function BreadScreen({ notify }: { notify: Notify }): React.JSX.Element {
 
   return (
     <div className="flex h-full flex-col gap-4">
-      {/* En-tête de page (simplifié : nom / client / quantité) */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-xl font-extrabold tracking-tight">Pain</h2>
-          <p className="text-xs text-slate-500">
-            {total} commande(s) · {stats.pending} en cours · {stats.recurring} quotidienne(s)
-          </p>
-        </div>
-        <div className="relative w-full max-w-xs">
-          <Search
-            size={16}
-            aria-hidden="true"
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-          />
-          <TextInput
-            ref={searchRef}
-            value={query}
-            onChange={(e) => onQueryChange(e.target.value)}
-            placeholder="Nom, client… [F3]"
-            aria-label="Rechercher une commande"
-            className="pl-9"
-          />
-        </div>
-        <Select
-          value={recurringFilter}
-          onChange={(e) => {
-            const f = e.target.value as BreadRecurringFilter;
-            setRecurringFilter(f);
-            setPage(1);
-            void load({ ...current(), rec: f }, 1);
-          }}
-          aria-label="Filtre récurrence"
-          title="Récurrence"
-        >
-          <option value="all">Toutes</option>
-          <option value="recurring">Quotidiennes</option>
-          <option value="once">Ponctuelles</option>
-        </Select>
-        <Button
-          variant="secondary"
-          onClick={() => setToolbarOpen((o) => !o)}
-          aria-expanded={toolbarOpen}
-          title="Afficher / masquer les filtres"
-        >
-          <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
-        </Button>
-        <Button
-          onClick={() => {
-            setEditing(null);
-            setFormOpen(true);
-          }}
-          title="Nouvelle commande"
-        >
-          <Plus size={16} aria-hidden="true" /> Commande
-        </Button>
-      </div>
+      {/* En-tête Stitch : Pain & Commandes Boulangerie · MODULE 14 · PRIX SUBVENTIONNÉ */}
+      <PageHeader
+        title="Pain & Commandes Boulangerie"
+        module="MODULE 14 · PRIX SUBVENTIONNÉ RÉGLEMENTÉ (DZD)"
+        period={`${total} commande(s) · ${stats.pending} en cours · ${stats.recurring} quotidienne(s) · Exercice ${new Date().getFullYear()}`}
+        actions={
+          <>
+            <div className="relative w-full max-w-xs">
+              <Search
+                size={16}
+                aria-hidden="true"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+              />
+              <TextInput
+                ref={searchRef}
+                value={query}
+                onChange={(e) => onQueryChange(e.target.value)}
+                placeholder="Nom, client… [F3]"
+                aria-label="Rechercher une commande"
+                className="pl-9"
+              />
+            </div>
+            <Select
+              value={recurringFilter}
+              onChange={(e) => {
+                const f = e.target.value as BreadRecurringFilter;
+                setRecurringFilter(f);
+                setPage(1);
+                void load({ ...current(), rec: f }, 1);
+              }}
+              aria-label="Filtre récurrence"
+              title="Récurrence"
+            >
+              <option value="all">Toutes</option>
+              <option value="recurring">Quotidiennes</option>
+              <option value="once">Ponctuelles</option>
+            </Select>
+            <Button
+              variant="secondary"
+              onClick={() => setToolbarOpen((o) => !o)}
+              aria-expanded={toolbarOpen}
+              title="Afficher / masquer les filtres"
+            >
+              <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
+            </Button>
+            <Button
+              onClick={() => {
+                setEditing(null);
+                setFormOpen(true);
+              }}
+              title="Nouvelle commande"
+            >
+              <Plus size={16} aria-hidden="true" /> Nouvelle Commande
+            </Button>
+          </>
+        }
+      />
 
-      {/* Cartes statistiques */}
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <Kpi label="Commandes" value={String(stats.total)} sub="Toutes" />
-        <Kpi label="En cours" value={String(stats.pending)} sub="Nouvelles à prêtes" />
-        <Kpi label="Quotidiennes" value={String(stats.recurring)} sub="Récurrentes" />
-        <Kpi label="Livrées" value={String(stats.delivered)} sub="Terminées" />
+      {/* Cartes statistiques Stitch */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Kpi
+          label="Commandes du Jour"
+          value={String(stats.total)}
+          sub="Volume total planifié"
+          accent="#fbbf24"
+        />
+        <Kpi
+          label="En Cours / En Préparation"
+          value={String(stats.pending)}
+          sub="Au fourneau / pétrin"
+          accent="#8ed0ff"
+        />
+        <Kpi
+          label="Commandes Quotidiennes"
+          value={String(stats.recurring)}
+          sub="Abonnés récurrents"
+          accent="#cde8ff"
+        />
+        <Kpi
+          label="Livrées & Encaissées"
+          value={String(stats.delivered)}
+          sub="Terminées"
+          accent="#4edea3"
+        />
       </div>
 
       {/* Barre d'outils */}
@@ -584,7 +607,7 @@ export function BreadScreen({ notify }: { notify: Notify }): React.JSX.Element {
             />
           ) : (
             <table className="w-full min-w-[980px] text-sm">
-              <thead className="sticky top-0 bg-[#111a2e] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
+              <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
                 <tr>
                   <th className="w-10 px-3 py-2.5">
                     <input

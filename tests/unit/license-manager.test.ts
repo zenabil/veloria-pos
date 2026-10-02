@@ -2,7 +2,9 @@
 // Clés éphémères : la clé vendor réelle n'est jamais touchée par les tests.
 import { describe, it, expect } from "vitest";
 import { generateKeyPairSync } from "node:crypto";
-import { addMonths } from "../../license-manager/ipc/licenses.ts";
+import fs from "node:fs";
+import path from "node:path";
+import { addMonths, inTx } from "../../license-manager/ipc/licenses.ts";
 import {
   licenseCreateSchema,
   licenseRenewSchema,
@@ -102,5 +104,87 @@ describe("Manager emission (cross-module proof)", () => {
       nowMs: Date.parse("2026-06-01T00:00:00.000Z"),
     });
     expect(st).toBe("ACTIVE");
+  });
+});
+
+describe("inTx (registre vendor atomique)", () => {
+  const stubDb = (): {
+    prepare: (sql: string) => {
+      run: (...p: unknown[]) => { changes: number; lastInsertRowid: number };
+      get: (...p: unknown[]) => undefined;
+      all: (...p: unknown[]) => unknown[];
+    };
+  } => ({
+    prepare: (_sql: string) => ({
+      run: (..._p: unknown[]) => ({ changes: 1, lastInsertRowid: 1 }),
+      get: (..._p: unknown[]) => undefined,
+      all: (..._p: unknown[]) => [],
+    }),
+  });
+  it("exécute directement sans capacité transaction", () => {
+    let ran = false;
+    inTx(stubDb(), () => {
+      ran = true;
+    });
+    expect(ran).toBe(true);
+  });
+  it("passe par transaction quand disponible, propage l'erreur", () => {
+    const calls: string[] = [];
+    const db = {
+      ...stubDb(),
+      transaction: (fn: () => void) => () => {
+        calls.push("begin");
+        try {
+          fn();
+          calls.push("commit");
+        } catch (e) {
+          calls.push("rollback");
+          throw e;
+        }
+      },
+    };
+    inTx(db, () => calls.push("work"));
+    expect(calls).toEqual(["begin", "work", "commit"]);
+    expect(() =>
+      inTx(db, () => {
+        throw new Error("panne");
+      }),
+    ).toThrow("panne");
+    expect(calls[calls.length - 1]).toBe("rollback");
+  });
+});
+
+describe("L1/L2 : standing conservé par transfert/capabilities, réaligné par renouvellement", () => {
+  // Même motif que bridge-shape.test.ts : contrat source statique (registry.ts
+  // importe Electron, injouable tel quel en vitest).
+  const src = fs.readFileSync(
+    path.join(process.cwd(), "license-manager", "ipc", "registry.ts"),
+    "utf-8",
+  );
+  const block = (name: string): string =>
+    src
+      .split("handle(MANAGER_CHANNELS[")
+      .slice(1)
+      .find((b) => b.startsWith(`"${name}"`)) ?? "";
+
+  it("aucune ré émission ne repasse licenseStatus à null côté transfert/capabilities", () => {
+    // Le renouvellement lève la suspension (RENEWAL.md) : `licenseStatus: null`
+    // n'est licite QUE dans le bloc renew. Transfert et capabilities doivent
+    // propager `standing` (suspension conservée hors ligne).
+    const renew = block("manager.licenseRenew");
+    const transfer = block("manager.licenseTransfer");
+    const caps = block("manager.licenseCapabilities");
+    expect(renew.length).toBeGreaterThan(0);
+    expect(transfer.length).toBeGreaterThan(0);
+    expect(caps.length).toBeGreaterThan(0);
+    expect(transfer).toContain("licenseStatus: standing");
+    expect(transfer).not.toContain("licenseStatus: null");
+    expect(caps).toContain("licenseStatus: standing");
+    expect(caps).not.toContain("licenseStatus: null");
+  });
+
+  it("le renouvellement écrit les deux colonnes de statut (P12)", () => {
+    const renew = block("manager.licenseRenew");
+    expect(renew).toContain("status = 'active', license_status = 'active'");
   });
 });

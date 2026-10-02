@@ -19,6 +19,7 @@ import {
   Card,
   EmptyState,
   Kpi,
+  PageHeader,
   Pager,
   RowAction,
   Select,
@@ -26,6 +27,7 @@ import {
   cn,
 } from "@shared/ui/primitives.tsx";
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
+import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
 import { ClientDetailsDrawer, ClientFormDialog } from "./ClientDialogs.tsx";
 import {
   debtLabel,
@@ -79,7 +81,7 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
   } | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
-  const queryTimer = useRef<number | null>(null);
+  const queryTimer = useDebouncedTimer();
   const searchRef = useRef<HTMLInputElement>(null);
   // Confirmation non bloquante (modale applicative).
   const confirmAsync = useConfirm();
@@ -100,14 +102,9 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (queryTimer.current != null) window.clearTimeout(queryTimer.current);
-    };
-  }, []);
-
-  /** Ligne serveur → ligne enrichie (agrégats déjà calculés par le main). */
-  function toEnriched(c: EnrichedCustomerRow): EnrichedCustomer {
+  /** Ligne serveur → ligne enrichie (agrégats déjà calculés par le main). */ function toEnriched(
+    c: EnrichedCustomerRow,
+  ): EnrichedCustomer {
     const { invoice_count, total_purchases_minor, last_sale_at, ...base } = c;
     return {
       ...(base as unknown as Customer),
@@ -180,10 +177,9 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
   function onQueryChange(q: string): void {
     setQuery(q);
     setPage(1);
-    if (queryTimer.current != null) window.clearTimeout(queryTimer.current);
-    queryTimer.current = window.setTimeout(() => {
+    queryTimer.schedule(250, () => {
       void load(q, archiveFilter, creditFilter, 1);
-    }, 250);
+    });
   }
 
   function changeArchive(a: ArchiveFilter): void {
@@ -289,48 +285,69 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
 
   return (
     <div className="flex h-full flex-col gap-4">
-      {/* En-tête de page */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-xl font-extrabold tracking-tight">Clients</h2>
-          <p className="text-xs text-slate-500">
-            {total} client(s) · {stats.credit} endetté(s) · {formatDzd(stats.debt)} de dettes
-          </p>
-        </div>
-        <div className="relative w-full max-w-xs">
-          <Search
-            size={16}
-            aria-hidden="true"
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-          />
-          <TextInput
-            ref={searchRef}
-            value={query}
-            onChange={(e) => onQueryChange(e.target.value)}
-            placeholder="Rechercher… [F3]"
-            aria-label="Rechercher un client"
-            className="pl-9"
-          />
-        </div>
-        <Button
-          variant="secondary"
-          onClick={() => setToolbarOpen((o) => !o)}
-          aria-expanded={toolbarOpen}
-          title="Afficher / masquer les filtres"
-        >
-          <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
-        </Button>
-        <Button onClick={openCreate} title="Créer un client">
-          <Plus size={16} aria-hidden="true" /> Client
-        </Button>
-      </div>
+      {/* En-tête Stitch : Gestion des Clients · Registre Fédéré DZD */}
+      <PageHeader
+        title="Gestion des Clients"
+        module="Registre Fédéré DZD"
+        period={`${total} fiche(s) active(s) · ${stats.credit} compte(s) avec créance · ${formatDzd(stats.debt)} de dettes globales en cours`}
+        actions={
+          <>
+            <div className="relative w-full max-w-xs">
+              <Search
+                size={16}
+                aria-hidden="true"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+              />
+              <TextInput
+                ref={searchRef}
+                value={query}
+                onChange={(e) => onQueryChange(e.target.value)}
+                placeholder="Rechercher… [F3]"
+                aria-label="Rechercher un client"
+                className="pl-9"
+              />
+            </div>
+            <Button
+              variant="secondary"
+              onClick={() => setToolbarOpen((o) => !o)}
+              aria-expanded={toolbarOpen}
+              title="Afficher / masquer les filtres"
+            >
+              <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
+            </Button>
+            <Button onClick={openCreate} title="Créer un client">
+              <Plus size={16} aria-hidden="true" /> Nouveau client
+            </Button>
+          </>
+        }
+      />
 
-      {/* Cartes statistiques */}
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <Kpi label="Clients" value={String(stats.total)} sub="Fiches actives" />
-        <Kpi label="Endettés" value={String(stats.credit)} sub="Solde > 0" />
-        <Kpi label="Dette totale" value={formatDzd(stats.debt)} sub="Tous clients" />
-        <Kpi label="Encaissé (7 j)" value={formatDzd(stats.recent)} sub="Paiements récents" />
+      {/* Cartes statistiques Stitch */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Kpi
+          label="Fiches Actives"
+          value={String(stats.total)}
+          sub="Registre fédéré"
+          accent="#fbbf24"
+        />
+        <Kpi
+          label="Clients avec Dette"
+          value={String(stats.credit)}
+          sub="Solde > 0"
+          accent="#ffb4ab"
+        />
+        <Kpi
+          label="Total Créances Clients"
+          value={formatDzd(stats.debt)}
+          sub="Tous clients"
+          accent="#cde8ff"
+        />
+        <Kpi
+          label="Encaissé 7 Derniers Jours"
+          value={formatDzd(stats.recent)}
+          sub="Paiements récents"
+          accent="#4edea3"
+        />
       </div>
 
       {/* Barre d'outils */}
@@ -441,11 +458,11 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
           ) : visible.length === 0 ? (
             <EmptyState
               title="Aucun client"
-              hint="Modifiez la recherche ou créez votre premier client avec le bouton « Client »."
+              hint="Modifiez la recherche ou créez votre premier client avec le bouton « Nouveau client »."
             />
           ) : (
             <table className="w-full min-w-[1080px] text-sm">
-              <thead className="sticky top-0 bg-[#111a2e] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
+              <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
                 <tr>
                   <th className="w-10 px-3 py-2.5">
                     <input

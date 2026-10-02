@@ -37,7 +37,6 @@ import {
   type DebtRow,
   type DebtType,
 } from "./types.ts";
-import { CASHIER_LABEL } from "@shared/formatters/format.ts";
 
 import type { Notify } from "@shared/ui/primitives.tsx";
 import { frError } from "@shared/errors/fr-map.ts";
@@ -204,7 +203,7 @@ export function DebtDetailsDrawer({
           <InfoRow label="Type" value={debtTypeLabel(debtType)} />
           <InfoRow label={debtType === "customer" ? "Client" : "Fournisseur"} value={partyName} />
           <InfoRow label="Référence" value={ref} />
-          <InfoRow label="Utilisateur" value={CASHIER_LABEL} />
+          <InfoRow label="Poste" value="Caisse 01" />
           {settleDay != null ? (
             <InfoRow
               label="Règlement mensuel"
@@ -328,7 +327,7 @@ export function DebtPaymentDialog({
   const [busy, setBusy] = useState(false);
   // Idempotence (migration 0020) : un UUID par dialogue, régénéré après succès.
   const [operationId, setOperationId] = useState<string>(() => newOperationId());
-  // Reçu de règlement (ticket تسديد الدين) proposé après succès.
+  // Reçu de règlement proposé après succès.
   const [ticket, setTicket] = useState<PaymentTicketInput | null>(null);
   const touched = useRef(false);
   const { value: supplierDefaults } = useAppSettings<{

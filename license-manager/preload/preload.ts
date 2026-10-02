@@ -22,6 +22,8 @@ const api = {
   licenseCapabilities: (p: unknown) => invoke(MANAGER_CHANNELS["manager.licenseCapabilities"], p),
   licenseStanding: (p: unknown) => invoke(MANAGER_CHANNELS["manager.licenseStanding"], p),
   backup: () => invoke(MANAGER_CHANNELS["manager.backup"]),
+  backups: () => invoke(MANAGER_CHANNELS["manager.backups"]),
+  restore: (p: unknown) => invoke(MANAGER_CHANNELS["manager.restore"], p),
 };
 
 contextBridge.exposeInMainWorld("veloriaManager", api);

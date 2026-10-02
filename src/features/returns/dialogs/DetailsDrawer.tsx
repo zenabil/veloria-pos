@@ -8,6 +8,7 @@ import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { buildCompanyHead } from "@shared/documents/sale-ticket.ts";
 
 import { newOperationId } from "@domain/common/ids.ts";
+import { roundQuantity } from "@domain/common/quantity.ts";
 import { formatCustomerCode, formatDzdSafe } from "@shared/formatters/format.ts";
 
 import { Badge, Button, Card, Drawer, InfoRow, Modal } from "@shared/ui/primitives.tsx";
@@ -58,6 +59,13 @@ export function ReturnDetailsDrawer({
   const [ticket, setTicket] = useState<{ htmlA4: string; payload: Record<string, unknown> } | null>(
     null,
   );
+  // Bon de retour dédié (previewReturnSlip/printReturnSlip) : aperçu vivant A4/80mm.
+  const [slip, setSlip] = useState<{
+    htmlA4: string;
+    text80: string;
+    payload: Record<string, unknown>;
+  } | null>(null);
+  const [slipFormat, setSlipFormat] = useState<"80mm" | "A4">("A4");
   const [busy, setBusy] = useState(false);
   // Fiche entreprise : source unique partagée (ticket).
   const { record: companyRecord } = useCompany();
@@ -159,6 +167,113 @@ export function ReturnDetailsDrawer({
       notify(mode === "A4" ? "Facture A4 envoyée." : "Ticket envoyé.", "ok");
     } catch (e) {
       notify(frError(e, "Impression impossible."), "err");
+    }
+  }
+
+  // Bon de retour dédié (`printing.previewReturnSlip/printReturnSlip`) :
+  // mêmes lignes que le ticket + numéro de retour, motif et montant remboursé.
+  async function openReturnSlip(): Promise<void> {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const co = companyRecord;
+      const party = data.party ?? {};
+      const methodRaw = kind === "customer" ? h["refund_method"] : h["recovery_method"];
+      const paymentMethod =
+        methodRaw === "cash" || methodRaw === "cheque" || methodRaw === "transfer"
+          ? methodRaw
+          : null;
+      const refunded =
+        kind === "customer"
+          ? Number(h["amount_refunded_minor"] ?? 0)
+          : Number(h["amount_recovered_minor"] ?? 0);
+      // Lignes retotalisées (ligne = prix × qté) pour la cohérence exigée
+      // par le main ; lignes invalides ignorées.
+      const lines: {
+        name: string;
+        qty: number;
+        unit: string;
+        unitPriceMinor: number;
+        lineTotalMinor: number;
+        ref: string;
+      }[] = [];
+      for (const l of data.items) {
+        const qty = roundQuantity(Number(l.quantity));
+        const unit = Math.round(Number(l.unit_price_minor));
+        if (!Number.isFinite(qty) || qty <= 0 || !Number.isFinite(unit) || unit < 0) continue;
+        lines.push({
+          name: String(l.product_name_snapshot),
+          qty,
+          unit: "",
+          unitPriceMinor: unit,
+          lineTotalMinor: Math.round(unit * qty),
+          ref:
+            typeof l.product_id === "number" && l.product_id > 0
+              ? String(l.product_id).padStart(5, "0")
+              : "—",
+        });
+      }
+      if (lines.length === 0) {
+        notify("Aucune ligne à imprimer.", "err");
+        return;
+      }
+      const subtotal = lines.reduce((a, l) => a + l.lineTotalMinor, 0);
+      const rawDate = String(h["created_at"] ?? "");
+      const dd = rawDate === "" ? new Date(Date.now()) : new Date(rawDate);
+      const payload: Record<string, unknown> = {
+        ...buildCompanyHead(
+          co
+            ? {
+                company_name: co["company_name"],
+                phone: co["phone"],
+                address: co["address"],
+                city: co["city"],
+                email: co["email"],
+                rc_number: co["rc_number"] ?? co["commercial_register"],
+                nif: co["nif"],
+              }
+            : null,
+        ),
+        customerName: partyName(),
+        customerPhone: typeof party["phone"] === "string" ? party["phone"] : "",
+        customerAddress: typeof party["address"] === "string" ? party["address"] : "",
+        customerCode: "",
+        paymentMethod,
+        invoice: String(h["original_invoice_number"] ?? h["intake_invoice_number"] ?? num),
+        date: Number.isNaN(dd.getTime()) ? rawDate.slice(0, 10) : dd.toLocaleString("fr-FR"),
+        lines,
+        subtotalMinor: subtotal,
+        discountMinor: 0,
+        deliveryMinor: 0,
+        totalMinor: subtotal,
+        paidMinor: settled,
+        returnNumber: num,
+        reason: typeof h["reason"] === "string" ? h["reason"] : "",
+        refundMinor: Number.isFinite(refunded) && refunded > 0 ? Math.round(refunded) : 0,
+      };
+      const pv = (await api.returnSlipPreview(payload)) as {
+        text80: string;
+        htmlA4: string;
+      };
+      setSlip({ htmlA4: pv.htmlA4, text80: pv.text80, payload });
+      setSlipFormat("A4");
+    } catch (e) {
+      notify(frError(e, "Aperçu indisponible."), "err");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function printReturnSlip(mode: "80mm" | "A4"): Promise<void> {
+    if (!slip || busy) return;
+    setBusy(true);
+    try {
+      await api.returnSlipPrint(mode === "A4" ? { ...slip.payload, format: "A4" } : slip.payload);
+      notify(mode === "A4" ? "Bon de retour A4 envoyé." : "Bon de retour 80mm envoyé.", "ok");
+    } catch (e) {
+      notify(frError(e, "Impression impossible."), "err");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -299,6 +414,9 @@ export function ReturnDetailsDrawer({
         <Button variant="secondary" onClick={() => void openTicket()} disabled={busy}>
           <ReceiptText size={15} aria-hidden="true" /> {busy ? "Chargement…" : "Imprimer le retour"}
         </Button>
+        <Button variant="secondary" onClick={() => void openReturnSlip()} disabled={busy}>
+          <Printer size={15} aria-hidden="true" /> {busy ? "Chargement…" : "Bon de retour (aperçu)"}
+        </Button>
         {!cancelled && settled === 0 ? (
           <Button variant="secondary" onClick={() => void cancel()} disabled={busy}>
             <Undo2 size={15} aria-hidden="true" /> Annuler le retour
@@ -327,6 +445,67 @@ export function ReturnDetailsDrawer({
             </Button>
             <Button variant="secondary" onClick={() => void printTicket("A4")} className="flex-1">
               <Printer size={15} aria-hidden="true" /> Facture A4
+            </Button>
+          </div>
+        </Modal>
+      ) : null}
+
+      {slip ? (
+        <Modal
+          label="Bon de retour"
+          title={`Bon de retour ${num}`}
+          onClose={() => setSlip(null)}
+          wide
+        >
+          <div className="mb-3 flex gap-1.5" role="tablist" aria-label="Format d'aperçu">
+            {(["A4", "80mm"] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                role="tab"
+                aria-selected={slipFormat === f}
+                onClick={() => setSlipFormat(f)}
+                className={
+                  slipFormat === f
+                    ? "rounded-lg bg-amber-400 px-4 py-1.5 text-xs font-bold text-black"
+                    : "rounded-lg border border-white/10 px-4 py-1.5 text-xs font-bold text-slate-400 hover:text-white"
+                }
+              >
+                {f === "A4" ? "Format A4" : "Ticket 80mm"}
+              </button>
+            ))}
+          </div>
+          {slipFormat === "A4" ? (
+            <iframe
+              sandbox=""
+              srcDoc={slip.htmlA4}
+              title="Aperçu bon de retour"
+              className="h-[50vh] w-full rounded-xl border border-white/10 bg-white"
+            />
+          ) : (
+            <pre
+              className="h-[50vh] overflow-auto rounded-xl border border-white/10 bg-white p-4 font-mono text-[12px] leading-snug text-black"
+              aria-label="Aperçu bon de retour 80mm"
+            >
+              {slip.text80}
+            </pre>
+          )}
+          <div className="mt-3 flex gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => void printReturnSlip("80mm")}
+              disabled={busy}
+              className="flex-1"
+            >
+              <Printer size={15} aria-hidden="true" /> Imprimer 80mm
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => void printReturnSlip("A4")}
+              disabled={busy}
+              className="flex-1"
+            >
+              <Printer size={15} aria-hidden="true" /> Imprimer A4
             </Button>
           </div>
         </Modal>

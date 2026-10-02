@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "Veloria Client",
+    "slug": "veloria-client",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "locales": {
+      "ar": "./locales/ar.json",
+      "fr": "./locales/fr.json"
+    },
+    "plugins": ["expo-asset", "expo-font", "expo-camera"],
+    "android": {
+      "package": "dz.veloria.client",
+      "permissions": ["CAMERA"]
+    },
+    "ios": {
+      "infoPlist": {
+        "NSCameraUsageDescription": "Scannez le QR d'activation de votre magasin. امسح رمز التفعيل الخاص بمحلك."
+      }
+    }
+  }
+}

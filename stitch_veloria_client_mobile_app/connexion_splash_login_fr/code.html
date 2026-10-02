@@ -1,0 +1,430 @@
+<!doctype html>
+
+<html class="h-full" dir="ltr" lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Veloria Client - Connexion &amp; Authentification</title>
+    <!-- Material Symbols Outlined -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <!-- Google Fonts: Space Grotesk, Plus Jakarta Sans, JetBrains Mono -->
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <!-- Tailwind CSS v3 -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-secondary": "#ffffff",
+              "on-surface-variant": "#44474c",
+              "surface-bright": "#f8f9fb",
+              "on-secondary-fixed": "#261a00",
+              "outline-variant": "#c4c6cd",
+              "on-error-container": "#93000a",
+              "on-primary-fixed-variant": "#3a485a",
+              "surface-container-highest": "#e1e2e4",
+              "primary-container": "#0e1c2d",
+              surface: "#f8f9fb",
+              "tertiary-fixed-dim": "#62df7d",
+              "surface-container": "#edeef0",
+              "tertiary-fixed": "#7ffc97",
+              "surface-tint": "#515f72",
+              "secondary-container": "#ffc329",
+              "tertiary-container": "#002109",
+              "primary-fixed-dim": "#b9c8de",
+              "on-tertiary-fixed": "#002109",
+              "secondary-fixed-dim": "#f9bd22",
+              "on-error": "#ffffff",
+              "on-secondary-container": "#6f5100",
+              "on-secondary-fixed-variant": "#5c4300",
+              secondary: "#795900",
+              "inverse-surface": "#2e3132",
+              "on-surface": "#191c1e",
+              "secondary-fixed": "#ffdf9f",
+              error: "#ba1a1a",
+              "inverse-on-surface": "#f0f1f3",
+              primary: "#000000",
+              tertiary: "#000000",
+              "on-tertiary-fixed-variant": "#005320",
+              "primary-fixed": "#d5e4fa",
+              "on-primary-fixed": "#0e1c2d",
+              "on-primary-container": "#778599",
+              "on-primary": "#ffffff",
+              "surface-container-high": "#e7e8ea",
+              "surface-variant": "#e1e2e4",
+              "surface-dim": "#d9dadc",
+              "inverse-primary": "#b9c8de",
+              "on-background": "#191c1e",
+              background: "#f8f9fb",
+              "surface-container-low": "#f2f4f6",
+              "on-tertiary": "#ffffff",
+              "on-tertiary-container": "#009842",
+              "error-container": "#ffdad6",
+              outline: "#74777d",
+              "surface-container-lowest": "#ffffff",
+            },
+            borderRadius: {
+              DEFAULT: "1rem",
+              lg: "2rem",
+              xl: "3rem",
+              full: "9999px",
+            },
+            spacing: {
+              gutter: "1rem",
+              "margin-tablet": "2rem",
+              "space-md": "1rem",
+              "space-xs": "0.25rem",
+              "margin-desktop": "3rem",
+              "gutter-desktop": "2rem",
+              "gutter-tablet": "1.5rem",
+              "space-lg": "1.5rem",
+              "space-xl": "2.5rem",
+              margin: "1rem",
+              "space-sm": "0.5rem",
+            },
+            fontFamily: {
+              "body-lg": ["Plus Jakarta Sans"],
+              "label-caps": ["JetBrains Mono"],
+              "currency-lg": ["JetBrains Mono"],
+              "display-lg": ["Space Grotesk"],
+              "display-lg-mobile": ["Space Grotesk"],
+              "headline-sm": ["Space Grotesk"],
+              "currency-xl": ["JetBrains Mono"],
+              "currency-md": ["JetBrains Mono"],
+              "headline-lg": ["Space Grotesk"],
+              "body-sm": ["Plus Jakarta Sans"],
+              "body-md": ["Plus Jakarta Sans"],
+            },
+            fontSize: {
+              "body-lg": ["16px", { lineHeight: "24px", fontWeight: "400" }],
+              "label-caps": [
+                "11px",
+                { lineHeight: "16px", letterSpacing: "0.06em", fontWeight: "600" },
+              ],
+              "currency-lg": ["22px", { lineHeight: "28px", fontWeight: "500" }],
+              "display-lg": [
+                "44px",
+                { lineHeight: "52px", letterSpacing: "-0.03em", fontWeight: "700" },
+              ],
+              "display-lg-mobile": [
+                "32px",
+                { lineHeight: "40px", letterSpacing: "-0.02em", fontWeight: "700" },
+              ],
+              "headline-sm": ["20px", { lineHeight: "28px", fontWeight: "600" }],
+              "currency-xl": [
+                "32px",
+                { lineHeight: "40px", letterSpacing: "-0.02em", fontWeight: "600" },
+              ],
+              "currency-md": ["16px", { lineHeight: "24px", fontWeight: "500" }],
+              "headline-lg": [
+                "28px",
+                { lineHeight: "36px", letterSpacing: "-0.02em", fontWeight: "600" },
+              ],
+              "body-sm": ["12px", { lineHeight: "16px", fontWeight: "400" }],
+              "body-md": ["14px", { lineHeight: "20px", fontWeight: "400" }],
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      .material-symbols-outlined {
+        font-variation-settings:
+          "FILL" 0,
+          "wght" 400,
+          "GRAD" 0,
+          "opsz" 24;
+        display: inline-block;
+        vertical-align: middle;
+        line-height: 1;
+      }
+      /* Hide native number spin buttons */
+      input[type="number"]::-webkit-inner-spin-button,
+      input[type="number"]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-primary-container text-on-primary min-h-screen flex items-center justify-center p-0 md:p-6 font-body-md antialiased selection:bg-secondary-container selection:text-primary-container"
+  >
+    <!-- Mobile Device Shell 360x810 context -->
+    <main
+      class="w-full max-w-[390px] min-h-screen bg-primary-container relative flex flex-col justify-between overflow-x-hidden shadow-2xl md:border md:border-on-primary-container/20 md:rounded-3xl"
+    >
+      <!-- Ambient background glow mesh -->
+      <div
+        class="absolute -top-24 left-1/2 -translate-x-1/2 w-80 h-80 bg-secondary-container/10 rounded-full blur-3xl pointer-events-none"
+      ></div>
+      <div
+        class="absolute top-96 -right-24 w-60 h-60 bg-on-tertiary-container/10 rounded-full blur-3xl pointer-events-none"
+      ></div>
+      <div class="relative z-10 px-margin pt-space-lg flex flex-col flex-1 pb-space-lg">
+        <!-- Top Bar: Security Pill & Language Switcher -->
+        <header class="flex items-center justify-between w-full mb-space-lg">
+          <!-- Security Pill -->
+          <div
+            class="inline-flex items-center gap-1.5 px-space-sm py-1 rounded-full bg-surface-container-highest/10 border border-on-primary-container/20"
+          >
+            <span class="w-2 h-2 rounded-full bg-tertiary-fixed animate-pulse"></span>
+            <span class="font-label-caps text-label-caps text-on-primary font-medium tracking-wide"
+              >Rapide &amp; Sécurisé</span
+            >
+          </div>
+          <!-- Language Segmented Control -->
+          <div
+            class="inline-flex items-center p-1 rounded-full bg-surface-container-highest/10 border border-on-primary-container/20"
+          >
+            <button
+              class="px-2.5 py-0.5 rounded-full text-on-primary-container hover:text-on-primary font-label-caps text-label-caps transition-colors"
+              type="button"
+            >
+              AR
+            </button>
+            <button
+              class="px-2.5 py-0.5 rounded-full bg-secondary-container text-primary-container font-label-caps text-label-caps font-bold shadow-sm"
+              type="button"
+            >
+              FR
+            </button>
+          </div>
+        </header>
+        <!-- Center Branding -->
+        <section class="flex flex-col items-center text-center mt-space-xs mb-space-lg">
+          <!-- Monogram Squircle -->
+          <div
+            class="relative w-16 h-16 rounded-[22px] bg-secondary-container flex items-center justify-center shadow-lg shadow-secondary-container/20 mb-space-sm"
+          >
+            <span
+              class="font-display-lg text-headline-lg font-bold text-primary-container tracking-tight select-none"
+              >V</span
+            >
+            <div
+              class="absolute inset-0 rounded-[22px] border border-white/30 pointer-events-none"
+            ></div>
+          </div>
+          <!-- Brand Title & Tagline -->
+          <h1
+            class="font-display-lg-mobile text-display-lg-mobile text-on-primary tracking-tight font-bold"
+          >
+            Veloria
+          </h1>
+          <p class="font-body-sm text-body-sm text-on-primary-container mt-1">
+            Espace Client | Suivi des achats &amp; dettes
+          </p>
+        </section>
+        <!-- Authentication Form -->
+        <form class="flex flex-col gap-space-md w-full" onsubmit="event.preventDefault();">
+          <!-- Field 1: Phone Number -->
+          <div class="flex flex-col gap-1.5">
+            <label
+              class="flex items-center gap-1.5 text-on-primary-container font-label-caps text-label-caps"
+              for="phone-input"
+            >
+              <span class="material-symbols-outlined text-[15px]" data-icon="phone">phone</span>
+              <span>Numéro de téléphone enregistré</span>
+            </label>
+            <div
+              class="relative flex items-center rounded-2xl bg-surface-container-highest/10 border border-on-primary-container/25 focus-within:border-secondary-container focus-within:ring-1 focus-within:ring-secondary-container transition-all overflow-hidden h-13 py-1 px-3"
+            >
+              <!-- Algeria Flag & Dial Code -->
+              <div
+                class="flex items-center gap-1.5 pr-2.5 border-r border-on-primary-container/20 select-none"
+              >
+                <span aria-label="Drapeau Algérie" class="text-base leading-none" role="img"
+                  >🇩🇿</span
+                >
+                <span
+                  class="font-label-caps text-label-caps text-on-primary font-bold tracking-wider"
+                  >+213</span
+                >
+              </div>
+              <!-- Phone Input -->
+              <input
+                class="w-full bg-transparent border-0 text-on-primary placeholder:text-on-primary-container/40 font-currency-md text-currency-md focus:ring-0 focus:outline-none pl-3 py-2"
+                id="phone-input"
+                maxlength="14"
+                placeholder="0550 12 34 56"
+                type="tel"
+              />
+            </div>
+          </div>
+          <!-- Field 2: 6-Digit PIN Code -->
+          <div class="flex flex-col gap-1.5">
+            <div class="flex items-center justify-between">
+              <label
+                class="flex items-center gap-1.5 text-on-primary-container font-label-caps text-label-caps"
+              >
+                <span class="material-symbols-outlined text-[15px]" data-icon="lock">lock</span>
+                <span>Code secret client (PIN 6 chiffres)</span>
+              </label>
+              <button
+                class="text-secondary-fixed-dim hover:underline font-label-caps text-label-caps"
+                type="button"
+              >
+                Oublié ?
+              </button>
+            </div>
+            <!-- 6 Discrete PIN Boxes -->
+            <div class="grid grid-cols-6 gap-2 w-full pt-1" id="pin-container">
+              <input
+                class="h-12 w-full text-center rounded-xl bg-surface-container-highest/10 border border-on-primary-container/25 text-secondary-container font-currency-lg text-currency-lg focus:border-secondary-container focus:ring-1 focus:ring-secondary-container focus:outline-none focus:bg-surface-container-highest/20 transition-all caret-secondary-container"
+                inputmode="numeric"
+                maxlength="1"
+                type="password"
+                value="5"
+              />
+              <input
+                class="h-12 w-full text-center rounded-xl bg-surface-container-highest/10 border border-on-primary-container/25 text-secondary-container font-currency-lg text-currency-lg focus:border-secondary-container focus:ring-1 focus:ring-secondary-container focus:outline-none focus:bg-surface-container-highest/20 transition-all caret-secondary-container"
+                inputmode="numeric"
+                maxlength="1"
+                type="password"
+                value="2"
+              />
+              <input
+                class="h-12 w-full text-center rounded-xl bg-surface-container-highest/10 border border-on-primary-container/25 text-secondary-container font-currency-lg text-currency-lg focus:border-secondary-container focus:ring-1 focus:ring-secondary-container focus:outline-none focus:bg-surface-container-highest/20 transition-all caret-secondary-container"
+                inputmode="numeric"
+                maxlength="1"
+                type="password"
+                value="8"
+              />
+              <input
+                autofocus=""
+                class="h-12 w-full text-center rounded-xl bg-surface-container-highest/10 border border-secondary-container/80 text-secondary-container font-currency-lg text-currency-lg focus:border-secondary-container focus:ring-1 focus:ring-secondary-container focus:outline-none focus:bg-surface-container-highest/20 transition-all caret-secondary-container ring-1 ring-secondary-container/40"
+                inputmode="numeric"
+                maxlength="1"
+                placeholder="•"
+                type="password"
+              />
+              <input
+                class="h-12 w-full text-center rounded-xl bg-surface-container-highest/10 border border-on-primary-container/25 text-secondary-container font-currency-lg text-currency-lg focus:border-secondary-container focus:ring-1 focus:ring-secondary-container focus:outline-none focus:bg-surface-container-highest/20 transition-all caret-secondary-container"
+                inputmode="numeric"
+                maxlength="1"
+                placeholder="-"
+                type="password"
+              />
+              <input
+                class="h-12 w-full text-center rounded-xl bg-surface-container-highest/10 border border-on-primary-container/25 text-secondary-container font-currency-lg text-currency-lg focus:border-secondary-container focus:ring-1 focus:ring-secondary-container focus:outline-none focus:bg-surface-container-highest/20 transition-all caret-secondary-container"
+                inputmode="numeric"
+                maxlength="1"
+                placeholder="-"
+                type="password"
+              />
+            </div>
+          </div>
+          <!-- Primary CTA: Login -->
+          <button
+            class="w-full h-14 mt-1 bg-secondary-container hover:bg-secondary-fixed-dim active:scale-[0.98] text-primary-container font-headline-sm text-headline-sm font-bold rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-secondary-container/25 transition-all"
+            type="button"
+          >
+            <span>Se connecter à mon compte</span>
+            <span class="text-xl leading-none">→</span>
+          </button>
+          <!-- Secondary Actions Row -->
+          <div class="grid grid-cols-2 gap-2 mt-1">
+            <button
+              class="h-11 px-2.5 rounded-xl bg-surface-container-highest/10 hover:bg-surface-container-highest/20 border border-on-primary-container/25 active:scale-95 transition-all flex items-center justify-center gap-1.5 text-on-primary text-center"
+              type="button"
+            >
+              <span
+                class="material-symbols-outlined text-[17px] text-secondary-container"
+                data-icon="qr_code_scanner"
+                >qr_code_scanner</span
+              >
+              <span class="font-body-sm text-body-sm font-medium leading-tight">Scanner QR</span>
+            </button>
+            <button
+              class="h-11 px-2.5 rounded-xl bg-surface-container-highest/10 hover:bg-surface-container-highest/20 border border-on-primary-container/25 active:scale-95 transition-all flex items-center justify-center gap-1.5 text-on-primary text-center"
+              type="button"
+            >
+              <span
+                class="material-symbols-outlined text-[17px] text-tertiary-fixed"
+                data-icon="chat"
+                >chat</span
+              >
+              <span class="font-body-sm text-body-sm font-medium leading-tight">Code WhatsApp</span>
+            </button>
+          </div>
+        </form>
+        <!-- Help / Onboarding Card -->
+        <section
+          class="mt-space-lg rounded-2xl bg-surface-container-highest/5 border border-on-primary-container/15 p-space-md flex flex-col gap-2.5"
+        >
+          <div
+            class="flex items-center gap-1.5 text-on-primary font-headline-sm text-body-md font-semibold"
+          >
+            <span
+              class="material-symbols-outlined text-secondary-container text-base"
+              data-icon="help"
+              >help</span
+            >
+            <h2>Comment se connecter pour la première fois ?</h2>
+          </div>
+          <ol class="flex flex-col gap-2 font-body-sm text-body-sm text-on-primary-container">
+            <li class="flex items-start gap-2">
+              <span
+                class="w-4 h-4 rounded-full bg-surface-container-highest/20 text-on-primary font-label-caps text-[10px] flex items-center justify-center shrink-0 mt-0.5 font-bold"
+                >1</span
+              >
+              <span>Récupérez votre code secret auprès de votre commerçant</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span
+                class="w-4 h-4 rounded-full bg-surface-container-highest/20 text-on-primary font-label-caps text-[10px] flex items-center justify-center shrink-0 mt-0.5 font-bold"
+                >2</span
+              >
+              <span>Entrez votre numéro et le code PIN à 6 chiffres</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span
+                class="w-4 h-4 rounded-full bg-surface-container-highest/20 text-on-primary font-label-caps text-[10px] flex items-center justify-center shrink-0 mt-0.5 font-bold"
+                >3</span
+              >
+              <span>Suivez vos dettes, factures et versements en temps réel</span>
+            </li>
+          </ol>
+        </section>
+        <!-- Bottom Notice Banner -->
+        <footer
+          class="mt-space-lg pt-space-sm flex items-center justify-center gap-1.5 text-center"
+        >
+          <span class="w-1.5 h-1.5 rounded-full bg-on-tertiary-container"></span>
+          <p class="font-label-caps text-label-caps text-on-primary-container/70 tracking-wider">
+            Certifié Veloria Commerce Algérie 🇩🇿
+          </p>
+        </footer>
+      </div>
+    </main>
+    <script>
+      // Lightweight auto-tab logic for 6-digit PIN input fields
+      const pinInputs = document.querySelectorAll("#pin-container input");
+      pinInputs.forEach((input, index) => {
+        input.addEventListener("input", (e) => {
+          if (e.target.value.length === 1 && index < pinInputs.length - 1) {
+            pinInputs[index + 1].focus();
+          }
+        });
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Backspace" && !e.target.value && index > 0) {
+            pinInputs[index - 1].focus();
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

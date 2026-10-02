@@ -281,6 +281,13 @@ export function receivePurchaseOrderAtomic(args: {
       throw new Error(`Commande non réceptionnable (statut : ${status}).`);
     }
     if (args.lines.length === 0) throw new Error("Aucune ligne à réceptionner.");
+    // M3 : doublon rejeté aussi en tx (défense en profondeur — le contrôle
+    // snapshotté ci-dessous ne verrait jamais la 2e occurrence du même itemId).
+    const seenItems = new Set<number>();
+    for (const l of args.lines) {
+      if (seenItems.has(l.itemId)) throw new Error("Ligne de commande en double.");
+      seenItems.add(l.itemId);
+    }
     const items = db
       .prepare(`SELECT * FROM purchase_order_items WHERE po_id = ?`)
       .all(args.id) as Record<string, unknown>[];

@@ -28,7 +28,10 @@ describe("SQLite migrations + integrity", () => {
       .readdirSync(migDir)
       .filter((f) => f.endsWith(".sql"))
       .sort();
-    expect(files.length).toBeGreaterThanOrEqual(3);
+    // RADICAL-FIX: contiguïté exacte 0001→0034 (tout trou = drift refusé par verify-migrations).
+    expect(files.length).toBe(34);
+    expect(files[0]).toMatch(/^0001_/);
+    expect(files[files.length - 1]).toMatch(/^0034_/);
     db.exec(
       "CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL, checksum TEXT NOT NULL);",
     );
@@ -87,7 +90,7 @@ describe("SQLite migrations + integrity", () => {
       .readdirSync(migDir)
       .filter((x) => x.endsWith(".sql"))
       .sort();
-    expect(files.length).toBeGreaterThanOrEqual(4);
+    expect(files.length).toBe(34);
     const read = (f: string): string => fs.readFileSync(path.join(migDir, f), "utf-8");
     for (const f of files.filter((f) => !f.startsWith("0004"))) db.exec(read(f));
     // Seed: one credit-authorized customer + one sale + one sale-linked payment.
@@ -212,6 +215,45 @@ describe("SQLite migrations + integrity", () => {
       )
       .get() as { c: number };
     expect(idx.c).toBe(1);
+    db.close();
+  });
+
+  it("0031 arms defensive sale-item triggers (discount coherence)", () => {
+    const db = new DatabaseSync(path.join(tmp, "p31.sqlite"));
+    db.exec("PRAGMA foreign_keys = ON;");
+    const migDir = path.join(process.cwd(), "database", "migrations");
+    for (const f of fs
+      .readdirSync(migDir)
+      .filter((x) => x.endsWith(".sql"))
+      .sort()) {
+      db.exec(fs.readFileSync(path.join(migDir, f), "utf-8"));
+    }
+    db.exec("PRAGMA foreign_keys = ON;");
+    const trg = db
+      .prepare(
+        "SELECT COUNT(*) AS c FROM sqlite_master WHERE type = 'trigger' AND name LIKE '%sale_item%'",
+      )
+      .get() as { c: number };
+    expect(trg.c).toBeGreaterThan(0);
+    db.close();
+  });
+
+  it("0034 enforces client phone uniqueness (access sync)", () => {
+    const db = new DatabaseSync(path.join(tmp, "p34.sqlite"));
+    db.exec("PRAGMA foreign_keys = ON;");
+    const migDir = path.join(process.cwd(), "database", "migrations");
+    for (const f of fs
+      .readdirSync(migDir)
+      .filter((x) => x.endsWith(".sql"))
+      .sort()) {
+      db.exec(fs.readFileSync(path.join(migDir, f), "utf-8"));
+    }
+    db.exec("PRAGMA foreign_keys = ON;");
+    const files = fs
+      .readdirSync(migDir)
+      .filter((x) => x.endsWith(".sql"))
+      .sort();
+    expect(files.some((f) => f.startsWith("0034_"))).toBe(true);
     db.close();
   });
 });

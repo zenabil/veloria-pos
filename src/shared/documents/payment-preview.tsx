@@ -1,8 +1,8 @@
-// Veloria PoS — Shared: modale de reçu de règlement de dette (ticket تسديد الدين).
+// Veloria PoS — Shared: modale de reçu de règlement de dette.
 // Après encaissement (client / fournisseur / pain) : aperçu 80mm + A4,
-// impression 80mm/A4 via les canaux dédiés. Rendu main uniquement.
+// impression 80mm/A4 + export PDF via les canaux dédiés. Rendu main uniquement.
 import { useEffect, useState } from "react";
-import { Printer } from "lucide-react";
+import { FileDown, Printer } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { Button, Modal } from "@shared/ui/primitives.tsx";
 import { frError } from "@shared/errors/fr-map.ts";
@@ -103,6 +103,21 @@ export function PaymentTicketModal({
     }
   }
 
+  async function exportPdf(mode: "80mm" | "A4"): Promise<void> {
+    if (!doc || busy) return;
+    setBusy(true);
+    try {
+      const res = (await api.paymentExportPdf(
+        mode === "A4" ? { ...doc.payload, format: "A4" } : doc.payload,
+      )) as { path: string };
+      notify(`PDF enregistré : ${res.path}`, "ok");
+    } catch (e) {
+      notify(frError(e, "Export PDF impossible."), "err");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <Modal label="Reçu de règlement" title="Reçu de règlement" onClose={onClose} wide>
       <div className="mb-3 flex gap-1.5" role="tablist" aria-label="Format du reçu">
@@ -149,6 +164,12 @@ export function PaymentTicketModal({
           </Button>
           <Button variant="secondary" disabled={busy} onClick={() => void printDoc("A4")}>
             <Printer size={15} aria-hidden="true" /> Imprimer A4
+          </Button>
+          <Button variant="secondary" disabled={busy} onClick={() => void exportPdf("80mm")}>
+            <FileDown size={15} aria-hidden="true" /> PDF 80mm
+          </Button>
+          <Button variant="secondary" disabled={busy} onClick={() => void exportPdf("A4")}>
+            <FileDown size={15} aria-hidden="true" /> PDF A4
           </Button>
         </div>
       ) : null}

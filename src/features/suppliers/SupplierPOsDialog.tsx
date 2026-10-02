@@ -2,12 +2,14 @@
 // Cycle draft → ordered → partially_received → received (+ cancelled).
 // La réception crée une entrée de stock traçée (même UUID rejoué = replay).
 import { useEffect, useState } from "react";
-import { PackagePlus, Search, Trash2, Truck } from "lucide-react";
+import { PackagePlus, Printer, Search, Trash2, Truck } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { formatDzd, parseDzdInputStrict } from "@domain/money/money.ts";
+import { buildCompanyHead } from "@shared/documents/sale-ticket.ts";
 import { strictOrNeg } from "@shared/money/parse.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import { newOperationId } from "@domain/common/ids.ts";
+import { roundQuantity } from "@domain/common/quantity.ts";
 import { poStatusLabelFr } from "@domain/suppliers/po-rules.ts";
 import {
   Badge,
@@ -90,6 +92,133 @@ export function SupplierPOsDialog({
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [busy, setBusy] = useState(false);
   const [recv, setRecv] = useState<Record<number, string>>({});
+  const [orderPreview, setOrderPreview] = useState<{
+    htmlA4: string;
+    text80: string;
+    payload: Record<string, unknown>;
+  } | null>(null);
+  const [poFormat, setPoFormat] = useState<"A4" | "80mm">("A4");
+
+  // Bon de commande fournisseur : aperçu + impression A4/80mm via les canaux
+  // dédiés (`printing.previewPO/printPO`). Payload ticket + références PO
+  // (numéro, fournisseur, lignes, totaux cohérents).
+  function dateFr(raw: string | null): string {
+    const d = new Date(raw ?? Date.now());
+    if (Number.isNaN(d.getTime())) return (raw ?? "").slice(0, 10);
+    return d.toLocaleString("fr-FR");
+  }
+
+  async function previewOrder(): Promise<void> {
+    if (!detail || busy) return;
+    setBusy(true);
+    try {
+      // Fiche entreprise fraîche (jamais de bon sans raison sociale).
+      let co: Record<string, string> | null = null;
+      try {
+        const cg = (await api.companyGet()) as {
+          company: Record<string, string> | null;
+        };
+        co = cg.company;
+      } catch {
+        /* repli "Veloria" du builder */
+      }
+      let supplierPhone = "";
+      let supplierAddress = "";
+      try {
+        const st = (await api.supplierStatement({ id: supplierId })) as {
+          supplier: Record<string, unknown> | null;
+        };
+        const s = st.supplier ?? {};
+        if (typeof s["phone"] === "string") supplierPhone = s["phone"];
+        if (typeof s["address"] === "string") supplierAddress = s["address"];
+      } catch {
+        /* bon sans coordonnées plutôt que pas de bon */
+      }
+      // Lignes retotalisées (ligne = prix × qté) pour la cohérence exigée
+      // par le main ; lignes invalides ignorées.
+      const lines: {
+        name: string;
+        qty: number;
+        unit: string;
+        unitPriceMinor: number;
+        lineTotalMinor: number;
+        ref: string;
+      }[] = [];
+      for (const it of detail.items) {
+        const qty = roundQuantity(Number(it.quantity_ordered));
+        const unit = Math.round(Number(it.unit_cost_minor));
+        if (!Number.isFinite(qty) || qty <= 0 || !Number.isFinite(unit) || unit < 0) continue;
+        lines.push({
+          name: it.product_name_snapshot,
+          qty,
+          unit: it.unit_code,
+          unitPriceMinor: unit,
+          lineTotalMinor: Math.round(unit * qty),
+          ref: "",
+        });
+      }
+      if (lines.length === 0) {
+        notify("Aucune ligne à imprimer.", "err");
+        return;
+      }
+      const subtotal = lines.reduce((a, l) => a + l.lineTotalMinor, 0);
+      const payload: Record<string, unknown> = {
+        ...buildCompanyHead(
+          co
+            ? {
+                company_name: co["company_name"],
+                phone: co["phone"],
+                address: co["address"],
+                city: co["city"],
+                email: co["email"],
+                rc_number: co["rc_number"] ?? co["commercial_register"],
+                nif: co["nif"],
+              }
+            : null,
+        ),
+        customerName: "",
+        customerPhone: "",
+        customerAddress: "",
+        customerCode: "",
+        invoice: detail.order.order_number,
+        date: dateFr(detail.order.created_at),
+        lines,
+        subtotalMinor: subtotal,
+        discountMinor: 0,
+        deliveryMinor: 0,
+        totalMinor: subtotal,
+        paidMinor: 0,
+        orderNumber: detail.order.order_number,
+        supplierName,
+        supplierPhone,
+        supplierAddress,
+        validityDays: 30,
+      };
+      const pv = (await api.poPreview(payload)) as { text80: string; htmlA4: string };
+      setOrderPreview({ htmlA4: pv.htmlA4, text80: pv.text80, payload });
+      setPoFormat("A4");
+    } catch (e) {
+      notify(frError(e, "Aperçu indisponible."), "err");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function printOrder(mode: "80mm" | "A4"): Promise<void> {
+    if (!orderPreview || busy) return;
+    setBusy(true);
+    try {
+      // A4 par défaut côté main ; 80mm via `format: "80mm"`.
+      await api.poPrint(
+        mode === "80mm" ? { ...orderPreview.payload, format: "80mm" } : orderPreview.payload,
+      );
+      notify(mode === "A4" ? "Bon de commande A4 envoyé." : "Bon de commande 80mm envoyé.", "ok");
+    } catch (e) {
+      notify(frError(e, "Impression impossible."), "err");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function refresh(): Promise<void> {
     setLoading(true);
@@ -505,6 +634,9 @@ export function SupplierPOsDialog({
                 </tbody>
               </table>
               <div className="flex flex-wrap gap-2">
+                <Button variant="secondary" disabled={busy} onClick={() => void previewOrder()}>
+                  <Printer size={16} aria-hidden="true" /> Aperçu bon de commande
+                </Button>
                 {detail.order.status === "draft" ? (
                   <Button
                     variant="secondary"
@@ -530,6 +662,56 @@ export function SupplierPOsDialog({
                   </Button>
                 )}
               </div>
+            </div>
+          </Modal>
+        ) : null}
+        {orderPreview && detail ? (
+          <Modal
+            label="Bon de commande"
+            title={`Bon ${detail.order.order_number}`}
+            onClose={() => setOrderPreview(null)}
+            wide
+          >
+            <div className="mb-3 flex gap-1.5" role="tablist" aria-label="Format d'aperçu">
+              {(["A4", "80mm"] as const).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  role="tab"
+                  aria-selected={poFormat === f}
+                  onClick={() => setPoFormat(f)}
+                  className={
+                    poFormat === f
+                      ? "rounded-lg bg-amber-400 px-4 py-1.5 text-xs font-bold text-black"
+                      : "rounded-lg border border-white/10 px-4 py-1.5 text-xs font-bold text-slate-400 hover:text-white"
+                  }
+                >
+                  {f === "A4" ? "Format A4" : "Ticket 80mm"}
+                </button>
+              ))}
+            </div>
+            {poFormat === "A4" ? (
+              <iframe
+                sandbox=""
+                srcDoc={orderPreview.htmlA4}
+                title="Aperçu bon de commande"
+                className="h-[50vh] w-full rounded-xl border border-white/10 bg-white"
+              />
+            ) : (
+              <pre
+                className="h-[50vh] overflow-auto rounded-xl border border-white/10 bg-white p-4 font-mono text-[12px] leading-snug text-black"
+                aria-label="Aperçu bon de commande 80mm"
+              >
+                {orderPreview.text80}
+              </pre>
+            )}
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <Button variant="secondary" disabled={busy} onClick={() => void printOrder("80mm")}>
+                <Printer size={16} aria-hidden="true" /> Imprimer 80mm
+              </Button>
+              <Button disabled={busy} onClick={() => void printOrder("A4")}>
+                <Printer size={16} aria-hidden="true" /> Imprimer A4
+              </Button>
             </div>
           </Modal>
         ) : null}

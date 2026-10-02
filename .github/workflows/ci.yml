@@ -1,6 +1,9 @@
 # Veloria PoS — CI (P3) : garde-fous AGENTS.md §8 sur chaque push/PR Windows.
-# Note : E2E/packaging exigent machine Windows + clé vendor + élévation —
-# le job E2E est manuel (workflow_dispatch) ; le job principal est 100 % local.
+# Étapes alignées sur les « portes » locales : format → typecheck (×3) →
+# lint → licence → tests → verify:migrations/domain/perf → builds.
+# NB : aucune signature d'intégrité n'exige la clé vendor ici (hooks
+# `--if-key-present`) ; le packaging strict (`license:integrity` nu) reste
+# réservé aux scripts `package*` sur le poste vendor.
 name: ci
 
 on:
@@ -19,6 +22,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run format:check
+      - run: npm run lint
       - run: npm run typecheck
       - run: npm run typecheck:electron
       - run: npm run typecheck:manager
@@ -26,6 +30,7 @@ jobs:
       - run: npm test
       - run: npm run verify:migrations
       - run: npm run verify:domain
+      - run: npm run verify:perf
       - run: npm run build
       - run: npm run build:electron
       - run: npm run build:manager-client

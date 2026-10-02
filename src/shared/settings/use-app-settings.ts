@@ -5,33 +5,26 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@shared/types/ipc-client.ts";
 
-export interface InventorySettings {
-  allowNegativeStock: boolean;
-  defaultMinStock: number;
-}
-
 export interface SalesSettings {
   defaultPaymentMethod: "cash" | "cheque" | "transfer";
   allowCreditSales: boolean;
   autoPrintInvoice: boolean;
 }
 
-export interface InvoiceSettings {
-  showLogo: boolean;
-  showBalances: boolean;
-  footerText: string;
-  thankYouMessage: string;
-}
-
-export interface PrintingSettings {
-  silent: boolean;
-}
-
 const DEFAULTS: Record<string, unknown> = {
   inventory: { allowNegativeStock: false, defaultMinStock: 0 },
   sales: { defaultPaymentMethod: "cash", allowCreditSales: true, autoPrintInvoice: false },
-  invoice: { showLogo: true, showBalances: true, footerText: "", thankYouMessage: "" },
-  printing: { silent: true },
+  invoice: {
+    showLogo: true,
+    showBalances: true,
+    showCustomerBalance: true,
+    showPreviousBalance: true,
+    footerText: "",
+    thankYouMessage: "",
+    vatRate: 0,
+    defaultSeller: "",
+  },
+  printing: { silent: true, thermalWidth: "80" },
   // P2 : clé "suppliers" lue par useDefaultMethod — défaut local "cash"
   // (même valeur que le main, jamais de null silencieux au 1er chargement).
   suppliers: { defaultPaymentMethod: "cash" },

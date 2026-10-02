@@ -1,7 +1,7 @@
 // Veloria PoS — Caisse : raccourcis clavier (P4, extrait de SellScreen).
 // F1 article libre, F3 recherche, F10 paiement, F4 proforma, F5 client,
 // F6/F8 onglets, F9 vider, +/− quantité dernière ligne.
-import { useEffect, type MutableRefObject, type RefObject } from "react";
+import { useEffect, type RefObject } from "react";
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
 
 export interface SellKeyActions {
@@ -16,7 +16,7 @@ export interface SellKeyActions {
 }
 
 export function useSellShortcuts(
-  keyActions: MutableRefObject<SellKeyActions | null>,
+  keyActions: RefObject<SellKeyActions | null>,
   searchRef: RefObject<HTMLInputElement | null>,
 ): void {
   useEffect(() => {

@@ -1,6 +1,7 @@
 // Veloria PoS — Paramètres : sections Documents → Système (unifiées).
 import { useEffect, useState } from "react";
 import { api } from "@shared/types/ipc-client.ts";
+import { useLoadSeq } from "@shared/ui/use-load-seq.ts";
 import { strictOrNeg } from "@shared/money/parse.ts";
 import { Field, Select, TextInput } from "@shared/ui/primitives.tsx";
 import { Button, Modal } from "@shared/ui/primitives.tsx";
@@ -12,6 +13,11 @@ import { SaveBar, Section, SwitchRow, useBusyFlag } from "./bits.tsx";
 import { InfoRow, type Notify } from "@shared/ui/primitives.tsx";
 import { frError } from "@shared/errors/fr-map.ts";
 import { licenseStateLabel } from "@features/license/types.ts";
+import {
+  callChecked,
+  syncConfigViewSchema,
+  syncPushResultSchema,
+} from "@shared/types/ipc-contracts.ts";
 
 function licenseInfoLabel(value: unknown): string {
   if (typeof value !== "object" || value === null) return "—";
@@ -31,6 +37,8 @@ interface InvoiceForm {
   showPreviousBalance: boolean;
   footerText: string;
   thankYouMessage: string;
+  vatRate: number;
+  defaultSeller: string;
 }
 
 export function InvoiceSection({ notify }: { notify: Notify }): React.JSX.Element {
@@ -41,14 +49,33 @@ export function InvoiceSection({ notify }: { notify: Notify }): React.JSX.Elemen
     showPreviousBalance: true,
     footerText: "",
     thankYouMessage: "",
+    vatRate: 0,
+    defaultSeller: "",
   });
   const { busy, run } = useBusyFlag();
 
   useEffect(() => {
-    if (value) setForm(value);
+    if (value) {
+      setForm((f) => ({
+        ...f,
+        ...value,
+        footerText: typeof value.footerText === "string" ? value.footerText : "",
+        thankYouMessage: typeof value.thankYouMessage === "string" ? value.thankYouMessage : "",
+        vatRate: typeof value.vatRate === "number" ? value.vatRate : 0,
+        defaultSeller: typeof value.defaultSeller === "string" ? value.defaultSeller : "",
+      }));
+    }
   }, [value]);
 
   function save(): void {
+    if (!Number.isFinite(form.vatRate) || form.vatRate < 0 || form.vatRate > 100) {
+      notify("Taux TVA invalide (0 – 100).", "err");
+      return;
+    }
+    if (form.defaultSeller.length > 100) {
+      notify("Vendeur par défaut trop long (100 caractères max).", "err");
+      return;
+    }
     void run(async () => {
       try {
         await saveAppSettings("invoice", form);
@@ -82,6 +109,29 @@ export function InvoiceSection({ notify }: { notify: Notify }): React.JSX.Elemen
         onChange={(v) => setForm((f) => ({ ...f, showPreviousBalance: v }))}
         ariaLabel="Afficher le solde précédent"
       />
+      <Field
+        label="Taux TVA % (0 = sans TVA)"
+        hint="Appliqué aux documents. 0 = montants hors TVA."
+      >
+        <TextInput
+          type="number"
+          min={0}
+          max={100}
+          step="0.5"
+          value={String(form.vatRate)}
+          onChange={(e) => setForm((f) => ({ ...f, vatRate: Number(e.target.value) }))}
+          aria-label="Taux TVA en pourcent"
+        />
+      </Field>
+      <Field label="Vendeur par défaut" hint="100 caractères maximum.">
+        <TextInput
+          value={form.defaultSeller}
+          maxLength={100}
+          onChange={(e) => setForm((f) => ({ ...f, defaultSeller: e.target.value.slice(0, 100) }))}
+          placeholder="Nom du vendeur"
+          aria-label="Vendeur par défaut"
+        />
+      </Field>
       <Field label="Pied de page (A4)" hint="Vide = mentions légales seules.">
         <TextInput
           value={form.footerText}
@@ -109,14 +159,20 @@ export function InvoiceSection({ notify }: { notify: Notify }): React.JSX.Elemen
 // ---------------------------------------------------------------------------
 
 export function PrintingSection({ notify }: { notify: Notify }): React.JSX.Element {
-  const { value } = useAppSettings<{ silent: boolean }>("printing");
+  const { value } = useAppSettings<{ silent: boolean; thermalWidth?: string }>("printing");
   const [silent, setSilent] = useState(true);
+  const [thermalWidth, setThermalWidth] = useState<"58" | "80">("80");
   const [printers, setPrinters] = useState<{ name: string; isDefault: boolean }[]>([]);
   const [selected, setSelected] = useState("");
   const { busy, run } = useBusyFlag();
 
   useEffect(() => {
-    if (value) setSilent(value.silent);
+    if (value) {
+      setSilent(value.silent);
+      if (value.thermalWidth === "58" || value.thermalWidth === "80") {
+        setThermalWidth(value.thermalWidth);
+      }
+    }
   }, [value]);
 
   useEffect(() => {
@@ -137,8 +193,20 @@ export function PrintingSection({ notify }: { notify: Notify }): React.JSX.Eleme
     setSilent(v);
     void run(async () => {
       try {
-        await saveAppSettings("printing", { silent: v });
+        await saveAppSettings("printing", { silent: v, thermalWidth });
         notify("Impression enregistrée.", "ok");
+      } catch (e) {
+        notify(frError(e, "Enregistrement impossible."), "err");
+      }
+    });
+  }
+
+  function saveThermalWidth(v: "58" | "80"): void {
+    setThermalWidth(v);
+    void run(async () => {
+      try {
+        await saveAppSettings("printing", { silent, thermalWidth: v });
+        notify("Largeur thermique enregistrée.", "ok");
       } catch (e) {
         notify(frError(e, "Enregistrement impossible."), "err");
       }
@@ -149,7 +217,7 @@ export function PrintingSection({ notify }: { notify: Notify }): React.JSX.Eleme
     setSelected(name);
     void run(async () => {
       try {
-        await api.printerSave({ name: name === "" ? null : name });
+        await api.printerSave({ name: name === "" ? null : name, operationId: newOperationId() });
         notify("Imprimante enregistrée.", "ok");
       } catch (e) {
         notify(frError(e, "Enregistrement impossible."), "err");
@@ -168,8 +236,39 @@ export function PrintingSection({ notify }: { notify: Notify }): React.JSX.Eleme
     });
   }
 
+  /** Stitch : Tester Connexions Matériel (sans gaspiller de papier). */
+  function testHardware(): void {
+    void run(async () => {
+      const parts: string[] = [];
+      try {
+        const r = (await api.printersList()) as {
+          printers: { name: string; isDefault: boolean }[];
+        };
+        parts.push(`Imprimantes détectées : ${r.printers.length}`);
+      } catch {
+        parts.push("Imprimantes : échec de détection");
+      }
+      try {
+        const h = (await api.dbIntegrity()) as { integrity?: string };
+        parts.push(`Base : ${h.integrity === "ok" ? "saine" : "à contrôler"}`);
+      } catch {
+        parts.push("Base : contrôle impossible");
+      }
+      try {
+        const s = (await api.backupStatus()) as { count?: number; lastAt?: string | null };
+        parts.push(`Sauvegardes : ${s.count ?? 0} (dernière ${s.lastAt ?? "—"})`);
+      } catch {
+        parts.push("Sauvegardes : état inconnu");
+      }
+      notify(`Matériel — ${parts.join(" · ")}.`, "ok");
+    });
+  }
+
   return (
-    <Section title="Impression" hint="Imprimante système + comportement.">
+    <Section
+      title="Imprimante Thermique"
+      hint="Imprimante système + tiroir-caisse + comportement (58/80mm)."
+    >
       <Field label="Imprimante">
         <Select
           value={selected}
@@ -185,6 +284,16 @@ export function PrintingSection({ notify }: { notify: Notify }): React.JSX.Eleme
           ))}
         </Select>
       </Field>
+      <Field label="Largeur thermique" hint="Format des tickets (58 ou 80mm).">
+        <Select
+          value={thermalWidth}
+          onChange={(e) => saveThermalWidth(e.target.value === "58" ? "58" : "80")}
+          aria-label="Largeur thermique"
+        >
+          <option value="58">58mm</option>
+          <option value="80">80mm</option>
+        </Select>
+      </Field>
       <SwitchRow
         label="Impression silencieuse"
         hint="Coupé = dialogue système à chaque fois."
@@ -193,9 +302,13 @@ export function PrintingSection({ notify }: { notify: Notify }): React.JSX.Eleme
         ariaLabel="Impression silencieuse"
       />
       <p className="text-xs text-slate-500">
-        Coupe papier et tiroir-caisse : non pilotés (impression HTML système).
+        Tiroir-caisse RJ11 : impulsion via l&apos;imprimante (pilote système ESC/POS) — coupe papier
+        et tiroir non pilotés directement (impression HTML système).
       </p>
-      <SaveBar busy={busy} onSave={test} label="Imprimer une page de test" />
+      <div className="flex flex-wrap gap-2">
+        <SaveBar busy={busy} onSave={test} label="Imprimer une page de test" />
+        <SaveBar busy={busy} onSave={testHardware} label="Tester Connexions Matériel" />
+      </div>
     </Section>
   );
 }
@@ -204,11 +317,65 @@ export function PrintingSection({ notify }: { notify: Notify }): React.JSX.Eleme
 // Sauvegarde : auto + manuelle + restauration.
 // ---------------------------------------------------------------------------
 
+type BackupFrequency = "10min" | "30min" | "1h" | "6h" | "12h" | "daily" | "weekly" | "custom";
+
+const BACKUP_FREQUENCIES: { value: BackupFrequency; label: string; minutes: number }[] = [
+  { value: "10min", label: "Toutes les 10 minutes", minutes: 10 },
+  { value: "30min", label: "Toutes les 30 minutes", minutes: 30 },
+  { value: "1h", label: "Toutes les heures (1 heure)", minutes: 60 },
+  { value: "6h", label: "Toutes les 6 heures", minutes: 360 },
+  { value: "12h", label: "Toutes les 12 heures", minutes: 720 },
+  { value: "daily", label: "Quotidien", minutes: 1440 },
+  { value: "weekly", label: "Hebdomadaire", minutes: 10080 },
+  { value: "custom", label: "Personnalisé", minutes: 0 },
+];
+
+function backupFrequencyMinutes(frequency: BackupFrequency, customMinutes: number): number {
+  if (frequency === "custom") return customMinutes;
+  return BACKUP_FREQUENCIES.find((f) => f.value === frequency)?.minutes ?? 1440;
+}
+
+/** Repli legacy : `auto` ne portait que `intervalDays` (jours). */
+function backupFrequencyFromAuto(auto: {
+  frequency?: unknown;
+  customMinutes?: unknown;
+  intervalDays?: unknown;
+}): { frequency: BackupFrequency; customMinutes: number } {
+  if (
+    typeof auto.frequency === "string" &&
+    (BACKUP_FREQUENCIES as { value: string }[]).some((f) => f.value === auto.frequency)
+  ) {
+    const frequency = auto.frequency as BackupFrequency;
+    const custom =
+      typeof auto.customMinutes === "number" &&
+      Number.isInteger(auto.customMinutes) &&
+      auto.customMinutes >= 5 &&
+      auto.customMinutes <= 10080
+        ? auto.customMinutes
+        : 60;
+    return { frequency, customMinutes: custom };
+  }
+  const days =
+    typeof auto.intervalDays === "number" && Number.isInteger(auto.intervalDays)
+      ? auto.intervalDays
+      : 1;
+  if (days <= 0) return { frequency: "10min", customMinutes: 60 };
+  if (days === 1) return { frequency: "daily", customMinutes: 60 };
+  if (days === 7) return { frequency: "weekly", customMinutes: 60 };
+  return { frequency: "custom", customMinutes: Math.min(10080, Math.max(5, days * 1440)) };
+}
+
 interface BackupStatus {
   count: number;
   lastAt: string | null;
   lastFile: string | null;
-  auto: { enabled: boolean; intervalDays: number };
+  auto: {
+    enabled: boolean;
+    intervalDays?: number;
+    frequency?: BackupFrequency;
+    customMinutes?: number;
+    retentionCount?: number;
+  };
 }
 
 interface BackupItem {
@@ -220,53 +387,213 @@ interface BackupItem {
 export function BackupSection({ notify }: { notify: Notify }): React.JSX.Element {
   const [status, setStatus] = useState<BackupStatus | null>(null);
   const [list, setList] = useState<BackupItem[]>([]);
-  const [interval, setInterval] = useState("1");
+  const [frequency, setFrequency] = useState<BackupFrequency>("daily");
+  const [customMinutes, setCustomMinutes] = useState("60");
+  const [retention, setRetention] = useState("30");
+  const [staleAlert, setStaleAlert] = useState<string | null>(null);
   const { busy, run } = useBusyFlag();
   const confirmAsync = useConfirm();
+  // Garde anti-course : une réponse périmée d'un refresh précédent ne doit
+  // pas écraser l'état le plus récent (même motif que les autres écrans).
+  const { next: nextSeq, isCurrent: isSeqCurrent } = useLoadSeq();
 
-  function refresh(): void {
+  /**
+   * Écriture refusée tant que l'état serveur n'est pas chargé : jamais de
+   * valeur devinée (sinon un échec de chargement réinitialiserait le réglage).
+   */
+  function statusOrRefuse(): BackupStatus | null {
+    if (status === null) {
+      notify("État des sauvegardes non chargé : patientez avant de modifier.", "err");
+      return null;
+    }
+    return status;
+  }
+
+  function refresh(alertIfStale = true): void {
+    const seq = nextSeq();
     api
       .backupStatus()
       .then((s) => {
+        if (!isSeqCurrent(seq)) return;
         const st = s as BackupStatus;
         setStatus(st);
-        setInterval(String(st.auto.intervalDays));
+        const parsed = backupFrequencyFromAuto(st.auto);
+        setFrequency(parsed.frequency);
+        setCustomMinutes(String(parsed.customMinutes));
+        const retentionCount =
+          typeof st.auto.retentionCount === "number" && Number.isInteger(st.auto.retentionCount)
+            ? st.auto.retentionCount
+            : 30;
+        setRetention(String(Math.min(100, Math.max(1, retentionCount))));
+        if (alertIfStale) {
+          const minutes = backupFrequencyMinutes(parsed.frequency, parsed.customMinutes);
+          if (!st.lastAt) {
+            const msg = "Aucune sauvegarde pour l'instant. Créez la première sauvegarde.";
+            setStaleAlert(msg);
+            notify(msg, "err");
+          } else {
+            const ageMin = (Date.now() - new Date(st.lastAt).getTime()) / 60000;
+            if (Number.isFinite(ageMin) && ageMin > minutes) {
+              const msg =
+                "Dernière sauvegarde ancienne : dépasse la fréquence choisie. Créez une sauvegarde maintenant.";
+              setStaleAlert(msg);
+              notify(msg, "err");
+            } else {
+              setStaleAlert(null);
+            }
+          }
+        }
       })
-      .catch(() => undefined);
+      .catch((e: unknown) => {
+        if (!isSeqCurrent(seq)) return;
+        console.error("[Veloria] sauvegarde : état illisible", e);
+        notify(frError(e, "Lecture de l'état des sauvegardes impossible."), "err");
+      });
     api
       .backupList()
       .then((r) => {
+        if (!isSeqCurrent(seq)) return;
         if (Array.isArray(r)) setList(r as BackupItem[]);
       })
-      .catch(() => undefined);
+      .catch((e: unknown) => {
+        if (!isSeqCurrent(seq)) return;
+        console.error("[Veloria] sauvegarde : liste illisible", e);
+        notify(frError(e, "Lecture de la liste des sauvegardes impossible."), "err");
+      });
   }
 
   useEffect(() => {
     refresh();
   }, []);
 
-  function toggleAuto(v: boolean): void {
+  function autoPayload(enabled: boolean): {
+    enabled: boolean;
+    frequency: BackupFrequency;
+    customMinutes: number;
+    retentionCount: number;
+    intervalDays: number;
+  } {
+    const custom = Number(customMinutes);
+    const retentionCount = Number(retention);
+    return {
+      enabled,
+      frequency,
+      customMinutes: frequency === "custom" && Number.isInteger(custom) ? custom : 60,
+      retentionCount: Number.isInteger(retentionCount) ? retentionCount : 30,
+      intervalDays: 1,
+    };
+  }
+
+  function persistAuto(enabled: boolean): void {
+    // Interdit tant que l'état n'est pas chargé : jamais de fréquence/rétention
+    // devinée écrite en base (voir statusOrRefuse).
+    if (statusOrRefuse() === null) return;
+    const custom = Number(customMinutes);
+    if (frequency === "custom" && (!Number.isInteger(custom) || custom < 5 || custom > 10080)) {
+      notify("Fréquence personnalisée invalide (5 – 10080 minutes).", "err");
+      return;
+    }
+    const retentionCount = Number(retention);
+    if (!Number.isInteger(retentionCount) || retentionCount < 1 || retentionCount > 100) {
+      notify("Rétention invalide (1 – 100 copies).", "err");
+      return;
+    }
     void run(async () => {
       try {
-        await api.backupAutoSave({ enabled: v, intervalDays: Number(interval) || 1 });
+        await api.backupAutoSave({ ...autoPayload(enabled), operationId: newOperationId() });
         notify("Sauvegarde auto mise à jour.", "ok");
-        refresh();
+        refresh(false);
       } catch (e) {
         notify(frError(e, "Enregistrement impossible."), "err");
       }
     });
   }
 
-  function changeInterval(v: string): void {
-    setInterval(v);
-    const days = Number(v);
-    if (!Number.isInteger(days) || days < 1 || days > 30) return;
+  function toggleAuto(v: boolean): void {
+    persistAuto(v);
+  }
+
+  function changeFrequency(v: BackupFrequency): void {
+    const st = statusOrRefuse();
+    if (st === null) return;
+    setFrequency(v);
+    const custom = Number(customMinutes);
+    if (v === "custom" && (!Number.isInteger(custom) || custom < 5 || custom > 10080)) {
+      return;
+    }
+    const retentionCount = Number(retention);
+    if (!Number.isInteger(retentionCount) || retentionCount < 1 || retentionCount > 100) {
+      return;
+    }
     void run(async () => {
       try {
-        await api.backupAutoSave({ enabled: status?.auto.enabled ?? true, intervalDays: days });
-        refresh();
-      } catch {
-        /* silencieux : le switch notifie */
+        await api.backupAutoSave({
+          enabled: st.auto.enabled,
+          frequency: v,
+          customMinutes: v === "custom" ? custom : 60,
+          retentionCount,
+          intervalDays: 1,
+          operationId: newOperationId(),
+        });
+        refresh(false);
+      } catch (e) {
+        console.error("[Veloria] sauvegarde auto : fréquence non enregistrée", e);
+        notify(frError(e, "Enregistrement de la fréquence impossible."), "err");
+      }
+    });
+  }
+
+  function changeCustomMinutes(v: string): void {
+    const st = statusOrRefuse();
+    if (st === null) return;
+    setCustomMinutes(v);
+    const custom = Number(v);
+    if (!Number.isInteger(custom) || custom < 5 || custom > 10080) return;
+    const retentionCount = Number(retention);
+    if (!Number.isInteger(retentionCount) || retentionCount < 1 || retentionCount > 100) {
+      return;
+    }
+    void run(async () => {
+      try {
+        await api.backupAutoSave({
+          enabled: st.auto.enabled,
+          frequency,
+          customMinutes: custom,
+          retentionCount,
+          intervalDays: 1,
+          operationId: newOperationId(),
+        });
+        refresh(false);
+      } catch (e) {
+        console.error("[Veloria] sauvegarde auto : fréquence personnalisée non enregistrée", e);
+        notify(frError(e, "Enregistrement de la fréquence impossible."), "err");
+      }
+    });
+  }
+
+  function changeRetention(v: string): void {
+    const st = statusOrRefuse();
+    if (st === null) return;
+    setRetention(v);
+    const retentionCount = Number(v);
+    if (!Number.isInteger(retentionCount) || retentionCount < 1 || retentionCount > 100) {
+      return;
+    }
+    const custom = Number(customMinutes);
+    void run(async () => {
+      try {
+        await api.backupAutoSave({
+          enabled: st.auto.enabled,
+          frequency,
+          customMinutes: Number.isInteger(custom) ? custom : 60,
+          retentionCount,
+          intervalDays: 1,
+          operationId: newOperationId(),
+        });
+        refresh(false);
+      } catch (e) {
+        console.error("[Veloria] sauvegarde auto : rétention non enregistrée", e);
+        notify(frError(e, "Enregistrement de la rétention impossible."), "err");
       }
     });
   }
@@ -276,7 +603,7 @@ export function BackupSection({ notify }: { notify: Notify }): React.JSX.Element
       try {
         await api.backupCreate();
         notify("Sauvegarde créée.", "ok");
-        refresh();
+        refresh(false);
       } catch (e) {
         notify(frError(e, "Échec de la sauvegarde."), "err");
       }
@@ -295,7 +622,7 @@ export function BackupSection({ notify }: { notify: Notify }): React.JSX.Element
         try {
           await api.backupRestore({ file });
           notify("Base restaurée.", "ok");
-          refresh();
+          refresh(false);
         } catch (e) {
           notify(frError(e, "Restauration impossible."), "err");
         }
@@ -313,8 +640,23 @@ export function BackupSection({ notify }: { notify: Notify }): React.JSX.Element
     });
   }
 
+  // Export de la dernière sauvegarde vers un dossier choisi (canal déjà
+  // testé côté main, sans bouton jusqu'ici : backup.export branché ici).
+  function exportLast(): void {
+    void run(async () => {
+      try {
+        const folder = (await api.systemSelectFolder()) as { folder: string | null };
+        if (!folder.folder) return;
+        const res = (await api.backupExport({ folder: folder.folder })) as { path: string };
+        notify(`Sauvegarde exportée : ${res.path}`, "ok");
+      } catch (e) {
+        notify(frError(e, "Export impossible."), "err");
+      }
+    });
+  }
+
   return (
-    <Section title="Sauvegarde" hint="Copies VACUUM INTO (.vposdb), rotation 30.">
+    <Section title="Sauvegarde" hint="Copies VACUUM INTO (.vposdb), rotation paramétrable.">
       <dl className="space-y-2.5">
         <InfoRow
           label="Dernière"
@@ -323,23 +665,59 @@ export function BackupSection({ notify }: { notify: Notify }): React.JSX.Element
         <InfoRow label="Copies" value={String(status?.count ?? 0)} />
         <InfoRow label="Dossier" value="Données de l'application (fixe)" />
       </dl>
+      {staleAlert ? (
+        <p
+          role="alert"
+          className="rounded-xl border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs font-semibold text-amber-200"
+        >
+          {staleAlert}
+        </p>
+      ) : null}
       <SwitchRow
         label="Sauvegarde automatique"
-        hint="Au démarrage si l'intervalle est dépassé."
-        checked={status?.auto.enabled ?? true}
+        hint="Au démarrage si la fréquence est dépassée."
+        checked={status?.auto.enabled ?? false}
         onChange={toggleAuto}
         ariaLabel="Sauvegarde automatique"
+        disabled={status === null}
       />
+      <Field label="Fréquence" hint="Durée modifiable : sauvegarde auto au démarrage si dépassée.">
+        <Select
+          value={frequency}
+          onChange={(e) => changeFrequency(e.target.value as BackupFrequency)}
+          aria-label="Fréquence de sauvegarde"
+        >
+          {BACKUP_FREQUENCIES.map((f) => (
+            <option key={f.value} value={f.value}>
+              {f.label}
+            </option>
+          ))}
+        </Select>
+      </Field>
+      {frequency === "custom" ? (
+        <Field
+          label="Fréquence personnalisée (minutes, 5 – 10080)"
+          hint="Ex. 90 = toutes les 90 minutes."
+        >
+          <TextInput
+            value={customMinutes}
+            onChange={(e) => changeCustomMinutes(e.target.value)}
+            inputMode="numeric"
+            placeholder="60"
+            aria-label="Fréquence personnalisée en minutes"
+          />
+        </Field>
+      ) : null}
       <Field
-        label="Fréquence (jours, 1 – 30)"
-        hint="Durée modifiable : sauvegarde auto au démarrage si dépassée."
+        label="Rétention (copies conservées, 1 – 100)"
+        hint="Les plus anciennes sont supprimées au-delà."
       >
         <TextInput
-          value={interval}
-          onChange={(e) => changeInterval(e.target.value)}
+          value={retention}
+          onChange={(e) => changeRetention(e.target.value)}
           inputMode="numeric"
-          placeholder="1"
-          aria-label="Fréquence en jours"
+          placeholder="30"
+          aria-label="Rétention des sauvegardes"
         />
       </Field>
       <div className="flex flex-wrap gap-2">
@@ -352,6 +730,13 @@ export function BackupSection({ notify }: { notify: Notify }): React.JSX.Element
           className="rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-white/5"
         >
           Ouvrir le dossier
+        </button>
+        <button
+          type="button"
+          onClick={exportLast}
+          className="rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-white/5"
+        >
+          Exporter la dernière
         </button>
       </div>
       {list.length > 0 ? (
@@ -377,6 +762,164 @@ export function BackupSection({ notify }: { notify: Notify }): React.JSX.Element
           ))}
         </ul>
       ) : null}
+    </Section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Miroir APK (V1 lecture seule) : configuration poussée + état + envoi manuel.
+// La clé service ne revient jamais vers le renderer (masquée côté main).
+// ---------------------------------------------------------------------------
+
+interface SyncView {
+  enabled: boolean;
+  supabaseUrl: string;
+  hasKey: boolean;
+  intervalMinutes: number;
+  lastPushAt: string | null;
+  lastError: string | null;
+  pendingCount: number;
+}
+
+export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Element {
+  const [enabled, setEnabled] = useState(false);
+  const [url, setUrl] = useState("");
+  const [secret, setSecret] = useState("");
+  const [interval, setInterval] = useState("15");
+  const [view, setView] = useState<SyncView | null>(null);
+  const { busy, run } = useBusyFlag();
+
+  function refresh(): void {
+    callChecked((a) => a.sync.getConfig(), syncConfigViewSchema)
+      .then((v) => {
+        setView(v);
+        setEnabled(v.enabled);
+        setUrl(v.supabaseUrl);
+        setInterval(String(v.intervalMinutes));
+        setSecret("");
+      })
+      .catch(() => undefined);
+  }
+
+  useEffect(() => {
+    refresh();
+  }, []);
+
+  function save(): void {
+    const minutes = Number(interval);
+    if (!Number.isInteger(minutes) || minutes < 5 || minutes > 1440) {
+      notify("Cadence invalide (5 – 1440 minutes).", "err");
+      return;
+    }
+    if (enabled && !/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url.trim())) {
+      // Relais local (essais E2E/boucle locale) : http réservé au loopback
+      // (même règle que validateSyncConfig côté main).
+      if (!/^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?\/?$/i.test(url.trim())) {
+        notify("URL invalide (https://xxx.supabase.co).", "err");
+        return;
+      }
+    }
+    if (enabled && secret.trim() === "" && !view?.hasKey) {
+      notify("Collez la clé service (réglage initial).", "err");
+      return;
+    }
+    void run(async () => {
+      try {
+        await api.syncSaveConfig({
+          operationId: newOperationId(),
+          enabled,
+          supabaseUrl: url.trim(),
+          serviceKey: secret,
+          intervalMinutes: minutes,
+        });
+        setSecret("");
+        notify("Synchro enregistrée.", "ok");
+        refresh();
+      } catch (e) {
+        notify(frError(e, "Enregistrement impossible."), "err");
+      }
+    });
+  }
+
+  function pushNow(): void {
+    void run(async () => {
+      try {
+        const r = await callChecked(
+          (a) => a.sync.pushNow({ operationId: newOperationId() }),
+          syncPushResultSchema,
+        );
+        notify(`Miroir poussé : ${r.pushed} cliché(s), ${r.access} accès.`, "ok");
+        refresh();
+      } catch (e) {
+        notify(frError(e, "Poussée impossible."), "err");
+        refresh();
+      }
+    });
+  }
+
+  return (
+    <Section
+      title="Miroir APK"
+      hint="Application clients (lecture seule) : file locale → Supabase."
+    >
+      <dl className="space-y-2.5">
+        <InfoRow
+          label="Dernière poussée"
+          value={view?.lastPushAt ? view.lastPushAt.slice(0, 16).replace("T", " ") : "—"}
+        />
+        <InfoRow label="En attente" value={String(view?.pendingCount ?? 0)} />
+        <InfoRow
+          label="Clé service"
+          value={view?.hasKey ? "Enregistrée (vide = conserver)" : "Absente"}
+        />
+        {view?.lastError ? <InfoRow label="Dernière erreur" value={view.lastError} /> : null}
+      </dl>
+      <SwitchRow
+        label="Synchronisation activée"
+        hint="Poussée auto toutes les N minutes + après chaque vente/paiement (file)."
+        checked={enabled}
+        onChange={setEnabled}
+        ariaLabel="Synchronisation miroir"
+      />
+      <Field label="URL Supabase" hint="Ex. https://xxx.supabase.co">
+        <TextInput
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          inputMode="url"
+          placeholder="https://xxx.supabase.co"
+          aria-label="URL Supabase"
+        />
+      </Field>
+      <Field
+        label="Clé service (service_role)"
+        hint="Collée une fois, jamais réaffichée. Vide = conserver."
+      >
+        <TextInput
+          value={secret}
+          onChange={(e) => setSecret(e.target.value)}
+          placeholder={view?.hasKey ? "•••••••• (conserver)" : "Collez la clé…"}
+          aria-label="Clé service Supabase"
+        />
+      </Field>
+      <Field
+        label="Cadence auto (minutes, 5 – 1440)"
+        hint="15 = toutes les 15 minutes (quota gratuit)."
+      >
+        <TextInput
+          value={interval}
+          onChange={(e) => setInterval(e.target.value)}
+          inputMode="numeric"
+          placeholder="15"
+          aria-label="Cadence de poussée"
+        />
+      </Field>
+      <div className="grid grid-cols-2 gap-2">
+        <SaveBar busy={busy} onSave={save} label="Enregistrer" />
+        <SaveBar busy={busy} onSave={pushNow} label="Pousser maintenant" />
+      </div>
+      <p className="text-xs text-slate-500">
+        SQLite reste le master. Le miroir est jetable et reconstructible (file rejouée).
+      </p>
     </Section>
   );
 }
@@ -464,7 +1007,7 @@ export function DatabaseSection({ notify }: { notify: Notify }): React.JSX.Eleme
           ))
         )
           return;
-        await api.dbRelocate({ folder: picked.folder });
+        await api.dbRelocate({ folder: picked.folder, operationId: newOperationId() });
         notify("Base déplacée.", "ok");
         refresh();
       } catch (e) {

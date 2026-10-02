@@ -106,6 +106,14 @@ function paymentOutBranch(): string {
 }
 
 function movementBranch(kind: string, labelWords: string, extraWhere: string): string {
+  // RADICAL-FIX: allow-list stricte — jamais d'interpolation depuis l'entrée IPC.
+  // `kind` vient de littéraux internes (branchesFor), `extraWhere` de constantes.
+  if (!HISTORY_KINDS.includes(kind as (typeof HISTORY_KINDS)[number])) {
+    throw new Error("Type d'historique invalide.");
+  }
+  if (/[;'-]{2}|--|\/\*/.test(extraWhere)) {
+    throw new Error("Filtre d'historique invalide.");
+  }
   return `SELECT '${kind}' AS kind, m.id AS entity_id,
     COALESCE(m.reference, '${labelWords}') AS ref,
     '${labelWords} · ' || COALESCE(p.name, 'produit') AS label,
@@ -124,6 +132,13 @@ function auditBranch(
   entity: "product" | "customer" | "supplier",
   labelWords: string,
 ): string {
+  // RADICAL-FIX: allow-list — appelants internes uniquement (littéraux branchesFor).
+  if (!HISTORY_KINDS.includes(kind as (typeof HISTORY_KINDS)[number])) {
+    throw new Error("Type d'historique invalide.");
+  }
+  if (!/^[a-z]+\.[a-z_]+$/.test(event)) {
+    throw new Error("Événement d'historique invalide.");
+  }
   const table =
     entity === "product" ? "products" : entity === "customer" ? "customers" : "suppliers";
   const nameExpr = entity === "customer" ? "e.search_name" : "e.name";
@@ -144,6 +159,13 @@ function tableCreateBranch(
   nameExpr: string,
   labelWords: string,
 ): string {
+  // RADICAL-FIX: tables autorisées uniquement (jamais de nom depuis l'IPC).
+  if (!["customers", "suppliers", "products"].includes(table)) {
+    throw new Error("Table d'historique invalide.");
+  }
+  if (!HISTORY_KINDS.includes(kind as (typeof HISTORY_KINDS)[number])) {
+    throw new Error("Type d'historique invalide.");
+  }
   return `SELECT '${kind}' AS kind, t.id AS entity_id, '${labelWords}' AS ref,
     '${labelWords} · ' || ${nameExpr} AS label,
     '${table}' AS entity_type, ${nameExpr} AS entity_name,

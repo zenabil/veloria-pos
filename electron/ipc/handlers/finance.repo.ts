@@ -279,6 +279,14 @@ export function createDailyClosingAtomic(args: {
     // Formule canonique (miroir de src/domain/closings/closing-rules.ts
     // computeClosingBalance — electron/ ne peut pas importer src/ :
     // garder synchronisé, couvert par tests/unit/documents.test.ts).
+    // L12 — périmètre volontaire (conclusion d'audit) : les encaissements
+    // pain sont portés par bread_orders (pas de ligne sale_payments) donc
+    // absents de `collections` — sauf conversion pain→vente, qui crée une
+    // vente classique comptée dans cashSales. Les décaissements fournisseurs
+    // (colonne informative ci-dessus) n'entrent pas non plus. Identique au
+    // domaine, qui ne prend que opening + cashSales + customerCollections −
+    // expenses − refunds. Toute évolution se décide dans
+    // src/domain/closings/closing-rules.ts.
     for (const [k, v] of Object.entries({
       openingMinor: args.openingMinor,
       cashSalesMinor: cash.p,
@@ -600,6 +608,12 @@ export function getReportsSummary(args: ReportsSummaryInput): Record<string, unk
     sales: number;
   }[];
   // Séries achats/dépenses par seau (requêtes simples, période bornée).
+  // L11 — DOCUMENTATION SANS CHANGEMENT : `${table}` / `${col}` / `${dateCol}`
+  // / `${expr}` sont interpolés dans le SQL et ne proviennent QUE de
+  // littéraux internes (appels ci-dessous : "stock_intakes si",
+  // "total_minor", …) — jamais d'une saisie utilisateur. Toute nouvelle
+  // utilisation doit conserver cette règle ; les bornes de période restent
+  // toujours en paramètres `?`.
   const byBucket = (
     table: string,
     col: string,
@@ -640,10 +654,16 @@ export function getReportsSummary(args: ReportsSummaryInput): Record<string, unk
     }[];
     return new Map(rows.map((r) => [r.d, r.s]));
   })();
+  // L1 : encaissements alignés sur les KPIs ventes — un paiement rattaché à
+  // une vente ANNULÉE n'est plus de l'argent encaissé (cancelSaleAtomic ne
+  // supprime jamais la ligne sale_payments). Les encaissements autonomes
+  // (sale_id NULL) restent comptés.
   const payIn = db
     .prepare(
       `SELECT COALESCE(SUM(sp.amount_minor), 0) AS s FROM sale_payments sp
-       WHERE substr(sp.payment_date, 1, 10) BETWEEN ? AND ?${args.customerId != null ? " AND sp.customer_id = ?" : ""}`,
+       LEFT JOIN sales sa ON sa.id = sp.sale_id
+       WHERE substr(sp.payment_date, 1, 10) BETWEEN ? AND ?
+         AND (sp.sale_id IS NULL OR COALESCE(sa.is_cancelled, 0) = 0)${args.customerId != null ? " AND sp.customer_id = ?" : ""}`,
     )
     .get(
       ...(args.customerId != null ? [args.from, args.to, args.customerId] : [args.from, args.to]),
@@ -774,10 +794,15 @@ export function getDashboardSummary(from: string, to: string): Record<string, un
        WHERE substr(expense_date, 1, 10) BETWEEN ? AND ?`,
     )
     .get(from, to) as { n: number; t: number };
+  // L1 : encaissements du tableau de bord — exclusivité des ventes NON
+  // annulées (cohérent avec sales/cogs/byDay ci-dessus) ; encaissements
+  // autonomes (sale_id NULL) conservés.
   const payIn = db
     .prepare(
-      `SELECT COALESCE(SUM(amount_minor), 0) AS s FROM sale_payments
-       WHERE substr(payment_date, 1, 10) BETWEEN ? AND ?`,
+      `SELECT COALESCE(SUM(sp.amount_minor), 0) AS s FROM sale_payments sp
+       LEFT JOIN sales sa ON sa.id = sp.sale_id
+       WHERE substr(sp.payment_date, 1, 10) BETWEEN ? AND ?
+         AND (sp.sale_id IS NULL OR COALESCE(sa.is_cancelled, 0) = 0)`,
     )
     .get(from, to) as { s: number };
   const payOut = db
@@ -859,11 +884,16 @@ export function getDashboardSummary(from: string, to: string): Record<string, un
        WHERE s.is_cancelled = 0 ORDER BY s.id DESC LIMIT 5`,
     )
     .all();
+  // L1 : les encaissements récents excluent ceux des ventes annulées
+  // (branche 'in') — les décaissements fournisseurs ne sont pas impactés.
   const recentPayments = db
     .prepare(
       `SELECT 'in' AS dir, sp.amount_minor, sp.method, sp.payment_date,
         COALESCE(c.search_name, 'Client') AS party
-       FROM sale_payments sp LEFT JOIN customers c ON c.id = sp.customer_id
+       FROM sale_payments sp
+       LEFT JOIN sales sa ON sa.id = sp.sale_id
+       LEFT JOIN customers c ON c.id = sp.customer_id
+       WHERE sp.sale_id IS NULL OR COALESCE(sa.is_cancelled, 0) = 0
        UNION ALL
        SELECT 'out' AS dir, sp.amount_minor, sp.method, sp.payment_date,
         COALESCE(s.name, 'Fournisseur') AS party

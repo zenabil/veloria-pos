@@ -13,4 +13,6 @@ export const MANAGER_CHANNELS = {
   "manager.keyStatus": "manager.keyStatus",
   "manager.keyImport": "manager.keyImport",
   "manager.backup": "manager.backup",
+  "manager.backups": "manager.backups",
+  "manager.restore": "manager.restore",
 } as const;

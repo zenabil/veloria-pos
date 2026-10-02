@@ -2,7 +2,7 @@
 // Recherche + code-barres + article libre + client + paniers multiples
 // + encaissement + aperçu + impression (80mm/A4).
 import { useEffect, useRef, useState } from "react";
-import { HandCoins, Printer, Search, User, Volume2, VolumeX, X } from "lucide-react";
+import { FileDown, HandCoins, Printer, Search, User, Volume2, VolumeX, X } from "lucide-react";
 import { isSoundEnabled, persistSoundEnabled, playSound } from "@shared/sound/sound.ts";
 import { useCart, useCartsStore, type CartTab } from "./cart-store.ts";
 import { CartPanel } from "./sell/CartPanel.tsx";
@@ -15,6 +15,7 @@ import { api } from "@shared/types/ipc-client.ts";
 import { callChecked, paymentAckSchema, saleResultSchema } from "@shared/types/ipc-contracts.ts";
 import { useAppSettings, type SalesSettings } from "@shared/settings/use-app-settings.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
+import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
 import { formatDzd, parseDzdInputStrict } from "@domain/money/money.ts";
 import { strictOrNeg } from "@shared/money/parse.ts";
 import { frError } from "@shared/errors/fr-map.ts";
@@ -38,6 +39,7 @@ import {
   Button,
   Card,
   Field,
+  Kbd,
   Modal,
   SectionTitle,
   TextInput,
@@ -130,7 +132,7 @@ export function SellScreen({
   /** Échéance du crédit (vide = sans échéance), proposée si reste impayé. */
   const [dueDate, setDueDate] = useState("");
   const [customOpen, setCustomOpen] = useState(false);
-  const [customForm, setCustomForm] = useState({ name: "", price: "" });
+  const [customForm, setCustomForm] = useState({ name: "", price: "", qty: "1" });
   // Fiche entreprise : source unique partagée (imprimés caisse + devis).
   const { company } = useCompany();
   // Confirmation non bloquante (modale applicative).
@@ -143,6 +145,7 @@ export function SellScreen({
   const [customerBalance, setCustomerBalance] = useState<number | null>(null);
   /** Vente à crédit autorisée pour le client sélectionné (null = passage). */
   const [customerCredit, setCustomerCredit] = useState<boolean | null>(null);
+  const [creditUnknown, setCreditUnknown] = useState(false);
   const [settleOpen, setSettleOpen] = useState(false);
   const [settleAmount, setSettleAmount] = useState("");
   const [settleMethod, setSettleMethod] = useState<"cash" | "cheque" | "transfer">("cash");
@@ -158,15 +161,19 @@ export function SellScreen({
     payload: Record<string, unknown>;
   } | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
-  const searchTimer = useRef<number | null>(null);
-  const customerTimer = useRef<number | null>(null);
+  const searchTimer = useDebouncedTimer();
+  const customerTimer = useDebouncedTimer();
   const customerRef = useRef<HTMLInputElement>(null);
   const customPriceRef = useRef<HTMLInputElement>(null);
   const { value: salesSettings } = useAppSettings<SalesSettings>("sales");
   const defaultMethod = salesSettings?.defaultPaymentMethod ?? "cash";
   /** Compteur anti-course : seule la dernière recherche met à jour la liste. */
   const searchSeq = useRef(0);
-  /** Actions clavier : ref vers les dernières closures (écouteur monté une fois). */
+  // Actions clavier : ref vers les dernières closures (écouteur monté une fois).
+  // Affectée dans un effet (jamais pendant le render : mutation de ref en
+  // phase de rendu = hazard de rendu concurrent). Sans dépendances = après
+  // chaque render, donc les closures sont toujours à jour, et l'écouteur
+  // monté une fois lit `keyActions.current` au moment de la frappe.
   const keyActions = useRef<SellKeyActions | null>(null);
   // P4 : raccourcis montés une fois (sell/useSellShortcuts).
   useSellShortcuts(keyActions, searchRef);
@@ -174,14 +181,6 @@ export function SellScreen({
   // Focus initial au montage uniquement.
   useEffect(() => {
     searchRef.current?.focus();
-  }, []);
-
-  // Nettoyage des minuteurs (recherche debounce) au démontage.
-  useEffect(() => {
-    return () => {
-      if (searchTimer.current != null) window.clearTimeout(searchTimer.current);
-      if (customerTimer.current != null) window.clearTimeout(customerTimer.current);
-    };
   }, []);
 
   // Solde + autorisation crédit du client sélectionné (lecture seule, avant encaissement).
@@ -210,6 +209,7 @@ export function SellScreen({
     if (cart.customerId == null) {
       setCustomerBalance(null);
       setCustomerCredit(null);
+      setCreditUnknown(false);
       return;
     }
     let cancelled = false;
@@ -217,6 +217,9 @@ export function SellScreen({
       if (cancelled) return;
       setCustomerBalance(balance);
       setCustomerCredit(allowed);
+      // Échec de lecture : ni solde ni autorisation fiables (pas de défaut
+      // « Comptant uniquement » trompeur — badge « indisponible » explicite).
+      setCreditUnknown(balance == null || allowed == null);
     });
     return () => {
       cancelled = true;
@@ -299,7 +302,7 @@ export function SellScreen({
       });
     }
   } catch (e) {
-    totalsErr = frError(e, "");
+    totalsErr = frError(e, "Total du panier incalculable : vérifiez les lignes.");
   }
 
   // Montant saisi : rechargé depuis l'onglet à chaque changement d'onglet.
@@ -327,7 +330,17 @@ export function SellScreen({
       .then((r) => {
         if (cancelled) return;
         const tabs = ((r as { tabs?: unknown }).tabs ?? []) as CartTab[];
-        if (Array.isArray(tabs) && tabs.length > 0) cart.hydrate(tabs);
+        if (Array.isArray(tabs) && tabs.length > 0) {
+          cart.hydrate(tabs);
+          // Resynchronise le champ montant avec l'onglet restauré : l'effet
+          // [activeId] ne se déclenche pas si l'onglet actif ne change pas,
+          // et l'effet [paidText, totalMinor] écraserait alors amountPaidMinor
+          // restauré à 0 (brouillon de paiement perdu à chaque redémarrage).
+          const st = useCartsStore.getState();
+          const active = st.tabs.find((t) => t.id === st.activeId);
+          const minor = active?.amountPaidMinor ?? 0;
+          setPaidText(minor > 0 ? (minor / 100).toString().replace(".", ",") : "");
+        }
       })
       .catch(() => undefined);
     return () => {
@@ -342,6 +355,7 @@ export function SellScreen({
       timer = window.setTimeout(() => {
         api
           .cartsSave({
+            operationId: newOperationId(),
             tabs: s.tabs.map((t) => ({
               tabId: t.id,
               name: t.name,
@@ -384,17 +398,17 @@ export function SellScreen({
 
   function onQueryChange(q: string): void {
     setQuery(q);
-    if (searchTimer.current != null) window.clearTimeout(searchTimer.current);
     const trimmed = q.trim();
     if (!trimmed) {
+      searchTimer.cancel();
       setResults([]);
       setSearching(false);
       return;
     }
     setSearching(true);
-    searchTimer.current = window.setTimeout(() => {
+    searchTimer.schedule(220, () => {
       void runSearch(trimmed);
-    }, 220);
+    });
   }
 
   async function runSearch(trimmed: string): Promise<void> {
@@ -470,6 +484,18 @@ export function SellScreen({
       customPriceRef.current?.focus();
       return;
     }
+    // Qté Stitch (défaut 1) : stricte, > 0, arrondie comme les lignes caisse.
+    const qtyRaw = customForm.qty.trim() === "" ? "1" : customForm.qty.trim();
+    const qtyParsed = Number(qtyRaw.replace(",", "."));
+    if (!Number.isFinite(qtyParsed) || qtyParsed <= 0) {
+      notify("Quantité invalide (nombre > 0).", "err");
+      return;
+    }
+    const quantity = roundQuantity(qtyParsed);
+    if (!(quantity > 0)) {
+      notify("Quantité invalide (nombre > 0).", "err");
+      return;
+    }
     // Article libre hors catalogue : pas de stock décrémenté (productId null).
     cart.addLine({
       key: `libre-${Date.now()}`,
@@ -479,23 +505,23 @@ export function SellScreen({
       originalUnitPriceMinor: unitPriceMinor,
       unitPriceMinor,
       purchasePriceMinor: 0,
-      quantity: 1,
+      quantity,
     });
     setCustomOpen(false);
-    setCustomForm({ name: "", price: "" });
+    setCustomForm({ name: "", price: "", qty: "1" });
     playSound("blip");
   }
 
   function searchCustomers(q: string): void {
     setCustomerQuery(q);
-    if (customerTimer.current != null) window.clearTimeout(customerTimer.current);
     if (q.trim().length < 2) {
+      customerTimer.cancel();
       setCustomerResults([]);
       return;
     }
-    customerTimer.current = window.setTimeout(() => {
+    customerTimer.schedule(200, () => {
       void runCustomerSearch(q.trim());
-    }, 200);
+    });
   }
 
   async function runCustomerSearch(trimmed: string): Promise<void> {
@@ -513,10 +539,12 @@ export function SellScreen({
     if (c == null) {
       cart.setCustomer(null, "Client de passage");
       setCustomerCredit(null);
+      setCreditUnknown(false);
     } else {
       cart.setCustomer(c.id, `${c.first_name} ${c.last_name}`.trim());
       // Valeur immédiate (relevée par le relevé juste après, anti-course inclus).
       setCustomerCredit(c.credit_allowed === 1);
+      setCreditUnknown(false);
     }
     setCustomerQuery("");
     setCustomerResults([]);
@@ -706,6 +734,26 @@ export function SellScreen({
     }
   }
 
+  async function printProforma80(): Promise<void> {
+    if (!proformaDoc) return;
+    try {
+      await api.proformaPrint80mm(proformaDoc.payload);
+      notify(`Devis ${proformaDoc.number} envoyé (80mm).`, "ok");
+    } catch (e) {
+      notify(frError(e, "Impression du devis impossible."), "err");
+    }
+  }
+
+  async function exportProformaPdf(): Promise<void> {
+    if (!proformaDoc) return;
+    try {
+      const res = (await api.proformaExportPdf(proformaDoc.payload)) as { path: string };
+      notify(`PDF enregistré : ${res.path}`, "ok");
+    } catch (e) {
+      notify(frError(e, "Export PDF impossible."), "err");
+    }
+  }
+
   function openNewTab(): void {
     // Paniers multiples : le panier en cours est conservé, un nouvel
     // onglet vide devient l'onglet actif (moyen par défaut des réglages).
@@ -732,16 +780,18 @@ export function SellScreen({
     notify("Panier vidé.", "ok");
   }
 
-  keyActions.current = {
-    openCustom: () => setCustomOpen(true),
-    openPay,
-    createProforma,
-    newTab: openNewTab,
-    clearCart: clearActiveCart,
-    closeTab: () => closeTab(cart.activeId),
-    focusClient: () => customerRef.current?.focus(),
-    bump: bumpLastQty,
-  };
+  useEffect(() => {
+    keyActions.current = {
+      openCustom: () => setCustomOpen(true),
+      openPay,
+      createProforma,
+      newTab: openNewTab,
+      clearCart: clearActiveCart,
+      closeTab: () => closeTab(cart.activeId),
+      focusClient: () => customerRef.current?.focus(),
+      bump: bumpLastQty,
+    };
+  });
 
   function closeTab(id: number): void {
     const tab = cart.tabs.find((t) => t.id === id);
@@ -934,8 +984,16 @@ export function SellScreen({
     <div className="flex h-full flex-col gap-4">
       {/* Barre de recherche + client */}
       <div className="grid gap-3 xl:grid-cols-[1.4fr_1fr]">
-        <Card className="p-4">
-          <Field label="Recherche produit [F3]">
+        <Card className="flex flex-col justify-between p-4">
+          <div>
+            <div className="flex items-center justify-between pb-1">
+              <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                Recherche produit [F3]
+              </span>
+              <span className="rounded bg-[#1c2b3c] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[#4edea3]">
+                Scanner prêt
+              </span>
+            </div>
             <div className="relative">
               <Search
                 size={17}
@@ -958,10 +1016,13 @@ export function SellScreen({
                 }}
                 placeholder="Nom, code-barres… (Entrée = premier résultat)"
                 aria-label="Recherche produit"
-                className="pl-10"
+                className="pl-10 pr-20"
               />
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
+                <Kbd>Entrée ↵</Kbd>
+              </span>
             </div>
-          </Field>
+          </div>
           {searching ? (
             <p className="mt-2 text-xs text-slate-500" role="status">
               Recherche…
@@ -995,22 +1056,29 @@ export function SellScreen({
               ))}
             </ul>
           ) : null}
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button
-              variant="secondary"
-              onClick={() => setCustomOpen(true)}
-              title="Article libre [F1]"
-            >
-              + Article libre [F1]
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => void createProforma()}
-              disabled={proformaBusy || cart.lines.length === 0}
-              title="Créer un devis avec aperçu [F4]"
-            >
-              {proformaBusy ? "Devis…" : "Proforma [F4]"}
-            </Button>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => setCustomOpen(true)}
+                title="Article libre [F1]"
+              >
+                + Article libre [F1]
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => void createProforma()}
+                disabled={proformaBusy || cart.lines.length === 0}
+                title="Créer un devis avec aperçu [F4]"
+              >
+                {proformaBusy ? "Devis…" : "Proforma [F4]"}
+              </Button>
+            </div>
+            {results.length > 0 ? (
+              <span className="font-mono text-[10px] font-semibold text-[#d3c5ac]/80">
+                Affichage : {results.length} produit(s) filtré(s)
+              </span>
+            ) : null}
           </div>
         </Card>
 
@@ -1048,9 +1116,13 @@ export function SellScreen({
               </button>
             )}
             {cart.customerId != null ? (
-              <Badge tone={customerCredit === true ? "green" : "grey"}>
-                {customerCredit === true ? "Crédit autorisé" : "Comptant uniquement"}
-              </Badge>
+              creditUnknown ? (
+                <Badge tone="grey">Solde indisponible</Badge>
+              ) : (
+                <Badge tone={customerCredit === true ? "green" : "grey"}>
+                  {customerCredit === true ? "Crédit autorisé" : "Comptant uniquement"}
+                </Badge>
+              )
             ) : null}
             {customerBalance != null ? (
               <span className="text-xs tabular-nums text-slate-400">
@@ -1108,10 +1180,13 @@ export function SellScreen({
       {/* Onglets paniers : chaque panier garde ses articles et son client.
           F6 ouvre un nouvel onglet sans toucher aux autres, F8 ferme l'actif. */}
       <div
-        className="flex items-center gap-2 overflow-x-auto pb-1"
+        className="flex items-center gap-2 overflow-x-auto rounded-lg bg-[#0d1c2d] px-3 py-2"
         role="tablist"
         aria-label="Paniers en cours"
       >
+        <span className="shrink-0 pr-1 text-[11px] font-bold uppercase tracking-[0.12em] text-[#d3c5ac]">
+          Paniers en attente :
+        </span>
         {cart.tabs.map((t) => {
           const selected = t.id === cart.activeId;
           const total = tabTotal(t);
@@ -1186,6 +1261,7 @@ export function SellScreen({
           ) : (
             <VolumeX size={16} aria-hidden="true" />
           )}
+          <span className="text-xs font-semibold">Bip caisse actif</span>
         </Button>
       </div>
 
@@ -1228,8 +1304,8 @@ export function SellScreen({
                 </div>
               ) : null}
               <div className="flex items-baseline justify-between border-t border-white/10 pt-2">
-                <dt className="text-base font-extrabold">Total à payer</dt>
-                <dd className="text-3xl font-extrabold tabular-nums tracking-tight text-amber-300">
+                <dt className="text-base font-extrabold">Total Net à Payer</dt>
+                <dd className="font-mono-currency-lg text-3xl font-extrabold tabular-nums tracking-tight text-amber-300">
                   {formatDzd(totals?.totalMinor ?? 0)}
                 </dd>
               </div>
@@ -1238,6 +1314,7 @@ export function SellScreen({
               onClick={openPay}
               disabled={cart.lines.length === 0 || totals == null || totalsErr !== ""}
               className="w-full py-3 text-base"
+              title="Ouvrir l'encaissement [F10]"
             >
               Encaisser [F10]
             </Button>
@@ -1246,8 +1323,8 @@ export function SellScreen({
           {preview ? (
             <Card className="space-y-3 p-5">
               <SectionTitle
-                title={`Dernière vente · ${preview.sale.invoice}`}
-                hint={preview.sale.date}
+                title={`Dernière Vente Validée · ${preview.sale.invoice}`}
+                hint={`${preview.sale.date} · Ticket 80mm / Facture A4 (format [F2])`}
                 action={
                   <Button
                     variant="secondary"
@@ -1312,7 +1389,7 @@ export function SellScreen({
         />
       ) : null}
 
-      {/* Aperçu du devis + impression A4 (Entrée = imprimer) */}
+      {/* Aperçu du devis + impression 80mm/A4 + PDF (Entrée = imprimer A4) */}
       {proformaDoc ? (
         <Modal
           label="Aperçu devis"
@@ -1330,6 +1407,12 @@ export function SellScreen({
             <p className="text-xs text-slate-500">
               {proformaDoc.date} · Document sans valeur fiscale.
             </p>
+            <pre
+              className="max-h-[180px] overflow-auto rounded-xl border border-white/10 bg-white p-4 font-mono text-[12px] leading-snug text-black"
+              aria-label={`Aperçu devis 80mm ${proformaDoc.number}`}
+            >
+              {proformaDoc.text80}
+            </pre>
             <iframe
               sandbox=""
               srcDoc={proformaDoc.htmlA4}
@@ -1344,6 +1427,22 @@ export function SellScreen({
                 className="flex-1"
               >
                 Fermer
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => void printProforma80()}
+                className="flex-1"
+              >
+                <Printer size={16} aria-hidden="true" /> 80mm
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => void exportProformaPdf()}
+                className="flex-1"
+              >
+                <FileDown size={16} aria-hidden="true" /> PDF
               </Button>
               <Button type="submit" className="flex-[2]">
                 <Printer size={16} aria-hidden="true" /> Imprimer A4

@@ -27,7 +27,13 @@ import { registerOcrIpc } from "../ocr/ocr.service";
 import { openDatabase, integrityCheck } from "../database/sqlite.service";
 import { pruneTechnicalTables } from "../database/retention";
 import { getDataFolder } from "../database/database-path.service";
-import { createBackup, isAutoBackupDue, registerBackupIpc } from "../backup/backup.service";
+import {
+  createBackup,
+  isAutoBackupDue,
+  registerBackupIpc,
+  startAutoBackupTimer,
+} from "../backup/backup.service";
+import { startSyncTimer } from "../sync/sync.service";
 import { initLogger, log } from "../services/logger";
 import { resolveStartup, type DatabaseOpenInfo, type StartupFailure } from "./startup-flow";
 import { buildRecoveryHtml } from "./recovery-view";
@@ -169,6 +175,18 @@ function runAutoBackupIfDue(): void {
     }
   } catch (err) {
     log("WARN", "backup", "backup.auto_failed", { error: String(err) });
+  }
+  try {
+    startAutoBackupTimer();
+  } catch (err) {
+    log("WARN", "backup", "backup.timer_failed", { error: String(err) });
+  }
+  // Miroir APK : auto-poussée best-effort (jamais bloquante, jamais d'erreur
+  // vers la caisse — la file `pending` survit à toute coupure).
+  try {
+    startSyncTimer();
+  } catch (err) {
+    log("WARN", "sync", "sync.timer_failed", { error: String(err) });
   }
 }
 

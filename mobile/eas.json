@@ -1,0 +1,34 @@
+{
+  // EAS CLI lit d'abord ce fichier en JSON strict, puis en JSON5 : les
+  // commentaires ci-dessous sont donc acceptés (parser golden-fleece).
+  // Profils requis par `npm run build:apk` = eas build -p android --profile
+  // preview, et par une publication éventuelle sur Play Store.
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        // APK installable à la main sur un téléphone de test.
+        "buildType": "apk"
+      },
+      // EXPO_PUBLIC_* est gravé dans le bundle JS au moment du build (voir
+      // src/config.ts) : remplacez les valeurs ci-dessous par celles du projet.
+      //  - EXPO_PUBLIC_SYNC_URL : URL HTTPS du projet Supabase
+      //    (https://<projet>.supabase.co) — Android bloque le HTTP clair.
+      //  - EXPO_PUBLIC_ANON_KEY : clé anon publique du projet Supabase.
+      "env": {
+        "EXPO_PUBLIC_SYNC_URL": "https://VOTRE-PROJET.supabase.co",
+        "EXPO_PUBLIC_ANON_KEY": "VOTRE-CLE-ANON-PUBLIQUE"
+      }
+    },
+    "production": {
+      "android": {
+        // AAB exigé par Google Play (les APK restent du profil preview).
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_SYNC_URL": "https://VOTRE-PROJET.supabase.co",
+        "EXPO_PUBLIC_ANON_KEY": "VOTRE-CLE-ANON-PUBLIQUE"
+      }
+    }
+  }
+}

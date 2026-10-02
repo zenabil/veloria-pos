@@ -56,8 +56,11 @@ describe("Preload bridge shape", () => {
       "saleItemSchema",
       "printLineSchema",
       "labelItemSchema",
+      "labelFormatSchema",
       "purchaseLineSchema",
       "cartLineSchema",
+      "printFormatSchema",
+      "paymentTicketFormatSchema",
     ]);
     for (const n of names) {
       if (nested.has(n)) continue;

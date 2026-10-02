@@ -2,17 +2,20 @@
 // En-tête + 4 cartes stats + barre d'outils + table unifiée (serveur) +
 // pagination + tiroir détail + création + remboursement.
 import { useEffect, useRef, useState } from "react";
-import { Eye, HandCoins, Plus, Search, SlidersHorizontal, Undo2, X } from "lucide-react";
+import { Download, Eye, HandCoins, Plus, Search, SlidersHorizontal, Undo2, X } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { newOperationId } from "@domain/common/ids.ts";
 import { formatDzd } from "@domain/money/money.ts";
+import { downloadCsv } from "@shared/export/csv.ts";
 import {
   Badge,
   Button,
   Card,
   EmptyState,
+  Kbd,
   Kpi,
+  PageHeader,
   Pager,
   RowAction,
   Select,
@@ -21,6 +24,7 @@ import {
 } from "@shared/ui/primitives.tsx";
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
 import { useLoadSeq } from "@shared/ui/use-load-seq.ts";
+import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
 import { NewReturnDialog, ReturnDetailsDrawer, ReturnRefundDialog } from "./ReturnDialogs.tsx";
 import {
   returnKindLabel,
@@ -73,27 +77,27 @@ export function ReturnsScreen({ notify }: { notify: Notify }): React.JSX.Element
   const [drawer, setDrawer] = useState<{ kind: ReturnKind; data: ReturnDetailData } | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [refundFor, setRefundFor] = useState<ReturnRow | null>(null);
-  const queryTimer = useRef<number | null>(null);
+  const queryTimer = useDebouncedTimer();
   const searchRef = useRef<HTMLInputElement>(null);
 
-  // F3 : focus recherche (comme en caisse).
+  // F3 : focus recherche (comme en caisse). F2 : nouveau retour. F8 : exporter.
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (isAnyModalOpen()) return;
       if (e.key === "F3") {
         e.preventDefault();
         searchRef.current?.focus();
+      } else if (e.key === "F2") {
+        e.preventDefault();
+        setCreateOpen(true);
+      } else if (e.key === "F8") {
+        e.preventDefault();
+        void exportAll();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (queryTimer.current != null) window.clearTimeout(queryTimer.current);
-    };
-  }, []);
+  });
 
   async function loadStats(): Promise<void> {
     try {
@@ -149,10 +153,9 @@ export function ReturnsScreen({ notify }: { notify: Notify }): React.JSX.Element
   function onQueryChange(q: string): void {
     setQuery(q);
     setPage(1);
-    if (queryTimer.current != null) window.clearTimeout(queryTimer.current);
-    queryTimer.current = window.setTimeout(() => {
+    queryTimer.schedule(250, () => {
       void load(q, typeFilter, statusFilter, from, to, sort, 1);
-    }, 250);
+    });
   }
 
   function changeType(t: ReturnTypeFilter): void {
@@ -190,6 +193,43 @@ export function ReturnsScreen({ notify }: { notify: Notify }): React.JSX.Element
     setSelection(new Set());
     void loadStats();
     void load(query, typeFilter, statusFilter, from, to, sort, page);
+  }
+
+  /** Export CSV [F8] : journal des retours & avoirs (filtres courants, max 1000). */
+  async function exportAll(): Promise<void> {
+    try {
+      const res = (await api.returnsList({
+        query: query.trim(),
+        typeFilter,
+        statusFilter,
+        from: from === "" ? null : from,
+        to: to === "" ? null : to,
+        sort,
+        page: 1,
+        pageSize: 1000,
+      })) as { rows: ReturnRow[]; total: number };
+      if (res.rows.length === 0) {
+        notify("Rien à exporter.", "err");
+        return;
+      }
+      if (res.total > 1000) {
+        notify(`Export limité aux 1000 premières lignes (${res.total} au total).`, "err");
+      }
+      downloadCsv(
+        `retours-${new Date().toISOString().slice(0, 10)}.csv`,
+        res.rows.map((r) => ({
+          Numero: returnNumber(r.kind, r.number, r.entity_id),
+          Date: r.created_at.slice(0, 10),
+          Type: returnKindLabel(r.kind),
+          Total: formatDzd(r.total_minor),
+          Regle: formatDzd(r.settled_minor),
+          Statut: returnStatusLabel(r.status),
+        })),
+      );
+      notify(`${res.rows.length} ligne(s) exportée(s).`, "ok");
+    } catch (e) {
+      notify(frError(e, "Export impossible."), "err");
+    }
   }
 
   function resetFilters(): void {
@@ -277,69 +317,89 @@ export function ReturnsScreen({ notify }: { notify: Notify }): React.JSX.Element
 
   return (
     <div className="flex h-full flex-col gap-4">
-      {/* En-tête de page */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-xl font-extrabold tracking-tight">Retours</h2>
-          <p className="text-xs text-slate-500">
-            {total} retour(s) · {formatDzd(stats.totalAmountMinor)} de marchandises retournées
-          </p>
-        </div>
-        <div className="relative w-full max-w-xs">
-          <Search
-            size={16}
-            aria-hidden="true"
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-          />
-          <TextInput
-            ref={searchRef}
-            value={query}
-            onChange={(e) => onQueryChange(e.target.value)}
-            placeholder="N° retour / facture / scan… [F3]"
-            aria-label="Rechercher un retour (numéro, facture ou scan code-barres)"
-            className="pl-9 font-mono"
-          />
-        </div>
-        <TextInput
-          type="date"
-          value={from}
-          onChange={(e) => changeRange(e.target.value, to)}
-          aria-label="Du"
-          title="Du"
-        />
-        <TextInput
-          type="date"
-          value={to}
-          onChange={(e) => changeRange(from, e.target.value)}
-          aria-label="Au"
-          title="Au"
-        />
-        <Button
-          variant="secondary"
-          onClick={() => setToolbarOpen((o) => !o)}
-          aria-expanded={toolbarOpen}
-          title="Afficher / masquer les filtres"
-        >
-          <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
-        </Button>
-        <Button onClick={() => setCreateOpen(true)} title="Nouveau retour">
-          <Plus size={16} aria-hidden="true" /> Retour
-        </Button>
-      </div>
+      {/* En-tête Stitch : Retours & Avoirs Clients · MODULE 09 · FISCAL V3.2 */}
+      <PageHeader
+        title="Retours & Avoirs Clients"
+        module="MODULE 09 · FISCAL V3.2"
+        period={`${total} retour(s) · ${formatDzd(stats.totalAmountMinor)} de marchandises retournées · REGISTRE DES RETOURS ACTIF · POSTE 04`}
+        actions={
+          <>
+            <div className="relative w-full max-w-xs">
+              <Search
+                size={16}
+                aria-hidden="true"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+              />
+              <TextInput
+                ref={searchRef}
+                value={query}
+                onChange={(e) => onQueryChange(e.target.value)}
+                placeholder="N° retour / facture / scan… [F3]"
+                aria-label="Rechercher un retour (numéro, facture ou scan code-barres)"
+                className="pl-9 font-mono"
+              />
+            </div>
+            <TextInput
+              type="date"
+              value={from}
+              onChange={(e) => changeRange(e.target.value, to)}
+              aria-label="Du"
+              title="Du"
+            />
+            <TextInput
+              type="date"
+              value={to}
+              onChange={(e) => changeRange(from, e.target.value)}
+              aria-label="Au"
+              title="Au"
+            />
+            <Button
+              variant="secondary"
+              onClick={() => setToolbarOpen((o) => !o)}
+              aria-expanded={toolbarOpen}
+              title="Afficher / masquer les filtres"
+            >
+              <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
+            </Button>
+            <Button onClick={() => setCreateOpen(true)} title="Nouveau retour [F2]">
+              <Plus size={16} aria-hidden="true" /> Nouveau Retour <Kbd>F2</Kbd>
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => void exportAll()}
+              title="Exporter en CSV [F8]"
+            >
+              <Download size={16} aria-hidden="true" /> Exporter
+            </Button>
+          </>
+        }
+      />
 
-      {/* Cartes statistiques */}
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <Kpi label="Retours" value={String(stats.totalReturns)} sub="Tous types" />
-        <Kpi label="Clients" value={String(stats.customerReturns)} sub="Retours clients" />
+      {/* Cartes statistiques Stitch */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi
-          label="Fournisseurs"
-          value={String(stats.supplierReturns)}
-          sub="Retours fournisseurs"
+          label="Retours du Jour"
+          value={String(stats.totalReturns)}
+          sub="Dossiers traités"
+          accent="#fbbf24"
         />
         <Kpi
-          label="Montant retourné"
+          label="Retours Clients"
+          value={String(stats.customerReturns)}
+          sub="Bons d'avoir émis"
+          accent="#cde8ff"
+        />
+        <Kpi
+          label="Retours Fournisseurs"
+          value={String(stats.supplierReturns)}
+          sub="Articles réintégrés"
+          accent="#8ed0ff"
+        />
+        <Kpi
+          label="Remboursements Espèces"
           value={formatDzd(stats.totalAmountMinor)}
-          sub="Hors annulés"
+          sub="Décaissements directs"
+          accent="#4edea3"
         />
       </div>
 
@@ -483,11 +543,11 @@ export function ReturnsScreen({ notify }: { notify: Notify }): React.JSX.Element
           ) : rows.length === 0 ? (
             <EmptyState
               title="Aucun retour"
-              hint="Créez votre premier retour avec le bouton « Retour »."
+              hint="Créez votre premier retour avec le bouton « Nouveau Retour »."
             />
           ) : (
             <table className="w-full min-w-[1240px] text-sm">
-              <thead className="sticky top-0 bg-[#111a2e] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
+              <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
                 <tr>
                   <th className="w-10 px-3 py-2.5">
                     <input

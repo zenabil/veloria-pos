@@ -1,0 +1,562 @@
+<!doctype html>
+
+<html class="light" dir="rtl" lang="ar">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Veloria Client - فواتيري</title>
+    <!-- Google Fonts: Space Grotesk, Plus Jakarta Sans, JetBrains Mono -->
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Space+Grotesk:wght@600;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <!-- Material Symbols Outlined -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <!-- Tailwind CSS with custom theme config -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "inverse-surface": "#2e3132",
+              "secondary-container": "#ffc329",
+              surface: "#f8f9fb",
+              "surface-variant": "#e1e2e4",
+              "on-background": "#191c1e",
+              secondary: "#795900",
+              "outline-variant": "#c4c6cd",
+              "surface-container-highest": "#e1e2e4",
+              "primary-container": "#0e1c2d",
+              "on-primary-container": "#778599",
+              "secondary-fixed-dim": "#f9bd22",
+              "on-primary-fixed": "#0e1c2d",
+              "surface-tint": "#515f72",
+              "surface-dim": "#d9dadc",
+              tertiary: "#000000",
+              "surface-container-low": "#f2f4f6",
+              "primary-fixed-dim": "#b9c8de",
+              "on-secondary": "#ffffff",
+              outline: "#74777d",
+              "inverse-on-surface": "#f0f1f3",
+              "primary-fixed": "#d5e4fa",
+              "surface-container-lowest": "#ffffff",
+              "surface-container": "#edeef0",
+              "on-tertiary-fixed": "#002109",
+              "on-error-container": "#93000a",
+              "on-tertiary-container": "#009842",
+              "on-tertiary-fixed-variant": "#005320",
+              error: "#ba1a1a",
+              "error-container": "#ffdad6",
+              "on-surface-variant": "#44474c",
+              "tertiary-container": "#002109",
+              "on-primary": "#ffffff",
+              "on-error": "#ffffff",
+              "tertiary-fixed": "#7ffc97",
+              primary: "#000000",
+              "tertiary-fixed-dim": "#62df7d",
+              "inverse-primary": "#b9c8de",
+              background: "#f8f9fb",
+              "on-tertiary": "#ffffff",
+              "on-secondary-fixed-variant": "#5c4300",
+              "on-primary-fixed-variant": "#3a485a",
+              "secondary-fixed": "#ffdf9f",
+              "on-secondary-container": "#6f5100",
+              "on-secondary-fixed": "#261a00",
+              "on-surface": "#191c1e",
+              "surface-container-high": "#e7e8ea",
+              "surface-bright": "#f8f9fb",
+            },
+            borderRadius: {
+              DEFAULT: "1rem",
+              lg: "2rem",
+              xl: "3rem",
+              full: "9999px",
+            },
+            spacing: {
+              "space-xl": "2.5rem",
+              "space-sm": "0.5rem",
+              "space-xs": "0.25rem",
+              gutter: "1rem",
+              "gutter-tablet": "1.5rem",
+              margin: "1rem",
+              "margin-tablet": "2rem",
+              "margin-desktop": "3rem",
+              "gutter-desktop": "2rem",
+              "space-md": "1rem",
+              "space-lg": "1.5rem",
+            },
+            fontFamily: {
+              "body-md": ["Plus Jakarta Sans"],
+              "currency-lg": ["JetBrains Mono"],
+              "currency-xl": ["JetBrains Mono"],
+              "display-lg": ["Space Grotesk"],
+              "body-sm": ["Plus Jakarta Sans"],
+              "headline-lg": ["Space Grotesk"],
+              "body-lg": ["Plus Jakarta Sans"],
+              "headline-sm": ["Space Grotesk"],
+              "currency-md": ["JetBrains Mono"],
+              "display-lg-mobile": ["Space Grotesk"],
+              "label-caps": ["JetBrains Mono"],
+            },
+            fontSize: {
+              "body-md": ["14px", { lineHeight: "20px", fontWeight: "400" }],
+              "currency-lg": ["22px", { lineHeight: "28px", fontWeight: "500" }],
+              "currency-xl": [
+                "32px",
+                { lineHeight: "40px", letterSpacing: "-0.02em", fontWeight: "600" },
+              ],
+              "display-lg": [
+                "44px",
+                { lineHeight: "52px", letterSpacing: "-0.03em", fontWeight: "700" },
+              ],
+              "body-sm": ["12px", { lineHeight: "16px", fontWeight: "400" }],
+              "headline-lg": [
+                "28px",
+                { lineHeight: "36px", letterSpacing: "-0.02em", fontWeight: "600" },
+              ],
+              "body-lg": ["16px", { lineHeight: "24px", fontWeight: "400" }],
+              "headline-sm": ["20px", { lineHeight: "28px", fontWeight: "600" }],
+              "currency-md": ["16px", { lineHeight: "24px", fontWeight: "500" }],
+              "display-lg-mobile": [
+                "32px",
+                { lineHeight: "40px", letterSpacing: "-0.02em", fontWeight: "700" },
+              ],
+              "label-caps": [
+                "11px",
+                { lineHeight: "16px", letterSpacing: "0.06em", fontWeight: "600" },
+              ],
+            },
+          },
+        },
+      };
+    </script>
+  </head>
+  <body
+    class="bg-background text-on-surface antialiased min-h-screen pb-32 font-body-md text-body-md select-none"
+  >
+    <!-- Top App Bar (Shared Components Anchor execution) -->
+    <header
+      class="sticky top-0 z-40 bg-primary-container text-on-primary shadow-sm flex justify-between items-center w-full px-space-md py-space-sm border-b border-outline-variant/10"
+    >
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-secondary-container" data-icon="storefront"
+          >storefront</span
+        >
+        <span
+          class="font-display-lg-mobile text-display-lg-mobile text-on-primary font-bold tracking-tight"
+          >Veloria Client</span
+        >
+      </div>
+      <div class="flex items-center gap-3">
+        <div
+          class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-inverse-surface/40 border border-outline-variant/15"
+        >
+          <span class="w-2 h-2 rounded-full bg-tertiary-fixed animate-pulse"></span>
+          <span class="font-label-caps text-label-caps text-on-primary-container tracking-wider"
+            >مباشر</span
+          >
+        </div>
+        <button
+          aria-label="Sync status"
+          class="hover:bg-inverse-surface/30 p-1.5 rounded-full transition-colors active:scale-95 text-on-primary flex items-center justify-center"
+          type="button"
+        >
+          <span class="material-symbols-outlined text-secondary-container" data-icon="cloud_done"
+            >cloud_done</span
+          >
+        </button>
+      </div>
+    </header>
+    <!-- Sticky Invoices Sub-Bar & Search Controls -->
+    <div
+      class="sticky top-[53px] z-30 bg-background/95 backdrop-blur-md px-space-md pt-space-md pb-space-sm border-b border-outline-variant/15"
+    >
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <h1 class="font-headline-lg text-headline-lg text-on-surface font-bold tracking-tight">
+            فواتيري
+          </h1>
+          <span
+            class="px-2.5 py-0.5 rounded-full bg-surface-container-high text-on-surface font-label-caps text-label-caps font-semibold"
+            >14 فاتورة</span
+          >
+        </div>
+        <span class="font-label-caps text-label-caps text-on-surface-variant font-medium"
+          >سجل الحسابات</span
+        >
+      </div>
+      <!-- Search Input Field -->
+      <div class="relative w-full">
+        <div
+          class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-outline"
+        >
+          <span class="material-symbols-outlined text-body-lg" data-icon="search">search</span>
+        </div>
+        <input
+          class="w-full pr-10 pl-4 py-2.5 bg-surface-container-lowest text-on-surface font-body-md text-body-md rounded-full border border-outline-variant/40 focus:border-secondary-container focus:outline-none focus:ring-1 focus:ring-secondary-container placeholder:text-outline-variant transition-all shadow-sm"
+          placeholder="بحث برقم الفاتورة أو التاريخ..."
+          type="search"
+        />
+      </div>
+      <!-- Horizontal Filter Chips List -->
+      <div
+        class="flex items-center gap-2 overflow-x-auto no-scrollbar pt-3 pb-1 -mx-space-md px-space-md"
+      >
+        <!-- Active Dark Pill -->
+        <button
+          class="shrink-0 px-4 py-1.5 rounded-full bg-primary-container text-on-primary font-label-caps text-label-caps flex items-center gap-1.5 shadow-sm active:scale-95 transition-transform"
+        >
+          <span>الكل</span>
+          <span
+            class="bg-secondary-container text-primary-container text-[10px] font-bold px-1.5 py-0.2 rounded-full"
+            >14</span
+          >
+        </button>
+        <!-- Non-paid Chip (Red dot) -->
+        <button
+          class="shrink-0 px-3.5 py-1.5 rounded-full bg-surface-container-lowest text-on-surface border border-outline-variant/25 font-label-caps text-label-caps flex items-center gap-1.5 hover:bg-surface-container-low active:scale-95 transition-transform"
+        >
+          <span class="w-2 h-2 rounded-full bg-error"></span>
+          <span>غير مدفوعة (2)</span>
+        </button>
+        <!-- Partial Chip (Amber dot) -->
+        <button
+          class="shrink-0 px-3.5 py-1.5 rounded-full bg-surface-container-lowest text-on-surface border border-outline-variant/25 font-label-caps text-label-caps flex items-center gap-1.5 hover:bg-surface-container-low active:scale-95 transition-transform"
+        >
+          <span class="w-2 h-2 rounded-full bg-secondary-fixed-dim"></span>
+          <span>جزئية (1)</span>
+        </button>
+        <!-- Paid Chip (Green dot) -->
+        <button
+          class="shrink-0 px-3.5 py-1.5 rounded-full bg-surface-container-lowest text-on-surface border border-outline-variant/25 font-label-caps text-label-caps flex items-center gap-1.5 hover:bg-surface-container-low active:scale-95 transition-transform"
+        >
+          <span class="w-2 h-2 rounded-full bg-on-tertiary-container"></span>
+          <span>مدفوعة (10)</span>
+        </button>
+        <!-- Cancelled Chip (Muted) -->
+        <button
+          class="shrink-0 px-3.5 py-1.5 rounded-full bg-surface-container-lowest text-outline border border-outline-variant/25 font-label-caps text-label-caps flex items-center gap-1.5 hover:bg-surface-container-low active:scale-95 transition-transform"
+        >
+          <span class="w-2 h-2 rounded-full bg-outline-variant"></span>
+          <span>ملغاة (1)</span>
+        </button>
+      </div>
+    </div>
+    <!-- Main Invoice Cards Container -->
+    <main class="px-space-md pt-space-md space-y-3.5 max-w-md mx-auto">
+      <!-- Card 1: غير مدفوعة (Unpaid) -->
+      <article
+        class="bg-surface-container-lowest rounded-lg p-space-md border border-outline-variant/20 shadow-sm relative overflow-hidden transition-all hover:border-outline-variant/40"
+      >
+        <!-- Status Edge Accent Bar -->
+        <div class="absolute top-0 right-0 bottom-0 w-1.5 bg-error"></div>
+        <!-- Top Row -->
+        <div class="flex items-center justify-between pb-2.5 border-b border-surface-container">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-outline text-body-lg" data-icon="receipt"
+              >receipt</span
+            >
+            <span
+              class="font-currency-md text-currency-md text-on-surface font-semibold tracking-tight"
+              >FAC-2026-0142</span
+            >
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span
+              class="px-2.5 py-0.5 rounded-full bg-error-container text-on-error-container font-label-caps text-label-caps font-semibold flex items-center gap-1"
+            >
+              <span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+              غير مدفوعة
+            </span>
+            <span class="material-symbols-outlined text-outline" data-icon="chevron_left"
+              >chevron_left</span
+            >
+          </div>
+        </div>
+        <!-- Date Sub-row -->
+        <div
+          class="pt-2 flex items-center justify-between text-on-surface-variant font-label-caps text-label-caps"
+        >
+          <span>تاريخ الإصدار:</span>
+          <span class="font-currency-md text-body-sm text-outline">2026/09/24 - 18:30</span>
+        </div>
+        <!-- Middle Financial Details -->
+        <div
+          class="mt-3.5 bg-surface-container-low rounded-DEFAULT p-3 flex items-center justify-between"
+        >
+          <div>
+            <span class="block font-body-sm text-body-sm text-on-surface-variant"
+              >إجمالي الفاتورة</span
+            >
+            <span class="font-currency-lg text-currency-lg text-on-surface font-medium"
+              >14 200,00 <span class="text-body-sm font-label-caps text-outline">دج</span></span
+            >
+          </div>
+          <div class="text-left">
+            <span class="block font-body-sm text-body-sm text-error font-medium"
+              >المتبقي للدفع</span
+            >
+            <span class="font-currency-lg text-currency-lg text-error font-bold"
+              >14 200,00 <span class="text-body-sm font-label-caps text-error">دج</span></span
+            >
+          </div>
+        </div>
+      </article>
+      <!-- Card 2: دفع جزئي (Partial Payment - Expanded Preview) -->
+      <article
+        class="bg-surface-container-lowest rounded-lg p-space-md border border-outline-variant/30 shadow-md relative overflow-hidden"
+      >
+        <!-- Status Edge Accent Bar -->
+        <div class="absolute top-0 right-0 bottom-0 w-1.5 bg-secondary-fixed-dim"></div>
+        <!-- Top Row -->
+        <div class="flex items-center justify-between pb-2.5 border-b border-surface-container">
+          <div class="flex items-center gap-2">
+            <span
+              class="material-symbols-outlined text-secondary font-bold text-body-lg"
+              data-icon="pending_actions"
+              >pending_actions</span
+            >
+            <span
+              class="font-currency-md text-currency-md text-on-surface font-semibold tracking-tight"
+              >FAC-2026-0138</span
+            >
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span
+              class="px-2.5 py-0.5 rounded-full bg-secondary-fixed/40 text-on-secondary-fixed-variant font-label-caps text-label-caps font-semibold flex items-center gap-1"
+            >
+              <span class="w-1.5 h-1.5 rounded-full bg-secondary-fixed-dim"></span>
+              دفع جزئي
+            </span>
+            <span class="material-symbols-outlined text-on-surface" data-icon="expand_less"
+              >expand_less</span
+            >
+          </div>
+        </div>
+        <!-- Date Sub-row -->
+        <div
+          class="pt-2 flex items-center justify-between text-on-surface-variant font-label-caps text-label-caps"
+        >
+          <span>تاريخ الإصدار:</span>
+          <span class="font-currency-md text-body-sm text-outline">2026/09/18</span>
+        </div>
+        <!-- Triple Metric Grid Breakdown -->
+        <div
+          class="mt-3 grid grid-cols-3 gap-2 bg-surface-container-low rounded-DEFAULT p-2.5 text-center"
+        >
+          <div class="border-l border-outline-variant/20 pl-1">
+            <span class="block font-body-sm text-body-sm text-on-surface-variant">الإجمالي</span>
+            <span class="font-currency-md text-body-md text-on-surface font-semibold block mt-0.5"
+              >22 500,00</span
+            >
+            <span class="font-label-caps text-[10px] text-outline">د.ج</span>
+          </div>
+          <div class="border-l border-outline-variant/20 pl-1">
+            <span class="block font-body-sm text-body-sm text-on-tertiary-container font-medium"
+              >المدفوع</span
+            >
+            <span
+              class="font-currency-md text-body-md text-on-tertiary-container font-bold block mt-0.5"
+              >10 000,00</span
+            >
+            <span class="font-label-caps text-[10px] text-outline">د.ج</span>
+          </div>
+          <div>
+            <span class="block font-body-sm text-body-sm text-error font-medium">المتبقي</span>
+            <span class="font-currency-md text-body-md text-error font-bold block mt-0.5"
+              >12 500,00</span
+            >
+            <span class="font-label-caps text-[10px] text-outline">د.ج</span>
+          </div>
+        </div>
+        <!-- Product Lines Summary (Expanded Area) -->
+        <div
+          class="mt-3 pt-2.5 border-t border-surface-container flex items-center justify-between"
+        >
+          <div class="flex items-center gap-1.5 text-on-surface-variant font-body-sm text-body-sm">
+            <span
+              class="material-symbols-outlined text-outline text-body-md"
+              data-icon="inventory_2"
+              >inventory_2</span
+            >
+            <span>3 عناصر (زيت، سكر، حليب...)</span>
+          </div>
+          <button
+            class="text-secondary font-label-caps text-label-caps hover:underline"
+            type="button"
+          >
+            عرض التفاصيل
+          </button>
+        </div>
+        <!-- Action Button: Report error via WhatsApp -->
+        <div class="mt-3.5">
+          <a
+            class="w-full py-2.5 px-4 rounded-full bg-surface-container-lowest border border-outline-variant/30 hover:border-outline-variant text-on-surface font-body-md text-body-md font-medium flex items-center justify-center gap-2 active:scale-95 transition-all shadow-sm"
+            href="https://wa.me/213000000000"
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            <span class="material-symbols-outlined text-on-tertiary-container" data-icon="chat"
+              >chat</span
+            >
+            <span>الإبلاغ عن خطأ عبر واتساب</span>
+          </a>
+        </div>
+      </article>
+      <!-- Card 3: مدفوعة بالكامل (Fully Paid) -->
+      <article
+        class="bg-surface-container-lowest rounded-lg p-space-md border border-outline-variant/20 shadow-sm relative overflow-hidden transition-all hover:border-outline-variant/40"
+      >
+        <!-- Status Edge Accent Bar -->
+        <div class="absolute top-0 right-0 bottom-0 w-1.5 bg-on-tertiary-container"></div>
+        <!-- Top Row -->
+        <div class="flex items-center justify-between pb-2.5 border-b border-surface-container">
+          <div class="flex items-center gap-2">
+            <span
+              class="material-symbols-outlined text-on-tertiary-container text-body-lg"
+              data-icon="check_circle"
+              >check_circle</span
+            >
+            <span
+              class="font-currency-md text-currency-md text-on-surface font-semibold tracking-tight"
+              >FAC-2026-0120</span
+            >
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span
+              class="px-2.5 py-0.5 rounded-full bg-tertiary-fixed/30 text-on-tertiary-container font-label-caps text-label-caps font-semibold flex items-center gap-1"
+            >
+              <span class="w-1.5 h-1.5 rounded-full bg-on-tertiary-container"></span>
+              مدفوعة
+            </span>
+            <span class="material-symbols-outlined text-outline" data-icon="chevron_left"
+              >chevron_left</span
+            >
+          </div>
+        </div>
+        <!-- Middle Financial Details -->
+        <div
+          class="mt-3.5 bg-surface-container-low rounded-DEFAULT p-3 flex items-center justify-between"
+        >
+          <div>
+            <span class="block font-body-sm text-body-sm text-on-surface-variant"
+              >المبلغ الإجمالي</span
+            >
+            <span class="font-currency-lg text-currency-lg text-on-surface font-medium"
+              >8 550,00 <span class="text-body-sm font-label-caps text-outline">دج</span></span
+            >
+          </div>
+          <div class="text-left">
+            <span class="block font-body-sm text-body-sm text-on-tertiary-container font-medium"
+              >المتبقي</span
+            >
+            <span class="font-currency-lg text-currency-lg text-on-tertiary-container font-bold"
+              >0,00
+              <span class="text-body-sm font-label-caps text-on-tertiary-container">دج</span></span
+            >
+          </div>
+        </div>
+      </article>
+      <!-- Card 4: ملغاة (Cancelled) -->
+      <article
+        class="bg-surface-container/60 rounded-lg p-space-md border border-outline-variant/15 opacity-70 relative overflow-hidden"
+      >
+        <!-- Status Edge Accent Bar -->
+        <div class="absolute top-0 right-0 bottom-0 w-1.5 bg-outline-variant"></div>
+        <!-- Top Row -->
+        <div class="flex items-center justify-between pb-2 border-b border-outline-variant/15">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-outline text-body-lg" data-icon="cancel"
+              >cancel</span
+            >
+            <span class="font-currency-md text-currency-md text-outline font-medium line-through"
+              >FAC-2026-0115</span
+            >
+          </div>
+          <span
+            class="px-2.5 py-0.5 rounded-full bg-surface-container-highest text-outline font-label-caps text-label-caps font-semibold"
+          >
+            ملغاة من المحل
+          </span>
+        </div>
+        <div
+          class="mt-2.5 flex items-center justify-between font-body-sm text-body-sm text-outline"
+        >
+          <span>تم إلغاء الفاتورة من قبل إدارة المتجر</span>
+          <span class="font-label-caps text-label-caps">2026/09/10</span>
+        </div>
+      </article>
+    </main>
+    <!-- Bottom Nav Bar (Shared Components Anchor execution) -->
+    <!-- Contextual Lock: Active Tab MUST BE "فواتيري" (Invoices) -->
+    <nav
+      class="fixed bottom-0 left-0 right-0 z-50 flex justify-around items-center px-space-md py-space-xs bg-primary-container/95 backdrop-blur-md floating pill rounded-full mx-auto mb-space-md w-[calc(100%-2rem)] max-w-md border border-outline-variant/15 shadow-2xl"
+    >
+      <!-- Tab 1: الرئيسية (Home - Inactive) -->
+      <button
+        class="flex flex-col items-center justify-center text-on-primary-container px-space-sm py-space-xs hover:text-on-primary transition-colors active:scale-95 duration-200"
+        type="button"
+      >
+        <span class="material-symbols-outlined text-body-lg" data-icon="home">home</span>
+        <span class="font-label-caps text-label-caps mt-0.5">الرئيسية</span>
+      </button>
+      <!-- Tab 2: فواتيري (Invoices - Active with Gold / Secondary Container Highlight) -->
+      <button
+        class="flex flex-col items-center justify-center text-secondary-container font-semibold bg-inverse-surface/50 rounded-full px-space-sm py-space-xs active:scale-95 transition-transform duration-200 relative"
+        type="button"
+      >
+        <div class="relative flex items-center justify-center">
+          <span
+            class="material-symbols-outlined text-body-lg text-secondary-container"
+            data-icon="receipt_long"
+            >receipt_long</span
+          >
+          <!-- Active Gold Indicator Dot -->
+          <span
+            class="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-secondary-container"
+          ></span>
+        </div>
+        <span class="font-label-caps text-label-caps mt-0.5 text-secondary-container">فواتيري</span>
+      </button>
+      <!-- Tab 3: دفعاتي (Payments - Inactive) -->
+      <button
+        class="flex flex-col items-center justify-center text-on-primary-container px-space-sm py-space-xs hover:text-on-primary transition-colors active:scale-95 duration-200"
+        type="button"
+      >
+        <span class="material-symbols-outlined text-body-lg" data-icon="payments">payments</span>
+        <span class="font-label-caps text-label-caps mt-0.5">دفعاتي</span>
+      </button>
+      <!-- Tab 4: حسابي (Account - Inactive) -->
+      <button
+        class="flex flex-col items-center justify-center text-on-primary-container px-space-sm py-space-xs hover:text-on-primary transition-colors active:scale-95 duration-200"
+        type="button"
+      >
+        <span class="material-symbols-outlined text-body-lg" data-icon="account_circle"
+          >account_circle</span
+        >
+        <span class="font-label-caps text-label-caps mt-0.5">حسابي</span>
+      </button>
+    </nav>
+    <!-- Offline / Local Cache Subtle Toast Bar (Non-intrusive) -->
+    <aside
+      aria-label="حالة المزامنة"
+      class="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 bg-inverse-surface/90 text-inverse-on-surface px-3 py-1.5 rounded-full shadow-lg flex items-center gap-2 border border-outline-variant/15 pointer-events-none"
+    >
+      <span class="w-2 h-2 rounded-full bg-tertiary-fixed animate-ping"></span>
+      <span class="font-label-caps text-[10px] text-inverse-on-surface tracking-wide"
+        >البيانات متزامنة محلياً مع السجل</span
+      >
+    </aside>
+  </body>
+</html>

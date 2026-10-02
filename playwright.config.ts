@@ -10,6 +10,9 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   // Une seule instance à la fois (verrou single-instance de l'app).
   workers: 1,
+  // `test.only` accidentellement commité exécuterait une seule suite en CI :
+  // refus explicite (loi de Hyrum).
+  forbidOnly: true,
   reporter: [["list"]],
   use: { actionTimeout: 15_000 },
 });

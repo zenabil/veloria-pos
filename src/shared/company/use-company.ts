@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@shared/types/ipc-client.ts";
 
-export interface CompanyInfo {
+interface CompanyInfo {
   name: string;
   phone: string;
   address: string;
@@ -16,7 +16,7 @@ export interface CompanyInfo {
   nif: string;
 }
 
-export const EMPTY_COMPANY: CompanyInfo = {
+const EMPTY_COMPANY: CompanyInfo = {
   name: "Veloria",
   phone: "",
   address: "",

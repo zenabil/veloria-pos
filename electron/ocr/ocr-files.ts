@@ -218,6 +218,17 @@ export function disposeStagedFile(fileId: string): void {
   }
 }
 
+/**
+ * L7 : libère TOUTES les copies mis en scène à l'arrêt — sans cet appel, les
+ * fichiers laissés par le renderer (pas de `ocr.dispose`) restaient sur le
+ * disque jusqu'à la purge >24 h du prochain démarrage. Best-effort.
+ */
+export function disposeAllStagedFiles(): number {
+  const ids = [...staged.keys()];
+  for (const id of ids) disposeStagedFile(id);
+  return ids.length;
+}
+
 /** Purge best-effort des copies de plus de 24 h (au démarrage du service). */
 export function cleanupStaleOcrTemp(maxAgeMs = 24 * 3600 * 1000): void {
   let dir: string;

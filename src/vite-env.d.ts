@@ -44,15 +44,30 @@ interface Window {
     };
     customers: {
       search(p: unknown): Promise<VeloriaOutcome>;
-      get(p: unknown): Promise<VeloriaOutcome>;
       create(p: unknown): Promise<VeloriaOutcome>;
       update(p: unknown): Promise<VeloriaOutcome>;
       archive(p: unknown): Promise<VeloriaOutcome>;
       restore(p: unknown): Promise<VeloriaOutcome>;
       recordPayment(p: unknown): Promise<VeloriaOutcome>;
+      paymentReceipt(p: unknown): Promise<VeloriaOutcome>;
       statement(p: unknown): Promise<VeloriaOutcome>;
       stats(): Promise<VeloriaOutcome>;
       import(p: unknown): Promise<VeloriaOutcome>;
+      accessActivate(p: unknown): Promise<VeloriaOutcome>;
+      accessRevoke(p: unknown): Promise<VeloriaOutcome>;
+      accessStatus(p: unknown): Promise<VeloriaOutcome>;
+      accessQrSvg(p: unknown): Promise<VeloriaOutcome>;
+    };
+    sync: {
+      enqueue(p: unknown): Promise<VeloriaOutcome>;
+      markSent(p: unknown): Promise<VeloriaOutcome>;
+      pending(p: unknown): Promise<VeloriaOutcome>;
+      pushNow(p: unknown): Promise<VeloriaOutcome>;
+      getConfig(): Promise<VeloriaOutcome>;
+      saveConfig(p: unknown): Promise<VeloriaOutcome>;
+    };
+    announcements: {
+      save(p: unknown): Promise<VeloriaOutcome>;
     };
     categories: { list(): Promise<VeloriaOutcome>; create(p: unknown): Promise<VeloriaOutcome> };
     settings: {
@@ -182,14 +197,25 @@ interface Window {
       preview(p: unknown): Promise<VeloriaOutcome>;
       previewProforma(p: unknown): Promise<VeloriaOutcome>;
       printProformaA4(p: unknown): Promise<VeloriaOutcome>;
+      printProforma80mm(p: unknown): Promise<VeloriaOutcome>;
+      exportProformaPdf(p: unknown): Promise<VeloriaOutcome>;
       previewReport(p: unknown): Promise<VeloriaOutcome>;
       printReport(p: unknown): Promise<VeloriaOutcome>;
       previewLabels(p: unknown): Promise<VeloriaOutcome>;
       printLabels(p: unknown): Promise<VeloriaOutcome>;
+      exportLabelsPdf(p: unknown): Promise<VeloriaOutcome>;
       previewPayment(p: unknown): Promise<VeloriaOutcome>;
       printPayment(p: unknown): Promise<VeloriaOutcome>;
+      exportPaymentPdf(p: unknown): Promise<VeloriaOutcome>;
+      exportReportPdf(p: unknown): Promise<VeloriaOutcome>;
       exportReceiptPdf(p: unknown): Promise<VeloriaOutcome>;
       exportA4Pdf(p: unknown): Promise<VeloriaOutcome>;
+      previewDelivery(p: unknown): Promise<VeloriaOutcome>;
+      printDelivery(p: unknown): Promise<VeloriaOutcome>;
+      previewReturnSlip(p: unknown): Promise<VeloriaOutcome>;
+      printReturnSlip(p: unknown): Promise<VeloriaOutcome>;
+      previewPO(p: unknown): Promise<VeloriaOutcome>;
+      printPO(p: unknown): Promise<VeloriaOutcome>;
       // P12: alias unique conservé = printer.test (même canal printing.testPage).
     };
     backup: {

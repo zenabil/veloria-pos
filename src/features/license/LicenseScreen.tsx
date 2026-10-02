@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { Copy, FileKey2, RefreshCw, ShieldCheck } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
-import { Badge, Button, Card, EmptyState, InfoRow, SectionTitle } from "@shared/ui/primitives.tsx";
+import { Badge, Button, Card, EmptyState, InfoRow, PageHeader } from "@shared/ui/primitives.tsx";
 import type { Notify } from "@shared/ui/primitives.tsx";
 import { frError } from "@shared/errors/fr-map.ts";
 import { playSound } from "@shared/sound/sound.ts";
@@ -119,7 +119,11 @@ export function LicenseScreen({ notify }: { notify: Notify }): React.JSX.Element
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-4">
-      <SectionTitle title="Licence" hint="Activation hors-ligne liée à cet ordinateur." />
+      <PageHeader
+        title="Licence & Activation Machine"
+        module="MODULE 17 · SÉCURITÉ SYSTÈME · AIR-GAP OFFLINE VALIDE"
+        period="Certificat local x509 scellé SQLite · Terminaux de caisse autorisés · Garantie & support technique national."
+      />
       <Card className="space-y-3 p-5">
         <div className="flex flex-wrap items-center gap-2">
           <ShieldCheck size={20} aria-hidden="true" className="text-amber-300" />

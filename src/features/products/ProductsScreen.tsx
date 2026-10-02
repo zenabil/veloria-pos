@@ -26,6 +26,7 @@ import {
   Card,
   EmptyState,
   Kpi,
+  PageHeader,
   Pager,
   RowAction,
   Select,
@@ -33,6 +34,7 @@ import {
   cn,
 } from "@shared/ui/primitives.tsx";
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
+import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
 import {
   ProductDetailsDrawer,
   ProductFormDialog,
@@ -84,7 +86,7 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
   const [labelsFor, setLabelsFor] = useState<LabelTarget[] | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
-  const queryTimer = useRef<number | null>(null);
+  const queryTimer = useDebouncedTimer();
   const searchRef = useRef<HTMLInputElement>(null);
   const loadSeq = useRef(0);
 
@@ -99,12 +101,6 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (queryTimer.current != null) window.clearTimeout(queryTimer.current);
-    };
   }, []);
 
   async function loadStats(): Promise<void> {
@@ -173,10 +169,9 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
   function onQueryChange(q: string): void {
     setQuery(q);
     setPage(1);
-    if (queryTimer.current != null) window.clearTimeout(queryTimer.current);
-    queryTimer.current = window.setTimeout(() => {
+    queryTimer.schedule(250, () => {
       void load(q, categoryId, status, includeArchived, 1);
-    }, 250);
+    });
   }
 
   function changeCategory(cat: string): void {
@@ -319,67 +314,88 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
 
   return (
     <div className="flex h-full flex-col gap-4">
-      {/* En-tête de page */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-xl font-extrabold tracking-tight">Catalogue</h2>
-          <p className="text-xs text-slate-500">
-            {total} produit(s) · {stats.low} en stock bas · {stats.out} en rupture
-          </p>
-        </div>
-        <div className="relative w-full max-w-xs">
-          <Search
-            size={16}
-            aria-hidden="true"
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-          />
-          <TextInput
-            ref={searchRef}
-            value={query}
-            onChange={(e) => onQueryChange(e.target.value)}
-            placeholder="Rechercher… [F3]"
-            aria-label="Rechercher un produit"
-            className="pl-9"
-          />
-        </div>
-        <Button
-          variant="secondary"
-          onClick={() => setToolbarOpen((o) => !o)}
-          aria-expanded={toolbarOpen}
-          title="Afficher / masquer les filtres"
-        >
-          <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
-        </Button>
-        <Button onClick={openCreate} title="Créer un produit">
-          <Plus size={16} aria-hidden="true" /> Produit
-        </Button>
-        <Button
-          variant="secondary"
-          onClick={() => csvInputRef.current?.click()}
-          title="Importer un catalogue CSV (nom;vente;achat;quantité[;code-barres])"
-        >
-          <Upload size={16} aria-hidden="true" /> Import CSV
-        </Button>
-        <input
-          ref={csvInputRef}
-          type="file"
-          accept=".csv,.txt"
-          className="hidden"
-          aria-label="Fichier CSV à importer"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            e.target.value = "";
-            if (f) void importCsvFile(f);
-          }}
-        />
-      </div>
+      {/* En-tête Stitch : Catalogue des Produits · INDEX v2.4 */}
+      <PageHeader
+        title="Catalogue des Produits"
+        module="INDEX v2.4"
+        period={`${total} référence(s) active(s) · ${stats.low} en stock bas · ${stats.out} en rupture de stock`}
+        actions={
+          <>
+            <div className="relative w-full max-w-xs">
+              <Search
+                size={16}
+                aria-hidden="true"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+              />
+              <TextInput
+                ref={searchRef}
+                value={query}
+                onChange={(e) => onQueryChange(e.target.value)}
+                placeholder="Rechercher… [F3]"
+                aria-label="Rechercher un produit"
+                className="pl-9"
+              />
+            </div>
+            <Button
+              variant="secondary"
+              onClick={() => setToolbarOpen((o) => !o)}
+              aria-expanded={toolbarOpen}
+              title="Afficher / masquer les filtres"
+            >
+              <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
+            </Button>
+            <Button onClick={openCreate} title="Créer un produit">
+              <Plus size={16} aria-hidden="true" /> Nouveau produit
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => csvInputRef.current?.click()}
+              title="Importer un catalogue CSV (nom;vente;achat;quantité[;code-barres])"
+            >
+              <Upload size={16} aria-hidden="true" /> Import CSV
+            </Button>
+            <input
+              ref={csvInputRef}
+              type="file"
+              accept=".csv,.txt"
+              className="hidden"
+              aria-label="Fichier CSV à importer"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = "";
+                if (f) void importCsvFile(f);
+              }}
+            />
+          </>
+        }
+      />
 
-      {/* Cartes statistiques */}
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <Kpi label="Produits" value={String(stats.total)} sub="Références actives" />
-        <Kpi label="Disponibles" value={String(stats.available)} sub="En stock" />
-        <Kpi label="Stock bas" value={String(stats.low)} sub="Sous le seuil" />
-        <Kpi label="Ruptures" value={String(stats.out)} sub="Stock à zéro" />
+      {/* Cartes statistiques Stitch */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Kpi
+          label="Références Actives"
+          value={String(stats.total)}
+          sub="Catalogue indexé"
+          accent="#fbbf24"
+        />
+        <Kpi
+          label="Disponibles en Rayon"
+          value={String(stats.available)}
+          sub="En stock"
+          accent="#4edea3"
+        />
+        <Kpi
+          label="Stock Bas (Seuil Min)"
+          value={String(stats.low)}
+          sub="Sous le seuil"
+          accent="#8ed0ff"
+        />
+        <Kpi
+          label="Ruptures Complètes"
+          value={String(stats.out)}
+          sub="Stock à zéro"
+          accent="#ffb4ab"
+        />
       </div>
 
       {/* Barre d'outils */}
@@ -507,11 +523,11 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
           ) : visible.length === 0 ? (
             <EmptyState
               title="Aucun produit"
-              hint="Modifiez la recherche ou créez votre premier produit avec le bouton « Produit »."
+              hint="Modifiez la recherche ou créez votre premier produit avec le bouton « Nouveau produit »."
             />
           ) : (
             <table className="w-full min-w-[960px] text-sm">
-              <thead className="sticky top-0 bg-[#111a2e] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
+              <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
                 <tr>
                   <th className="w-10 px-3 py-2.5">
                     <input

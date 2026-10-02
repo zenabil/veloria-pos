@@ -1,6 +1,6 @@
 // Veloria PoS — Stock : réception + détail + ajustement + historique + inventaire.
 // Branchés sur le bridge window.veloria (jamais de SQLite côté renderer).
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 
@@ -13,6 +13,7 @@ import {
 } from "@domain/inventory/stock-rules.ts";
 import { adjustmentReasonFr } from "@shared/formatters/format.ts";
 import { Button, Field, Modal, Select, TextArea, TextInput, cn } from "@shared/ui/primitives.tsx";
+import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
 
 import { parseQtyInput, type StockRow } from "../types.ts";
 
@@ -53,33 +54,27 @@ export function StockAdjustmentDialog({
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
-  const searchTimer = useRef<number | null>(null);
+  const searchTimer = useDebouncedTimer();
 
   useEffect(() => {
     setPicked(product);
   }, [product]);
 
-  useEffect(() => {
-    return () => {
-      if (searchTimer.current != null) window.clearTimeout(searchTimer.current);
-    };
-  }, []);
-
   function onSearchChange(q: string): void {
     setSearch(q);
-    if (searchTimer.current != null) window.clearTimeout(searchTimer.current);
     if (q.trim().length < 2) {
+      searchTimer.cancel();
       setResults([]);
       return;
     }
-    searchTimer.current = window.setTimeout(() => {
+    searchTimer.schedule(250, () => {
       void api
         .stockProducts({ query: q.trim(), page: 1, pageSize: 8 })
         .then((res) => {
           setResults((res as { rows: PickRow[] }).rows);
         })
         .catch(() => setResults([]));
-    }, 250);
+    });
   }
 
   const qty = parseQtyInput(qtyText.trim() === "" ? "0" : qtyText);

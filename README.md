@@ -24,13 +24,13 @@ npm run typecheck          # renderer + tests
 npm run typecheck:electron # main/preload (strict + noUncheckedIndexedAccess)
 npm run typecheck:manager  # License Manager (outil vendor)
 npm run lint
-npm run test               # 394 tests / 63 fichiers (unitaires + intégration/base SQLite)
+npm run test               # ~500+ tests / ~77 fichiers (unitaires + intégration/base SQLite)
 npm run test:db
 node scripts/database/integrity.js        # base réelle, lecture seule
 npm run verify:migrations
 npm run license:scan       # aucun secret/bypass dans le POS
-node scripts/quality/verify-domain.ts
-node scripts/quality/verify-perf.mjs
+npm run verify:domain      # invariants domaine (passe par --experimental-strip-types)
+npm run verify:perf        # garde-fous perf (requêtes N+1, listes non paginées)
 ```
 
 ## Tests E2E (Playwright + Electron réel)

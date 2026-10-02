@@ -32,6 +32,7 @@
     "tests",
     "scripts",
     "vite.config.ts",
+    "vite.license-manager.config.ts",
     "vitest.config.ts",
     "playwright.config.ts"
   ],

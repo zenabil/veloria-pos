@@ -1,7 +1,7 @@
 // Veloria PoS — Shared: diagramme en barres SVG (déterministe, sans dépendance).
 // Séries groupées + légende + axe gradué en dates (5 derniers caractères).
 
-export interface BarSeries {
+interface BarSeries {
   label: string;
   values: number[];
   color: string;

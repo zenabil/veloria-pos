@@ -1,7 +1,7 @@
 // Veloria PoS — Écran : Rapports (synthèse période + graphiques + export).
 // Une seule source agrégée (reports.summary) + sections détaillées.
-import { useEffect, useState } from "react";
-import { Download, Printer } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Download, FileDown, Printer } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { callChecked, closingsListSchema } from "@shared/types/ipc-contracts.ts";
 import { formatDzd, parseDzdInputStrict } from "@domain/money/money.ts";
@@ -10,14 +10,17 @@ import { playSound } from "@shared/sound/sound.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { todayUtcDate } from "@shared/dates/dates.ts";
 import { useLoadSeq } from "@shared/ui/use-load-seq.ts";
+import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
 import { BarChart } from "@shared/charts/BarChart.tsx";
 import {
   Button,
   Card,
   EmptyState,
   Field,
+  Kbd,
   Kpi,
   Modal,
+  PageHeader,
   Select,
   TextInput,
   cn,
@@ -65,8 +68,25 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
   const [closingDate, setClosingDate] = useState(todayUtcDate());
   const [openingText, setOpeningText] = useState("0,00");
   const [closingBusy, setClosingBusy] = useState(false);
+  const fromRef = useRef<HTMLInputElement>(null);
   // P1-1/P1-2 : séquence anti-course (même hook que les autres écrans).
   const { next: nextSeq, isCurrent: isSeqCurrent } = useLoadSeq();
+
+  // Raccourcis réels Stitch : F4 dates · F8 exporter.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (isAnyModalOpen()) return;
+      if (e.key === "F4") {
+        e.preventDefault();
+        fromRef.current?.focus();
+      } else if (e.key === "F8") {
+        e.preventDefault();
+        setExportOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   /** Filtres figés à l'appel (P1-1) : jamais de lecture d'état périmé après setState. */
   interface ReportSnapshot {
@@ -190,6 +210,24 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
     if (f !== "" && t !== "") void load({ f, t });
   }
 
+  /** Presets Stitch : Ce Mois · Mois Précédent · Trimestre Q3 · Exercice 2025 (UTC). */
+  function applyPreset(kind: "month" | "prev" | "quarter" | "year"): void {
+    const now = new Date();
+    const y = now.getUTCFullYear();
+    const m = now.getUTCMonth();
+    const iso = (d: Date): string => d.toISOString().slice(0, 10);
+    if (kind === "month") {
+      changeRange(iso(new Date(Date.UTC(y, m, 1))), todayUtcDate());
+    } else if (kind === "prev") {
+      changeRange(iso(new Date(Date.UTC(y, m - 1, 1))), iso(new Date(Date.UTC(y, m, 0))));
+    } else if (kind === "quarter") {
+      const q = Math.floor(m / 3) * 3;
+      changeRange(iso(new Date(Date.UTC(y, q, 1))), todayUtcDate());
+    } else {
+      changeRange(iso(new Date(Date.UTC(y, 0, 1))), todayUtcDate());
+    }
+  }
+
   async function searchCustomers(): Promise<void> {
     if (customerQ.trim().length < 2) return;
     try {
@@ -228,36 +266,69 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
 
   return (
     <div className="flex h-full flex-col gap-4">
-      {/* En-tête de page */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-xl font-extrabold tracking-tight">Rapports</h2>
-          <p className="text-xs text-slate-500">
-            {summary ? `Du ${summary.from} au ${summary.to}` : "Choisissez une période"} ·{" "}
-            {summary ? (summary.weekly ? "par semaine" : "par jour") : ""}
-          </p>
-        </div>
-        <TextInput
-          type="date"
-          value={from}
-          onChange={(e) => changeRange(e.target.value, to)}
-          aria-label="Du"
-          title="Du"
-        />
-        <TextInput
-          type="date"
-          value={to}
-          onChange={(e) => changeRange(from, e.target.value)}
-          aria-label="Au"
-          title="Au"
-        />
-        <Button onClick={() => setExportOpen(true)} disabled={summary == null} title="Exporter">
-          <Download size={16} aria-hidden="true" /> Exporter
-        </Button>
-      </div>
+      {/* En-tête Stitch : Rapports & Statistiques · Module 12 · v3.8 */}
+      <PageHeader
+        title="Rapports & Statistiques"
+        module="Module 12 · v3.8 · DONNÉES EN TEMPS RÉEL (SQLITE WAL)"
+        period={
+          summary
+            ? `ANALYSE DE PERFORMANCE · POSTE 04 · EXERCICE ${new Date().getUTCFullYear()} · Du ${summary.from} au ${summary.to} ${summary.weekly ? "· par semaine" : "· par jour"}`
+            : "ANALYSE DE PERFORMANCE · POSTE 04 · Choisissez une période"
+        }
+        actions={
+          <>
+            <TextInput
+              type="date"
+              ref={fromRef}
+              value={from}
+              onChange={(e) => changeRange(e.target.value, to)}
+              aria-label="Du"
+              title="Du [F4]"
+            />
+            <TextInput
+              type="date"
+              value={to}
+              onChange={(e) => changeRange(from, e.target.value)}
+              aria-label="Au"
+              title="Au [F4]"
+            />
+            <Button
+              onClick={() => setExportOpen(true)}
+              disabled={summary == null}
+              title="Exporter rapport [F8]"
+            >
+              <Download size={16} aria-hidden="true" /> Générer Rapport <Kbd>F8</Kbd>
+            </Button>
+          </>
+        }
+      />
 
       {/* Filtres */}
       <Card className="flex flex-wrap items-end gap-3 p-4">
+        <div>
+          <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
+            Période
+          </span>
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Périodes prédéfinies">
+            {(
+              [
+                ["month", "Ce Mois"],
+                ["prev", "Mois Précédent"],
+                ["quarter", `Trimestre T${Math.floor(new Date().getUTCMonth() / 3) + 1}`],
+                ["year", `Exercice ${new Date().getUTCFullYear()}`],
+              ] as const
+            ).map(([kind, label]) => (
+              <button
+                key={kind}
+                type="button"
+                onClick={() => applyPreset(kind)}
+                className="rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-slate-200"
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
         <div>
           <span
             id="reports-section-label"
@@ -327,7 +398,7 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
                 aria-label="Filtrer par client"
               />
               <Button type="button" variant="secondary" onClick={() => void searchCustomers()}>
-                OK
+                Rechercher
               </Button>
             </div>
           )}
@@ -391,7 +462,7 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
                 aria-label="Filtrer par fournisseur"
               />
               <Button type="button" variant="secondary" onClick={() => void searchSuppliers()}>
-                OK
+                Rechercher
               </Button>
             </div>
           )}
@@ -467,31 +538,49 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
         <EmptyState title="Aucune donnée" hint="Choisissez une période couvrant des opérations." />
       ) : (
         <>
-          {/* KPIs */}
-          <div className="grid grid-cols-2 gap-3 xl:grid-cols-6">
+          {/* KPIs Stitch : marge brute globale en tête */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
+            <Kpi
+              label="Marge Brute Globale"
+              value={formatDzd(k.profitMinor)}
+              sub="Ventes − achats revendus"
+              accent="#4edea3"
+            />
             <Kpi
               label="Ventes"
               value={formatDzd(k.salesMinor)}
               sub={`${k.salesCount} facture(s)`}
+              accent="#fbbf24"
             />
             <Kpi
               label="Achats"
               value={formatDzd(k.purchasesMinor)}
               sub={`${k.purchasesCount} entrée(s)`}
+              accent="#8ed0ff"
             />
-            <Kpi label="Dépenses" value={formatDzd(k.expensesMinor)} sub="Charges" />
             <Kpi
-              label="Marge brute"
-              value={formatDzd(k.profitMinor)}
-              sub="Ventes − achats revendus"
+              label="Dépenses"
+              value={formatDzd(k.expensesMinor)}
+              sub="Charges"
+              accent="#ffb4ab"
             />
-            <Kpi label="Créances" value={formatDzd(k.customerDebtMinor)} sub="Clients" />
-            <Kpi label="Dettes" value={formatDzd(k.supplierDebtMinor)} sub="Fournisseurs" />
+            <Kpi
+              label="Créances"
+              value={formatDzd(k.customerDebtMinor)}
+              sub="Clients"
+              accent="#cde8ff"
+            />
+            <Kpi
+              label="Dettes"
+              value={formatDzd(k.supplierDebtMinor)}
+              sub="Fournisseurs"
+              accent="#ffb4ab"
+            />
           </div>
 
           {/* P3 : résultat net = marge − charges − retours (jamais calculé avant). */}
           {(() => {
-            const net = k.profitMinor - k.expensesMinor - (summary?.returns.amountMinor ?? 0);
+            const net = k.profitMinor - k.expensesMinor - summary.returns.amountMinor;
             return (
               <Card className="flex items-center justify-between p-4">
                 <div>
@@ -718,7 +807,20 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
             title="Aperçu rapport"
             className="h-[50vh] w-full rounded-xl border border-white/10 bg-white"
           />
-          <div className="mt-3">
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                api
+                  .reportExportPdf(preview.payload)
+                  .then((r) => {
+                    notify(`PDF enregistré : ${(r as { path: string }).path}`, "ok");
+                  })
+                  .catch((e: unknown) => notify(frError(e, "Export PDF impossible."), "err"));
+              }}
+            >
+              <FileDown size={15} aria-hidden="true" /> PDF
+            </Button>
             <Button
               onClick={() => {
                 api
@@ -730,7 +832,6 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
                   })
                   .catch((e: unknown) => notify(frError(e, "Impression impossible."), "err"));
               }}
-              className="w-full"
             >
               <Printer size={15} aria-hidden="true" /> Imprimer
             </Button>

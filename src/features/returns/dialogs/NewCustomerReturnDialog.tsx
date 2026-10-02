@@ -182,7 +182,7 @@ export function CustomerReturnDialog({
           />
         </div>
         <Button variant="secondary" onClick={() => void search()} disabled={loading}>
-          <Search size={15} aria-hidden="true" /> {loading ? "…" : "Chercher"}
+          <Search size={15} aria-hidden="true" /> {loading ? "…" : "Rechercher"}
         </Button>
       </div>
       <p className="text-xs text-slate-500">
@@ -209,7 +209,7 @@ export function CustomerReturnDialog({
 
           <div className="max-h-56 overflow-auto rounded-xl border border-white/10">
             <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-[#111a2e] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
+              <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
                 <tr>
                   <th className="px-3 py-2">Produit</th>
                   <th className="px-3 py-2 text-right">Acheté</th>

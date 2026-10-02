@@ -4,6 +4,7 @@
 // défensivement (un brouillon corrompu est ignoré, jamais de crash).
 
 import { getDb } from "../../database/sqlite.service";
+import { claimOptional, peekOptional, storeOptional } from "./idempotency";
 
 export interface CartDraftLine {
   key: string;
@@ -47,9 +48,16 @@ function cleanLine(l: CartDraftLine): CartDraftLine | null {
   };
 }
 
-export function saveCartDraftsAtomic(tabs: CartDraftTab[], now: string): { saved: number } {
+export function saveCartDraftsAtomic(
+  tabs: CartDraftTab[],
+  now: string,
+  operationId?: string | null,
+): { saved: number } {
+  const fast = peekOptional<{ saved: number }>(operationId, "carts.save");
+  if (fast) return fast;
   const db = getDb();
   const tx = db.transaction(() => {
+    claimOptional(operationId, "carts.save", now);
     db.prepare(`DELETE FROM cart_drafts`).run();
     let saved = 0;
     for (const t of tabs) {
@@ -102,9 +110,23 @@ export function saveCartDraftsAtomic(tabs: CartDraftTab[], now: string): { saved
       );
       saved += 1;
     }
-    return { saved };
+    const result = { saved };
+    storeOptional(operationId, result);
+    return result;
   });
-  return (tx as unknown as () => { saved: number })();
+  try {
+    return (tx as unknown as () => { saved: number })();
+  } catch (err) {
+    if (
+      operationId &&
+      err instanceof Error &&
+      /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
+    ) {
+      const retry = peekOptional<{ saved: number }>(operationId, "carts.save");
+      if (retry) return retry;
+    }
+    throw err;
+  }
 }
 
 export function loadCartDrafts(): CartDraftTab[] {
@@ -117,9 +139,10 @@ export function loadCartDrafts(): CartDraftTab[] {
   for (const r of rows) {
     const tabId = Number(r["tab_id"]);
     if (!Number.isInteger(tabId) || tabId <= 0) continue;
-    let lines: CartDraftLine[] = [];
+    const lines: CartDraftLine[] = [];
     try {
-      const parsed: unknown = JSON.parse(String(r["lines_json"] ?? "[]"));
+      const rawLines = typeof r["lines_json"] === "string" ? r["lines_json"] : "[]";
+      const parsed: unknown = JSON.parse(rawLines);
       if (Array.isArray(parsed)) {
         for (const l of parsed as CartDraftLine[]) {
           const c = cleanLine(l);
@@ -131,13 +154,15 @@ export function loadCartDrafts(): CartDraftTab[] {
     }
     if (lines.length === 0) continue;
     const paid = Number(r["amount_paid_minor"]);
-    const method = String(r["payment_method"] ?? "");
+    const method = typeof r["payment_method"] === "string" ? r["payment_method"] : "";
+    const rawName = typeof r["name"] === "string" ? r["name"] : "";
+    const rawLabel = typeof r["customer_label"] === "string" ? r["customer_label"] : "";
     out.push({
       tabId,
-      name: String(r["name"] ?? `Panier ${tabId}`).slice(0, 40),
+      name: (rawName || `Panier ${tabId}`).slice(0, 40),
       lines,
       customerId: r["customer_id"] == null ? null : Number(r["customer_id"]),
-      customerLabel: String(r["customer_label"] ?? "Client de passage"),
+      customerLabel: rawLabel || "Client de passage",
       amountPaidMinor: Number.isInteger(paid) && paid >= 0 ? paid : 0,
       paymentMethod:
         method === "cash" || method === "cheque" || method === "transfer" ? method : null,
@@ -146,8 +171,31 @@ export function loadCartDrafts(): CartDraftTab[] {
   return out;
 }
 
-export function clearCartDrafts(): { cleared: boolean } {
+export function clearCartDraftsAtomic(operationId?: string | null): { cleared: boolean } {
+  const fast = peekOptional<{ cleared: boolean }>(operationId, "carts.clear");
+  if (fast) return fast;
   const db = getDb();
-  db.prepare(`DELETE FROM cart_drafts`).run();
-  return { cleared: true };
+  const tx = db.transaction(() => {
+    claimOptional(operationId, "carts.clear", new Date().toISOString());
+    db.prepare(`DELETE FROM cart_drafts`).run();
+    const result = { cleared: true };
+    storeOptional(operationId, result);
+    return result;
+  });
+  try {
+    return (tx as unknown as () => { cleared: boolean })();
+  } catch (err) {
+    if (
+      operationId &&
+      err instanceof Error &&
+      /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
+    ) {
+      const retry = peekOptional<{ cleared: boolean }>(operationId, "carts.clear");
+      if (retry) return retry;
+    }
+    throw err;
+  }
 }
+
+// Alias historique conservé (même atomicité, nom explicite).
+export const clearCartDrafts = clearCartDraftsAtomic;

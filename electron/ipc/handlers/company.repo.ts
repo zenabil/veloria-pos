@@ -6,6 +6,7 @@ import path from "node:path";
 import { app } from "electron";
 import { getDb } from "../../database/sqlite.service";
 import { assertLogoValid } from "../../services/logo";
+import { auditOperationId, claimOptional, peekOptional, storeOptional } from "./idempotency";
 
 export interface CompanyInput {
   company_name: string | null;
@@ -29,8 +30,10 @@ export function getCompany(): Record<string, unknown> | null {
   return row ?? null;
 }
 
-export function saveCompany(input: CompanyInput, now: string): void {
+export function saveCompany(input: CompanyInput, now: string, operationId?: string | null): void {
   const db = getDb();
+  const fast = peekOptional<{ saved: boolean }>(operationId, "company.update");
+  if (fast) return;
   // Durcissement : le logo doit vivre dans le dossier possédé par l'app
   // (<userData>/logos, via le sélecteur qui y copie le fichier). Un chemin
   // manuel hors de ce dossier est refusé (primitive de lecture arbitraire
@@ -54,6 +57,7 @@ export function saveCompany(input: CompanyInput, now: string): void {
     logoPath = candidate;
   }
   const tx = db.transaction(() => {
+    claimOptional(operationId, "company.update", now);
     const exists = db.prepare(`SELECT id FROM company_profile WHERE id = 1`).get() as
       | { id: number }
       | undefined;
@@ -94,10 +98,31 @@ export function saveCompany(input: CompanyInput, now: string): void {
         now,
       );
     }
-    // P8: fiche entreprise tracée (identité légale des factures).
+    // P8: fiche entreprise tracée (identité légale des factures) — audit déterministe.
     db.prepare(
       `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at) VALUES (?, 'company.saved', 'company', '1', ?, ?, ?)`,
-    ).run(randomUUID(), randomUUID(), JSON.stringify({}), now);
+    ).run(
+      randomUUID(),
+      auditOperationId(operationId, "company.saved", 1, {
+        company_name: input.company_name,
+        commercial_name: input.commercial_name,
+      }),
+      JSON.stringify({}),
+      now,
+    );
+    storeOptional(operationId, { saved: true });
   });
-  (tx as unknown as () => void)();
+  try {
+    (tx as unknown as () => void)();
+  } catch (err) {
+    if (
+      operationId &&
+      err instanceof Error &&
+      /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
+    ) {
+      const retry = peekOptional<{ saved: boolean }>(operationId, "company.update");
+      if (retry) return;
+    }
+    throw err;
+  }
 }

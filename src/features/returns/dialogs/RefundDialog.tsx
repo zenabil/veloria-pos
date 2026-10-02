@@ -102,11 +102,11 @@ export function ReturnRefundDialog({
               aria-label="Montant"
             />
           </Field>
-          <Field label="Moyen">
+          <Field label="Moyen de paiement">
             <Select
               value={method}
               onChange={(e) => setMethod(e.target.value as "cash" | "cheque" | "transfer")}
-              aria-label="Moyen"
+              aria-label="Moyen de paiement"
             >
               <option value="cash">Espèces</option>
               <option value="cheque">Chèque</option>

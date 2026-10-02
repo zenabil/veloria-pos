@@ -43,11 +43,15 @@ export function unlockSound(): void {
 
 function ensureCtx(): AudioContext | null {
   if (typeof window === "undefined") return null;
-  const AC =
-    window.AudioContext ??
-    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AC) return null;
-  if (!ctx) {
+  // RADICAL-FIX lint: lecture via unknown (lib DOM type AudioContext comme
+  // toujours défini — garde runtime pour vieux navigateurs webkit).
+  const w = window as unknown as {
+    AudioContext?: typeof AudioContext;
+    webkitAudioContext?: typeof AudioContext;
+  };
+  const AC = w.AudioContext ?? w.webkitAudioContext;
+  if (AC === undefined) return null;
+  if (ctx === null) {
     try {
       ctx = new AC();
     } catch {
@@ -117,18 +121,22 @@ const SCORES: Record<SoundName, Tone[]> = {
 
 /** Joue un son nommé (no-op si coupé/verrouillé/indisponible). */
 export function playSound(name: SoundName): void {
-  const score = SCORES[name];
-  if (!score) return;
+  // Lookup runtime via string (garde contre nom forgé depuis l'UI).
+  const table: Record<string, Tone[] | undefined> = SCORES;
+  const score = table[name];
+  if (score === undefined) return;
   playTones(score);
 }
 
 /** Charge la préférence SQLite (défaut ON discret si illisible). */
 export async function loadSoundEnabled(): Promise<void> {
   try {
-    const r = (await api.settingsGet({ key: "sound" })) as {
-      value?: { enabled?: unknown };
-    };
-    if (typeof r?.value?.enabled === "boolean") setSoundEnabled(r.value.enabled);
+    const r: unknown = await api.settingsGet({ key: "sound" });
+    const enabled =
+      typeof r === "object" && r !== null && "value" in r
+        ? (r as { value?: { enabled?: unknown } }).value?.enabled
+        : undefined;
+    if (typeof enabled === "boolean") setSoundEnabled(enabled);
   } catch {
     /* défaut */
   }

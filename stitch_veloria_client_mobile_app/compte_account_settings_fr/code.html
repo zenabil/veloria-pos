@@ -1,0 +1,584 @@
+<!doctype html>
+
+<html class="light" dir="ltr" lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Veloria Client - Mon Compte & Paramètres</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100..900&family=Plus+Jakarta+Sans:wght@100..900&family=Space+Grotesk:wght@100..900&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-secondary": "#ffffff",
+              "on-surface-variant": "#44474c",
+              "surface-bright": "#f8f9fb",
+              "on-secondary-fixed": "#261a00",
+              "outline-variant": "#c4c6cd",
+              "on-error-container": "#93000a",
+              "on-primary-fixed-variant": "#3a485a",
+              "surface-container-highest": "#e1e2e4",
+              "primary-container": "#0e1c2d",
+              surface: "#f8f9fb",
+              "tertiary-fixed-dim": "#62df7d",
+              "surface-container": "#edeef0",
+              "tertiary-fixed": "#7ffc97",
+              "surface-tint": "#515f72",
+              "secondary-container": "#ffc329",
+              "tertiary-container": "#002109",
+              "primary-fixed-dim": "#b9c8de",
+              "on-tertiary-fixed": "#002109",
+              "secondary-fixed-dim": "#f9bd22",
+              "on-error": "#ffffff",
+              "on-secondary-container": "#6f5100",
+              "on-secondary-fixed-variant": "#5c4300",
+              secondary: "#795900",
+              "inverse-surface": "#2e3132",
+              "on-surface": "#191c1e",
+              "secondary-fixed": "#ffdf9f",
+              error: "#ba1a1a",
+              "inverse-on-surface": "#f0f1f3",
+              primary: "#000000",
+              tertiary: "#000000",
+              "on-tertiary-fixed-variant": "#005320",
+              "primary-fixed": "#d5e4fa",
+              "on-primary-fixed": "#0e1c2d",
+              "on-primary-container": "#778599",
+              "on-primary": "#ffffff",
+              "surface-container-high": "#e7e8ea",
+              "surface-variant": "#e1e2e4",
+              "surface-dim": "#d9dadc",
+              "inverse-primary": "#b9c8de",
+              "on-background": "#191c1e",
+              background: "#f8f9fb",
+              "surface-container-low": "#f2f4f6",
+              "on-tertiary": "#ffffff",
+              "on-tertiary-container": "#009842",
+              "error-container": "#ffdad6",
+              outline: "#74777d",
+              "surface-container-lowest": "#ffffff",
+            },
+            borderRadius: {
+              DEFAULT: "1rem",
+              lg: "2rem",
+              xl: "3rem",
+              full: "9999px",
+            },
+            spacing: {
+              gutter: "1rem",
+              "margin-tablet": "2rem",
+              "space-md": "1rem",
+              "space-xs": "0.25rem",
+              "margin-desktop": "3rem",
+              "gutter-desktop": "2rem",
+              "gutter-tablet": "1.5rem",
+              "space-lg": "1.5rem",
+              "space-xl": "2.5rem",
+              margin: "1rem",
+              "space-sm": "0.5rem",
+            },
+            fontFamily: {
+              "body-lg": ["Plus Jakarta Sans"],
+              "label-caps": ["JetBrains Mono"],
+              "currency-lg": ["JetBrains Mono"],
+              "display-lg": ["Space Grotesk"],
+              "display-lg-mobile": ["Space Grotesk"],
+              "headline-sm": ["Space Grotesk"],
+              "currency-xl": ["JetBrains Mono"],
+              "currency-md": ["JetBrains Mono"],
+              "headline-lg": ["Space Grotesk"],
+              "body-sm": ["Plus Jakarta Sans"],
+              "body-md": ["Plus Jakarta Sans"],
+            },
+            fontSize: {
+              "body-lg": ["16px", { lineHeight: "24px", fontWeight: "400" }],
+              "label-caps": [
+                "11px",
+                { lineHeight: "16px", letterSpacing: "0.06em", fontWeight: "600" },
+              ],
+              "currency-lg": ["22px", { lineHeight: "28px", fontWeight: "500" }],
+              "display-lg": [
+                "44px",
+                { lineHeight: "52px", letterSpacing: "-0.03em", fontWeight: "700" },
+              ],
+              "display-lg-mobile": [
+                "32px",
+                { lineHeight: "40px", letterSpacing: "-0.02em", fontWeight: "700" },
+              ],
+              "headline-sm": ["20px", { lineHeight: "28px", fontWeight: "600" }],
+              "currency-xl": [
+                "32px",
+                { lineHeight: "40px", letterSpacing: "-0.02em", fontWeight: "600" },
+              ],
+              "currency-md": ["16px", { lineHeight: "24px", fontWeight: "500" }],
+              "headline-lg": [
+                "28px",
+                { lineHeight: "36px", letterSpacing: "-0.02em", fontWeight: "600" },
+              ],
+              "body-sm": ["12px", { lineHeight: "16px", fontWeight: "400" }],
+              "body-md": ["14px", { lineHeight: "20px", fontWeight: "400" }],
+            },
+          },
+        },
+      };
+    </script>
+  </head>
+  <body
+    class="bg-background text-on-surface antialiased font-body-md text-body-md min-h-screen flex justify-center selection:bg-secondary-container selection:text-primary-container"
+  >
+    <!-- Mobile Frame Container (360px viewport emulation) -->
+    <div
+      class="w-full max-w-[360px] min-h-screen bg-background relative flex flex-col pb-32 shadow-2xl overflow-x-hidden border-x border-surface-container-highest"
+    >
+      <!-- Top Navy Header Block with Profile Card -->
+      <header
+        class="bg-primary-container text-on-primary pt-3 pb-8 px-space-md rounded-b-[2rem] shadow-xl relative overflow-hidden"
+      >
+        <!-- Ambient Graphic Accent inside Header -->
+        <div
+          class="absolute -right-12 -top-12 w-44 h-44 rounded-full bg-secondary-container/10 blur-2xl pointer-events-none"
+        ></div>
+        <div
+          class="absolute left-0 bottom-0 w-32 h-32 rounded-full bg-on-tertiary-container/10 blur-xl pointer-events-none"
+        ></div>
+        <!-- App Bar Top Bar -->
+        <div class="flex items-center justify-between pb-space-md relative z-10">
+          <div class="flex items-center gap-space-xs">
+            <span class="material-symbols-outlined text-secondary-container" data-icon="storefront"
+              >storefront</span
+            >
+            <span class="font-headline-sm text-headline-sm text-on-primary tracking-tight font-bold"
+              >Espace Client</span
+            >
+          </div>
+          <div
+            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container-lowest/10 backdrop-blur-md border border-surface-container-lowest/15"
+          >
+            <span class="w-2 h-2 rounded-full bg-tertiary-fixed animate-pulse"></span>
+            <span class="font-label-caps text-label-caps text-tertiary-fixed">En direct</span>
+          </div>
+        </div>
+        <!-- Profile Hero Card -->
+        <div class="relative z-10 pt-2">
+          <div class="flex items-center gap-space-md">
+            <!-- Avatar with initials & active beacon -->
+            <div class="relative flex-shrink-0">
+              <div
+                class="w-14 h-14 rounded-full bg-gradient-to-tr from-surface-container-high to-surface-bright text-primary-container font-headline-sm text-headline-sm flex items-center justify-center font-bold shadow-inner border-2 border-secondary-container/30"
+              >
+                MH
+              </div>
+              <span
+                class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-on-tertiary-container border-2 border-primary-container rounded-full"
+                title="Actif"
+              ></span>
+            </div>
+            <!-- Client Details -->
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-1.5">
+                <h1 class="font-headline-sm text-headline-sm text-on-primary truncate font-bold">
+                  Mohammed Hamdaoui
+                </h1>
+                <span
+                  class="material-symbols-outlined text-secondary-container flex-shrink-0 text-base"
+                  data-icon="verified"
+                  data-weight="fill"
+                  style="font-variation-settings: &quot;FILL&quot; 1"
+                  >verified</span
+                >
+              </div>
+              <p
+                class="font-label-caps text-label-caps text-on-primary-container mt-0.5 tracking-wider"
+              >
+                0554 •• •• 89
+              </p>
+            </div>
+          </div>
+          <!-- Financial Health Status Pill -->
+          <div
+            class="mt-4 px-3 py-2 rounded-full bg-surface-container-lowest/10 backdrop-blur-sm border border-surface-container-lowest/10 flex items-center gap-2"
+          >
+            <span class="w-2 h-2 rounded-full bg-secondary-container flex-shrink-0"></span>
+            <span class="font-body-sm text-body-sm text-surface-bright truncate font-medium">
+              Situation :
+              <span class="text-secondary-container font-semibold">Client à jour</span> (Sous
+              plafond)
+            </span>
+          </div>
+          <!-- Subtitle & Verification Note -->
+          <div class="mt-2.5 flex items-center gap-1.5 text-on-primary-container px-1">
+            <span
+              class="material-symbols-outlined text-sm text-secondary-fixed-dim"
+              data-icon="verified_user"
+              >verified_user</span
+            >
+            <p class="font-body-sm text-body-sm leading-tight text-on-primary-container/90">
+              Client vérifié chez
+              <strong class="text-surface-bright font-medium">Supermarché El Baraka</strong> depuis
+              2024
+            </p>
+          </div>
+        </div>
+      </header>
+      <!-- Main Content Body (Elevated cards on Light ground) -->
+      <main class="px-space-md -mt-4 space-y-4 relative z-20">
+        <!-- Group 1: Commerce Associé -->
+        <section class="space-y-1.5">
+          <h2
+            class="font-label-caps text-label-caps text-on-surface-variant uppercase px-2 font-semibold"
+          >
+            Commerce Associé
+          </h2>
+          <div
+            class="bg-surface-container-lowest rounded-DEFAULT p-3.5 border border-surface-container-highest shadow-sm hover:shadow-md transition-shadow"
+          >
+            <div class="flex items-start justify-between">
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <span class="font-headline-sm text-[16px] leading-5 font-bold text-on-surface"
+                    >Supermarché El Baraka</span
+                  >
+                  <span
+                    class="px-2 py-0.5 rounded-full text-[10px] font-label-caps bg-tertiary-container/10 text-on-tertiary-container font-semibold"
+                    >Actif</span
+                  >
+                </div>
+                <p
+                  class="font-body-sm text-body-sm text-on-surface-variant mt-1 flex items-center gap-1"
+                >
+                  <span
+                    class="material-symbols-outlined text-xs text-outline"
+                    data-icon="location_on"
+                    >location_on</span
+                  >
+                  Cité En-Nour, Bt. B, Local 04
+                </p>
+              </div>
+              <div
+                class="w-8 h-8 rounded-full bg-surface-container-low flex items-center justify-center text-primary-container"
+              >
+                <span class="material-symbols-outlined text-lg" data-icon="storefront"
+                  >storefront</span
+                >
+              </div>
+            </div>
+            <!-- Action Buttons side-by-side -->
+            <div class="grid grid-cols-2 gap-2 mt-3.5 pt-3 border-t border-surface-container-low">
+              <button
+                class="w-full inline-flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-full bg-surface-container-low hover:bg-surface-container text-primary-container font-body-sm text-body-sm font-semibold transition-all active:scale-[0.98]"
+                type="button"
+              >
+                <span class="material-symbols-outlined text-base" data-icon="call">call</span>
+                <span>Appeler</span>
+              </button>
+              <button
+                class="w-full inline-flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-full bg-primary-container hover:bg-primary-container/90 text-on-primary font-body-sm text-body-sm font-semibold shadow-sm transition-all active:scale-[0.98]"
+                type="button"
+              >
+                <span
+                  class="material-symbols-outlined text-base text-secondary-container"
+                  data-icon="chat"
+                  >chat</span
+                >
+                <span>WhatsApp</span>
+              </button>
+            </div>
+          </div>
+        </section>
+        <!-- Group 2: Services & Documents -->
+        <section class="space-y-1.5">
+          <h2
+            class="font-label-caps text-label-caps text-on-surface-variant uppercase px-2 font-semibold"
+          >
+            Services & Documents
+          </h2>
+          <div
+            class="bg-surface-container-lowest rounded-DEFAULT border border-surface-container-highest shadow-sm divide-y divide-surface-container-low overflow-hidden"
+          >
+            <!-- Row 1: PDF Statement Export -->
+            <button
+              class="w-full p-3.5 flex items-center justify-between text-left hover:bg-surface-container-low/60 transition-colors active:scale-[0.99]"
+              type="button"
+            >
+              <div class="flex items-center gap-3">
+                <div
+                  class="w-9 h-9 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface"
+                >
+                  <span class="material-symbols-outlined text-lg" data-icon="share">share</span>
+                </div>
+                <div>
+                  <p class="font-body-md text-body-md font-semibold text-on-surface">
+                    Partager le relevé PDF
+                  </p>
+                  <p class="font-body-sm text-body-sm text-on-surface-variant">
+                    Relevé de compte global certifié
+                  </p>
+                </div>
+              </div>
+              <span class="material-symbols-outlined text-outline" data-icon="chevron_right"
+                >chevron_right</span
+              >
+            </button>
+            <!-- Row 2: Offline Sync Status -->
+            <div class="p-3.5 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div
+                  class="w-9 h-9 rounded-full bg-tertiary-fixed/30 flex items-center justify-center text-on-tertiary-container"
+                >
+                  <span class="material-symbols-outlined text-lg" data-icon="sync_saved_locally"
+                    >sync_saved_locally</span
+                  >
+                </div>
+                <div>
+                  <p class="font-body-md text-body-md font-semibold text-on-surface">
+                    Synchronisation locale
+                  </p>
+                  <p
+                    class="font-body-sm text-body-sm text-on-tertiary-container font-medium flex items-center gap-1"
+                  >
+                    <span class="w-1.5 h-1.5 rounded-full bg-on-tertiary-container"></span>
+                    Synchronisé il y a 2 min • 0 en attente
+                  </p>
+                </div>
+              </div>
+              <span
+                class="material-symbols-outlined text-on-tertiary-container"
+                data-icon="check_circle"
+                data-weight="fill"
+                style="font-variation-settings: &quot;FILL&quot; 1"
+                >check_circle</span
+              >
+            </div>
+          </div>
+        </section>
+        <!-- Group 3: Sécurité & Préférences -->
+        <section class="space-y-1.5">
+          <h2
+            class="font-label-caps text-label-caps text-on-surface-variant uppercase px-2 font-semibold"
+          >
+            Sécurité & Préférences
+          </h2>
+          <div
+            class="bg-surface-container-lowest rounded-DEFAULT border border-surface-container-highest shadow-sm divide-y divide-surface-container-low overflow-hidden"
+          >
+            <!-- Row 1: Code PIN -->
+            <button
+              class="w-full p-3.5 flex items-center justify-between text-left hover:bg-surface-container-low/60 transition-colors active:scale-[0.99]"
+              type="button"
+            >
+              <div class="flex items-center gap-3">
+                <div
+                  class="w-9 h-9 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface"
+                >
+                  <span class="material-symbols-outlined text-lg" data-icon="lock">lock</span>
+                </div>
+                <div>
+                  <p class="font-body-md text-body-md font-semibold text-on-surface">
+                    Modifier le code secret (PIN)
+                  </p>
+                  <p class="font-body-sm text-body-sm text-on-surface-variant">
+                    Sécurité d'accès à vos factures
+                  </p>
+                </div>
+              </div>
+              <span class="material-symbols-outlined text-outline" data-icon="chevron_right"
+                >chevron_right</span
+              >
+            </button>
+            <!-- Row 2: App Language -->
+            <button
+              class="w-full p-3.5 flex items-center justify-between text-left hover:bg-surface-container-low/60 transition-colors active:scale-[0.99]"
+              type="button"
+            >
+              <div class="flex items-center gap-3">
+                <div
+                  class="w-9 h-9 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface"
+                >
+                  <span class="material-symbols-outlined text-lg" data-icon="language"
+                    >language</span
+                  >
+                </div>
+                <div>
+                  <p class="font-body-md text-body-md font-semibold text-on-surface">
+                    Langue de l'application
+                  </p>
+                  <p class="font-body-sm text-body-sm text-on-surface-variant">
+                    Interface & formats d'impression
+                  </p>
+                </div>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <span
+                  class="px-2 py-0.5 rounded-full bg-surface-container text-on-surface font-label-caps text-[11px] font-semibold"
+                  >FR</span
+                >
+                <span class="material-symbols-outlined text-outline" data-icon="chevron_right"
+                  >chevron_right</span
+                >
+              </div>
+            </button>
+            <!-- Row 3: Push Notifications -->
+            <div class="p-3.5 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div
+                  class="w-9 h-9 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface"
+                >
+                  <span class="material-symbols-outlined text-lg" data-icon="notifications"
+                    >notifications</span
+                  >
+                </div>
+                <div>
+                  <p class="font-body-md text-body-md font-semibold text-on-surface">
+                    Notifications
+                  </p>
+                  <p class="font-body-sm text-body-sm text-on-surface-variant">
+                    Factures et paiements en direct
+                  </p>
+                </div>
+              </div>
+              <!-- Active Toggle -->
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input checked="" class="sr-only peer" type="checkbox" />
+                <div
+                  class="w-10 h-6 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-on-primary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-on-primary after:border-surface-variant after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container"
+                ></div>
+              </label>
+            </div>
+          </div>
+        </section>
+        <!-- Group 4: Informations Système -->
+        <section class="space-y-1.5">
+          <h2
+            class="font-label-caps text-label-caps text-on-surface-variant uppercase px-2 font-semibold"
+          >
+            Informations Système
+          </h2>
+          <div
+            class="bg-surface-container-lowest rounded-DEFAULT border border-surface-container-highest shadow-sm divide-y divide-surface-container-low overflow-hidden"
+          >
+            <!-- Row 1: About Veloria -->
+            <div class="p-3.5 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div
+                  class="w-9 h-9 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface"
+                >
+                  <span class="material-symbols-outlined text-lg" data-icon="info">info</span>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <p class="font-body-md text-body-md font-semibold text-on-surface">
+                      Veloria Client
+                    </p>
+                    <span
+                      class="px-1.5 py-0.2 rounded bg-surface-container-high text-on-surface font-label-caps text-[9px] font-bold"
+                      >STABLE</span
+                    >
+                  </div>
+                  <p class="font-body-sm text-body-sm text-on-surface-variant">
+                    v1.0.0 (2026) • Architecture Hors-ligne
+                  </p>
+                </div>
+              </div>
+            </div>
+            <!-- Row 2: Logout Session -->
+            <button
+              class="w-full p-3.5 flex items-center justify-between text-left hover:bg-error-container/20 transition-colors active:scale-[0.99] group"
+              type="button"
+            >
+              <div class="flex items-center gap-3">
+                <div
+                  class="w-9 h-9 rounded-full bg-error-container/40 flex items-center justify-center text-error group-hover:bg-error group-hover:text-on-error transition-colors"
+                >
+                  <span class="material-symbols-outlined text-lg" data-icon="logout">logout</span>
+                </div>
+                <div>
+                  <p class="font-body-md text-body-md font-semibold text-error">Déconnexion</p>
+                  <p class="font-body-sm text-body-sm text-on-surface-variant">
+                    Fermer la session et effacer les clés locales
+                  </p>
+                </div>
+              </div>
+              <span class="material-symbols-outlined text-error" data-icon="chevron_right"
+                >chevron_right</span
+              >
+            </button>
+          </div>
+        </section>
+        <!-- System Verification Footer Note -->
+        <footer class="pt-3 pb-4 text-center px-4 space-y-1.5">
+          <p class="font-body-sm text-[11px] leading-4 text-outline font-medium">
+            Application dédiée au suivi commercial avec le magasin • Support technique disponible
+            auprès de votre commerçant
+          </p>
+          <p
+            class="font-label-caps text-[9px] text-outline tracking-widest uppercase font-semibold"
+          >
+            FINTECH INFRASTRUCTURE DZ
+          </p>
+        </footer>
+      </main>
+      <!-- Floating Bottom Navigation Bar (Constructed directly from JSON tokens) -->
+      <!-- JSON Blueprint: BottomNavBar with 4 items: [Accueil, Factures, Paiements, Compte]. Current screen: 'Compte' is ACTIVE. -->
+      <nav
+        class="fixed bottom-0 left-0 right-0 z-50 flex justify-around items-center px-space-md py-space-sm max-w-lg mx-auto bg-primary-container dark:bg-primary-container text-secondary-container dark:text-secondary-container rounded-full mb-space-lg mx-gutter backdrop-blur-md shadow-2xl"
+      >
+        <!-- Tab 1: Accueil (Inactive) -->
+        <a
+          class="flex flex-col items-center justify-center text-on-primary-container dark:text-on-primary-container py-space-xs px-space-sm hover:text-on-primary dark:hover:text-on-primary transition-colors duration-150 active:scale-95"
+          href="#accueil"
+        >
+          <span class="material-symbols-outlined text-xl" data-icon="home">home</span>
+          <span class="font-label-caps text-label-caps mt-0.5">Accueil</span>
+        </a>
+        <!-- Tab 2: Factures (Inactive) -->
+        <a
+          class="flex flex-col items-center justify-center text-on-primary-container dark:text-on-primary-container py-space-xs px-space-sm hover:text-on-primary dark:hover:text-on-primary transition-colors duration-150 active:scale-95"
+          href="#factures"
+        >
+          <span class="material-symbols-outlined text-xl" data-icon="receipt_long"
+            >receipt_long</span
+          >
+          <span class="font-label-caps text-label-caps mt-0.5">Factures</span>
+        </a>
+        <!-- Tab 3: Paiements (Inactive) -->
+        <a
+          class="flex flex-col items-center justify-center text-on-primary-container dark:text-on-primary-container py-space-xs px-space-sm hover:text-on-primary dark:hover:text-on-primary transition-colors duration-150 active:scale-95"
+          href="#paiements"
+        >
+          <span class="material-symbols-outlined text-xl" data-icon="payments">payments</span>
+          <span class="font-label-caps text-label-caps mt-0.5">Paiements</span>
+        </a>
+        <!-- Tab 4: Compte (ACTIVE MATCH FOR ACCOUNT & SETTINGS SCREEN) -->
+        <a
+          class="flex flex-col items-center justify-center text-secondary-container dark:text-secondary-container font-semibold py-space-xs px-space-sm rounded-full active:scale-95 transition-transform duration-150"
+          href="#compte"
+        >
+          <span
+            class="material-symbols-outlined text-xl"
+            data-icon="account_circle"
+            data-weight="fill"
+            style="font-variation-settings: &quot;FILL&quot; 1"
+            >account_circle</span
+          >
+          <span class="font-label-caps text-label-caps mt-0.5">Compte</span>
+        </a>
+      </nav>
+    </div>
+  </body>
+</html>

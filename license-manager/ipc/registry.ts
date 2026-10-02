@@ -6,10 +6,16 @@ import fs from "node:fs";
 import path from "node:path";
 import { MANAGER_CHANNELS } from "./channels";
 import * as V from "./validators";
-import { exportManagerBackup, openManagerDb } from "../db/manager-db";
+import {
+  exportManagerBackup,
+  listManagerBackups,
+  openManagerDb,
+  restoreManagerBackup,
+} from "../db/manager-db";
 import {
   addMonths,
   getLicense,
+  inTx,
   insertLicenseRecord,
   listLicenses,
   logEvent,
@@ -17,19 +23,33 @@ import {
 } from "./licenses";
 import { buildSignedLicense, editionFromPlan, loadVendorPrivateKey } from "../signing";
 import { getManagerWindow } from "../main/window-manager";
-import { validateVendorPrivateKeyPem, vendorKeysDir } from "../signing";
+import { validateVendorPrivateKeyPem, vendorKeyExists, writeVendorPrivateKey } from "../signing";
 
 function ok<T>(data: T): { ok: true; data: T } {
   return { ok: true, data };
 }
 
 function fail(err: unknown): { ok: false; code: string; message: string } {
-  const msg = err instanceof Error ? err.message : "Erreur inattendue.";
   if (err instanceof Error && err.name === "ZodError") {
     return {
       ok: false,
       code: "VALIDATION_ERROR",
       message: "Données invalides. Vérifiez le formulaire.",
+    };
+  }
+  const msg = err instanceof Error ? err.message : "Erreur inattendue.";
+  // Fuite technique (SQLITE/UNIQUE/ENOENT/better-sqlite3) → message FR générique,
+  // détail journalisé côté main (jamais de schéma DB au renderer).
+  if (
+    /UNIQUE constraint|SQLITE_|constraint failed|ENOENT|EACCES|better-sqlite3|database is locked/i.test(
+      msg,
+    )
+  ) {
+    console.error("[manager] technique:", msg);
+    return {
+      ok: false,
+      code: "MANAGER_ERROR",
+      message: "Opération impossible. Détail technique journalisé.",
     };
   }
   return { ok: false, code: "MANAGER_ERROR", message: msg };
@@ -79,7 +99,9 @@ export function registerManagerIpc(): void {
   // fichier main → validation Ed25519 stricte → copie dans userData/keys
   // (domicile lu en premier par loadVendorPrivateKey). La clé ne transite
   // JAMAIS par le renderer et n'est JAMAIS incluse dans l'installeur.
-  handle(MANAGER_CHANNELS["manager.keyImport"], null, () => {
+  handle(MANAGER_CHANNELS["manager.keyImport"], null, (raw: unknown) => {
+    const force =
+      typeof raw === "object" && raw !== null && (raw as { force?: unknown }).force === true;
     const win = getManagerWindow();
     const opts = {
       title: "Importer la clé privée vendor",
@@ -101,15 +123,31 @@ export function registerManagerIpc(): void {
       throw new Error("Fichier de clé illisible.");
     }
     validateVendorPrivateKeyPem(pem);
-    const dir = vendorKeysDir();
-    fs.mkdirSync(dir, { recursive: true });
-    const dest = path.join(dir, "private.key");
-    fs.writeFileSync(dest, pem, { encoding: "utf-8", mode: 0o600 });
-    return { imported: true, configured: keyConfigured() };
+    // Écrasement = acte irréversible (anciennes .vlic non re-signables) :
+    // le renderer confirme explicitement avant de renvoyer {force:true}.
+    // Stockage DPAPI quand disponible (writeVendorPrivateKey).
+    if (vendorKeyExists() && !force) {
+      return { imported: false, exists: true, configured: keyConfigured() };
+    }
+    const stored = writeVendorPrivateKey(pem);
+    return { imported: true, encrypted: stored === "encrypted", configured: keyConfigured() };
   });
   // P3 : sauvegarde du registre vendor (rotation 10, sans secret).
   handle(MANAGER_CHANNELS["manager.backup"], null, () => exportManagerBackup());
-  handle(MANAGER_CHANNELS["manager.licensesList"], null, () => listLicenses(openManagerDb(), ""));
+  handle(MANAGER_CHANNELS["manager.backups"], null, () => ({ backups: listManagerBackups() }));
+  handle(MANAGER_CHANNELS["manager.restore"], V.backupRestoreSchema, (input) => {
+    restoreManagerBackup(input.file);
+    return { restored: true };
+  });
+  handle(MANAGER_CHANNELS["manager.licensesList"], null, (raw: unknown) => {
+    const query =
+      typeof raw === "object" &&
+      raw !== null &&
+      typeof (raw as { query?: unknown }).query === "string"
+        ? (raw as { query: string }).query.slice(0, 60)
+        : "";
+    return listLicenses(openManagerDb(), query);
+  });
   handle(MANAGER_CHANNELS["manager.licenseDetail"], V.licenseIdSchema, (input) => ({
     license: getLicense(openManagerDb(), input.id),
     events: openManagerDb()
@@ -123,28 +161,7 @@ export function registerManagerIpc(): void {
     const priv = loadVendorPrivateKey();
     const plan = input.plan ?? null;
     const edition = plan ? editionFromPlan(plan) : input.edition;
-    const { payload, vlic } = buildSignedLicense(
-      {
-        customerRef: input.customerRef,
-        clientId: input.clientId ?? null,
-        clientName: input.clientName ?? null,
-        storeName: input.storeName ?? null,
-        edition,
-        plan,
-        licenseType: input.licenseType,
-        licenseStatus: input.licenseStatus ?? null,
-        deviceBinding: input.deviceBinding,
-        maxDevices: input.maxDevices ?? null,
-        hardwareFingerprint: input.hardwareFingerprint,
-        startsAt: `${startsAt}T00:00:00.000Z`,
-        expiresAt: expiresAt ? `${expiresAt}T00:00:00.000Z` : null,
-        features: input.features,
-        pages: input.pages ?? null,
-      },
-      priv,
-    );
-    const id = insertLicenseRecord(db, {
-      licenseId: payload.licenseId,
+    const base = {
       customerRef: input.customerRef,
       clientId: input.clientId ?? null,
       clientName: input.clientName ?? null,
@@ -152,19 +169,57 @@ export function registerManagerIpc(): void {
       edition,
       plan,
       licenseType: input.licenseType,
-      licenseStatus: input.licenseStatus ?? "active",
+      licenseStatus: input.licenseStatus ?? null,
       deviceBinding: input.deviceBinding,
       maxDevices: input.maxDevices ?? null,
       hardwareFingerprint: input.hardwareFingerprint,
       startsAt: `${startsAt}T00:00:00.000Z`,
       expiresAt: expiresAt ? `${expiresAt}T00:00:00.000Z` : null,
-      features: [...input.features].sort(),
+      features: input.features,
       pages: input.pages ?? null,
-      envelopeVlic: vlic,
-      notes: input.notes ?? null,
-      now,
-    });
-    return { id, licenseId: payload.licenseId };
+    };
+    // Collision licenseId (UNIQUE 8-hex) : régénère jusqu'à 3 fois au lieu
+    // de remonter une erreur brute au renderer.
+    let lastErr: unknown = null;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const { payload, vlic } = buildSignedLicense(base, priv);
+        let id = 0;
+        inTx(db, () => {
+          id = insertLicenseRecord(db, {
+            licenseId: payload.licenseId,
+            customerRef: input.customerRef,
+            clientId: input.clientId ?? null,
+            clientName: input.clientName ?? null,
+            storeName: input.storeName ?? null,
+            edition,
+            plan,
+            licenseType: input.licenseType,
+            licenseStatus: input.licenseStatus ?? "active",
+            deviceBinding: input.deviceBinding,
+            maxDevices: input.maxDevices ?? null,
+            hardwareFingerprint: input.hardwareFingerprint,
+            startsAt: `${startsAt}T00:00:00.000Z`,
+            expiresAt: expiresAt ? `${expiresAt}T00:00:00.000Z` : null,
+            features: [...input.features].sort(),
+            pages: input.pages ?? null,
+            envelopeVlic: vlic,
+            notes: input.notes ?? null,
+            now,
+          });
+        });
+        return { id, licenseId: payload.licenseId };
+      } catch (err) {
+        lastErr = err;
+        if (
+          !(err instanceof Error) ||
+          !/UNIQUE constraint failed: licenses\.license_id/i.test(err.message)
+        ) {
+          throw err;
+        }
+      }
+    }
+    throw lastErr instanceof Error ? lastErr : new Error("Création impossible.");
   });
   handle(MANAGER_CHANNELS["manager.licenseExport"], V.licenseIdSchema, (input) => {
     const db = openManagerDb();
@@ -221,24 +276,38 @@ export function registerManagerIpc(): void {
     );
     // Renouvellement = même licenseId, nouvelles dates (l'ancien .vlic reste
     // valide jusqu'à sa propre expiration : chevauchement de grâce assumé).
-    db.prepare(
-      `UPDATE licenses SET license_type = ?, starts_at = ?, expires_at = ?, envelope_vlic = ?, issued_at = ?, status = 'active', updated_at = ? WHERE id = ?`,
-    ).run(
-      input.licenseType,
-      `${startsAt}T00:00:00.000Z`,
-      expiresAt ? `${expiresAt}T00:00:00.000Z` : null,
-      vlic,
-      now,
-      now,
-      input.id,
-    );
-    logEvent(db, input.id, "renewed", { startsAt, expiresAt }, now);
+    // Documenté (docs/licensing/RENEWAL.md) : le renouvellement LÈVE une
+    // suspension → les DEUX colonnes passent à 'active' (P12 : jamais deux
+    // vérités — écrire seulement `status` laissait `license_status` à
+    // 'suspended' après un suspend→renouveler).
+    inTx(db, () => {
+      db.prepare(
+        `UPDATE licenses SET license_type = ?, starts_at = ?, expires_at = ?, envelope_vlic = ?, issued_at = ?, status = 'active', license_status = 'active', updated_at = ? WHERE id = ?`,
+      ).run(
+        input.licenseType,
+        `${startsAt}T00:00:00.000Z`,
+        expiresAt ? `${expiresAt}T00:00:00.000Z` : null,
+        vlic,
+        now,
+        now,
+        input.id,
+      );
+      logEvent(db, input.id, "renewed", { startsAt, expiresAt }, now);
+    });
     return { renewed: true };
   });
   handle(MANAGER_CHANNELS["manager.licenseTransfer"], V.licenseTransferSchema, (input) => {
     const db = openManagerDb();
     const row = getLicense(db, input.id);
     if (row.status === "revoked") throw new Error("Licence révoquée : transfert refusé.");
+    // L1 : le transfert change l'empreinte, PAS le standing — re-signer avec
+    // le statut signé « actif » (valeur nulle) ressuscitait une licence
+    // suspendue hors ligne. Seul le renouvellement lève la suspension
+    // (RENEWAL.md).
+    // Inconnu ⇒ null (seule 'suspended' explicitement conservée ; 'revoked'
+    // refusé ci-dessus ; pas de CHECK en base ⇒ on ne caste pas une valeur
+    // inattendue en 'suspended').
+    const standing = row.status === "suspended" ? ("suspended" as const) : null;
     const now = new Date().toISOString();
     const priv = loadVendorPrivateKey();
     // Transfert = même licenseId ré-émis pour la nouvelle empreinte : l'ancien
@@ -258,7 +327,7 @@ export function registerManagerIpc(): void {
           | "custom",
         plan: (row.plan as "BASIC" | "STANDARD" | "PRO" | "ENTERPRISE" | "CUSTOM" | null) ?? null,
         licenseType: row.license_type as "term" | "lifetime",
-        licenseStatus: null,
+        licenseStatus: standing,
         deviceBinding: (row.device_binding as number | null) !== 0,
         maxDevices: (row.max_devices as number | null) ?? null,
         hardwareFingerprint: input.newFingerprint,
@@ -269,17 +338,22 @@ export function registerManagerIpc(): void {
       },
       priv,
     );
-    rebindFingerprint(db, input.id, input.newFingerprint, now);
-    db.prepare(
-      `UPDATE licenses SET envelope_vlic = ?, issued_at = ?, updated_at = ? WHERE id = ?`,
-    ).run(vlic, now, now, input.id);
-    logEvent(
-      db,
-      input.id,
-      "transferred",
-      { from: row.hardware_fingerprint.slice(0, 8), reason: input.reason },
-      now,
-    );
+    inTx(db, () => {
+      rebindFingerprint(db, input.id, input.newFingerprint, now);
+      // license_status = standing signé ci-dessus (P12) : réaligne aussi toute
+      // divergence historique laissée par l'ancien renouvellement à colonne
+      // unique.
+      db.prepare(
+        `UPDATE licenses SET envelope_vlic = ?, license_status = ?, issued_at = ?, updated_at = ? WHERE id = ?`,
+      ).run(vlic, standing ?? "active", now, now, input.id);
+      logEvent(
+        db,
+        input.id,
+        "transferred",
+        { from: row.hardware_fingerprint.slice(0, 8), reason: input.reason },
+        now,
+      );
+    });
     return { transferred: true };
   });
   handle(MANAGER_CHANNELS["manager.licenseRevoke"], V.licenseIdSchema, (input) => {
@@ -318,10 +392,12 @@ export function registerManagerIpc(): void {
       },
       priv,
     );
-    db.prepare(
-      `UPDATE licenses SET status = 'revoked', license_status = 'revoked', envelope_vlic = ?, issued_at = ?, updated_at = ? WHERE id = ?`,
-    ).run(vlic, now, now, input.id);
-    logEvent(db, input.id, "revoked", {}, now);
+    inTx(db, () => {
+      db.prepare(
+        `UPDATE licenses SET status = 'revoked', license_status = 'revoked', envelope_vlic = ?, issued_at = ?, updated_at = ? WHERE id = ?`,
+      ).run(vlic, now, now, input.id);
+      logEvent(db, input.id, "revoked", {}, now);
+    });
     return { revoked: true };
   });
   // Mise à jour des capabilities (pages/features) : ré-émission signée du
@@ -330,6 +406,9 @@ export function registerManagerIpc(): void {
     const db = openManagerDb();
     const row = getLicense(db, input.id);
     if (row.status === "revoked") throw new Error("Licence révoquée : modification refusée.");
+    // L1 : modifier pages/features ne change PAS le standing — conserver la
+    // suspension dans le .vlic ré-émis (seul le renouvellement la lève).
+    const standing = row.status === "suspended" ? ("suspended" as const) : null;
     const now = new Date().toISOString();
     const priv = loadVendorPrivateKey();
     const { vlic } = buildSignedLicense(
@@ -347,7 +426,7 @@ export function registerManagerIpc(): void {
           | "custom",
         plan: (row.plan as "BASIC" | "STANDARD" | "PRO" | "ENTERPRISE" | "CUSTOM" | null) ?? null,
         licenseType: row.license_type as "term" | "lifetime",
-        licenseStatus: null,
+        licenseStatus: standing,
         deviceBinding: (row.device_binding as number | null) !== 0,
         maxDevices: (row.max_devices as number | null) ?? null,
         hardwareFingerprint: row.hardware_fingerprint,
@@ -358,23 +437,26 @@ export function registerManagerIpc(): void {
       },
       priv,
     );
-    db.prepare(
-      `UPDATE licenses SET features_json = ?, pages_json = ?, envelope_vlic = ?, issued_at = ?, updated_at = ? WHERE id = ?`,
-    ).run(
-      JSON.stringify([...input.features].sort()),
-      input.pages ? JSON.stringify(input.pages) : null,
-      vlic,
-      now,
-      now,
-      input.id,
-    );
-    logEvent(
-      db,
-      input.id,
-      "capabilities_updated",
-      { features: input.features, pages: input.pages },
-      now,
-    );
+    inTx(db, () => {
+      db.prepare(
+        `UPDATE licenses SET features_json = ?, pages_json = ?, envelope_vlic = ?, license_status = ?, issued_at = ?, updated_at = ? WHERE id = ?`,
+      ).run(
+        JSON.stringify([...input.features].sort()),
+        input.pages ? JSON.stringify(input.pages) : null,
+        vlic,
+        standing ?? "active",
+        now,
+        now,
+        input.id,
+      );
+      logEvent(
+        db,
+        input.id,
+        "capabilities_updated",
+        { features: input.features, pages: input.pages },
+        now,
+      );
+    });
     return { updated: true };
   });
   // Suspension / réactivation : statut registral + enveloppe ré-émise avec
@@ -411,10 +493,12 @@ export function registerManagerIpc(): void {
       },
       priv,
     );
-    db.prepare(
-      `UPDATE licenses SET status = ?, license_status = ?, envelope_vlic = ?, issued_at = ?, updated_at = ? WHERE id = ?`,
-    ).run(input.status, input.status, vlic, now, now, input.id);
-    logEvent(db, input.id, `standing_${input.status}`, {}, now);
+    inTx(db, () => {
+      db.prepare(
+        `UPDATE licenses SET status = ?, license_status = ?, envelope_vlic = ?, issued_at = ?, updated_at = ? WHERE id = ?`,
+      ).run(input.status, input.status, vlic, now, now, input.id);
+      logEvent(db, input.id, `standing_${input.status}`, {}, now);
+    });
     return { updated: true };
   });
 }

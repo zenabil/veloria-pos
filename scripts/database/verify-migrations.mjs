@@ -774,6 +774,233 @@ db.prepare("UPDATE customers SET outstanding_balance_minor = 0 WHERE uuid = 'cre
 db.prepare("UPDATE customers SET credit_allowed = 0 WHERE uuid = 'cred26'").run();
 console.log("OK  0026 credit-revocation policy (refused with debt, allowed when settled)");
 
+// 0027: prix d'origine + remise par ligne (colonnes + backfill).
+{
+  const cols = db
+    .prepare("SELECT name FROM pragma_table_info('sale_items')")
+    .all()
+    .map((r) => r.name);
+  for (const col of ["original_unit_price_minor", "discount_minor"]) {
+    if (!cols.includes(col)) {
+      console.error(`FAIL: 0027 sale_items.${col} column missing`);
+      process.exit(1);
+    }
+  }
+  console.log("OK  0027 sale item line prices (original + discount)");
+}
+
+// 0028: index retours restauré après rebuild 0025.
+{
+  const found = db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND name = ?")
+    .get("idx_returns_original_sale");
+  if (!found) {
+    console.error("FAIL: 0028 idx_returns_original_sale index missing");
+    process.exit(1);
+  }
+  console.log("OK  0028 restored returns sale index");
+}
+
+// 0029: bons de commande fournisseurs (tables + séquence CMD).
+{
+  const tables = db
+    .prepare(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('purchase_orders','purchase_order_items')",
+    )
+    .all();
+  if (tables.length !== 2) {
+    console.error("FAIL: 0029 purchase_orders tables missing");
+    process.exit(1);
+  }
+  const seq = db
+    .prepare("SELECT prefix FROM number_sequences WHERE sequence_key = 'purchase_order'")
+    .get();
+  if (!seq) {
+    console.error("FAIL: 0029 purchase_order sequence missing");
+    process.exit(1);
+  }
+  console.log("OK  0029 purchase orders + CMD sequence");
+}
+
+// 0030: brouillons paniers (table, jamais LocalStorage).
+{
+  const table = db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'cart_drafts'")
+    .get();
+  if (!table) {
+    console.error("FAIL: 0030 cart_drafts table missing");
+    process.exit(1);
+  }
+  console.log("OK  0030 cart drafts table");
+}
+
+// 0031 RADICAL: triggers défensifs remises (discount >= 0, origine >= 0, borne).
+{
+  const trg = db
+    .prepare(
+      "SELECT COUNT(*) AS c FROM sqlite_master WHERE type = 'trigger' AND name IN ('trg_sale_items_discount_nonneg_ins','trg_sale_items_discount_nonneg_upd','trg_sale_items_original_nonneg_ins','trg_sale_items_original_nonneg_upd','trg_sale_items_discount_bound_ins','trg_sale_items_discount_bound_upd')",
+    )
+    .get();
+  if (trg.c !== 6) {
+    console.error(`FAIL: 0031 discount defensive triggers missing (found ${trg.c}/6)`);
+    process.exit(1);
+  }
+  console.log("OK  0031 discount defensive triggers (6/6)");
+  // Remise négative refusée au niveau DB (était acceptée avant 0031).
+  // Vente comptant soldée (pas de crédit → trigger 0007 OK sans client).
+  db.prepare(
+    "INSERT INTO sales (uuid, invoice_number, subtotal_minor, total_minor, amount_paid_minor, remaining_balance_minor, payment_status, created_at, updated_at) VALUES ('neg31','FAC-NEG-31',100,100,100,0,'paid','2026-01-05','2026-01-05')",
+  ).run();
+  const saleId = db.prepare("SELECT id FROM sales WHERE uuid = 'neg31'").get().id;
+  let negDiscountRejected = false;
+  try {
+    db.prepare(
+      "INSERT INTO sale_items (sale_id, product_name_snapshot, unit_code, unit_price_minor, purchase_price_minor, quantity, line_total_minor, original_unit_price_minor, discount_minor) VALUES (?, 'Test', 'PIECE', 100, 50, 1, 100, 100, -5)",
+    ).run(saleId);
+  } catch {
+    negDiscountRejected = true;
+  }
+  if (!negDiscountRejected) {
+    console.error("FAIL: 0031 negative discount accepted");
+    process.exit(1);
+  }
+  let overDiscountRejected = false;
+  try {
+    db.prepare(
+      "INSERT INTO sale_items (sale_id, product_name_snapshot, unit_code, unit_price_minor, purchase_price_minor, quantity, line_total_minor, original_unit_price_minor, discount_minor) VALUES (?, 'Test', 'PIECE', 0, 50, 1, 0, 100, 200)",
+    ).run(saleId);
+  } catch {
+    overDiscountRejected = true;
+  }
+  if (!overDiscountRejected) {
+    console.error("FAIL: 0031 over-discount accepted");
+    process.exit(1);
+  }
+  // Ligne saine acceptée.
+  db.prepare(
+    "INSERT INTO sale_items (sale_id, product_name_snapshot, unit_code, unit_price_minor, purchase_price_minor, quantity, line_total_minor, original_unit_price_minor, discount_minor) VALUES (?, 'Test', 'PIECE', 80, 50, 2, 160, 100, 40)",
+  ).run(saleId);
+  console.log("OK  0031 discount bounds enforced (negative/over rejected, sane accepted)");
+}
+
+// 0032: accès clients APK + file miroir (3 tables + CHECKs).
+{
+  const tables = db
+    .prepare(
+      "SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table' AND name IN ('customer_access','sync_outbox','announcements')",
+    )
+    .get();
+  if (tables.c !== 3) {
+    console.error(`FAIL: 0032 tables missing (found ${tables.c}/3)`);
+    process.exit(1);
+  }
+  // kind hors union déclarée = refus DB (miroir jetable : aucun autre canal).
+  let badKindRejected = false;
+  try {
+    db.prepare(
+      "INSERT INTO sync_outbox (operation_id, kind, payload_json, created_at) VALUES ('op-bad','teleportation','{}','2026-01-01')",
+    ).run();
+  } catch {
+    badKindRejected = true;
+  }
+  if (!badKindRejected) {
+    console.error("FAIL: 0032 invalid outbox kind accepted");
+    process.exit(1);
+  }
+  // PIN n'est jamais stocké : seuls des condensats + compteurs bornés.
+  let negAttemptsRejected = false;
+  try {
+    db.prepare(
+      "INSERT INTO customer_access (customer_id, phone_hash, pin_hash, failed_attempts, created_at, updated_at) VALUES (1,'h1','p1',-1,'2026-01-01','2026-01-01')",
+    ).run();
+  } catch {
+    negAttemptsRejected = true;
+  }
+  if (!negAttemptsRejected) {
+    console.error("FAIL: 0032 negative failed_attempts accepted");
+    process.exit(1);
+  }
+  // Annonce > 120 caractères refusée (limite 0032).
+  let longAnnouncementRejected = false;
+  try {
+    db.prepare(
+      "INSERT INTO announcements (text, is_active, created_at) VALUES (?, 1, '2026-01-01')",
+    ).run("x".repeat(121));
+  } catch {
+    longAnnouncementRejected = true;
+  }
+  if (!longAnnouncementRejected) {
+    console.error("FAIL: 0032 over-long announcement accepted");
+    process.exit(1);
+  }
+  console.log("OK  0032 customer_access + sync_outbox + announcements (CHECKs enforced)");
+}
+
+// 0033: rattachement client de la file miroir (colonne + index).
+{
+  const col = db.prepare("PRAGMA table_info(sync_outbox)").all();
+  if (!col.some((c) => c.name === "customer_id")) {
+    console.error("FAIL: 0033 sync_outbox.customer_id missing");
+    process.exit(1);
+  }
+  const idx = db
+    .prepare(
+      "SELECT COUNT(*) AS c FROM sqlite_master WHERE type='index' AND name='idx_sync_outbox_customer_status'",
+    )
+    .get();
+  if (idx.c !== 1) {
+    console.error("FAIL: 0033 idx_sync_outbox_customer_status missing");
+    process.exit(1);
+  }
+  console.log("OK  0033 sync_outbox.customer_id + customer/status index");
+}
+
+// 0034: un seul accès ACTIF par numéro (index UNIQUE partiel + réparation).
+{
+  const idx = db
+    .prepare(
+      "SELECT COUNT(*) AS c FROM sqlite_master WHERE type='index' AND name='idx_customer_access_phone_hash_active'",
+    )
+    .get();
+  if (idx.c !== 1) {
+    console.error("FAIL: 0034 idx_customer_access_phone_hash_active missing");
+    process.exit(1);
+  }
+  // Deux actifs sur le même condensat = refus DB (l'activation bloque déjà
+  // à la source ; ici c'est le garde schéma contre toute autre voie).
+  db.prepare(
+    "INSERT INTO customers (uuid, first_name, last_name, search_name, created_at, updated_at) VALUES ('phA','A','A','a a','2026-01-01','2026-01-01')",
+  ).run();
+  db.prepare(
+    "INSERT INTO customers (uuid, first_name, last_name, search_name, created_at, updated_at) VALUES ('phB','B','B','b b','2026-01-01','2026-01-01')",
+  ).run();
+  const idA = db.prepare("SELECT id FROM customers WHERE uuid = 'phA'").get().id;
+  const idB = db.prepare("SELECT id FROM customers WHERE uuid = 'phB'").get().id;
+  db.prepare(
+    "INSERT INTO customer_access (customer_id, phone_hash, pin_hash, created_at, updated_at) VALUES (?, 'dup-hash', 'p1', '2026-01-01', '2026-01-01')",
+  ).run(idA);
+  let dupRejected = false;
+  try {
+    db.prepare(
+      "INSERT INTO customer_access (customer_id, phone_hash, pin_hash, created_at, updated_at) VALUES (?, 'dup-hash', 'p2', '2026-01-02', '2026-01-02')",
+    ).run(idB);
+  } catch {
+    dupRejected = true;
+  }
+  if (!dupRejected) {
+    console.error("FAIL: 0034 duplicate active phone_hash accepted");
+    process.exit(1);
+  }
+  // Révoquée : son phone_hash reste tracé mais ne bloque plus un autre client.
+  db.prepare(
+    "UPDATE customer_access SET revoked_at = '2026-01-03', updated_at = '2026-01-03' WHERE customer_id = ?",
+  ).run(idA);
+  db.prepare(
+    "INSERT INTO customer_access (customer_id, phone_hash, pin_hash, created_at, updated_at) VALUES (?, 'dup-hash', 'p2', '2026-01-04', '2026-01-04')",
+  ).run(idB);
+  console.log("OK  0034 active phone_hash unique (revoked keeps tracing, no block)");
+}
+
 // Integrity
 const ic = db.prepare("PRAGMA integrity_check").get();
 const fk = db.prepare("PRAGMA foreign_key_check").all();

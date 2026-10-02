@@ -68,7 +68,7 @@ export function PayDialog({
             <dd className="font-semibold">{customerLabel}</dd>
           </div>
           <div className="flex items-baseline justify-between border-t border-white/10 pt-2">
-            <dt className="font-extrabold">À payer</dt>
+            <dt className="font-extrabold">Total Net à Payer</dt>
             <dd className="text-xl font-extrabold tabular-nums text-amber-300">
               {formatDzd(totals.totalMinor)}
             </dd>
@@ -86,13 +86,13 @@ export function PayDialog({
           ) : null}
         </dl>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Montant reçu (DZD)">
+          <Field label="Montant Donné (DZD)">
             <TextInput
               value={paidText}
               onChange={(e) => setPaidText(e.target.value)}
               inputMode="decimal"
               placeholder="0,00"
-              aria-label="Montant reçu"
+              aria-label="Montant donné"
             />
           </Field>
           <Field label="Moyen de paiement">
@@ -101,7 +101,7 @@ export function PayDialog({
               onChange={(e) => setPaymentMethod(e.target.value as "cash" | "cheque" | "transfer")}
               aria-label="Moyen de paiement"
             >
-              <option value="cash">{PAYMENT_METHOD_LABELS["cash"]}</option>
+              <option value="cash">Espèces (Caisse locale)</option>
               <option value="cheque">{PAYMENT_METHOD_LABELS["cheque"]}</option>
               <option value="transfer">{PAYMENT_METHOD_LABELS["transfer"]}</option>
             </Select>
@@ -145,7 +145,7 @@ export function PayDialog({
             onClick={validate}
             className="flex-[2]"
           >
-            {busy ? "Enregistrement…" : `Valider · ${formatDzd(totals.totalMinor)}`}
+            {busy ? "Enregistrement…" : "Valider & Encaisser [Entrée]"}
           </Button>
         </div>
       </div>

@@ -9,6 +9,7 @@ import { log } from "../services/logger";
 import { assertSafeUserFolder } from "../security/security";
 import { readLogoDataUrlFromFile } from "../services/logo";
 import { getDb } from "../database/sqlite.service";
+import { claimOptional, peekOptional, storeOptional } from "../ipc/handlers/idempotency";
 import { IPC_CHANNELS } from "../ipc/channels";
 import { prodLicenseDeps } from "../licensing/prod-deps";
 import {
@@ -17,30 +18,43 @@ import {
   requireLicensedPage,
 } from "../licensing/license-service";
 import {
+  deliveryPayloadSchema,
+  emptyPayloadSchema,
   labelsPayloadSchema,
   paymentTicketSchema,
   pdfFilePathSchema,
   printerSaveSchema,
   printPayloadSchema,
+  purchaseOrderDocPayloadSchema,
   reportPayloadSchema,
+  returnSlipPayloadSchema,
 } from "../ipc/validators";
 import {
   buildA4Html,
+  buildDeliveryHtml,
+  buildDeliveryText,
   buildLabelsHtml,
   buildPaymentText,
   buildPaymentTicketA4Html,
   buildProformaA4Html,
   buildProformaText,
+  buildPurchaseOrderHtml,
+  buildPurchaseOrderText,
+  buildQrPayload,
   buildReceiptText,
   buildReportHtml,
-  escapePreText,
+  buildReturnSlipHtml,
+  buildReturnSlipText,
   proformaFromReceipt,
+  thermalHtml,
   toPaymentTicketData,
   toReceiptData,
   toReportData,
+  tvaBreakdown,
   type LabelItem,
   type ProformaData,
   type ReceiptData,
+  type ThermalWidth,
 } from "./receipt-documents";
 
 function validationError(): { ok: false; code: string; message: string } {
@@ -57,6 +71,31 @@ function isValidationError(err: unknown): boolean {
 
 function unavailable(message: string): { ok: false; code: string; message: string } {
   return { ok: false, code: "PRINTER_UNAVAILABLE", message };
+}
+
+// L3 : détection des messages d'exception TECHNIQUES (jamais affichables) —
+// errno Node (EACCES/ENOSPC…), chemins disque, stack JS, tournures anglaises.
+const PDF_TECHNICAL_RAW = /\bE[A-Z]{3,}:|[A-Za-z]:[\\/]|\/(?:home|Users|tmp|var|usr|mnt)\//;
+const PDF_TECHNICAL_EN =
+  /\b(failed|cannot|unable|unexpected|not allowed|is not a function|of undefined|undefined is not|permission denied|forbidden|unauthorized)\b|:\d+\b|\bat \S+\s*\(/i;
+
+/**
+ * L3 — EXPORT PDF : jamais d'exception brute vers l'opérateur (AGENTS §6).
+ * Le détail technique (errno, stack, chemin) est déjà journalisé par
+ * l'appelant (`log("ERROR", "printing", "pdf.*")`) ; seuls les messages
+ * métier DÉJÀ rédigés en français (« Chemin de fichier PDF invalide. »,
+ * garde dossier sûr) sont transmis tels quels — sinon repli FR générique.
+ */
+function pdfExportFailed(err: unknown): { ok: false; code: string; message: string } {
+  const msg = err instanceof Error ? err.message : "";
+  if (msg && !PDF_TECHNICAL_RAW.test(msg) && !PDF_TECHNICAL_EN.test(msg)) {
+    return { ok: false, code: "PDF_EXPORT_FAILED", message: msg };
+  }
+  return {
+    ok: false,
+    code: "PDF_EXPORT_FAILED",
+    message: "Export PDF impossible. Réessayez ou choisissez un autre dossier.",
+  };
 }
 
 /**
@@ -103,12 +142,34 @@ function guardPrint(
   }
 }
 
-export function saveSelectedPrinterName(name: string | null, now: string): void {
-  getDb()
-    .prepare(
+export function saveSelectedPrinterName(
+  name: string | null,
+  now: string,
+  operationId?: string | null,
+): void {
+  const fast = peekOptional<{ saved: boolean }>(operationId, "printer.save");
+  if (fast) return;
+  const db = getDb();
+  const tx = db.transaction(() => {
+    claimOptional(operationId, "printer.save", now);
+    db.prepare(
       `INSERT INTO app_settings (key, value_json, updated_at) VALUES ('printer', ?, ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at`,
-    )
-    .run(JSON.stringify({ name }), now);
+    ).run(JSON.stringify({ name }), now);
+    storeOptional(operationId, { saved: true });
+  });
+  try {
+    (tx as unknown as () => void)();
+  } catch (err) {
+    if (
+      operationId &&
+      err instanceof Error &&
+      /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
+    ) {
+      const retry = peekOptional<{ saved: boolean }>(operationId, "printer.save");
+      if (retry) return;
+    }
+    throw err;
+  }
 }
 
 /** Imprimante configurée (Paramètres) ou null = imprimante par défaut du système. */
@@ -149,6 +210,8 @@ function applyInvoiceSettings(d: ReceiptData): ReceiptData {
     showPreviousBalance?: boolean;
     footerText?: string;
     thankYouMessage?: string;
+    tvaRatePercent?: number;
+    sellerDefault?: string;
   } = {};
   try {
     const row = getDb()
@@ -158,14 +221,98 @@ function applyInvoiceSettings(d: ReceiptData): ReceiptData {
   } catch (err) {
     log("WARN", "printing", "invoiceSettings.unreadable", { error: String(err) });
   }
-  return {
+  const rate =
+    typeof cfg.tvaRatePercent === "number" && Number.isFinite(cfg.tvaRatePercent)
+      ? Math.min(100, Math.max(0, cfg.tvaRatePercent))
+      : 0;
+  const sellerDefault = typeof cfg.sellerDefault === "string" ? cfg.sellerDefault : "";
+  const incomingRate = typeof d.tvaRatePercent === "number" ? d.tvaRatePercent : 0;
+  const incomingHt = typeof d.htMinor === "number" ? d.htMinor : 0;
+  const incomingTv = typeof d.tvaMinor === "number" ? d.tvaMinor : 0;
+  const withRate: ReceiptData = {
     ...d,
-    companyLogo: cfg.showLogo === false ? "" : d.companyLogo,
-    prevBalanceMinor: cfg.showPreviousBalance === false ? undefined : d.prevBalanceMinor,
-    currentBalanceMinor: cfg.showCustomerBalance === false ? undefined : d.currentBalanceMinor,
+    tvaRatePercent: incomingRate > 0 ? incomingRate : rate,
+    seller: d.seller || sellerDefault,
+    htMinor: incomingHt,
+    tvaMinor: incomingTv,
+  };
+  const finalRate = typeof withRate.tvaRatePercent === "number" ? withRate.tvaRatePercent : 0;
+  const finalHt = typeof withRate.htMinor === "number" ? withRate.htMinor : 0;
+  const finalTv = typeof withRate.tvaMinor === "number" ? withRate.tvaMinor : 0;
+  if (finalRate > 0 && !(finalHt > 0 || finalTv > 0)) {
+    const v = tvaBreakdown(withRate.totalMinor, finalRate);
+    withRate.htMinor = v.htMinor;
+    withRate.tvaMinor = v.tvaMinor;
+  }
+  return {
+    ...withRate,
+    companyLogo: cfg.showLogo === false ? "" : withRate.companyLogo,
+    prevBalanceMinor: cfg.showPreviousBalance === false ? undefined : withRate.prevBalanceMinor,
+    currentBalanceMinor:
+      cfg.showCustomerBalance === false ? undefined : withRate.currentBalanceMinor,
     footerText: typeof cfg.footerText === "string" ? cfg.footerText : "",
     thankYouMessage: typeof cfg.thankYouMessage === "string" ? cfg.thankYouMessage : "",
   };
+}
+
+/** QR réel (lib `qrcode`, SVG N&B) + payload déterministe — meilleur effort, jamais bloquant. */
+function withQr(d: ReceiptData): ReceiptData {
+  const payload = d.qrPayload || buildQrPayload(d);
+  if (d.qrSvg) return { ...d, qrPayload: payload };
+  try {
+    // `create` synchrone → SVG N&B construit localement (pas de callback,
+    // pipeline d'impression inchangé). Échec = payload texte seul.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require("qrcode") as {
+      create?: (
+        text: string,
+        opts?: unknown,
+      ) => {
+        modules: { size: number; get: (r: number, c: number) => boolean };
+      };
+    };
+    if (typeof mod.create !== "function") return { ...d, qrPayload: payload };
+    const qr = mod.create(payload, { errorCorrectionLevel: "M" });
+    const n = qr.modules.size;
+    const cell = 4;
+    const size = n * cell;
+    let rects = "";
+    for (let r = 0; r < n; r++) {
+      for (let c = 0; c < n; c++) {
+        if (qr.modules.get(r, c)) {
+          rects += `<rect x="${c * cell}" y="${r * cell}" width="${cell}" height="${cell}" fill="#000"/>`;
+        }
+      }
+    }
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="110" height="110" role="img" aria-label="QR ${escapeQr(payload)}"><rect width="${size}" height="${size}" fill="#fff"/>${rects}</svg>`;
+    return { ...d, qrPayload: payload, qrSvg: svg };
+  } catch (err) {
+    log("WARN", "printing", "qr.unavailable", { error: String(err) });
+    return { ...d, qrPayload: payload };
+  }
+}
+
+function escapeQr(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/** Largeur thermique configurée (Paramètres → Impression, défaut 80mm). */
+export function getThermalWidth(): ThermalWidth {
+  try {
+    const row = getDb()
+      .prepare(`SELECT value_json FROM app_settings WHERE key = 'printing'`)
+      .get() as { value_json: string } | undefined;
+    if (!row) return "80mm";
+    const parsed = JSON.parse(row.value_json) as { thermalWidth?: unknown };
+    return parsed.thermalWidth === "58mm" ? "58mm" : "80mm";
+  } catch (err) {
+    log("WARN", "printing", "thermalWidth.unreadable", { error: String(err) });
+    return "80mm";
+  }
 }
 
 async function printHtml(html: string, waitMs: number): Promise<void> {
@@ -388,7 +535,8 @@ function withCompanyIdentity(d: ReceiptData): ReceiptData {
       companyRc: d.companyRc || row?.rc_number || "",
       companyNif: d.companyNif || row?.nif || "",
     };
-  } catch {
+  } catch (err) {
+    log("WARN", "printing", "companyIdentity.unreadable", { error: String(err) });
     return d;
   }
 }
@@ -397,8 +545,10 @@ function withCompanyIdentity(d: ReceiptData): ReceiptData {
 // P09: pipeline unique logo+réglages+identité — les 4 handlers factures/tickets
 // passent par enrichReceipt (plus de bloc répété à dériver).
 function enrichReceipt(raw: unknown): ReceiptData {
-  return withCompanyIdentity(
-    applyInvoiceSettings(withLogo(toReceiptData(printPayloadSchema.parse(raw)))),
+  return withQr(
+    withCompanyIdentity(
+      applyInvoiceSettings(withLogo(toReceiptData(printPayloadSchema.parse(raw)))),
+    ),
   );
 }
 
@@ -427,7 +577,8 @@ function withCompanyIdentityPayment<T extends { companyRc: string; companyNif: s
       companyRc: d.companyRc || row?.rc_number || "",
       companyNif: d.companyNif || row?.nif || "",
     };
-  } catch {
+  } catch (err) {
+    log("WARN", "printing", "companyIdentity.unreadable", { error: String(err) });
     return d;
   }
 }
@@ -463,14 +614,15 @@ function proformaWithSettings(raw: unknown): ProformaData {
   return proformaFromReceipt(receipt);
 }
 
-function thermalHtml(text: string): string {
-  // P28: échappement central (escapePreText), pas un replace partiel.
-  return `<pre style="font-family:monospace;width:280px">${escapePreText(text)}</pre>`;
+function receiptCodes(d: ReceiptData): { barcode: string; qrSvg: string; qrPayload: string } {
+  return { barcode: d.invoice, qrSvg: d.qrSvg ?? "", qrPayload: d.qrPayload || buildQrPayload(d) };
 }
 
 export function registerPrintingIpc(getMainWindow: () => BrowserWindow | null): void {
-  ipcMain.handle(IPC_CHANNELS["printing.listPrinters"], async (event) => {
+  ipcMain.handle(IPC_CHANNELS["printing.listPrinters"], async (event, raw: unknown) => {
     try {
+      // RADICAL-FIX: charge vide validée comme tous les canaux (AGENTS.md §3).
+      emptyPayloadSchema.parse(raw ?? {});
       const contents = event.sender;
       const printers = await contents.getPrintersAsync();
       return {
@@ -496,7 +648,7 @@ export function registerPrintingIpc(getMainWindow: () => BrowserWindow | null): 
     try {
       await assertConfiguredPrinterAvailable(getMainWindow);
       const d = enrichReceipt(raw);
-      await printHtml(thermalHtml(receiptTextOf(d)), 300);
+      await printHtml(thermalHtml(receiptTextOf(d), getThermalWidth(), receiptCodes(d)), 300);
       return { ok: true, data: { printed: true } };
     } catch (err) {
       log("ERROR", "printing", "print.failed", { error: String(err) });
@@ -565,8 +717,9 @@ export function registerPrintingIpc(getMainWindow: () => BrowserWindow | null): 
     }
   });
 
-  ipcMain.handle(IPC_CHANNELS["printer.get"], () => {
+  ipcMain.handle(IPC_CHANNELS["printer.get"], (_e, raw: unknown) => {
     try {
+      emptyPayloadSchema.parse(raw ?? {});
       return { ok: true, data: { name: getSelectedPrinterName() } };
     } catch (err) {
       log("ERROR", "printing", "selectedGet.failed", { error: String(err) });
@@ -586,7 +739,7 @@ export function registerPrintingIpc(getMainWindow: () => BrowserWindow | null): 
     }
     try {
       const input = printerSaveSchema.parse(raw ?? {});
-      saveSelectedPrinterName(input.name, new Date().toISOString());
+      saveSelectedPrinterName(input.name, new Date().toISOString(), input.operationId ?? null);
       return { ok: true, data: { saved: true } };
     } catch (err) {
       log("ERROR", "printing", "selectedSave.failed", { error: String(err) });
@@ -625,12 +778,17 @@ export function registerPrintingIpc(getMainWindow: () => BrowserWindow | null): 
     }
   });
 
-  // Étiquettes code-barres (planche A4 : aperçu = impression).
+  // Étiquettes code-barres (formats thermiques + planche A4 : aperçu = impression).
   // BL-24 + §21 LABEL MEMORY LIMIT: refus explicite au-delà de 200 AU TOTAL
   // (somme copies × articles, vérifiée AVANT expansion — pas de fenêtre où
   // 5000 éléments coexisteraient en mémoire). L'opérateur ajuste au lieu de
   // perdre des étiquettes silencieusement.
-  function labelsOf(raw: unknown): LabelItem[] {
+  function labelsOf(raw: unknown): {
+    items: LabelItem[];
+    format: "30x20" | "50x30" | "58x40" | "A4-24" | "custom";
+    customWidthMm: number;
+    customHeightMm: number;
+  } {
     const parsed = labelsPayloadSchema.parse(raw);
     let total = 0;
     for (const it of parsed.items) total += it.copies;
@@ -643,14 +801,29 @@ export function registerPrintingIpc(getMainWindow: () => BrowserWindow | null): 
         out.push({ name: it.name, priceMinor: it.priceMinor, barcode: it.barcode });
       }
     }
-    return out;
+    return {
+      items: out,
+      format: parsed.format,
+      customWidthMm: parsed.customWidthMm,
+      customHeightMm: parsed.customHeightMm,
+    };
   }
 
   ipcMain.handle(IPC_CHANNELS["printing.previewLabels"], (_e, raw: unknown) => {
     const denied = guardPrint("barcode-scanner", ["products"]);
     if (denied) return denied;
     try {
-      return { ok: true, data: { htmlA4: buildLabelsHtml(labelsOf(raw)) } };
+      const l = labelsOf(raw);
+      return {
+        ok: true,
+        data: {
+          htmlA4: buildLabelsHtml(l.items, {
+            format: l.format,
+            customWidthMm: l.customWidthMm,
+            customHeightMm: l.customHeightMm,
+          }),
+        },
+      };
     } catch (err) {
       log("ERROR", "printing", "labels.preview_failed", { error: String(err) });
       if (isValidationError(err)) return validationError();
@@ -664,7 +837,15 @@ export function registerPrintingIpc(getMainWindow: () => BrowserWindow | null): 
     if (!getMainWindow()) return unavailable("Fenêtre d'impression indisponible.");
     try {
       await assertConfiguredPrinterAvailable(getMainWindow);
-      await printHtml(buildLabelsHtml(labelsOf(raw)), 400);
+      const l = labelsOf(raw);
+      await printHtml(
+        buildLabelsHtml(l.items, {
+          format: l.format,
+          customWidthMm: l.customWidthMm,
+          customHeightMm: l.customHeightMm,
+        }),
+        400,
+      );
       return { ok: true, data: { printed: true } };
     } catch (err) {
       log("ERROR", "printing", "labels.print_failed", { error: String(err) });
@@ -682,23 +863,20 @@ export function registerPrintingIpc(getMainWindow: () => BrowserWindow | null): 
       const input = printPayloadSchema.parse(raw ?? {});
       const { filePath } = pdfFilePathSchema.parse(raw ?? {});
       const d = enrichReceipt(input);
+      const width = getThermalWidth();
       const res = await exportDocumentPdf(getMainWindow, {
-        html: thermalHtml(receiptTextOf(d)),
+        html: thermalHtml(receiptTextOf(d), width, receiptCodes(d)),
         waitMs: 300,
         defaultName: safeInvoiceFileName(String(input.invoice || "ticket"), "ticket-80mm"),
         explicitPath: filePath ?? null,
-        // 80mm de large (microns) ; hauteur page A4, contenu paginé si long.
-        pageSize: { width: 80000, height: 297000 },
+        // Largeur thermique réelle (microns) ; hauteur A4, contenu paginé si long.
+        pageSize: { width: width === "58mm" ? 58000 : 80000, height: 297000 },
       });
       return { ok: true, data: res };
     } catch (err) {
       log("ERROR", "printing", "pdf.receipt_failed", { error: String(err) });
       if (isValidationError(err)) return validationError();
-      return {
-        ok: false,
-        code: "PDF_EXPORT_FAILED",
-        message: err instanceof Error ? err.message : "Export PDF impossible.",
-      };
+      return pdfExportFailed(err);
     }
   });
 
@@ -720,22 +898,20 @@ export function registerPrintingIpc(getMainWindow: () => BrowserWindow | null): 
     } catch (err) {
       log("ERROR", "printing", "pdf.a4_failed", { error: String(err) });
       if (isValidationError(err)) return validationError();
-      return {
-        ok: false,
-        code: "PDF_EXPORT_FAILED",
-        message: err instanceof Error ? err.message : "Export PDF impossible.",
-      };
+      return pdfExportFailed(err);
     }
   });
 
   // Page de test (contenu démo fixe, aucune donnée métier).
   // EL-21: impression physique → même garde que printReceipt (pas d'appel
   // sans receipt-80mm + page sales).
-  ipcMain.handle(IPC_CHANNELS["printing.testPage"], async () => {
+  ipcMain.handle(IPC_CHANNELS["printing.testPage"], async (_e, raw: unknown) => {
     const denied = guardPrint("receipt-80mm", ["sales"]);
     if (denied) return denied;
     if (!getMainWindow()) return unavailable("Fenêtre d'impression indisponible.");
     try {
+      emptyPayloadSchema.parse(raw ?? {});
+      const width = getThermalWidth();
       const text = buildReceiptText({
         company: "Veloria",
         companyPhone: "",
@@ -771,7 +947,10 @@ export function registerPrintingIpc(getMainWindow: () => BrowserWindow | null): 
         totalMinor: 10000,
         paidMinor: 10000,
       });
-      await printHtml(thermalHtml(`${text}\n[PAGE DE TEST]`), 300);
+      await printHtml(
+        thermalHtml(`${text}\n[PAGE DE TEST ${width} — N&B]`, width, { barcode: "TEST" }),
+        300,
+      );
       return { ok: true, data: { printed: true } };
     } catch (err) {
       log("ERROR", "printing", "test.failed", { error: String(err) });
@@ -786,14 +965,47 @@ export function registerPrintingIpc(getMainWindow: () => BrowserWindow | null): 
   function paymentOf(raw: unknown): {
     text80: string;
     htmlA4: string;
+    codes: { barcode: string; qrSvg: string; qrPayload: string };
   } {
     // Validation Zod d'abord (montants/soldes), normalisation ensuite
     // (null → "" pour les libellés masquables).
     const parsed = paymentTicketSchema.parse(raw);
-    const d = withCompanyIdentityPayment(
+    const base = withCompanyIdentityPayment(
       applyPaymentSettings(withLogoPayment(toPaymentTicketData(parsed))),
     );
-    return { text80: buildPaymentText(d), htmlA4: buildPaymentTicketA4Html(d) };
+    const qrPayload = `VELORIA|${base.reference || ""}|${base.amountMinor}|${base.date}`;
+    let qrSvg = "";
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const mod = require("qrcode") as {
+        create?: (
+          text: string,
+          opts?: unknown,
+        ) => {
+          modules: { size: number; get: (r: number, c: number) => boolean };
+        };
+      };
+      if (typeof mod.create === "function") {
+        const qr = mod.create(qrPayload, { errorCorrectionLevel: "M" });
+        const n = qr.modules.size;
+        const cell = 4;
+        const size = n * cell;
+        let rects = "";
+        for (let r = 0; r < n; r++) {
+          for (let c = 0; c < n; c++) {
+            if (qr.modules.get(r, c)) {
+              rects += `<rect x="${c * cell}" y="${r * cell}" width="${cell}" height="${cell}" fill="#000"/>`;
+            }
+          }
+        }
+        qrSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="110" height="110" role="img"><rect width="${size}" height="${size}" fill="#fff"/>${rects}</svg>`;
+      }
+    } catch (err) {
+      log("WARN", "printing", "qr.unavailable", { error: String(err) });
+    }
+    const d = { ...base, qrPayload, qrSvg };
+    const codes = { barcode: base.reference || "PAY", qrSvg, qrPayload };
+    return { text80: buildPaymentText(d), htmlA4: buildPaymentTicketA4Html(d), codes };
   }
 
   ipcMain.handle(IPC_CHANNELS["printing.previewPayment"], (_e, raw: unknown) => {
@@ -826,16 +1038,316 @@ export function registerPrintingIpc(getMainWindow: () => BrowserWindow | null): 
     if (!getMainWindow()) return unavailable("Fenêtre d'impression indisponible.");
     try {
       await assertConfiguredPrinterAvailable(getMainWindow);
-      const { text80, htmlA4 } = paymentOf(raw);
-      // 80mm par défaut (reçu thermique) ; A4 via export générique si besoin.
-      const useA4 = (raw as { format?: unknown } | null)?.format === "A4";
+      const { text80, htmlA4, codes } = paymentOf(raw);
+      // RADICAL-FIX: format depuis le payload validé Zod (jamais de cast brut).
+      const useA4 = paymentTicketSchema.parse(raw).format === "A4";
       if (useA4) await printHtml(htmlA4, 400);
-      else await printHtml(thermalHtml(text80), 300);
+      else await printHtml(thermalHtml(text80, getThermalWidth(), codes), 300);
       return { ok: true, data: { printed: true } };
     } catch (err) {
       log("ERROR", "printing", "printPayment.failed", { error: String(err) });
       if (isValidationError(err)) return validationError();
       return unavailable("Échec d'impression du reçu. Vérifiez l'imprimante.");
+    }
+  });
+
+  // Devis thermique 80mm (le texte existait sans canal : buildProformaText
+  // orphelin — désormais imprimable comme le ticket de caisse).
+  ipcMain.handle(IPC_CHANNELS["printing.printProforma80mm"], async (_e, raw: unknown) => {
+    const denied = guardPrint("proformas", ["proformas"]);
+    if (denied) return denied;
+    if (!getMainWindow()) return unavailable("Fenêtre d'impression indisponible.");
+    try {
+      await assertConfiguredPrinterAvailable(getMainWindow);
+      const proforma = proformaWithSettings(raw);
+      await printHtml(
+        thermalHtml(buildProformaText(proforma), getThermalWidth(), {
+          barcode: proforma.number,
+          qrSvg: proforma.qrSvg ?? "",
+          qrPayload: proforma.qrPayload || "",
+        }),
+        300,
+      );
+      return { ok: true, data: { printed: true } };
+    } catch (err) {
+      log("ERROR", "printing", "printProforma80.failed", { error: String(err) });
+      if (isValidationError(err)) return validationError();
+      return unavailable("Échec d'impression du devis. Vérifiez l'imprimante.");
+    }
+  });
+
+  // Exports PDF manquants (chaque document aperçu/imprimé est exportable) :
+  // devis, reçu de règlement, rapport, étiquettes. Même pipeline validé
+  // que l'impression + double garde format/pdf-export.
+  ipcMain.handle(IPC_CHANNELS["printing.exportProformaPdf"], async (_e, raw: unknown) => {
+    const denied = guardPdfExport("proformas", ["proformas"]);
+    if (denied) return denied;
+    try {
+      const input = printPayloadSchema.parse(raw ?? {});
+      const { filePath } = pdfFilePathSchema.parse(raw ?? {});
+      const d = proformaWithSettings(input);
+      const res = await exportDocumentPdf(getMainWindow, {
+        html: buildProformaA4Html(d),
+        waitMs: 400,
+        defaultName: safeInvoiceFileName(String(input.invoice || "devis"), "devis-A4"),
+        explicitPath: filePath ?? null,
+        pageSize: "A4",
+      });
+      return { ok: true, data: res };
+    } catch (err) {
+      log("ERROR", "printing", "pdf.proforma_failed", { error: String(err) });
+      if (isValidationError(err)) return validationError();
+      return pdfExportFailed(err);
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS["printing.exportPaymentPdf"], async (_e, raw: unknown) => {
+    const denied = guardPdfExport("receipt-80mm", [
+      "customers",
+      "suppliers",
+      "debts",
+      "breadOrders",
+      "pain",
+    ]);
+    if (denied) return denied;
+    try {
+      const { filePath } = pdfFilePathSchema.parse(raw ?? {});
+      const { text80, htmlA4, codes } = paymentOf(raw);
+      const parsed = paymentTicketSchema.parse(raw);
+      const useA4 = parsed.format === "A4";
+      const width = getThermalWidth();
+      const res = await exportDocumentPdf(getMainWindow, {
+        html: useA4 ? htmlA4 : thermalHtml(text80, width, codes),
+        waitMs: 300,
+        defaultName: safeInvoiceFileName(String(parsed.reference || "recu"), "recu"),
+        explicitPath: filePath ?? null,
+        pageSize: useA4 ? "A4" : { width: width === "58mm" ? 58000 : 80000, height: 297000 },
+      });
+      return { ok: true, data: res };
+    } catch (err) {
+      log("ERROR", "printing", "pdf.payment_failed", { error: String(err) });
+      if (isValidationError(err)) return validationError();
+      return pdfExportFailed(err);
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS["printing.exportReportPdf"], async (_e, raw: unknown) => {
+    const denied = guardPdfExport("advanced-reports", ["reports"]);
+    if (denied) return denied;
+    try {
+      const d = toReportData(reportPayloadSchema.parse(raw ?? {}));
+      const { filePath } = pdfFilePathSchema.parse(raw ?? {});
+      const res = await exportDocumentPdf(getMainWindow, {
+        html: buildReportHtml(d),
+        waitMs: 400,
+        defaultName: safeInvoiceFileName(d.title || "rapport", "rapport-A4"),
+        explicitPath: filePath ?? null,
+        pageSize: "A4",
+      });
+      return { ok: true, data: res };
+    } catch (err) {
+      log("ERROR", "printing", "pdf.report_failed", { error: String(err) });
+      if (isValidationError(err)) return validationError();
+      return pdfExportFailed(err);
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS["printing.exportLabelsPdf"], async (_e, raw: unknown) => {
+    const denied = guardPdfExport("barcode-scanner", ["products"]);
+    if (denied) return denied;
+    try {
+      const { filePath } = pdfFilePathSchema.parse(raw ?? {});
+      const l = labelsOf(raw);
+      const res = await exportDocumentPdf(getMainWindow, {
+        html: buildLabelsHtml(l.items, {
+          format: l.format,
+          customWidthMm: l.customWidthMm,
+          customHeightMm: l.customHeightMm,
+        }),
+        waitMs: 400,
+        defaultName: "etiquettes-A4.pdf",
+        explicitPath: filePath ?? null,
+        pageSize: "A4",
+      });
+      return { ok: true, data: res };
+    } catch (err) {
+      log("ERROR", "printing", "pdf.labels_failed", { error: String(err) });
+      if (isValidationError(err)) return validationError();
+      return pdfExportFailed(err);
+    }
+  });
+
+  // P0-3 : documents logistiques — aperçu + impression A4/thermique.
+  // Chaque thermique porte le Code 39 (N° du document) + le QR, comme les A4.
+  function logiCodes(
+    d: import("./receipt-documents").LogisticsDocData,
+    invoice: string,
+  ): {
+    barcode: string;
+    qrSvg: string;
+    qrPayload: string;
+  } {
+    return {
+      barcode: invoice,
+      qrSvg: d.qrSvg ?? "",
+      qrPayload: d.qrPayload || buildQrPayload({ ...d, invoice }),
+    };
+  }
+  function logisticsOf(
+    raw: unknown,
+    kind: "delivery" | "return" | "po",
+  ): import("./receipt-documents").LogisticsDocData {
+    if (kind === "delivery") {
+      const parsed = deliveryPayloadSchema.parse(raw);
+      return withQr(
+        withCompanyIdentity(applyInvoiceSettings(withLogo(toReceiptData(parsed)))),
+      ) as import("./receipt-documents").LogisticsDocData;
+    }
+    if (kind === "return") {
+      const parsed = returnSlipPayloadSchema.parse(raw);
+      const base = withQr(
+        withCompanyIdentity(applyInvoiceSettings(withLogo(toReceiptData(parsed)))),
+      );
+      return {
+        ...base,
+        returnNumber: parsed.returnNumber,
+        reason: parsed.reason,
+        refundMinor: parsed.refundMinor,
+      };
+    }
+    const parsed = purchaseOrderDocPayloadSchema.parse(raw);
+    const base = withQr(withCompanyIdentity(applyInvoiceSettings(withLogo(toReceiptData(parsed)))));
+    return {
+      ...base,
+      orderNumber: parsed.orderNumber,
+      supplierName: parsed.supplierName,
+      supplierPhone: parsed.supplierPhone,
+      supplierAddress: parsed.supplierAddress,
+      validityDays: parsed.validityDays,
+    };
+  }
+
+  ipcMain.handle(IPC_CHANNELS["printing.previewDelivery"], (_e, raw: unknown) => {
+    const denied = guardPrint("invoice-a4", ["sales", "invoices"]);
+    if (denied) return denied;
+    try {
+      const d = logisticsOf(raw, "delivery");
+      return { ok: true, data: { text80: buildDeliveryText(d), htmlA4: buildDeliveryHtml(d) } };
+    } catch (err) {
+      log("ERROR", "printing", "previewDelivery.failed", { error: String(err) });
+      if (isValidationError(err)) return validationError();
+      return {
+        ok: false,
+        code: "PREVIEW_FAILED",
+        message: "Aperçu du bon de livraison impossible.",
+      };
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS["printing.printDelivery"], async (_e, raw: unknown) => {
+    const denied = guardPrint("invoice-a4", ["sales", "invoices"]);
+    if (denied) return denied;
+    if (!getMainWindow()) return unavailable("Fenêtre d'impression indisponible.");
+    try {
+      await assertConfiguredPrinterAvailable(getMainWindow);
+      const d = logisticsOf(raw, "delivery");
+      const useA4 = deliveryPayloadSchema.parse(raw).format === "A4";
+      if (useA4) await printHtml(buildDeliveryHtml(d), 400);
+      else
+        await printHtml(
+          thermalHtml(buildDeliveryText(d), getThermalWidth(), logiCodes(d, d.invoice)),
+          300,
+        );
+      return { ok: true, data: { printed: true } };
+    } catch (err) {
+      log("ERROR", "printing", "printDelivery.failed", { error: String(err) });
+      if (isValidationError(err)) return validationError();
+      return unavailable("Échec d'impression du bon de livraison. Vérifiez l'imprimante.");
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS["printing.previewReturnSlip"], (_e, raw: unknown) => {
+    const denied = guardPrint("receipt-80mm", ["returns"]);
+    if (denied) return denied;
+    try {
+      const d = logisticsOf(raw, "return");
+      return { ok: true, data: { text80: buildReturnSlipText(d), htmlA4: buildReturnSlipHtml(d) } };
+    } catch (err) {
+      log("ERROR", "printing", "previewReturn.failed", { error: String(err) });
+      if (isValidationError(err)) return validationError();
+      return { ok: false, code: "PREVIEW_FAILED", message: "Aperçu du bon de retour impossible." };
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS["printing.printReturnSlip"], async (_e, raw: unknown) => {
+    const denied = guardPrint("receipt-80mm", ["returns"]);
+    if (denied) return denied;
+    if (!getMainWindow()) return unavailable("Fenêtre d'impression indisponible.");
+    try {
+      await assertConfiguredPrinterAvailable(getMainWindow);
+      const d = logisticsOf(raw, "return");
+      const useA4 = returnSlipPayloadSchema.parse(raw).format === "A4";
+      if (useA4) await printHtml(buildReturnSlipHtml(d), 400);
+      else
+        await printHtml(
+          thermalHtml(
+            buildReturnSlipText(d),
+            getThermalWidth(),
+            logiCodes(d, d.returnNumber || d.invoice),
+          ),
+          300,
+        );
+      return { ok: true, data: { printed: true } };
+    } catch (err) {
+      log("ERROR", "printing", "printReturn.failed", { error: String(err) });
+      if (isValidationError(err)) return validationError();
+      return unavailable("Échec d'impression du bon de retour. Vérifiez l'imprimante.");
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS["printing.previewPO"], (_e, raw: unknown) => {
+    const denied = guardPrint("invoice-a4", ["suppliers"]);
+    if (denied) return denied;
+    try {
+      const d = logisticsOf(raw, "po");
+      return {
+        ok: true,
+        data: { text80: buildPurchaseOrderText(d), htmlA4: buildPurchaseOrderHtml(d) },
+      };
+    } catch (err) {
+      log("ERROR", "printing", "previewPO.failed", { error: String(err) });
+      if (isValidationError(err)) return validationError();
+      return {
+        ok: false,
+        code: "PREVIEW_FAILED",
+        message: "Aperçu du bon de commande impossible.",
+      };
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS["printing.printPO"], async (_e, raw: unknown) => {
+    const denied = guardPrint("invoice-a4", ["suppliers"]);
+    if (denied) return denied;
+    if (!getMainWindow()) return unavailable("Fenêtre d'impression indisponible.");
+    try {
+      await assertConfiguredPrinterAvailable(getMainWindow);
+      const d = logisticsOf(raw, "po");
+      const useA4 = purchaseOrderDocPayloadSchema.parse(raw).format !== "80mm";
+      if (useA4) await printHtml(buildPurchaseOrderHtml(d), 400);
+      else
+        await printHtml(
+          thermalHtml(
+            buildPurchaseOrderText(d),
+            getThermalWidth(),
+            logiCodes(d, d.orderNumber || d.invoice),
+          ),
+          300,
+        );
+      return { ok: true, data: { printed: true } };
+    } catch (err) {
+      log("ERROR", "printing", "printPO.failed", { error: String(err) });
+      if (isValidationError(err)) return validationError();
+      return unavailable("Échec d'impression du bon de commande. Vérifiez l'imprimante.");
     }
   });
 }

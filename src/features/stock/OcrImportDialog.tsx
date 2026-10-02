@@ -31,6 +31,7 @@ import {
 } from "@shared/ui/primitives.tsx";
 
 import type { Notify } from "@shared/ui/primitives.tsx";
+import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 
 type Step = "fichier" | "analyse" | "verification";
@@ -85,7 +86,12 @@ function formatBytes(size: number): string {
 
 function minorToInput(minor: number | null): string {
   if (minor === null) return "";
-  return (minor / 100).toFixed(2).replace(".", ",");
+  // RADICAL-FIX: arithmétique entière (pas de float) — centimes → « dzd,cc ».
+  const sign = minor < 0 ? "-" : "";
+  const abs = Math.abs(Math.trunc(minor));
+  const dzd = Math.trunc(abs / 100);
+  const cc = String(abs % 100).padStart(2, "0");
+  return `${sign}${dzd},${cc}`;
 }
 
 function toneFor(c: OcrConfidence): "green" | "amber" | "grey" {
@@ -127,11 +133,15 @@ export function OcrImportDialog({
   const [duplicateWarn, setDuplicateWarn] = useState(false);
   // Anti-tempête : la vérification de doublon (100 réceptions) est débouncée,
   // jamais à chaque frappe (même idiome que les recherches des écrans).
-  const duplicateTimer = useRef<number | null>(null);
+  const duplicateTimer = useDebouncedTimer();
   const [rows, setRows] = useState<ReviewRow[]>([]);
   const [pickerFor, setPickerFor] = useState<number | null>(null);
   const [pickerQ, setPickerQ] = useState("");
   const [pickerResults, setPickerResults] = useState<ProductHit[]>([]);
+  // Ergonomie relecture : filtre confiance + sélection groupée.
+  const [rowFilter, setRowFilter] = useState<"all" | "review" | "unmatched">("all");
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const mounted = useRef(true);
   const fileRef = useRef<string | null>(null);
@@ -151,7 +161,6 @@ export function OcrImportDialog({
     }
     return () => {
       mounted.current = false;
-      if (duplicateTimer.current !== null) window.clearTimeout(duplicateTimer.current);
       try {
         off?.();
       } catch {
@@ -433,6 +442,47 @@ export function OcrImportDialog({
     setPickerResults([]);
   }
 
+  /** Assignation groupée : même produit à toutes les lignes cochées. */
+  function assignBulk(h: ProductHit): void {
+    if (selected.size === 0) return;
+    setRows((prev) =>
+      prev.map((r) =>
+        selected.has(r.key)
+          ? {
+              ...r,
+              productId: h.id,
+              productLabel: h.name,
+              productPriceMinor: h.selling_price_minor,
+              confidence: "high" as OcrConfidence,
+              matchKind: "exact" as OcrMatchKind,
+              createNew: false,
+            }
+          : r,
+      ),
+    );
+    setSelected(new Set());
+    setBulkOpen(false);
+    setPickerQ("");
+    setPickerResults([]);
+    notify(`${selected.size} ligne(s) associée(s) à « ${h.name} ».`, "ok");
+  }
+
+  function toggleSelect(key: number): void {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  function visibleRows(list: ReviewRow[]): ReviewRow[] {
+    if (rowFilter === "unmatched") return list.filter((r) => r.productId === null);
+    if (rowFilter === "review")
+      return list.filter((r) => r.productId === null || r.confidence !== "high");
+    return list;
+  }
+
   function addManualRow(): void {
     setRows((prev) => [
       ...prev,
@@ -692,13 +742,10 @@ export function OcrImportDialog({
                   value={invoiceNumber}
                   onChange={(e) => {
                     setInvoiceNumber(e.target.value);
-                    if (duplicateTimer.current !== null) {
-                      window.clearTimeout(duplicateTimer.current);
-                    }
                     const v = e.target.value;
-                    duplicateTimer.current = window.setTimeout(() => {
+                    duplicateTimer.schedule(400, () => {
                       void checkDuplicate(supplierId, v);
-                    }, 400);
+                    });
                   }}
                   aria-label="Numéro de facture"
                 />
@@ -779,32 +826,120 @@ export function OcrImportDialog({
               ) : null}
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h4 className="text-sm font-extrabold">
                 Lignes ({rows.length}) · {validCount} valide(s)
+                {selected.size > 0 ? ` · ${selected.size} cochée(s)` : ""}
               </h4>
-              <Button type="button" variant="secondary" onClick={addManualRow}>
-                <Plus size={15} aria-hidden="true" /> Ligne manuelle
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={rowFilter}
+                  onChange={(e) => setRowFilter(e.target.value as "all" | "review" | "unmatched")}
+                  aria-label="Filtrer les lignes par confiance"
+                  title="Filtrer les lignes par confiance"
+                  className="cursor-pointer rounded-lg border border-white/10 bg-[#010f1f] px-2 py-1.5 text-xs text-slate-100 [&>option]:bg-[#010f1f]"
+                >
+                  <option value="all">Toutes les lignes</option>
+                  <option value="review">À vérifier (douteuses)</option>
+                  <option value="unmatched">Non appariées</option>
+                </select>
+                <Button type="button" variant="secondary" onClick={addManualRow}>
+                  <Plus size={15} aria-hidden="true" /> Ligne manuelle
+                </Button>
+              </div>
             </div>
 
+            {selected.size > 0 ? (
+              <Card className="space-y-2 border-amber-400/30 p-3">
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <strong>{selected.size} ligne(s) cochée(s)</strong>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      setBulkOpen((o) => !o);
+                      setPickerQ("");
+                      setPickerResults([]);
+                    }}
+                  >
+                    <Search size={13} aria-hidden="true" /> Associer un produit
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRows((prev) => prev.filter((x) => !selected.has(x.key)));
+                      setSelected(new Set());
+                    }}
+                    className="text-xs font-semibold text-red-300 hover:text-red-200"
+                  >
+                    Supprimer la sélection
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelected(new Set())}
+                    className="text-xs font-semibold text-slate-400 hover:text-white"
+                  >
+                    Tout désélectionner
+                  </button>
+                </div>
+                {bulkOpen ? (
+                  <div className="space-y-2 rounded-xl bg-black/25 p-3">
+                    <TextInput
+                      value={pickerQ}
+                      onChange={(e) => void searchProductsForPicker(e.target.value)}
+                      placeholder="Rechercher un produit… (min. 2 lettres)"
+                      aria-label="Rechercher un produit pour la sélection"
+                    />
+                    {pickerResults.length > 0 ? (
+                      <ul className="max-h-36 divide-y divide-white/[0.06] overflow-auto rounded-xl border border-white/10">
+                        {pickerResults.map((h) => (
+                          <li key={h.id}>
+                            <button
+                              type="button"
+                              onClick={() => assignBulk(h)}
+                              className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-amber-400/10"
+                            >
+                              <span className="truncate font-semibold">{h.name}</span>
+                              <span className="shrink-0 text-xs tabular-nums text-slate-400">
+                                {formatDzd(h.purchase_price_minor)}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                ) : null}
+              </Card>
+            ) : null}
+
             <div className="space-y-3">
-              {rows.map((r) => {
+              {visibleRows(rows).map((r) => {
                 const err = rowError(r);
                 return (
                   <Card key={r.key} className="space-y-2.5 p-3">
                     <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <strong
-                          className="block truncate text-sm"
-                          title={r.ocrName || "Ligne manuelle"}
-                        >
-                          {r.ocrName || "Ligne manuelle"}
-                        </strong>
-                        <span className="block text-xs text-slate-500">
-                          {matchLabel(r.matchKind)} · unité lue : {r.unit}
-                          {r.ocrBarcode ? ` · code : ${r.ocrBarcode}` : ""}
-                        </span>
+                      <div className="flex min-w-0 items-start gap-2">
+                        <input
+                          type="checkbox"
+                          checked={selected.has(r.key)}
+                          onChange={() => toggleSelect(r.key)}
+                          aria-label={`Cocher ${r.ocrName || "ligne"}`}
+                          title="Cocher pour action groupée"
+                          className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-amber-400"
+                        />
+                        <div className="min-w-0">
+                          <strong
+                            className="block truncate text-sm"
+                            title={r.ocrName || "Ligne manuelle"}
+                          >
+                            {r.ocrName || "Ligne manuelle"}
+                          </strong>
+                          <span className="block text-xs text-slate-500">
+                            {matchLabel(r.matchKind)} · unité lue : {r.unit}
+                            {r.ocrBarcode ? ` · code : ${r.ocrBarcode}` : ""}
+                          </span>
+                        </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
                         <Badge tone={toneFor(r.confidence)}>
@@ -949,6 +1084,11 @@ export function OcrImportDialog({
                   </Card>
                 );
               })}
+              {rows.length > 0 && visibleRows(rows).length === 0 ? (
+                <p className="text-xs text-slate-500">
+                  Aucune ligne ne correspond au filtre — choisissez « Toutes les lignes ».
+                </p>
+              ) : null}
             </div>
 
             <div>

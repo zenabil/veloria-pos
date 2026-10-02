@@ -75,7 +75,7 @@ test("fiche client depuis la vente + aperçu facture 80mm/A4", async () => {
   // pas du texte visible « · Fiche » qu'il remplace).
   await page.getByRole("button", { name: /Ouvrir la fiche de/ }).click();
   await expect(page.getByText("Dette actuelle")).toBeVisible();
-  await page.getByRole("button", { name: /Voir les factures/ }).click();
+  await page.getByRole("tab", { name: "Factures" }).click();
   await expect(page.getByText(invoice, { exact: false }).first()).toBeVisible();
   // Requête 2 : aperçu facture depuis la fiche, deux formats.
   // (nom accessible = aria-label « Apercevoir la facture … », pas le texte
@@ -119,12 +119,15 @@ test("historique : aperçu facture 80mm + A4", async () => {
 
   // Requête 3 : double format depuis l'historique.
   await gotoModule(page, "Historique");
-  await page.getByPlaceholder("N° facture / scan code-barres… [F3]").fill(invoice);
   await page
+    .getByLabel("Rechercher dans l'historique (ticket, client, référence ou code-barres)")
+    .fill(invoice);
+  const histRow = page
     .getByRole("row", { name: new RegExp(invoice) })
     .filter({ hasText: "Vente" })
-    .first()
-    .click();
+    .first();
+  await histRow.scrollIntoViewIfNeeded();
+  await histRow.click();
   await page.getByRole("button", { name: /Voir le document/ }).click();
   await expect(page.getByRole("tab", { name: "Facture A4" })).toBeVisible();
   await expect(page.locator("iframe").first()).toBeVisible();

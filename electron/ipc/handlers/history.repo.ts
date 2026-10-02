@@ -6,6 +6,24 @@ import { getDb } from "../../database/sqlite.service";
 import { getSaleDetail } from "./sales.repo";
 import { buildHistoryQuery, type HistoryFilters, type HistoryKind } from "./history-query";
 
+// RADICAL-FIX: garde allowlist pour les identifiants SQL interpolés (tables/colonnes
+// internes uniquement — jamais de saisie utilisateur). Échec fort si dérive future.
+const HISTORY_IDENTIFIERS = new Set([
+  "sales",
+  "stock_intakes",
+  "sale_payments",
+  "supplier_payments",
+  "stock_movements",
+  "audit_log",
+  "created_at",
+  "total_minor",
+  "amount_minor",
+]);
+
+function assertHistoryIdentifier(name: string): void {
+  if (!HISTORY_IDENTIFIERS.has(name)) throw new Error("Identifiant historique invalide.");
+}
+
 export type { HistoryFilters, HistoryKind };
 
 export function listHistory(f: HistoryFilters): { rows: unknown[]; total: number } {
@@ -61,12 +79,18 @@ export function getHistoryStats(
     return { cond: conds.length > 0 ? `WHERE ${conds.join(" AND ")}` : "", params };
   };
   const count = (table: string, col = "created_at"): number => {
+    // RADICAL-FIX: allowlist interne (jamais d'entrée utilisateur) — interpolation sûre.
+    assertHistoryIdentifier(table);
+    assertHistoryIdentifier(col);
     const r = range(col);
     return (
       db.prepare(`SELECT COUNT(*) AS c FROM ${table} ${r.cond}`).get(...r.params) as { c: number }
     ).c;
   };
   const sum = (table: string, col: string, dateCol = "created_at"): number => {
+    assertHistoryIdentifier(table);
+    assertHistoryIdentifier(col);
+    assertHistoryIdentifier(dateCol);
     const r = range(dateCol);
     return (
       db

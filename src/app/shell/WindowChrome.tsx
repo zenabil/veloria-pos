@@ -147,11 +147,13 @@ export function WindowChrome({
     api
       .windowIsMaximized()
       .then((v) => setMaximized(v.maximized))
-      .catch(() => undefined);
+      .catch((err: unknown) => {
+        console.error("[Veloria] fenêtre : état initial illisible", err);
+      });
     try {
-      const off = window.veloria?.window.onMaximizedChanged((v) => setMaximized(v.maximized));
-      detach = off;
-    } catch {
+      detach = api.windowOnMaximizedChanged((v) => setMaximized(v.maximized));
+    } catch (err: unknown) {
+      console.error("[Veloria] fenêtre : abonnement état agrandi impossible", err);
       detach = undefined;
     }
     return () => detach?.();
@@ -162,7 +164,7 @@ export function WindowChrome({
   return (
     <div
       className={cn(
-        "flex flex-col bg-[#0c1220] text-slate-100",
+        "flex flex-col bg-[#051424] text-slate-100",
         // Fenêtré : coins arrondis + ombre douce (marge = espace de l'ombre).
         // Agrandi : plein écran, sans rayon ni marge (convention Windows).
         maximized

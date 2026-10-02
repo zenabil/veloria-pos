@@ -1,0 +1,466 @@
+<!doctype html>
+
+<html dir="rtl" lang="ar">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+      name="viewport"
+    />
+    <title>Veloria Client - تسجيل الدخول</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Space+Grotesk:wght@600;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "inverse-surface": "#2e3132",
+              "secondary-container": "#ffc329",
+              surface: "#f8f9fb",
+              "surface-variant": "#e1e2e4",
+              "on-background": "#191c1e",
+              secondary: "#795900",
+              "outline-variant": "#c4c6cd",
+              "surface-container-highest": "#e1e2e4",
+              "primary-container": "#0e1c2d",
+              "on-primary-container": "#778599",
+              "secondary-fixed-dim": "#f9bd22",
+              "on-primary-fixed": "#0e1c2d",
+              "surface-tint": "#515f72",
+              "surface-dim": "#d9dadc",
+              tertiary: "#000000",
+              "surface-container-low": "#f2f4f6",
+              "primary-fixed-dim": "#b9c8de",
+              "on-secondary": "#ffffff",
+              outline: "#74777d",
+              "inverse-on-surface": "#f0f1f3",
+              "primary-fixed": "#d5e4fa",
+              "surface-container-lowest": "#ffffff",
+              "surface-container": "#edeef0",
+              "on-tertiary-fixed": "#002109",
+              "on-error-container": "#93000a",
+              "on-tertiary-container": "#009842",
+              "on-tertiary-fixed-variant": "#005320",
+              error: "#ba1a1a",
+              "error-container": "#ffdad6",
+              "on-surface-variant": "#44474c",
+              "tertiary-container": "#002109",
+              "on-primary": "#ffffff",
+              "on-error": "#ffffff",
+              "tertiary-fixed": "#7ffc97",
+              primary: "#000000",
+              "tertiary-fixed-dim": "#62df7d",
+              "inverse-primary": "#b9c8de",
+              background: "#f8f9fb",
+              "on-tertiary": "#ffffff",
+              "on-secondary-fixed-variant": "#5c4300",
+              "on-primary-fixed-variant": "#3a485a",
+              "secondary-fixed": "#ffdf9f",
+              "on-secondary-container": "#6f5100",
+              "on-secondary-fixed": "#261a00",
+              "on-surface": "#191c1e",
+              "surface-container-high": "#e7e8ea",
+              "surface-bright": "#f8f9fb",
+            },
+            borderRadius: {
+              DEFAULT: "1rem",
+              lg: "2rem",
+              xl: "3rem",
+              full: "9999px",
+            },
+            spacing: {
+              "space-xl": "2.5rem",
+              "space-sm": "0.5rem",
+              "space-xs": "0.25rem",
+              gutter: "1rem",
+              "gutter-tablet": "1.5rem",
+              margin: "1rem",
+              "margin-tablet": "2rem",
+              "margin-desktop": "3rem",
+              "gutter-desktop": "2rem",
+              "space-md": "1rem",
+              "space-lg": "1.5rem",
+            },
+            fontFamily: {
+              "body-md": ["Plus Jakarta Sans"],
+              "currency-lg": ["JetBrains Mono"],
+              "currency-xl": ["JetBrains Mono"],
+              "display-lg": ["Space Grotesk"],
+              "body-sm": ["Plus Jakarta Sans"],
+              "headline-lg": ["Space Grotesk"],
+              "body-lg": ["Plus Jakarta Sans"],
+              "headline-sm": ["Space Grotesk"],
+              "currency-md": ["JetBrains Mono"],
+              "display-lg-mobile": ["Space Grotesk"],
+              "label-caps": ["JetBrains Mono"],
+            },
+            fontSize: {
+              "body-md": ["14px", { lineHeight: "20px", fontWeight: "400" }],
+              "currency-lg": ["22px", { lineHeight: "28px", fontWeight: "500" }],
+              "currency-xl": [
+                "32px",
+                { lineHeight: "40px", letterSpacing: "-0.02em", fontWeight: "600" },
+              ],
+              "display-lg": [
+                "44px",
+                { lineHeight: "52px", letterSpacing: "-0.03em", fontWeight: "700" },
+              ],
+              "body-sm": ["12px", { lineHeight: "16px", fontWeight: "400" }],
+              "headline-lg": [
+                "28px",
+                { lineHeight: "36px", letterSpacing: "-0.02em", fontWeight: "600" },
+              ],
+              "body-lg": ["16px", { lineHeight: "24px", fontWeight: "400" }],
+              "headline-sm": ["20px", { lineHeight: "28px", fontWeight: "600" }],
+              "currency-md": ["16px", { lineHeight: "24px", fontWeight: "500" }],
+              "display-lg-mobile": [
+                "32px",
+                { lineHeight: "40px", letterSpacing: "-0.02em", fontWeight: "700" },
+              ],
+              "label-caps": [
+                "11px",
+                { lineHeight: "16px", letterSpacing: "0.06em", fontWeight: "600" },
+              ],
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      .material-symbols-outlined {
+        font-variation-settings:
+          "FILL" 0,
+          "wght" 400,
+          "GRAD" 0,
+          "opsz" 24;
+        display: inline-block;
+        vertical-align: middle;
+        line-height: 1;
+      }
+      input[type="number"]::-webkit-inner-spin-button,
+      input[type="number"]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+      .custom-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .custom-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-primary-container text-on-primary min-h-screen flex justify-center items-start antialiased selection:bg-secondary-container selection:text-primary-container"
+  >
+    <!-- Mobile Viewport Container: 360px x 810px calibrated -->
+    <main
+      class="w-full max-w-[360px] min-h-[810px] bg-primary-container relative flex flex-col justify-between overflow-x-hidden p-space-md custom-scrollbar"
+    >
+      <!-- Ambient 2026 Industrial Tech Glow Elements -->
+      <div
+        class="absolute -top-24 right-1/2 translate-x-1/2 w-72 h-72 bg-secondary-container/10 rounded-full blur-[80px] pointer-events-none"
+      ></div>
+      <div
+        class="absolute top-1/3 -left-20 w-48 h-48 bg-primary-fixed/5 rounded-full blur-[60px] pointer-events-none"
+      ></div>
+      <div class="relative z-10 flex flex-col w-full">
+        <!-- Top Bar: Offline Beacon + Language Segmented Control -->
+        <header class="flex justify-between items-center w-full pt-space-xs pb-space-md">
+          <!-- Connectivity Local Cache Tag -->
+          <div
+            class="flex items-center gap-space-xs bg-inverse-surface/60 border border-outline-variant/15 px-3 py-1 rounded-full"
+          >
+            <span class="w-2 h-2 rounded-full bg-tertiary-fixed animate-pulse"></span>
+            <span
+              class="font-label-caps text-label-caps text-primary-fixed uppercase tracking-wider"
+              >سريع ومحمي</span
+            >
+          </div>
+          <!-- AR / FR Language Switcher -->
+          <nav
+            aria-label="اختيار اللغة"
+            class="flex items-center bg-inverse-surface/70 border border-outline-variant/20 p-1 rounded-full"
+          >
+            <button
+              class="bg-secondary-container text-on-secondary-fixed font-headline-sm text-label-caps px-3 py-1 rounded-full shadow-sm font-bold transition-all"
+              type="button"
+            >
+              عربي
+            </button>
+            <button
+              class="text-on-primary-container hover:text-on-primary font-label-caps text-label-caps px-3 py-1 rounded-full transition-colors"
+              type="button"
+            >
+              FR
+            </button>
+          </nav>
+        </header>
+        <!-- Center Hero: Monogram Badge & Typography -->
+        <section class="flex flex-col items-center text-center mt-space-xs mb-space-lg">
+          <div class="relative flex items-center justify-center mb-space-sm">
+            <div
+              class="absolute inset-0 bg-secondary-container/25 rounded-2xl blur-md scale-110"
+            ></div>
+            <div
+              class="w-16 h-16 rounded-2xl bg-gradient-to-br from-secondary-container to-secondary flex items-center justify-center border border-secondary-fixed/40 shadow-xl relative"
+            >
+              <span
+                class="font-display-lg text-primary-container font-black tracking-tighter text-3xl select-none"
+                >V</span
+              >
+            </div>
+          </div>
+          <h1
+            class="font-display-lg-mobile text-display-lg-mobile font-bold text-on-primary tracking-tight"
+          >
+            Veloria
+          </h1>
+          <p class="font-body-md text-body-md text-primary-fixed font-medium mt-1">
+            فضاء الزبون <span class="text-outline-variant/60 font-normal">|</span> Espace Client
+          </p>
+        </section>
+        <!-- Inputs Form Section -->
+        <form class="flex flex-col gap-space-md w-full" onsubmit="event.preventDefault();">
+          <!-- 1. Phone Input with Algerian Flag & Prefix -->
+          <div class="flex flex-col gap-1.5 text-right">
+            <label
+              class="font-label-caps text-label-caps text-on-primary-container flex items-center gap-1.5 mr-1"
+            >
+              <span
+                class="material-symbols-outlined text-[16px] text-secondary-container"
+                data-icon="smartphone"
+                >smartphone</span
+              >
+              <span>رقم هاتفك المسجل عند التاجر</span>
+            </label>
+            <div
+              class="relative flex items-center bg-inverse-surface/70 border border-outline-variant/25 rounded-2xl px-space-md py-3 focus-within:border-secondary-container focus-within:ring-1 focus-within:ring-secondary-container transition-all"
+            >
+              <!-- Flag & Prefix Badge (RTL First) -->
+              <div
+                class="flex items-center gap-1.5 pl-2 ml-2 border-l border-outline-variant/30 select-none"
+              >
+                <span aria-label="Algeria Flag" class="text-lg leading-none" role="img">🇩🇿</span>
+                <span
+                  class="font-currency-md text-currency-md font-semibold text-secondary-fixed"
+                  dir="ltr"
+                  >+213</span
+                >
+              </div>
+              <!-- Input Phone Field -->
+              <input
+                class="w-full bg-transparent border-0 p-0 text-left font-currency-md text-currency-md text-on-primary placeholder:text-outline-variant/50 focus:ring-0 focus:outline-none tracking-widest"
+                dir="ltr"
+                maxlength="10"
+                placeholder="05•• ••• •••"
+                required=""
+                type="tel"
+              />
+            </div>
+          </div>
+          <!-- 2. PIN Entry: 6 OTP Boxes in JetBrains Mono -->
+          <div class="flex flex-col gap-1.5 text-right">
+            <div class="flex justify-between items-center px-1">
+              <label
+                class="font-label-caps text-label-caps text-on-primary-container flex items-center gap-1.5"
+              >
+                <span
+                  class="material-symbols-outlined text-[16px] text-secondary-container"
+                  data-icon="lock"
+                  >lock</span
+                >
+                <span>رمز العميل السري (PIN)</span>
+              </label>
+              <span class="font-label-caps text-label-caps text-outline-variant/70">6 أرقام</span>
+            </div>
+            <div class="grid grid-cols-6 gap-2 w-full pt-1" dir="ltr">
+              <input
+                class="w-full h-13 text-center bg-inverse-surface/80 border border-secondary-container text-on-primary font-currency-lg text-currency-lg rounded-xl focus:border-secondary-container focus:ring-1 focus:ring-secondary-container focus:outline-none caret-secondary-container transition-all shadow-inner"
+                inputmode="numeric"
+                maxlength="1"
+                type="password"
+                value="4"
+              />
+              <input
+                class="w-full h-13 text-center bg-inverse-surface/80 border border-secondary-container text-on-primary font-currency-lg text-currency-lg rounded-xl focus:border-secondary-container focus:ring-1 focus:ring-secondary-container focus:outline-none caret-secondary-container transition-all shadow-inner"
+                inputmode="numeric"
+                maxlength="1"
+                type="password"
+                value="8"
+              />
+              <input
+                class="w-full h-13 text-center bg-inverse-surface/80 border border-secondary-container text-on-primary font-currency-lg text-currency-lg rounded-xl focus:border-secondary-container focus:ring-1 focus:ring-secondary-container focus:outline-none caret-secondary-container transition-all shadow-inner"
+                inputmode="numeric"
+                maxlength="1"
+                type="password"
+                value="2"
+              />
+              <input
+                class="w-full h-13 text-center bg-inverse-surface/40 border border-outline-variant/30 text-on-primary font-currency-lg text-currency-lg rounded-xl focus:border-secondary-container focus:ring-1 focus:ring-secondary-container focus:outline-none placeholder:text-outline-variant/40 transition-all"
+                inputmode="numeric"
+                maxlength="1"
+                placeholder="•"
+                type="password"
+              />
+              <input
+                class="w-full h-13 text-center bg-inverse-surface/40 border border-outline-variant/30 text-on-primary font-currency-lg text-currency-lg rounded-xl focus:border-secondary-container focus:ring-1 focus:ring-secondary-container focus:outline-none placeholder:text-outline-variant/40 transition-all"
+                inputmode="numeric"
+                maxlength="1"
+                placeholder="•"
+                type="password"
+              />
+              <input
+                class="w-full h-13 text-center bg-inverse-surface/40 border border-outline-variant/30 text-on-primary font-currency-lg text-currency-lg rounded-xl focus:border-secondary-container focus:ring-1 focus:ring-secondary-container focus:outline-none placeholder:text-outline-variant/40 transition-all"
+                inputmode="numeric"
+                maxlength="1"
+                placeholder="•"
+                type="password"
+              />
+            </div>
+          </div>
+          <!-- Primary CTA: Gold Button 56px height, rounded 16px -->
+          <button
+            class="w-full h-[56px] rounded-[16px] bg-secondary-container text-on-secondary-fixed hover:bg-secondary-fixed-dim active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-secondary-container/20 font-bold mt-1"
+            type="submit"
+          >
+            <span class="font-headline-sm text-headline-sm">دخول إلى حسابي</span>
+            <span class="material-symbols-outlined text-2xl font-bold" data-icon="arrow_back"
+              >arrow_back</span
+            >
+          </button>
+        </form>
+        <!-- Secondary Actions Row: QR Code & WhatsApp -->
+        <div class="grid grid-cols-2 gap-2 mt-space-md">
+          <!-- Scan QR from Store Button -->
+          <button
+            class="h-12 bg-inverse-surface/60 hover:bg-inverse-surface border border-outline-variant/20 rounded-2xl flex items-center justify-center gap-2 px-2 text-on-primary active:scale-95 transition-all"
+            type="button"
+          >
+            <span
+              class="material-symbols-outlined text-secondary-container text-xl"
+              data-icon="qr_code_scanner"
+              >qr_code_scanner</span
+            >
+            <span class="font-body-sm text-body-sm font-medium">مسح QR من المحل</span>
+          </button>
+          <!-- WhatsApp Request Button -->
+          <button
+            class="h-12 bg-inverse-surface/60 hover:bg-inverse-surface border border-outline-variant/20 rounded-2xl flex items-center justify-center gap-2 px-2 text-on-primary active:scale-95 transition-all"
+            type="button"
+          >
+            <span class="material-symbols-outlined text-tertiary-fixed text-xl" data-icon="chat"
+              >chat</span
+            >
+            <span class="font-body-sm text-body-sm font-medium">طلب رمز عبر واتساب</span>
+          </button>
+        </div>
+        <!-- Helper Card: Glassmorphic Dark Card with 3 Onboarding Steps -->
+        <div
+          class="mt-space-md p-space-md rounded-2xl bg-inverse-surface/40 border border-outline-variant/15 backdrop-blur-md"
+        >
+          <h3
+            class="font-label-caps text-label-caps text-secondary-fixed mb-space-sm flex items-center gap-1.5"
+          >
+            <span class="material-symbols-outlined text-[16px]" data-icon="info">info</span>
+            <span>كيفية الدخول لأول مرة؟</span>
+          </h3>
+          <div class="flex flex-col gap-2.5">
+            <!-- Step 1 -->
+            <div class="flex items-center gap-3">
+              <span
+                class="w-6 h-6 rounded-full bg-inverse-surface border border-outline-variant/30 flex items-center justify-center font-currency-md text-body-sm text-secondary-container font-bold shrink-0"
+                >١</span
+              >
+              <span class="font-body-sm text-body-sm text-primary-fixed"
+                >خذ رمزك السري من التاجر عند الشراء</span
+              >
+            </div>
+            <!-- Step 2 -->
+            <div class="flex items-center gap-3">
+              <span
+                class="w-6 h-6 rounded-full bg-inverse-surface border border-outline-variant/30 flex items-center justify-center font-currency-md text-body-sm text-secondary-container font-bold shrink-0"
+                >٢</span
+              >
+              <span class="font-body-sm text-body-sm text-primary-fixed"
+                >أدخل هاتفك متبوعاً بالرمز في الخانات</span
+              >
+            </div>
+            <!-- Step 3 -->
+            <div class="flex items-center gap-3">
+              <span
+                class="w-6 h-6 rounded-full bg-inverse-surface border border-outline-variant/30 flex items-center justify-center font-currency-md text-body-sm text-secondary-container font-bold shrink-0"
+                >٣</span
+              >
+              <span class="font-body-sm text-body-sm text-primary-fixed"
+                >تابع ديونك، دفعاتك وفواتيرك فوراً وبكل دقة</span
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Alert Banner Example: Soft Red Banner for Failed Attempt -->
+      <footer class="mt-space-md pt-2 pb-1 relative z-10">
+        <div
+          class="w-full bg-error-container/20 border border-error/40 rounded-2xl p-3 flex items-center justify-between gap-2.5 backdrop-blur-sm shadow-sm"
+        >
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-error text-xl shrink-0" data-icon="error"
+              >error</span
+            >
+            <p class="font-body-sm text-body-sm text-on-primary font-medium leading-tight">
+              تأكد من صحة رقم الهاتف أو الرمز
+            </p>
+          </div>
+          <button
+            aria-label="إغلاق التنبيه"
+            class="text-on-primary-container hover:text-on-primary p-1 shrink-0 transition-colors"
+            type="button"
+          >
+            <span class="material-symbols-outlined text-[18px]" data-icon="close">close</span>
+          </button>
+        </div>
+        <div class="text-center mt-3 mb-1">
+          <p class="font-label-caps text-label-caps text-outline-variant/60">
+            منظومة Veloria التجارية المعتمدة في الجزائر 🇩🇿
+          </p>
+        </div>
+      </footer>
+    </main>
+    <!-- Interactive Micro-Interactions for OTP boxes -->
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const inputs = document.querySelectorAll('input[type="password"]');
+        inputs.forEach((input, idx) => {
+          input.addEventListener("keyup", (e) => {
+            if (e.key >= "0" && e.key <= "9") {
+              if (idx < inputs.length - 1) {
+                inputs[idx + 1].focus();
+              }
+            } else if (e.key === "Backspace") {
+              if (idx > 0 && input.value === "") {
+                inputs[idx - 1].focus();
+              }
+            }
+          });
+        });
+      });
+    </script>
+  </body>
+</html>

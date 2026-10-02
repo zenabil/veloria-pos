@@ -82,9 +82,3 @@ export function adjustmentReasonFr(code: string): string {
   if (code === "exit") return "Sortie";
   return "—";
 }
-
-/**
- * P2 : poste unique (mono-caissier, pas de multi-utilisateur) — source unique
- * remplaçant HISTORY_USER/DEBT_USER dupliqués (exports CSV + colonne S historic).
- */
-export const CASHIER_LABEL = "Caisse";

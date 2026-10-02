@@ -5,7 +5,12 @@ import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
 import { createSaleAtomic } from "./sales.repo";
 import { formatBreadOrderNumber } from "./numbers";
-import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./idempotency";
+import {
+  auditOperationId,
+  claimIdempotency,
+  peekIdempotency,
+  storeIdempotencyResult,
+} from "./idempotency";
 
 function allocateBreadNumber(now: string): string {
   const db = getDb();
@@ -471,12 +476,15 @@ export function recordBreadPayment(
   amountMinor: number,
   method: string | null,
   now: string,
-  operationId?: string,
+  operationId: string,
 ): void {
   const db = getDb();
-  if (operationId && peekIdempotency<{ paid: boolean }>(operationId, "bread.pay")) return;
+  if (!operationId || operationId.trim().length === 0) {
+    throw new Error("Opération non identifiée : veuillez réessayer l'action.");
+  }
+  if (peekIdempotency<{ paid: boolean }>(operationId, "bread.pay")) return;
   const tx = db.transaction(() => {
-    if (operationId) claimIdempotency(operationId, "bread.pay", now);
+    claimIdempotency(operationId, "bread.pay", now);
     const o = db.prepare(`SELECT * FROM bread_orders WHERE id = ?`).get(id) as
       | Record<string, unknown>
       | undefined;
@@ -491,17 +499,17 @@ export function recordBreadPayment(
     db.prepare(
       `UPDATE bread_orders SET amount_paid_minor = ?, remaining_amount_minor = ?, payment_status = ?, payment_method = COALESCE(?, payment_method), is_paid = ?, updated_at = ? WHERE id = ?`,
     ).run(paid, left, left === 0 ? "paid" : "partial", method, left === 0 ? 1 : 0, now, id);
-    // P8: encaissement tracé.
+    // P8: encaissement tracé — operationId caller (jamais de random fallback).
     db.prepare(
       `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at) VALUES (?, 'bread.paid', 'bread', ?, ?, ?, ?)`,
     ).run(
       randomUUID(),
       String(id),
-      operationId ?? randomUUID(),
+      auditOperationId(operationId, "bread.paid", id, { amount: amountMinor }),
       JSON.stringify({ amount: amountMinor }),
       now,
     );
-    if (operationId) storeIdempotencyResult(operationId, { paid: true });
+    storeIdempotencyResult(operationId, { paid: true });
   });
   try {
     (tx as unknown as () => void)();
@@ -521,12 +529,15 @@ export function updateBreadQuantity(
   id: number,
   quantity: number,
   now: string,
-  operationId?: string,
+  operationId: string,
 ): void {
   const db = getDb();
-  if (operationId && peekIdempotency<{ updated: boolean }>(operationId, "bread.updateQty")) return;
+  if (!operationId || operationId.trim().length === 0) {
+    throw new Error("Opération non identifiée : veuillez réessayer l'action.");
+  }
+  if (peekIdempotency<{ updated: boolean }>(operationId, "bread.updateQty")) return;
   const tx = db.transaction(() => {
-    if (operationId) claimIdempotency(operationId, "bread.updateQty", now);
+    claimIdempotency(operationId, "bread.updateQty", now);
     const o = db.prepare(`SELECT * FROM bread_orders WHERE id = ?`).get(id) as
       | Record<string, unknown>
       | undefined;
@@ -553,17 +564,17 @@ export function updateBreadQuantity(
       now,
       id,
     );
-    // P8: quantité tracée.
+    // P8: quantité tracée — operationId caller.
     db.prepare(
       `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at) VALUES (?, 'bread.quantity', 'bread', ?, ?, ?, ?)`,
     ).run(
       randomUUID(),
       String(id),
-      operationId ?? randomUUID(),
+      auditOperationId(operationId, "bread.quantity", id, { quantity, total }),
       JSON.stringify({ quantity, total }),
       now,
     );
-    if (operationId) storeIdempotencyResult(operationId, { updated: true });
+    storeIdempotencyResult(operationId, { updated: true });
   });
   try {
     (tx as unknown as () => void)();

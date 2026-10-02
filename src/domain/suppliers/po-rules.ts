@@ -23,7 +23,8 @@ const PO_TRANSITIONS: Record<PurchaseOrderStatus, PurchaseOrderStatus[]> = {
 };
 
 export function assertPoTransition(from: PurchaseOrderStatus, to: PurchaseOrderStatus): void {
-  const allowed = PO_TRANSITIONS[from] ?? [];
+  // RADICAL-FIX lint: accès direct (Record exhaustif — pas de `?? []` mort).
+  const allowed: readonly PurchaseOrderStatus[] = PO_TRANSITIONS[from];
   if (!allowed.includes(to)) {
     throw new DomainError("SUPPLIER_ERROR", `Transition commande interdite : ${from} → ${to}.`);
   }

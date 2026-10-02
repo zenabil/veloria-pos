@@ -24,12 +24,14 @@ import {
   Card,
   EmptyState,
   Kpi,
+  PageHeader,
   Pager,
   RowAction,
   Select,
   TextInput,
   cn,
 } from "@shared/ui/primitives.tsx";
+import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
 import { useLoadSeq } from "@shared/ui/use-load-seq.ts";
 import {
@@ -96,7 +98,7 @@ export function SuppliersScreen({ notify }: { notify: Notify }): React.JSX.Eleme
     tab: "purchases" | "payments";
   } | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
-  const queryTimer = useRef<number | null>(null);
+  const queryTimer = useDebouncedTimer();
   const searchRef = useRef<HTMLInputElement>(null);
   // Confirmation non bloquante (modale applicative).
   const confirmAsync = useConfirm();
@@ -112,12 +114,6 @@ export function SuppliersScreen({ notify }: { notify: Notify }): React.JSX.Eleme
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (queryTimer.current != null) window.clearTimeout(queryTimer.current);
-    };
   }, []);
 
   async function loadStats(): Promise<void> {
@@ -180,10 +176,9 @@ export function SuppliersScreen({ notify }: { notify: Notify }): React.JSX.Eleme
   function onQueryChange(q: string): void {
     setQuery(q);
     setPage(1);
-    if (queryTimer.current != null) window.clearTimeout(queryTimer.current);
-    queryTimer.current = window.setTimeout(() => {
+    queryTimer.schedule(250, () => {
       void load(q, statusFilter, paymentFilter, sort, 1);
-    }, 250);
+    });
   }
 
   function changeStatus(f: SupplierStatusFilter): void {
@@ -322,48 +317,69 @@ export function SuppliersScreen({ notify }: { notify: Notify }): React.JSX.Eleme
 
   return (
     <div className="flex h-full flex-col gap-4">
-      {/* En-tête de page */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-xl font-extrabold tracking-tight">Fournisseurs</h2>
-          <p className="text-xs text-slate-500">
-            {total} fournisseur(s) · {stats.active} actif(s) · {formatDzd(stats.debt)} de dettes
-          </p>
-        </div>
-        <div className="relative w-full max-w-xs">
-          <Search
-            size={16}
-            aria-hidden="true"
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-          />
-          <TextInput
-            ref={searchRef}
-            value={query}
-            onChange={(e) => onQueryChange(e.target.value)}
-            placeholder="Rechercher… [F3]"
-            aria-label="Rechercher un fournisseur"
-            className="pl-9"
-          />
-        </div>
-        <Button
-          variant="secondary"
-          onClick={() => setToolbarOpen((o) => !o)}
-          aria-expanded={toolbarOpen}
-          title="Afficher / masquer les filtres"
-        >
-          <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
-        </Button>
-        <Button onClick={openCreate} title="Créer un fournisseur">
-          <Plus size={16} aria-hidden="true" /> Fournisseur
-        </Button>
-      </div>
+      {/* En-tête Stitch : Fournisseurs & Approvisionnements · REGISTRE ACHATS DZD */}
+      <PageHeader
+        title="Fournisseurs & Approvisionnements"
+        module="REGISTRE ACHATS DZD"
+        period={`${total} fournisseur(s) référencé(s) · ${formatDzd(stats.debt)} de dettes à régler`}
+        actions={
+          <>
+            <div className="relative w-full max-w-xs">
+              <Search
+                size={16}
+                aria-hidden="true"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+              />
+              <TextInput
+                ref={searchRef}
+                value={query}
+                onChange={(e) => onQueryChange(e.target.value)}
+                placeholder="Rechercher… [F3]"
+                aria-label="Rechercher un fournisseur"
+                className="pl-9"
+              />
+            </div>
+            <Button
+              variant="secondary"
+              onClick={() => setToolbarOpen((o) => !o)}
+              aria-expanded={toolbarOpen}
+              title="Afficher / masquer les filtres"
+            >
+              <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
+            </Button>
+            <Button onClick={openCreate} title="Créer un fournisseur">
+              <Plus size={16} aria-hidden="true" /> Nouveau Fournisseur
+            </Button>
+          </>
+        }
+      />
 
-      {/* Cartes statistiques */}
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <Kpi label="Fournisseurs" value={String(stats.total)} sub="Fiches totales" />
-        <Kpi label="Actifs" value={String(stats.active)} sub="Interrupteur actif" />
-        <Kpi label="Achats totaux" value={formatDzd(stats.purchases)} sub="Entrées validées" />
-        <Kpi label="Dettes" value={formatDzd(stats.debt)} sub="Envers fournisseurs" />
+      {/* Cartes statistiques Stitch */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Kpi
+          label="Fiches Totales"
+          value={String(stats.total)}
+          sub="Fournisseurs référencés"
+          accent="#fbbf24"
+        />
+        <Kpi
+          label="Avec Dette Fournisseur"
+          value={String(stats.active)}
+          sub="Comptes avec encours"
+          accent="#ffb4ab"
+        />
+        <Kpi
+          label="Total Dettes Fournisseurs"
+          value={formatDzd(stats.debt)}
+          sub="À décaisser"
+          accent="#cde8ff"
+        />
+        <Kpi
+          label="Achats Cumulés du Mois"
+          value={formatDzd(stats.purchases)}
+          sub="Entrées validées"
+          accent="#4edea3"
+        />
       </div>
 
       {/* Barre d'outils */}
@@ -474,11 +490,11 @@ export function SuppliersScreen({ notify }: { notify: Notify }): React.JSX.Eleme
           ) : rows.length === 0 ? (
             <EmptyState
               title="Aucun fournisseur"
-              hint="Modifiez la recherche ou créez votre premier fournisseur avec le bouton « Fournisseur »."
+              hint="Modifiez la recherche ou créez votre premier fournisseur avec le bouton « Nouveau Fournisseur »."
             />
           ) : (
             <table className="w-full min-w-[1180px] text-sm">
-              <thead className="sticky top-0 bg-[#111a2e] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
+              <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
                 <tr>
                   <th className="w-10 px-3 py-2.5">
                     <input

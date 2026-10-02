@@ -15,8 +15,8 @@ export async function mcall<T>(
 export const mapi = {
   appInfo: () => mcall((a) => a.appInfo()),
   keyStatus: () => mcall((a) => a.keyStatus()),
-  keyImport: () => mcall((a) => a.keyImport()),
-  licensesList: () => mcall((a) => a.licensesList()),
+  keyImport: (p?: unknown) => mcall((a) => a.keyImport(p)),
+  licensesList: (p?: unknown) => mcall((a) => a.licensesList(p)),
   licenseDetail: (p: unknown) => mcall((a) => a.licenseDetail(p)),
   licenseCreate: (p: unknown) => mcall((a) => a.licenseCreate(p)),
   licenseExport: (p: unknown) => mcall((a) => a.licenseExport(p)),
@@ -26,4 +26,6 @@ export const mapi = {
   licenseCapabilities: (p: unknown) => mcall((a) => a.licenseCapabilities(p)),
   licenseStanding: (p: unknown) => mcall((a) => a.licenseStanding(p)),
   backup: () => mcall((a) => a.backup()),
+  backups: () => mcall((a) => a.backups()),
+  restore: (p: unknown) => mcall((a) => a.restore(p)),
 };

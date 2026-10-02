@@ -20,7 +20,7 @@ export async function callChecked<O>(
 }
 
 /** Ligne client enrichie (recherche + agrégats, 1 requête, migration 0020+). */
-export const enrichedCustomerRowSchema = z
+const enrichedCustomerRowSchema = z
   .object({
     id: z.number().int().positive(),
     first_name: z.string(),
@@ -49,11 +49,9 @@ export const enrichedCustomerSearchSchema = z.object({
 });
 
 export type EnrichedCustomerRow = z.infer<typeof enrichedCustomerRowSchema>;
-export type ProductHit = z.infer<typeof productHitSchema>;
-export type ProductsMatchBatchResult = z.infer<typeof productsMatchBatchSchema>;
 
 /** Produit (sous-ensemble consommé par l'UI, colonnes libres par ailleurs). */
-export const productHitSchema = z
+const productHitSchema = z
   .object({
     id: z.number().int().positive(),
     name: z.string(),
@@ -87,7 +85,7 @@ export const productsMatchBatchSchema = z.object({
 export const paymentAckSchema = z.object({ paymentId: z.number().int().positive() }).passthrough();
 
 /** Clôture journalière Z (lignes `daily_closings`, montants en centimes). */
-export const closingRowSchema = z
+const closingRowSchema = z
   .object({
     business_date: z.string(),
     // P2 : int (le solde de clôture peut être NÉGATIF — journée à perte :
@@ -102,3 +100,50 @@ export const closingRowSchema = z
   .passthrough();
 
 export const closingsListSchema = z.object({ rows: z.array(closingRowSchema) });
+
+/** Activation APK (le QR s'affiche une fois pour la carte d'activation). */
+export const accessActivateResultSchema = z
+  .object({ activated: z.boolean(), activationCode: z.string().min(16) })
+  .passthrough();
+
+/** QR d'activation scannable (ADR-054) : SVG N&B, "" = repli texte. */
+export const accessQrSvgResultSchema = z
+  .object({ svg: z.string().max(200_000), payload: z.string().min(1).max(300) })
+  .passthrough();
+
+/** État d'accès APK (jamais de condensats vers le renderer). */
+export const accessStatusResultSchema = z
+  .object({
+    status: z
+      .object({
+        active: z.boolean(),
+        revokedAt: z.string().nullable(),
+        failedAttempts: z.number().int().min(0),
+        lockedUntil: z.string().nullable(),
+      })
+      .passthrough(),
+  })
+  .passthrough();
+
+/** Mise en file d'un cliché vers le miroir. */
+export const syncEnqueueResultSchema = z
+  .object({ queued: z.boolean(), existed: z.boolean() })
+  .passthrough();
+
+/** Poussée miroir (compteurs, rejouable par operationId). */
+export const syncPushResultSchema = z
+  .object({ pushed: z.number().int().min(0), access: z.number().int().min(0) })
+  .passthrough();
+
+/** Configuration de synchro (clé service toujours masquée). */
+export const syncConfigViewSchema = z
+  .object({
+    enabled: z.boolean(),
+    supabaseUrl: z.string(),
+    hasKey: z.boolean(),
+    intervalMinutes: z.number().int().min(5),
+    lastPushAt: z.string().nullable(),
+    lastError: z.string().nullable(),
+    pendingCount: z.number().int().min(0),
+  })
+  .passthrough();

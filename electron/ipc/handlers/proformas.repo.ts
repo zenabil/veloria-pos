@@ -5,7 +5,15 @@ import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
 import { createSaleAtomic } from "./sales.repo";
 import { formatProformaNumber } from "./numbers";
-import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./idempotency";
+import {
+  auditOperationId,
+  claimIdempotency,
+  claimOptional,
+  peekIdempotency,
+  peekOptional,
+  storeIdempotencyResult,
+  storeOptional,
+} from "./idempotency";
 
 export interface ProformaLineInput {
   productId: number | null;
@@ -137,33 +145,64 @@ export function createProformaAtomic(args: {
   }
 }
 
-export function setProformaStatus(id: number, to: string, now: string): void {
+export function setProformaStatus(
+  id: number,
+  to: string,
+  now: string,
+  operationId?: string | null,
+): void {
   const db = getDb();
-  const row = db.prepare(`SELECT status FROM proforma_invoices WHERE id = ?`).get(id) as
-    | { status: string }
-    | undefined;
-  if (!row) throw new Error("Proforma introuvable.");
+  const fast = peekOptional<{ updated: boolean }>(operationId, "proformas.status");
+  if (fast) return;
   const allowed: Record<string, string[]> = {
     draft: ["sent", "cancelled"],
     sent: ["converted", "cancelled"],
     converted: [],
     cancelled: [],
   };
-  if (!(allowed[row.status] ?? []).includes(to)) {
-    throw new Error(`Transition interdite : ${row.status} → ${to}.`);
-  }
-  // P8: transition tracée (history).
+  // M4 (TOCTOU) : la lecture du statut ET la mise à jour sont dans LA MÊME
+  // transaction, avec garde `WHERE status = ?` — deux transitions concurrentes
+  // (convert vs cancel) ne peuvent plus toutes deux passer la validation puis
+  // écrire (proforma annulée dont la vente existe déjà).
   const txs = db.transaction(() => {
-    db.prepare(`UPDATE proforma_invoices SET status = ?, updated_at = ? WHERE id = ?`).run(
-      to,
-      now,
-      id,
-    );
+    const row = db.prepare(`SELECT status FROM proforma_invoices WHERE id = ?`).get(id) as
+      | { status: string }
+      | undefined;
+    if (!row) throw new Error("Proforma introuvable.");
+    if (!(allowed[row.status] ?? []).includes(to)) {
+      throw new Error(`Transition interdite : ${row.status} → ${to}.`);
+    }
+    claimOptional(operationId, "proformas.status", now);
+    const upd = db
+      .prepare(
+        `UPDATE proforma_invoices SET status = ?, updated_at = ? WHERE id = ? AND status = ?`,
+      )
+      .run(to, now, id, row.status);
+    if (upd.changes !== 1) throw new Error("Transition interdite : statut modifié en parallèle.");
     db.prepare(
       `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at) VALUES (?, 'proforma.status', 'proforma', ?, ?, ?, ?)`,
-    ).run(randomUUID(), String(id), randomUUID(), JSON.stringify({ from: row.status, to }), now);
+    ).run(
+      randomUUID(),
+      String(id),
+      auditOperationId(operationId, "proforma.status", id, { from: row.status, to }),
+      JSON.stringify({ from: row.status, to }),
+      now,
+    );
+    storeOptional(operationId, { updated: true });
   });
-  (txs as unknown as () => void)();
+  try {
+    (txs as unknown as () => void)();
+  } catch (err) {
+    if (
+      operationId &&
+      err instanceof Error &&
+      /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
+    ) {
+      const retry = peekOptional<{ updated: boolean }>(operationId, "proformas.status");
+      if (retry) return;
+    }
+    throw err;
+  }
 }
 
 export function listProformas(
@@ -274,9 +313,13 @@ export function updateProformaAtomic(args: {
   notes: string | null;
   terms: string | null;
   now: string;
+  operationId?: string | null;
 }): void {
   const db = getDb();
+  const fast = peekOptional<{ updated: boolean }>(args.operationId, "proformas.update");
+  if (fast) return;
   const tx = db.transaction(() => {
+    claimOptional(args.operationId, "proformas.update", args.now);
     const row = db.prepare(`SELECT status FROM proforma_invoices WHERE id = ?`).get(args.id) as
       | { status: string }
       | undefined;
@@ -329,12 +372,31 @@ export function updateProformaAtomic(args: {
         `INSERT INTO proforma_items (proforma_id, product_id, product_name_snapshot, unit_price_minor, quantity, line_total_minor) VALUES (?, ?, ?, ?, ?, ?)`,
       ).run(args.id, p.pid, p.name, p.price, p.qty, p.total);
     }
-    // P8: modification tracée.
+    // P8: modification tracée — audit déterministe.
     db.prepare(
       `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at) VALUES (?, 'proforma.updated', 'proforma', ?, ?, ?, ?)`,
-    ).run(randomUUID(), String(args.id), randomUUID(), JSON.stringify({ total }), args.now);
+    ).run(
+      randomUUID(),
+      String(args.id),
+      auditOperationId(args.operationId, "proforma.updated", args.id, { total }),
+      JSON.stringify({ total }),
+      args.now,
+    );
+    storeOptional(args.operationId, { updated: true });
   });
-  (tx as unknown as () => void)();
+  try {
+    (tx as unknown as () => void)();
+  } catch (err) {
+    if (
+      args.operationId &&
+      err instanceof Error &&
+      /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
+    ) {
+      const retry = peekOptional<{ updated: boolean }>(args.operationId, "proformas.update");
+      if (retry) return;
+    }
+    throw err;
+  }
 }
 
 export function deleteProformaAtomic(id: number, now: string, operationId: string): void {
@@ -468,9 +530,13 @@ export function convertProformaToSaleAtomic(args: {
       now: args.now,
       allowNegativeStock: settings.allowNegativeStock,
     });
-    db.prepare(
-      `UPDATE proforma_invoices SET status = 'converted', converted_sale_id = ?, updated_at = ? WHERE id = ?`,
-    ).run(res.saleId, args.now, args.proformaId);
+    // Garde WHERE : la conversion n'écrit que l'état non-final vu en tx.
+    const updConv = db
+      .prepare(
+        `UPDATE proforma_invoices SET status = 'converted', converted_sale_id = ?, updated_at = ? WHERE id = ? AND status NOT IN ('converted','cancelled')`,
+      )
+      .run(res.saleId, args.now, args.proformaId);
+    if (updConv.changes !== 1) throw new Error("Proforma déjà convertie ou annulée.");
     // P8: conversion tracée (reliée à la vente créée, même operationId).
     db.prepare(
       `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at) VALUES (?, 'proforma.converted', 'proforma', ?, ?, ?, ?)`,

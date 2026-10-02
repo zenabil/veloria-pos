@@ -190,11 +190,19 @@ export function restoreToLayers(items: { layerId: number; quantity: number }[]):
   for (const it of items) {
     if (!(it.quantity > 0)) throw new Error("Quantité à restaurer invalide.");
     const row = db
-      .prepare(`SELECT remaining_quantity AS q FROM inventory_layers WHERE id = ?`)
-      .get(it.layerId) as { q: number } | undefined;
+      .prepare(
+        `SELECT remaining_quantity AS q, original_quantity AS orig FROM inventory_layers WHERE id = ?`,
+      )
+      .get(it.layerId) as { q: number; orig: number } | undefined;
     if (!row) throw new Error("Couche FIFO introuvable.");
+    // RADICAL-FIX P2: garde proactive anti-dépassement (avant le trigger 0023)
+    // — message domaine FR au lieu d'ABORT SQL brut, pas de corruption silencieuse.
+    const next = Math.round((Number(row.q) + it.quantity) * TH) / TH;
+    if (next - Number(row.orig) > 1e-9) {
+      throw new Error("Restauration FIFO impossible : quantité supérieure à l'origine.");
+    }
     db.prepare(`UPDATE inventory_layers SET remaining_quantity = ? WHERE id = ?`).run(
-      Math.round((Number(row.q) + it.quantity) * TH) / TH,
+      next,
       it.layerId,
     );
   }

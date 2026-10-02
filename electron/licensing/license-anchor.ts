@@ -47,9 +47,10 @@ export function loadAnchorFromDb(
   },
 ): LicenseAnchor | null {
   try {
+    // RADICAL-FIX: prepared `?` (pas d'interpolation même pour une constante).
     const row = getDb()
-      .prepare(`SELECT value_json FROM app_settings WHERE key = '${ANCHOR_SETTINGS_KEY}'`)
-      .get() as { value_json: string } | undefined;
+      .prepare(`SELECT value_json FROM app_settings WHERE key = ?`)
+      .get(ANCHOR_SETTINGS_KEY) as { value_json: string } | undefined;
     if (!row) return null;
     return parseAnchor(JSON.parse(row.value_json));
   } catch {

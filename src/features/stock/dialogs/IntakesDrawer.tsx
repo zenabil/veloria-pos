@@ -54,7 +54,7 @@ export function StockIntakesDrawer({ onClose }: { onClose: () => void }): React.
         <EmptyState title="Aucune réception" hint="Validez votre première réception fournisseur." />
       ) : (
         <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-[#111a2e] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
+          <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
             <tr>
               <th className="px-3 py-2.5">Facture</th>
               <th className="px-3 py-2.5">Fournisseur</th>

@@ -34,6 +34,14 @@ import { readLogoDataUrlFromFile } from "../services/logo";
 import * as Products from "./handlers/products.repo";
 import * as Sales from "./handlers/sales.repo";
 import * as Customers from "./handlers/customers.repo";
+import * as ClientAccess from "./handlers/client-access.repo";
+import {
+  enqueueCustomerRefresh,
+  enqueueSaleRefresh,
+  getSyncView,
+  pushNowAtomic,
+  saveSyncConfigAtomic,
+} from "../sync/sync.service";
 import * as Inventory from "./handlers/inventory.repo";
 import * as Suppliers from "./handlers/suppliers.repo";
 import * as Proformas from "./handlers/proformas.repo";
@@ -164,6 +172,17 @@ function toUserMessage(err: unknown): { code: string; message: string } {
   ) {
     return { code: "UNKNOWN_ERROR", message: "Une erreur inattendue est survenue. Réessayez." };
   }
+  // M2 : garde de langue — tout message technique anglais (erreurs Node/
+  // Electron : « Attempted to register a second handler », « fetch failed »…)
+  // ne doit JAMAIS atteindre l'opérateur (AGENTS §6). Les vrais messages
+  // métier sont rédigés en français (accents/vocabulaire) et passent ci-dessous.
+  if (
+    /\b(attempted to register|handler|ECONNREFUSED|ENOEXEC|fetch failed|unexpected|expected|exception|internal error|unknown error|failed to|cannot |unable to|undefined is not|is not a function|not authorized|forbidden|unauthorized)\b/i.test(
+      msg,
+    )
+  ) {
+    return { code: "UNKNOWN_ERROR", message: "Une erreur inattendue est survenue. Réessayez." };
+  }
   // Tous les messages métier du code sont déjà rédigés en français :
   // on les transmet tels quels (pas d'exception brute exposée).
   return { code: "VALIDATION_ERROR", message: msg };
@@ -189,6 +208,15 @@ const LICENSE_PROTECTED_CHANNELS: ReadonlySet<string> = new Set([
   IPC_CHANNELS["customers.restore"],
   IPC_CHANNELS["customers.recordPayment"],
   IPC_CHANNELS["customers.import"],
+  // Accès clients APK : écritures gardées (activation, révocation, file de
+  // synchro, annonces). Lectures (statut, file en attente) restent ouvertes.
+  IPC_CHANNELS["customers.accessActivate"],
+  IPC_CHANNELS["customers.accessRevoke"],
+  IPC_CHANNELS["sync.enqueue"],
+  IPC_CHANNELS["sync.markSent"],
+  IPC_CHANNELS["announcements.save"],
+  IPC_CHANNELS["sync.pushNow"],
+  IPC_CHANNELS["sync.saveConfig"],
   IPC_CHANNELS["categories.create"],
   IPC_CHANNELS["stock.adjust"],
   IPC_CHANNELS["stock.intake"],
@@ -259,15 +287,27 @@ const PAGE_GATED_CHANNELS: Readonly<Record<string, readonly string[]>> = {
   [IPC_CHANNELS["products.suppliers"]]: ["products"],
   [IPC_CHANNELS["products.setSuppliers"]]: ["products"],
   [IPC_CHANNELS["customers.search"]]: ["customers"],
-  [IPC_CHANNELS["customers.get"]]: ["customers"],
   [IPC_CHANNELS["customers.create"]]: ["customers"],
   [IPC_CHANNELS["customers.update"]]: ["customers"],
   [IPC_CHANNELS["customers.archive"]]: ["customers"],
   [IPC_CHANNELS["customers.restore"]]: ["customers"],
   [IPC_CHANNELS["customers.recordPayment"]]: ["customers", "debts"],
+  [IPC_CHANNELS["customers.paymentReceipt"]]: ["customers", "debts"],
   [IPC_CHANNELS["customers.statement"]]: ["customers", "debts"],
   [IPC_CHANNELS["customers.stats"]]: ["customers"],
   [IPC_CHANNELS["customers.import"]]: ["customers"],
+  // Accès clients APK + synchro + annonces : page clients (registre fédéré).
+  [IPC_CHANNELS["customers.accessActivate"]]: ["customers"],
+  [IPC_CHANNELS["customers.accessRevoke"]]: ["customers"],
+  [IPC_CHANNELS["customers.accessStatus"]]: ["customers"],
+  [IPC_CHANNELS["customers.accessQrSvg"]]: ["customers"],
+  [IPC_CHANNELS["sync.enqueue"]]: ["customers"],
+  [IPC_CHANNELS["sync.markSent"]]: ["customers"],
+  [IPC_CHANNELS["sync.pending"]]: ["customers"],
+  [IPC_CHANNELS["sync.pushNow"]]: ["customers"],
+  [IPC_CHANNELS["sync.getConfig"]]: ["customers"],
+  [IPC_CHANNELS["sync.saveConfig"]]: ["customers"],
+  [IPC_CHANNELS["announcements.save"]]: ["customers"],
   [IPC_CHANNELS["stock.overview"]]: ["stock"],
   [IPC_CHANNELS["stock.products"]]: ["stock"],
   [IPC_CHANNELS["stock.movements"]]: ["stock"],
@@ -350,33 +390,23 @@ const PAGE_GATED_CHANNELS: Readonly<Record<string, readonly string[]>> = {
   [IPC_CHANNELS["app.diagnostics"]]: ["settings"],
   // Zone dangereuse (réinitialisation d'usine) : page settings uniquement.
   [IPC_CHANNELS["database.reset"]]: ["settings"],
-  [IPC_CHANNELS["printing.printReceipt"]]: ["sales"],
-  [IPC_CHANNELS["printing.preview"]]: ["sales"],
-  [IPC_CHANNELS["printing.printA4"]]: ["invoices"],
-  [IPC_CHANNELS["printing.previewProforma"]]: ["proformas"],
-  [IPC_CHANNELS["printing.printProformaA4"]]: ["proformas"],
-  [IPC_CHANNELS["printing.previewReport"]]: ["reports"],
-  [IPC_CHANNELS["printing.printReport"]]: ["reports"],
-  [IPC_CHANNELS["printing.previewLabels"]]: ["products"],
-  [IPC_CHANNELS["printing.printLabels"]]: ["products"],
+  // M1 : NE JAMAIS lister `printing.*` / `backup.*` / `ocr.*` ici — ils ne
+  // transitent JAMAIS par handle() (enregistrement brut ipcMain.handle dans
+  // leurs modules) : l'entrée serait morte et trompeuse. Garde réelle :
+  // guardPrint / guardPdfExport (printing.service.ts), guardBackup
+  // (backup.service.ts), requireLicensedMutation(deps, "ocr")
+  // (ocr.service.ts) — qui appliquent les mêmes pages/features que ce tableau.
 };
 
+/**
+ * M1 : features exigées par canal, pour les canaux qui passent par handle().
+ * `printing.*`, `backup.*` et `ocr.*` sont ABSENTS volontairement : ils
+ * s'enregistrent via ipcMain.handle dans leur module (printing.service.ts :
+ * guardPrint/guardPdfExport ; backup.service.ts : guardBackup ;
+ * ocr.service.ts : requireLicensedMutation) et ne sont donc jamais vus par la
+ * table ci-dessous. Une entrée ici n'aurait aucun effet.
+ */
 const FEATURE_GATED_CHANNELS: Readonly<Record<string, string>> = {
-  [IPC_CHANNELS["printing.printReceipt"]]: "receipt-80mm",
-  [IPC_CHANNELS["printing.preview"]]: "receipt-80mm",
-  [IPC_CHANNELS["printing.printA4"]]: "invoice-a4",
-  [IPC_CHANNELS["printing.previewProforma"]]: "proformas",
-  [IPC_CHANNELS["printing.printProformaA4"]]: "invoice-a4",
-  [IPC_CHANNELS["printing.previewReport"]]: "advanced-reports",
-  [IPC_CHANNELS["printing.printReport"]]: "advanced-reports",
-  [IPC_CHANNELS["printing.previewLabels"]]: "barcode-scanner",
-  [IPC_CHANNELS["printing.printLabels"]]: "barcode-scanner",
-  [IPC_CHANNELS["backup.create"]]: "automatic-backup",
-  [IPC_CHANNELS["backup.export"]]: "automatic-backup",
-  [IPC_CHANNELS["backup.autoSave"]]: "automatic-backup",
-  [IPC_CHANNELS["backup.restore"]]: "restore-backup",
-  [IPC_CHANNELS["ocr.selectFile"]]: "ocr",
-  [IPC_CHANNELS["ocr.analyze"]]: "ocr",
   [IPC_CHANNELS["products.import"]]: "excel-export",
   [IPC_CHANNELS["customers.import"]]: "excel-export",
   [IPC_CHANNELS["returns.create"]]: "returns",
@@ -438,7 +468,7 @@ function handle<TInput>(
   schema: { parse(v: unknown): TInput } | null,
   fn: (input: TInput) => unknown,
 ): void {
-  ipcMain.handle(channel, (_event, raw: unknown) => {
+  ipcMain.handle(channel, async (_event, raw: unknown) => {
     // M-2 CLARITY: this is a LOG-CORRELATION id per IPC request, never a
     // business operationId — business idempotency always uses the
     // caller-owned `input.operationId` (see handlers). Named distinctly so no
@@ -534,8 +564,11 @@ function handle<TInput>(
               requireLicensedFeature(deps, "debt-management");
               if (cc.amountPaidMinor > 0) requireLicensedFeature(deps, "partial-payments");
             }
-          } catch {
-            /* garde best-effort : le repo tranche (not found / licence) */
+          } catch (err) {
+            log("WARN", "ipc", "license.gate_best_effort", {
+              channel,
+              error: err instanceof Error ? err.message : String(err),
+            });
           }
         }
       }
@@ -550,8 +583,11 @@ function handle<TInput>(
               requireLicensedFeature(deps, "debt-management");
               if (brow.amount_paid_minor > 0) requireLicensedFeature(deps, "partial-payments");
             }
-          } catch {
-            /* garde best-effort */
+          } catch (err) {
+            log("WARN", "ipc", "license.gate_best_effort", {
+              channel,
+              error: err instanceof Error ? err.message : String(err),
+            });
           }
         }
       }
@@ -590,7 +626,7 @@ function handle<TInput>(
           if (paid > 0) requireLicensedFeature(deps, "partial-payments");
         }
       }
-      const data = fn(input);
+      const data = await fn(input);
       return ok(data);
     } catch (err) {
       log("ERROR", "ipc", "handler.failed", {
@@ -609,15 +645,26 @@ function handle<TInput>(
  * Noyau IPC enregistrable SANS base ouverte (mode récupération) : lecture du
  * chemin, redémarrage, déplacement vérifié, dossiers — jamais de requêtes
  * métier. Le mode nominal appelle registerIpc() qui inclut ce noyau.
+ *
+ * IDEMPOTENT (H1) : `ipcMain.handle` lève « second handler » sur un doublon.
+ * Le mode récupération enregistre ce noyau, puis la Réessayer réussie appelle
+ * registerIpc() → registerCoreIpc() une 2e fois : l'exception s'échappait par
+ * recovery.retry (sans try/catch) et renvoyait l'utilisateur à l'écran de
+ * récupération à vie. La garde vit ICI (et plus seulement dans main.ts) pour
+ * protéger tous les chemins d'appel.
  */
+let coreIpcRegistered = false;
+
 export function registerCoreIpc(): void {
+  if (coreIpcRegistered) return;
+  coreIpcRegistered = true;
   // app
-  handle(IPC_CHANNELS["app.getVersion"], null, () => ({
+  handle(IPC_CHANNELS["app.getVersion"], V.emptyPayloadSchema, () => ({
     version: app.getVersion(),
     logicalDb: LOGICAL_DB_NAME,
     file: PHYSICAL_DB_FILENAME,
   }));
-  handle(IPC_CHANNELS["app.restart"], null, () => {
+  handle(IPC_CHANNELS["app.restart"], V.emptyPayloadSchema, () => {
     try {
       checkpointAndClose();
     } catch {
@@ -627,21 +674,46 @@ export function registerCoreIpc(): void {
     app.exit(0);
     return { restarting: true };
   });
-  handle(IPC_CHANNELS["database.location"], null, () => ({
+  handle(IPC_CHANNELS["database.location"], V.emptyPayloadSchema, () => ({
     logicalName: LOGICAL_DB_NAME,
     fileName: PHYSICAL_DB_FILENAME,
     path: getConfiguredDbPath(),
     folder: getDataFolder(),
   }));
-  handle(IPC_CHANNELS["system.openDataFolder"], null, () => {
+  handle(IPC_CHANNELS["system.openDataFolder"], V.emptyPayloadSchema, () => {
     openPathSafe(getDataFolder(), [getDataFolder()]);
     return { opened: true };
   });
-  handle(IPC_CHANNELS["system.openLogsFolder"], null, () => openLogsFolder());
-  handle(IPC_CHANNELS["system.selectFolder"], null, () => ({ folder: pickFolder() }));
+  handle(IPC_CHANNELS["system.openLogsFolder"], V.emptyPayloadSchema, () => openLogsFolder());
+  handle(IPC_CHANNELS["system.selectFolder"], V.emptyPayloadSchema, () => ({
+    folder: pickFolder(),
+  }));
   // Déplacement vérifié (copie → contrôle → bascule) : utilisable en récupération
   // pour pointer vers un dossier sain sans toucher au schéma ni aux données.
+  // RADICAL-FIX: idempotent par operationId optionnel — retry même UUID = résultat
+  // rejoué sans 2e copie (double-clic sûr).
   handle(IPC_CHANNELS["database.relocate"], V.relocateSchema, (input) => {
+    const opId =
+      typeof input.operationId === "string" && input.operationId.length > 0
+        ? input.operationId
+        : null;
+    if (opId) {
+      try {
+        const row = getDb()
+          .prepare(`SELECT result_json FROM idempotency_keys WHERE operation_id = ?`)
+          .get(opId) as { result_json: string } | undefined;
+        if (row && row.result_json !== "{}") {
+          try {
+            const parsed = JSON.parse(row.result_json) as { moved: boolean; path: string };
+            if (typeof parsed.path === "string") return parsed;
+          } catch {
+            /* résultat corrompu : réexécuter */
+          }
+        }
+      } catch {
+        /* base non ouvrable : continuer */
+      }
+    }
     // EL-28: validation racine centralisée (absolu + anti-système + symlink),
     // au lieu du seul includes("..").
     const safeFolder = assertSafeUserFolder(input.folder);
@@ -662,7 +734,10 @@ export function registerCoreIpc(): void {
     }
     try {
       getDb().pragma("wal_checkpoint(TRUNCATE)");
-    } catch {
+    } catch (err) {
+      log("WARN", "database", "relocate.checkpoint_fallback", {
+        error: err instanceof Error ? err.message : String(err),
+      });
       checkpoint();
     }
     fs.mkdirSync(path.dirname(target), { recursive: true });
@@ -674,8 +749,11 @@ export function registerCoreIpc(): void {
       const src = `${current}${suffix}`;
       try {
         if (fs.existsSync(src)) fs.copyFileSync(src, `${target}${suffix}`);
-      } catch {
-        /* compagnon illisible : copie principale conservée */
+      } catch (err) {
+        log("WARN", "database", "relocate.companion_skipped", {
+          suffix,
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
     }
     verifyDbFileCopy(target);
@@ -687,7 +765,21 @@ export function registerCoreIpc(): void {
     try {
       const reopened = reopenWithRetry("database.relocated");
       log("INFO", "database", "database.relocated", { from: previous, to: target });
-      return { moved: true, path: reopened.path };
+      const result = { moved: true, path: reopened.path };
+      if (opId) {
+        try {
+          getDb()
+            .prepare(
+              `INSERT OR IGNORE INTO idempotency_keys (operation_id, op_type, result_json, created_at) VALUES (?, 'database.relocate', ?, ?)`,
+            )
+            .run(opId, JSON.stringify(result), new Date().toISOString());
+        } catch (err) {
+          log("WARN", "database", "relocate.idempotency_store_failed", {
+            error: String(err),
+          });
+        }
+      }
+      return result;
     } catch (err) {
       log("ERROR", "database", "database.relocate_reopen_failed", { error: String(err) });
       persistDbPath(previous);
@@ -720,12 +812,31 @@ export function registerRecoveryIpc(callbacks: {
     try {
       V.recoveryActionSchema.parse(raw ?? {});
     } catch (err) {
+      // L10 : payload invalide → mapping FR + journalisation technique (log),
+      // comme le fait handle() pour tous les autres canaux.
+      log("WARN", "recovery", "retry.invalid_payload", {
+        error: err instanceof Error ? err.message : String(err),
+      });
       const user = toUserMessage(err);
       return { ok: false, ...user };
     }
     // Échec persistant : message FR déjà prêt en base (jamais de stack vers l'UI ;
     // le détail technique a été journalisé en FATAL par la tentative elle-même).
-    const res = callbacks.onRetry();
+    // L10 : toute exception imprévue ici (registration, bascule de mode) doit
+    // rester FR + journalisée — sinon message brut Electron vers l'opérateur.
+    let res: { switched: boolean; userMessage: string };
+    try {
+      res = callbacks.onRetry();
+    } catch (err) {
+      log("ERROR", "recovery", "retry.unexpected_failure", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return {
+        ok: false,
+        code: "RECOVERY_RETRY_FAILED",
+        message: "Réessai impossible. Redémarrez l'application.",
+      };
+    }
     if (res.switched) return ok({ mode: "main" });
     return { ok: false, code: "DATABASE_UNAVAILABLE", message: res.userMessage };
   });
@@ -733,6 +844,10 @@ export function registerRecoveryIpc(callbacks: {
     try {
       V.recoveryActionSchema.parse(raw ?? {});
     } catch (err) {
+      // L10 : payload invalide → mapping FR + journalisation technique.
+      log("WARN", "recovery", "exit.invalid_payload", {
+        error: err instanceof Error ? err.message : String(err),
+      });
       const user = toUserMessage(err);
       return { ok: false, ...user };
     }
@@ -743,7 +858,20 @@ export function registerRecoveryIpc(callbacks: {
         error: err instanceof Error ? err.message : String(err),
       });
     }
-    callbacks.onExit();
+    // L10 : onExit() (app.quit) ne doit jamais propager une exception brute
+    // vers le renderer — log technique + réponse FR.
+    try {
+      callbacks.onExit();
+    } catch (err) {
+      log("ERROR", "recovery", "exit.unexpected_failure", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return {
+        ok: false,
+        code: "RECOVERY_EXIT_FAILED",
+        message: "Sortie impossible. Fermez l'application depuis le système.",
+      };
+    }
     return ok({ exiting: true });
   });
 }
@@ -828,12 +956,28 @@ export function registerLicenseIpc(callbacks?: { onActivated?: () => void }): vo
 
 export function registerIpc(): void {
   registerCoreIpc();
-  handle(IPC_CHANNELS["database.health"], null, () => {
+  handle(IPC_CHANNELS["database.health"], V.emptyPayloadSchema, () => {
     const db = openDatabase();
     const check = integrityCheck();
-    return { ...db, integrity: check.integrity, foreignKeyViolations: check.foreignKeys };
+    // Version moteur réelle (le renderer l'affiche dans la barre d'état —
+    // jamais de version codée en dur côté UI, cf. ADR-038).
+    let sqliteVersion: string | null = null;
+    try {
+      const row = getDb().prepare("SELECT sqlite_version() AS v").get() as {
+        v?: unknown;
+      } | null;
+      if (row && typeof row.v === "string") sqliteVersion = row.v;
+    } catch {
+      /* santé prioritaire : version optionnelle */
+    }
+    return {
+      ...db,
+      integrity: check.integrity,
+      foreignKeyViolations: check.foreignKeys,
+      sqliteVersion,
+    };
   });
-  handle(IPC_CHANNELS["system.selectLogo"], null, () => {
+  handle(IPC_CHANNELS["system.selectLogo"], V.emptyPayloadSchema, () => {
     // P2: effet de bord (copie fichier vers userData/logos) → mutation gardée.
     requireLicensedMutation(prodLicenseDeps());
     return pickLogo();
@@ -933,6 +1077,7 @@ export function registerIpc(): void {
       supplierId: input.supplierId ?? null,
       barcodes: input.barcodes,
       now: new Date().toISOString(),
+      operationId: input.operationId ?? null,
     });
     return { updated: true };
   });
@@ -952,6 +1097,7 @@ export function registerIpc(): void {
       input.productId,
       input.supplierIds,
       new Date().toISOString(),
+      input.operationId ?? null,
     ),
   );
 
@@ -971,10 +1117,10 @@ export function registerIpc(): void {
         input.pageSize,
         input.includeArchived,
         input.debtFilter,
-        input.archivedOnly ?? false,
+        input.archivedOnly,
       ),
   );
-  handle(IPC_CHANNELS["customers.stats"], null, () => Customers.getCustomerStats());
+  handle(IPC_CHANNELS["customers.stats"], V.emptyPayloadSchema, () => Customers.getCustomerStats());
   handle(IPC_CHANNELS["customers.restore"], V.idempotentIdSchema, (input) => {
     Customers.restoreCustomer(input.id, new Date().toISOString(), input.operationId);
     return { restored: true };
@@ -1007,6 +1153,7 @@ export function registerIpc(): void {
       settlementDay: input.settlementDay ?? null,
       notes: input.notes ?? null,
       now: new Date().toISOString(),
+      operationId: input.operationId ?? null,
     });
     return { updated: true };
   });
@@ -1029,21 +1176,100 @@ export function registerIpc(): void {
       paymentDate,
       now,
     });
+    // Miroir APK (best-effort) : file rafraîchie après encaissement.
+    if (input.customerId != null) enqueueCustomerRefresh(input.customerId);
+    else if (input.saleId != null) enqueueSaleRefresh(input.saleId);
     return { recorded: true, paymentId };
   });
   handle(IPC_CHANNELS["customers.statement"], V.idSchema, (input) =>
     Customers.getCustomerStatement(input.id),
   );
-  handle(IPC_CHANNELS["customers.get"], V.idSchema, (input) => ({
-    customer: Customers.getCustomer(input.id),
+  handle(IPC_CHANNELS["customers.paymentReceipt"], V.idSchema, (input) =>
+    Customers.getCustomerPaymentReceipt(input.id),
+  );
+
+  // Accès clients APK (V1 lecture seule, miroir ADR-053) : activation QR/PIN
+  // (condensats côté main), révocation, état, file de synchro, annonces.
+  // Le PIN transite en clair uniquement sur ce pont local chiffré (jamais
+  // stocké ni loggé) ; le miroir ne reçoit que des condensats + clichés.
+  handle(IPC_CHANNELS["customers.accessActivate"], V.clientAccessActivateSchema, (input) =>
+    ClientAccess.activateClientAccessAtomic({
+      operationId: input.operationId,
+      customerId: input.customerId,
+      phone: input.phone,
+      pin: input.pin,
+      now: new Date().toISOString(),
+    }),
+  );
+  handle(IPC_CHANNELS["customers.accessRevoke"], V.idempotentIdSchema, (input) =>
+    ClientAccess.revokeClientAccessAtomic({
+      customerId: input.id,
+      operationId: input.operationId,
+      now: new Date().toISOString(),
+    }),
+  );
+  handle(IPC_CHANNELS["customers.accessStatus"], V.idSchema, (input) => ({
+    status: ClientAccess.getClientAccessStatus(input.id),
   }));
+  // QR d'activation scannable (ADR-054) : lecture seule, payload construit par
+  // le use-case pur, SVG généré côté main. Vide ("") = repli texte côté renderer.
+  handle(IPC_CHANNELS["customers.accessQrSvg"], V.clientAccessQrSchema, (input) => {
+    const payload = ClientAccess.buildActivationQrPayload(input.phone, input.pin, input.code);
+    return { svg: ClientAccess.buildActivationQrSvg(payload), payload };
+  });
+  handle(IPC_CHANNELS["sync.enqueue"], V.syncEnqueueSchema, (input) =>
+    ClientAccess.enqueueSnapshotAtomic({
+      operationId: input.operationId,
+      customerId: input.customerId,
+      kind: input.kind,
+      saleId: input.saleId ?? null,
+      monthKey: input.monthKey ?? null,
+      now: new Date().toISOString(),
+    }),
+  );
+  handle(IPC_CHANNELS["sync.markSent"], V.idempotentIdSchema, (input) =>
+    ClientAccess.markOutboxSentAtomic({
+      outboxId: input.id,
+      operationId: input.operationId,
+      now: new Date().toISOString(),
+    }),
+  );
+  handle(IPC_CHANNELS["sync.pending"], V.syncPendingSchema, (input) => ({
+    rows: ClientAccess.listPendingOutbox(input.limit),
+  }));
+  handle(IPC_CHANNELS["announcements.save"], V.announcementSaveSchema, (input) =>
+    ClientAccess.saveAnnouncementAtomic({
+      operationId: input.operationId,
+      text: input.text,
+      now: new Date().toISOString(),
+    }),
+  );
+  // Poussée miroir : manuelle (bouton commerçant) + auto (timer 60 s).
+  // Best-effort : un échec réseau rend une erreur FR, jamais de donnée perdue
+  // (la file reste `pending` et sera rejouée).
+  handle(IPC_CHANNELS["sync.pushNow"], V.syncPushNowSchema, (input) =>
+    pushNowAtomic({ operationId: input.operationId, now: new Date().toISOString() }),
+  );
+  handle(IPC_CHANNELS["sync.getConfig"], V.emptyPayloadSchema, () => getSyncView());
+  handle(IPC_CHANNELS["sync.saveConfig"], V.syncConfigSchema, (input) =>
+    saveSyncConfigAtomic({
+      config: {
+        enabled: input.enabled,
+        supabaseUrl: input.supabaseUrl,
+        serviceKey: input.serviceKey,
+        intervalMinutes: input.intervalMinutes,
+      },
+      operationId: input.operationId,
+      now: new Date().toISOString(),
+    }),
+  );
 
   // categories (filtre catalogue)
-  handle(IPC_CHANNELS["categories.list"], null, () => ({
+  handle(IPC_CHANNELS["categories.list"], V.emptyPayloadSchema, () => ({
     rows: Products.listCategories(),
   }));
   handle(IPC_CHANNELS["categories.create"], V.categoryCreateSchema, (input) => ({
-    id: Products.createCategory(input.name, new Date().toISOString()),
+    id: Products.createCategory(input.name, new Date().toISOString(), input.operationId ?? null),
   }));
 
   // sales
@@ -1114,6 +1340,9 @@ export function registerIpc(): void {
       now,
       allowNegativeStock: settings.allowNegativeStock,
     });
+    // Miroir APK (best-effort) : la vente réussie rafraîchit la file du client
+    // (jamais d'exception vers la caisse — loggé et ignoré dans le service).
+    if (input.customerId != null) enqueueCustomerRefresh(input.customerId);
     return result;
   });
   handle(
@@ -1127,13 +1356,19 @@ export function registerIpc(): void {
   });
   handle(IPC_CHANNELS["sales.get"], V.idSchema, (input) => Sales.getSaleDetail(input.id));
   handle(IPC_CHANNELS["sales.setDueDate"], V.saleDueDateSchema, (input) => {
-    Sales.updateSaleDueDate(input.id, input.dueDate ?? null, new Date().toISOString());
+    Sales.updateSaleDueDate(
+      input.id,
+      input.dueDate ?? null,
+      new Date().toISOString(),
+      input.operationId ?? null,
+    );
     return { updated: true };
   });
 
   // P4 : brouillons paniers — lectures/écritures TOUJOURS ouvertes (brouillons
   // éphémères : un poste expiré restaure son travail et peut se réactiver ;
   // la VENTE elle-même reste gardée par sales.create).
+  // RADICAL-FIX: operationId optionnel honoré (retry = no-op, pas de double DELETE+INSERT).
   handle(IPC_CHANNELS["carts.save"], V.cartsSaveSchema, (input) =>
     Carts.saveCartDraftsAtomic(
       input.tabs.map((t) => ({
@@ -1142,10 +1377,15 @@ export function registerIpc(): void {
         paymentMethod: t.paymentMethod ?? null,
       })),
       new Date().toISOString(),
+      input.operationId ?? null,
     ),
   );
-  handle(IPC_CHANNELS["carts.load"], null, () => ({ tabs: Carts.loadCartDrafts() }));
-  handle(IPC_CHANNELS["carts.clear"], null, () => Carts.clearCartDrafts());
+  handle(IPC_CHANNELS["carts.load"], V.emptyPayloadSchema, () => ({
+    tabs: Carts.loadCartDrafts(),
+  }));
+  handle(IPC_CHANNELS["carts.clear"], V.cartsClearSchema, (input) =>
+    Carts.clearCartDrafts(input.operationId ?? null),
+  );
 
   // reports/dashboard (repository : handlers/finance.repo.ts).
   // NOTE : l'ancien canal `reports.period` (non validé, redondant avec
@@ -1211,6 +1451,7 @@ export function registerIpc(): void {
       reference: input.reference ?? null,
       notes: input.notes ?? null,
       now: new Date().toISOString(),
+      operationId: input.operationId ?? null,
     });
     return { updated: true };
   });
@@ -1218,11 +1459,11 @@ export function registerIpc(): void {
     Expenses.deleteExpenseAtomic(input.id, new Date().toISOString(), input.operationId ?? null);
     return { deleted: true };
   });
-  handle(IPC_CHANNELS["expenses.stats"], null, () => Expenses.getExpenseStats());
+  handle(IPC_CHANNELS["expenses.stats"], V.emptyPayloadSchema, () => Expenses.getExpenseStats());
 
   // company (repository : handlers/company.repo.ts, schéma validé)
   // logoDataUrl joint (meilleur effort) pour l'aperçu Paramètres sans accès fichier renderer.
-  handle(IPC_CHANNELS["company.get"], null, () => {
+  handle(IPC_CHANNELS["company.get"], V.emptyPayloadSchema, () => {
     const company = Company.getCompany();
     let logoDataUrl: string | null = null;
     try {
@@ -1250,6 +1491,7 @@ export function registerIpc(): void {
         logo_path: input.logo_path ?? null,
       },
       new Date().toISOString(),
+      input.operationId ?? null,
     );
     return { saved: true };
   });
@@ -1257,7 +1499,7 @@ export function registerIpc(): void {
   // backup / printing are registered by their modules (backup.ts / printing.ts)
 
   // database integrity (base ouverte requise ; la relocation vit dans le noyau)
-  handle(IPC_CHANNELS["database.integrity"], null, () => {
+  handle(IPC_CHANNELS["database.integrity"], V.emptyPayloadSchema, () => {
     const check = integrityCheck();
     if (check.integrity !== "ok" || check.foreignKeys.length !== 0) {
       throw new Error(
@@ -1266,15 +1508,18 @@ export function registerIpc(): void {
     }
     return check;
   });
-  handle(IPC_CHANNELS["database.optimize"], null, () => optimizeDatabase());
+  handle(IPC_CHANNELS["database.optimize"], V.emptyPayloadSchema, () => optimizeDatabase());
   // Réinitialisation d'usine (zone dangereuse, paramètres) : base vierge,
   // sauvegardes *.vposdb conservées. Gardée par la licence (mutation
   // destructive) + page settings, preuve littérale exigée par le schéma.
-  handle(IPC_CHANNELS["database.reset"], V.databaseResetSchema, () => factoryResetDatabase());
+  // RADICAL-FIX: operationId propagé (retry même UUID = résultat rejoué, pas de double wipe).
+  handle(IPC_CHANNELS["database.reset"], V.databaseResetSchema, (input) =>
+    factoryResetDatabase(input.operationId),
+  );
 
   // app diagnostics (Settings > Diagnostics — spec 23 : version, OS, base,
   // taille, schéma, santé, sauvegardes, imprimante, journaux ; jamais de secret)
-  handle(IPC_CHANNELS["app.diagnostics"], null, () => {
+  handle(IPC_CHANNELS["app.diagnostics"], V.emptyPayloadSchema, () => {
     let check: { integrity: string; foreignKeys: unknown[] };
     try {
       check = integrityCheck();
@@ -1411,7 +1656,7 @@ export function registerIpc(): void {
     });
     return { cancelled: true };
   });
-  handle(IPC_CHANNELS["returns.stats"], null, () => Returns.getReturnsStats());
+  handle(IPC_CHANNELS["returns.stats"], V.emptyPayloadSchema, () => Returns.getReturnsStats());
 
   // Printing IPC is owned by electron/printing/printing.service.ts
   // (registerPrintingIpc). Do NOT register printing.* channels here:
@@ -1419,7 +1664,7 @@ export function registerIpc(): void {
   // before createMainWindow (found during Phase 3 runtime QA).
 
   // ---- Phase 6 : stock ----
-  handle(IPC_CHANNELS["stock.overview"], null, () => Inventory.getStockOverview());
+  handle(IPC_CHANNELS["stock.overview"], V.emptyPayloadSchema, () => Inventory.getStockOverview());
   handle(IPC_CHANNELS["stock.lowStock"], V.paginationSchema, (input) => ({
     rows: Inventory.listLowStock(input.pageSize),
   }));
@@ -1484,7 +1729,9 @@ export function registerIpc(): void {
   handle(IPC_CHANNELS["stock.intakes"], V.paginationSchema, (input) =>
     Inventory.listIntakes(input.page, input.pageSize),
   );
-  handle(IPC_CHANNELS["stock.valuation"], null, () => Inventory.getInventoryValuation());
+  handle(IPC_CHANNELS["stock.valuation"], V.emptyPayloadSchema, () =>
+    Inventory.getInventoryValuation(),
+  );
 
   // ---- Phase 6 : fournisseurs ----
   handle(IPC_CHANNELS["suppliers.search"], V.supplierSearchSchema, (input) =>
@@ -1524,6 +1771,7 @@ export function registerIpc(): void {
       notes: input.notes ?? null,
       isActive: input.isActive,
       now: new Date().toISOString(),
+      operationId: input.operationId ?? null,
     });
     return { updated: true };
   });
@@ -1553,7 +1801,7 @@ export function registerIpc(): void {
   handle(IPC_CHANNELS["suppliers.products"], V.idSchema, (input) =>
     Suppliers.getSupplierProducts(input.id),
   );
-  handle(IPC_CHANNELS["suppliers.stats"], null, () => Suppliers.getSupplierStats());
+  handle(IPC_CHANNELS["suppliers.stats"], V.emptyPayloadSchema, () => Suppliers.getSupplierStats());
 
   // ---- P3 : bons de commande fournisseurs ----
   handle(IPC_CHANNELS["purchase.create"], V.purchaseCreateSchema, (input) =>
@@ -1632,7 +1880,12 @@ export function registerIpc(): void {
     }),
   );
   handle(IPC_CHANNELS["proformas.status"], V.proformaStatusSchema, (input) => {
-    Proformas.setProformaStatus(input.id, input.to, new Date().toISOString());
+    Proformas.setProformaStatus(
+      input.id,
+      input.to,
+      new Date().toISOString(),
+      input.operationId ?? null,
+    );
     return { updated: true };
   });
   handle(IPC_CHANNELS["proformas.convert"], V.proformaConvertSchema, (input) =>
@@ -1660,6 +1913,7 @@ export function registerIpc(): void {
       notes: input.notes ?? null,
       terms: input.terms ?? null,
       now: new Date().toISOString(),
+      operationId: input.operationId ?? null,
     });
     return { updated: true };
   });
@@ -1670,7 +1924,7 @@ export function registerIpc(): void {
   handle(IPC_CHANNELS["proformas.detail"], V.idSchema, (input) =>
     Proformas.getProformaDetail(input.id),
   );
-  handle(IPC_CHANNELS["proformas.stats"], null, () => Proformas.getProformaStats());
+  handle(IPC_CHANNELS["proformas.stats"], V.emptyPayloadSchema, () => Proformas.getProformaStats());
 
   // ---- Phase 8 : dettes / rapports / clôtures / zakat ----
   handle(IPC_CHANNELS["debts.list"], V.debtsListSchema, (input) =>
@@ -1685,7 +1939,7 @@ export function registerIpc(): void {
   handle(IPC_CHANNELS["debts.detail"], V.debtTargetSchema, (input) =>
     Finance.getDebtDetail(input.debtType, input.id),
   );
-  handle(IPC_CHANNELS["debts.stats"], null, () => Finance.getDebtStats());
+  handle(IPC_CHANNELS["debts.stats"], V.emptyPayloadSchema, () => Finance.getDebtStats());
   handle(IPC_CHANNELS["reports.full"], V.periodSchema, (input) =>
     Finance.getPeriodReport(input.from, input.to),
   );
@@ -1712,7 +1966,7 @@ export function registerIpc(): void {
       now: new Date().toISOString(),
     }),
   );
-  handle(IPC_CHANNELS["zakat.sources"], null, () => Finance.getZakatSources());
+  handle(IPC_CHANNELS["zakat.sources"], V.emptyPayloadSchema, () => Finance.getZakatSources());
   handle(IPC_CHANNELS["zakat.saveParams"], V.zakatParamsSchema, (input) => {
     Settings.saveZakatParams(
       {
@@ -1722,6 +1976,7 @@ export function registerIpc(): void {
         nisabMethod: input.nisabMethod,
       },
       new Date().toISOString(),
+      input.operationId ?? null,
     );
     return { saved: true };
   });
@@ -1810,7 +2065,7 @@ export function registerIpc(): void {
     Bread.setBreadOrderStatus(input.id, input.to, new Date().toISOString(), input.operationId);
     return { updated: true };
   });
-  handle(IPC_CHANNELS["bread.stats"], null, () => Bread.getBreadStats());
+  handle(IPC_CHANNELS["bread.stats"], V.emptyPayloadSchema, () => Bread.getBreadStats());
   handle(IPC_CHANNELS["bread.detail"], V.idSchema, (input) => Bread.getBreadOrder(input.id));
   handle(IPC_CHANNELS["bread.transfer"], V.breadTransferSchema, (input) => {
     Bread.transferBreadToCustomerAccount(input.id, new Date().toISOString(), input.operationId);
@@ -1846,22 +2101,23 @@ export function registerIpc(): void {
   });
   handle(IPC_CHANNELS["settings.save"], V.settingsSaveSchema, (input) => {
     const now = new Date().toISOString();
+    const op = (input as { operationId?: string | null }).operationId ?? null;
     if (input.key === "sales") {
-      Settings.saveSalesSettings(V.salesSettingsSchema.parse(input.value), now);
+      Settings.saveSalesSettings(V.salesSettingsSchema.parse(input.value), now, op);
     } else if (input.key === "invoice") {
-      Settings.saveInvoiceSettings(V.invoiceSettingsSchema.parse(input.value), now);
+      Settings.saveInvoiceSettings(V.invoiceSettingsSchema.parse(input.value), now, op);
     } else if (input.key === "printing") {
-      Settings.savePrintingSettings(V.printingSettingsSchema.parse(input.value), now);
+      Settings.savePrintingSettings(V.printingSettingsSchema.parse(input.value), now, op);
     } else if (input.key === "products") {
-      Settings.saveProductsSettings(V.productsSettingsSchema.parse(input.value), now);
+      Settings.saveProductsSettings(V.productsSettingsSchema.parse(input.value), now, op);
     } else if (input.key === "customers") {
-      Settings.saveCustomersSettings(V.customersSettingsSchema.parse(input.value), now);
+      Settings.saveCustomersSettings(V.customersSettingsSchema.parse(input.value), now, op);
     } else if (input.key === "suppliers") {
-      Settings.saveSuppliersSettings(V.suppliersSettingsSchema.parse(input.value), now);
+      Settings.saveSuppliersSettings(V.suppliersSettingsSchema.parse(input.value), now, op);
     } else if (input.key === "sound") {
-      Settings.saveSoundSettings(V.soundSettingsSchema.parse(input.value), now);
+      Settings.saveSoundSettings(V.soundSettingsSchema.parse(input.value), now, op);
     } else {
-      Settings.saveInventorySettings(V.inventorySettingsSchema.parse(input.value), now);
+      Settings.saveInventorySettings(V.inventorySettingsSchema.parse(input.value), now, op);
     }
     return { saved: true };
   });

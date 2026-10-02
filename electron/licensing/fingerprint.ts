@@ -5,6 +5,7 @@
 
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import fs from "node:fs";
 import os from "node:os";
 
 export const FINGERPRINT_MIN_SOURCES = 2;
@@ -59,9 +60,28 @@ function powershell(query: string, prop: string): string | null {
 /** Sources brutes (exporté pour tests/diag — jamais stocké dans la licence). */
 export function collectHardwareSources(): { name: string; value: string }[] {
   const sources: { name: string; value: string }[] = [];
+  // Utilisateur OS (stable, toutes plateformes ; renforce aussi win32).
+  // NOTE : les adresses MAC sont VOLONTAIREMENT exclues — les adaptateurs
+  // virtuels/VPN (WSL, Hyper-V, VPN) apparaissent/disparaissent et rendraient
+  // l'empreinte instable entre deux processus (mismatch de licence).
+  try {
+    const user = norm(os.userInfo().username);
+    if (user.length >= 2) sources.push({ name: "os-user", value: user });
+  } catch {
+    /* ignore */
+  }
   if (os.platform() !== "win32") {
     const h = norm(os.hostname());
     if (h.length >= 2) sources.push({ name: "hostname", value: h });
+    // Identifiant machine Linux (fichier standard, stable entre reboots).
+    if (os.platform() === "linux") {
+      try {
+        const mid = norm(fs.readFileSync("/etc/machine-id", "utf8"));
+        if (mid.replace(/-/g, "").length >= 8) sources.push({ name: "machine-id", value: mid });
+      } catch {
+        /* conteneur sans machine-id */
+      }
+    }
     return sources;
   }
   const machineGuid = regValue("HKLM\\SOFTWARE\\Microsoft\\Cryptography", "MachineGuid");

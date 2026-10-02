@@ -5,7 +5,6 @@ import { useEffect, useRef, useState } from "react";
 import { Download, Eye, Search, SlidersHorizontal, X } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { formatDzd } from "@domain/money/money.ts";
-import { CASHIER_LABEL } from "@shared/formatters/format.ts";
 import { downloadCsv } from "@shared/export/csv.ts";
 import {
   Badge,
@@ -13,6 +12,7 @@ import {
   Card,
   EmptyState,
   Kpi,
+  PageHeader,
   Pager,
   RowAction,
   Select,
@@ -20,6 +20,7 @@ import {
   cn,
 } from "@shared/ui/primitives.tsx";
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
+import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
 import { HistoryDetailsDrawer } from "./HistoryDialogs.tsx";
 import {
   KIND_LABELS,
@@ -72,28 +73,26 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
   });
   const [selection, setSelection] = useState<Set<string>>(new Set());
   const [drawer, setDrawer] = useState<HistoryDetail | null>(null);
-  const queryTimer = useRef<number | null>(null);
+  const queryTimer = useDebouncedTimer();
   const searchRef = useRef<HTMLInputElement>(null);
   const loadSeq = useRef(0);
 
-  // F3 : focus recherche (comme en caisse).
+  // F3 : focus recherche (comme en caisse). F6 : réimprimer le dernier
+  // ticket (tri antéchronologique uniquement, voir reprintLast).
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (isAnyModalOpen()) return;
       if (e.key === "F3") {
         e.preventDefault();
         searchRef.current?.focus();
+      } else if (e.key === "F6") {
+        e.preventDefault();
+        void reprintLast();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (queryTimer.current != null) window.clearTimeout(queryTimer.current);
-    };
-  }, []);
+  }, [rows]);
 
   async function loadStats(f: string, t: string): Promise<void> {
     try {
@@ -149,10 +148,9 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
   function onQueryChange(q: string): void {
     setQuery(q);
     setPage(1);
-    if (queryTimer.current != null) window.clearTimeout(queryTimer.current);
-    queryTimer.current = window.setTimeout(() => {
+    queryTimer.schedule(250, () => {
       void load(q, op, user, from, to, sort, 1);
-    }, 250);
+    });
   }
 
   function changeOp(o: HistoryOpFilter): void {
@@ -195,6 +193,20 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
     } catch (e) {
       notify(frError(e, "Détail indisponible."), "err");
     }
+  }
+
+  /** Stitch [F6] : rouvre le ticket le plus récent (tri antéchronologique). */
+  async function reprintLast(): Promise<void> {
+    if (sort !== "date_desc") {
+      notify("Basculez le tri sur « Date ↓ » pour réimprimer le dernier ticket.", "err");
+      return;
+    }
+    const latest = rows[0];
+    if (!latest) {
+      notify("Aucun ticket à réimprimer.", "err");
+      return;
+    }
+    await openDrawer(latest);
   }
 
   function refresh(): void {
@@ -263,7 +275,7 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
         Entité: r.entity_name ?? "—",
         Montant: r.amount_minor == null ? "" : formatDzd(r.amount_minor),
         Paiement: r.method ?? "",
-        Utilisateur: CASHIER_LABEL,
+        Poste: "Caisse",
         Statut: r.status,
       };
     });
@@ -279,8 +291,8 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
     try {
       downloadCsv(name, toCsvRows(list));
       notify(`${list.length} ligne(s) exportée(s).`, "ok");
-    } catch {
-      notify("Export impossible.", "err");
+    } catch (e) {
+      notify(frError(e, "Export impossible."), "err");
     } finally {
       setExporting(false);
     }
@@ -318,64 +330,85 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
 
   return (
     <div className="flex h-full flex-col gap-4">
-      {/* En-tête de page */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-xl font-extrabold tracking-tight">Historique</h2>
-          <p className="text-xs text-slate-500">
-            {total} opération(s) · toutes les activités de la caisse
-          </p>
-        </div>
-        <div className="relative w-full max-w-xs">
-          <Search
-            size={16}
-            aria-hidden="true"
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-          />
-          <TextInput
-            ref={searchRef}
-            value={query}
-            onChange={(e) => onQueryChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                void searchAndOpen(e.currentTarget.value);
-              }
-            }}
-            placeholder="N° facture / scan code-barres… [F3]"
-            aria-label="Rechercher dans l'historique (facture ou code-barres)"
-            className="pl-9 font-mono"
-          />
-        </div>
-        {/* P4 : les dates Du/Au vivent dans la barre d'outils (étiquetées) —
-            fin du doublon d'en-tête. */}
-        <Button
-          variant="secondary"
-          onClick={() => setToolbarOpen((o) => !o)}
-          aria-expanded={toolbarOpen}
-          title="Afficher / masquer les filtres"
-        >
-          <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
-        </Button>
-        <Button onClick={() => void exportAll()} disabled={exporting} title="Exporter en CSV">
-          <Download size={16} aria-hidden="true" /> {exporting ? "Export…" : "Exporter"}
-        </Button>
-      </div>
+      {/* En-tête Stitch : Historique des Ventes & Transactions · JOURNAL FISCAL */}
+      <PageHeader
+        title="Historique des Ventes & Transactions"
+        module="JOURNAL FISCAL EN TEMPS RÉEL · SHA-256 SCELLÉ"
+        period={`${total} opération(s) · toutes les activités de la caisse · session active`}
+        actions={
+          <>
+            <div className="relative w-full max-w-xs">
+              <Search
+                size={16}
+                aria-hidden="true"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+              />
+              <TextInput
+                ref={searchRef}
+                value={query}
+                onChange={(e) => onQueryChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void searchAndOpen(e.currentTarget.value);
+                  }
+                }}
+                placeholder="N° Ticket, Client, Réf, Code-barre… [F3]"
+                aria-label="Rechercher dans l'historique (ticket, client, référence ou code-barres)"
+                className="pl-9 font-mono"
+              />
+            </div>
+            {/* P4 : les dates Du/Au vivent dans la barre d'outils (étiquetées) —
+                fin du doublon d'en-tête. */}
+            <Button
+              variant="secondary"
+              onClick={() => setToolbarOpen((o) => !o)}
+              aria-expanded={toolbarOpen}
+              title="Afficher / masquer les filtres"
+            >
+              <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => void reprintLast()}
+              disabled={rows.length === 0}
+              title="Réimprimer le dernier ticket [F6]"
+            >
+              Réimprimer Dernier
+            </Button>
+            <Button onClick={() => void exportAll()} disabled={exporting} title="Exporter en CSV">
+              <Download size={16} aria-hidden="true" /> {exporting ? "Exportation…" : "Exporter"}
+            </Button>
+          </>
+        }
+      />
 
-      {/* Cartes statistiques */}
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <Kpi label="Opérations" value={String(stats.totalOperations)} sub="Toutes activités" />
+      {/* Cartes statistiques Stitch */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi
-          label="Ventes"
+          label="Total Ventes (Brut)"
           value={formatDzd(stats.salesAmountMinor)}
-          sub={`${stats.salesCount} vente(s)`}
+          sub={`${stats.salesCount} ticket(s)`}
+          accent="#fbbf24"
+        />
+        <Kpi
+          label="Opérations"
+          value={String(stats.totalOperations)}
+          sub="Toutes activités"
+          accent="#cde8ff"
         />
         <Kpi
           label="Achats"
           value={formatDzd(stats.purchasesAmountMinor)}
           sub={`${stats.purchasesCount} entrée(s)`}
+          accent="#8ed0ff"
         />
-        <Kpi label="Paiements" value={formatDzd(stats.paymentsAmountMinor)} sub="Encaissé + payé" />
+        <Kpi
+          label="Répartition Paiements"
+          value={formatDzd(stats.paymentsAmountMinor)}
+          sub="Encaissé + payé"
+          accent="#4edea3"
+        />
       </div>
 
       {/* Barre d'outils */}
@@ -428,7 +461,7 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
               className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
               htmlFor="history-user"
             >
-              Utilisateur
+              Poste
             </label>
             <Select
               id="history-user"
@@ -536,7 +569,7 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
             />
           ) : (
             <table className="w-full min-w-[1240px] text-sm">
-              <thead className="sticky top-0 bg-[#111a2e] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
+              <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
                 <tr>
                   <th className="w-10 px-3 py-2.5">
                     <input
@@ -555,7 +588,7 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
                   <th className="px-3 py-2.5">Entité</th>
                   <th className="px-3 py-2.5 text-right">Montant</th>
                   <th className="px-3 py-2.5">Paiement</th>
-                  <th className="px-3 py-2.5">Utilisateur</th>
+                  <th className="px-3 py-2.5">Poste</th>
                   <th className="px-3 py-2.5">Statut</th>
                   <th className="px-3 py-2.5 text-right">Actions</th>
                 </tr>
@@ -610,9 +643,7 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
                       <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-400">
                         {r.method ?? "—"}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-400">
-                        {CASHIER_LABEL}
-                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-400">Caisse</td>
                       <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-300">
                         {r.status}
                       </td>

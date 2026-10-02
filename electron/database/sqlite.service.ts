@@ -366,8 +366,31 @@ export function checkpointAndClose(): void {
  * `*.vposdb` sont CONSERVÉES (filet de sécurité : restauration possible).
  * Irréversible pour les données courantes — l'UI exige une confirmation
  * tapée + le canal une preuve `confirmation` littérale.
+ * RADICAL-FIX: idempotente par operationId — rejouement même UUID = résultat
+ * stocké (pas de 2e suppression), crash avant store = rejouement sûr.
  */
-export function factoryResetDatabase(): { path: string; schemaVersion: number } {
+export function factoryResetDatabase(operationId?: string | null): {
+  path: string;
+  schemaVersion: number;
+} {
+  // Fast-path retry : même UUID déjà appliqué = résultat rejoué.
+  if (typeof operationId === "string" && operationId.length > 0) {
+    try {
+      const row = db
+        ?.prepare(`SELECT result_json FROM idempotency_keys WHERE operation_id = ?`)
+        .get(operationId) as { result_json: string } | undefined;
+      if (row && row.result_json !== "{}") {
+        try {
+          const parsed = JSON.parse(row.result_json) as { path: string; schemaVersion: number };
+          if (typeof parsed.path === "string") return parsed;
+        } catch {
+          /* résultat corrompu : réexécuter */
+        }
+      }
+    } catch {
+      /* base non ouvrable : continuer vers reset */
+    }
+  }
   const target = db ? dbPath : getConfiguredDbPath();
   log("WARN", "database", "database.factory_reset", { path: target });
   checkpointAndClose();
@@ -375,6 +398,10 @@ export function factoryResetDatabase(): { path: string; schemaVersion: number } 
   try {
     fs.unlinkSync(target);
   } catch (err) {
+    log("ERROR", "database", "database.factory_reset_unlink_failed", {
+      path: target,
+      reason: err instanceof Error ? err.message : "erreur inconnue",
+    });
     throw new Error("Réinitialisation impossible : fichier de base inaccessible.");
   }
   removeWalCompanions(target);
@@ -383,6 +410,22 @@ export function factoryResetDatabase(): { path: string; schemaVersion: number } 
     path: opened.path,
     schemaVersion: opened.schemaVersion,
   });
+  // Stocker le résultat pour le rejouement (nouvelle base vierge — la table
+  // idempotency_keys vient d'être recréée vide par les migrations, on y
+  // inscrit le marqueur de ce reset pour que le retry retourne ce résultat).
+  if (typeof operationId === "string" && operationId.length > 0) {
+    try {
+      getDb()
+        .prepare(
+          `INSERT OR IGNORE INTO idempotency_keys (operation_id, op_type, result_json, created_at) VALUES (?, 'database.reset', ?, ?)`,
+        )
+        .run(operationId, JSON.stringify(opened), new Date().toISOString());
+    } catch (err) {
+      log("WARN", "database", "factory_reset.idempotency_store_failed", {
+        error: String(err),
+      });
+    }
+  }
   return opened;
 }
 

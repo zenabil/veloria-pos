@@ -10,6 +10,7 @@ import { normalizeUnitCode, validateProductDraft } from "@domain/product/product
 import { evaluateMargin } from "@domain/pricing/price-rules.ts";
 
 import { Button, Field, Modal, Select, TextInput, cn } from "@shared/ui/primitives.tsx";
+import { SupplierQuickCreateDialog } from "@features/suppliers/dialogs/FormDialog.tsx";
 import { UNIT_OPTIONS, isArchived, unitLabel, type Category, type Product } from "../types.ts";
 
 import type { Notify } from "@shared/ui/primitives.tsx";
@@ -67,6 +68,8 @@ export function ProductFormDialog({
   const [active, setActive] = useState(product ? !isArchived(product) : true);
   const [newCategory, setNewCategory] = useState("");
   const [busy, setBusy] = useState(false);
+  // Création inline : modale par-dessus, saisie produit conservée.
+  const [supplierQuickOpen, setSupplierQuickOpen] = useState(false);
   // Idempotence (migration 0022) : un UUID par dialogue de création, régénéré
   // après succès — rejouer le même UUID retrouve le produit existant.
   const [operationId, setOperationId] = useState<string>(() => newOperationId());
@@ -135,6 +138,23 @@ export function ProductFormDialog({
       notify(`Catégorie « ${label} » créée.`, "ok");
     } catch (e) {
       notify(frError(e, "Création impossible."), "err");
+    }
+  }
+
+  async function reloadSuppliers(selectId?: number): Promise<void> {
+    try {
+      const r = await api.supplierSearch({ query: "", page: 1, pageSize: 100 });
+      setSupplierOptions(
+        ((r as { rows?: { id: number; name: string }[] }).rows ?? []).map((s) => ({
+          id: s.id,
+          name: s.name,
+        })) as { id: number; name: string }[],
+      );
+      if (selectId != null) {
+        setSupplierIds((prev) => (prev.includes(selectId) ? prev : [...prev, selectId]));
+      }
+    } catch (e) {
+      notify(frError(e, "Rechargement des fournisseurs impossible."), "err");
     }
   }
 
@@ -225,230 +245,253 @@ export function ProductFormDialog({
   }
 
   return (
-    <Modal
-      label={editing ? "Modifier le produit" : "Nouveau produit"}
-      title={editing ? "Modifier le produit" : "Nouveau produit"}
-      onClose={onClose}
-      wide
-    >
-      <form
-        className="space-y-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void save();
-        }}
+    <>
+      <Modal
+        label={editing ? "Modifier le produit" : "Nouveau produit"}
+        title={editing ? "Modifier le produit" : "Nouveau produit"}
+        onClose={onClose}
+        wide
       >
-        <Field label="Nom du produit">
-          <TextInput
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Ex. : Lait Candia 1L"
-            aria-label="Nom du produit"
-          />
-        </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field
-            label="Codes-barres"
-            hint="Plusieurs possibles (le 1er = principal). Entrée = ajouter."
-          >
-            <div className="space-y-2">
-              {barcodes.length > 0 ? (
-                <ul className="space-y-1">
-                  {barcodes.map((b, i) => (
-                    <li
-                      key={`${b}-${i}`}
-                      className="flex items-center justify-between gap-2 rounded-lg bg-black/25 px-3 py-1.5 font-mono text-xs"
-                    >
-                      <span className="min-w-0 truncate">
-                        {b} {i === 0 ? <span className="text-amber-300">(principal)</span> : null}
-                      </span>
-                      <button
-                        type="button"
-                        aria-label={`Retirer ${b}`}
-                        onClick={() => setBarcodes((prev) => prev.filter((_, j) => j !== i))}
-                        className="shrink-0 rounded-lg px-2 py-0.5 text-slate-500 transition-colors hover:bg-red-500/15 hover:text-red-300"
-                      >
-                        ✕
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-              <TextInput
-                value={barcodeInput}
-                onChange={(e) => setBarcodeInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    const v = barcodeInput.trim();
-                    if (v !== "" && !barcodes.includes(v)) setBarcodes((prev) => [...prev, v]);
-                    setBarcodeInput("");
-                  }
-                }}
-                placeholder="Scannez ou saisissez… (Entrée)"
-                aria-label="Ajouter un code-barres"
-                className="font-mono"
-              />
-            </div>
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void save();
+          }}
+        >
+          <Field label="Nom du produit">
+            <TextInput
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ex. : Lait Candia 1L"
+              aria-label="Nom du produit"
+            />
           </Field>
-          <Field label="Unité">
-            <Select value={unit} onChange={(e) => setUnit(e.target.value)} aria-label="Unité">
-              {UNIT_OPTIONS.map((u) => (
-                <option key={u} value={u}>
-                  {unitLabel(u)}
+          <div className="grid grid-cols-2 gap-3">
+            <Field
+              label="Codes-barres"
+              hint="Plusieurs possibles (le 1er = principal). Entrée = ajouter."
+            >
+              <div className="space-y-2">
+                {barcodes.length > 0 ? (
+                  <ul className="space-y-1">
+                    {barcodes.map((b, i) => (
+                      <li
+                        key={`${b}-${i}`}
+                        className="flex items-center justify-between gap-2 rounded-lg bg-black/25 px-3 py-1.5 font-mono text-xs"
+                      >
+                        <span className="min-w-0 truncate">
+                          {b} {i === 0 ? <span className="text-amber-300">(principal)</span> : null}
+                        </span>
+                        <button
+                          type="button"
+                          aria-label={`Retirer ${b}`}
+                          onClick={() => setBarcodes((prev) => prev.filter((_, j) => j !== i))}
+                          className="shrink-0 rounded-lg px-2 py-0.5 text-slate-500 transition-colors hover:bg-red-500/15 hover:text-red-300"
+                        >
+                          ✕
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                <TextInput
+                  value={barcodeInput}
+                  onChange={(e) => setBarcodeInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const v = barcodeInput.trim();
+                      if (v !== "" && !barcodes.includes(v)) setBarcodes((prev) => [...prev, v]);
+                      setBarcodeInput("");
+                    }
+                  }}
+                  placeholder="Scannez ou saisissez… (Entrée)"
+                  aria-label="Ajouter un code-barres"
+                  className="font-mono"
+                />
+              </div>
+            </Field>
+            <Field label="Unité">
+              <Select value={unit} onChange={(e) => setUnit(e.target.value)} aria-label="Unité">
+                {UNIT_OPTIONS.map((u) => (
+                  <option key={u} value={u}>
+                    {unitLabel(u)}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Péremption" hint="Vide = sans date.">
+              <TextInput
+                type="date"
+                value={expiration}
+                onChange={(e) => setExpiration(e.target.value)}
+                aria-label="Date de péremption"
+              />
+            </Field>
+          </div>
+          <Field label="Fournisseurs liés" hint="Le 1er coché = principal.">
+            <div className="mb-2 flex justify-end">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setSupplierQuickOpen(true)}
+                title="Créer un fournisseur sans quitter la fiche produit"
+              >
+                + Nouveau fournisseur
+              </Button>
+            </div>
+            {supplierOptions.length === 0 ? (
+              <p className="text-xs text-slate-500">Aucun fournisseur (créez-en un d'abord).</p>
+            ) : (
+              <ul className="max-h-32 space-y-1 overflow-auto rounded-xl border border-white/10 p-2">
+                {supplierOptions.map((s) => (
+                  <li key={s.id}>
+                    <label className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-white/[0.06]">
+                      <input
+                        type="checkbox"
+                        checked={supplierIds.includes(s.id)}
+                        onChange={() =>
+                          setSupplierIds((prev) =>
+                            prev.includes(s.id) ? prev.filter((x) => x !== s.id) : [...prev, s.id],
+                          )
+                        }
+                        aria-label={`Lier ${s.name}`}
+                        className="h-4 w-4 accent-amber-400"
+                      />
+                      <span className="min-w-0 flex-1 truncate">{s.name}</span>
+                      {supplierIds[0] === s.id ? (
+                        <span className="text-[11px] font-bold text-amber-300">(principal)</span>
+                      ) : null}
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Field>
+          <Field label="Catégorie">
+            <Select
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+              aria-label="Catégorie"
+            >
+              <option value="">Sans catégorie</option>
+              {categories.map((c) => (
+                <option key={c.id} value={String(c.id)}>
+                  {c.name}
                 </option>
               ))}
             </Select>
           </Field>
-          <Field label="Péremption" hint="Vide = sans date.">
-            <TextInput
-              type="date"
-              value={expiration}
-              onChange={(e) => setExpiration(e.target.value)}
-              aria-label="Date de péremption"
-            />
-          </Field>
-        </div>
-        <Field label="Fournisseurs liés" hint="Le 1er coché = principal.">
-          {supplierOptions.length === 0 ? (
-            <p className="text-xs text-slate-500">Aucun fournisseur (créez-en un d'abord).</p>
-          ) : (
-            <ul className="max-h-32 space-y-1 overflow-auto rounded-xl border border-white/10 p-2">
-              {supplierOptions.map((s) => (
-                <li key={s.id}>
-                  <label className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-white/[0.06]">
-                    <input
-                      type="checkbox"
-                      checked={supplierIds.includes(s.id)}
-                      onChange={() =>
-                        setSupplierIds((prev) =>
-                          prev.includes(s.id) ? prev.filter((x) => x !== s.id) : [...prev, s.id],
-                        )
-                      }
-                      aria-label={`Lier ${s.name}`}
-                      className="h-4 w-4 accent-amber-400"
-                    />
-                    <span className="min-w-0 flex-1 truncate">{s.name}</span>
-                    {supplierIds[0] === s.id ? (
-                      <span className="text-[11px] font-bold text-amber-300">(principal)</span>
-                    ) : null}
-                  </label>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Field>
-        <Field label="Catégorie">
-          <Select
-            value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
-            aria-label="Catégorie"
-          >
-            <option value="">Sans catégorie</option>
-            {categories.map((c) => (
-              <option key={c.id} value={String(c.id)}>
-                {c.name}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <div className="flex gap-2">
-          <div className="flex-1">
-            <TextInput
-              value={newCategory}
-              onChange={(e) => setNewCategory(e.target.value)}
-              placeholder="Nouvelle catégorie…"
-              aria-label="Nouvelle catégorie"
-            />
-          </div>
-          <Button type="button" variant="secondary" onClick={() => void addCategory()}>
-            + Catégorie
-          </Button>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Prix d'achat (DZD)">
-            <TextInput
-              value={purchase}
-              onChange={(e) => setPurchase(e.target.value)}
-              inputMode="decimal"
-              placeholder="0,00"
-              aria-label="Prix d'achat"
-            />
-          </Field>
-          <Field label="Prix de vente (DZD)">
-            <TextInput
-              value={selling}
-              onChange={(e) => setSelling(e.target.value)}
-              inputMode="decimal"
-              placeholder="0,00"
-              aria-label="Prix de vente"
-            />
-          </Field>
-          <Field label={editing ? "Stock actuel" : "Stock initial"}>
-            <TextInput
-              value={qty}
-              onChange={(e) => setQty(e.target.value)}
-              inputMode="decimal"
-              placeholder="0"
-              aria-label="Stock"
-            />
-          </Field>
-          <Field label="Seuil minimum" hint="Alerte stock bas en dessous.">
-            <TextInput
-              value={minStock}
-              onChange={(e) => setMinStock(e.target.value)}
-              inputMode="decimal"
-              placeholder="0"
-              aria-label="Seuil minimum"
-            />
-          </Field>
-          <Field label="Stock maximum" hint="Vide = aucun plafond.">
-            <TextInput
-              value={maxStock}
-              onChange={(e) => setMaxStock(e.target.value)}
-              inputMode="decimal"
-              placeholder="0"
-              aria-label="Stock maximum"
-            />
-          </Field>
-        </div>
-        {editing ? (
-          <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-sm font-semibold">
-            <span>
-              Produit actif
-              <span className="block text-xs font-normal text-slate-500">
-                Inactif = archivé (restaurable).
-              </span>
-            </span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={active}
-              aria-label="Produit actif"
-              onClick={() => setActive((a) => !a)}
-              className={cn(
-                "relative h-7 w-12 shrink-0 rounded-full transition-colors",
-                active ? "bg-amber-400" : "bg-white/15",
-              )}
-            >
-              <span
-                className={cn(
-                  "absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all",
-                  active ? "left-6" : "left-1",
-                )}
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <TextInput
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+                placeholder="Nouvelle catégorie…"
+                aria-label="Nouvelle catégorie"
               />
-            </button>
-          </label>
-        ) : null}
-        <div className="flex gap-2">
-          <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
-            Annuler
-          </Button>
-          <Button type="submit" disabled={busy} className="flex-[2]">
-            {busy ? "Enregistrement…" : editing ? "Enregistrer" : "Créer le produit"}
-          </Button>
-        </div>
-      </form>
-    </Modal>
+            </div>
+            <Button type="button" variant="secondary" onClick={() => void addCategory()}>
+              + Catégorie
+            </Button>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Prix d'achat (DZD)">
+              <TextInput
+                value={purchase}
+                onChange={(e) => setPurchase(e.target.value)}
+                inputMode="decimal"
+                placeholder="0,00"
+                aria-label="Prix d'achat"
+              />
+            </Field>
+            <Field label="Prix de vente (DZD)">
+              <TextInput
+                value={selling}
+                onChange={(e) => setSelling(e.target.value)}
+                inputMode="decimal"
+                placeholder="0,00"
+                aria-label="Prix de vente"
+              />
+            </Field>
+            <Field label={editing ? "Stock actuel" : "Stock initial"}>
+              <TextInput
+                value={qty}
+                onChange={(e) => setQty(e.target.value)}
+                inputMode="decimal"
+                placeholder="0"
+                aria-label="Stock"
+              />
+            </Field>
+            <Field label="Seuil minimum" hint="Alerte stock bas en dessous.">
+              <TextInput
+                value={minStock}
+                onChange={(e) => setMinStock(e.target.value)}
+                inputMode="decimal"
+                placeholder="0"
+                aria-label="Seuil minimum"
+              />
+            </Field>
+            <Field label="Stock maximum" hint="Vide = aucun plafond.">
+              <TextInput
+                value={maxStock}
+                onChange={(e) => setMaxStock(e.target.value)}
+                inputMode="decimal"
+                placeholder="0"
+                aria-label="Stock maximum"
+              />
+            </Field>
+          </div>
+          {editing ? (
+            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-sm font-semibold">
+              <span>
+                Produit actif
+                <span className="block text-xs font-normal text-slate-500">
+                  Inactif = archivé (restaurable).
+                </span>
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={active}
+                aria-label="Produit actif"
+                onClick={() => setActive((a) => !a)}
+                className={cn(
+                  "relative h-7 w-12 shrink-0 rounded-full transition-colors",
+                  active ? "bg-amber-400" : "bg-white/15",
+                )}
+              >
+                <span
+                  className={cn(
+                    "absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all",
+                    active ? "left-6" : "left-1",
+                  )}
+                />
+              </button>
+            </label>
+          ) : null}
+          <div className="flex gap-2">
+            <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
+              Annuler
+            </Button>
+            <Button type="submit" disabled={busy} className="flex-[2]">
+              {busy ? "Enregistrement…" : editing ? "Enregistrer" : "Créer le produit"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+      {supplierQuickOpen ? (
+        <SupplierQuickCreateDialog
+          onClose={() => setSupplierQuickOpen(false)}
+          onCreated={(s) => {
+            setSupplierQuickOpen(false);
+            notify(`Fournisseur « ${s.name} » créé et sélectionné.`, "ok");
+            void reloadSuppliers(s.id);
+          }}
+          notify={notify}
+        />
+      ) : null}
+    </>
   );
 }

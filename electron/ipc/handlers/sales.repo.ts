@@ -4,7 +4,15 @@
 import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
 import { formatInvoiceNumber } from "./numbers";
-import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./idempotency";
+import {
+  auditOperationId,
+  claimIdempotency,
+  claimOptional,
+  peekIdempotency,
+  peekOptional,
+  storeIdempotencyResult,
+  storeOptional,
+} from "./idempotency";
 import {
   consumeLayers,
   consumptionsOfSale,
@@ -48,21 +56,48 @@ export function getSaleDetail(id: number): {
 }
 
 /** Report d'échéance d'une créance (vente non annulée). */
-export function updateSaleDueDate(id: number, dueDate: string | null, now: string): void {
+export function updateSaleDueDate(
+  id: number,
+  dueDate: string | null,
+  now: string,
+  operationId?: string | null,
+): void {
   const db = getDb();
+  const fast = peekOptional<{ updated: boolean }>(operationId, "sales.setDueDate");
+  if (fast) return;
   const sale = db.prepare(`SELECT is_cancelled FROM sales WHERE id = ?`).get(id) as
     | { is_cancelled: number }
     | undefined;
   if (!sale) throw new Error("Vente introuvable.");
   if (sale.is_cancelled === 1) throw new Error("Vente annulée : échéance non modifiable.");
   const tx = db.transaction(() => {
+    claimOptional(operationId, "sales.setDueDate", now);
     db.prepare(`UPDATE sales SET due_date = ?, updated_at = ? WHERE id = ?`).run(dueDate, now, id);
-    // P8: échéance tracée (pilotage des créances).
+    // P8: échéance tracée (pilotage des créances) — audit déterministe.
     db.prepare(
       `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at) VALUES (?, 'sale.due_date', 'sale', ?, ?, ?, ?)`,
-    ).run(randomUUID(), String(id), randomUUID(), JSON.stringify({ dueDate }), now);
+    ).run(
+      randomUUID(),
+      String(id),
+      auditOperationId(operationId, "sale.due_date", id, { dueDate }),
+      JSON.stringify({ dueDate }),
+      now,
+    );
+    storeOptional(operationId, { updated: true });
   });
-  (tx as unknown as () => void)();
+  try {
+    (tx as unknown as () => void)();
+  } catch (err) {
+    if (
+      operationId &&
+      err instanceof Error &&
+      /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
+    ) {
+      const retry = peekOptional<{ updated: boolean }>(operationId, "sales.setDueDate");
+      if (retry) return;
+    }
+    throw err;
+  }
 }
 
 export interface SaleLineInput {

@@ -22,6 +22,7 @@ import {
   Card,
   EmptyState,
   Kpi,
+  PageHeader,
   Pager,
   RowAction,
   Select,
@@ -29,6 +30,7 @@ import {
   cn,
 } from "@shared/ui/primitives.tsx";
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
+import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
 import {
   InventoryDialog,
   StockAdjustmentDialog,
@@ -97,7 +99,7 @@ export function StockScreen({ notify }: { notify: Notify }): React.JSX.Element {
   const [intakeOpen, setIntakeOpen] = useState(false);
   const [intakesOpen, setIntakesOpen] = useState(false);
   const [ocrOpen, setOcrOpen] = useState(false);
-  const queryTimer = useRef<number | null>(null);
+  const queryTimer = useDebouncedTimer();
   const searchRef = useRef<HTMLInputElement>(null);
   const loadSeq = useRef(0);
   // P5 : drapeau de session (l'alerte rupture ne sonne qu'une fois).
@@ -114,12 +116,6 @@ export function StockScreen({ notify }: { notify: Notify }): React.JSX.Element {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (queryTimer.current != null) window.clearTimeout(queryTimer.current);
-    };
   }, []);
 
   async function loadStats(): Promise<void> {
@@ -201,10 +197,9 @@ export function StockScreen({ notify }: { notify: Notify }): React.JSX.Element {
   function onQueryChange(q: string): void {
     setQuery(q);
     setPage(1);
-    if (queryTimer.current != null) window.clearTimeout(queryTimer.current);
-    queryTimer.current = window.setTimeout(() => {
+    queryTimer.schedule(250, () => {
       void load(q, categoryId, statusFilter, movementFilter, sort, 1);
-    }, 250);
+    });
   }
 
   function changeCategory(v: string): void {
@@ -296,112 +291,129 @@ export function StockScreen({ notify }: { notify: Notify }): React.JSX.Element {
 
   return (
     <div className="flex h-full flex-col gap-4">
-      {/* En-tête de page */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-xl font-extrabold tracking-tight">Stock</h2>
-          <p className="text-xs text-slate-500">
-            {total} produit(s) · {formatDzd(stats.value)} en valeur · {stats.low} bas · {stats.out}{" "}
-            en rupture
-          </p>
-        </div>
-        <div className="relative w-full max-w-xs">
-          <Search
-            size={16}
-            aria-hidden="true"
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-          />
-          <TextInput
-            ref={searchRef}
-            value={query}
-            onChange={(e) => onQueryChange(e.target.value)}
-            placeholder="Rechercher… [F3]"
-            aria-label="Rechercher un produit en stock"
-            className="pl-9"
-          />
-        </div>
-        <Button
-          variant="secondary"
-          onClick={() => setToolbarOpen((o) => !o)}
-          aria-expanded={toolbarOpen}
-          title="Afficher / masquer les filtres"
-        >
-          <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
-        </Button>
-        {/* P4 : actions secondaires regroupées (la Réception reste directe). */}
-        <div className="relative">
-          <Button
-            variant="secondary"
-            onClick={() => setActionsOpen((o) => !o)}
-            aria-expanded={actionsOpen}
-            aria-haspopup="menu"
-            title="Actions stock"
-          >
-            Actions stock
-          </Button>
-          {actionsOpen ? (
-            <>
-              <button
-                type="button"
-                aria-label="Fermer le menu"
-                className="fixed inset-0 z-10 cursor-default"
-                onClick={() => setActionsOpen(false)}
+      {/* En-tête Stitch : Gestion des Stocks & Réceptions · Dépôt Central */}
+      <PageHeader
+        title="Gestion des Stocks & Réceptions"
+        module="Dépôt central"
+        period={`${total} référence(s) tracée(s) · Valeur globale ${formatDzd(stats.value)} · ${stats.low} sous seuil critique`}
+        actions={
+          <>
+            <div className="relative w-full max-w-xs">
+              <Search
+                size={16}
+                aria-hidden="true"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
               />
-              <div
-                role="menu"
-                className="absolute right-0 z-20 mt-1 w-56 space-y-1 rounded-xl border border-white/10 bg-[#141d33] p-2 shadow-xl"
+              <TextInput
+                ref={searchRef}
+                value={query}
+                onChange={(e) => onQueryChange(e.target.value)}
+                placeholder="Rechercher… [F3]"
+                aria-label="Rechercher un produit en stock"
+                className="pl-9"
+              />
+            </div>
+            <Button
+              variant="secondary"
+              onClick={() => setToolbarOpen((o) => !o)}
+              aria-expanded={toolbarOpen}
+              title="Afficher / masquer les filtres"
+            >
+              <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
+            </Button>
+            {/* P4 : actions secondaires regroupées (la Réception reste directe). */}
+            <div className="relative">
+              <Button
+                variant="secondary"
+                onClick={() => setActionsOpen((o) => !o)}
+                aria-expanded={actionsOpen}
+                aria-haspopup="menu"
+                title="Actions stock"
               >
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setActionsOpen(false);
-                    setIntakesOpen(true);
-                  }}
-                  title="Factures fournisseurs"
-                  className="w-full justify-start"
-                >
-                  <ReceiptText size={16} aria-hidden="true" /> Factures
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setActionsOpen(false);
-                    setAdjustFor(null);
-                  }}
-                  title="Corriger le stock (avec motif)"
-                  className="w-full justify-start"
-                >
-                  <Wrench size={16} aria-hidden="true" /> Correction
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setActionsOpen(false);
-                    setOcrOpen(true);
-                  }}
-                  title="Importer depuis facture (OCR 100 % local, hors-ligne)"
-                  className="w-full justify-start"
-                >
-                  <FileScan size={16} aria-hidden="true" /> Facture OCR
-                </Button>
-              </div>
-            </>
-          ) : null}
-        </div>
-        <Button
-          onClick={() => setIntakeOpen(true)}
-          title="Réception fournisseur (facture + livraison)"
-        >
-          <PackagePlus size={16} aria-hidden="true" /> Réception
-        </Button>
-      </div>
+                Actions stock
+              </Button>
+              {actionsOpen ? (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Fermer le menu"
+                    className="fixed inset-0 z-10 cursor-default"
+                    onClick={() => setActionsOpen(false)}
+                  />
+                  <div
+                    role="menu"
+                    className="absolute right-0 z-20 mt-1 w-56 space-y-1 rounded-xl border border-white/10 bg-[#141d33] p-2 shadow-xl"
+                  >
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setActionsOpen(false);
+                        setIntakesOpen(true);
+                      }}
+                      title="Factures fournisseurs"
+                      className="w-full justify-start"
+                    >
+                      <ReceiptText size={16} aria-hidden="true" /> Factures
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setActionsOpen(false);
+                        setAdjustFor(null);
+                      }}
+                      title="Corriger le stock (avec motif)"
+                      className="w-full justify-start"
+                    >
+                      <Wrench size={16} aria-hidden="true" /> Correction
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setActionsOpen(false);
+                        setOcrOpen(true);
+                      }}
+                      title="Importer depuis facture (OCR 100 % local, hors-ligne)"
+                      className="w-full justify-start"
+                    >
+                      <FileScan size={16} aria-hidden="true" /> Facture OCR
+                    </Button>
+                  </div>
+                </>
+              ) : null}
+            </div>
+            <Button
+              variant="secondary"
+              onClick={() => setOcrOpen(true)}
+              title="Scanner / OCR Facture (100 % local, hors-ligne)"
+            >
+              <FileScan size={16} aria-hidden="true" /> Scanner / OCR
+            </Button>
+            <Button
+              onClick={() => setIntakeOpen(true)}
+              title="Réception fournisseur (facture + livraison)"
+            >
+              <PackagePlus size={16} aria-hidden="true" /> Nouveau Bon Réception
+            </Button>
+          </>
+        }
+      />
 
-      {/* Cartes statistiques */}
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <Kpi label="Valeur du stock" value={formatDzd(stats.value)} sub="Prix d'achat" />
-        <Kpi label="Quantité totale" value={String(stats.qty)} sub="Toutes unités" />
-        <Kpi label="Stock bas" value={String(stats.low)} sub="Sous le seuil" />
-        <Kpi label="Ruptures" value={String(stats.out)} sub="Quantité ≤ 0" />
+      {/* Cartes statistiques Stitch */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Kpi
+          label="Entrées du Mois (Réceptions)"
+          value={formatDzd(stats.value)}
+          sub="Valeur globale (achat)"
+          accent="#fbbf24"
+        />
+        <Kpi
+          label="Quantité Totale"
+          value={String(stats.qty)}
+          sub="Toutes unités"
+          accent="#4edea3"
+        />
+        <Kpi label="Stock Bas" value={String(stats.low)} sub="Sous le seuil" accent="#8ed0ff" />
+        <Kpi label="Ruptures" value={String(stats.out)} sub="Quantité ≤ 0" accent="#ffb4ab" />
       </div>
 
       {/* Barre d'outils */}
@@ -543,7 +555,7 @@ export function StockScreen({ notify }: { notify: Notify }): React.JSX.Element {
             />
           ) : (
             <table className="w-full min-w-[1180px] text-sm">
-              <thead className="sticky top-0 bg-[#111a2e] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
+              <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
                 <tr>
                   <th className="w-10 px-3 py-2.5">
                     <input

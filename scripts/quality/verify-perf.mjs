@@ -3,7 +3,6 @@
 // 5 000 clients, 10 000 ventes + 30 000 lignes + journal stock.
 // Seuils : recherche nom < 500 ms, code-barres < 50 ms, commit vente < 150 ms,
 // pagination historique < 300 ms, rapport période < 1000 ms, backup < 30 s.
-/* eslint-disable @typescript-eslint/explicit-function-return-type -- script JS ops sans types */
 import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import os from "node:os";

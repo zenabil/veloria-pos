@@ -2,10 +2,11 @@
 // En-tête + 4 cartes stats + barre d'outils + table serveur + pagination +
 // tiroir détail + formulaire.
 import { useEffect, useRef, useState } from "react";
-import { Eye, Pencil, Plus, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
+import { Eye, Download, Pencil, Plus, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { formatDzd } from "@domain/money/money.ts";
+import { downloadCsv } from "@shared/export/csv.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import {
   Badge,
@@ -13,6 +14,7 @@ import {
   Card,
   EmptyState,
   Kpi,
+  PageHeader,
   Pager,
   RowAction,
   Select,
@@ -20,6 +22,7 @@ import {
   cn,
 } from "@shared/ui/primitives.tsx";
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
+import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
 import { useLoadSeq } from "@shared/ui/use-load-seq.ts";
 import { ExpenseDetailsDrawer, ExpenseFormDialog } from "./ExpenseDialogs.tsx";
 import {
@@ -37,6 +40,7 @@ import type { Notify } from "@shared/ui/primitives.tsx";
 import { frError } from "@shared/errors/fr-map.ts";
 
 const PAGE_SIZE = 20;
+const EXPORT_MAX = 1000;
 
 interface Stats {
   totalMinor: number;
@@ -73,7 +77,7 @@ export function ExpensesScreen({ notify }: { notify: Notify }): React.JSX.Elemen
   const [drawer, setDrawer] = useState<Expense | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Expense | null>(null);
-  const queryTimer = useRef<number | null>(null);
+  const queryTimer = useDebouncedTimer();
   const searchRef = useRef<HTMLInputElement>(null);
 
   // F3 : focus recherche (comme en caisse).
@@ -87,12 +91,6 @@ export function ExpensesScreen({ notify }: { notify: Notify }): React.JSX.Elemen
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (queryTimer.current != null) window.clearTimeout(queryTimer.current);
-    };
   }, []);
 
   async function loadStats(): Promise<void> {
@@ -153,10 +151,9 @@ export function ExpensesScreen({ notify }: { notify: Notify }): React.JSX.Elemen
   function onQueryChange(q: string): void {
     setQuery(q);
     setPage(1);
-    if (queryTimer.current != null) window.clearTimeout(queryTimer.current);
-    queryTimer.current = window.setTimeout(() => {
+    queryTimer.schedule(250, () => {
       void load(q, category, statusFilter, methodFilter, from, to, sort, 1);
-    }, 250);
+    });
   }
 
   function changeCategory(c: string | null): void {
@@ -217,6 +214,59 @@ export function ExpensesScreen({ notify }: { notify: Notify }): React.JSX.Elemen
   function openCreate(): void {
     setEditing(null);
     setFormOpen(true);
+  }
+
+  // Raccourci réel Stitch : F8 exporter.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (isAnyModalOpen()) return;
+      if (e.key === "F8") {
+        e.preventDefault();
+        void exportAll();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  /** Export CSV [F8] : journal des décaissements (filtres courants, max 1000). */
+  async function exportAll(): Promise<void> {
+    try {
+      const res = (await api.expensesList({
+        query: query.trim(),
+        category,
+        statusFilter,
+        methodFilter,
+        from: from === "" ? null : from,
+        to: to === "" ? null : to,
+        sort,
+        page: 1,
+        pageSize: EXPORT_MAX,
+      })) as { rows: Expense[]; total: number };
+      if (res.rows.length === 0) {
+        notify("Rien à exporter.", "err");
+        return;
+      }
+      if (res.total > EXPORT_MAX) {
+        notify(`Export limité aux ${EXPORT_MAX} premières lignes (${res.total} au total).`, "err");
+      }
+      downloadCsv(
+        `depenses-${new Date().toISOString().slice(0, 10)}.csv`,
+        res.rows.map((e) => ({
+          Numero: expenseNumber(e.id),
+          Date: e.created_at.slice(0, 10),
+          Description: e.description,
+          Categorie: e.category,
+          Montant: formatDzd(e.amount_minor),
+          Paiement: paymentMethodLabel(e.payment_method),
+          Statut: expenseStatusLabel(e.status),
+          Reference: e.reference ?? "",
+        })),
+      );
+      notify(`${res.rows.length} ligne(s) exportée(s).`, "ok");
+    } catch (e) {
+      notify(frError(e, "Export impossible."), "err");
+    }
   }
 
   function openEdit(e: Expense): void {
@@ -283,50 +333,78 @@ export function ExpensesScreen({ notify }: { notify: Notify }): React.JSX.Elemen
 
   return (
     <div className="flex h-full flex-col gap-4">
-      {/* En-tête de page */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-xl font-extrabold tracking-tight">Dépenses</h2>
-          <p className="text-xs text-slate-500">
-            {total} dépense(s) · {formatDzd(stats.totalMinor)} au total
-          </p>
-        </div>
-        <div className="relative w-full max-w-xs">
-          <Search
-            size={16}
-            aria-hidden="true"
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-          />
-          <TextInput
-            ref={searchRef}
-            value={query}
-            onChange={(e) => onQueryChange(e.target.value)}
-            placeholder="Rechercher… [F3]"
-            aria-label="Rechercher une dépense"
-            className="pl-9"
-          />
-        </div>
-        {/* P4 : les dates Du/Au vivent dans la barre d'outils (étiquetées) —
-            fin du doublon d'en-tête. */}
-        <Button
-          variant="secondary"
-          onClick={() => setToolbarOpen((o) => !o)}
-          aria-expanded={toolbarOpen}
-          title="Afficher / masquer les filtres"
-        >
-          <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
-        </Button>
-        <Button onClick={openCreate} title="Nouvelle dépense">
-          <Plus size={16} aria-hidden="true" /> Dépense
-        </Button>
-      </div>
+      {/* En-tête Stitch : Dépenses & Charges d'Exploitation · Module 10 · JOURNAL SCELLÉ WAL */}
+      <PageHeader
+        title="Dépenses & Charges d'Exploitation"
+        module="Module 10 · JOURNAL SCELLÉ WAL"
+        period={`${total} dépense(s) · ${formatDzd(stats.totalMinor)} au total · Suivi Budgétaire & Décaissements · Poste 04 · Exercice 2025`}
+        actions={
+          <>
+            <div className="relative w-full max-w-xs">
+              <Search
+                size={16}
+                aria-hidden="true"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+              />
+              <TextInput
+                ref={searchRef}
+                value={query}
+                onChange={(e) => onQueryChange(e.target.value)}
+                placeholder="Rechercher… [F3]"
+                aria-label="Rechercher une dépense"
+                className="pl-9"
+              />
+            </div>
+            {/* P4 : les dates Du/Au vivent dans la barre d'outils (étiquetées) —
+                fin du doublon d'en-tête. */}
+            <Button
+              variant="secondary"
+              onClick={() => setToolbarOpen((o) => !o)}
+              aria-expanded={toolbarOpen}
+              title="Afficher / masquer les filtres"
+            >
+              <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => void exportAll()}
+              title="Exporter en CSV [F8]"
+            >
+              <Download size={16} aria-hidden="true" /> Exporter
+            </Button>
+            <Button onClick={openCreate} title="Nouvelle dépense">
+              <Plus size={16} aria-hidden="true" /> Nouvelle Dépense
+            </Button>
+          </>
+        }
+      />
 
-      {/* Cartes statistiques */}
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <Kpi label="Total dépenses" value={formatDzd(stats.totalMinor)} sub="Toutes périodes" />
-        <Kpi label="Ce mois-ci" value={formatDzd(stats.monthlyMinor)} sub="Mois en cours" />
-        <Kpi label="Payées" value={formatDzd(stats.paidMinor)} sub="Réglées" />
-        <Kpi label="En attente" value={formatDzd(stats.pendingMinor)} sub="À régler" />
+      {/* Cartes statistiques Stitch */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Kpi
+          label="Total Dépenses (Mois)"
+          value={formatDzd(stats.monthlyMinor)}
+          sub="Mois en cours"
+          accent="#fbbf24"
+        />
+        <Kpi
+          label="Décaissements Caisse (Jour)"
+          value={formatDzd(stats.paidMinor)}
+          sub="Retraits tiroir-caisse"
+          accent="#4edea3"
+        />
+        <Kpi
+          label="Charges Fixes en Attente"
+          value={formatDzd(stats.pendingMinor)}
+          sub="À régler"
+          accent="#ffb4ab"
+        />
+        <Kpi
+          label="Total Dépenses"
+          value={formatDzd(stats.totalMinor)}
+          sub="Toutes périodes"
+          accent="#cde8ff"
+        />
       </div>
 
       {/* Barre d'outils */}
@@ -492,7 +570,7 @@ export function ExpensesScreen({ notify }: { notify: Notify }): React.JSX.Elemen
             />
           ) : (
             <table className="w-full min-w-[1080px] text-sm">
-              <thead className="sticky top-0 bg-[#111a2e] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
+              <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
                 <tr>
                   <th className="w-10 px-3 py-2.5">
                     <input

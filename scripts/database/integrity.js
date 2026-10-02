@@ -2,7 +2,6 @@
 // Contrôle d'intégrité hors-ligne (lecture seule, sans dépendances).
 // Usage : `npm run db:integrity [-- --db="C:\...\Veloria POS DB.sqlite"]`
 // N'ouvre JAMAIS la base en écriture : migrations = démarrage applicatif.
-/* eslint-disable @typescript-eslint/explicit-function-return-type -- script JS ops sans types */
 import { DatabaseSync } from "node:sqlite";
 import { createHash } from "node:crypto";
 import fs from "node:fs";

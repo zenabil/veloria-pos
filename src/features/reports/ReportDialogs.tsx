@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Download, Printer } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
+import { useCompany } from "@shared/company/use-company.ts";
 import { formatDzd } from "@domain/money/money.ts";
 import { downloadCsv } from "@shared/export/csv.ts";
 import { Button, Field, Modal, Select, TextInput, cn } from "@shared/ui/primitives.tsx";
@@ -27,6 +28,9 @@ export function ReportExportDialog({
   const [withDetails, setWithDetails] = useState(true);
   const [withCharts, setWithCharts] = useState(true);
   const [busy, setBusy] = useState(false);
+  // Fiche entreprise réelle sur le rapport (jamais de raison sociale codée en dur).
+  const { record: companyRecord } = useCompany();
+  const companyName = companyRecord?.["company_name"] ?? "Veloria";
 
   const k = summary.kpis;
   const period = `Du ${summary.from} au ${summary.to}`;
@@ -88,17 +92,17 @@ export function ReportExportDialog({
     if (withDetails) {
       tables.push(
         {
-          title: "Top clients",
+          title: "Principaux clients",
           headers: ["Client", "Total"],
           rows: summary.tops.customers.map((t) => [t.name, formatDzd(t.total)]),
         },
         {
-          title: "Top fournisseurs",
+          title: "Principaux fournisseurs",
           headers: ["Fournisseur", "Total"],
           rows: summary.tops.suppliers.map((t) => [t.name, formatDzd(t.total)]),
         },
         {
-          title: "Top produits",
+          title: "Principaux produits",
           headers: ["Produit", "Qté", "Total"],
           rows: summary.tops.products.map((t) => [t.name, String(t.qty ?? 0), formatDzd(t.total)]),
         },
@@ -107,7 +111,7 @@ export function ReportExportDialog({
     return {
       title: "Rapport d'activité",
       period,
-      company: "Veloria",
+      company: companyName,
       kpis: [
         { label: "Ventes", value: formatDzd(k.salesMinor) },
         { label: "Achats", value: formatDzd(k.purchasesMinor) },
@@ -128,7 +132,7 @@ export function ReportExportDialog({
           ]
         : [],
       tables,
-      footer: `Veloria POS · ${period}`,
+      footer: `${companyName} · Veloria POS · ${period}`,
     };
   }
 

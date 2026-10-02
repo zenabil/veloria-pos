@@ -3,7 +3,15 @@
 import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
 import { consumeLayers, createLayer } from "./fifo";
-import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./idempotency";
+import {
+  auditOperationId,
+  claimIdempotency,
+  claimOptional,
+  peekIdempotency,
+  peekOptional,
+  storeIdempotencyResult,
+  storeOptional,
+} from "./idempotency";
 
 export interface ProductRow {
   id: number;
@@ -269,8 +277,12 @@ export function updateProduct(input: {
   supplierId: number | null;
   barcodes: string[];
   now: string;
+  operationId?: string | null;
 }): void {
   const db = getDb();
+  // RADICAL: retry avec même operationId = no-op (pas de 2e audit/couche FIFO).
+  const fast = peekOptional<{ updated: boolean }>(input.operationId, "products.update");
+  if (fast) return;
   const stockStatus =
     input.quantity <= 0
       ? "out_of_stock"
@@ -278,6 +290,7 @@ export function updateProduct(input: {
         ? "low_stock"
         : "in_stock";
   const tx = db.transaction(() => {
+    claimOptional(input.operationId, "products.update", input.now);
     const old = db.prepare(`SELECT quantity FROM products WHERE id = ?`).get(input.id) as
       | { quantity: number }
       | undefined;
@@ -338,12 +351,28 @@ export function updateProduct(input: {
     ).run(
       randomUUID(),
       String(input.id),
-      randomUUID(),
+      auditOperationId(input.operationId, "product.updated", input.id, {
+        name: input.name.trim(),
+        quantity: input.quantity,
+      }),
       JSON.stringify({ name: input.name.trim() }),
       input.now,
     );
+    storeOptional(input.operationId, { updated: true });
   });
-  (tx as unknown as () => void)();
+  try {
+    (tx as unknown as () => void)();
+  } catch (err) {
+    if (
+      input.operationId &&
+      err instanceof Error &&
+      /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
+    ) {
+      const retry = peekOptional<{ updated: boolean }>(input.operationId, "products.update");
+      if (retry) return;
+    }
+    throw err;
+  }
 }
 
 export function restoreProduct(id: number, now: string, operationId: string): void {
@@ -480,22 +509,65 @@ export function listCategories(): { id: number; name: string }[] {
     .all() as { id: number; name: string }[];
 }
 
-export function createCategory(name: string, now: string): number {
+export function createCategory(name: string, now: string, operationId?: string | null): number {
   const db = getDb();
   const trimmed = name.trim();
   if (trimmed.length < 2) throw new Error("Nom de catégorie requis.");
+  // RADICAL: double-clic/retry avec même operationId = même id (pas de doublon).
+  // Sans operationId : UNIQUE(name) tranche (erreur FR « existe déjà »).
+  if (typeof operationId === "string" && operationId.trim().length > 0) {
+    const fast = peekOptional<{ id: number }>(operationId, "categories.create");
+    if (fast) return fast.id;
+  }
   // P8: création tracée (référentiel catalogue).
   const tx = db.transaction(() => {
+    claimOptional(operationId, "categories.create", now);
+    // Rejouement concurrent : même nom déjà créé par le 1er essai → retourne l'id.
+    const existing = db.prepare(`SELECT id FROM categories WHERE name = ?`).get(trimmed) as
+      | { id: number }
+      | undefined;
+    if (existing) {
+      if (typeof operationId === "string" && operationId.trim().length > 0) {
+        storeOptional(operationId, { id: Number(existing.id) });
+      }
+      return Number(existing.id);
+    }
     const r = db
       .prepare(`INSERT INTO categories (uuid, name, created_at, updated_at) VALUES (?, ?, ?, ?)`)
       .run(randomUUID(), trimmed, now, now);
     const id = Number(r.lastInsertRowid);
     db.prepare(
       `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at) VALUES (?, 'category.created', 'category', ?, ?, ?, ?)`,
-    ).run(randomUUID(), String(id), randomUUID(), JSON.stringify({ name: trimmed }), now);
+    ).run(
+      randomUUID(),
+      String(id),
+      auditOperationId(operationId, "category.created", trimmed, { name: trimmed }),
+      JSON.stringify({ name: trimmed }),
+      now,
+    );
+    storeOptional(operationId, { id });
     return id;
   });
-  return (tx as unknown as () => number)();
+  try {
+    return (tx as unknown as () => number)();
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      /UNIQUE constraint failed: (categories\.name|idempotency_keys\.operation_id)/i.test(
+        err.message,
+      )
+    ) {
+      if (typeof operationId === "string" && operationId.trim().length > 0) {
+        const retry = peekOptional<{ id: number }>(operationId, "categories.create");
+        if (retry) return retry.id;
+      }
+      const existing = db.prepare(`SELECT id FROM categories WHERE name = ?`).get(trimmed) as
+        | { id: number }
+        | undefined;
+      if (existing) return Number(existing.id);
+    }
+    throw err;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -516,11 +588,15 @@ export function setProductSuppliersAtomic(
   productId: number,
   supplierIds: number[],
   now: string,
+  operationId?: string | null,
 ): { linked: number } {
   const db = getDb();
   const unique = [...new Set(supplierIds.filter((n) => Number.isInteger(n) && n > 0))];
   if (unique.length > 100) throw new Error("Trop de fournisseurs liés (100 max).");
+  const fast = peekOptional<{ linked: number }>(operationId, "products.setSuppliers");
+  if (fast) return fast;
   const tx = db.transaction(() => {
+    claimOptional(operationId, "products.setSuppliers", now);
     const prod = db.prepare(`SELECT id FROM products WHERE id = ?`).get(productId) as
       | { id: number }
       | undefined;
@@ -548,11 +624,24 @@ export function setProductSuppliersAtomic(
     ).run(
       randomUUID(),
       String(productId),
-      randomUUID(),
+      auditOperationId(operationId, "product.suppliers", productId, { count: unique.length }),
       JSON.stringify({ count: unique.length }),
       now,
     );
+    storeOptional(operationId, { linked: unique.length });
   });
-  (tx as unknown as () => void)();
+  try {
+    (tx as unknown as () => void)();
+  } catch (err) {
+    if (
+      operationId &&
+      err instanceof Error &&
+      /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
+    ) {
+      const retry = peekOptional<{ linked: number }>(operationId, "products.setSuppliers");
+      if (retry) return retry;
+    }
+    throw err;
+  }
   return { linked: unique.length };
 }

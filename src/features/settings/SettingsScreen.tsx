@@ -1,6 +1,6 @@
 // Veloria PoS — Écran : Paramètres (6 rubriques unifiées, navigation latérale).
 import { useState } from "react";
-import { Card, cn } from "@shared/ui/primitives.tsx";
+import { Card, PageHeader, cn } from "@shared/ui/primitives.tsx";
 import { SETTINGS_SECTIONS, type SettingsSectionId } from "./types.ts";
 import {
   CompanySection,
@@ -14,6 +14,7 @@ import {
 import {
   AboutSection,
   BackupSection,
+  ClientSyncSection,
   DatabaseSection,
   InvoiceSection,
   PrintingSection,
@@ -28,12 +29,11 @@ export function SettingsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
 
   return (
     <div className="flex h-full flex-col gap-4">
-      <div className="min-w-0">
-        <h2 className="text-xl font-extrabold tracking-tight">Paramètres</h2>
-        <p className="text-xs text-slate-500">
-          Réglages explicites, appliqués immédiatement (base locale).
-        </p>
-      </div>
+      <PageHeader
+        title="Paramètres Système & Matériel PoS"
+        module="MODULE 16 · POSTE DE TRAVAIL & SYSTÈME SÉCURISÉ"
+        period="SQLite WAL Local · Exercice 2025 · ESC/POS, RJ11, RS-232 · Réglages explicites, appliqués immédiatement (base locale)."
+      />
       <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[260px_1fr]">
         <Card className="max-h-64 overflow-auto p-2 xl:max-h-none">
           <ul className="space-y-0.5" aria-label="Rubriques paramètres">
@@ -86,6 +86,7 @@ export function SettingsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
             <>
               <BackupSection notify={notify} />
               <DatabaseSection notify={notify} />
+              <ClientSyncSection notify={notify} />
             </>
           ) : null}
           {section === "system" ? (

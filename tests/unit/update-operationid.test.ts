@@ -1,9 +1,8 @@
-// Veloria — Contrats M-2/M-3 : operationId honnête (RADICAL REPAIR).
-// Contexte : les schémas update exigeaient un operationId que les repos
-// ignoraient (faux contrat). Nouveau contrat :
-//   - updates pures (product/supplier/expense) : SANS operationId (idempotentes
-//     par valeur) ; un operationId résiduel d'un vieux renderer est ignoré
-//     (Zod strip) sans casser.
+// Veloria — Contrats M-2/M-3 : operationId honnête (RADICAL REPAIR v2).
+// Nouveau contrat radical :
+//   - updates : operationId OPTIONNEL honoré par le repo (retry avec même UUID
+//     = no-op, pas de 2e audit/couche FIFO). Sans UUID : idempotent par valeur
+//     + audit déterministe (hash contenu, pas de random neuf au retry).
 //   - suppressions + imports par lot : AVEC operationId du caller (retry-safe).
 // Ce test verrouille le contrat : nouveau comportement + compat ascendante.
 import { describe, expect, it } from "vitest";
@@ -19,8 +18,8 @@ import {
 
 const OP = "123e4567-e89b-12d3-a456-426614174000";
 
-describe("M-3 : updates pures sans operationId (contrat honnête)", () => {
-  it("expense update SANS operationId est accepte", () => {
+describe("M-3 : updates avec operationId optionnel honoré (radical v2)", () => {
+  it("expense update SANS operationId est accepte (legacy)", () => {
     const payload = {
       id: 1,
       description: "Facture",
@@ -30,6 +29,20 @@ describe("M-3 : updates pures sans operationId (contrat honnête)", () => {
       status: "paid" as const,
     };
     expect(expenseUpdateSchema.safeParse(payload).success).toBe(true);
+  });
+  it("expense update AVEC operationId est accepte et honoré", () => {
+    const payload = {
+      id: 1,
+      operationId: OP,
+      description: "Facture",
+      category: "Loyer",
+      amountMinor: 1000,
+      expenseDate: "2026-09-18",
+      status: "paid" as const,
+    };
+    const parsed = expenseUpdateSchema.safeParse(payload);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.operationId).toBe(OP);
   });
   it("supplier update SANS operationId est accepte", () => {
     const payload = { id: 1, name: "Fournisseur Test" };

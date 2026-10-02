@@ -1,7 +1,7 @@
 // Veloria PoS — Écran : Zakat (calcul reporting + historique).
 // Paramètres déplacés dans Paramètres → Documents. Reporting seul, jamais un registre.
 import { useEffect, useState } from "react";
-import { Calculator, Download, Printer } from "lucide-react";
+import { Calculator, Download, FileDown, Printer } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { useCompany } from "@shared/company/use-company.ts";
 import { formatDzd } from "@domain/money/money.ts";
@@ -13,6 +13,7 @@ import {
   EmptyState,
   Kpi,
   Modal,
+  PageHeader,
   Pager,
   Select,
 } from "@shared/ui/primitives.tsx";
@@ -157,67 +158,79 @@ export function ZakatScreen({ notify }: { notify: Notify }): React.JSX.Element {
 
   return (
     <div className="flex h-full flex-col gap-4">
-      {/* En-tête de page */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-xl font-extrabold tracking-tight">Zakat</h2>
-          <p className="text-xs text-slate-500">
-            Reporting annuel ·{" "}
-            {preview_calc && preview_calc.above
-              ? `estimée ${formatDzd(preview_calc.zakat)}`
-              : "sous le nisab (hors caisse/banque)"}
-          </p>
-        </div>
-        <Select
-          value={hijriYear}
-          onChange={(e) => setHijriYear(e.target.value)}
-          aria-label="Année hégirienne"
-          title="Année hégirienne"
-        >
-          {HIJRI_YEARS.map((y) => (
-            <option key={y} value={y}>
-              {y} H
-            </option>
-          ))}
-        </Select>
-        <Button onClick={() => setCalcOpen(true)} title="Nouveau calcul">
-          <Calculator size={16} aria-hidden="true" /> Calculer
-        </Button>
-      </div>
+      {/* En-tête Stitch : Zakat El-Mal & Décharge Annuelle · MODULE 15 · SHARIA */}
+      <PageHeader
+        title="Zakat El-Mal & Décharge Annuelle"
+        module="MODULE 15 · CONFORMITÉ CHARIA · REGISTRE SCELLÉ"
+        period={
+          preview_calc && preview_calc.above
+            ? `NISAB ATTEINT (SOUMIS) · Zakat exigible ${formatDzd(preview_calc.zakat)} · Reporting annuel ${hijriYear} H`
+            : `Sous le nisab · Reporting annuel ${hijriYear} H · DZD`
+        }
+        actions={
+          <>
+            <Select
+              value={hijriYear}
+              onChange={(e) => setHijriYear(e.target.value)}
+              aria-label="Année hégirienne"
+              title="Année hégirienne"
+            >
+              {HIJRI_YEARS.map((y) => (
+                <option key={y} value={y}>
+                  {y} H
+                </option>
+              ))}
+            </Select>
+            <Button onClick={() => setCalcOpen(true)} title="Nouvel exercice">
+              <Calculator size={16} aria-hidden="true" /> Nouvel Exercice
+            </Button>
+          </>
+        }
+      />
 
-      {/* Paramètres (lecture seule, édition dans Paramètres → Documents) */}
+      {/* Paramètres Nisab & Référentiel Sharia (lecture seule, édition dans Paramètres → Documents) */}
       <Card className="flex flex-wrap items-center gap-3 p-4">
         <div className="min-w-0 flex-1 text-sm">
-          <strong>Nisab :</strong> {sources ? formatDzd(sources.params.nisabMinor) : "—"} (
+          <strong>Seuil du Nisab (Or 85g 24K) :</strong>{" "}
+          {sources ? formatDzd(sources.params.nisabMinor) : "—"} (
           {sources ? nisabMethodLabel(sources.params.nisabMethod) : "—"}) · <strong>Taux :</strong>{" "}
-          {sources ? `${sources.params.ratePercent} %` : "—"} · <strong>Hawl :</strong>{" "}
+          {sources ? `${sources.params.ratePercent} %` : "—"} · <strong>Statut Hawl :</strong>{" "}
           {sources?.params.hawlDate ?? "—"}
         </div>
         <span className="text-xs text-slate-500">Réglages : Paramètres → Documents → Zakat</span>
       </Card>
 
-      {/* Cartes résumé (sources live) */}
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
+      {/* Cartes résumé Stitch (sources live) */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <Kpi
-          label="Stock"
-          value={sources ? formatDzd(sources.inventory.v) : "—"}
-          sub="Valeur d'achat"
+          label="Seuil Nisab Or 85g 24K"
+          value={sources ? formatDzd(sources.params.nisabMinor) : "—"}
+          sub="Fixé Min. Aff. Religieuses"
+          accent="#fbbf24"
+        />
+        <Kpi
+          label="Assiette Nette Zakatable"
+          value={formatDzd(net)}
+          sub="Stocks + banques − passif court terme"
+          accent="#cde8ff"
+        />
+        <Kpi
+          label={`Zakat Exigible (${sources ? sources.params.ratePercent : "—"} %)`}
+          value={preview_calc ? formatDzd(preview_calc.zakat) : "—"}
+          sub={preview_calc && preview_calc.above ? "Un quart de dixième (1/40e)" : "Sous le nisab"}
+          accent="#4edea3"
         />
         <Kpi
           label="Créances"
           value={sources ? formatDzd(sources.customerDebts.d) : "—"}
           sub="Clients"
+          accent="#8ed0ff"
         />
         <Kpi
           label="Dettes"
           value={sources ? formatDzd(sources.supplierDebts.d) : "—"}
           sub="Fournisseurs"
-        />
-        <Kpi label="Base nette" value={formatDzd(net)} sub="Stock + créances − dettes" />
-        <Kpi
-          label="Zakat estimée"
-          value={preview_calc ? formatDzd(preview_calc.zakat) : "—"}
-          sub={preview_calc && preview_calc.above ? "Au-dessus du nisab" : "Sous le nisab"}
+          accent="#ffb4ab"
         />
       </div>
 
@@ -291,7 +304,7 @@ export function ZakatScreen({ notify }: { notify: Notify }): React.JSX.Element {
             />
           ) : (
             <table className="w-full min-w-[760px] text-sm">
-              <thead className="sticky top-0 bg-[#111a2e] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
+              <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
                 <tr>
                   <th className="px-3 py-2.5">Date</th>
                   <th className="px-3 py-2.5">Année H.</th>
@@ -359,7 +372,20 @@ export function ZakatScreen({ notify }: { notify: Notify }): React.JSX.Element {
             title="Aperçu rapport zakat"
             className="h-[50vh] w-full rounded-xl border border-white/10 bg-white"
           />
-          <div className="mt-3">
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                api
+                  .reportExportPdf(preview.payload)
+                  .then((r) => {
+                    notify(`PDF enregistré : ${(r as { path: string }).path}`, "ok");
+                  })
+                  .catch((e: unknown) => notify(frError(e, "Export PDF impossible."), "err"));
+              }}
+            >
+              <FileDown size={15} aria-hidden="true" /> PDF
+            </Button>
             <Button
               onClick={() => {
                 api
@@ -367,7 +393,6 @@ export function ZakatScreen({ notify }: { notify: Notify }): React.JSX.Element {
                   .then(() => notify("Rapport envoyé.", "ok"))
                   .catch((e: unknown) => notify(frError(e, "Impression impossible."), "err"));
               }}
-              className="w-full"
             >
               <Printer size={15} aria-hidden="true" /> Imprimer
             </Button>

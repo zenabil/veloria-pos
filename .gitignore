@@ -4,7 +4,10 @@ dist/
 dist-electron/
 dist-license-manager/
 dist-license-manager-renderer/
-release/
+# ancré (« / » initial) : sans lui git ignorait TOUT dossier nommé « release »
+# à toute profondeur — dont scripts/release/ (stamp/checksums/smoke), donc un
+# clone/CI ne trouvait plus stamp-electron-pkg.js (build:electron en échec).
+/release/
 out/
 *.log
 logs/
@@ -53,3 +56,5 @@ coverage/
 playwright-report/
 test-results/
 *.tsbuildinfo
+# Expo local (jamais committé)
+.expo/

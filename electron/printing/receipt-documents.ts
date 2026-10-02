@@ -27,6 +27,17 @@ export interface ReceiptData {
   customerPhone: string;
   customerAddress: string;
   customerCode: string;
+  /** Vendeur / caissier (vide = ligne masquée). */
+  seller?: string | undefined;
+  /** Taux TVA en % (0 = pas de TVA, rendu historique conservé). */
+  tvaRatePercent?: number | undefined;
+  /** Ventilation HT/TVA en centimes (0 quand taux = 0). */
+  htMinor?: number | undefined;
+  tvaMinor?: number | undefined;
+  /** Charge QR déterministe (vide = calculée depuis N°/total/date/RC/NIF). */
+  qrPayload?: string | undefined;
+  /** SVG QR réel injecté côté main (vide = aucun bloc QR). */
+  qrSvg?: string | undefined;
   paymentMethod: string;
   dueDate: string;
   notes: string;
@@ -58,6 +69,12 @@ interface PrintReceiptPayload {
   customerPhone?: unknown;
   customerAddress?: unknown;
   customerCode?: unknown;
+  seller?: unknown;
+  tvaRatePercent?: unknown;
+  htMinor?: unknown;
+  tvaMinor?: unknown;
+  qrPayload?: unknown;
+  qrSvg?: unknown;
   paymentMethod?: unknown;
   dueDate?: unknown;
   notes?: unknown;
@@ -176,14 +193,14 @@ export function code39Svg(raw: string, height = 46): string {
     for (let i = 0; i < 9; i++) {
       const w = pattern[i] === "w" ? wide : narrow;
       if (i % 2 === 0) {
-        rects += `<rect x="${x}" y="0" width="${w}" height="${height}" fill="#111"/>`;
+        rects += `<rect x="${x}" y="0" width="${w}" height="${height}" fill="#000"/>`;
       }
       x += w;
     }
     x += gap;
   }
   const width = x - gap;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height + 16}" width="${width}" height="${height + 16}" role="img" aria-label="Code-barres ${escapeHtml(text)}">${rects}<text x="${width / 2}" y="${height + 13}" text-anchor="middle" font-family="monospace" font-size="12" fill="#111">${escapeHtml(text)}</text></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height + 16}" width="${width}" height="${height + 16}" role="img" aria-label="Code-barres ${escapeHtml(text)}">${rects}<text x="${width / 2}" y="${height + 13}" text-anchor="middle" font-family="monospace" font-size="12" fill="#000">${escapeHtml(text)}</text></svg>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -281,6 +298,47 @@ export function amountInWordsFr(totalMinor: number): string {
   return `${capitalized} ${dinarWord} et ${centimes} centimes.`;
 }
 
+// ---------------------------------------------------------------------------
+// TVA (centimes, sans float) + QR déterministe. TVA = 0 → ventilation masquée
+// (compatibilité historique : aucun changement de rendu quand pas de TVA).
+// ---------------------------------------------------------------------------
+
+/** Ventilation HT/TVA depuis un TTC et un taux % (entiers centimes). */
+export function tvaBreakdown(
+  totalMinor: number,
+  ratePercent: number,
+): { htMinor: number; tvaMinor: number } {
+  const safe = Number.isInteger(totalMinor) && totalMinor >= 0 ? totalMinor : 0;
+  const rate = typeof ratePercent === "number" && Number.isFinite(ratePercent) ? ratePercent : 0;
+  if (rate <= 0) return { htMinor: 0, tvaMinor: 0 };
+  const clamped = Math.min(100, Math.max(0, rate));
+  const htMinor = Math.round((safe * 100) / (100 + clamped));
+  return { htMinor, tvaMinor: safe - htMinor };
+}
+
+/** Charge QR déterministe : `VELORIA|N°|TTC|DATE|RC|NIF|VENDEUR`. */
+export function buildQrPayload(d: {
+  invoice: string;
+  totalMinor: number;
+  date: string;
+  companyRc: string;
+  companyNif: string;
+  seller?: string | undefined;
+}): string {
+  const clean = (v: string): string => v.replace(/\|/g, "/").slice(0, 60);
+  const seller = typeof d.seller === "string" ? d.seller : "";
+  return `VELORIA|${clean(d.invoice || "")}|${Number.isInteger(d.totalMinor) ? d.totalMinor : 0}|${clean(d.date || "")}|${clean(d.companyRc || "")}|${clean(d.companyNif || "")}|${clean(seller)}`;
+}
+
+/** Bloc QR pour HTML (SVG réel injecté côté main + payload texte). */
+function qrBlockSvg(qrSvg: string, qrPayload: string): string {
+  const svg = typeof qrSvg === "string" ? qrSvg.trim() : "";
+  const payload = typeof qrPayload === "string" ? qrPayload : "";
+  if (!svg && !payload) return "";
+  const safeSvg = svg.startsWith("<svg") ? svg : "";
+  return `<div class="qr">${safeSvg}<div class="qrpayload">${escapeHtml(payload)}</div></div>`;
+}
+
 export function buildReceiptText(d: ReceiptData): string {
   const fmt = (m: number): string =>
     `${new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2 }).format(m / 100)} DA`;
@@ -290,11 +348,19 @@ export function buildReceiptText(d: ReceiptData): string {
     out.push([d.companyAddress, d.companyCity].filter(Boolean).join(" – "));
   }
   if (d.companyPhone) out.push(`Tél: ${d.companyPhone}`);
+  if (d.companyRc || d.companyNif) {
+    out.push(
+      [d.companyRc ? `RC : ${d.companyRc}` : "", d.companyNif ? `NIF : ${d.companyNif}` : ""]
+        .filter(Boolean)
+        .join(" · "),
+    );
+  }
   out.push(`==================`);
   out.push(`  TICKET DE CAISSE`);
   out.push(`==================`);
   out.push(`N° : ${d.invoice}`);
   out.push(`Date : ${d.date}`);
+  if (d.seller) out.push(`Vendeur : ${d.seller}`);
   if (d.customerName) out.push(`Client : ${d.customerName}`);
   out.push(`--------------------------------`);
   out.push(`PRODUIT      QTÉ  P.U.   TOTAL`);
@@ -305,9 +371,18 @@ export function buildReceiptText(d: ReceiptData): string {
   out.push(`--------------------------------`);
   out.push(`Sous-total            ${fmt(d.subtotalMinor)}`);
   out.push(`Remise                    ${fmt(d.discountMinor)}`);
+  const rate = typeof d.tvaRatePercent === "number" ? d.tvaRatePercent : 0;
+  if (rate > 0) {
+    const ht = typeof d.htMinor === "number" ? d.htMinor : 0;
+    const tv = typeof d.tvaMinor === "number" ? d.tvaMinor : 0;
+    const { htMinor, tvaMinor } =
+      ht > 0 || tv > 0 ? { htMinor: ht, tvaMinor: tv } : tvaBreakdown(d.totalMinor, rate);
+    out.push(`Total HT                ${fmt(htMinor)}`);
+    out.push(`TVA (${rate} %)              ${fmt(tvaMinor)}`);
+  }
   if (d.deliveryMinor > 0) out.push(`Livraison                 ${fmt(d.deliveryMinor)}`);
   out.push(``);
-  out.push(`TOTAL                 ${fmt(d.totalMinor)}`);
+  out.push(`TOTAL TTC             ${fmt(d.totalMinor)}`);
   out.push(``);
   out.push(`Payé                   ${fmt(d.paidMinor)}`);
   const change = d.paidMinor - d.totalMinor;
@@ -320,6 +395,8 @@ export function buildReceiptText(d: ReceiptData): string {
     out.push(`Solde actuel             ${fmt(d.currentBalanceMinor)}`);
   const method = paymentMethodLabel(d.paymentMethod);
   if (method) out.push(`Mode : ${method.toUpperCase()}`);
+  const qr = d.qrPayload || buildQrPayload(d);
+  if (qr) out.push(`QR : ${qr}`);
   out.push(`--------------------------------`);
   if (d.thankYouMessage) out.push(d.thankYouMessage);
   else {
@@ -338,6 +415,10 @@ function textOf(value: unknown): string {
 export function toReceiptData(raw: unknown): ReceiptData {
   const payload: PrintReceiptPayload =
     typeof raw === "object" && raw !== null ? (raw as PrintReceiptPayload) : {};
+  const tvaRate =
+    typeof payload.tvaRatePercent === "number" && Number.isFinite(payload.tvaRatePercent)
+      ? Math.min(100, Math.max(0, payload.tvaRatePercent))
+      : 0;
   return {
     company: textOf(payload.company) || "Veloria",
     companyPhone: textOf(payload.companyPhone),
@@ -351,6 +432,12 @@ export function toReceiptData(raw: unknown): ReceiptData {
     customerPhone: textOf(payload.customerPhone),
     customerAddress: textOf(payload.customerAddress),
     customerCode: textOf(payload.customerCode),
+    seller: textOf(payload.seller),
+    tvaRatePercent: tvaRate,
+    htMinor: toNumberOr(payload.htMinor, 0),
+    tvaMinor: toNumberOr(payload.tvaMinor, 0),
+    qrPayload: textOf(payload.qrPayload),
+    qrSvg: textOf(payload.qrSvg),
     paymentMethod: textOf(payload.paymentMethod),
     dueDate: textOf(payload.dueDate),
     notes: textOf(payload.notes),
@@ -386,6 +473,44 @@ export function escapePreText(s: string): string {
   return escapeHtml(s).replace(/'/g, "&#39;");
 }
 
+/** Largeur thermique supportée (58/80mm, sans coupe). */
+export type ThermalWidth = "58mm" | "80mm";
+
+/**
+ * Ticket thermique HTML (N&B strict) : texte monospace + codes scannables.
+ * Chaque document thermique porte son Code 39 (N° du document) + son QR —
+ * comme les A4 (`codeBlocks`), mis à l'échelle du papier (58 = 200px).
+ */
+export function thermalHtml(
+  text: string,
+  width?: ThermalWidth,
+  codes?: {
+    barcode?: string | undefined;
+    qrSvg?: string | undefined;
+    qrPayload?: string | undefined;
+  },
+): string {
+  const w: ThermalWidth = width === "58mm" ? "58mm" : "80mm";
+  const style =
+    w === "58mm"
+      ? "font-family:monospace;width:200px;font-size:11px;line-height:1.35;background:#fff;color:#000;margin:0"
+      : "font-family:monospace;width:280px;font-size:12px;line-height:1.4;background:#fff;color:#000;margin:0";
+  const bar = codes?.barcode ? code39Svg(codes.barcode, 40) : "";
+  const qr = codes?.qrSvg && codes.qrSvg.startsWith("<svg") ? codes.qrSvg : "";
+  const payload = codes?.qrPayload ?? "";
+  const blocks =
+    bar || qr
+      ? `<div style="text-align:center;background:#fff;max-width:${w === "58mm" ? "200px" : "280px"}">` +
+        (bar ? `<div style="max-width:100%;overflow:hidden">${bar}</div>` : "") +
+        (qr ? `<div>${qr}</div>` : "") +
+        (payload
+          ? `<div style="font-family:monospace;font-size:9px;word-break:break-all;color:#000">${escapeHtml(payload)}</div>`
+          : "") +
+        `</div>`
+      : "";
+  return `<div style="background:#fff;color:#000"><pre style="${style}">${escapePreText(text)}</pre>${blocks}</div>`;
+}
+
 function fmtDzd(m: number): string {
   return `${new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2 }).format(m / 100)} DA`;
 }
@@ -402,7 +527,7 @@ interface CompanyHead {
 function companyHead(d: CompanyHead, title: string, metaRows: string): string {
   const logo =
     d.companyLogo != null && /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(d.companyLogo)
-      ? `<img src="${escapeHtml(d.companyLogo)}" alt="Logo" style="max-height:64px;max-width:160px;object-fit:contain" />`
+      ? `<img src="${escapeHtml(d.companyLogo)}" alt="Logo" style="max-height:64px;max-width:160px;object-fit:contain;filter:grayscale(1) contrast(1.15)" />`
       : "";
   const lines = [d.companyAddress, d.companyCity].filter(Boolean).join(" – ");
   return `<div class="head"><div class="brand">${logo}<div><h1>${escapeHtml(d.company)}</h1>
@@ -417,6 +542,14 @@ ${d.companyEmail ? `<div class="muted">Email: ${escapeHtml(d.companyEmail)}</div
 function barcodeBlock(value: string): string {
   const svg = code39Svg(value);
   return svg ? `<div class="barcode">${svg}</div>` : "";
+}
+
+/** Bloc QR + barcode combiné (N&B strict, logo exclu). */
+function codeBlocks(invoice: string, qrSvg: string, qrPayload: string): string {
+  const bar = barcodeBlock(invoice);
+  const qr = qrBlockSvg(qrSvg, qrPayload || invoice);
+  if (!bar && !qr) return "";
+  return `<div class="codes">${bar}${qr}</div>`;
 }
 
 function legalFooter(d: {
@@ -464,32 +597,43 @@ export function buildA4Html(d: ReceiptData): string {
   ].join("");
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8">
 <title>Facture ${escapeHtml(d.invoice)}</title>
-<style>@page{size:A4;margin:15mm}body{font-family:Arial,sans-serif;color:#111;font-size:13px}
-h1{font-size:22px;margin:0}.brand{display:flex;gap:12px;align-items:flex-start}
+<style>@page{size:A4;margin:15mm}body{font-family:Arial,sans-serif;background:#fff;color:#000;font-size:13px}
+h1{font-size:22px;margin:0;color:#000}.brand{display:flex;gap:12px;align-items:flex-start}
+.brand img{filter:grayscale(1) contrast(1.15)}
 .head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
-.docbox{border:2px solid #111;padding:10px 14px;min-width:220px}
+.docbox{border:2px solid #000;padding:10px 14px;min-width:220px}
 .docbox h1{font-size:20px;text-align:center;margin-bottom:6px}
-.muted{color:#555;font-size:12px}.lbl{color:#555}
-.client{border:1px solid #999;padding:10px 12px;margin:16px 0;display:grid;grid-template-columns:1fr 1fr;gap:4px 16px}
+.muted{color:#000;font-size:12px}.lbl{color:#000}
+.client{border:1px solid #000;padding:10px 12px;margin:16px 0;display:grid;grid-template-columns:1fr 1fr;gap:4px 16px}
 .client h2,.sect{grid-column:1/-1;font-size:13px;margin:0 0 4px;text-transform:uppercase;letter-spacing:.08em}
 table.items{width:100%;border-collapse:collapse}
-.items th,.items td{border:1px solid #999;padding:6px 8px;text-align:left}
-.items th{background:#eee}.num{text-align:right;white-space:nowrap}
+.items th,.items td{border:1px solid #000;padding:6px 8px;text-align:left;color:#000}
+.items th{background:#fff}.num{text-align:right;white-space:nowrap}
 .totals{margin-left:auto;width:300px;border-collapse:collapse}
-.totals td{border:1px solid #999;padding:6px 8px}
+.totals td{border:1px solid #000;padding:6px 8px;color:#000}
 .totals .nb{border:none}.grand{font-weight:bold;font-size:15px}
 .barcode{margin-top:8px;text-align:center}.barcode svg{max-width:230px;height:auto}
+.codes{display:flex;gap:16px;justify-content:center;align-items:flex-start;margin-top:8px}
+.qr{text-align:center}.qr svg{width:110px;height:110px}.qrpayload{font-family:monospace;font-size:9px;word-break:break-all;color:#000}
 .words{margin:12px 0}.signs{display:flex;gap:24px;margin-top:28px}
-.signs div{flex:1;border:1px solid #999;min-height:90px;padding:8px;font-size:12px;color:#555}
-.foot{margin-top:24px;text-align:center}.pagefoot{margin-top:24px;border-top:1px solid #999;padding-top:8px;font-size:11px;color:#555;text-align:center}</style>
+.signs div{flex:1;border:1px solid #000;min-height:90px;padding:8px;font-size:12px;color:#000}
+.foot{margin-top:24px;text-align:center;color:#000}.pagefoot{margin-top:24px;border-top:1px solid #000;padding-top:8px;font-size:11px;color:#000;text-align:center}</style>
 </head><body>
-${companyHead(d, "FACTURE", `<div>N° : ${escapeHtml(d.invoice)}</div><div>Date : ${escapeHtml(d.date)}</div>${d.dueDate ? `<div>Échéance : ${escapeHtml(d.dueDate)}</div>` : ""}${barcodeBlock(d.invoice)}`)}
+${companyHead(d, "FACTURE", `<div>N° : ${escapeHtml(d.invoice)}</div><div>Date : ${escapeHtml(d.date)}</div>${d.seller ? `<div>Vendeur : ${escapeHtml(d.seller)}</div>` : ""}${d.dueDate ? `<div>Échéance : ${escapeHtml(d.dueDate)}</div>` : ""}${codeBlocks(d.invoice, d.qrSvg ?? "", d.qrPayload || buildQrPayload(d))}`)}
 <div class="client"><h2>Client</h2>${clientRows}</div>
 <table class="items"><thead><tr><th>Réf.</th><th>Désignation</th><th>Qté</th><th>Prix U.</th><th>Total</th></tr></thead>
 <tbody>${rows}</tbody></table>
 <table class="totals"><tbody>
 <tr><td>Sous-total</td><td class="num">${fmtDzd(d.subtotalMinor)}</td></tr>
 <tr><td>Remise</td><td class="num">${fmtDzd(d.discountMinor)}</td></tr>
+${(() => {
+  const rate = typeof d.tvaRatePercent === "number" ? d.tvaRatePercent : 0;
+  if (!(rate > 0)) return "";
+  const ht0 = typeof d.htMinor === "number" ? d.htMinor : 0;
+  const tv0 = typeof d.tvaMinor === "number" ? d.tvaMinor : 0;
+  const v = ht0 > 0 || tv0 > 0 ? { htMinor: ht0, tvaMinor: tv0 } : tvaBreakdown(d.totalMinor, rate);
+  return `<tr><td>Total HT</td><td class="num">${fmtDzd(v.htMinor)}</td></tr><tr><td>TVA (${rate} %)</td><td class="num">${fmtDzd(v.tvaMinor)}</td></tr>`;
+})()}
 <tr class="grand"><td>TOTAL TTC</td><td class="num">${fmtDzd(d.totalMinor)}</td></tr>
 <tr><td>Payé</td><td class="num">${fmtDzd(d.paidMinor)}</td></tr>
 <tr class="grand"><td>RESTE</td><td class="num">${fmtDzd(remaining)}</td></tr>
@@ -664,15 +808,15 @@ function barChartSvg(title: string, labels: string[], values: number[]): string 
     const bh = Math.max(1, Math.round(((h - pad * 2) * v) / max));
     const x = Math.round(pad + slot * i + (slot - bw) / 2);
     const y = h - pad - bh;
-    rects += `<rect x="${x}" y="${y}" width="${bw}" height="${bh}" fill="#b45309"><title>${escapeHtml(labels[i] as string)} : ${v}</title></rect>`;
+    rects += `<rect x="${x}" y="${y}" width="${bw}" height="${bh}" fill="#000"><title>${escapeHtml(labels[i] as string)} : ${v}</title></rect>`;
   }
   const step = Math.max(1, Math.ceil(n / 12));
   let ticks = "";
   for (let i = 0; i < n; i += step) {
     const x = Math.round(pad + slot * i + slot / 2);
-    ticks += `<text x="${x}" y="${h - 8}" text-anchor="middle" font-size="9" fill="#555">${escapeHtml((labels[i] as string).slice(-5))}</text>`;
+    ticks += `<text x="${x}" y="${h - 8}" text-anchor="middle" font-size="9" fill="#000">${escapeHtml((labels[i] as string).slice(-5))}</text>`;
   }
-  return `<div class="chart"><div class="ctitle">${escapeHtml(title)}</div><svg viewBox="0 0 ${w} ${h}" width="100%" role="img"><line x1="${pad}" y1="${h - pad}" x2="${w - 8}" y2="${h - pad}" stroke="#999"/>${rects}${ticks}</svg></div>`;
+  return `<div class="chart"><div class="ctitle">${escapeHtml(title)}</div><svg viewBox="0 0 ${w} ${h}" width="100%" role="img"><line x1="${pad}" y1="${h - pad}" x2="${w - 8}" y2="${h - pad}" stroke="#000"/>${rects}${ticks}</svg></div>`;
 }
 
 /** Rapport A4 : KPIs + graphiques + tableaux (une seule source déterministe). */
@@ -690,14 +834,14 @@ export function buildReportHtml(d: ReportData): string {
     .join("");
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8">
 <title>${escapeHtml(d.title)}</title>
-<style>@page{size:A4;margin:15mm}body{font-family:Arial,sans-serif;color:#111;font-size:12px}
-h1{font-size:20px;margin:0}.muted{color:#555}
+<style>@page{size:A4;margin:15mm}body{font-family:Arial,sans-serif;background:#fff;color:#000;font-size:12px}
+h1{font-size:20px;margin:0}.muted{color:#000}
 .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
-.kpi{border:1px solid #999;padding:8px}.kl{font-size:11px;color:#555}.kv{font-size:15px;font-weight:bold}
+.kpi{border:1px solid #000;padding:8px}.kl{font-size:11px;color:#000}.kv{font-size:15px;font-weight:bold}
 h2{font-size:14px;margin:18px 0 6px}table{width:100%;border-collapse:collapse;font-size:12px}
-th,td{border:1px solid #999;padding:5px 7px;text-align:left}th{background:#eee}
+th,td{border:1px solid #000;padding:5px 7px;text-align:left}th{background:#fff}
 .chart{margin:12px 0}.ctitle{font-weight:bold;margin-bottom:4px}
-.foot{margin-top:24px;border-top:1px solid #999;padding-top:8px;font-size:11px;color:#555;text-align:center}</style>
+.foot{margin-top:24px;border-top:1px solid #000;padding-top:8px;font-size:11px;color:#000;text-align:center}</style>
 </head><body>
 <h1>${escapeHtml(d.title)}</h1>
 <div class="muted">${escapeHtml(d.company)}${d.period ? ` · ${escapeHtml(d.period)}` : ""}</div>
@@ -716,23 +860,56 @@ export interface LabelItem {
   barcode: string;
 }
 
-export function buildLabelsHtml(items: LabelItem[]): string {
+export type LabelFormat = "30x20" | "50x30" | "58x40" | "A4-24" | "custom";
+
+export interface LabelOptions {
+  format?: LabelFormat | undefined;
+  customWidthMm?: number | undefined;
+  customHeightMm?: number | undefined;
+}
+
+function labelPageStyle(opts: LabelOptions): {
+  page: string;
+  cols: number;
+  namePx: number;
+  pricePx: number;
+  barH: number;
+} {
+  const f = opts.format ?? "A4-24";
+  if (f === "30x20") return { page: "30mm 20mm", cols: 1, namePx: 8, pricePx: 10, barH: 24 };
+  if (f === "50x30") return { page: "50mm 30mm", cols: 1, namePx: 10, pricePx: 14, barH: 30 };
+  if (f === "58x40") return { page: "58mm 40mm", cols: 1, namePx: 10, pricePx: 14, barH: 30 };
+  if (f === "custom") {
+    const w =
+      typeof opts.customWidthMm === "number" ? Math.min(210, Math.max(10, opts.customWidthMm)) : 50;
+    const h =
+      typeof opts.customHeightMm === "number"
+        ? Math.min(297, Math.max(10, opts.customHeightMm))
+        : 30;
+    return { page: `${w}mm ${h}mm`, cols: 1, namePx: 10, pricePx: 14, barH: 30 };
+  }
+  return { page: "A4", cols: 3, namePx: 11, pricePx: 14, barH: 34 };
+}
+
+export function buildLabelsHtml(items: LabelItem[], opts?: LabelOptions): string {
+  const st = labelPageStyle(opts ?? {});
   const cells = items
     .map((it) => {
       const code = sanitizeCode39(it.barcode);
-      const svg = code ? code39Svg(code, 34) : "";
-      return `<div class="label"><div class="lname">${escapeHtml(it.name)}</div><div class="lprice">${fmtDzd(it.priceMinor)}</div>${svg}<div class="lcode">${escapeHtml(code || it.barcode)}</div></div>`;
+      const svg = code ? code39Svg(code, st.barH) : "";
+      return `<div class="label"><div class="lname" style="font-size:${st.namePx}px">${escapeHtml(it.name)}</div><div class="lprice" style="font-size:${st.pricePx}px">${fmtDzd(it.priceMinor)}</div>${svg}<div class="lcode">${escapeHtml(code || it.barcode)}</div></div>`;
     })
     .join("");
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8">
 <title>Étiquettes code-barres</title>
-<style>@page{size:A4;margin:10mm}body{font-family:Arial,sans-serif;color:#111}
-.sheet{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-.label{border:1px dashed #888;border-radius:6px;padding:6px 8px;text-align:center;overflow:hidden;page-break-inside:avoid}
-.lname{font-size:11px;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.lprice{font-size:14px;font-weight:bold;margin:2px 0}
+<style>@page{size:${st.page};margin:5mm}body{font-family:Arial,sans-serif;background:#fff;color:#000}
+.sheet{display:grid;grid-template-columns:repeat(${st.cols},1fr);gap:6px}
+.label{border:1px solid #000;border-radius:4px;padding:6px 8px;text-align:center;overflow:hidden;page-break-inside:avoid;background:#fff;color:#000}
+.label img{filter:grayscale(1) contrast(1.15)}
+.lname{font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#000}
+.lprice{font-weight:bold;margin:2px 0;color:#000}
 .label svg{max-width:100%;height:auto}
-.lcode{font-family:monospace;font-size:10px}</style>
+.lcode{font-family:monospace;font-size:10px;color:#000}</style>
 </head><body><div class="sheet">${cells}</div></body></html>`;
 }
 
@@ -756,6 +933,12 @@ export interface ProformaData {
   customerName: string;
   customerPhone: string;
   customerAddress: string;
+  seller?: string | undefined;
+  tvaRatePercent?: number | undefined;
+  htMinor?: number | undefined;
+  tvaMinor?: number | undefined;
+  qrPayload?: string | undefined;
+  qrSvg?: string | undefined;
   number: string;
   date: string;
   dueDate: string;
@@ -781,6 +964,12 @@ export function proformaFromReceipt(d: ReceiptData): ProformaData {
     customerName: d.customerName,
     customerPhone: d.customerPhone,
     customerAddress: d.customerAddress,
+    seller: d.seller,
+    tvaRatePercent: d.tvaRatePercent,
+    htMinor: d.htMinor,
+    tvaMinor: d.tvaMinor,
+    qrPayload: d.qrPayload || buildQrPayload({ ...d, invoice: d.invoice }),
+    qrSvg: d.qrSvg,
     number: d.invoice,
     date: d.date,
     dueDate: d.dueDate,
@@ -801,6 +990,7 @@ export function buildProformaText(d: ProformaData): string {
   out.push(`DEVIS (SANS VALEUR FISCALE)`);
   out.push(`N° : ${d.number}`);
   out.push(`Date : ${d.date}`);
+  if (d.seller) out.push(`Vendeur : ${d.seller}`);
   if (d.customerName) out.push(`Client : ${d.customerName}`);
   out.push(`--------------------------------`);
   for (const l of d.lines) {
@@ -810,8 +1000,27 @@ export function buildProformaText(d: ProformaData): string {
   out.push(`--------------------------------`);
   out.push(`Sous-total : ${fmt(d.subtotalMinor)}`);
   out.push(`Remise : ${fmt(d.discountMinor)}`);
+  const rate = typeof d.tvaRatePercent === "number" ? d.tvaRatePercent : 0;
+  if (rate > 0) {
+    const ht = typeof d.htMinor === "number" ? d.htMinor : 0;
+    const tv = typeof d.tvaMinor === "number" ? d.tvaMinor : 0;
+    const v = ht > 0 || tv > 0 ? { htMinor: ht, tvaMinor: tv } : tvaBreakdown(d.totalMinor, rate);
+    out.push(`Total HT : ${fmt(v.htMinor)}`);
+    out.push(`TVA (${rate} %) : ${fmt(v.tvaMinor)}`);
+  }
   out.push(`TOTAL DEVIS : ${fmt(d.totalMinor)}`);
   out.push(``);
+  const qr =
+    d.qrPayload ||
+    buildQrPayload({
+      invoice: d.number,
+      totalMinor: d.totalMinor,
+      date: d.date,
+      companyRc: d.companyRc,
+      companyNif: d.companyNif,
+      seller: d.seller,
+    });
+  if (qr) out.push(`QR : ${qr}`);
   out.push(`Devis valable 30 jours.`);
   return out.join("\n");
 }
@@ -837,30 +1046,33 @@ export function buildProformaA4Html(d: ProformaData): string {
   ].join("");
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8">
 <title>Devis ${escapeHtml(d.number)}</title>
-<style>@page{size:A4;margin:15mm}body{font-family:Arial,sans-serif;color:#111;font-size:13px}
-h1{font-size:22px;margin:0}.brand{display:flex;gap:12px;align-items:flex-start}
+<style>@page{size:A4;margin:15mm}body{font-family:Arial,sans-serif;background:#fff;color:#000;font-size:13px}
+h1{font-size:22px;margin:0;color:#000}.brand{display:flex;gap:12px;align-items:flex-start}
+.brand img{filter:grayscale(1) contrast(1.15)}
 .head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
-.docbox{border:2px solid #111;padding:10px 14px;min-width:220px}
+.docbox{border:2px solid #000;padding:10px 14px;min-width:220px}
 .docbox h1{font-size:20px;text-align:center;margin-bottom:6px}
-.muted{color:#555;font-size:12px}.lbl{color:#555}
-.client{border:1px solid #999;padding:10px 12px;margin:16px 0;display:grid;grid-template-columns:1fr 1fr;gap:4px 16px}
+.muted{color:#000;font-size:12px}.lbl{color:#000}
+.client{border:1px solid #000;padding:10px 12px;margin:16px 0;display:grid;grid-template-columns:1fr 1fr;gap:4px 16px}
 .client h2,.sect{grid-column:1/-1;font-size:13px;margin:0 0 4px;text-transform:uppercase;letter-spacing:.08em}
 table.items{width:100%;border-collapse:collapse}
-.items th,.items td{border:1px solid #999;padding:6px 8px;text-align:left}
-.items th{background:#eee}.num{text-align:right;white-space:nowrap}
+.items th,.items td{border:1px solid #000;padding:6px 8px;text-align:left}
+.items th{background:#fff}.num{text-align:right;white-space:nowrap}
 .totals{margin-left:auto;width:300px;border-collapse:collapse}
-.totals td{border:1px solid #999;padding:6px 8px}
+.totals td{border:1px solid #000;padding:6px 8px}
 .grand{font-weight:bold;font-size:15px}
 .barcode{margin-top:8px;text-align:center}.barcode svg{max-width:230px;height:auto}
-.stamp{display:inline-block;margin-top:16px;padding:6px 14px;border:2px solid #111;font-weight:bold}
+.codes{display:flex;gap:16px;justify-content:center;align-items:flex-start;margin-top:8px}
+.qr{text-align:center}.qr svg{width:110px;height:110px}.qrpayload{font-family:monospace;font-size:9px;word-break:break-all;color:#000}
+.stamp{display:inline-block;margin-top:16px;padding:6px 14px;border:2px solid #000;font-weight:bold;color:#000}
 .signs{display:flex;gap:24px;margin-top:28px}
-.signs div{flex:1;border:1px solid #999;min-height:90px;padding:8px;font-size:12px;color:#555}
+.signs div{flex:1;border:1px solid #000;min-height:90px;padding:8px;font-size:12px;color:#000}
 .foot{margin-top:24px}</style>
 </head><body>
 ${companyHead(
   d,
   "PROFORMA / DEVIS",
-  `<div>N° : ${escapeHtml(d.number)}</div><div>Date : ${escapeHtml(d.date)}</div><div>Validité : ${escapeHtml(d.dueDate || "30 jours")}</div>${barcodeBlock(d.number)}`,
+  `<div>N° : ${escapeHtml(d.number)}</div><div>Date : ${escapeHtml(d.date)}</div><div>Validité : ${escapeHtml(d.dueDate || "30 jours")}</div>${d.seller ? `<div>Vendeur : ${escapeHtml(d.seller)}</div>` : ""}${codeBlocks(d.number, d.qrSvg ?? "", d.qrPayload || buildQrPayload({ invoice: d.number, totalMinor: d.totalMinor, date: d.date, companyRc: d.companyRc, companyNif: d.companyNif, seller: d.seller }))}`,
 )}
 <div class="client"><h2>Destinataire</h2>${destRows}</div>
 <table class="items"><thead><tr><th>Réf.</th><th>Désignation</th><th>Qté</th><th>Prix U.</th><th>Total</th></tr></thead>
@@ -868,6 +1080,14 @@ ${companyHead(
 <table class="totals"><tbody>
 <tr><td>Sous-total</td><td class="num">${fmtDzd(d.subtotalMinor)}</td></tr>
 <tr><td>Remise</td><td class="num">${fmtDzd(d.discountMinor)}</td></tr>
+${(() => {
+  const rate = typeof d.tvaRatePercent === "number" ? d.tvaRatePercent : 0;
+  if (!(rate > 0)) return "";
+  const ht0 = typeof d.htMinor === "number" ? d.htMinor : 0;
+  const tv0 = typeof d.tvaMinor === "number" ? d.tvaMinor : 0;
+  const v = ht0 > 0 || tv0 > 0 ? { htMinor: ht0, tvaMinor: tv0 } : tvaBreakdown(d.totalMinor, rate);
+  return `<tr><td>Total HT</td><td class="num">${fmtDzd(v.htMinor)}</td></tr><tr><td>TVA (${rate} %)</td><td class="num">${fmtDzd(v.tvaMinor)}</td></tr>`;
+})()}
 <tr class="grand"><td>TOTAL</td><td class="num">${fmtDzd(d.totalMinor)}</td></tr>
 </tbody></table>
 <div class="words">Montant en lettres : ${escapeHtml(amountInWordsFr(d.totalMinor))}</div>
@@ -909,6 +1129,8 @@ export interface PaymentTicketData {
   notes: string;
   footerText: string;
   thankYouMessage: string;
+  qrPayload?: string | undefined;
+  qrSvg?: string | undefined;
 }
 
 export function paymentTicketKindLabel(kind: PaymentTicketKind): string {
@@ -934,6 +1156,8 @@ export function buildPaymentText(d: PaymentTicketData): string {
   const method = paymentMethodLabel(d.paymentMethod);
   if (method) out.push(`Mode : ${method.toUpperCase()}`);
   if (d.notes) out.push(`Note : ${d.notes}`);
+  const pqr = d.qrPayload || `VELORIA|${d.reference || ""}|${d.amountMinor}|${d.date}`;
+  if (pqr) out.push(`QR : ${pqr}`);
   out.push(`--------------------------------`);
   if (d.thankYouMessage) out.push(d.thankYouMessage);
   else {
@@ -951,23 +1175,26 @@ export function buildPaymentTicketA4Html(d: PaymentTicketData): string {
   const method = paymentMethodLabel(d.paymentMethod);
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8">
 <title>${escapeHtml(title)}${d.reference ? ` ${escapeHtml(d.reference)}` : ""}</title>
-<style>@page{size:A4;margin:15mm}body{font-family:Arial,sans-serif;color:#111;font-size:13px}
-h1{font-size:22px;margin:0}.brand{display:flex;gap:12px;align-items:flex-start}
+<style>@page{size:A4;margin:15mm}body{font-family:Arial,sans-serif;background:#fff;color:#000;font-size:13px}
+h1{font-size:22px;margin:0;color:#000}.brand{display:flex;gap:12px;align-items:flex-start}
+.brand img{filter:grayscale(1) contrast(1.15)}
+.brand img{filter:grayscale(1) contrast(1.15)}
 .head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
-.docbox{border:2px solid #111;padding:10px 14px;min-width:220px}
+.docbox{border:2px solid #000;padding:10px 14px;min-width:220px}
 .docbox h1{font-size:20px;text-align:center;margin-bottom:6px}
-.muted{color:#555;font-size:12px}.lbl{color:#555}
-.client{border:1px solid #999;padding:10px 12px;margin:16px 0;display:grid;grid-template-columns:1fr 1fr;gap:4px 16px}
+.muted{color:#000;font-size:12px}.lbl{color:#000}
+.client{border:1px solid #000;padding:10px 12px;margin:16px 0;display:grid;grid-template-columns:1fr 1fr;gap:4px 16px}
 .client h2{grid-column:1/-1;font-size:13px;margin:0 0 4px;text-transform:uppercase;letter-spacing:.08em}
 table.items{width:100%;border-collapse:collapse}
-.items th,.items td{border:1px solid #999;padding:6px 8px;text-align:left}
-.items th{background:#eee}.num{text-align:right;white-space:nowrap}
+.items th,.items td{border:1px solid #000;padding:6px 8px;text-align:left}
+.items th{background:#fff}.num{text-align:right;white-space:nowrap}
 .totals{margin-left:auto;width:300px;border-collapse:collapse}
-.totals td{border:1px solid #999;padding:6px 8px}
+.totals td{border:1px solid #000;padding:6px 8px}
 .totals .nb{border:none}.grand{font-weight:bold;font-size:15px}
+.qr{text-align:center;margin-top:8px}.qr svg{width:110px;height:110px}.qrpayload{font-family:monospace;font-size:9px;word-break:break-all;color:#000}
 .signs{display:flex;gap:24px;margin-top:28px}
-.signs div{flex:1;border:1px solid #999;min-height:90px;padding:8px;font-size:12px;color:#555}
-.pagefoot{margin-top:24px;border-top:1px solid #999;padding-top:8px;font-size:11px;color:#555;text-align:center}</style>
+.signs div{flex:1;border:1px solid #000;min-height:90px;padding:8px;font-size:12px;color:#000}
+.pagefoot{margin-top:24px;border-top:1px solid #000;padding-top:8px;font-size:11px;color:#000;text-align:center}</style>
 </head><body>
 ${companyHead(
   d,
@@ -975,6 +1202,7 @@ ${companyHead(
   `<div>${d.reference ? `Réf : ${escapeHtml(d.reference)}` : "Sans référence"}</div><div>Date : ${escapeHtml(d.date)}</div>`,
 )}
 <div class="client"><h2>Partie</h2><div><span class="lbl">Nom :</span> ${escapeHtml(d.partyLabel || "—")}</div>${method ? `<div><span class="lbl">Mode :</span> ${escapeHtml(method)}</div>` : ""}</div>
+${barcodeBlock(d.reference)}${d.qrSvg ? `<div class="qr">${d.qrSvg}<div class="qrpayload">${escapeHtml(d.qrPayload || d.reference)}</div></div>` : d.qrPayload ? `<div class="qrpayload">${escapeHtml(d.qrPayload)}</div>` : ""}
 <table class="items"><thead><tr><th>Désignation</th><th class="num">Montant</th></tr></thead>
 <tbody><tr><td>Règlement${d.notes ? ` — ${escapeHtml(d.notes)}` : ""}</td><td class="num">${fmtDzd(d.amountMinor)}</td></tr></tbody></table>
 <table class="totals"><tbody>
@@ -985,4 +1213,145 @@ ${companyHead(
 <div class="signs"><div>Signature client</div><div>Signature / Cachet</div></div>
 ${legalFooter({ ...d, footerText: d.footerText })}
 </body></html>`;
+}
+
+// ---------------------------------------------------------------------------
+// P0-3 : documents logistiques — bon de livraison / bon de retour / bon de
+// commande. Même hiérarchie N&B + QR + Code39 que la facture, données SQLite.
+// ---------------------------------------------------------------------------
+
+export interface LogisticsDocData extends ReceiptData {
+  originNumber?: string | undefined;
+  deliverer?: string | undefined;
+  returnNumber?: string | undefined;
+  reason?: string | undefined;
+  refundMinor?: number | undefined;
+  orderNumber?: string | undefined;
+  supplierName?: string | undefined;
+  supplierPhone?: string | undefined;
+  supplierAddress?: string | undefined;
+  validityDays?: number | undefined;
+}
+
+const LOGI_CSS = `@page{size:A4;margin:15mm}body{font-family:Arial,sans-serif;background:#fff;color:#000;font-size:13px}
+h1{font-size:22px;margin:0;color:#000}.brand{display:flex;gap:12px;align-items:flex-start}
+.brand img{filter:grayscale(1) contrast(1.15)}
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.docbox{border:2px solid #000;padding:10px 14px;min-width:220px}
+.docbox h1{font-size:20px;text-align:center;margin-bottom:6px}
+.muted{color:#000;font-size:12px}.lbl{color:#000}
+.client{border:1px solid #000;padding:10px 12px;margin:16px 0;display:grid;grid-template-columns:1fr 1fr;gap:4px 16px}
+.client h2,.sect{grid-column:1/-1;font-size:13px;margin:0 0 4px;text-transform:uppercase;letter-spacing:.08em}
+table.items{width:100%;border-collapse:collapse}
+.items th,.items td{border:1px solid #000;padding:6px 8px;text-align:left;color:#000}
+.items th{background:#fff}.num{text-align:right;white-space:nowrap}
+.totals{margin-left:auto;width:300px;border-collapse:collapse}
+.totals td{border:1px solid #000;padding:6px 8px;color:#000}
+.grand{font-weight:bold;font-size:15px}
+.barcode,.qr{text-align:center}.barcode svg{max-width:230px;height:auto}.qr svg{width:110px;height:110px}
+.codes{display:flex;gap:16px;justify-content:center;align-items:flex-start;margin-top:8px}
+.qrpayload{font-family:monospace;font-size:9px;word-break:break-all;color:#000}
+.signs{display:flex;gap:24px;margin-top:28px}
+.signs div{flex:1;border:1px solid #000;min-height:90px;padding:8px;font-size:12px;color:#000}
+.pagefoot{margin-top:24px;border-top:1px solid #000;padding-top:8px;font-size:11px;color:#000;text-align:center}`;
+
+function logiRows(d: LogisticsDocData): string {
+  return d.lines
+    .map(
+      (l) =>
+        `<tr><td>${escapeHtml(l.ref ?? "—")}</td><td>${escapeHtml(l.name)}</td>` +
+        `<td class="num">${l.qty}</td><td class="num">${fmtDzd(l.unitPriceMinor)}</td>` +
+        `<td class="num">${fmtDzd(l.lineTotalMinor)}</td></tr>`,
+    )
+    .join("");
+}
+
+function logiMeta(d: LogisticsDocData, extra: string): string {
+  const seller = d.seller ? `<div>Vendeur : ${escapeHtml(d.seller)}</div>` : "";
+  const qr = d.qrPayload || buildQrPayload(d);
+  return `<div>N° : ${escapeHtml(d.invoice)}</div><div>Date : ${escapeHtml(d.date)}</div>${seller}${extra}${codeBlocks(d.invoice, d.qrSvg ?? "", qr)}`;
+}
+
+/** Bon de livraison A4 (vente d'origine + livreur + signatures). */
+export function buildDeliveryHtml(d: LogisticsDocData): string {
+  const extra = `${d.originNumber ? `<div>Vente d'origine : ${escapeHtml(d.originNumber)}</div>` : ""}${d.deliverer ? `<div>Livreur : ${escapeHtml(d.deliverer)}</div>` : ""}`;
+  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Bon de livraison ${escapeHtml(d.invoice)}</title><style>${LOGI_CSS}</style></head><body>${companyHead(d, "BON DE LIVRAISON", logiMeta(d, extra))}<div class="client"><h2>Client</h2><div><span class="lbl">Nom :</span> ${escapeHtml(d.customerName || "—")}</div>${d.customerPhone ? `<div><span class="lbl">Téléphone :</span> ${escapeHtml(d.customerPhone)}</div>` : ""}${d.customerAddress ? `<div><span class="lbl">Adresse :</span> ${escapeHtml(d.customerAddress)}</div>` : ""}</div><table class="items"><thead><tr><th>Réf.</th><th>Désignation</th><th>Qté</th><th>Prix U.</th><th>Total</th></tr></thead><tbody>${logiRows(d)}</tbody></table><table class="totals"><tbody><tr class="grand"><td>TOTAL</td><td class="num">${fmtDzd(d.totalMinor)}</td></tr></tbody></table><div class="signs"><div>Signature livreur</div><div>Signature client</div></div>${legalFooter(d)}</body></html>`;
+}
+
+/** Bon de livraison thermique 58/80mm. */
+export function buildDeliveryText(d: LogisticsDocData): string {
+  const fmt = (m: number): string =>
+    `${new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2 }).format(m / 100)} DA`;
+  const out = [`*** ${d.company} ***`, `BON DE LIVRAISON`, `N° : ${d.invoice}`, `Date : ${d.date}`];
+  if (d.originNumber) out.push(`Vente : ${d.originNumber}`);
+  if (d.customerName) out.push(`Client : ${d.customerName}`);
+  out.push(`--------------------------------`);
+  for (const l of d.lines)
+    out.push(`${l.name}  ${l.qty} x ${fmt(l.unitPriceMinor)} = ${fmt(l.lineTotalMinor)}`);
+  out.push(
+    `--------------------------------`,
+    `TOTAL : ${fmt(d.totalMinor)}`,
+    `QR : ${d.qrPayload || buildQrPayload(d)}`,
+    `Veloria POS`,
+  );
+  return out.join("\n");
+}
+
+/** Bon de retour A4 (N° retour + cause + remboursement). */
+export function buildReturnSlipHtml(d: LogisticsDocData): string {
+  const extra = `${d.returnNumber ? `<div>N° retour : ${escapeHtml(d.returnNumber)}</div>` : ""}${d.reason ? `<div>Motif : ${escapeHtml(d.reason)}</div>` : ""}`;
+  const refund = typeof d.refundMinor === "number" ? d.refundMinor : 0;
+  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Bon de retour ${escapeHtml(d.returnNumber || d.invoice)}</title><style>${LOGI_CSS}</style></head><body>${companyHead(d, "BON DE RETOUR", logiMeta(d, extra))}<div class="client"><h2>Partie</h2><div><span class="lbl">Nom :</span> ${escapeHtml(d.customerName || d.supplierName || "—")}</div></div><table class="items"><thead><tr><th>Réf.</th><th>Désignation</th><th>Qté</th><th>Prix U.</th><th>Total</th></tr></thead><tbody>${logiRows(d)}</tbody></table><table class="totals"><tbody><tr><td>Total retourné</td><td class="num">${fmtDzd(d.totalMinor)}</td></tr><tr class="grand"><td>Remboursé</td><td class="num">${fmtDzd(refund)}</td></tr></tbody></table><div class="signs"><div>Signature client</div><div>Signature / Cachet</div></div>${legalFooter(d)}</body></html>`;
+}
+
+/** Bon de retour thermique. */
+export function buildReturnSlipText(d: LogisticsDocData): string {
+  const fmt = (m: number): string =>
+    `${new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2 }).format(m / 100)} DA`;
+  const refund = typeof d.refundMinor === "number" ? d.refundMinor : 0;
+  const out = [
+    `*** ${d.company} ***`,
+    `BON DE RETOUR`,
+    `N° : ${d.returnNumber || d.invoice}`,
+    `Date : ${d.date}`,
+  ];
+  if (d.reason) out.push(`Motif : ${d.reason}`);
+  out.push(`--------------------------------`);
+  for (const l of d.lines) out.push(`${l.name}  ${l.qty} = ${fmt(l.lineTotalMinor)}`);
+  out.push(
+    `--------------------------------`,
+    `Remboursé : ${fmt(refund)}`,
+    `QR : ${d.qrPayload || buildQrPayload(d)}`,
+    `Veloria POS`,
+  );
+  return out.join("\n");
+}
+
+/** Bon de commande fournisseur A4. */
+export function buildPurchaseOrderHtml(d: LogisticsDocData): string {
+  const extra = `${d.orderNumber ? `<div>N° : ${escapeHtml(d.orderNumber)}</div>` : ""}<div>Date : ${escapeHtml(d.date)}</div><div>Validité : ${typeof d.validityDays === "number" ? d.validityDays : 30} jours</div>`;
+  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Bon de commande ${escapeHtml(d.orderNumber || d.invoice)}</title><style>${LOGI_CSS}</style></head><body>${companyHead(d, "BON DE COMMANDE", `${extra}${codeBlocks(d.orderNumber || d.invoice, d.qrSvg ?? "", d.qrPayload || buildQrPayload({ ...d, invoice: d.orderNumber || d.invoice }))}`)}<div class="client"><h2>Fournisseur</h2><div><span class="lbl">Nom :</span> ${escapeHtml(d.supplierName || d.customerName || "—")}</div>${d.supplierPhone ? `<div><span class="lbl">Téléphone :</span> ${escapeHtml(d.supplierPhone)}</div>` : ""}${d.supplierAddress ? `<div><span class="lbl">Adresse :</span> ${escapeHtml(d.supplierAddress)}</div>` : ""}</div><table class="items"><thead><tr><th>Réf.</th><th>Désignation</th><th>Qté</th><th>Coût U.</th><th>Total</th></tr></thead><tbody>${logiRows(d)}</tbody></table><table class="totals"><tbody><tr class="grand"><td>TOTAL</td><td class="num">${fmtDzd(d.totalMinor)}</td></tr></tbody></table><div class="signs"><div>Signature fournisseur</div><div>Signature / Cachet</div></div>${legalFooter(d)}</body></html>`;
+}
+
+/** Bon de commande thermique. */
+export function buildPurchaseOrderText(d: LogisticsDocData): string {
+  const fmt = (m: number): string =>
+    `${new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2 }).format(m / 100)} DA`;
+  const out = [
+    `*** ${d.company} ***`,
+    `BON DE COMMANDE`,
+    `N° : ${d.orderNumber || d.invoice}`,
+    `Date : ${d.date}`,
+    `Fournisseur : ${d.supplierName || d.customerName || "—"}`,
+    `--------------------------------`,
+  ];
+  for (const l of d.lines)
+    out.push(`${l.name}  ${l.qty} x ${fmt(l.unitPriceMinor)} = ${fmt(l.lineTotalMinor)}`);
+  out.push(
+    `--------------------------------`,
+    `TOTAL : ${fmt(d.totalMinor)}`,
+    `QR : ${d.qrPayload || buildQrPayload({ ...d, invoice: d.orderNumber || d.invoice })}`,
+    `Veloria POS`,
+  );
+  return out.join("\n");
 }

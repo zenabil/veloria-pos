@@ -2,7 +2,7 @@
 // UUIDv7 (sortable) generated without external dependency.
 
 /** Minimal UUIDv7 generator (RFC 9562) using crypto.getRandomValues. */
-export function newUuidV7(nowMs: number = Date.now()): string {
+function newUuidV7(nowMs: number = Date.now()): string {
   const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
   const unixMs = Math.floor(nowMs);

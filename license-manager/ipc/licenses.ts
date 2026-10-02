@@ -13,6 +13,20 @@ type Db = {
   };
 };
 
+/**
+ * Transaction best-effort (better-sqlite3 en prod, interface minimale en test).
+ * Les flux multi-écritures (création + event, update + event) passent par ici :
+ * jamais de registre/event divergents après crash intercalé.
+ */
+export function inTx(db: Db, fn: () => void): void {
+  const tx = (db as { transaction?: unknown }).transaction;
+  if (typeof tx === "function") {
+    (tx as (f: () => void) => () => void).call(db, fn)();
+    return;
+  }
+  fn();
+}
+
 export type ManagerEdition =
   | "basic"
   | "standard"

@@ -22,11 +22,11 @@ function formatDateFr(iso: string | null): string {
 
 function editionLabel(edition: string | null, plan: string | null): string {
   if (plan) return plan;
-  if (edition === "basic") return "BASIC";
-  if (edition === "standard") return "STANDARD";
-  if (edition === "professional" || edition === "pro") return "PRO";
-  if (edition === "enterprise") return "ENTERPRISE";
-  if (edition === "custom") return "CUSTOM";
+  if (edition === "basic") return "Basique";
+  if (edition === "standard") return "Standard";
+  if (edition === "professional" || edition === "pro") return "Professionnelle";
+  if (edition === "enterprise") return "Entreprise";
+  if (edition === "custom") return "Personnalisée";
   return "—";
 }
 

@@ -59,7 +59,10 @@ export function evaluateReturnPolicy(input: ReturnPolicyInput): ReturnPolicyDeci
     throw new DomainError("RETURN_ERROR", "Politique de retour invalide.");
   }
   assertSafeMinor(input.returnTotalMinor, { label: "Valeur retournée invalide" });
-  if (input.disposition !== "restock" && input.disposition !== "damage") {
+  // RADICAL-FIX lint: comparaison via string (le narrowing TS rendait le 2e
+  // test « toujours faux » statiquement — garde runtime contre payload forgé).
+  const disposition: string = input.disposition;
+  if (disposition !== "restock" && disposition !== "damage") {
     throw new DomainError("RETURN_ERROR", "Orientation du retour invalide.");
   }
   const delay = daysBetween(input.saleDate, input.returnDate);

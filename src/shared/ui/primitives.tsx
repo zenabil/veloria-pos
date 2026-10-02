@@ -1,6 +1,8 @@
-// Veloria PoS — Système de design « Nova » (nouvelle génération).
-// Seule source de vérité visuelle : fond encre marine, accent ambre,
-// coins généreux, clavier d'abord. Interface en français uniquement.
+// Veloria PoS — Système de design « Stitch Industrial Dark » (nouvelle génération).
+// Source littérale : stitch_veloria_pos_desktop_system/veloria_industrial_dark_pos/DESIGN.md
+// + 18 × code.html. Fond #051424, surfaces #010f1f→#273647, ambre #fbbf24,
+// Inter (UI) + JetBrains Mono (montants DZD, codes-barres, touches F).
+// Interface en français uniquement.
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { useEffect, useRef } from "react";
@@ -36,16 +38,64 @@ export function Button({
       className={cn(
         "inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-150 focus-visible:outline-none active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100",
         variant === "primary" &&
-          "bg-gradient-to-b from-amber-300 to-amber-500 text-black shadow-[0_2px_16px_rgba(245,158,11,0.35),0_1px_0_rgba(255,255,255,0.3)_inset] hover:from-amber-200 hover:to-amber-400 hover:shadow-[0_2px_22px_rgba(245,158,11,0.55)]",
+          "bg-[#fbbf24] text-[#402d00] shadow-[0_2px_16px_rgba(251,191,36,0.35),0_1px_0_rgba(255,255,255,0.3)_inset] hover:bg-[#f9bd22] hover:shadow-[0_2px_22px_rgba(251,191,36,0.55)]",
         variant === "secondary" &&
-          "border border-white/15 bg-white/[0.06] text-slate-100 shadow-sm hover:border-amber-400/40 hover:bg-white/[0.1]",
+          "border border-white/15 bg-[#1c2b3c] text-[#d4e4fa] shadow-sm hover:border-[#fbbf24]/40 hover:bg-[#273647]",
         variant === "ghost" &&
-          "bg-transparent font-semibold text-slate-300 hover:bg-white/10 hover:text-white",
+          "bg-transparent font-semibold text-[#d3c5ac] hover:bg-white/10 hover:text-white",
         variant === "danger" &&
           "border border-red-500/40 bg-gradient-to-b from-red-500/25 to-red-500/10 font-semibold text-red-200 hover:from-red-500/40 hover:to-red-500/20",
         className,
       )}
     />
+  );
+}
+
+/** Touche clavier Stitch : [F1]…[F10], [Entrée], [Échap] (JetBrains Mono 10px). */
+export function Kbd({ children }: { children: ReactNode }): ReactNode {
+  return (
+    <span className="font-mono-kbd rounded bg-[#1c2b3c] px-1.5 py-0.5 text-[#d3c5ac]">
+      {children}
+    </span>
+  );
+}
+
+/** En-tête de page Stitch : pastille + H1 + badge poste + tag module + période + actions. */
+export function PageHeader({
+  title,
+  period,
+  badge = "Poste Principal",
+  module,
+  actions,
+}: {
+  title: string;
+  period?: string;
+  badge?: string;
+  /** Tag module Stitch : "MODULE 09 · FISCAL V3.2", "INDEX v2.4"… */
+  module?: string;
+  actions?: ReactNode;
+}): ReactNode {
+  return (
+    <div className="flex flex-col justify-between gap-3 rounded-xl bg-[#0d1c2d] p-4 shadow-md xl:flex-row xl:items-center">
+      <div className="space-y-0.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full bg-[#fbbf24] shadow-[0_0_8px_rgba(251,191,36,0.6)]" />
+          <h1 className="font-headline-lg text-[22px] font-bold tracking-tight text-[#d4e4fa]">
+            {title}
+          </h1>
+          <span className="font-mono-kbd rounded bg-[#1c2b3c] px-1.5 py-0.5 uppercase text-[#ffe1a7]">
+            {badge}
+          </span>
+          {module ? (
+            <span className="font-mono-kbd rounded bg-[#122131] px-1.5 py-0.5 uppercase text-[#4edea3]">
+              {module}
+            </span>
+          ) : null}
+        </div>
+        {period ? <p className="font-body-sm text-[12px] text-[#d3c5ac]">{period}</p> : null}
+      </div>
+      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+    </div>
   );
 }
 
@@ -59,7 +109,7 @@ export function Card({
   return (
     <div
       className={cn(
-        "rounded-[18px] border border-white/[0.07] bg-[#111a2e] shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_8px_24px_rgba(0,0,0,0.32)]",
+        "rounded-xl border border-white/[0.07] bg-[#122131] shadow-[0_4px_12px_-2px_rgba(10,15,28,0.45)]",
         className,
       )}
     >
@@ -132,7 +182,7 @@ export function Field({
 }
 
 const inputShell =
-  "w-full rounded-xl border border-white/10 bg-[#0c1220] px-3 py-2.5 text-sm text-slate-100 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset] transition-colors placeholder:text-slate-500 hover:border-white/25 focus:border-amber-400/70";
+  "w-full rounded-lg border border-white/10 bg-[#010f1f] px-3 py-2.5 text-sm text-[#d4e4fa] shadow-[0_1px_0_rgba(255,255,255,0.04)_inset] transition-colors placeholder:text-[#d3c5ac]/50 hover:border-white/25 focus:border-[#fbbf24]";
 
 export function TextInput(
   props: InputHTMLAttributes<HTMLInputElement> & { ref?: Ref<HTMLInputElement> },
@@ -148,7 +198,7 @@ export function Select(props: SelectHTMLAttributes<HTMLSelectElement>): ReactNod
       {...rest}
       className={cn(
         inputShell,
-        "cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 [&>option]:bg-[#0c1220]",
+        "cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 [&>option]:bg-[#051424]",
         className,
       )}
     >
@@ -238,14 +288,14 @@ export function Modal({
       aria-modal="true"
       aria-label={label}
       onClick={onClose}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-[2px]"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,15,28,0.75)] p-4 backdrop-blur-[8px]"
     >
       <div
         ref={boxRef}
         onClick={(e) => e.stopPropagation()}
         className={cn("w-full", wide === true ? "max-w-[680px]" : "max-w-[500px]")}
       >
-        <Card className="max-h-[90vh] space-y-4 overflow-auto border-white/[0.09] p-6 shadow-2xl">
+        <Card className="max-h-[90vh] space-y-4 overflow-auto rounded-[18px] border-[#28395d] p-6 shadow-[0_24px_48px_-12px_rgba(2,6,13,0.85)]">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-[17px] font-bold tracking-tight text-slate-100">{title}</h2>
             <button
@@ -314,21 +364,26 @@ export function Kpi({
   label,
   value,
   sub,
+  accent = "#fbbf24",
+  icon,
 }: {
   label: string;
   value: string;
   sub?: string;
+  accent?: string;
+  icon?: ReactNode;
 }): ReactNode {
   return (
-    <Card className="relative overflow-hidden p-5">
-      <div className="absolute inset-x-0 top-0 h-[2px] bg-amber-400/80" />
-      <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
-        {label}
+    <Card className="relative overflow-hidden p-4 transition-colors hover:bg-[#1c2b3c]">
+      <div className="absolute inset-x-0 top-0 h-1" style={{ background: accent }} />
+      <div className="mb-1 flex items-center justify-between text-[#d3c5ac]">
+        <span className="font-label-field text-[11px] uppercase tracking-wider">{label}</span>
+        {icon}
       </div>
-      <div className="mt-1.5 text-[26px] font-extrabold tabular-nums leading-tight tracking-tight text-slate-100">
+      <div className="font-display-kpi my-1 flex items-baseline gap-1 text-[26px] font-bold tracking-tight text-[#d4e4fa]">
         {value}
       </div>
-      {sub ? <div className="mt-1 text-xs text-slate-500">{sub}</div> : null}
+      {sub ? <div className="font-body-sm pt-1 text-[12px] text-[#d3c5ac]">{sub}</div> : null}
     </Card>
   );
 }
@@ -474,12 +529,12 @@ export function Drawer({
           }
         }
       }}
-      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-[2px]"
+      className="fixed inset-0 z-50 bg-[rgba(10,15,28,0.75)] backdrop-blur-[8px]"
     >
       <aside
         onClick={(e) => e.stopPropagation()}
         className={cn(
-          "absolute bottom-0 right-0 top-0 flex w-full flex-col border-l border-white/10 bg-[#0e1526] shadow-2xl",
+          "absolute bottom-0 right-0 top-0 flex w-full flex-col border-l border-white/10 bg-[#0d1c2d] shadow-[0_24px_48px_-12px_rgba(2,6,13,0.85)]",
           wide === true ? "max-w-[640px]" : "max-w-[440px]",
         )}
       >

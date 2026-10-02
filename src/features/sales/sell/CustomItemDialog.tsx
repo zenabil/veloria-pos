@@ -5,6 +5,7 @@ import { Button, Field, Modal, TextInput } from "@shared/ui/primitives.tsx";
 export interface CustomForm {
   name: string;
   price: string;
+  qty: string;
 }
 
 export function CustomItemDialog({
@@ -44,16 +45,27 @@ export function CustomItemDialog({
             aria-label="Nom du produit libre"
           />
         </Field>
-        <Field label="Prix unitaire (DZD) *" hint="Obligatoire. Entrée = ajouter au panier.">
-          <TextInput
-            value={customForm.price}
-            onChange={(e) => setCustomForm({ ...customForm, price: e.target.value })}
-            inputMode="decimal"
-            placeholder="0,00"
-            aria-label="Prix unitaire"
-            ref={customPriceRef}
-          />
-        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Prix unitaire (DZD) *" hint="Obligatoire. Entrée = ajouter au panier.">
+            <TextInput
+              value={customForm.price}
+              onChange={(e) => setCustomForm({ ...customForm, price: e.target.value })}
+              inputMode="decimal"
+              placeholder="0,00"
+              aria-label="Prix unitaire"
+              ref={customPriceRef}
+            />
+          </Field>
+          <Field label="Qté *" hint="Quantité (défaut 1).">
+            <TextInput
+              value={customForm.qty}
+              onChange={(e) => setCustomForm({ ...customForm, qty: e.target.value })}
+              inputMode="decimal"
+              placeholder="1"
+              aria-label="Quantité"
+            />
+          </Field>
+        </div>
         <div className="flex gap-2">
           <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
             Annuler

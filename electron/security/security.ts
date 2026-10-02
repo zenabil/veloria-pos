@@ -57,8 +57,42 @@ const SYSTEM_DENIED_ROOTS = [
   "c:\\system volume information",
 ];
 
+// RADICAL-FIX: même deny-list pour TOUT lecteur (D:\Windows, E:\Program Files…)
+// + racines Unix/macOS sensibles. Le check principal reste isSystemDeniedPath
+// sur chemin résolu en minuscules.
+const DENIED_SUFFIXES = [
+  "\\windows",
+  "\\program files",
+  "\\program files (x86)",
+  "\\programdata\\microsoft",
+  "\\$recycle.bin",
+  "\\system volume information",
+  "/etc",
+  "/bin",
+  "/sbin",
+  "/usr/bin",
+  "/usr/sbin",
+  "/system",
+];
+
 export function isSystemDeniedPath(resolvedLower: string): boolean {
-  return SYSTEM_DENIED_ROOTS.some((d) => resolvedLower === d || resolvedLower.startsWith(`${d}\\`));
+  if (SYSTEM_DENIED_ROOTS.some((d) => resolvedLower === d || resolvedLower.startsWith(`${d}\\`))) {
+    return true;
+  }
+  // Tout lecteur Windows: X:\Windows, X:\Program Files…
+  if (/^[a-z]:\\/i.test(resolvedLower)) {
+    const withoutDrive = resolvedLower.slice(2);
+    if (DENIED_SUFFIXES.some((s) => withoutDrive === s || withoutDrive.startsWith(`${s}\\`))) {
+      return true;
+    }
+  }
+  // Unix/macOS: /etc, /bin… (défense en profondeur, même si cible Windows).
+  if (resolvedLower.startsWith("/")) {
+    if (DENIED_SUFFIXES.some((s) => resolvedLower === s || resolvedLower.startsWith(`${s}/`))) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**

@@ -84,12 +84,17 @@ export function openManagerDb(): Db {
     `PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 10000;`,
   );
   database.exec(SCHEMA);
-  // Migration best effort des parcs existants (colonnes déjà présentes → ignoré).
+  // Migration best effort des parcs existants. L3 : seule l'erreur
+  // « colonne déjà présente » est absorbée — absorber TOUTE erreur rendait
+  // une base corrompue/discutable silencieuse identique à un parc à jour
+  // (schema validé puis registre en lecture/écriture sur colonnes manquantes).
   for (const sql of MIGRATIONS) {
     try {
       database.exec(sql);
-    } catch {
-      /* colonne déjà présente */
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/duplicate column name/i.test(msg)) continue;
+      throw err instanceof Error ? err : new Error(msg);
     }
   }
   db = database;
@@ -134,4 +139,87 @@ export function exportManagerBackup(): { file: string; size: number } {
     }
   }
   return { file, size };
+}
+
+export interface ManagerBackupInfo {
+  file: string;
+  size: number;
+  createdAt: string;
+}
+
+/** Liste les sauvegardes du registre (plus récentes d'abord). */
+export function listManagerBackups(): ManagerBackupInfo[] {
+  const dir = path.join(app.getPath("userData"), "backups");
+  let files: string[] = [];
+  try {
+    files = fs
+      .readdirSync(dir)
+      .filter((f) => f.startsWith("manager-") && f.endsWith(".sqlite"))
+      .sort()
+      .reverse();
+  } catch {
+    return [];
+  }
+  return files.map((f) => {
+    const file = path.join(dir, f);
+    let size = 0;
+    try {
+      size = fs.statSync(file).size;
+    } catch {
+      /* ignore */
+    }
+    return { file, size, createdAt: f.slice(8, -7).replace(/-/g, ":") };
+  });
+}
+
+/**
+ * Restaure le registre depuis une sauvegarde : snapshot de sécurité du live,
+ * copie, suppression des sidecars WAL, `integrity_check`. Échec → rollback
+ * du snapshot. Le fichier doit vivre dans le dossier backups (anti traversal).
+ */
+export function restoreManagerBackup(file: string): { restored: boolean } {
+  const dir = path.resolve(app.getPath("userData"), "backups");
+  const abs = path.resolve(file);
+  if (!abs.startsWith(dir + path.sep)) throw new Error("Sauvegarde hors dossier autorisé.");
+  if (!fs.existsSync(abs)) throw new Error("Sauvegarde introuvable.");
+  closeManagerDb();
+  const live = managerDbPath();
+  const snap = `${live}.pre-restore`;
+  try {
+    if (fs.existsSync(live)) fs.copyFileSync(live, snap);
+  } catch {
+    throw new Error("Snapshot de sécurité impossible.");
+  }
+  try {
+    fs.copyFileSync(abs, live);
+    for (const ext of ["-wal", "-shm", "-journal"]) {
+      try {
+        fs.unlinkSync(live + ext);
+      } catch {
+        /* absent */
+      }
+    }
+    const database = openManagerDb();
+    const ic = database.prepare("PRAGMA integrity_check").get() as {
+      integrity_check?: unknown;
+    };
+    if (ic.integrity_check !== "ok") throw new Error("Sauvegarde corrompue.");
+    try {
+      fs.unlinkSync(snap);
+    } catch {
+      /* best effort */
+    }
+    return { restored: true };
+  } catch (err) {
+    try {
+      if (fs.existsSync(snap)) {
+        closeManagerDb();
+        fs.copyFileSync(snap, live);
+        openManagerDb();
+      }
+    } catch {
+      /* rollback best-effort */
+    }
+    throw err instanceof Error ? err : new Error("Restauration impossible.");
+  }
 }

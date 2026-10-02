@@ -4,12 +4,13 @@ import { formatCustomerCode } from "@shared/formatters/format.ts";
 
 type Cell = string | number | null | undefined;
 
-export interface SaleTicketSource {
+interface SaleTicketSource {
   sale: Record<string, Cell>;
   items: Record<string, Cell>[];
+  seller?: string | null | undefined;
 }
 
-export interface SaleTicketCompany {
+interface SaleTicketCompany {
   company_name?: string | null | undefined;
   phone?: string | null | undefined;
   address?: string | null | undefined;
@@ -19,7 +20,7 @@ export interface SaleTicketCompany {
   nif?: string | null | undefined;
 }
 
-export interface SaleTicketCustomer {
+interface SaleTicketCustomer {
   search_name?: string | null | undefined;
   phone?: string | null | undefined;
   address?: string | null | undefined;
@@ -56,6 +57,10 @@ export function buildSaleTicketPayload(
   customerId: number,
   balances?: { prev: number; current: number },
 ): Record<string, unknown> {
+  const seller =
+    typeof detail.seller === "string"
+      ? detail.seller
+      : text(detail.sale["seller"] ?? detail.sale["cashier"] ?? detail.sale["created_by"] ?? "");
   return {
     // P2 : tête entreprise unique (buildCompanyHead — plus de double mapping).
     ...buildCompanyHead(company),
@@ -63,6 +68,7 @@ export function buildSaleTicketPayload(
     customerPhone: customer?.phone ?? "",
     customerAddress: customer?.address ?? "",
     customerCode: customerId > 0 ? formatCustomerCode(customerId) : "",
+    seller,
     paymentMethod: text(detail.sale["payment_method"]) || null,
     dueDate: text(detail.sale["due_date"]),
     invoice: text(detail.sale["invoice_number"]),

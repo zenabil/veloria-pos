@@ -118,7 +118,7 @@ export function SupplierHistoryDrawer({
     >
       <aside
         onClick={(e) => e.stopPropagation()}
-        className="absolute bottom-0 right-0 top-0 flex w-full max-w-[640px] flex-col border-l border-white/10 bg-[#0e1526] shadow-2xl"
+        className="absolute bottom-0 right-0 top-0 flex w-full max-w-[640px] flex-col border-l border-white/10 bg-[#0d1c2d] shadow-2xl"
       >
         <div className="flex items-start justify-between gap-2 border-b border-white/[0.07] p-5">
           <div className="min-w-0">
@@ -226,7 +226,7 @@ export function SupplierHistoryDrawer({
               <EmptyState title="Aucun achat" hint="Modifiez les filtres." />
             ) : (
               <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-[#111a2e] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
+                <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
                   <tr>
                     <th className="px-3 py-2.5">N° Bon</th>
                     <th className="px-3 py-2.5">Date</th>
@@ -279,7 +279,7 @@ export function SupplierHistoryDrawer({
             <EmptyState title="Aucun paiement" hint="Modifiez les filtres." />
           ) : (
             <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-[#111a2e] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
+              <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
                 <tr>
                   <th className="px-3 py-2.5">Date</th>
                   <th className="px-3 py-2.5">Moyen</th>

@@ -326,7 +326,7 @@ export function verifyLicenseChain(input: VerificationInput): LicenseState {
   if (signed.payload.productId !== expectedProductId) return "INVALID_PRODUCT";
   if (
     isDeviceBinding(signed.payload) &&
-    signed.payload.hardwareFingerprint !== actualHardwareFingerprint
+    signed.payload.hardwareFingerprint.toLowerCase() !== actualHardwareFingerprint.toLowerCase()
   ) {
     return "INVALID_HARDWARE";
   }

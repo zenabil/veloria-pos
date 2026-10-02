@@ -6,7 +6,15 @@
 
 import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
-import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./idempotency";
+import {
+  auditOperationId,
+  claimIdempotency,
+  claimOptional,
+  peekIdempotency,
+  peekOptional,
+  storeIdempotencyResult,
+  storeOptional,
+} from "./idempotency";
 
 export type CustomerDebtFilter = "all" | "with_debt" | "no_debt" | "over_limit";
 
@@ -148,10 +156,14 @@ export function updateCustomer(args: {
   settlementDay: number | null;
   notes: string | null;
   now: string;
+  operationId?: string | null;
 }): void {
   const db = getDb();
+  const fast = peekOptional<{ updated: boolean }>(args.operationId, "customers.update");
+  if (fast) return;
   const search = `${args.firstName} ${args.lastName}`.trim().toLowerCase();
   const tx = db.transaction(() => {
+    claimOptional(args.operationId, "customers.update", args.now);
     const exists = db.prepare(`SELECT id FROM customers WHERE id = ?`).get(args.id) as
       | { id: number }
       | undefined;
@@ -176,12 +188,25 @@ export function updateCustomer(args: {
     ).run(
       randomUUID(),
       String(args.id),
-      randomUUID(),
+      auditOperationId(args.operationId, "customer.updated", args.id, { search }),
       JSON.stringify({ name: `${args.firstName.trim()} ${args.lastName.trim()}`.trim() }),
       args.now,
     );
+    storeOptional(args.operationId, { updated: true });
   });
-  (tx as unknown as () => void)();
+  try {
+    (tx as unknown as () => void)();
+  } catch (err) {
+    if (
+      args.operationId &&
+      err instanceof Error &&
+      /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
+    ) {
+      const retry = peekOptional<{ updated: boolean }>(args.operationId, "customers.update");
+      if (retry) return;
+    }
+    throw err;
+  }
 }
 
 /** Agrégats bornés pour les 4 cartes statistiques de l'écran Clients. */
@@ -200,10 +225,15 @@ export function getCustomerStats(): {
        FROM customers WHERE deleted_at IS NULL`,
     )
     .get() as { total: number; credit: number; debt: number };
+  // L1 (même défaut que finance.repo) : les encaissements des 7 derniers
+  // jours excluent les paiements rattachés à une vente annulée — sinon la
+  // carte « encaissé » surpasse le total des ventes non annulées.
   const recent = db
     .prepare(
-      `SELECT COALESCE(SUM(amount_minor), 0) AS p FROM sale_payments
-       WHERE substr(payment_date, 1, 10) >= date('now', '-7 days')`,
+      `SELECT COALESCE(SUM(sp.amount_minor), 0) AS p FROM sale_payments sp
+       LEFT JOIN sales sa ON sa.id = sp.sale_id
+       WHERE substr(sp.payment_date, 1, 10) >= date('now', '-7 days')
+         AND (sp.sale_id IS NULL OR COALESCE(sa.is_cancelled, 0) = 0)`,
     )
     .get() as { p: number };
   return {
@@ -275,13 +305,6 @@ export function restoreCustomer(id: number, now: string, operationId: string): v
   }
 }
 
-export function getCustomer(id: number): unknown {
-  const db = getDb();
-  const customer = db.prepare(`SELECT * FROM customers WHERE id = ?`).get(id);
-  if (!customer) throw new Error("Client introuvable.");
-  return customer;
-}
-
 export function getCustomerStatement(id: number): {
   customer: unknown;
   sales: unknown[];
@@ -297,6 +320,114 @@ export function getCustomerStatement(id: number): {
     .prepare(`SELECT * FROM sale_payments WHERE customer_id = ? ORDER BY id DESC LIMIT 100`)
     .all(id);
   return { customer, sales, payments };
+}
+
+/**
+ * Reçu d'un paiement historique : soldes avant/après reconstitués depuis le
+ * grand-livre (lecture seule, aucune écriture, aucun centime inventé).
+ * Le calcul pur vit dans `src/domain/customer/payment-receipt.ts`.
+ */
+export function getCustomerPaymentReceipt(paymentId: number): {
+  payment: Record<string, unknown>;
+  customer: Record<string, unknown>;
+  prevBalanceMinor: number;
+  newBalanceMinor: number;
+} {
+  const db = getDb();
+  const payment = db.prepare(`SELECT * FROM sale_payments WHERE id = ?`).get(paymentId) as
+    | Record<string, unknown>
+    | undefined;
+  if (!payment) throw new Error("Paiement introuvable.");
+  const customerId =
+    typeof payment["customer_id"] === "number"
+      ? payment["customer_id"]
+      : typeof payment["sale_id"] === "number"
+        ? (
+            db.prepare(`SELECT customer_id FROM sales WHERE id = ?`).get(payment["sale_id"]) as
+              | { customer_id: number | null }
+              | undefined
+          )?.customer_id
+        : null;
+  if (customerId == null) throw new Error("Paiement sans client : reçu indisponible.");
+  const customer = db.prepare(`SELECT * FROM customers WHERE id = ?`).get(customerId) as
+    | Record<string, unknown>
+    | undefined;
+  if (!customer) throw new Error("Client introuvable.");
+  const sales = db
+    .prepare(
+      `SELECT id, total_minor, created_at, is_cancelled FROM sales WHERE customer_id = ? ORDER BY id ASC LIMIT 500`,
+    )
+    .all(customerId) as {
+    id: number;
+    total_minor: number;
+    created_at: string;
+    is_cancelled: number;
+  }[];
+  const payments = db
+    .prepare(
+      `SELECT id, amount_minor, created_at FROM sale_payments WHERE customer_id = ? ORDER BY id ASC LIMIT 500`,
+    )
+    .all(customerId) as { id: number; amount_minor: number; created_at: string }[];
+  const initial =
+    typeof customer["initial_balance_minor"] === "number" ? customer["initial_balance_minor"] : 0;
+  // Import local (pas d'import src/ côté main — parité volontaire, même appel).
+  const balances = computeReceiptBalancesInline(
+    initial,
+    sales.map((s) => ({
+      id: s.id,
+      totalMinor: s.total_minor,
+      createdAt: s.created_at,
+      cancelled: s.is_cancelled === 1,
+    })),
+    payments.map((p) => ({ id: p.id, amountMinor: p.amount_minor, createdAt: p.created_at })),
+    paymentId,
+  );
+  if (!balances) throw new Error("Reçu indisponible : soldes incohérents.");
+  if (balances.newMinor < 0) throw new Error("Reçu indisponible : soldes incohérents.");
+  return {
+    payment,
+    customer,
+    prevBalanceMinor: balances.prevMinor,
+    newBalanceMinor: balances.newMinor,
+  };
+}
+
+/** Miroir local de `src/domain/customer/payment-receipt.ts` (frontière main/domaine). */
+function computeReceiptBalancesInline(
+  initialMinor: number,
+  sales: { id: number; totalMinor: number; createdAt: string; cancelled: boolean }[],
+  payments: { id: number; amountMinor: number; createdAt: string }[],
+  targetPaymentId: number,
+): { prevMinor: number; newMinor: number } | null {
+  if (!Number.isInteger(initialMinor) || initialMinor < 0) return null;
+  type Evt =
+    | { at: string; tie: number; seq: number; kind: "sale"; amount: number }
+    | { at: string; tie: number; seq: number; kind: "pay"; id: number; amount: number };
+  const evts: Evt[] = [];
+  for (const s of sales) {
+    if (s.cancelled) continue;
+    if (!Number.isInteger(s.id) || s.id <= 0) return null;
+    if (!Number.isInteger(s.totalMinor) || s.totalMinor < 0) return null;
+    if (typeof s.createdAt !== "string" || s.createdAt === "") return null;
+    evts.push({ at: s.createdAt, tie: 0, seq: s.id, kind: "sale", amount: s.totalMinor });
+  }
+  let found = false;
+  for (const p of payments) {
+    if (!Number.isInteger(p.id) || p.id <= 0) return null;
+    if (!Number.isInteger(p.amountMinor) || p.amountMinor <= 0) return null;
+    if (typeof p.createdAt !== "string" || p.createdAt === "") return null;
+    if (p.id === targetPaymentId) found = true;
+    evts.push({ at: p.createdAt, tie: 1, seq: p.id, kind: "pay", id: p.id, amount: p.amountMinor });
+  }
+  if (!found) return null;
+  evts.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : a.tie - b.tie || a.seq - b.seq));
+  let balance = initialMinor;
+  for (const e of evts) {
+    if (e.kind === "sale") balance += e.amount;
+    else if (e.id === targetPaymentId) return { prevMinor: balance, newMinor: balance - e.amount };
+    else balance -= e.amount;
+  }
+  return null;
 }
 
 export function recordCustomerPaymentAtomic(args: {

@@ -8,6 +8,14 @@ export default defineConfig({
   root: path.resolve(__dirname, "license-manager/renderer"),
   plugins: [react(), tailwindcss()],
   base: "./",
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "src"),
+      "@domain": path.resolve(__dirname, "src/domain"),
+      "@shared": path.resolve(__dirname, "src/shared"),
+      "@features": path.resolve(__dirname, "src/features"),
+    },
+  },
   build: {
     outDir: path.resolve(__dirname, "dist-license-manager-renderer"),
     emptyOutDir: true,

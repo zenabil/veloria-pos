@@ -24,6 +24,7 @@ import {
   Card,
   EmptyState,
   Kpi,
+  PageHeader,
   Pager,
   RowAction,
   Select,
@@ -31,6 +32,7 @@ import {
   cn,
 } from "@shared/ui/primitives.tsx";
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
+import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
 import { useLoadSeq } from "@shared/ui/use-load-seq.ts";
 import {
   ProformaConversionDialog,
@@ -96,7 +98,7 @@ export function ProformasScreen({ notify }: { notify: Notify }): React.JSX.Eleme
   const [editing, setEditing] = useState<ProformaDetailData | null>(null);
   const [duplicating, setDuplicating] = useState<ProformaDetailData | null>(null);
   const [converting, setConverting] = useState<ProformaDetailData | null>(null);
-  const queryTimer = useRef<number | null>(null);
+  const queryTimer = useDebouncedTimer();
   const searchRef = useRef<HTMLInputElement>(null);
 
   // F3 : focus recherche (comme en caisse).
@@ -110,12 +112,6 @@ export function ProformasScreen({ notify }: { notify: Notify }): React.JSX.Eleme
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (queryTimer.current != null) window.clearTimeout(queryTimer.current);
-    };
   }, []);
 
   async function loadStats(): Promise<void> {
@@ -172,10 +168,9 @@ export function ProformasScreen({ notify }: { notify: Notify }): React.JSX.Eleme
   function onQueryChange(q: string): void {
     setQuery(q);
     setPage(1);
-    if (queryTimer.current != null) window.clearTimeout(queryTimer.current);
-    queryTimer.current = window.setTimeout(() => {
+    queryTimer.schedule(250, () => {
       void load(q, customerId, statusFilter, from, to, sort, 1);
-    }, 250);
+    });
   }
 
   function changeStatus(f: ProformaStatusFilter): void {
@@ -311,55 +306,71 @@ export function ProformasScreen({ notify }: { notify: Notify }): React.JSX.Eleme
 
   return (
     <div className="flex h-full flex-col gap-4">
-      {/* En-tête de page */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-xl font-extrabold tracking-tight">Proformas</h2>
-          <p className="text-xs text-slate-500">
-            {total} devis · {stats.pending} en attente · {stats.converted} converti(s)
-          </p>
-        </div>
-        <div className="relative w-full max-w-xs">
-          <Search
-            size={16}
-            aria-hidden="true"
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-          />
-          <TextInput
-            ref={searchRef}
-            value={query}
-            onChange={(e) => onQueryChange(e.target.value)}
-            placeholder="Rechercher… [F3]"
-            aria-label="Rechercher un devis"
-            className="pl-9"
-          />
-        </div>
-        <Button
-          variant="secondary"
-          onClick={() => setToolbarOpen((o) => !o)}
-          aria-expanded={toolbarOpen}
-          title="Afficher / masquer les filtres"
-        >
-          <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
-        </Button>
-        <Button
-          onClick={() => {
-            setEditing(null);
-            setDuplicating(null);
-            setFormOpen(true);
-          }}
-          title="Nouveau devis"
-        >
-          <Plus size={16} aria-hidden="true" /> Devis
-        </Button>
-      </div>
+      {/* En-tête Stitch : Factures Proforma & Devis · Mode Émission Ouvert */}
+      <PageHeader
+        title="Factures Proforma & Devis"
+        module="Mode Émission Ouvert"
+        period={`${total} devis · ${stats.pending} en attente/négociation · ${stats.converted} converti(s) en vente`}
+        actions={
+          <>
+            <div className="relative w-full max-w-xs">
+              <Search
+                size={16}
+                aria-hidden="true"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+              />
+              <TextInput
+                ref={searchRef}
+                value={query}
+                onChange={(e) => onQueryChange(e.target.value)}
+                placeholder="N° Proforma PRF-… [F3]"
+                aria-label="Rechercher un devis"
+                className="pl-9"
+              />
+            </div>
+            <Button
+              variant="secondary"
+              onClick={() => setToolbarOpen((o) => !o)}
+              aria-expanded={toolbarOpen}
+              title="Afficher / masquer les filtres"
+            >
+              <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
+            </Button>
+            <Button
+              onClick={() => {
+                setEditing(null);
+                setDuplicating(null);
+                setFormOpen(true);
+              }}
+              title="Nouveau devis"
+            >
+              <Plus size={16} aria-hidden="true" /> Nouvelle Proforma
+            </Button>
+          </>
+        }
+      />
 
-      {/* Cartes statistiques */}
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <Kpi label="Devis" value={String(stats.total)} sub="Tous statuts" />
-        <Kpi label="Brouillons" value={String(stats.draft)} sub="Modifiables" />
-        <Kpi label="En attente" value={String(stats.pending)} sub="Envoyés" />
-        <Kpi label="Convertis" value={String(stats.converted)} sub="Devenus factures" />
+      {/* Cartes statistiques Stitch */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Kpi
+          label="Proformas du Mois"
+          value={String(stats.total)}
+          sub="Devis émis"
+          accent="#fbbf24"
+        />
+        <Kpi
+          label="En Attente / Négociation"
+          value={String(stats.pending)}
+          sub="Relances requises"
+          accent="#8ed0ff"
+        />
+        <Kpi
+          label="Converties en Vente"
+          value={String(stats.converted)}
+          sub="Devenues factures"
+          accent="#4edea3"
+        />
+        <Kpi label="Brouillons" value={String(stats.draft)} sub="Modifiables" accent="#cde8ff" />
       </div>
 
       {/* Barre d'outils */}
@@ -541,7 +552,7 @@ export function ProformasScreen({ notify }: { notify: Notify }): React.JSX.Eleme
             />
           ) : (
             <table className="w-full min-w-[980px] text-sm">
-              <thead className="sticky top-0 bg-[#111a2e] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
+              <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
                 <tr>
                   <th className="w-10 px-3 py-2.5">
                     <input

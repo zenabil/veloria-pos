@@ -3,7 +3,15 @@
 
 import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
-import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./idempotency";
+import {
+  auditOperationId,
+  claimIdempotency,
+  claimOptional,
+  peekIdempotency,
+  peekOptional,
+  storeIdempotencyResult,
+  storeOptional,
+} from "./idempotency";
 
 export type ExpenseStatusFilter = "all" | "paid" | "pending";
 export type ExpenseMethodFilter = "all" | "cash" | "cheque" | "transfer";
@@ -108,8 +116,12 @@ export function createExpense(args: ExpenseUpsert & { operationId: string; now: 
   }
 }
 
-export function updateExpense(args: ExpenseUpsert & { id: number; now: string }): void {
+export function updateExpense(
+  args: ExpenseUpsert & { id: number; now: string; operationId?: string | null },
+): void {
   const db = getDb();
+  const fast = peekOptional<{ updated: boolean }>(args.operationId, "expenses.update");
+  if (fast) return;
   normalizeUpsert(args);
   if (args.supplierId != null) {
     const sup = db.prepare(`SELECT id FROM suppliers WHERE id = ?`).get(args.supplierId) as
@@ -118,6 +130,7 @@ export function updateExpense(args: ExpenseUpsert & { id: number; now: string })
     if (!sup) throw new Error("Fournisseur introuvable.");
   }
   const tx = db.transaction(() => {
+    claimOptional(args.operationId, "expenses.update", args.now);
     const r = db
       .prepare(
         `UPDATE expenses SET description = ?, category = ?, amount_minor = ?, expense_date = ?, supplier_id = ?, payment_method = ?, status = ?, reference = ?, notes = ?, updated_at = ? WHERE id = ?`,
@@ -141,12 +154,27 @@ export function updateExpense(args: ExpenseUpsert & { id: number; now: string })
     ).run(
       randomUUID(),
       String(args.id),
-      randomUUID(),
+      auditOperationId(args.operationId, "expense.updated", args.id, {
+        amount: args.amountMinor,
+      }),
       JSON.stringify({ amount: args.amountMinor }),
       args.now,
     );
+    storeOptional(args.operationId, { updated: true });
   });
-  (tx as unknown as () => void)();
+  try {
+    (tx as unknown as () => void)();
+  } catch (err) {
+    if (
+      args.operationId &&
+      err instanceof Error &&
+      /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
+    ) {
+      const retry = peekOptional<{ updated: boolean }>(args.operationId, "expenses.update");
+      if (retry) return;
+    }
+    throw err;
+  }
 }
 
 export function deleteExpenseAtomic(id: number, now: string, operationId: string | null): void {

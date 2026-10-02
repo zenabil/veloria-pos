@@ -62,7 +62,7 @@ test("panier : ajout, quantité, sous-total et total", async () => {
   await expect(page.getByLabel(`Quantité ${name}`, { exact: true })).toHaveValue("2");
   // Ligne : 2 × 100,00 DZD puis total à payer.
   await expect(page.getByText("200,00 DZD").first()).toBeVisible();
-  await expect(page.getByText("Total à payer")).toBeVisible();
+  await expect(page.getByText("Total Net à Payer")).toBeVisible();
 });
 
 test("vente comptant : historique, stock et aperçu sans imprimante", async () => {
@@ -88,7 +88,9 @@ test("vente comptant : historique, stock et aperçu sans imprimante", async () =
   await expect(page.locator("pre", { hasText: invoice })).toBeVisible();
   // Historique : la facture est enregistrée.
   await gotoModule(page, "Historique");
-  await page.getByPlaceholder("N° facture / scan code-barres… [F3]").fill(invoice);
+  await page
+    .getByLabel("Rechercher dans l'historique (ticket, client, référence ou code-barres)")
+    .fill(invoice);
   // La ligne de vente (le paiement lié partage la référence : on filtre le type).
   await expect(
     page

@@ -5,7 +5,6 @@ import { useEffect, useRef, useState } from "react";
 import { Download, Eye, HandCoins, Pencil, Search, SlidersHorizontal, X } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { formatDzd } from "@domain/money/money.ts";
-import { CASHIER_LABEL } from "@shared/formatters/format.ts";
 import { downloadCsv } from "@shared/export/csv.ts";
 import {
   Badge,
@@ -13,6 +12,7 @@ import {
   Card,
   EmptyState,
   Kpi,
+  PageHeader,
   Pager,
   RowAction,
   Select,
@@ -20,6 +20,7 @@ import {
   cn,
 } from "@shared/ui/primitives.tsx";
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
+import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
 import { DebtDetailsDrawer, DebtDueDateDialog, DebtPaymentDialog } from "./DebtDialogs.tsx";
 import {
   debtStatusLabel,
@@ -91,7 +92,7 @@ export function DebtsScreen({ notify }: { notify: Notify }): React.JSX.Element {
   );
   const [payFor, setPayFor] = useState<DebtRow | null>(null);
   const [dueFor, setDueFor] = useState<DebtRow | null>(null);
-  const queryTimer = useRef<number | null>(null);
+  const queryTimer = useDebouncedTimer();
   const searchRef = useRef<HTMLInputElement>(null);
   /** Anti-course : seule la dernière page chargée est affichée. */
   const loadSeq = useRef(0);
@@ -107,12 +108,6 @@ export function DebtsScreen({ notify }: { notify: Notify }): React.JSX.Element {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (queryTimer.current != null) window.clearTimeout(queryTimer.current);
-    };
   }, []);
 
   async function loadStats(): Promise<void> {
@@ -173,10 +168,9 @@ export function DebtsScreen({ notify }: { notify: Notify }): React.JSX.Element {
   function onQueryChange(q: string): void {
     setQuery(q);
     setPage(1);
-    if (queryTimer.current != null) window.clearTimeout(queryTimer.current);
-    queryTimer.current = window.setTimeout(() => {
+    queryTimer.schedule(250, () => {
       void load(q, typeFilter, statusFilter, dueFilter, settleFilter, sort, 1);
-    }, 250);
+    });
   }
 
   function changeType(t: DebtTypeFilter): void {
@@ -285,7 +279,7 @@ export function DebtsScreen({ notify }: { notify: Notify }): React.JSX.Element {
           Reste: formatDzd(r.remaining_minor),
           Échéance: dueLabel(r.due_date),
           Statut: debtStatusLabel(r.status),
-          Utilisateur: CASHIER_LABEL,
+          Poste: "Caisse 01",
         })),
       );
       notify(`${list.length} ligne(s) exportée(s).`, "ok");
@@ -300,52 +294,68 @@ export function DebtsScreen({ notify }: { notify: Notify }): React.JSX.Element {
 
   return (
     <div className="flex h-full flex-col gap-4">
-      {/* En-tête de page : surveillance des règlements mensuels (jour 1-31) */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-xl font-extrabold tracking-tight">Dettes</h2>
-          <p className="text-xs text-slate-500">
-            {total} dette(s) · {stats.settleOverdue} règlement(s) dépassé(s) · {stats.settleSoon}{" "}
-            proche(s)
-          </p>
-        </div>
-        <div className="relative w-full max-w-xs">
-          <Search
-            size={16}
-            aria-hidden="true"
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-          />
-          <TextInput
-            ref={searchRef}
-            value={query}
-            onChange={(e) => onQueryChange(e.target.value)}
-            placeholder="Rechercher… [F3]"
-            aria-label="Rechercher une dette"
-            className="pl-9"
-          />
-        </div>
-        {/* P4 : les selects Statut/Règlement vivent dans la barre d'outils
-            (étiquetés) — fin du doublon d'en-tête. */}
-        <Button
-          variant="secondary"
-          onClick={() => setToolbarOpen((o) => !o)}
-          aria-expanded={toolbarOpen}
-          title="Afficher / masquer les filtres"
-        >
-          <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
-        </Button>
-      </div>
+      {/* En-tête Stitch : Dettes & Créances Globales · SYNCHRONISATION TERMINÉE */}
+      <PageHeader
+        title="Dettes & Créances Globales"
+        module="Registre Consolidé des Engagements"
+        period={`Registre consolidé local · ${total} dette(s) · ${stats.settleOverdue} règlement(s) dépassé(s) · ${stats.settleSoon} proche(s)`}
+        actions={
+          <>
+            <div className="relative w-full max-w-xs">
+              <Search
+                size={16}
+                aria-hidden="true"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+              />
+              <TextInput
+                ref={searchRef}
+                value={query}
+                onChange={(e) => onQueryChange(e.target.value)}
+                placeholder="Rechercher… [F3]"
+                aria-label="Rechercher une dette"
+                className="pl-9"
+              />
+            </div>
+            {/* P4 : les selects Statut/Règlement vivent dans la barre d'outils
+                (étiquetés) — fin du doublon d'en-tête. */}
+            <Button
+              variant="secondary"
+              onClick={() => setToolbarOpen((o) => !o)}
+              aria-expanded={toolbarOpen}
+              title="Afficher / masquer les filtres"
+            >
+              <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
+            </Button>
+          </>
+        }
+      />
 
-      {/* Cartes statistiques */}
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      {/* Cartes héros Stitch : créances · dettes · net · recouvrement */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi
-          label="Règlements dépassés"
+          label="Créances Clients (À Encaisser)"
+          value={formatDzd(stats.customerDebtMinor)}
+          sub="Comptes clients avec solde"
+          accent="#fbbf24"
+        />
+        <Kpi
+          label="Règlements Dépassés"
           value={String(stats.settleOverdue)}
           sub="Jour mensuel passé"
+          accent="#ffb4ab"
         />
-        <Kpi label="Règlements proches" value={String(stats.settleSoon)} sub="≤ 7 jours" />
-        <Kpi label="Dettes clients" value={formatDzd(stats.customerDebtMinor)} sub="Créances" />
-        <Kpi label="Échéances du jour" value={String(stats.dueToday)} sub="À relancer" />
+        <Kpi
+          label="Règlements Proches (≤ 7j)"
+          value={String(stats.settleSoon)}
+          sub="À relancer"
+          accent="#8ed0ff"
+        />
+        <Kpi
+          label="Échéances du Jour"
+          value={String(stats.dueToday)}
+          sub="Dossier recouvrement actif"
+          accent="#4edea3"
+        />
       </div>
 
       {/* Barre d'outils */}
@@ -495,7 +505,7 @@ export function DebtsScreen({ notify }: { notify: Notify }): React.JSX.Element {
             />
           ) : (
             <table className="w-full min-w-[1220px] text-sm">
-              <thead className="sticky top-0 bg-[#111a2e] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
+              <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
                 <tr>
                   <th className="w-10 px-3 py-2.5">
                     <input

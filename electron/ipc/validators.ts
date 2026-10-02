@@ -40,6 +40,10 @@ const quantity = z
 // sur prix×qté : 1e9 centimes = 10M DZD, largement au-delà du commerce de détail).
 const moneyMinor = z.number().int().min(0).max(1_000_000_000);
 
+// RADICAL-FIX P0: charge vide explicite pour les lectures — jamais de `null`
+// (contrat Zod uniforme, AGENTS.md §3 : toute commande passe par un schéma).
+export const emptyPayloadSchema = z.object({}).strict();
+
 export const paginationSchema = z.object({
   page: z.number().int().min(1).default(1),
   pageSize: z.number().int().min(1).max(200).default(50),
@@ -72,11 +76,16 @@ export const productCreateSchema = z.object({
   barcodes: z.array(z.string().min(1).max(64)).max(20).default([]),
 });
 
-// P18: la mise à jour est idempotente par valeur (rejouer le même SET donne
-// le même état) — exiger un operationId que le repo ignore serait un contrat
-// mensonger. Seule la CRÉATION porte l'idempotence (UNIQUE operation_id).
+// P18-RADICAL: la mise à jour accepte un operationId OPTIONNEL du caller.
+// - Sans operationId (legacy) : idempotente par valeur (même SET = même état).
+// - Avec operationId : rejouement protégé via idempotency_keys (pas de 2e audit,
+//   pas de double couche FIFO au retry). Zod strip ignorait avant ; désormais le
+//   repo l'honore quand il est fourni (contrat honnête + AGENTS.md §4).
+const optionalOperationId = z.string().uuid().nullable().optional();
+
 export const productUpdateSchema = productCreateSchema.omit({ operationId: true }).extend({
   id: z.number().int().positive(),
+  operationId: optionalOperationId,
 });
 
 export const customerCreateSchema = z.object({
@@ -454,13 +463,11 @@ export const supplierCreateSchema = z.object({
 });
 
 export const supplierUpdateSchema = supplierCreateSchema
-  // M-3 CONTRACT INTEGRITY: update is idempotent by value (replaying the same
-  // SET yields the same row) — like productUpdateSchema (P18), it carries NO
-  // operationId. Demanding one the repo ignores would be a fake contract.
-  // (Zod strips unknown keys: old callers still sending operationId keep working.)
+  // M-3 RADICAL: operationId optionnel honoré par le repo (voir productUpdate).
   .omit({ operationId: true })
   .extend({
     id: z.number().int().positive(),
+    operationId: optionalOperationId,
   });
 
 export const supplierDeleteManySchema = z.object({
@@ -505,6 +512,7 @@ export const proformaCreateSchema = z.object({
 export const proformaStatusSchema = z.object({
   id: z.number().int().positive(),
   to: z.enum(["sent", "converted", "cancelled"]),
+  operationId: optionalOperationId,
 });
 
 export const proformaConvertSchema = z.object({
@@ -534,6 +542,7 @@ export const debtTargetSchema = z.object({
 export const saleDueDateSchema = z.object({
   id: z.number().int().positive(),
   dueDate: businessDate.nullable().optional(),
+  operationId: optionalOperationId,
 });
 
 export const periodSchema = z.object({
@@ -552,6 +561,7 @@ export const zakatParamsSchema = z.object({
   nisabMinor: z.number().int().min(0).default(0),
   hawlDate: businessDate.nullable().optional(),
   nisabMethod: z.enum(["gold", "silver", "other"]).default("gold"),
+  operationId: optionalOperationId,
 });
 
 export const zakatCalculationSchema = z.object({
@@ -594,19 +604,39 @@ export const purchaseListSchema = paginationSchema.extend({
     .optional(),
 });
 
-export const purchaseReceiveSchema = z.object({
-  operationId: z.string().uuid(),
-  id: z.number().int().positive(),
-  lines: z
-    .array(
-      z.object({
-        itemId: z.number().int().positive(),
-        quantityReceived: quantity,
-      }),
-    )
-    .min(1)
-    .max(200),
-});
+export const purchaseReceiveSchema = z
+  .object({
+    operationId: z.string().uuid(),
+    id: z.number().int().positive(),
+    lines: z
+      .array(
+        z.object({
+          itemId: z.number().int().positive(),
+          quantityReceived: quantity,
+        }),
+      )
+      .min(1)
+      .max(200),
+  })
+  // M3 : lignes uniques — `quantity_received += ?` par ligne + contrôle sur
+  // snapshot figé (avant UPDATE) permettait de recevoir 2× la même ligne et
+  // de dépasser `quantity_ordered` (contournement du garde-fou monétaire).
+  .superRefine((v, ctx) => {
+    const seen = new Set<number>();
+    for (let i = 0; i < v.lines.length; i++) {
+      const id = v.lines[i]?.itemId;
+      if (id == null) continue;
+      if (seen.has(id)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Ligne de commande en double.",
+          path: ["lines", i, "itemId"],
+        });
+        return;
+      }
+      seen.add(id);
+    }
+  });
 // P4 : brouillons paniers (persistance onglets, SQLite — jamais de LocalStorage).
 export const cartLineSchema = z.object({
   key: z.string().min(1).max(64),
@@ -620,6 +650,7 @@ export const cartLineSchema = z.object({
 });
 
 export const cartsSaveSchema = z.object({
+  operationId: optionalOperationId,
   tabs: z
     .array(
       z.object({
@@ -633,6 +664,12 @@ export const cartsSaveSchema = z.object({
       }),
     )
     .max(20),
+});
+
+// RADICAL-FIX: effacement brouillons idempotent quand operationId fourni
+// (double-clic/retry) ; sans operationId, comportement historique.
+export const cartsClearSchema = z.object({
+  operationId: optionalOperationId,
 });
 // Phase 9 — pain (simplifié : nom commande + client + quantité, récurrence quotidienne).
 export const breadCreateSchema = z.object({
@@ -701,6 +738,7 @@ export const proformaListSchema = paginationSchema.extend({
 
 export const proformaUpdateSchema = z.object({
   id: z.number().int().positive(),
+  operationId: optionalOperationId,
   customerId: z.number().int().positive().nullable().optional(),
   lines: z
     .array(
@@ -758,6 +796,7 @@ export const productsImportSchema = z.object({
 
 export const customerUpdateSchema = z.object({
   id: z.number().int().positive(),
+  operationId: optionalOperationId,
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
   phone: z.string().max(30).nullable().optional(),
@@ -803,10 +842,13 @@ export const invoiceSettingsSchema = z.object({
   showPreviousBalance: z.boolean().default(true),
   footerText: z.string().max(300).default(""),
   thankYouMessage: z.string().max(200).default(""),
+  tvaRatePercent: z.number().min(0).max(100).default(0),
+  sellerDefault: z.string().max(100).default(""),
 });
 
 export const printingSettingsSchema = z.object({
   silent: z.boolean().default(true),
+  thermalWidth: z.enum(["58mm", "80mm"]).default("80mm"),
 });
 
 export const productsSettingsSchema = z.object({
@@ -827,18 +869,51 @@ export const soundSettingsSchema = z.object({
 });
 
 export const settingsSaveSchema = z.discriminatedUnion("key", [
-  z.object({ key: z.literal("inventory"), value: inventorySettingsSchema }),
-  z.object({ key: z.literal("sales"), value: salesSettingsSchema }),
-  z.object({ key: z.literal("invoice"), value: invoiceSettingsSchema }),
-  z.object({ key: z.literal("printing"), value: printingSettingsSchema }),
-  z.object({ key: z.literal("products"), value: productsSettingsSchema }),
-  z.object({ key: z.literal("customers"), value: customersSettingsSchema }),
-  z.object({ key: z.literal("suppliers"), value: suppliersSettingsSchema }),
-  z.object({ key: z.literal("sound"), value: soundSettingsSchema }),
+  z.object({
+    key: z.literal("inventory"),
+    value: inventorySettingsSchema,
+    operationId: optionalOperationId,
+  }),
+  z.object({
+    key: z.literal("sales"),
+    value: salesSettingsSchema,
+    operationId: optionalOperationId,
+  }),
+  z.object({
+    key: z.literal("invoice"),
+    value: invoiceSettingsSchema,
+    operationId: optionalOperationId,
+  }),
+  z.object({
+    key: z.literal("printing"),
+    value: printingSettingsSchema,
+    operationId: optionalOperationId,
+  }),
+  z.object({
+    key: z.literal("products"),
+    value: productsSettingsSchema,
+    operationId: optionalOperationId,
+  }),
+  z.object({
+    key: z.literal("customers"),
+    value: customersSettingsSchema,
+    operationId: optionalOperationId,
+  }),
+  z.object({
+    key: z.literal("suppliers"),
+    value: suppliersSettingsSchema,
+    operationId: optionalOperationId,
+  }),
+  z.object({
+    key: z.literal("sound"),
+    value: soundSettingsSchema,
+    operationId: optionalOperationId,
+  }),
 ]);
 
 export const relocateSchema = z.object({
   folder: z.string().min(1).max(500),
+  operationId: optionalOperationId,
 });
 
 // Réinitialisation d'usine (zone dangereuse) : preuve de confirmation
@@ -851,6 +926,7 @@ export const databaseResetSchema = z.object({
 });
 
 export const companyUpdateSchema = z.object({
+  operationId: optionalOperationId,
   company_name: z.string().min(1).max(200).nullable().optional(),
   commercial_name: z.string().max(200).nullable().optional(),
   phone: z.string().max(30).nullable().optional(),
@@ -875,11 +951,18 @@ export const printLineSchema = z.object({
 
 export const printerSaveSchema = z.object({
   name: z.string().max(200).nullable(),
+  operationId: optionalOperationId,
 });
 
 export const backupAutoSchema = z.object({
   enabled: z.boolean().default(true),
   intervalDays: z.number().int().min(1).max(30).default(1),
+  frequency: z
+    .enum(["10min", "30min", "1h", "6h", "12h", "daily", "weekly", "custom"])
+    .default("daily"),
+  customMinutes: z.number().int().min(5).max(10080).default(60),
+  retentionCount: z.number().int().min(1).max(100).default(30),
+  operationId: optionalOperationId,
 });
 
 export const backupExportSchema = z.object({
@@ -910,6 +993,12 @@ export const printPayloadSchema = z
     customerPhone: z.string().max(30).default(""),
     customerAddress: z.string().max(300).default(""),
     customerCode: z.string().max(20).default(""),
+    seller: z.string().max(100).default(""),
+    tvaRatePercent: z.number().min(0).max(100).default(0),
+    htMinor: z.number().int().min(0).default(0),
+    tvaMinor: z.number().int().min(0).default(0),
+    qrPayload: z.string().max(300).default(""),
+    qrSvg: z.string().max(200_000).default(""),
     companyPhone: z.string().max(30).default(""),
     companyAddress: z.string().max(300).default(""),
     companyCity: z.string().max(100).default(""),
@@ -981,6 +1070,16 @@ export const printPayloadSchema = z
         path: ["totalMinor"],
       });
     }
+    // P0-1 : ventilation TVA optionnelle — quand taux > 0 et montants fournis,
+    // ht + tva doit égaler le TTC (centimes, sans float).
+    const rate = typeof v.tvaRatePercent === "number" ? v.tvaRatePercent : 0;
+    if (rate > 0 && (v.htMinor > 0 || v.tvaMinor > 0) && v.htMinor + v.tvaMinor !== v.totalMinor) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Ventilation HT/TVA incohérente avec le total.",
+        path: ["htMinor"],
+      });
+    }
     // P05: paidMinor affiché peut dépasser le total (espèces rendues) — la
     // règle paid ≤ total reste côté vente (sale-rules), le ticket affiche
     // Monnaie rendue via buildReceiptText:311 sans la stocker.
@@ -994,6 +1093,10 @@ export const printPayloadSchema = z
 export const pdfFilePathSchema = z.object({
   filePath: z.string().max(2000).nullable().optional(),
 });
+
+// RADICAL-FIX: `format` validé Zod (jamais de lecture brute `raw.format`) —
+// l'impression choisit A4 vs thermique depuis le payload validé uniquement.
+export const printFormatSchema = z.enum(["A4", "80mm"]).optional();
 
 // Reçu de règlement de dette (ticket تسديد الدين) : aperçu + impression
 // 80mm/A4 après encaissement (client / fournisseur / pain). Cohérence
@@ -1019,6 +1122,7 @@ export const paymentTicketSchema = z
     notes: z.string().max(500).default(""),
     footerText: z.string().max(500).default(""),
     thankYouMessage: z.string().max(500).default(""),
+    format: printFormatSchema,
   })
   .superRefine((v, ctx) => {
     if (v.newBalanceMinor !== v.prevBalanceMinor - v.amountMinor) {
@@ -1032,14 +1136,15 @@ export const paymentTicketSchema = z
 
 export const categoryCreateSchema = z.object({
   name: z.string().min(2).max(100),
+  operationId: optionalOperationId,
 });
 
 export const expenseUpdateSchema = expenseCreateSchema
-  // M-3 CONTRACT INTEGRITY: same rule as supplierUpdate/productUpdate (P18) —
-  // pure update carries no operationId the repo would ignore.
+  // M-3 RADICAL: operationId optionnel honoré (voir productUpdate).
   .omit({ operationId: true })
   .extend({
     id: z.number().int().positive(),
+    operationId: optionalOperationId,
   });
 
 // P18: suppression idempotente quand le client fournit operationId
@@ -1068,6 +1173,7 @@ export const customersImportSchema = z.object({
 export const productSuppliersSchema = z.object({
   productId: z.number().int().positive(),
   supplierIds: z.array(z.number().int().positive()).max(100).default([]),
+  operationId: optionalOperationId,
 });
 
 // Appariement OCR par lot : UNE traversée IPC pour ≤ 150 lignes (au lieu de
@@ -1085,7 +1191,7 @@ export const productsMatchBatchSchema = z.object({
     .max(150),
 });
 
-// Étiquettes code-barres (planche A4, rendu main déterministe).
+// Étiquettes code-barres (formats thermiques + planche A4, rendu main déterministe).
 export const labelItemSchema = z.object({
   name: z.string().min(1).max(200),
   priceMinor: z.number().int().min(0),
@@ -1093,13 +1199,90 @@ export const labelItemSchema = z.object({
   copies: z.number().int().min(1).max(100).default(1),
 });
 
+export const labelFormatSchema = z.enum(["30x20", "50x30", "58x40", "A4-24", "custom"]);
+
 export const labelsPayloadSchema = z.object({
   items: z.array(labelItemSchema).min(1).max(50),
+  format: labelFormatSchema.default("A4-24"),
+  customWidthMm: z.number().min(10).max(210).default(50),
+  customHeightMm: z.number().min(10).max(297).default(30),
 });
 
 // OCR local (aucune écriture : sélection + analyse + annulation + nettoyage).
 // L'import passe ensuite par `stock.intake` après relecture humaine.
 export const ocrSelectFileSchema = z.object({});
+
+// Accès clients APK (V1 lecture seule, miroir ADR-053) : activation QR/PIN,
+// file de synchro vers le miroir, annonces magasin (1 ligne, 120 max).
+// Le PIN reste en clair jusqu'au main qui le hache (jamais stocké ni loggé).
+export const clientAccessActivateSchema = z.object({
+  operationId: z.string().uuid(),
+  customerId: z.number().int().positive(),
+  phone: z.string().min(1).max(30),
+  pin: z.string().regex(/^[0-9]{6}$/, { message: "Code PIN invalide (6 chiffres)." }),
+});
+
+// QR d'activation scanné par l'APK (ADR-054) : lecture seule, sans mutation.
+// Mêmes bornes que buildActivationQrPayload (use-case) ; le main génère le SVG.
+export const clientAccessQrSchema = z.object({
+  phone: z
+    .string()
+    .min(1)
+    .max(30)
+    .refine((s) => !s.includes("|"), {
+      message: "Téléphone invalide pour le QR.",
+    }),
+  pin: z.string().regex(/^[0-9]{6}$/, { message: "Code PIN invalide (6 chiffres)." }),
+  code: z.string().regex(/^[A-Za-z0-9_-]{16,128}$/, { message: "Code d'activation invalide." }),
+});
+
+export const syncEnqueueSchema = z.object({
+  operationId: z.string().uuid(),
+  customerId: z.number().int().positive(),
+  // Union EXACTE du CHECK `sync_outbox.kind` — SOURCE AUTORITAIRE :
+  // database/migrations/0032_client_access_sync.sql (immuable). Miroiée par
+  // `SYNC_KINDS` (electron/ipc/handlers/client-access.repo.ts) et par le CHECK
+  // de cloud/supabase/schema.sql : un kind valide en base doit toujours
+  // franchir cette frontière, sinon la poussée échoue à la porte d'entrée.
+  kind: z.enum([
+    "customer_snapshot",
+    "invoice_list",
+    "payment_list",
+    "invoice_detail",
+    "announcement",
+    "access_revocation",
+  ]),
+  saleId: z.number().int().positive().nullable().optional(),
+  monthKey: z
+    .string()
+    .regex(/^\d{4}-\d{2}$/, { message: "Mois invalide (AAAA-MM)." })
+    .nullable()
+    .optional(),
+});
+
+export const syncPendingSchema = z.object({
+  limit: z.number().int().min(1).max(200).default(50),
+});
+
+export const announcementSaveSchema = z.object({
+  operationId: z.string().uuid(),
+  text: z.string().min(1).max(120),
+});
+
+// Synchro miroir (V1) : configuration merchant + poussée manuelle.
+// La clé service ne transite que sur ce pont local (jamais vers le renderer
+// en lecture : getConfig la masque — voir maskConfig côté service).
+export const syncConfigSchema = z.object({
+  operationId: z.string().uuid(),
+  enabled: z.boolean(),
+  supabaseUrl: z.string().max(200),
+  serviceKey: z.string().max(500),
+  intervalMinutes: z.number().int().min(5).max(1440).default(15),
+});
+
+export const syncPushNowSchema = z.object({
+  operationId: z.string().uuid(),
+});
 
 export const ocrAnalyzeSchema = z.object({
   fileId: z.string().uuid(),
@@ -1113,3 +1296,32 @@ export const ocrAnalyzeSchema = z.object({
 export const ocrCancelSchema = z.object({ fileId: z.string().uuid() });
 
 export const ocrDisposeSchema = z.object({ fileId: z.string().uuid() });
+
+// P0-3 : documents logistiques (bon de livraison / bon de retour / bon de commande).
+// Réutilisent la cohérence du ticket (printPayloadSchema) + références d'origine.
+const printBase = printPayloadSchema.innerType();
+
+export const deliveryPayloadSchema = printBase.extend({
+  originNumber: z.string().max(50).default(""),
+  deliverer: z.string().max(100).default(""),
+  format: printFormatSchema,
+});
+
+export const returnSlipPayloadSchema = printBase.extend({
+  returnNumber: z.string().max(50).default(""),
+  reason: z.string().max(300).default(""),
+  refundMinor: z.number().int().min(0).default(0),
+  format: printFormatSchema,
+});
+
+export const purchaseOrderDocPayloadSchema = printBase.extend({
+  orderNumber: z.string().max(50).default(""),
+  supplierName: z.string().max(200).default(""),
+  supplierPhone: z.string().max(30).default(""),
+  supplierAddress: z.string().max(300).default(""),
+  validityDays: z.number().int().min(1).max(365).default(30),
+  format: printFormatSchema,
+});
+
+// Reçu de règlement : `format` validé (jamais de cast brut `raw.format`).
+export const paymentTicketFormatSchema = printFormatSchema;

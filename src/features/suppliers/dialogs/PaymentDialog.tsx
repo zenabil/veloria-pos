@@ -42,7 +42,7 @@ export function SupplierPaymentDialog({
   const [busy, setBusy] = useState(false);
   // Idempotence (migration 0020) : même UUID rejoué = même paiement retrouvé.
   const [operationId, setOperationId] = useState<string>(() => newOperationId());
-  // Reçu de règlement (ticket تسديد الدين) proposé après succès.
+  // Reçu de règlement proposé après succès.
   const [ticket, setTicket] = useState<PaymentTicketInput | null>(null);
 
   // P1-5 : parse strict (bornes H-1, jamais NaN) ; invalide → paiement refusé.

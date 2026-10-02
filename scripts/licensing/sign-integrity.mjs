@@ -34,10 +34,30 @@ function walk(dir, base, out) {
       // Seuls les fichiers exécutables/embarqués (.js, .html, assets,
       // public.key) sont couverts — impact sécurité nul.
       if (rel.endsWith(".d.ts") || rel.endsWith(".tsbuildinfo")) continue;
+      // ADR-051 : sorties electron-builder sous dist/ (jamais des entrées) —
+      // `builder-debug.yml` / `builder-effective-config.yaml` sont RÉÉCRITS à
+      // chaque packaging, `win-unpacked/` + `*.exe` sont des PRODUITS : les
+      // signer invalidait le manifeste au build suivant (faux TAMPER
+      // systématique en packagé, fichier `dist/builder-debug.yml`).
+      if (
+        rel === "dist/builder-debug.yml" ||
+        rel === "dist/builder-effective-config.yaml" ||
+        rel.startsWith("dist/win-unpacked/") ||
+        (rel.startsWith("dist/") && rel.endsWith(".exe") && !rel.slice(5).includes("/"))
+      )
+        continue;
       out.push(rel);
     }
   }
 }
+
+// `--if-key-present` : mode « re-signature opportuniste » réservé aux hooks
+// automatiques (`posttypecheck` ADR-042, `build:electron`). Sans clé (CI,
+// poste dev sans clé vendor), signer est impossible et RAS — il n'y a rien à
+// re-signer. Les scripts `package*` appellent `license:integrity` SANS ce
+// flag : le packaging reste strict (échec sans clé), et le POS packagé échoue
+// fermé (TAMPER) si le manifeste venait à manquer.
+const ifKeyPresent = process.argv.includes("--if-key-present");
 
 let priv = null;
 for (const c of privCandidates) {
@@ -52,6 +72,12 @@ for (const c of privCandidates) {
   }
 }
 if (!priv) {
+  if (ifKeyPresent) {
+    console.log(
+      "SKIP integrity: clé vendor absente (private/vendor-keys/private.key) — re-signature sautée (hook automatique).",
+    );
+    process.exit(0);
+  }
   console.error("ÉCHEC: clé privée vendor introuvable (private/vendor-keys/private.key).");
   process.exit(1);
 }
