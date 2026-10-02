@@ -6,7 +6,7 @@ import { api } from "@shared/types/ipc-client.ts";
 import { useCompany } from "@shared/company/use-company.ts";
 import { useDefaultMethod } from "@shared/settings/use-app-settings.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
-import { formatDzd } from "@domain/money/money.ts";
+import { formatDzd, minorToInput } from "@domain/money/money.ts";
 import { strictOrNeg } from "@shared/money/parse.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { todayUtcDate } from "@shared/dates/dates.ts";
@@ -717,9 +717,7 @@ export function BreadPayDialog({
   notify: Notify;
 }): React.JSX.Element {
   const o = data.order;
-  const [amountText, setAmountText] = useState(
-    (o.remaining_amount_minor / 100).toString().replace(".", ","),
-  );
+  const [amountText, setAmountText] = useState(minorToInput(o.remaining_amount_minor));
   const [method, setMethod] = useDefaultMethod();
   const [busy, setBusy] = useState(false);
   // Reçu de règlement proposé après succès.

@@ -18,7 +18,7 @@ import {
   syncEnqueueResultSchema,
 } from "@shared/types/ipc-contracts.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
-import { formatDzd, parseDzdInputStrict } from "@domain/money/money.ts";
+import { formatDzd, minorToInput, parseDzdInputStrict } from "@domain/money/money.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import { playSound } from "@shared/sound/sound.ts";
 import { newOperationId } from "@domain/common/ids.ts";
@@ -1456,9 +1456,7 @@ export function ClientFormDialog({
     customer?.settlement_day != null ? String(customer.settlement_day) : "",
   );
   const [creditLimit, setCreditLimit] = useState(
-    customer && customer.credit_limit_minor > 0
-      ? (customer.credit_limit_minor / 100).toString().replace(".", ",")
-      : "",
+    customer && customer.credit_limit_minor > 0 ? minorToInput(customer.credit_limit_minor) : "",
   );
   const [notes, setNotes] = useState(customer?.notes ?? "");
   const [busy, setBusy] = useState(false);
@@ -1475,9 +1473,7 @@ export function ClientFormDialog({
       .then((v) => {
         const d = (v as { value: { defaultCreditLimitMinor: number } }).value;
         if (d.defaultCreditLimitMinor > 0) {
-          setCreditLimit((prev) =>
-            prev === "" ? (d.defaultCreditLimitMinor / 100).toString().replace(".", ",") : prev,
-          );
+          setCreditLimit((prev) => (prev === "" ? minorToInput(d.defaultCreditLimitMinor) : prev));
           setCreditAllowed(true);
         }
       })
@@ -1700,9 +1696,7 @@ export function PaymentDialog({
   notify: Notify;
 }): React.JSX.Element {
   const [amount, setAmount] = useState(
-    customer.outstanding_balance_minor > 0
-      ? (customer.outstanding_balance_minor / 100).toString().replace(".", ",")
-      : "",
+    customer.outstanding_balance_minor > 0 ? minorToInput(customer.outstanding_balance_minor) : "",
   );
   const [method, setMethod] = useState<"cash" | "cheque" | "transfer">("cash");
   const [busy, setBusy] = useState(false);

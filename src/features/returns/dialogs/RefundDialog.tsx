@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { api } from "@shared/types/ipc-client.ts";
 
-import { formatDzd } from "@domain/money/money.ts";
+import { formatDzd, minorToInput } from "@domain/money/money.ts";
 import { strictOrNeg } from "@shared/money/parse.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 
@@ -31,7 +31,7 @@ export function ReturnRefundDialog({
   notify: Notify;
 }): React.JSX.Element {
   const remaining = row.total_minor - row.settled_minor;
-  const [amountText, setAmountText] = useState((remaining / 100).toString().replace(".", ","));
+  const [amountText, setAmountText] = useState(minorToInput(remaining));
   const [method, setMethod] = useState<"cash" | "cheque" | "transfer">("cash");
   const [busy, setBusy] = useState(false);
   const amount = strictOrNeg(amountText, "Montant");

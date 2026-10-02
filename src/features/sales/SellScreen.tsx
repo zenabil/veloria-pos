@@ -11,12 +11,13 @@ import { PayDialog } from "./sell/PayDialog.tsx";
 import { SettleDialog } from "./sell/SettleDialog.tsx";
 import { useSellShortcuts, type SellKeyActions } from "./sell/useSellShortcuts.ts";
 import { proformaOperationKey } from "./proforma-op.ts";
+import { toCartDraftTabs } from "./sell/cart-drafts.ts";
 import { api } from "@shared/types/ipc-client.ts";
 import { callChecked, paymentAckSchema, saleResultSchema } from "@shared/types/ipc-contracts.ts";
 import { useAppSettings, type SalesSettings } from "@shared/settings/use-app-settings.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
-import { formatDzd, parseDzdInputStrict } from "@domain/money/money.ts";
+import { formatDzd, minorToInput, parseDzdInputStrict } from "@domain/money/money.ts";
 import { strictOrNeg } from "@shared/money/parse.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import { computeLineTotal } from "@domain/sales/sale-rules.ts";
@@ -231,7 +232,7 @@ export function SellScreen({
       notify("Aucune dette à régler pour ce client.", "err");
       return;
     }
-    setSettleAmount((customerBalance / 100).toString().replace(".", ","));
+    setSettleAmount(minorToInput(customerBalance));
     setSettleMethod("cash");
     setSettleOperationId(newOperationId());
     setSettleOpen(true);
@@ -312,7 +313,7 @@ export function SellScreen({
   useEffect(() => {
     const tab = cart.tabs.find((t) => t.id === activeId);
     const minor = tab?.amountPaidMinor ?? 0;
-    setPaidText(minor > 0 ? (minor / 100).toString().replace(".", ",") : "");
+    setPaidText(minor > 0 ? minorToInput(minor) : "");
     // Changer d'onglet referme aussi la recherche client (contexte différent)
     // + réinitialise l'échéance (RX-17 : pas de fuite inter-paniers).
     setCustomerQuery("");
@@ -339,7 +340,7 @@ export function SellScreen({
           const st = useCartsStore.getState();
           const active = st.tabs.find((t) => t.id === st.activeId);
           const minor = active?.amountPaidMinor ?? 0;
-          setPaidText(minor > 0 ? (minor / 100).toString().replace(".", ",") : "");
+          setPaidText(minor > 0 ? minorToInput(minor) : "");
         }
       })
       .catch(() => undefined);
@@ -356,24 +357,7 @@ export function SellScreen({
         api
           .cartsSave({
             operationId: newOperationId(),
-            tabs: s.tabs.map((t) => ({
-              tabId: t.id,
-              name: t.name,
-              lines: t.lines.map((l) => ({
-                key: l.key,
-                productId: l.productId,
-                productName: l.productName,
-                unitCode: l.unitCode,
-                originalUnitPriceMinor: l.originalUnitPriceMinor,
-                unitPriceMinor: l.unitPriceMinor,
-                purchasePriceMinor: l.purchasePriceMinor,
-                quantity: l.quantity,
-              })),
-              customerId: t.customerId,
-              customerLabel: t.customerLabel,
-              amountPaidMinor: t.amountPaidMinor,
-              paymentMethod: t.paymentMethod,
-            })),
+            tabs: toCartDraftTabs(s.tabs),
           })
           .catch(() => undefined);
       }, 800);
@@ -621,7 +605,7 @@ export function SellScreen({
       notify("Panier vide : ajoutez au moins un article.", "err");
       return;
     }
-    setPaidText((totals.totalMinor / 100).toString().replace(".", ","));
+    setPaidText(minorToInput(totals.totalMinor));
     setDueDate("");
     setPayOperationId(newOperationId());
     setPayOpen(true);

@@ -1,7 +1,7 @@
 // Veloria PoS — Zakat : dialogue de calcul (saisie + résultat + sauvegarde).
 import { useState } from "react";
 import { api } from "@shared/types/ipc-client.ts";
-import { formatDzd, parseDzdInputStrict } from "@domain/money/money.ts";
+import { formatDzd, minorToInput, parseDzdInputStrict } from "@domain/money/money.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { todayUtcDate } from "@shared/dates/dates.ts";
 import { Button, Field, Modal, TextArea, TextInput } from "@shared/ui/primitives.tsx";
@@ -35,18 +35,14 @@ export function ZakatCalculationDialog({
 }): React.JSX.Element {
   const [cash, setCash] = useState("");
   const [bank, setBank] = useState("");
-  const [stock, setStock] = useState((sources.inventory.v / 100).toString().replace(".", ","));
-  const [receivables, setReceivables] = useState(
-    (sources.customerDebts.d / 100).toString().replace(".", ","),
-  );
+  const [stock, setStock] = useState(minorToInput(sources.inventory.v));
+  const [receivables, setReceivables] = useState(minorToInput(sources.customerDebts.d));
   const [other, setOther] = useState("");
   const [liabilities, setLiabilities] = useState(
-    sources.supplierDebts.d > 0 ? (sources.supplierDebts.d / 100).toString().replace(".", ",") : "",
+    sources.supplierDebts.d > 0 ? minorToInput(sources.supplierDebts.d) : "",
   );
   const [nisab, setNisab] = useState(
-    sources.params.nisabMinor > 0
-      ? (sources.params.nisabMinor / 100).toString().replace(".", ",")
-      : "",
+    sources.params.nisabMinor > 0 ? minorToInput(sources.params.nisabMinor) : "",
   );
   const [rate, setRate] = useState(String(sources.params.ratePercent).replace(".", ","));
   const [notes, setNotes] = useState("");

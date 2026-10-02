@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { api } from "@shared/types/ipc-client.ts";
 import { useLoadSeq } from "@shared/ui/use-load-seq.ts";
 import { strictOrNeg } from "@shared/money/parse.ts";
+import { minorToInput } from "@domain/money/money.ts";
 import { Field, Select, TextInput } from "@shared/ui/primitives.tsx";
 import { Button, Modal } from "@shared/ui/primitives.tsx";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
@@ -1200,7 +1201,7 @@ export function ZakatSettingsSection({ notify }: { notify: Notify }): React.JSX.
       .then((s) => {
         const p = (s as { params: ZakatParams }).params;
         setRate(String(p.ratePercent).replace(".", ","));
-        setNisab(p.nisabMinor > 0 ? (p.nisabMinor / 100).toString().replace(".", ",") : "");
+        setNisab(p.nisabMinor > 0 ? minorToInput(p.nisabMinor) : "");
         setHawl(p.hawlDate ?? "");
         setMethod(p.nisabMethod);
       })

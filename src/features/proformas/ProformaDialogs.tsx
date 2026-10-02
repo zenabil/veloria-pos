@@ -5,7 +5,7 @@ import { Copy, FileCheck, FileDown, Pencil, Printer, Search, Trash2 } from "luci
 import { api } from "@shared/types/ipc-client.ts";
 import { useCompany } from "@shared/company/use-company.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
-import { formatDzd } from "@domain/money/money.ts";
+import { formatDzd, minorToInput } from "@domain/money/money.ts";
 import { formatDzdSafe } from "@shared/formatters/format.ts";
 import { strictOrNeg } from "@shared/money/parse.ts";
 import { computeLineTotal } from "@domain/sales/sale-rules.ts";
@@ -392,7 +392,7 @@ export function ProformaFormDialog({
   >([]);
   const [discountText, setDiscountText] = useState(
     source && Number(source.proforma.discount_amount_minor) > 0
-      ? (Number(source.proforma.discount_amount_minor) / 100).toString().replace(".", ",")
+      ? minorToInput(Number(source.proforma.discount_amount_minor))
       : "",
   );
   const [notes, setNotes] = useState(
@@ -789,7 +789,7 @@ export function ProformaConversionDialog({
 }): React.JSX.Element {
   const p = data.proforma;
   const total = Number(p.total_minor);
-  const [amountText, setAmountText] = useState((total / 100).toString().replace(".", ","));
+  const [amountText, setAmountText] = useState(minorToInput(total));
   const [method, setMethod] = useState<"cash" | "cheque" | "transfer" | null>("cash");
   const [busy, setBusy] = useState(false);
   const amount = strictOrNeg(amountText, "Montant");

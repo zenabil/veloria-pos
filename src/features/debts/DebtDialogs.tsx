@@ -6,7 +6,7 @@ import { api } from "@shared/types/ipc-client.ts";
 import { callChecked, paymentAckSchema } from "@shared/types/ipc-contracts.ts";
 import { useCompany } from "@shared/company/use-company.ts";
 import { useAppSettings } from "@shared/settings/use-app-settings.ts";
-import { formatDzd } from "@domain/money/money.ts";
+import { formatDzd, minorToInput } from "@domain/money/money.ts";
 import { formatDzdSafe } from "@shared/formatters/format.ts";
 import { PaymentTicketModal, type PaymentTicketInput } from "@shared/documents/payment-preview.tsx";
 import { strictOrNeg } from "@shared/money/parse.ts";
@@ -317,9 +317,7 @@ export function DebtPaymentDialog({
   onSaved: () => void;
   notify: Notify;
 }): React.JSX.Element {
-  const [amountText, setAmountText] = useState(
-    (row.remaining_minor / 100).toString().replace(".", ","),
-  );
+  const [amountText, setAmountText] = useState(minorToInput(row.remaining_minor));
   const [method, setMethod] = useState<"cash" | "cheque" | "transfer">("cash");
   const [date, setDate] = useState(todayUtcDate());
   const [reference, setReference] = useState("");

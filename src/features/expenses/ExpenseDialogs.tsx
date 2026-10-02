@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Pencil, Search, Trash2 } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
-import { formatDzd, parseDzdInputStrict } from "@domain/money/money.ts";
+import { formatDzd, minorToInput, parseDzdInputStrict } from "@domain/money/money.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { validateExpenseDraft } from "@domain/expenses/expense-rules.ts";
@@ -137,9 +137,7 @@ export function ExpenseFormDialog({
   const [date, setDate] = useState(expense?.expense_date.slice(0, 10) ?? todayUtcDate());
   const [category, setCategory] = useState(expense?.category ?? "");
   const [description, setDescription] = useState(expense?.description ?? "");
-  const [amount, setAmount] = useState(
-    expense ? (expense.amount_minor / 100).toString().replace(".", ",") : "",
-  );
+  const [amount, setAmount] = useState(expense ? minorToInput(expense.amount_minor) : "");
   const [method, setMethod] = useState<"cash" | "cheque" | "transfer" | "">(
     (expense?.payment_method as "cash" | "cheque" | "transfer" | null) ?? "cash",
   );

@@ -149,6 +149,19 @@ export function formatDzd(minor: number): string {
   }).format(value)} DZD`;
 }
 
+/**
+ * RADICAL-FIX: valeur initiale des CHAMPS de saisie (sans suffixe/groupement).
+ * Sortie STRICTEMENT identique à l'ancien motif dispersé
+ * `(minor / 100).toString().replace(".", ",")` ("12,5"), centralisé + gardé :
+ * corrompu/NaN → MoneyError (jamais de textesilencieux dans le champ).
+ * Round-trip garanti : `parseDzdInputStrict(minorToInput(m)) === m`.
+ * Réservé aux inputs — l'affichage utilise `formatDzd` (groupement + "DZD").
+ */
+export function minorToInput(minor: number): string {
+  assertSafeMinor(minor);
+  return (minor / MINOR_PER_MAJOR).toString().replace(".", ",");
+}
+
 /** Multiply minor by a quantity (quantity may be decimal, e.g. kg). Rounds to nearest minor. */
 export function multiplyMinorByQuantity(unitPriceMinor: number, quantity: number): number {
   assertSafeMinor(unitPriceMinor, { label: "Prix unitaire invalide" });

@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { PackagePlus, Printer, Search, Trash2, Truck } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
-import { formatDzd, parseDzdInputStrict } from "@domain/money/money.ts";
+import { formatDzd, minorToInput, parseDzdInputStrict } from "@domain/money/money.ts";
 import { buildCompanyHead } from "@shared/documents/sale-ticket.ts";
 import { strictOrNeg } from "@shared/money/parse.ts";
 import { frError } from "@shared/errors/fr-map.ts";
@@ -262,9 +262,7 @@ export function SupplierPOsDialog({
         unitCode: hit?.unit_code ?? "PIECE",
         qtyText: "1",
         costText:
-          hit != null && hit.purchase_price_minor > 0
-            ? (hit.purchase_price_minor / 100).toString().replace(".", ",")
-            : "",
+          hit != null && hit.purchase_price_minor > 0 ? minorToInput(hit.purchase_price_minor) : "",
       },
     ]);
     setHits([]);

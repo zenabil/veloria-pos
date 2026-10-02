@@ -2,7 +2,7 @@
 // La remise vit UNIQUEMENT dans le prix unitaire (clic sur le P.U.).
 import { useState } from "react";
 import { Minus, Plus, Trash2, X } from "lucide-react";
-import { formatDzd, parseDzdInputStrict } from "@domain/money/money.ts";
+import { formatDzd, minorToInput, parseDzdInputStrict } from "@domain/money/money.ts";
 import { computeLineTotal } from "@domain/sales/sale-rules.ts";
 import { roundQuantity } from "@domain/common/quantity.ts";
 import { frError } from "@shared/errors/fr-map.ts";
@@ -58,7 +58,7 @@ export function CartPanel({
       originalMinor: line.originalUnitPriceMinor || line.unitPriceMinor,
       currentMinor: line.unitPriceMinor,
     });
-    setPriceText((line.unitPriceMinor / 100).toString().replace(".", ","));
+    setPriceText(minorToInput(line.unitPriceMinor));
     setPriceBelowCostAck(false);
   }
 

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { api } from "@shared/types/ipc-client.ts";
 import { useCompany } from "@shared/company/use-company.ts";
 import { strictOrNeg } from "@shared/money/parse.ts";
+import { minorToInput } from "@domain/money/money.ts";
 import { Field, Select, TextInput } from "@shared/ui/primitives.tsx";
 import { saveAppSettings, useAppSettings } from "@shared/settings/use-app-settings.ts";
 import { SaveBar, Section, SwitchRow, useBusyFlag } from "./bits.tsx";
@@ -495,7 +496,7 @@ export function CustomersSection({
 
   useEffect(() => {
     if (value && value.defaultCreditLimitMinor > 0) {
-      setLimit((value.defaultCreditLimitMinor / 100).toString().replace(".", ","));
+      setLimit(minorToInput(value.defaultCreditLimitMinor));
     }
   }, [value]);
 

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 import { api } from "@shared/types/ipc-client.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
-import { formatDzd } from "@domain/money/money.ts";
+import { formatDzd, minorToInput } from "@domain/money/money.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { normalizeUnitCode, validateProductDraft } from "@domain/product/product-rules.ts";
 import { evaluateMargin } from "@domain/pricing/price-rules.ts";
@@ -52,11 +52,9 @@ export function ProductFormDialog({
     product?.category_id != null ? String(product.category_id) : "",
   );
   const [purchase, setPurchase] = useState(
-    product ? (product.purchase_price_minor / 100).toString().replace(".", ",") : "",
+    product ? minorToInput(product.purchase_price_minor) : "",
   );
-  const [selling, setSelling] = useState(
-    product ? (product.selling_price_minor / 100).toString().replace(".", ",") : "",
-  );
+  const [selling, setSelling] = useState(product ? minorToInput(product.selling_price_minor) : "");
   const [qty, setQty] = useState(product ? String(product.quantity) : "");
   const [minStock, setMinStock] = useState(product ? String(product.min_stock_level) : "");
   const [maxStock, setMaxStock] = useState(

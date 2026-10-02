@@ -5,7 +5,7 @@ import { useState } from "react";
 import { callChecked, paymentAckSchema } from "@shared/types/ipc-contracts.ts";
 import { useDefaultMethod } from "@shared/settings/use-app-settings.ts";
 
-import { formatDzd, parseDzdInputStrict } from "@domain/money/money.ts";
+import { formatDzd, minorToInput, parseDzdInputStrict } from "@domain/money/money.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 
 import { todayUtcDate } from "@shared/dates/dates.ts";
@@ -34,7 +34,7 @@ export function SupplierPaymentDialog({
   notify: Notify;
 }): React.JSX.Element {
   const debt = supplier.outstanding_balance_minor;
-  const [amount, setAmount] = useState((debt / 100).toString().replace(".", ","));
+  const [amount, setAmount] = useState(minorToInput(debt));
   const [method, setMethod] = useDefaultMethod();
   const [date, setDate] = useState(todayUtcDate());
   const [reference, setReference] = useState("");

@@ -3,6 +3,7 @@ import {
   fromDzd,
   parseDzdInputStrict,
   formatDzd,
+  minorToInput,
   percentOfMinor,
   multiplyMinorByQuantity,
   sumSignedMinors,
@@ -34,6 +35,17 @@ describe("Money (DZD minor units)", () => {
     const s = formatDzd(81000);
     expect(s).toContain("810");
     expect(s).toContain("DZD");
+  });
+
+  it("minorToInput: identical to legacy pattern + round-trip strict", () => {
+    // Identique à `(m / 100).toString().replace(".", ",")` pour tout entier sûr.
+    for (const m of [0, 1, 5, 50, 99, 100, 101, 1250, 10000, 1999, 100000, 1_000_000_000]) {
+      expect(minorToInput(m)).toBe((m / 100).toString().replace(".", ","));
+      expect(parseDzdInputStrict(minorToInput(m))).toBe(m);
+    }
+    expect(minorToInput(1250)).toBe("12,5");
+    expect(() => minorToInput(NaN)).toThrow();
+    expect(() => minorToInput(-1)).toThrow();
   });
 
   it("sums signed minors (discounts + surcharges bounded)", () => {
