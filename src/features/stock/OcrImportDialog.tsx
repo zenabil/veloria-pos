@@ -8,6 +8,7 @@ import { FileScan, Plus, Search, Trash2, X } from "lucide-react";
 import { api, ocrOnProgress } from "@shared/types/ipc-client.ts";
 import { callChecked, productsMatchBatchSchema } from "@shared/types/ipc-contracts.ts";
 import { formatDzd, parseDzdInputStrict } from "@domain/money/money.ts";
+import { formatBytes } from "@shared/formatters/files.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { todayUtcDate } from "@shared/dates/dates.ts";
 import { parseInvoiceText } from "@domain/ocr/parser.ts";
@@ -77,12 +78,6 @@ const nextKey = (): number => {
 };
 
 const MAX_REVIEW_ROWS = 150;
-
-function formatBytes(size: number): string {
-  if (size < 1024) return `${size} o`;
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} Ko`;
-  return `${(size / (1024 * 1024)).toFixed(2)} Mo`;
-}
 
 function minorToFixedInput(minor: number | null): string {
   if (minor === null) return "";
