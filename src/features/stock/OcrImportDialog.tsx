@@ -84,8 +84,10 @@ function formatBytes(size: number): string {
   return `${(size / (1024 * 1024)).toFixed(2)} Mo`;
 }
 
-function minorToInput(minor: number | null): string {
+function minorToFixedInput(minor: number | null): string {
   if (minor === null) return "";
+  // Saisie OCR : 2 décimales fixes (« 12,50 ») — distinct de `minorToInput`
+  // du domaine (« 12,5 ») ; les deux se reconvertissent via parseDzdInputStrict.
   // RADICAL-FIX: arithmétique entière (pas de float) — centimes → « dzd,cc ».
   const sign = minor < 0 ? "-" : "";
   const abs = Math.abs(Math.trunc(minor));
@@ -316,7 +318,7 @@ export function OcrImportDialog({
           productLabel: m.product?.name ?? "",
           productPriceMinor: m.product?.selling_price_minor ?? null,
           qtyText: l.quantity === null ? "" : String(l.quantity),
-          purchaseText: minorToInput(l.unitPriceMinor),
+          purchaseText: minorToFixedInput(l.unitPriceMinor),
           sellingText: "",
           unit: l.unit,
           confidence: m.product === null ? l.confidence : m.confidence,
