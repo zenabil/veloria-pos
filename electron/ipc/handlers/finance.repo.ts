@@ -7,6 +7,7 @@ import { backupStatus } from "../../backup/backup.service";
 import { getBreadStats } from "./bread.repo";
 import { fifoValuation } from "./fifo";
 import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./idempotency";
+import { assertOrderClause } from "./sql-guard";
 
 export type DebtTypeFilter = "all" | "customer" | "supplier";
 export type DebtStatusFilter = "all" | "overdue" | "due";
@@ -102,7 +103,9 @@ export function listDebtsUnified(
     db.prepare(`SELECT COUNT(*) AS c FROM (\n${union}\n) ${where}`).get(...params) as { c: number }
   ).c;
   const rows = db
-    .prepare(`SELECT * FROM (\n${union}\n) ${where} ORDER BY ${order} LIMIT ? OFFSET ?`)
+    .prepare(
+      `SELECT * FROM (\n${union}\n) ${where} ORDER BY ${assertOrderClause(order)} LIMIT ? OFFSET ?`,
+    )
     .all(...params, pageSize, (page - 1) * pageSize);
   return { rows, total };
 }

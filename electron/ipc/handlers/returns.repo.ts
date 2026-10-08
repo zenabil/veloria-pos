@@ -5,6 +5,7 @@
 import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
 import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./idempotency";
+import { assertOrderClause } from "./sql-guard";
 import {
   consumptionsOfSale,
   consumeLayers,
@@ -723,7 +724,9 @@ export function listReturnsUnified(
     db.prepare(`SELECT COUNT(*) AS c FROM (\n${union}\n) ${where}`).get(...params) as { c: number }
   ).c;
   const rows = db
-    .prepare(`SELECT * FROM (\n${union}\n) ${where} ORDER BY ${order} LIMIT ? OFFSET ?`)
+    .prepare(
+      `SELECT * FROM (\n${union}\n) ${where} ORDER BY ${assertOrderClause(order)} LIMIT ? OFFSET ?`,
+    )
     .all(...params, pageSize, (page - 1) * pageSize);
   return { rows, total };
 }

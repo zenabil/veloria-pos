@@ -4,6 +4,8 @@
 // amount_minor?, method?, status (FR), created_at, stock_before/delta/after?,
 // details_json? (noms des entités supprimées).
 
+import { assertOrderClause } from "./sql-guard";
+
 export const HISTORY_KINDS = [
   "sale",
   "purchase",
@@ -281,7 +283,7 @@ export function buildHistoryQuery(f: HistoryFilters): {
   const where = conds.length > 0 ? `WHERE ${conds.join(" AND ")}` : "";
   const order = orderBy(f.sort);
   return {
-    sql: `SELECT ${BASE_COLUMNS} FROM (\n${union}\n) ${where} ORDER BY ${order} LIMIT ? OFFSET ?`,
+    sql: `SELECT ${BASE_COLUMNS} FROM (\n${union}\n) ${where} ORDER BY ${assertOrderClause(order)} LIMIT ? OFFSET ?`,
     countSql: `SELECT COUNT(*) AS c FROM (\n${union}\n) ${where}`,
     params: [...params, f.pageSize, (f.page - 1) * f.pageSize],
     countParams: params,

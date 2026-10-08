@@ -202,6 +202,8 @@ const api = {
     detail: (p: unknown) => invoke(IPC_CHANNELS["history.detail"], p),
     stats: (p?: unknown) => invoke(IPC_CHANNELS["history.stats"], p),
   },
+  // Namespace bridge ≠ canal wire (ADR-074) : `productsExtra.import`
+  // invoque le canal canonique `products.import` — alias gelé, ne pas renommer.
   productsExtra: {
     import: (p: unknown) => invoke(IPC_CHANNELS["products.import"], p),
   },

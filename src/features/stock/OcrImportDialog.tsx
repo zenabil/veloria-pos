@@ -153,15 +153,16 @@ export function OcrImportDialog({
         if (v.fileId !== fileRef.current) return;
         setProgress({ phase: v.phase, page: v.page, pages: v.pages, ratio: v.progress });
       });
-    } catch {
+    } catch (err: unknown) {
+      console.error("[Veloria] OCR : abonnement progression illisible", err);
       off = undefined;
     }
     return () => {
       mounted.current = false;
       try {
         off?.();
-      } catch {
-        /* ignore */
+      } catch (err: unknown) {
+        console.error("[Veloria] OCR : désabonnement progression impossible", err);
       }
     };
   }, []);
@@ -169,7 +170,10 @@ export function OcrImportDialog({
   function safeClose(): void {
     const id = fileRef.current;
     fileRef.current = null;
-    if (id !== null) void api.ocrDispose({ fileId: id }).catch(() => undefined);
+    if (id !== null)
+      void api.ocrDispose({ fileId: id }).catch((err: unknown) => {
+        console.error("[Veloria] OCR : libération fichier impossible", err);
+      });
     onClose();
   }
 
@@ -178,7 +182,9 @@ export function OcrImportDialog({
     setPicking(true);
     try {
       if (fileRef.current !== null) {
-        await api.ocrDispose({ fileId: fileRef.current }).catch(() => undefined);
+        await api.ocrDispose({ fileId: fileRef.current }).catch((err: unknown) => {
+          console.error("[Veloria] OCR : libération fichier précédent impossible", err);
+        });
         fileRef.current = null;
       }
       const res = (await api.ocrSelectFile()) as {
@@ -271,8 +277,9 @@ export function OcrImportDialog({
             | undefined) ?? null;
         return { product: full, kind: m.kind, confidence: m.confidence };
       });
-    } catch {
+    } catch (err: unknown) {
       // Repli : aucune correspondance, relecture manuelle des lignes.
+      console.error("[Veloria] OCR : rapprochement produits impossible, relecture manuelle", err);
       return lines.map(() => ({
         product: null,
         kind: "none" as OcrMatchKind,
@@ -359,8 +366,8 @@ export function OcrImportDialog({
         setSupplierLabel(hit.name);
         void checkDuplicate(hit.id, invoiceNumber || parsed?.number);
       }
-    } catch {
-      /* suggestion optionnelle */
+    } catch (err: unknown) {
+      console.error("[Veloria] OCR : suggestion fournisseur impossible", err);
     }
   }
 
@@ -384,8 +391,8 @@ export function OcrImportDialog({
           r.invoice_number.trim().toLowerCase() === norm,
       );
       if (mounted.current) setDuplicateWarn(found);
-    } catch {
-      /* avertissement optionnel */
+    } catch (err: unknown) {
+      console.error("[Veloria] OCR : contrôle doublon impossible", err);
     }
   }
 
@@ -396,7 +403,9 @@ export function OcrImportDialog({
         rows: { id: number; name: string }[];
       };
       setSupplierResults(res.rows);
-    } catch {
+    } catch (err: unknown) {
+      console.error("[Veloria] OCR : recherche fournisseurs illisible", err);
+      notify("Recherche fournisseurs impossible.", "err");
       setSupplierResults([]);
     }
   }
@@ -416,7 +425,9 @@ export function OcrImportDialog({
         rows: ProductHit[];
       };
       setPickerResults(res.rows);
-    } catch {
+    } catch (err: unknown) {
+      console.error("[Veloria] OCR : recherche produits illisible", err);
+      notify("Recherche produits impossible.", "err");
       setPickerResults([]);
     }
   }
@@ -511,7 +522,8 @@ export function OcrImportDialog({
     // P1-5 : strict (bornes H-1) ; invalide → null (ligne signalée).
     try {
       return parseDzdInputStrict(r.purchaseText, "Prix d'achat");
-    } catch {
+    } catch (err: unknown) {
+      console.error("[Veloria] OCR : prix d'achat illisible", err);
       return null;
     }
   }
@@ -520,7 +532,8 @@ export function OcrImportDialog({
     if (r.sellingText.trim() === "") return null;
     try {
       return parseDzdInputStrict(r.sellingText, "Prix de vente");
-    } catch {
+    } catch (err: unknown) {
+      console.error("[Veloria] OCR : prix de vente illisible", err);
       return null;
     }
   }
@@ -612,8 +625,9 @@ export function OcrImportDialog({
     if (file === null) return;
     try {
       await api.ocrCancel({ fileId: file.fileId });
-    } catch {
-      /* l'analyse se terminera avec l'erreur d'annulation */
+    } catch (err: unknown) {
+      // L'analyse se terminera avec l'erreur d'annulation (log seul).
+      console.error("[Veloria] OCR : annulation analyse impossible", err);
     }
   }
 

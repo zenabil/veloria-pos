@@ -17,6 +17,7 @@ type BetterSqlite3DB = {
     all(...params: unknown[]): unknown[];
   };
   transaction<T extends (...args: never[]) => unknown>(fn: T): T;
+  inTransaction: boolean;
   close(): void;
 };
 

@@ -88,6 +88,10 @@ export function pruneTechnicalTables(nowMs = Date.now()): { idempotency: number;
       /* table absente (vieille base) : nominal */
     }
     try {
+      // EXCEPTION documentée (conseil llm-council) : purge mono-instruction,
+      // donc atomique par nature dans SQLite ; volontairement hors de la
+      // transaction idempotence ci-dessus pour ne pas allonger le verrou de
+      // démarrage. Purge best-effort horodatée, jamais de données critiques.
       const r = db.prepare(`DELETE FROM audit_log WHERE created_at < ?`).run(auditCutoff);
       out.audit = Number(r.changes);
     } catch {

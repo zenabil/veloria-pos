@@ -85,9 +85,21 @@ export const idempotentIdSchema = z.object({
 // génération silencieuse côté main). Les schémas optionnels/compat (ex.
 // expenses.delete nullable) restent hors périmètre volontairement.
 export function schemaRequiresOperationId(schema: unknown): boolean {
-  if (schema !== null && typeof schema === "object" && "shape" in schema) {
-    const shape = (schema as { shape: Record<string, unknown> }).shape;
-    return shape.operationId instanceof z.ZodString;
+  let current: unknown = schema;
+  for (let depth = 0; depth < 5; depth++) {
+    if (current !== null && typeof current === "object" && "shape" in current) {
+      const shape = (current as { shape: Record<string, unknown> }).shape;
+      return shape.operationId instanceof z.ZodString;
+    }
+    // RADICAL-FIX (conseil llm-council) : déballe les wrappers d'effets
+    // (.refine/.superRefine → ZodEffects) pour lire le shape réel — sinon un
+    // schéma à operationId REQUIS mais raffiné (ex. purchaseReceiveSchema)
+    // échappait au garde. ZodOptional/Nullable/Default ne sont JAMAIS déballés.
+    if (current instanceof z.ZodEffects) {
+      current = current.innerType();
+      continue;
+    }
+    return false;
   }
   return false;
 }

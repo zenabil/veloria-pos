@@ -28,6 +28,10 @@ export const IPC_CHANNELS = {
   "products.archive": "products.archive",
   "products.restore": "products.restore",
   "products.delete": "products.delete",
+  // EXCEPTION gelée (conseil llm-council, ADR-074) : le canal wire reste
+  // `products.import` ; le bridge renderer l'expose sous le namespace
+  // `productsExtra.import` (preload.ts) — regroupement client, jamais de
+  // renommage (compat IPC). Tout renommage passe par alias + ADR.
   "products.import": "products.import",
   "products.suppliers": "products.suppliers",
   "products.setSuppliers": "products.setSuppliers",

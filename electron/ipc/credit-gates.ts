@@ -17,13 +17,13 @@ export function enforceCreditGates(
   // EL-24: mêmes gates pour les workflows qui créent du crédit sans
   // passer par sales.create (returns crédit, bread partiel, conversions).
   if (channel === IPC_CHANNELS["returns.create"]) {
-    const rc = input as unknown as { creditMinor?: unknown };
+    const rc = input as { creditMinor?: unknown };
     if (typeof rc.creditMinor === "number" && rc.creditMinor > 0) {
       requireLicensedFeature(deps, "debt-management");
     }
   }
   if (channel === IPC_CHANNELS["bread.create"]) {
-    const bc = input as unknown as {
+    const bc = input as {
       quantity?: unknown;
       unitPriceMinor?: unknown;
       amountPaidMinor?: unknown;
@@ -46,7 +46,7 @@ export function enforceCreditGates(
   // Conversions : le total vient de la DB (devis/commande) �?" on le charge
   // ici (lecture synchrone) pour gater avant toute mutation.
   if (channel === IPC_CHANNELS["proformas.convert"]) {
-    const cc = input as unknown as { proformaId?: unknown; amountPaidMinor?: unknown };
+    const cc = input as { proformaId?: unknown; amountPaidMinor?: unknown };
     if (typeof cc.proformaId === "number" && typeof cc.amountPaidMinor === "number") {
       try {
         const prow = getDb()
@@ -66,7 +66,7 @@ export function enforceCreditGates(
     }
   }
   if (channel === IPC_CHANNELS["bread.convert"]) {
-    const bc2 = input as unknown as { id?: unknown };
+    const bc2 = input as { id?: unknown };
     if (typeof bc2.id === "number") {
       try {
         const brow = getDb()
@@ -87,7 +87,7 @@ export function enforceCreditGates(
   if (channel === IPC_CHANNELS["sales.create"]) {
     // P0-7 : la remise vit dans les lignes (original �^' final) �- qty �?"
     // le total de gate se recalcule aux prix FACTUR�?S (jamais aux originaux).
-    const sale = input as unknown as {
+    const sale = input as {
       amountPaidMinor?: unknown;
       totalMinor?: unknown;
       deliveryFeeMinor?: unknown;

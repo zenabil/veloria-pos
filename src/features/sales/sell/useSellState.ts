@@ -26,6 +26,7 @@ export interface SellTotals {
 
 export type SellState = ReturnType<typeof useSellState>;
 
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type -- retour inféré à dessein (70+ champs) : le type de sortie est `SellState` ci-dessus, toute annotation manuelle divergerait.
 export function useSellState(cart: ActiveCart) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchRow[]>([]);

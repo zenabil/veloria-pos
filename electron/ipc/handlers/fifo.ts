@@ -4,11 +4,21 @@
 // must not import src/ (rootDir). Same thousandths/rounding conventions.
 // Rule: FIFO drives inventory COST, never the selling price.
 // Every function below MUST be called inside the caller's db.transaction().
+// Enforced at runtime for mutating entries (fail-closed, FR message) :
+// a forgotten transaction on a COGS path would write half-consumed layers.
 
 import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
 
 const TH = 1000;
+
+/** Garde d'appel : les écritures FIFO exigent la transaction de l'appelant. */
+function assertCallerTransaction(): void {
+  const db = getDb();
+  if (!db.inTransaction) {
+    throw new Error("Opération FIFO impossible : transaction appelante requise.");
+  }
+}
 
 export interface FifoLayerRow {
   id: number;
@@ -76,6 +86,7 @@ export function createLayer(args: {
   reason: LayerReason;
   now: string;
 }): number {
+  assertCallerTransaction();
   if (!(args.qty > 0)) throw new Error("Quantité de couche FIFO invalide.");
   if (!Number.isInteger(args.unitCostMinor) || args.unitCostMinor < 0) {
     throw new Error("Coût de couche FIFO invalide.");
@@ -133,6 +144,7 @@ export function consumeLayers(args: {
   fallbackUnitCostMinor: number;
   record?: { saleId: number; saleItemId: number };
 }): { cogsMinor: number; consumptions: FifoConsumption[] } {
+  assertCallerTransaction();
   if (!(args.qty > 0)) throw new Error("Quantité à consommer invalide.");
   if (
     args.oversell &&

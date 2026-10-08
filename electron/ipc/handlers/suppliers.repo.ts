@@ -4,6 +4,7 @@
 
 import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
+import { assertOrderClause } from "./sql-guard";
 import {
   auditOperationId,
   claimIdempotency,
@@ -105,7 +106,7 @@ export function searchSuppliers(
     db.prepare(`SELECT COUNT(*) AS c FROM suppliers s ${where}`).get(...params) as { c: number }
   ).c;
   const rows = db
-    .prepare(`${SEARCH_SELECT} ${where} ORDER BY ${order} LIMIT ? OFFSET ?`)
+    .prepare(`${SEARCH_SELECT} ${where} ORDER BY ${assertOrderClause(order)} LIMIT ? OFFSET ?`)
     .all(...params, pageSize, (page - 1) * pageSize);
   return { rows, total };
 }

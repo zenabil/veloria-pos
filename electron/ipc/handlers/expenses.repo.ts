@@ -3,6 +3,7 @@
 
 import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
+import { assertOrderClause } from "./sql-guard";
 import {
   auditOperationId,
   claimIdempotency,
@@ -288,7 +289,7 @@ export function listExpensesUnified(
       .get(...params) as { c: number }
   ).c;
   const rows = db
-    .prepare(`${EXPENSE_SELECT} ${where} ORDER BY ${order} LIMIT ? OFFSET ?`)
+    .prepare(`${EXPENSE_SELECT} ${where} ORDER BY ${assertOrderClause(order)} LIMIT ? OFFSET ?`)
     .all(...params, pageSize, (page - 1) * pageSize);
   return { rows, total };
 }

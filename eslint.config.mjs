@@ -18,6 +18,8 @@ export default tseslint.config(
       "mobile/ios/**",
       "mobile/.expo/**",
       "docs/archive/stitch/**",
+      // Outillage vivant non committé (.gitignore) : hors périmètre lint.
+      ".opencode/**",
     ],
   },
   js.configs.recommended,
@@ -50,6 +52,7 @@ export default tseslint.config(
             "scripts/e2e-mirror-relay.mjs",
             "scripts/e2e-mobile-shots.mjs",
             "mobile/index.js",
+            "mobile/scripts/validate-env.mjs",
             "cloud/supabase/functions/client-sync/index.ts",
           ],
           // 24+ scripts JS hors tsconfig : le service plafonne à 8 par

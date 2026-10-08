@@ -6,6 +6,7 @@
 import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
 import { consumeLayers, createLayer, fifoValuation } from "./fifo";
+import { assertOrderClause } from "./sql-guard";
 import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./idempotency";
 
 export interface IntakeLineInput {
@@ -82,7 +83,8 @@ export function adjustStockAtomic(args: {
     const prod = db
       .prepare(`SELECT quantity, min_stock_level, purchase_price_minor FROM products WHERE id = ?`)
       .get(args.productId) as
-      { quantity: number; min_stock_level: number; purchase_price_minor: number } | undefined;
+      | { quantity: number; min_stock_level: number; purchase_price_minor: number }
+      | undefined;
     if (!prod) throw new Error("Produit introuvable.");
     if (!Number.isFinite(args.newQuantity) || args.newQuantity < 0) {
       throw new Error("Quantité d'ajustement invalide.");
@@ -417,7 +419,12 @@ export type StockMovementKind =
   | "return_in"
   | "damage_out";
 export type StockSort =
-  "name_asc" | "name_desc" | "qty_asc" | "qty_desc" | "value_desc" | "recent_desc";
+  | "name_asc"
+  | "name_desc"
+  | "qty_asc"
+  | "qty_desc"
+  | "value_desc"
+  | "recent_desc";
 
 export interface StockProductsOptions {
   categoryId?: number | null;
@@ -484,7 +491,7 @@ export function listStockProducts(
     db.prepare(`SELECT COUNT(*) AS c FROM products p ${where}`).get(...params) as { c: number }
   ).c;
   const rows = db
-    .prepare(`${select} ${where} ORDER BY ${order} LIMIT ? OFFSET ?`)
+    .prepare(`${select} ${where} ORDER BY ${assertOrderClause(order)} LIMIT ? OFFSET ?`)
     .all(...params, pageSize, (page - 1) * pageSize);
   return { rows, total };
 }
@@ -504,7 +511,8 @@ export function listMovements(
 ): { rows: unknown[]; total: number } {
   const db = getDb();
   const exists = db.prepare(`SELECT id FROM products WHERE id = ?`).get(productId) as
-    { id: number } | undefined;
+    | { id: number }
+    | undefined;
   if (!exists) throw new Error("Produit introuvable.");
   const conds = [`product_id = ?`];
   const params: unknown[] = [productId];
@@ -576,7 +584,8 @@ export function applyInventoryAtomic(args: {
           `SELECT quantity, min_stock_level, purchase_price_minor FROM products WHERE id = ?`,
         )
         .get(it.productId) as
-        { quantity: number; min_stock_level: number; purchase_price_minor: number } | undefined;
+        | { quantity: number; min_stock_level: number; purchase_price_minor: number }
+        | undefined;
       if (!prod) throw new Error("Produit introuvable.");
       const delta = it.actualQty - Number(prod.quantity);
       if (delta === 0) {

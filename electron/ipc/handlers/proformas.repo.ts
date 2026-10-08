@@ -3,6 +3,7 @@
 
 import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
+import { assertOrderClause } from "./sql-guard";
 import { createSaleAtomic } from "./sales.repo";
 import { formatProformaNumber } from "./numbers";
 import {
@@ -264,7 +265,7 @@ export function listProformas(
   ).c;
   const rows = db
     .prepare(
-      `SELECT p.*, c.search_name AS customer_name, c.phone AS customer_phone FROM proforma_invoices p LEFT JOIN customers c ON c.id = p.customer_id ${where} ORDER BY ${order} LIMIT ? OFFSET ?`,
+      `SELECT p.*, c.search_name AS customer_name, c.phone AS customer_phone FROM proforma_invoices p LEFT JOIN customers c ON c.id = p.customer_id ${where} ORDER BY ${assertOrderClause(order)} LIMIT ? OFFSET ?`,
     )
     .all(...params, pageSize, (page - 1) * pageSize);
   return { rows, total };

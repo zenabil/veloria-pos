@@ -225,7 +225,7 @@ export async function finalizeSale(d: SellFlowDeps): Promise<void> {
         htmlA4: string;
       };
       d.setPreview({ sale, text80: pv.text80, htmlA4: pv.htmlA4 });
-      if (d.autoPrintInvoice === true) {
+      if (d.autoPrintInvoice) {
         try {
           if (d.printMode === "A4")
             await api.printA4(buildPrintPayload(d.company, sale, sale.balances));

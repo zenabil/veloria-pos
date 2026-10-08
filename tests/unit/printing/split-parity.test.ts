@@ -10,7 +10,9 @@ const mocks = vi.hoisted(() => ({ handle: vi.fn() }));
 vi.mock("electron", () => ({
   ipcMain: { handle: mocks.handle },
   dialog: { showSaveDialog: vi.fn() },
-  BrowserWindow: class {},
+  BrowserWindow: class {
+    isDestroyed = false;
+  },
   app: { getPath: () => "/tmp-veloria-test", getVersion: () => "0.0.0-test" },
 }));
 
@@ -62,7 +64,7 @@ import * as barrel from "../../../electron/printing/receipt-documents";
 import { buildReceiptText as buildReceiptTextDirect } from "../../../electron/printing/receipt-documents/receipt-text";
 
 const root = process.cwd();
-const noDb = () => null;
+const noDb = (): null => null;
 
 function handled(): string[] {
   return mocks.handle.mock.calls.map((c) => String(c[0]));
@@ -165,7 +167,14 @@ describe("printing.samples : coherence au centime", () => {
 });
 
 describe("printing.reports-labels : limite 200 etiquettes", () => {
-  const item = (copies: number) => ({ name: "Sucre", priceMinor: 12000, barcode: "X1", copies });
+  const item = (
+    copies: number,
+  ): { name: string; priceMinor: number; barcode: string; copies: number } => ({
+    name: "Sucre",
+    priceMinor: 12000,
+    barcode: "X1",
+    copies,
+  });
   it("refus FR au-dela de 200 au total", () => {
     expect(() => labelsOf({ items: [item(70), item(70), item(70)] })).toThrow(
       "Trop d'étiquettes : 200 maximum par planche.",

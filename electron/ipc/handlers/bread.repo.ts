@@ -3,6 +3,7 @@
 
 import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
+import { assertOrderClause } from "./sql-guard";
 import { createSaleAtomic } from "./sales.repo";
 import { formatBreadOrderNumber } from "./numbers";
 import {
@@ -414,7 +415,7 @@ export function listBreadOrders(
   ).c;
   const rows = db
     .prepare(
-      `SELECT b.*, c.search_name AS customer_name, c.phone AS customer_phone, c.address AS customer_address FROM bread_orders b LEFT JOIN customers c ON c.id = b.customer_id ${where} ORDER BY ${order} LIMIT ? OFFSET ?`,
+      `SELECT b.*, c.search_name AS customer_name, c.phone AS customer_phone, c.address AS customer_address FROM bread_orders b LEFT JOIN customers c ON c.id = b.customer_id ${where} ORDER BY ${assertOrderClause(order)} LIMIT ? OFFSET ?`,
     )
     .all(...params, pageSize, (page - 1) * pageSize);
   return { rows, total };
