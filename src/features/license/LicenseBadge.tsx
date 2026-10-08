@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ShieldAlert, ShieldCheck, ShieldX } from "lucide-react";
 import { Badge, Button, InfoRow } from "@shared/ui/primitives.tsx";
 import { LICENSE_CRITICAL_DAYS, LICENSE_WARNING_DAYS } from "./catalog.ts";
+import { editionLabel, formatDateFr } from "@shared/formatters/format.ts";
 import type { LicenseStatusView } from "./use-license.ts";
 
 type BadgeKind = "green" | "amber" | "red" | "grey";
@@ -11,23 +12,6 @@ type BadgeKind = "green" | "amber" | "red" | "grey";
 interface BadgeState {
   text: string;
   tone: BadgeKind;
-}
-
-function formatDateFr(iso: string | null): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
-}
-
-function editionLabel(edition: string | null, plan: string | null): string {
-  if (plan) return plan;
-  if (edition === "basic") return "Basique";
-  if (edition === "standard") return "Standard";
-  if (edition === "professional" || edition === "pro") return "Professionnelle";
-  if (edition === "enterprise") return "Entreprise";
-  if (edition === "custom") return "Personnalisée";
-  return "—";
 }
 
 /** État du badge : texte explicite + couleur (jamais la couleur seule). */

@@ -47,6 +47,10 @@ interface InvoiceForm {
   thankYouMessage: string;
   vatRate: number;
   defaultSeller: string;
+  // Clés canoniques main (validators invoiceSettingsSchema) — écrites à chaque
+  // save pour que TVA/vendeur s'appliquent aux impressions réelles (P1).
+  tvaRatePercent: number;
+  sellerDefault: string;
 }
 
 export function InvoiceSection({ notify }: { notify: Notify }): React.JSX.Element {
@@ -59,18 +63,37 @@ export function InvoiceSection({ notify }: { notify: Notify }): React.JSX.Elemen
     thankYouMessage: "",
     vatRate: 0,
     defaultSeller: "",
+    tvaRatePercent: 0,
+    sellerDefault: "",
   });
   const { busy, run } = useBusyFlag();
 
   useEffect(() => {
     if (value) {
+      // Lecture bi-clés (anciennes bases vatRate/defaultSeller + canoniques
+      // tvaRatePercent/sellerDefault) — l'UI édite vatRate/defaultSeller et
+      // réplique les canoniques au save.
+      const canonRate =
+        typeof (value as Partial<InvoiceForm>).tvaRatePercent === "number"
+          ? (value as Partial<InvoiceForm>).tvaRatePercent
+          : undefined;
+      const canonSeller =
+        typeof (value as Partial<InvoiceForm>).sellerDefault === "string"
+          ? (value as Partial<InvoiceForm>).sellerDefault
+          : undefined;
+      const legacyRate = typeof value.vatRate === "number" ? value.vatRate : 0;
+      const legacySeller = typeof value.defaultSeller === "string" ? value.defaultSeller : "";
+      const rate = canonRate ?? legacyRate;
+      const seller = canonSeller ?? legacySeller;
       setForm((f) => ({
         ...f,
         ...value,
         footerText: typeof value.footerText === "string" ? value.footerText : "",
         thankYouMessage: typeof value.thankYouMessage === "string" ? value.thankYouMessage : "",
-        vatRate: typeof value.vatRate === "number" ? value.vatRate : 0,
-        defaultSeller: typeof value.defaultSeller === "string" ? value.defaultSeller : "",
+        vatRate: rate,
+        defaultSeller: seller,
+        tvaRatePercent: rate,
+        sellerDefault: seller,
       }));
     }
   }, [value]);
@@ -86,7 +109,13 @@ export function InvoiceSection({ notify }: { notify: Notify }): React.JSX.Elemen
     }
     void run(async () => {
       try {
-        await saveAppSettings("invoice", form);
+        await saveAppSettings("invoice", {
+          ...form,
+          vatRate: form.vatRate,
+          defaultSeller: form.defaultSeller,
+          tvaRatePercent: form.vatRate,
+          sellerDefault: form.defaultSeller,
+        });
         notify("Facturation enregistrée.", "ok");
       } catch (e) {
         notify(frError(e, "Enregistrement impossible."), "err");
@@ -127,7 +156,10 @@ export function InvoiceSection({ notify }: { notify: Notify }): React.JSX.Elemen
           max={100}
           step="0.5"
           value={String(form.vatRate)}
-          onChange={(e) => setForm((f) => ({ ...f, vatRate: Number(e.target.value) }))}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            setForm((f) => ({ ...f, vatRate: v, tvaRatePercent: v }));
+          }}
           aria-label="Taux TVA en pourcent"
         />
       </Field>
@@ -135,7 +167,10 @@ export function InvoiceSection({ notify }: { notify: Notify }): React.JSX.Elemen
         <TextInput
           value={form.defaultSeller}
           maxLength={100}
-          onChange={(e) => setForm((f) => ({ ...f, defaultSeller: e.target.value.slice(0, 100) }))}
+          onChange={(e) => {
+            const v = e.target.value.slice(0, 100);
+            setForm((f) => ({ ...f, defaultSeller: v, sellerDefault: v }));
+          }}
           placeholder="Nom du vendeur"
           aria-label="Vendeur par défaut"
         />
@@ -169,7 +204,7 @@ export function InvoiceSection({ notify }: { notify: Notify }): React.JSX.Elemen
 export function PrintingSection({ notify }: { notify: Notify }): React.JSX.Element {
   const { value } = useAppSettings<{ silent: boolean; thermalWidth?: string }>("printing");
   const [silent, setSilent] = useState(true);
-  const [thermalWidth, setThermalWidth] = useState<"58" | "80">("80");
+  const [thermalWidth, setThermalWidth] = useState<"58mm" | "80mm">("80mm");
   const [printers, setPrinters] = useState<{ name: string; isDefault: boolean }[]>([]);
   const [selected, setSelected] = useState("");
   const { busy, run } = useBusyFlag();
@@ -177,7 +212,7 @@ export function PrintingSection({ notify }: { notify: Notify }): React.JSX.Eleme
   useEffect(() => {
     if (value) {
       setSilent(value.silent);
-      if (value.thermalWidth === "58" || value.thermalWidth === "80") {
+      if (value.thermalWidth === "58mm" || value.thermalWidth === "80mm") {
         setThermalWidth(value.thermalWidth);
       }
     }
@@ -209,7 +244,7 @@ export function PrintingSection({ notify }: { notify: Notify }): React.JSX.Eleme
     });
   }
 
-  function saveThermalWidth(v: "58" | "80"): void {
+  function saveThermalWidth(v: "58mm" | "80mm"): void {
     setThermalWidth(v);
     void run(async () => {
       try {
@@ -295,11 +330,11 @@ export function PrintingSection({ notify }: { notify: Notify }): React.JSX.Eleme
       <Field label="Largeur thermique" hint="Format des tickets (58 ou 80mm).">
         <Select
           value={thermalWidth}
-          onChange={(e) => saveThermalWidth(e.target.value === "58" ? "58" : "80")}
+          onChange={(e) => saveThermalWidth(e.target.value === "58mm" ? "58mm" : "80mm")}
           aria-label="Largeur thermique"
         >
-          <option value="58">58mm</option>
-          <option value="80">80mm</option>
+          <option value="58mm">58mm</option>
+          <option value="80mm">80mm</option>
         </Select>
       </Field>
       <SwitchRow
@@ -315,7 +350,7 @@ export function PrintingSection({ notify }: { notify: Notify }): React.JSX.Eleme
       </p>
       <div className="flex flex-wrap gap-2">
         <SaveBar busy={busy} onSave={test} label="Imprimer une page de test" />
-        <SaveBar busy={busy} onSave={testHardware} label="Tester Connexions Matériel" />
+        <SaveBar busy={busy} onSave={testHardware} label="Tester les connexions matériel" />
       </div>
     </Section>
   );
@@ -696,7 +731,7 @@ export function BackupSection({ notify }: { notify: Notify }): React.JSX.Element
           onClick={exportLast}
           className="rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-white/5"
         >
-          Exporter la dernière
+          Exporter la dernière sauvegarde
         </button>
       </div>
       {list.length > 0 ? (
@@ -735,6 +770,7 @@ interface SyncView {
   enabled: boolean;
   supabaseUrl: string;
   hasKey: boolean;
+  hasAnonKey?: boolean | undefined;
   intervalMinutes: number;
   lastPushAt: string | null;
   lastError: string | null;
@@ -745,6 +781,7 @@ export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Ele
   const [enabled, setEnabled] = useState(false);
   const [url, setUrl] = useState("");
   const [secret, setSecret] = useState("");
+  const [anon, setAnon] = useState("");
   const [interval, setInterval] = useState("15");
   const [view, setView] = useState<SyncView | null>(null);
   const { busy, run } = useBusyFlag();
@@ -757,6 +794,7 @@ export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Ele
         setUrl(v.supabaseUrl);
         setInterval(String(v.intervalMinutes));
         setSecret("");
+        setAnon("");
       })
       .catch(() => undefined);
   }
@@ -783,6 +821,10 @@ export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Ele
       notify("Collez la clé service (réglage initial).", "err");
       return;
     }
+    if (anon.trim() !== "" && (anon.trim().length < 20 || anon.trim().length > 500)) {
+      notify("Clé anon invalide (20 – 500 caractères).", "err");
+      return;
+    }
     void run(async () => {
       try {
         await api.syncSaveConfig({
@@ -790,9 +832,11 @@ export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Ele
           enabled,
           supabaseUrl: url.trim(),
           serviceKey: secret,
+          anonKey: anon,
           intervalMinutes: minutes,
         });
         setSecret("");
+        setAnon("");
         notify("Synchro enregistrée.", "ok");
         refresh();
       } catch (e) {
@@ -819,7 +863,7 @@ export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Ele
 
   return (
     <Section
-      title="Miroir APK"
+      title="Miroir Android"
       hint="Application clients (lecture seule) : file locale → Supabase."
     >
       <dl className="space-y-2.5">
@@ -832,6 +876,10 @@ export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Ele
           label="Clé service"
           value={view?.hasKey ? "Enregistrée (vide = conserver)" : "Absente"}
         />
+        <InfoRow
+          label="Clé anon (QR V2)"
+          value={view?.hasAnonKey ? "Enregistrée (vide = conserver)" : "Absente — QR V2 impossible"}
+        />
         {view?.lastError ? <InfoRow label="Dernière erreur" value={view.lastError} /> : null}
       </dl>
       <SwitchRow
@@ -841,17 +889,17 @@ export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Ele
         onChange={setEnabled}
         ariaLabel="Synchronisation miroir"
       />
-      <Field label="URL Supabase" hint="Ex. https://xxx.supabase.co">
+      <Field label="Adresse du serveur (URL)" hint="Ex. https://xxx.supabase.co">
         <TextInput
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           inputMode="url"
           placeholder="https://xxx.supabase.co"
-          aria-label="URL Supabase"
+          aria-label="Adresse du serveur (URL)"
         />
       </Field>
       <Field
-        label="Clé service (service_role)"
+        label="Clé de service (rôle service)"
         hint="Collée une fois, jamais réaffichée. Vide = conserver."
       >
         <TextInput
@@ -859,6 +907,17 @@ export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Ele
           onChange={(e) => setSecret(e.target.value)}
           placeholder={view?.hasKey ? "•••••••• (conserver)" : "Collez la clé…"}
           aria-label="Clé service Supabase"
+        />
+      </Field>
+      <Field
+        label="Clé anon (publique)"
+        hint="Projet Supabase → Settings → API → anon public. Embarquée dans le QR V2 (un seul APK pour tous les magasins). Vide = conserver."
+      >
+        <TextInput
+          value={anon}
+          onChange={(e) => setAnon(e.target.value)}
+          placeholder={view?.hasAnonKey ? "•••••••• (conserver)" : "Collez la clé anon…"}
+          aria-label="Clé anon Supabase"
         />
       </Field>
       <Field
@@ -969,17 +1028,6 @@ export function DatabaseSection({ notify }: { notify: Notify }): React.JSX.Eleme
     });
   }
 
-  function backupNow(): void {
-    void run(async () => {
-      try {
-        await api.backupCreate();
-        notify("Sauvegarde créée.", "ok");
-      } catch (e) {
-        notify(frError(e, "Échec de la sauvegarde."), "err");
-      }
-    });
-  }
-
   // Zone dangereuse : réinitialisation d'usine (base VIERGE, sauvegardes
   // *.vposdb conservées). Double verrou : confirmation tapée
   // « REINITIALISER » côté renderer + preuve littérale exigée côté main.
@@ -990,7 +1038,7 @@ export function DatabaseSection({ notify }: { notify: Notify }): React.JSX.Eleme
     void run(async () => {
       try {
         if (resetText.trim() !== "REINITIALISER") {
-          notify("Tapez REINITIALISER pour confirmer.", "err");
+          notify("Tapez REINITIALISER pour confirmer (en majuscules, sans accent).", "err");
           return;
         }
         setResetOpen(false);
@@ -1021,7 +1069,6 @@ export function DatabaseSection({ notify }: { notify: Notify }): React.JSX.Eleme
       </div>
       <div className="grid grid-cols-2 gap-2">
         <SaveBar busy={busy} onSave={relocate} label="Déplacer…" />
-        <SaveBar busy={busy} onSave={backupNow} label="Sauvegarder" />
       </div>
       <p className="text-xs text-slate-500">
         Optimiser = VACUUM + ANALYZE (compacte, ne supprime rien). Déplacer = copie vérifiée puis
@@ -1051,7 +1098,7 @@ export function DatabaseSection({ notify }: { notify: Notify }): React.JSX.Eleme
               Action IRRÉVERSIBLE : toutes les ventes, produits, clients et dettes seront effacés.
               Faites une sauvegarde avant.
             </p>
-            <Field label="Tapez REINITIALISER pour confirmer">
+            <Field label="Tapez REINITIALISER pour confirmer (sans accent)">
               <TextInput
                 value={resetText}
                 onChange={(e) => setResetText(e.target.value)}
@@ -1300,7 +1347,7 @@ export function AboutSection({ notify }: { notify: Notify }): React.JSX.Element 
         />
         <InfoRow label="Développeur" value="zenagui bilal" />
         <InfoRow label="Téléphone" value="+213770204047" />
-        <InfoRow label="Email" value="zenaguibilal2@gmail.com" />
+        <InfoRow label="E-mail" value="zenaguibilal2@gmail.com" />
         <InfoRow
           label="Support"
           value="Sauvegarde .vposdb + journaux (ci-dessous) avant tout signalement"

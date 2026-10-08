@@ -9,7 +9,7 @@ import path from "node:path";
 type Db = {
   exec(sql: string): void;
   prepare(sql: string): {
-    run(...p: unknown[]): { changes: number; lastInsertRowid: number | bigint };
+    run(...p: unknown[]): { changes: number | bigint; lastInsertRowid: number | bigint };
     get(...p: unknown[]): unknown;
     all(...p: unknown[]): unknown[];
   };

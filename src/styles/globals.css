@@ -226,3 +226,74 @@ body {
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* Clair POS (ADR-072) : surcharges seules, sombre inchangé par défaut.
+   Préférence locale, jamais SQLite. Or conservé, contrastes AAA. */
+[data-theme="light"] {
+  color-scheme: light;
+}
+[data-theme="light"] body {
+  color: #14202e;
+}
+[data-theme="light"] .bg-\[\#051424\] {
+  background-color: #faf8f2;
+}
+[data-theme="light"] .bg-\[\#0a0f1c\] {
+  background-color: #f1ede1;
+}
+[data-theme="light"] .bg-\[\#0d1c2d\] {
+  background-color: #ffffff;
+}
+[data-theme="light"] .bg-\[\#122131\] {
+  background-color: #ffffff;
+}
+[data-theme="light"] .bg-\[\#010f1f\] {
+  background-color: #ffffff;
+}
+[data-theme="light"] .bg-\[\#1c2b3c\] {
+  background-color: #efe9d6;
+}
+[data-theme="light"] .text-\[\#d4e4fa\] {
+  color: #14202e;
+}
+[data-theme="light"] .text-\[\#d3c5ac\] {
+  color: #5c5647;
+}
+[data-theme="light"] .text-\[\#ffe1a7\] {
+  color: #9a6206;
+}
+[data-theme="light"] .text-\[\#4edea3\] {
+  color: #007a55;
+}
+[data-theme="light"] .text-slate-100 {
+  color: #14202e;
+}
+[data-theme="light"] .text-slate-200 {
+  color: #24344a;
+}
+[data-theme="light"] .text-slate-300 {
+  color: #3d4e63;
+}
+[data-theme="light"] .text-slate-400 {
+  color: #5c6b7e;
+}
+[data-theme="light"] .text-\[\#fbbf24\] {
+  color: #9a6206;
+}
+[data-theme="light"] .bg-black\/25 {
+  background-color: rgba(20, 32, 46, 0.06);
+}
+[data-theme="light"] .border-white\/\[0\.06\],
+[data-theme="light"] .border-white\/\[0\.07\] {
+  border-color: rgba(20, 32, 46, 0.14);
+}
+
+/* Navigation haute : indicateur actif (répond à la sélection seule). */
+.topnav-indicator {
+  transform-origin: center;
+}
+@media (prefers-reduced-motion: reduce) {
+  .topnav-indicator {
+    transition: none !important;
+  }
+}

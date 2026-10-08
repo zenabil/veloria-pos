@@ -32,6 +32,7 @@ interface SyncDoc {
   enabled: boolean;
   supabaseUrl: string;
   serviceKey: string;
+  anonKey: string;
   intervalMinutes: number;
   lastPushAt: string | null;
   lastError: string | null;
@@ -79,6 +80,7 @@ export function getSyncView(): SyncConfigView {
     enabled: doc.enabled,
     supabaseUrl: doc.supabaseUrl,
     serviceKey: doc.serviceKey,
+    anonKey: doc.anonKey,
     intervalMinutes: doc.intervalMinutes,
   };
   return maskConfig(cfg, {
@@ -86,6 +88,18 @@ export function getSyncView(): SyncConfigView {
     lastError: doc.lastError,
     pendingCount: pendingCount(),
   });
+}
+
+/**
+ * Endpoint public du magasin pour le QR V2 (ADR-068) : URL + clé `anon`
+ * (jamais la `service_role`). Lu depuis `app_settings` côté main uniquement.
+ */
+export function getShopEndpoint(): { supabaseUrl: string; anonKey: string } | null {
+  const doc = readDoc();
+  const url = doc.supabaseUrl.trim();
+  const anon = doc.anonKey.trim();
+  if (url === "" || anon === "") return null;
+  return { supabaseUrl: url, anonKey: anon };
 }
 
 export function saveSyncConfigAtomic(args: { config: unknown; operationId: string; now: string }): {
@@ -101,16 +115,19 @@ export function saveSyncConfigAtomic(args: { config: unknown; operationId: strin
       enabled?: unknown;
       supabaseUrl?: unknown;
       serviceKey?: unknown;
+      anonKey?: unknown;
       intervalMinutes?: unknown;
     };
     // Clé vide + clé existante = conservation (le renderer ne relit jamais
     // le secret — voir maskConfig) ; sinon la nouvelle valeur s'applique.
     const incomingKey = typeof incoming.serviceKey === "string" ? incoming.serviceKey.trim() : "";
+    const incomingAnon = typeof incoming.anonKey === "string" ? incoming.anonKey.trim() : "";
     const cfg = validateSyncConfig({
       enabled: incoming.enabled,
       supabaseUrl: incoming.supabaseUrl,
       serviceKey:
         incomingKey === "" && prev.serviceKey !== "" ? prev.serviceKey : incoming.serviceKey,
+      anonKey: incomingAnon === "" && prev.anonKey !== "" ? prev.anonKey : incoming.anonKey,
       intervalMinutes: incoming.intervalMinutes,
     });
     writeDoc({ ...cfg, lastPushAt: prev.lastPushAt, lastError: prev.lastError }, args.now);
@@ -153,12 +170,13 @@ export async function pushNowAtomic(
     enabled: doc.enabled,
     supabaseUrl: doc.supabaseUrl,
     serviceKey: doc.serviceKey,
+    anonKey: doc.anonKey,
     intervalMinutes: doc.intervalMinutes,
   });
   if (!cfg.enabled) throw new Error("Synchronisation désactivée : activez-la d'abord.");
   const accessRows = db
     .prepare(
-      `SELECT customer_id, phone_hash, pin_hash, qr_secret_hash, revoked_at, failed_attempts, locked_until, updated_at FROM customer_access ORDER BY customer_id ASC LIMIT 500`,
+      `SELECT customer_id, phone_hash, pin_hash, pin_salt, pin_algo, qr_secret_hash, revoked_at, failed_attempts, locked_until, updated_at FROM customer_access ORDER BY customer_id ASC LIMIT 500`,
     )
     .all() as AccessMirrorRow[];
   const outboxRows = db
@@ -311,6 +329,7 @@ export function startSyncTimer(): void {
         enabled: doc.enabled,
         supabaseUrl: doc.supabaseUrl,
         serviceKey: doc.serviceKey,
+        anonKey: doc.anonKey,
         intervalMinutes: doc.intervalMinutes,
       };
       if (!isPushDue(cfg, doc.lastPushAt, Date.now())) return;

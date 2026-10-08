@@ -34,6 +34,8 @@ export function LabelsDialog({
   const [format, setFormat] = useState<"30x20" | "50x30" | "58x40" | "A4-24" | "custom">("A4-24");
   const [customWidth, setCustomWidth] = useState("50");
   const [customHeight, setCustomHeight] = useState("30");
+  /** C5 : QR du code-barres sous le Code 39 (opt-in). */
+  const [withQr, setWithQr] = useState(false);
   const [html, setHtml] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -45,6 +47,7 @@ export function LabelsDialog({
     format: typeof format;
     customWidthMm: number;
     customHeightMm: number;
+    qr: boolean;
   } {
     const w = Number(String(customWidth).replace(",", "."));
     const hgt = Number(String(customHeight).replace(",", "."));
@@ -60,6 +63,7 @@ export function LabelsDialog({
         format === "custom" && Number.isFinite(w) ? Math.min(210, Math.max(10, w)) : 50,
       customHeightMm:
         format === "custom" && Number.isFinite(hgt) ? Math.min(297, Math.max(10, hgt)) : 30,
+      qr: withQr,
     };
   }
 
@@ -130,7 +134,7 @@ export function LabelsDialog({
     if (printable.length === 0) return;
     const t = window.setTimeout(() => void preview(), 500);
     return () => window.clearTimeout(t);
-  }, [copies, format, customWidth, customHeight]);
+  }, [copies, format, customWidth, customHeight, withQr]);
 
   return (
     <Modal label="Étiquettes code-barres" title="Étiquettes code-barres" onClose={onClose} wide>
@@ -185,6 +189,16 @@ export function LabelsDialog({
       <p className="text-xs text-slate-500">
         Impression noir et blanc, code-barres réel de chaque produit.
       </p>
+      <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-200">
+        <input
+          type="checkbox"
+          checked={withQr}
+          onChange={(e) => setWithQr(e.target.checked)}
+          aria-label="Ajouter le QR du code-barres"
+          className="h-4 w-4 accent-amber-400"
+        />
+        QR du code-barres sous le Code 39
+      </label>
       <div className="flex gap-2">
         <Button
           variant="secondary"

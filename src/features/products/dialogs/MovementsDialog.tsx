@@ -38,7 +38,10 @@ export function ProductMovementsDialog({
       .then((r) => {
         setRows(((r as { rows?: MovementRow[] }).rows ?? []).slice(0, 100));
       })
-      .catch(() => setRows([]));
+      .catch((err: unknown) => {
+        console.error("[Veloria] mouvements : historique illisible", err);
+        setRows([]);
+      });
   }, [productId]);
 
   // Agrégation 14 derniers jours : entrées (+) vs sorties (−).

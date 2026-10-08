@@ -30,7 +30,7 @@ export function SettingsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
   return (
     <div className="flex h-full flex-col gap-4">
       <PageHeader
-        title="Paramètres Système & Matériel PoS"
+        title="Paramètres système et matériel POS"
         module="MODULE 16 · POSTE DE TRAVAIL & SYSTÈME SÉCURISÉ"
         period="SQLite WAL Local · Exercice 2025 · ESC/POS, RJ11, RS-232 · Réglages explicites, appliqués immédiatement (base locale)."
       />

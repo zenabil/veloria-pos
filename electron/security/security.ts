@@ -13,14 +13,17 @@ import path from "node:path";
  */
 export const ALLOWED_EXTERNAL_PREFIXES: readonly string[] = [];
 
-export function isExternalNavigationAllowed(url: string): boolean {
+export function isExternalNavigationAllowed(url: string, isPackaged: boolean): boolean {
   // EL-02/EL-03: file:// arbitraire refusé — la SPA n'a aucune navigation
   // interne légitime (App.tsx useState, pas de router). Le chargement initial
   // dist/index.html via loadFile ne déclenche pas will-navigate.
   if (url.startsWith("file://")) return false;
   // P13: dev seul (Vite strictPort 5173) — plus aucun port localhost arbitraire.
-  if (url.startsWith("http://localhost:5173/") || url === "http://localhost:5173") return true;
-  if (url.startsWith("http://127.0.0.1:5173/") || url === "http://127.0.0.1:5173") return true;
+  // RADICAL: localhost autorisé UNIQUEMENT hors packaged (jamais en prod).
+  if (!isPackaged) {
+    if (url.startsWith("http://localhost:5173/") || url === "http://localhost:5173") return true;
+    if (url.startsWith("http://127.0.0.1:5173/") || url === "http://127.0.0.1:5173") return true;
+  }
   return ALLOWED_EXTERNAL_PREFIXES.some((p) => url.startsWith(p));
 }
 

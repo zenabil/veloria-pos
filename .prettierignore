@@ -1,0 +1,18 @@
+# Prettier — exclus (généré / archivage / vendor)
+dist/
+dist-electron/
+dist-license-manager/
+dist-license-manager-renderer/
+release/
+coverage/
+playwright-report/
+test-results/
+node_modules/
+mobile/android/
+mobile/ios/
+mobile/.expo/
+docs/archive/stitch/
+*.log
+*.tsbuildinfo
+public/icons/
+resources/ocr/lang/

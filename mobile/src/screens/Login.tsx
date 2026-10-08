@@ -4,6 +4,7 @@
 import { useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
+  Image,
   Linking,
   Platform,
   ScrollView,
@@ -66,11 +67,11 @@ function PinBoxes(props: { pin: string; lang: Lang; revealed: boolean }): React.
   );
 }
 
-function HelpStep(props: { index: number; text: string }): React.JSX.Element {
+function HelpStep(props: { index: number; text: string; dir: "rtl" | "ltr" }): React.JSX.Element {
   return (
     <View
       style={{
-        flexDirection: "row",
+        flexDirection: flow(props.dir),
         alignItems: "center",
         gap: SPACE.sm,
         paddingVertical: 5,
@@ -98,7 +99,11 @@ function HelpStep(props: { index: number; text: string }): React.JSX.Element {
 export function LoginScreen(props: {
   lang: Lang;
   onLang: (l: Lang) => void;
-  onLogin: (phone: string, pin: string) => Promise<void>;
+  onLogin: (
+    phone: string,
+    pin: string,
+    endpoint?: { supabaseUrl: string; anonKey: string } | null,
+  ) => Promise<void>;
   error: string | null;
 }): React.JSX.Element {
   const [phone, setPhone] = useState("");
@@ -121,6 +126,7 @@ export function LoginScreen(props: {
       await props.onLogin(
         normalizeDigits(phoneArg ?? phone).trim(),
         normalizeDigits(pinArg ?? pin),
+        null,
       );
     } finally {
       busyRef.current = false;
@@ -128,12 +134,29 @@ export function LoginScreen(props: {
     }
   }
 
-  // QR scanné (ADR-054) : pré-remplit puis connecte via le même `client-sync`.
-  async function submitScanned(phoneValue: string, pinValue: string): Promise<void> {
+  // QR scanné (ADR-054 V1, ADR-068 V2) : pré-remplit puis connecte via le même
+  // `client-sync` — en V2 l'endpoint du magasin voyage dans le QR (APK universel).
+  async function submitScanned(
+    phoneValue: string,
+    pinValue: string,
+    endpoint?: { supabaseUrl: string; anonKey: string } | null,
+  ): Promise<void> {
     setPhone(phoneValue);
     setPin(pinValue);
     setScanOpen(false);
-    await submit(phoneValue, pinValue);
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    try {
+      await props.onLogin(
+        normalizeDigits(phoneValue).trim(),
+        normalizeDigits(pinValue),
+        endpoint ?? null,
+      );
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
   }
 
   if (scanOpen) {
@@ -141,16 +164,12 @@ export function LoginScreen(props: {
       <QrScannerScreen
         lang={l}
         onClose={() => setScanOpen(false)}
-        onScanned={(p, c) => void submitScanned(p, c)}
+        onScanned={(p, c, e) => void submitScanned(p, c, e)}
       />
     );
   }
 
-  const helpSteps = [
-    rtl ? "خذ رمزك من المحل" : "Prenez votre code au magasin",
-    rtl ? "أدخل الهاتف والرمز" : "Saisissez téléphone + code",
-    rtl ? "شاهد دينك وفواتيرك" : "Voyez dette et factures",
-  ];
+  const helpSteps = [t(l, "help1"), t(l, "help2"), t(l, "help3")];
 
   return (
     <LinearGradient
@@ -178,7 +197,7 @@ export function LoginScreen(props: {
           >
             <View
               style={{
-                flexDirection: "row",
+                flexDirection: flow(rtl ? "rtl" : "ltr"),
                 alignItems: "center",
                 gap: 6,
                 backgroundColor: tint(COLORS.headerAccent, "1A"),
@@ -189,12 +208,12 @@ export function LoginScreen(props: {
             >
               <Ionicons name="shield-checkmark" size={13} color={COLORS.headerAccent} />
               <Text style={{ color: COLORS.headerAccent, fontSize: 11, fontWeight: "700" }}>
-                {rtl ? "سريع ومحمي" : "Rapide et protégé"}
+                {t(l, "fastSecure")}
               </Text>
             </View>
             <View
               style={{
-                flexDirection: "row",
+                flexDirection: flow(rtl ? "rtl" : "ltr"),
                 backgroundColor: tint(COLORS.white, "14"),
                 borderRadius: RADIUS.pill,
                 padding: 3,
@@ -228,26 +247,17 @@ export function LoginScreen(props: {
 
           {/* Marque */}
           <View style={{ alignItems: "center", marginBottom: SPACE.xl }}>
-            <LinearGradient
-              colors={GRADIENTS.gold}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={{
-                width: 76,
-                height: 76,
-                borderRadius: 24,
-                alignItems: "center",
-                justifyContent: "center",
-                ...SHADOW.gold,
-              }}
-            >
-              <Text style={{ fontSize: 40, fontWeight: "900", color: COLORS.headerBg }}>V</Text>
-            </LinearGradient>
+            <Image
+              // eslint-disable-next-line @typescript-eslint/no-require-imports
+              source={require("../../assets/brand/veloria-customer.png")}
+              style={{ width: 96, height: 96, borderRadius: 26 }}
+              accessibilityLabel="Veloria"
+            />
             <Text
               style={{
                 fontSize: 32,
                 fontWeight: "900",
-                color: "#fff",
+                color: COLORS.white,
                 marginTop: SPACE.md,
                 letterSpacing: 0.5,
               }}
@@ -255,7 +265,7 @@ export function LoginScreen(props: {
               Veloria
             </Text>
             <Text style={{ color: COLORS.navyMuted, marginTop: 2, fontSize: 13 }}>
-              {rtl ? "فضاء الزبون | Espace Client" : "Espace Client | فضاء الزبون"}
+              {t(l, "clientSpace")}
             </Text>
           </View>
 
@@ -280,7 +290,7 @@ export function LoginScreen(props: {
                 marginBottom: 2,
               }}
             >
-              {rtl ? "رقم هاتفك المسجل عند التاجر" : "Téléphone enregistré au magasin"}
+              {t(l, "phoneLabel")}
             </Text>
             <View
               style={{
@@ -314,7 +324,7 @@ export function LoginScreen(props: {
                 maxLength={30}
                 placeholder="05…"
                 placeholderTextColor={COLORS.cardMuted}
-                aria-label="phone"
+                aria-label={t(l, "phoneLabel")}
                 returnKeyType="next"
                 onSubmitEditing={() => pinRef.current?.focus()}
                 style={{
@@ -346,7 +356,7 @@ export function LoginScreen(props: {
                   textAlign: rtl ? "right" : "left",
                 }}
               >
-                {rtl ? "رمز العميل السري (PIN)" : "Code client (PIN)"}
+                {t(l, "pinLabel")}
               </Text>
               <Tap
                 onPress={() => setShowPin((s) => !s)}
@@ -387,7 +397,7 @@ export function LoginScreen(props: {
               keyboardType="number-pad"
               maxLength={6}
               secureTextEntry={!showPin}
-              aria-label="pin"
+              aria-label={t(l, "pinLabel")}
               autoCapitalize="none"
               returnKeyType="done"
               onSubmitEditing={() => void submit()}
@@ -416,7 +426,7 @@ export function LoginScreen(props: {
             ) : null}
 
             <Button
-              label={busy ? "…" : t(l, "enter")}
+              label={busy ? t(l, "loading") : t(l, "enter")}
               variant="gold"
               size="lg"
               busy={busy}
@@ -470,7 +480,7 @@ export function LoginScreen(props: {
               </Text>
             </View>
             {helpSteps.map((s, i) => (
-              <HelpStep key={s} index={i + 1} text={s} />
+              <HelpStep key={s} index={i + 1} text={s} dir={rtl ? "rtl" : "ltr"} />
             ))}
           </View>
         </ScrollView>

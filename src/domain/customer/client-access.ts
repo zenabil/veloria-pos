@@ -76,3 +76,86 @@ export function assertValidAnnouncement(text: string): void {
     throw new DomainError("CUSTOMER_ERROR", "Annonce invalide (1 à 120 caractères).");
   }
 }
+
+/** URL Supabase embarquée dans le QR V2 (ADR-068) : whitelist stricte anti-phishing. */
+export function assertValidSupabaseUrl(url: string): void {
+  const u = url.trim();
+  const isCloud = /^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(u);
+  const isLoopback = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?\/?$/i.test(u);
+  if (!isCloud && !isLoopback) {
+    throw new DomainError("CUSTOMER_ERROR", "URL Supabase invalide (https://xxx.supabase.co).");
+  }
+  if (u.includes("|")) {
+    throw new DomainError("CUSTOMER_ERROR", "URL Supabase invalide (https://xxx.supabase.co).");
+  }
+}
+
+/** Décode le rôle d'un JWT sans vérifier la signature (garde anti service_role). */
+function jwtRole(key: string): string | null {
+  const parts = key.split(".");
+  if (parts.length !== 3) return null;
+  try {
+    const json = base64UrlDecode(parts[1] ?? "");
+    const obj = JSON.parse(json) as { role?: unknown };
+    return typeof obj.role === "string" ? obj.role : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Décodage base64url pur (renderer + node, sans Buffer/atob). */
+function base64UrlDecode(b64url: string): string {
+  const table = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/");
+  let bits = 0;
+  let acc = 0;
+  const bytes: number[] = [];
+  for (const ch of b64) {
+    if (ch === "=") break;
+    const v = table.indexOf(ch);
+    if (v < 0) throw new Error("Données d'accès illisibles.");
+    acc = (acc << 6) | v;
+    bits += 6;
+    if (bits >= 8) {
+      bits -= 8;
+      bytes.push((acc >> bits) & 0xff);
+    }
+  }
+  return bytes.map((b) => String.fromCharCode(b)).join("");
+}
+
+/**
+ * Clé `anon` embarquée dans le QR V2 : jamais une clé `service_role`.
+ * La clé `anon` est publique par conception (RLS) ; une `service_role`
+ * dans un QR imprimé exposerait toute la base — refus explicite ici.
+ */
+export function assertValidAnonKey(key: string): void {
+  const k = key.trim();
+  if (k.length < 20 || k.length > 500 || !/^[A-Za-z0-9-_.=]+$/.test(k) || k.includes("|")) {
+    throw new DomainError("CUSTOMER_ERROR", "Clé anon invalide.");
+  }
+  if (jwtRole(k) === "service_role") {
+    throw new DomainError("CUSTOMER_ERROR", "Clé service interdite dans le QR (anon uniquement).");
+  }
+}
+
+/**
+ * Dérivation du condensat PIN (#39) — PARAMÈTRES CANONIQUES (données pures,
+ * sans crypto ici : le domaine reste empaquetable navigateur).
+ * - PIN 6 chiffres (10^6 combinaisons) + SHA-256 nu = devinable en
+ *   millisecondes si les condensats du miroir fuient → PBKDF2-HMAC-SHA256
+ *   obligatoire (devinette lente par construction).
+ * - `phone_hash` RESTE un SHA-256 déterministe : c'est une CLÉ de recherche
+ *   (lookup avant sel connu), pas un vérifieur ; le secret vérifié est le PIN.
+ * - `qr_secret_hash` reste SHA-256 : secret de 128 bits aléatoires (devinette
+ *   impossible), pas un mot de passe humain.
+ * MIROIRS OBLIGATOIRES (mêmes valeurs, commentés « miroir du domaine ») :
+ * `electron/ipc/handlers/client-access.repo.ts` (écriture),
+ * `cloud/supabase/functions/client-sync/index.ts` (vérification Edge),
+ * `scripts/e2e-mirror-relay.mjs` (parité E2E). Tout écart = test contrat rouge.
+ */
+export const PIN_KDF_ALGO = "pbkdf2-sha256-100k";
+export const PIN_KDF_ITERATIONS = 100_000;
+export const PIN_KDF_KEYLEN_BYTES = 32;
+export const PIN_KDF_SALT_BYTES = 16;
+export const PIN_KDF_DIGEST = "SHA-256";

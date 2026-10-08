@@ -133,13 +133,13 @@ export function SupplierFormDialog({
             />
           </Field>
         </div>
-        <Field label="Email">
+        <Field label="E-mail">
           <TextInput
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             inputMode="email"
             placeholder="Ex. : contact@moulin.dz"
-            aria-label="Email"
+            aria-label="E-mail"
           />
         </Field>
         <Field label="Adresse">
@@ -344,13 +344,13 @@ export function SupplierQuickForm({
           />
         </Field>
       </div>
-      <Field label="Email">
+      <Field label="E-mail">
         <TextInput
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           inputMode="email"
           placeholder="Ex. : contact@moulin.dz"
-          aria-label="Email"
+          aria-label="E-mail"
         />
       </Field>
       <Field label="Adresse">

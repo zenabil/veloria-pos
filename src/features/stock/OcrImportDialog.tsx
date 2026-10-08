@@ -311,7 +311,7 @@ export function OcrImportDialog({
           ocrBarcode: l.barcode,
           productId: m.product?.id ?? null,
           productLabel: m.product?.name ?? "",
-          productPriceMinor: m.product?.selling_price_minor ?? null,
+          productPriceMinor: m.product?.purchase_price_minor ?? null,
           qtyText: l.quantity === null ? "" : String(l.quantity),
           purchaseText: minorToFixedInput(l.unitPriceMinor),
           sellingText: "",
@@ -429,7 +429,7 @@ export function OcrImportDialog({
     patchRow(key, {
       productId: h.id,
       productLabel: h.name,
-      productPriceMinor: h.selling_price_minor,
+      productPriceMinor: h.purchase_price_minor,
       confidence: "high",
       matchKind: "exact",
       createNew: false,
@@ -449,7 +449,7 @@ export function OcrImportDialog({
               ...r,
               productId: h.id,
               productLabel: h.name,
-              productPriceMinor: h.selling_price_minor,
+              productPriceMinor: h.purchase_price_minor,
               confidence: "high" as OcrConfidence,
               matchKind: "exact" as OcrMatchKind,
               createNew: false,
@@ -755,7 +755,7 @@ export function OcrImportDialog({
                   aria-label="Date de facture"
                 />
               </Field>
-              <Field label="Total TTC (lu)">
+              <Field label="Total TTC détecté (facture)">
                 <TextInput
                   value={parsed.totalTtcMinor !== null ? formatDzd(parsed.totalTtcMinor) : "—"}
                   readOnly
@@ -922,7 +922,7 @@ export function OcrImportDialog({
                           checked={selected.has(r.key)}
                           onChange={() => toggleSelect(r.key)}
                           aria-label={`Cocher ${r.ocrName || "ligne"}`}
-                          title="Cocher pour action groupée"
+                          title="Sélectionner pour traitement groupé"
                           className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-amber-400"
                         />
                         <div className="min-w-0">
@@ -964,7 +964,7 @@ export function OcrImportDialog({
                       </Badge>
                       {r.productPriceMinor !== null && !r.createNew ? (
                         <span className="text-xs tabular-nums text-slate-500">
-                          actuel : {formatDzd(r.productPriceMinor)}
+                          achat actuel : {formatDzd(r.productPriceMinor)}
                         </span>
                       ) : null}
                       <button

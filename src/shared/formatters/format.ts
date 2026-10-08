@@ -17,6 +17,24 @@ export function formatDzdSafe(raw: unknown): string {
   }
 }
 
+/**
+ * Format monétaire SIGNÉ pour le rendu React (ne lève jamais).
+ * Reports/bilans : marge et résultat net peuvent être négatifs (perte) —
+ * `formatDzd` lèverait et crasherait l'écran. Négatif → "-500,00 DZD".
+ * Corrompu/NaN/hors bornes → "—".
+ */
+export function formatDzdSigned(raw: unknown): string {
+  if (raw == null) return "—";
+  const n = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(n)) return "—";
+  const r = Math.round(n);
+  try {
+    return r >= 0 ? formatDzd(r) : `-${formatDzd(-r)}`;
+  } catch {
+    return "—";
+  }
+}
+
 const frDateTime = new Intl.DateTimeFormat("fr-FR", {
   day: "2-digit",
   month: "2-digit",
@@ -80,5 +98,37 @@ export function adjustmentReasonFr(code: string): string {
   if (code === "correction") return "Correction";
   if (code === "entry") return "Entrée";
   if (code === "exit") return "Sortie";
+  return "—";
+}
+
+const frDateOnly = new Intl.DateTimeFormat("fr-FR", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+});
+
+/**
+ * A2 : date seule JJ/MM/AAAA (sans heure) — pendant date-seule de
+ * `formatDateTimeFr` (avec heure). Remplace les `formatDateFr` locaux
+ * dupliqués (licence). Invalide → "—", jamais d'exception au render.
+ */
+export function formatDateFr(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return frDateOnly.format(d);
+}
+
+/**
+ * A2 : libellé d'édition licence — SOURCE UNIQUE (remplace les doublons
+ * `LicenseBadge` / `LicenseScreen`). `plan` prime sur `edition`.
+ */
+export function editionLabel(edition: string | null, plan?: string | null): string {
+  if (plan) return plan;
+  if (edition === "basic") return "Basique";
+  if (edition === "standard") return "Standard";
+  if (edition === "professional" || edition === "pro") return "Professionnelle";
+  if (edition === "enterprise") return "Entreprise";
+  if (edition === "custom") return "Personnalisée";
   return "—";
 }

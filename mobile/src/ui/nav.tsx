@@ -50,7 +50,6 @@ export function TabBar(props: {
               key={x.id}
               onPress={() => props.onChange(x.id)}
               accessibilityLabel={x.label}
-              accessibilityHint={x.label}
               scaleTo={0.94}
               style={{
                 flex: 1,
@@ -86,7 +85,10 @@ export function TabBar(props: {
   );
 }
 
-/** Barre de page (détail / sous-page) : retour circulaire + titre + actions. */
+/** Barre de page (détail / sous-page) : retour circulaire + titre + actions.
+ * Convention chevrons RTL (ADR-051) : en arabe on lit de droite à gauche —
+ * « retour » pointe donc vers la droite (`chevron-forward`), « aller vers le
+ * détail » vers la gauche (`chevron-back` dans les listes). */
 export function PageBar(props: {
   title: string;
   subtitle?: string;
@@ -115,9 +117,9 @@ export function PageBar(props: {
           accessibilityLabel={props.backLabel}
           scaleTo={0.9}
           style={{
-            width: 40,
-            height: 40,
-            borderRadius: 20,
+            width: SIZES.touchMin,
+            height: SIZES.touchMin,
+            borderRadius: SIZES.touchMin / 2,
             backgroundColor: tint(COLORS.white, "14"),
             alignItems: "center",
             justifyContent: "center",

@@ -1,7 +1,7 @@
 // Veloria Client (APK) — View-models purs (testés) : miroir JSON → écrans.
 // Aucun import RN ici : les écrans ne font qu'afficher ces structures.
 import { formatMinor } from "./format.ts";
-import type { Lang } from "./i18n.ts";
+import { t, type Lang } from "./i18n.ts";
 
 export interface HomeInvoice {
   id: number;
@@ -64,15 +64,38 @@ export interface HomeData {
 
 /**
  * Entier sûr depuis n'importe quelle source (miroir JSON, champ legacy,
- * chaîne). Tronque puis exige un entier sûr : `formatMinor` jette sur un
+ * chaîne). STRICT : un montant non entier (ex. "12.9", 12.5) est CORROMPU —
+ * il dégrade en `fallback` (0), jamais tronqué en valeur plausible.
+ * Tronquer 12.9 → 12 affichait une dette fausse mais crédible ; dégrader en
+ * 0 signale une anomalie au lieu de mentir. `formatMinor` jette sur un
  * montant non sûr, un champ illisible doit dégrader en 0 — jamais planter
  * l'écran entier. Exporté : App.tsx mappe aussi les lignes miroir avec.
+ * Les QUANTITÉS décimales (kg, 3 décimales POS) utilisent `numQty` ci-dessous.
  */
 export function num(v: unknown, fallback = 0): number {
   const n = typeof v === "number" ? v : Number(v ?? fallback);
   if (!Number.isFinite(n)) return fallback;
-  const i = Math.trunc(n);
-  return Number.isSafeInteger(i) ? i : fallback;
+  if (!Number.isInteger(n)) return fallback;
+  return Number.isSafeInteger(n) ? n : fallback;
+}
+
+/**
+ * Quantité POS (NUMERIC, 3 décimales max — miroir de la règle domaine
+ * `roundQuantity` + migration initiale 0001).
+ * Le POS pousse des quantités décimales (ex. 1.5 kg) vers le miroir ; l'ancien
+ * `num()` les tronquait via `Math.trunc` (1.5 → 1, perte sèche + total dérivé
+ * faux). Ici : parse fini + bornes + arrondi 3 décimales (même règle que le
+ * domaine), sinon `fallback`. Les montants restent sur `num()`.
+ */
+export const MAX_QTY = 1_000_000;
+
+export function numQty(v: unknown, fallback = 0): number {
+  const n = typeof v === "number" ? v : Number(v ?? fallback);
+  if (!Number.isFinite(n)) return fallback;
+  if (n < 0 || n > MAX_QTY) return fallback;
+  const r = Math.round(n * 1000) / 1000;
+  if (!Number.isFinite(r)) return fallback;
+  return r;
 }
 
 function str(v: unknown): string {
@@ -124,7 +147,7 @@ export function toHome(payload: unknown): HomeData {
     })),
     topProducts: tops.map((x) => ({
       name: str(x["name"]),
-      quantity: num(x["quantity"]),
+      quantity: numQty(x["quantity"]),
       lastPriceMinor: num(x["lastPriceMinor"]),
     })),
     syncedAt: typeof p["syncedAt"] === "string" ? (p["syncedAt"] as string) : null,
@@ -172,19 +195,28 @@ export function toDetail(payload: unknown): InvoiceDetail | null {
   if (id <= 0 || invoiceNumber === "") return null;
   const total = num(s["total_minor"]);
   const remaining = num(s["remaining_balance_minor"]);
+  const paidRaw = s["amount_paid_minor"];
   const paid =
-    typeof s["amount_paid_minor"] === "number" && Number.isFinite(s["amount_paid_minor"])
-      ? Math.trunc(s["amount_paid_minor"] as number)
-      : total - remaining;
+    typeof paidRaw === "number" && Number.isSafeInteger(paidRaw)
+      ? paidRaw
+      : typeof paidRaw === "string" && paidRaw.trim() !== ""
+        ? (() => {
+            const n = Number(paidRaw);
+            return Number.isSafeInteger(n) ? n : total - remaining;
+          })()
+        : total - remaining;
   const rawItems = Array.isArray(p["items"]) ? (p["items"] as Record<string, unknown>[]) : [];
   const items: DetailItem[] = rawItems
     .map((it) => {
-      const qty = num(it["quantity"]);
+      const qty = numQty(it["quantity"]);
       const unit = num(it["unit_price_minor"]);
+      const lineRaw = it["line_total_minor"];
       const line =
-        typeof it["line_total_minor"] === "number" && Number.isFinite(it["line_total_minor"])
-          ? Math.trunc(it["line_total_minor"] as number)
-          : qty * unit;
+        typeof lineRaw === "number" && Number.isSafeInteger(lineRaw)
+          ? lineRaw
+          : // Même règle que le POS (`multiplyMinorByQuantity`) : arrondi au
+            // centime le plus proche, jamais de troncature float.
+            Math.round(qty * unit);
       return {
         name: (str(it["product_name_snapshot"]) || str(it["name"])).trim(),
         quantity: qty,
@@ -217,8 +249,5 @@ export function buildShareText(opts: {
 }): string {
   const amount = formatMinor(opts.debtMinor, opts.lang);
   const date = opts.syncedAt ? opts.syncedAt.slice(0, 10) : "—";
-  if (opts.lang === "ar") {
-    return `كشف حساب ${opts.name}: الدين المتبقي ${amount} (آخر تحديث ${date})`;
-  }
-  return `Relevé ${opts.name} : dette restante ${amount} (synchro ${date})`;
+  return `${t(opts.lang, "statementTitle")} ${opts.name} : ${t(opts.lang, "debtRemaining")} ${amount} (${t(opts.lang, "lastSync")} ${date})`;
 }

@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Activity,
+  Archive,
   Barcode,
   Eye,
   Pencil,
@@ -11,7 +12,6 @@ import {
   RotateCcw,
   Search,
   SlidersHorizontal,
-  Trash2,
   Upload,
   X,
 } from "lucide-react";
@@ -316,7 +316,7 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
     <div className="flex h-full flex-col gap-4">
       {/* En-tête Stitch : Catalogue des Produits · INDEX v2.4 */}
       <PageHeader
-        title="Catalogue des Produits"
+        title="Catalogue des produits"
         module="INDEX v2.4"
         period={`${total} référence(s) active(s) · ${stats.low} en stock bas · ${stats.out} en rupture de stock`}
         actions={
@@ -498,7 +498,7 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-400/30 bg-amber-400/[0.07] px-4 py-2.5 text-sm">
           <strong>{selection.size} sélectionné(s)</strong>
           <Button variant="secondary" onClick={() => void archiveSelection()}>
-            <Trash2 size={15} aria-hidden="true" /> Archiver la sélection
+            <Archive size={15} aria-hidden="true" /> Archiver la sélection
           </Button>
           <Button variant="secondary" onClick={openLabelsSelection}>
             <Barcode size={15} aria-hidden="true" /> Étiquettes
@@ -588,7 +588,7 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
                       <div className="flex justify-end gap-1">
                         <RowAction
                           label={`Voir ${p.name}`}
-                          title="Détails"
+                          title="Détails de la fiche"
                           onClick={() => setDrawerProduct(p)}
                         >
                           <Eye size={15} aria-hidden="true" />
@@ -628,7 +628,7 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
                         ) : (
                           <RowAction
                             label={`Restaurer ${p.name}`}
-                            title="Restaurer"
+                            title="Restaurer la fiche"
                             onClick={() => void restoreRow(p)}
                           >
                             <RotateCcw size={15} aria-hidden="true" />

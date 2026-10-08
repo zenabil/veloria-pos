@@ -11,7 +11,13 @@ export default tseslint.config(
       "dist-license-manager-renderer/**",
       "release/**",
       "coverage/**",
+      "playwright-report/**",
+      "test-results/**",
       "node_modules/**",
+      "mobile/android/**",
+      "mobile/ios/**",
+      "mobile/.expo/**",
+      "docs/archive/stitch/**",
     ],
   },
   js.configs.recommended,
@@ -22,7 +28,6 @@ export default tseslint.config(
         projectService: {
           allowDefaultProject: [
             "eslint.config.mjs",
-            "vite.license-manager.config.ts",
             "scripts/database/integrity.js",
             "scripts/database/verify-migrations.mjs",
             "scripts/database/probe-sqlite-version.cjs",
@@ -106,6 +111,29 @@ export default tseslint.config(
     files: ["electron/**/*.ts"],
     rules: {
       "no-console": "off",
+    },
+  },
+  {
+    // AGENTS.md #6 — POS UI 100 % FR : aucun littéral arabe (€/bloc arabe)
+    // dans le renderer/domaine. Zéro occurrence vérifiée (2026-10-06) :
+    // la règle est un garde-fou, pas un constat d'infraction.
+    // Périmètre `src/` seul : `mobile/` (arabe ADR-051) et l'OCR
+    // (`domain/ocr/numbers.ts` qui FILTRE ces symboles) ont leurs propres blocs.
+    files: ["src/**/*.ts", "src/**/*.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "Literal[value=/[€\\u0600-\\u06FF]/]",
+          message:
+            "POS UI FR uniquement : littéral €/arabe interdit dans src/ (APK : mobile/ seul, ADR-051).",
+        },
+        {
+          selector: "TemplateElement[value.raw=/[€\\u0600-\\u06FF]/]",
+          message:
+            "POS UI FR uniquement : gabarit €/arabe interdit dans src/ (APK : mobile/ seul, ADR-051).",
+        },
+      ],
     },
   },
   {

@@ -92,7 +92,7 @@ function ensureMigrationTable(database: BetterSqlite3DB): void {
   );
 }
 
-/** Copie de sécurité pré-migration (dossier backups, best-effort, jamais bloquante). */
+/** Copie de sécurité pré-migration (dossier backups, FATALE si impossible). */
 function snapshotBeforeMigration(sourcePath: string): void {
   try {
     const dir = path.join(app.getPath("userData"), "backups");
@@ -141,7 +141,11 @@ function snapshotBeforeMigration(sourcePath: string): void {
     }
     log("INFO", "database", "migration.snapshot", { source: sourcePath });
   } catch (err) {
-    log("WARN", "database", "migration.snapshot_failed", { error: String(err) });
+    // RADICAL: échec snapshot = migration INTERDITE (fail-closed). Continuer
+    // sans filet après un WARN exposerait à une migration à moitié appliquée
+    // sans restauration possible.
+    log("FATAL", "database", "migration.snapshot_failed", { error: String(err) });
+    throw new Error("Sauvegarde pré-migration impossible : migration annulée.");
   }
 }
 

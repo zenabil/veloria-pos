@@ -319,7 +319,7 @@ export function SuppliersScreen({ notify }: { notify: Notify }): React.JSX.Eleme
     <div className="flex h-full flex-col gap-4">
       {/* En-tête Stitch : Fournisseurs & Approvisionnements · REGISTRE ACHATS DZD */}
       <PageHeader
-        title="Fournisseurs & Approvisionnements"
+        title="Fournisseurs et approvisionnements"
         module="REGISTRE ACHATS DZD"
         period={`${total} fournisseur(s) référencé(s) · ${formatDzd(stats.debt)} de dettes à régler`}
         actions={
@@ -369,13 +369,13 @@ export function SuppliersScreen({ notify }: { notify: Notify }): React.JSX.Eleme
           accent="#ffb4ab"
         />
         <Kpi
-          label="Total Dettes Fournisseurs"
+          label="Total des dettes fournisseurs"
           value={formatDzd(stats.debt)}
           sub="À décaisser"
           accent="#cde8ff"
         />
         <Kpi
-          label="Achats Cumulés du Mois"
+          label="Achats cumulés"
           value={formatDzd(stats.purchases)}
           sub="Entrées validées"
           accent="#4edea3"
@@ -568,7 +568,7 @@ export function SuppliersScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                       <div className="flex justify-end gap-1">
                         <RowAction
                           label={`Voir ${s.name}`}
-                          title="Détails"
+                          title="Détails de la fiche"
                           onClick={() => void openDrawer(s)}
                         >
                           <Eye size={15} aria-hidden="true" />

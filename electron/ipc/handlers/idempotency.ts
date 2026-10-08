@@ -23,9 +23,18 @@ export function peekIdempotency<T>(operationId: string, expectedOpType?: string)
     try {
       return JSON.parse(row.result_json) as T;
     } catch {
+      // #36 : résultat stocké illisible (corruption) — rejeu propre, mais
+      // JAMAIS silencieux : anomalie de données à tracer.
+      console.warn("[Veloria][WARN] idempotency.corrupted_result", {
+        operationId,
+        opType: row.op_type,
+      });
       return undefined;
     }
   } catch {
+    // #36 : lecture impossible (base verrouillée…) — le claim dans la
+    // transaction tranchera ; on trace au lieu d'avaler.
+    console.warn("[Veloria][WARN] idempotency.peek_failed", { operationId });
     return undefined;
   }
 }

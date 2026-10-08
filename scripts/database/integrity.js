@@ -41,7 +41,9 @@ const resolveDbPath = () => {
         return cfg.dbPath;
       }
     } catch {
-      // config absente/illisible : repli sur les emplacements par défaut
+      // RADICAL (#28) : config présente mais inutilisable — repli explicite,
+      // jamais silencieux (sinon VERIFIED sur la mauvaise base).
+      console.error("WARN: config.dbPath absent/invalide, repli sur les emplacements par défaut");
     }
   }
   const found = defaultCandidates().find((p) => fs.existsSync(p));

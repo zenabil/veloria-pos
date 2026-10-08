@@ -103,10 +103,20 @@ export function createLayer(args: {
 
 function setRemaining(layerId: number, remainingTh: number): void {
   const db = getDb();
-  db.prepare(`UPDATE inventory_layers SET remaining_quantity = ? WHERE id = ?`).run(
-    Math.round(remainingTh) / TH,
-    layerId,
-  );
+  // Tripwire FIFO (garde 0037) : une couche cassée échoue FORT — jamais de
+  // correction silencieuse (clamp à 0). La transaction appelante rollback.
+  // L'invariant global SUM(remaining)=quantity ne tient qu'aux frontières de
+  // transaction (consommations multi-couches puis UPDATE products en séquence) :
+  // il est vérifié par les repos + CHECK 0018 + trigger 0037, pas ici.
+  if (!Number.isFinite(remainingTh) || remainingTh < 0) {
+    throw new Error("Couche FIFO corrompue : quantité restante invalide.");
+  }
+  const r = db
+    .prepare(`UPDATE inventory_layers SET remaining_quantity = ? WHERE id = ?`)
+    .run(Math.round(remainingTh) / TH, layerId);
+  if (Number(r.changes) !== 1) {
+    throw new Error("Couche FIFO introuvable.");
+  }
 }
 
 /**

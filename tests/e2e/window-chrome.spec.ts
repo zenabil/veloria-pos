@@ -252,7 +252,7 @@ test("démarrage : barre de titre personnalisée avec 3 contrôles", async () =>
   const bar = page.locator('header[aria-label="Barre de titre Veloria PoS"]');
   await expect(bar).toBeVisible();
   await expect(bar.getByText("Veloria PoS")).toBeVisible();
-  await expect(bar.getByText("Vente")).toBeVisible();
+  await expect(bar.getByText("Caisse")).toBeVisible();
   await expect(bar.getByRole("button", { name: "Réduire" })).toBeVisible();
   await expect(bar.getByRole("button", { name: "Agrandir" })).toBeVisible();
   await expect(bar.getByRole("button", { name: "Fermer" })).toBeVisible();
@@ -336,7 +336,7 @@ test("rouvrir après fermeture : démarrage fenêtré avec coquille", async () =
   await killStaleTestInstances();
   ctx = await relaunchApp(ctx);
   await expect(ctx.page.locator('header[aria-label="Barre de titre Veloria PoS"]')).toBeVisible();
-  await expect(ctx.page.getByRole("heading", { name: "Vente" })).toBeVisible();
+  await expect(ctx.page.getByRole("heading", { name: "Caisse" })).toBeVisible();
   expect(await isMaximizedMain()).toBe(false);
 });
 

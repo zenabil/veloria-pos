@@ -1,8 +1,29 @@
 // Veloria License Manager — Fenêtre unique (outil vendor, mêmes flags sûrs).
-import { BrowserWindow, shell } from "electron";
+import { app, BrowserWindow, shell } from "electron";
+import fs from "node:fs";
 import path from "node:path";
 
 let mainWindow: BrowserWindow | null = null;
+
+/**
+ * Icône de la fenêtre : exposée via `extraResources/icons`
+ * (voir electron-builder.license-manager.yml). En dev, repli `public/icons`.
+ */
+export function resolveManagerIcon(): string {
+  const candidates = [
+    path.join(process.resourcesPath, "icons", "manager-icon.ico"),
+    path.join(app.getAppPath(), "public", "icons", "manager-icon.ico"),
+    path.join(process.cwd(), "public", "icons", "manager-icon.ico"),
+  ];
+  for (const c of candidates) {
+    try {
+      if (fs.existsSync(c)) return c;
+    } catch {
+      /* candidat suivant */
+    }
+  }
+  return candidates[0] ?? "";
+}
 
 export function getManagerWindow(): BrowserWindow | null {
   return mainWindow;
@@ -19,6 +40,7 @@ export function createManagerWindow(): BrowserWindow {
     minWidth: 1024,
     minHeight: 640,
     title: "Veloria License Manager",
+    icon: resolveManagerIcon(),
     autoHideMenuBar: true,
     backgroundColor: "#0b0f14",
     webPreferences: {

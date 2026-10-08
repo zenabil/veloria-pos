@@ -11,6 +11,7 @@ const FULL = {
   enabled: true,
   supabaseUrl: "https://abcxyz.supabase.co",
   serviceKey: "k".repeat(40),
+  anonKey: "",
   intervalMinutes: 15,
 };
 
@@ -20,8 +21,20 @@ describe("validateSyncConfig", () => {
   });
   it("désactivée : URL/clé vides acceptées", () => {
     expect(
-      validateSyncConfig({ enabled: false, supabaseUrl: "", serviceKey: "", intervalMinutes: 15 }),
-    ).toEqual({ enabled: false, supabaseUrl: "", serviceKey: "", intervalMinutes: 15 });
+      validateSyncConfig({
+        enabled: false,
+        supabaseUrl: "",
+        serviceKey: "",
+        anonKey: "",
+        intervalMinutes: 15,
+      }),
+    ).toEqual({
+      enabled: false,
+      supabaseUrl: "",
+      serviceKey: "",
+      anonKey: "",
+      intervalMinutes: 15,
+    });
   });
   it("activée : URL et clé exigées", () => {
     expect(() => validateSyncConfig({ ...FULL, supabaseUrl: "http://evil.com" })).toThrow();
@@ -44,8 +57,13 @@ describe("validateSyncConfig", () => {
   it("masque la clé au renderer", () => {
     const view = maskConfig(FULL, { lastPushAt: null, lastError: "x", pendingCount: 2 });
     expect(view.hasKey).toBe(true);
+    expect(view.hasAnonKey).toBe(false);
     expect(JSON.stringify(view)).not.toContain("k".repeat(40));
     expect(view.pendingCount).toBe(2);
+  });
+  it("clé anon : acceptée vide, refusée trop courte", () => {
+    expect(validateSyncConfig({ ...FULL, anonKey: "a".repeat(40) }).anonKey).toBe("a".repeat(40));
+    expect(() => validateSyncConfig({ ...FULL, anonKey: "court" })).toThrow(/anon/);
   });
 });
 

@@ -52,9 +52,32 @@ if (!gotLock) {
     }
   });
 
-  void startup();
+  startup().catch((err: unknown) => {
+    try {
+      log("FATAL", "app", "startup.rejected", { error: String(err) });
+    } catch {
+      /* logger indisponible */
+    }
+    try {
+      console.error("[Veloria][FATAL] startup rejected", err);
+    } catch {
+      /* ignore */
+    }
+  });
   registerLifecycle();
   process.on("uncaughtException", handleUncaughtException);
+  process.on("unhandledRejection", (reason: unknown) => {
+    try {
+      log("FATAL", "app", "unhandledRejection", { error: String(reason) });
+    } catch {
+      /* logger indisponible */
+    }
+    try {
+      console.error("[Veloria][FATAL] unhandledRejection", reason);
+    } catch {
+      /* ignore */
+    }
+  });
   // Renderer crash recovery: offer reload.
   app.on("render-process-gone", (_e, _wc, details) => handleRendererGone(details));
 }

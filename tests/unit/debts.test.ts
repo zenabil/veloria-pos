@@ -21,7 +21,9 @@ describe("Debt UI helpers", () => {
     expect(debtStatusLabel("due")).toBe("À régler");
     expect(debtStatusTone("overdue")).toBe("red");
     expect(dueLabel(null)).toBe("—");
-    expect(dueLabel("2026-09-20T00:00:00.000Z")).toBe("2026-09-20");
+    expect(dueLabel("2026-09-20T00:00:00.000Z")).toBe("20/09/2026");
+    expect(dueLabel("2026-09-20")).toBe("20/09/2026");
+    expect(dueLabel("nimporte")).toBe("—");
     expect(
       rowKey({
         debt_type: "supplier",

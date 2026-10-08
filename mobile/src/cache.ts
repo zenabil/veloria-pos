@@ -8,6 +8,18 @@ import { EMPTY_CACHE, type MirrorCache, type Session } from "./store.ts";
 
 const SESSION_KEY = "veloria.session.v1";
 const KV_PREFIX = "kv.";
+/**
+ * Dernier endpoint marchand CONNU (ADR-068 + accès distant) : mémorisé à
+ * chaque connexion réussie, CONSERVÉ à la déconnexion (contrairement à la
+ * session). Permet la reconnexion manuelle à distance (hors boutique) sans
+ * re-scanner le QR : l'APK universel n'a aucun endpoint gravé d'avance.
+ */
+const ENDPOINT_KEY = "veloria.endpoint.v1";
+
+export interface ShopEndpoint {
+  supabaseUrl: string;
+  anonKey: string;
+}
 
 interface NativeModules {
   SecureStore: typeof SecureStoreT;
@@ -16,15 +28,18 @@ interface NativeModules {
 
 // Modules natifs chargés paresseusement : sur web (ou device sans modules),
 // le require lève et on bascule sur la mémoire — jamais d'écran bloqué.
-// Le `import` statique d'avant plantait le bundle web au démarrage car
-// l'init d'expo-sqlite exige le module natif (repli prévu dès l'origine).
+// IMPORTANT : appels require() DIRECTS à littéraux statiques — Metro ne
+// détecte que cette forme. Un alias (`const req = require`) rend les modules
+// invisibles au bundler : absents du bundle release ("Requiring unknown
+// module" au runtime, NON rattrapé → crash fatal au démarrage sur APK,
+// constaté au logcat : loadNative → secureGet → loadSession).
 function loadNative(): NativeModules | null {
   try {
-    const req = require as unknown as (id: string) => unknown;
-    return {
-      SecureStore: req("expo-secure-store") as typeof SecureStoreT,
-      SQLite: req("expo-sqlite") as typeof SQLiteT,
-    };
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const SecureStore = require("expo-secure-store") as typeof SecureStoreT;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const SQLite = require("expo-sqlite") as typeof SQLiteT;
+    return { SecureStore, SQLite };
   } catch {
     return null;
   }
@@ -140,6 +155,8 @@ function parseSession(raw: string | null): Session | null {
       lang: o.lang === "fr" ? "fr" : "ar",
       amountsHidden: o.amountsHidden !== false,
       lastLoginAt: typeof o.lastLoginAt === "string" ? o.lastLoginAt : null,
+      supabaseUrl: typeof o.supabaseUrl === "string" && o.supabaseUrl !== "" ? o.supabaseUrl : null,
+      anonKey: typeof o.anonKey === "string" && o.anonKey !== "" ? o.anonKey : null,
     };
   } catch {
     return null;
@@ -156,6 +173,25 @@ export async function saveSession(s: Session): Promise<void> {
 
 export async function clearSession(): Promise<void> {
   await secureDel(SESSION_KEY);
+}
+
+/** Dernier endpoint connu (survit à la déconnexion — reconnexion distante). */
+export async function loadLastEndpoint(): Promise<ShopEndpoint | null> {
+  const raw = await secureGet(ENDPOINT_KEY);
+  if (!raw) return null;
+  try {
+    const o = JSON.parse(raw) as Partial<ShopEndpoint>;
+    if (typeof o.supabaseUrl !== "string" || o.supabaseUrl === "") return null;
+    if (typeof o.anonKey !== "string" || o.anonKey === "") return null;
+    return { supabaseUrl: o.supabaseUrl, anonKey: o.anonKey };
+  } catch {
+    return null;
+  }
+}
+
+export async function saveLastEndpoint(e: ShopEndpoint): Promise<void> {
+  if (e.supabaseUrl === "" || e.anonKey === "") return;
+  await secureSet(ENDPOINT_KEY, JSON.stringify(e));
 }
 
 function parseJson(raw: string | undefined): unknown {

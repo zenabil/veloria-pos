@@ -4,6 +4,7 @@ import { Download, Printer } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { useCompany } from "@shared/company/use-company.ts";
 import { formatDzd } from "@domain/money/money.ts";
+import { formatDateFr, formatDzdSigned } from "@shared/formatters/format.ts";
 import { downloadCsv } from "@shared/export/csv.ts";
 import { Button, Field, Modal, Select, TextInput, cn } from "@shared/ui/primitives.tsx";
 import type { ReportSummary } from "./types.ts";
@@ -33,14 +34,14 @@ export function ReportExportDialog({
   const companyName = companyRecord?.["company_name"] ?? "Veloria";
 
   const k = summary.kpis;
-  const period = `Du ${summary.from} au ${summary.to}`;
+  const period = `Du ${formatDateFr(summary.from)} au ${formatDateFr(summary.to)}`;
 
   function csvRows(): Record<string, unknown>[] {
     const rows: Record<string, unknown>[] = [
       { Rubrique: "Ventes", Montant: formatDzd(k.salesMinor), Nombre: k.salesCount },
       { Rubrique: "Achats", Montant: formatDzd(k.purchasesMinor), Nombre: k.purchasesCount },
       { Rubrique: "Dépenses", Montant: formatDzd(k.expensesMinor), Nombre: "" },
-      { Rubrique: "Marge brute", Montant: formatDzd(k.profitMinor), Nombre: "" },
+      { Rubrique: "Marge brute", Montant: formatDzdSigned(k.profitMinor), Nombre: "" },
       { Rubrique: "Créances clients", Montant: formatDzd(k.customerDebtMinor), Nombre: "" },
       { Rubrique: "Dettes fournisseurs", Montant: formatDzd(k.supplierDebtMinor), Nombre: "" },
       {
@@ -53,7 +54,7 @@ export function ReportExportDialog({
       for (const b of summary.buckets) {
         rows.push({
           Rubrique: `Jour ${b.date}`,
-          Montant: `Ventes ${formatDzd(b.sales)} · Achats ${formatDzd(b.purchases)} · Dépenses ${formatDzd(b.expenses)} · Marge ${formatDzd(b.profit)}`,
+          Montant: `Ventes ${formatDzd(b.sales)} · Achats ${formatDzd(b.purchases)} · Dépenses ${formatDzd(b.expenses)} · Marge ${formatDzdSigned(b.profit)}`,
           Nombre: "",
         });
       }
@@ -83,7 +84,7 @@ export function ReportExportDialog({
           ["Ventes", formatDzd(k.salesMinor), String(k.salesCount)],
           ["Achats", formatDzd(k.purchasesMinor), String(k.purchasesCount)],
           ["Dépenses", formatDzd(k.expensesMinor), ""],
-          ["Marge brute", formatDzd(k.profitMinor), ""],
+          ["Marge brute", formatDzdSigned(k.profitMinor), ""],
           ["Créances clients", formatDzd(k.customerDebtMinor), ""],
           ["Dettes fournisseurs", formatDzd(k.supplierDebtMinor), ""],
         ],
@@ -115,7 +116,7 @@ export function ReportExportDialog({
       kpis: [
         { label: "Ventes", value: formatDzd(k.salesMinor) },
         { label: "Achats", value: formatDzd(k.purchasesMinor) },
-        { label: "Marge brute", value: formatDzd(k.profitMinor) },
+        { label: "Marge brute", value: formatDzdSigned(k.profitMinor) },
       ],
       charts: withCharts
         ? [

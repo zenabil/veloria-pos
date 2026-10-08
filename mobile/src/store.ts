@@ -8,6 +8,9 @@ export interface Session {
   lang: Lang;
   amountsHidden: boolean;
   lastLoginAt: string | null;
+  /** Endpoint du magasin scanné (QR V2, ADR-068) ; null = V1 (endpoint gravé). */
+  supabaseUrl: string | null;
+  anonKey: string | null;
 }
 
 export interface MirrorCache {

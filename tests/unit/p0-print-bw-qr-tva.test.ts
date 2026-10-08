@@ -115,7 +115,8 @@ describe("P0-1 vendeur + QR", () => {
     });
     expect(p1).toBe(p2);
     expect(p1.startsWith("VELORIA|")).toBe(true);
-    expect(buildReceiptText(BASE)).toContain("QR : VELORIA|");
+    expect(buildReceiptText(BASE)).toContain("QR :");
+    expect(buildReceiptText(BASE)).toContain("VELORIA|FAC-2026-00001|");
     const html = buildA4Html({ ...BASE, qrSvg: "<svg></svg>", qrPayload: "VELORIA|X" });
     expect(html).toContain("VELORIA|X");
   });
@@ -156,7 +157,8 @@ describe("P0-1 vendeur + QR", () => {
     const text = buildProformaText(proforma);
     expect(text).toContain("Vendeur : Yacine");
     expect(text).toContain("TVA (19 %)");
-    expect(text).toContain("QR : VELORIA|");
+    expect(text).toContain("QR :");
+    expect(text).toContain("VELORIA|PRO-2026-00042|");
     expect(text.includes("Facture")).toBe(false);
     const html = buildProformaA4Html(proforma);
     expect(html).toContain("Vendeur : Yacine");
@@ -185,7 +187,8 @@ describe("P0-1 vendeur + QR", () => {
       footerText: "",
       thankYouMessage: "",
     };
-    expect(buildPaymentText(ticket)).toContain("QR : VELORIA|PAY-00042|5000|");
+    expect(buildPaymentText(ticket)).toContain("QR :");
+    expect(buildPaymentText(ticket)).toContain("VELORIA|PAY-00042|5000|");
     const html = buildPaymentTicketA4Html(ticket);
     expect(html).toContain("PAY-00042");
     expect(html).toContain("<svg");
@@ -211,6 +214,7 @@ describe("P0-1 vendeur + QR", () => {
       orderNumber: "CMD-2026-00001",
       supplierName: "Fournisseur SARL",
     });
-    expect(text).toContain("QR : VELORIA|CMD-2026-00001|");
+    expect(text).toContain("QR :");
+    expect(text).toContain("VELORIA|CMD-2026-00001|");
   });
 });

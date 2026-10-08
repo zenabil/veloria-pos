@@ -4,7 +4,7 @@
 import { Linking, Modal, Pressable, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { COLORS, FONTS, GRADIENTS, RADIUS, SPACE } from "../tokens.ts";
+import { COLORS, FONTS, GRADIENTS, RADIUS, SPACE, tint } from "../tokens.ts";
 import { direction, t, type Lang } from "../i18n.ts";
 import { flow } from "../ui/kit.tsx";
 
@@ -27,13 +27,23 @@ function TicketRow(props: {
         paddingVertical: 5,
       }}
     >
-      <Text style={{ color: COLORS.cardMuted, fontSize: 13 }}>{props.label}</Text>
+      <Text
+        style={{
+          color: COLORS.cardMuted,
+          fontSize: 13,
+          textAlign: props.dir === "rtl" ? "right" : "left",
+        }}
+      >
+        {props.label}
+      </Text>
       <Text
         style={{
           color: props.red ? COLORS.debtOverdue : COLORS.cardText,
           fontFamily: FONTS.mono,
           fontWeight: props.strong ? "800" : "500",
           fontSize: props.strong ? 17 : 14,
+          flex: 1,
+          textAlign: props.dir === "rtl" ? "left" : "right",
         }}
       >
         {props.value}
@@ -55,20 +65,21 @@ export function ReceiptSheet(props: {
     <Modal visible transparent animationType="slide" onRequestClose={props.onClose}>
       <Pressable
         accessibilityRole="button"
+        accessibilityLabel={t(l, "close")}
         onPress={props.onClose}
-        style={{ flex: 1, backgroundColor: "#051424aa", justifyContent: "flex-end" }}
+        style={{ flex: 1, backgroundColor: COLORS.overlay, justifyContent: "flex-end" }}
       >
         <Pressable
           onPress={() => undefined}
           style={{
             backgroundColor: COLORS.contentBg,
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
+            borderTopLeftRadius: RADIUS.sheet,
+            borderTopRightRadius: RADIUS.sheet,
             padding: 16,
             maxHeight: "88%",
           }}
         >
-          {/* Poignée + barre */}
+          {/* Poignée + barre (fermeture : bouton « Fermer » en bas) */}
           <View style={{ alignItems: "center", marginBottom: 8 }}>
             <View
               style={{ width: 48, height: 4, borderRadius: 2, backgroundColor: COLORS.border }}
@@ -76,29 +87,12 @@ export function ReceiptSheet(props: {
           </View>
           <View
             style={{
-              flexDirection: dir === "rtl" ? "row-reverse" : "row",
+              flexDirection: flow(dir),
               justifyContent: "space-between",
               alignItems: "center",
               marginBottom: 12,
             }}
           >
-            <Pressable
-              accessibilityRole="button"
-              onPress={props.onClose}
-              accessibilityLabel={t(l, "close")}
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: 19,
-                backgroundColor: COLORS.cardBg,
-                borderWidth: 1,
-                borderColor: COLORS.border,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Ionicons name="close" size={18} color={COLORS.cardText} />
-            </Pressable>
             <Text
               style={{
                 color: COLORS.cardText,
@@ -112,19 +106,21 @@ export function ReceiptSheet(props: {
             </Text>
             <Pressable
               accessibilityRole="button"
+              accessibilityLabel={t(l, "shareStatement")}
               onPress={() => shareWhatsApp(props.shareText)}
               style={{
                 backgroundColor: COLORS.debtOk,
                 borderRadius: RADIUS.pill,
                 paddingHorizontal: 14,
                 paddingVertical: 9,
-                flexDirection: "row",
+                flexDirection: flow(dir),
                 alignItems: "center",
+                justifyContent: "center",
                 gap: 5,
               }}
             >
-              <Ionicons name="logo-whatsapp" size={14} color="#fff" />
-              <Text style={{ color: "#fff", fontWeight: "800", fontSize: 12 }}>
+              <Ionicons name="logo-whatsapp" size={14} color={COLORS.white} />
+              <Text style={{ color: COLORS.white, fontWeight: "800", fontSize: 12 }}>
                 {t(l, "shareStatement")}
               </Text>
             </Pressable>
@@ -168,7 +164,7 @@ export function Ticket(props: {
         borderRadius: RADIUS.card,
         padding: SPACE.lg,
         borderWidth: 1,
-        borderColor: "#0514240d",
+        borderColor: tint(COLORS.headerBg, "0D"),
       }}
     >
       <View style={{ alignItems: "center", marginBottom: 8 }}>
@@ -205,8 +201,9 @@ export function Ticket(props: {
       <View style={{ alignItems: "center", marginTop: 10 }}>
         <View
           style={{
-            flexDirection: "row",
+            flexDirection: flow(dir),
             alignItems: "center",
+            justifyContent: "center",
             gap: 8,
             backgroundColor: COLORS.contentBg,
             borderRadius: RADIUS.pill,

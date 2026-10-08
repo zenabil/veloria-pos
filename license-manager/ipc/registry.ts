@@ -255,12 +255,7 @@ export function registerManagerIpc(): void {
         clientName: (row.client_name as string | null) ?? null,
         storeName: (row.store_name as string | null) ?? null,
         edition: row.edition as
-          | "basic"
-          | "standard"
-          | "professional"
-          | "pro"
-          | "enterprise"
-          | "custom",
+          "basic" | "standard" | "professional" | "pro" | "enterprise" | "custom",
         plan: (row.plan as "BASIC" | "STANDARD" | "PRO" | "ENTERPRISE" | "CUSTOM" | null) ?? null,
         licenseType: input.licenseType,
         licenseStatus: null,
@@ -319,12 +314,7 @@ export function registerManagerIpc(): void {
         clientName: (row.client_name as string | null) ?? null,
         storeName: (row.store_name as string | null) ?? null,
         edition: row.edition as
-          | "basic"
-          | "standard"
-          | "professional"
-          | "pro"
-          | "enterprise"
-          | "custom",
+          "basic" | "standard" | "professional" | "pro" | "enterprise" | "custom",
         plan: (row.plan as "BASIC" | "STANDARD" | "PRO" | "ENTERPRISE" | "CUSTOM" | null) ?? null,
         licenseType: row.license_type as "term" | "lifetime",
         licenseStatus: standing,
@@ -373,12 +363,7 @@ export function registerManagerIpc(): void {
         clientName: (row.client_name as string | null) ?? null,
         storeName: (row.store_name as string | null) ?? null,
         edition: row.edition as
-          | "basic"
-          | "standard"
-          | "professional"
-          | "pro"
-          | "enterprise"
-          | "custom",
+          "basic" | "standard" | "professional" | "pro" | "enterprise" | "custom",
         plan: (row.plan as "BASIC" | "STANDARD" | "PRO" | "ENTERPRISE" | "CUSTOM" | null) ?? null,
         licenseType: row.license_type as "term" | "lifetime",
         licenseStatus: "revoked",
@@ -418,12 +403,7 @@ export function registerManagerIpc(): void {
         clientName: (row.client_name as string | null) ?? null,
         storeName: (row.store_name as string | null) ?? null,
         edition: row.edition as
-          | "basic"
-          | "standard"
-          | "professional"
-          | "pro"
-          | "enterprise"
-          | "custom",
+          "basic" | "standard" | "professional" | "pro" | "enterprise" | "custom",
         plan: (row.plan as "BASIC" | "STANDARD" | "PRO" | "ENTERPRISE" | "CUSTOM" | null) ?? null,
         licenseType: row.license_type as "term" | "lifetime",
         licenseStatus: standing,
@@ -461,9 +441,16 @@ export function registerManagerIpc(): void {
   });
   // Suspension / réactivation : statut registral + enveloppe ré-émise avec
   // licenseStatus signé (effet offline dès import du nouveau .vlic).
+  // RÈGLE (#33) : la révocation est TERMINALE et uniforme sur les CINQ voies
+  // (export, renew, transfer, capabilities, standing) — une licence révoquée
+  // ne change plus de standing (ni réactivation active, ni re-suspension :
+  // seule une NOUVELLE licence — nouveau licenseId — peut ré-équiper le
+  // poste). Aucune exception silencieuse : refus FR explicite ici comme
+  // ailleurs (lignes export/renew/transfer/capabilities).
   handle(MANAGER_CHANNELS["manager.licenseStanding"], V.licenseStatusSchema, (input) => {
     const db = openManagerDb();
     const row = getLicense(db, input.id);
+    if (row.status === "revoked") throw new Error("Licence révoquée : changement refusé.");
     const now = new Date().toISOString();
     const priv = loadVendorPrivateKey();
     const standing = input.status === "active" ? null : (input.status as "suspended" | "revoked");
@@ -474,12 +461,7 @@ export function registerManagerIpc(): void {
         clientName: (row.client_name as string | null) ?? null,
         storeName: (row.store_name as string | null) ?? null,
         edition: row.edition as
-          | "basic"
-          | "standard"
-          | "professional"
-          | "pro"
-          | "enterprise"
-          | "custom",
+          "basic" | "standard" | "professional" | "pro" | "enterprise" | "custom",
         plan: (row.plan as "BASIC" | "STANDARD" | "PRO" | "ENTERPRISE" | "CUSTOM" | null) ?? null,
         licenseType: row.license_type as "term" | "lifetime",
         licenseStatus: standing,

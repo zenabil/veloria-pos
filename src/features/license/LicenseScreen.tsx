@@ -10,16 +10,7 @@ import { frError } from "@shared/errors/fr-map.ts";
 import { playSound } from "@shared/sound/sound.ts";
 import { useLicense } from "./use-license.ts";
 import { LICENSE_STATE_TONES, licenseGuidance, licenseStateLabel } from "./types.ts";
-
-function editionLabel(edition: string | null, plan?: string | null): string {
-  if (plan) return plan;
-  if (edition === "basic") return "Basique";
-  if (edition === "standard") return "Standard";
-  if (edition === "professional" || edition === "pro") return "Professionnelle";
-  if (edition === "enterprise") return "Entreprise";
-  if (edition === "custom") return "Personnalisée";
-  return "—";
-}
+import { editionLabel } from "@shared/formatters/format.ts";
 
 async function copyText(text: string): Promise<boolean> {
   try {
@@ -120,8 +111,8 @@ export function LicenseScreen({ notify }: { notify: Notify }): React.JSX.Element
   return (
     <div className="mx-auto w-full max-w-3xl space-y-4">
       <PageHeader
-        title="Licence & Activation Machine"
-        module="MODULE 17 · SÉCURITÉ SYSTÈME · AIR-GAP OFFLINE VALIDE"
+        title="Licence et activation de l'appareil"
+        module="Module 17 · Sécurité système · Valide hors-ligne"
         period="Certificat local x509 scellé SQLite · Terminaux de caisse autorisés · Garantie & support technique national."
       />
       <Card className="space-y-3 p-5">

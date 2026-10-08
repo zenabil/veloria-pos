@@ -6,7 +6,7 @@
 //    SHA-256, verrou 5 échecs/5 min, derniers clichés + détail par saleId)
 // AUCUNE donnée réelle : ce relais ne sert qu'aux essais E2E en boucle locale.
 // Usage : node scripts/e2e-mirror-relay.mjs [port=8100]
-import { createHash } from "node:crypto";
+import { createHash, pbkdf2Sync } from "node:crypto";
 import http from "node:http";
 
 const PORT = Number(process.argv[2] ?? 8100);
@@ -18,6 +18,30 @@ const LOCK_MS = 5 * 60_000;
 const DETAIL_SCAN_LIMIT = 50;
 
 const sha256 = (s) => createHash("sha256").update(s, "utf8").digest("hex");
+
+// #39 : dérivation PIN lente — MIROIR du domaine
+// (`src/domain/customer/client-access.ts`, PIN_KDF_*) : mêmes paramètres que
+// l'écriture POS et la fonction Edge (tout écart = test contrat rouge).
+const PIN_KDF_ITERATIONS = 100_000;
+const PIN_KDF_KEYLEN_BYTES = 32;
+const pbkdf2PinHex = (pin, saltHex) =>
+  pbkdf2Sync(
+    pin,
+    Buffer.from(saltHex, "hex"),
+    PIN_KDF_ITERATIONS,
+    PIN_KDF_KEYLEN_BYTES,
+    "sha256",
+  ).toString("hex");
+const verifyPin = (pin, row) => {
+  if (typeof row.pin_salt === "string" && row.pin_salt.length > 0) {
+    try {
+      return pbkdf2PinHex(pin, row.pin_salt) === row.pin_hash;
+    } catch {
+      return false;
+    }
+  }
+  return sha256(pin) === row.pin_hash;
+};
 
 /** customer_id -> access row */
 const access = new Map();
@@ -91,7 +115,7 @@ async function handleSync(body) {
   if (row.locked_until && Date.parse(row.locked_until) > now) {
     return fail("LOCKED_ERROR", "Compte verrouillé 5 minutes (5 échecs).", 429);
   }
-  if (sha256(pin) !== row.pin_hash) {
+  if (!verifyPin(pin, row)) {
     // Miroir EXACT de la logique Edge corrigée : quand le verrou précédent a
     // expiré, le compteur repart de 0 AVANT d'appliquer la nouvelle tentative —
     // sinon le 1er mauvais PIN après l'expiration reverrouille instantanément

@@ -11,6 +11,7 @@
 9. Native modules: document Electron target; verify packaged runtime loads better-sqlite3.
 10. Record significant decisions in `docs/ADR-*.md`; phase progress in `PHASE_X_REPORT.md`.
 11. Migrations are IMMUTABLE once applied to any database: never edit `database/migrations/*.sql` in place (checksum guard refuses to open drifted databases). Every schema change is a NEW numbered migration + `verify-migrations` green.
+12. Skill-first: on EVERY prompt/task, first analyze the request, then load the matching skill(s) with the skill tool BEFORE acting. Project skills (`.agents/skills/`, `.opencode/skills/`: `veloria-db`, `veloria-slice`, `veloria-ui-fr`) and installed OpenCode skills (`~/.agents/skills/`) take precedence over general knowledge. Mapping: sale/payment/stock/customer/migration → `veloria-db` + `veloria-slice`; renderer/UI → `veloria-ui-fr`; React → `vercel-react-best-practices`; Tailwind → `tailwind-design-system`; TypeScript → `typescript-best-practices`; Playwright/E2E → `playwright-cli` + `playwright-best-practices` + `webapp-testing`; unit/integration tests → `tdd`; review → `code-review`; SQL perf → `sql-optimization`; PDF → `pdf`; Electron/packaging → `electron-development`; codebase/architecture questions → `graphify`; consequential decisions → `llm-council`; missing capability → `find-skills` (`npx skills find`). On conflict, Veloria rules 1–11 override generic skills.
 
 ## graphify
 
@@ -19,6 +20,7 @@ This project has a knowledge graph at graphify-out/ with god nodes, community st
 When the user types `/graphify`, use the installed graphify skill or instructions before doing anything else.
 
 Rules:
+
 - For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
 - Dirty graphify-out/ files are expected after hooks or incremental updates; dirty graph files are not a reason to skip graphify. Only skip graphify if the task is about stale or incorrect graph output, or the user explicitly says not to use it.
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.

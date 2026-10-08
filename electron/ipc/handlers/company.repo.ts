@@ -18,6 +18,9 @@ export interface CompanyInput {
   city: string | null;
   tax_number: string | null;
   commercial_register: string | null;
+  /** C5 : NIS + article d'imposition (facture DZ réglementaire). */
+  nis: string | null;
+  article_imposition: string | null;
   invoice_prefix: string | null;
   logo_path: string | null;
 }
@@ -63,7 +66,7 @@ export function saveCompany(input: CompanyInput, now: string, operationId?: stri
       | undefined;
     if (!exists) {
       db.prepare(
-        `INSERT INTO company_profile (id, uuid, company_name, commercial_name, phone, email, website, address, city, nif, rc_number, invoice_prefix, logo_path, created_at, updated_at) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO company_profile (id, uuid, company_name, commercial_name, phone, email, website, address, city, nif, rc_number, nis, article_imposition, invoice_prefix, logo_path, created_at, updated_at) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         randomUUID(),
         input.company_name?.trim() || "Veloria",
@@ -75,6 +78,8 @@ export function saveCompany(input: CompanyInput, now: string, operationId?: stri
         input.city?.trim() || null,
         input.tax_number?.trim() || null,
         input.commercial_register?.trim() || null,
+        input.nis?.trim() || null,
+        input.article_imposition?.trim() || null,
         input.invoice_prefix?.trim() || "FAC",
         logoPath,
         now,
@@ -82,7 +87,7 @@ export function saveCompany(input: CompanyInput, now: string, operationId?: stri
       );
     } else {
       db.prepare(
-        `UPDATE company_profile SET company_name = COALESCE(?, company_name), commercial_name = ?, phone = ?, email = ?, website = ?, address = ?, city = ?, nif = ?, rc_number = ?, invoice_prefix = ?, logo_path = ?, updated_at = ? WHERE id = 1`,
+        `UPDATE company_profile SET company_name = COALESCE(?, company_name), commercial_name = ?, phone = ?, email = ?, website = ?, address = ?, city = ?, nif = ?, rc_number = ?, nis = ?, article_imposition = ?, invoice_prefix = ?, logo_path = ?, updated_at = ? WHERE id = 1`,
       ).run(
         input.company_name?.trim() || null,
         input.commercial_name?.trim() || null,
@@ -93,6 +98,8 @@ export function saveCompany(input: CompanyInput, now: string, operationId?: stri
         input.city?.trim() || null,
         input.tax_number?.trim() || null,
         input.commercial_register?.trim() || null,
+        input.nis?.trim() || null,
+        input.article_imposition?.trim() || null,
         input.invoice_prefix?.trim() || null,
         logoPath,
         now,

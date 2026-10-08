@@ -308,7 +308,7 @@ export function ProformasScreen({ notify }: { notify: Notify }): React.JSX.Eleme
     <div className="flex h-full flex-col gap-4">
       {/* En-tête Stitch : Factures Proforma & Devis · Mode Émission Ouvert */}
       <PageHeader
-        title="Factures Proforma & Devis"
+        title="Devis (proformas)"
         module="Mode Émission Ouvert"
         period={`${total} devis · ${stats.pending} en attente/négociation · ${stats.converted} converti(s) en vente`}
         actions={
@@ -323,7 +323,7 @@ export function ProformasScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                 ref={searchRef}
                 value={query}
                 onChange={(e) => onQueryChange(e.target.value)}
-                placeholder="N° Proforma PRF-… [F3]"
+                placeholder="N° Devis PRF-… [F3]"
                 aria-label="Rechercher un devis"
                 className="pl-9"
               />
@@ -404,9 +404,10 @@ export function ProformasScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                 <button
                   type="button"
                   onClick={() => pickCustomer(null, "")}
-                  className="shrink-0 text-xs font-semibold text-slate-400 hover:text-white"
+                  className="shrink-0 text-slate-400 hover:text-white"
+                  aria-label="Retirer le filtre client"
                 >
-                  ✕
+                  <X size={13} aria-hidden="true" />
                 </button>
               </div>
             ) : (
@@ -613,7 +614,7 @@ export function ProformasScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                       <div className="flex justify-end gap-1">
                         <RowAction
                           label={`Voir ${p.proforma_number}`}
-                          title="Détails"
+                          title="Détails de la fiche"
                           onClick={() => void openDrawer(p)}
                         >
                           <Eye size={15} aria-hidden="true" />

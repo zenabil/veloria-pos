@@ -36,5 +36,5 @@
     "vitest.config.ts",
     "playwright.config.ts"
   ],
-  "references": [{ "path": "./tsconfig.electron.json" }, { "path": "./tsconfig.manager.json" }]
+  "references": [{ "path": "./tsconfig.electron.json" }]
 }

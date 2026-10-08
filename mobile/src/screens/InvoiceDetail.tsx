@@ -2,7 +2,7 @@
 // 80 mm avec LIGNES produits, totaux sur fond navy, statut, QR, partage).
 // Données via `fetchInvoiceDetail` (App : `detail`, `loading`, `error`, `onRetry`).
 import { useState } from "react";
-import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import { RefreshControl, ScrollView, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, GRADIENTS, RADIUS, SHADOW, SPACE, tint } from "../tokens.ts";
@@ -50,10 +50,7 @@ export function InvoiceDetailScreen(props: {
   const tone = statusColor(s);
   const paid = props.detail ? props.detail.sale.amount_paid_minor : null;
 
-  const shareText =
-    l === "ar"
-      ? `وصل ${s.invoice_number}: الإجمالي ${amount(s.total_minor)} — الباقي ${amount(s.remaining_balance_minor)} (${props.shopName})`
-      : `Reçu ${s.invoice_number} : total ${amount(s.total_minor)} — reste ${amount(s.remaining_balance_minor)} (${props.shopName})`;
+  const shareText = `${t(l, "receipt")} ${s.invoice_number} : ${t(l, "total")} ${amount(s.total_minor)} — ${t(l, "remaining")} ${amount(s.remaining_balance_minor)} (${props.shopName})`;
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.contentBg }}>
@@ -72,8 +69,9 @@ export function InvoiceDetailScreen(props: {
               borderRadius: RADIUS.pill,
               paddingHorizontal: SPACE.md,
               paddingVertical: 9,
-              flexDirection: "row",
+              flexDirection: flow(dir),
               alignItems: "center",
+              justifyContent: "center",
               gap: 6,
             }}
           >
@@ -92,8 +90,7 @@ export function InvoiceDetailScreen(props: {
             refreshing={spinning}
             onRefresh={() => {
               setSpinning(true);
-              props.onRetry();
-              setSpinning(false);
+              void Promise.resolve(props.onRetry()).finally(() => setSpinning(false));
             }}
           />
         }
@@ -137,18 +134,20 @@ export function InvoiceDetailScreen(props: {
             }}
           >
             <View>
-              <Text style={{ color: COLORS.cardMuted, fontSize: 11 }}>
-                {l === "ar" ? "الفاتورة" : "Facture"}
-              </Text>
+              <Text style={{ color: COLORS.cardMuted, fontSize: 11 }}>{t(l, "invoiceLabel")}</Text>
               <Text style={{ fontFamily: "monospace", fontWeight: "800", color: COLORS.cardText }}>
                 {s.invoice_number}
               </Text>
             </View>
             <View style={{ alignItems: rtl ? "flex-start" : "flex-end" }}>
-              <Text style={{ color: COLORS.cardMuted, fontSize: 11 }}>
-                {l === "ar" ? "التاريخ" : "Date"}
-              </Text>
-              <Text style={{ color: COLORS.cardText, fontWeight: "700" }}>
+              <Text style={{ color: COLORS.cardMuted, fontSize: 11 }}>{t(l, "dateLabel")}</Text>
+              <Text
+                style={{
+                  color: COLORS.cardText,
+                  fontWeight: "700",
+                  textAlign: farEdge(rtl),
+                }}
+              >
                 {formatDateFr(s.created_at)}
               </Text>
             </View>
@@ -170,7 +169,7 @@ export function InvoiceDetailScreen(props: {
             {t(l, "itemsTitle")}
           </Text>
           {props.loading && !props.detail ? (
-            <SkeletonList count={3} />
+            <SkeletonList count={3} bare />
           ) : props.detail && props.detail.items.length > 0 ? (
             props.detail.items.map((it, i) => (
               <View
@@ -225,7 +224,7 @@ export function InvoiceDetailScreen(props: {
             }}
           >
             {[
-              { k: t(l, "total"), v: amount(s.total_minor), c: "#fff", size: 16 },
+              { k: t(l, "total"), v: amount(s.total_minor), c: COLORS.white, size: 16 },
               {
                 k: t(l, "paidAmount"),
                 v: paid != null ? amount(paid) : "—",
@@ -322,14 +321,6 @@ export function InvoiceDetailScreen(props: {
             }
           />
         </View>
-
-        <Pressable
-          accessibilityRole="button"
-          onPress={props.onBack}
-          style={{ alignItems: "center", padding: SPACE.md }}
-        >
-          <Text style={{ color: COLORS.cardMuted, fontWeight: "700" }}>{t(l, "back")}</Text>
-        </Pressable>
       </ScrollView>
     </View>
   );

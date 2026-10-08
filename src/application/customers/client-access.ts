@@ -7,7 +7,9 @@
 import {
   assertValidActivationCode,
   assertValidAnnouncement,
+  assertValidAnonKey,
   assertValidPin,
+  assertValidSupabaseUrl,
 } from "@domain/customer/client-access.ts";
 import { assertSafeTotal } from "@domain/money/money.ts";
 
@@ -22,6 +24,9 @@ export const LOYALTY_MINOR_PER_POINT = 100_000;
  */
 export const ACTIVATION_QR_PREFIX = "VELORIA1";
 
+/** Préfixe V2 (ADR-068) : le QR embarque l'endpoint du magasin (build unique). */
+export const ACTIVATION_QR_PREFIX_V2 = "VELORIA2";
+
 export function buildActivationQrPayload(phone: string, pin: string, code: string): string {
   const p = phone.trim();
   if (p.length < 1 || p.length > 30 || p.includes("|")) {
@@ -30,6 +35,30 @@ export function buildActivationQrPayload(phone: string, pin: string, code: strin
   assertValidPin(pin);
   assertValidActivationCode(code);
   return `${ACTIVATION_QR_PREFIX}|${p}|${pin}|${code}`;
+}
+
+/**
+ * Charge QR V2 scannée par l'APK universel (ADR-068) :
+ * `VELORIA2|<supabaseUrl>|<anonKey>|<phone>|<pin>|<code>`.
+ * L'endpoint vient de la config sync du POS (jamais saisi à la main) ;
+ * la clé `service_role` est refusée (anon uniquement).
+ */
+export function buildActivationQrPayloadV2(
+  supabaseUrl: string,
+  anonKey: string,
+  phone: string,
+  pin: string,
+  code: string,
+): string {
+  assertValidSupabaseUrl(supabaseUrl);
+  assertValidAnonKey(anonKey);
+  const p = phone.trim();
+  if (p.length < 1 || p.length > 30 || p.includes("|")) {
+    throw new Error("Téléphone invalide pour le QR (1 à 30 caractères, sans |).");
+  }
+  assertValidPin(pin);
+  assertValidActivationCode(code);
+  return `${ACTIVATION_QR_PREFIX_V2}|${supabaseUrl.trim()}|${anonKey.trim()}|${p}|${pin}|${code}`;
 }
 
 export interface ActivationDraft {

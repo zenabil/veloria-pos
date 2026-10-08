@@ -81,6 +81,8 @@ export function ReturnsScreen({ notify }: { notify: Notify }): React.JSX.Element
   const searchRef = useRef<HTMLInputElement>(null);
 
   // F3 : focus recherche (comme en caisse). F2 : nouveau retour. F8 : exporter.
+  // Refs stables : pas de ré-abonnement à chaque render.
+  const exportAllRef = useRef<() => Promise<void>>(() => Promise.resolve());
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (isAnyModalOpen()) return;
@@ -92,12 +94,12 @@ export function ReturnsScreen({ notify }: { notify: Notify }): React.JSX.Element
         setCreateOpen(true);
       } else if (e.key === "F8") {
         e.preventDefault();
-        void exportAll();
+        void exportAllRef.current();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  });
+  }, []);
 
   async function loadStats(): Promise<void> {
     try {
@@ -231,6 +233,7 @@ export function ReturnsScreen({ notify }: { notify: Notify }): React.JSX.Element
       notify(frError(e, "Export impossible."), "err");
     }
   }
+  exportAllRef.current = exportAll;
 
   function resetFilters(): void {
     setQuery("");
@@ -319,8 +322,8 @@ export function ReturnsScreen({ notify }: { notify: Notify }): React.JSX.Element
     <div className="flex h-full flex-col gap-4">
       {/* En-tête Stitch : Retours & Avoirs Clients · MODULE 09 · FISCAL V3.2 */}
       <PageHeader
-        title="Retours & Avoirs Clients"
-        module="MODULE 09 · FISCAL V3.2"
+        title="Retours et avoirs"
+        module="Module 09 · Fiscal v3.2"
         period={`${total} retour(s) · ${formatDzd(stats.totalAmountMinor)} de marchandises retournées · REGISTRE DES RETOURS ACTIF · POSTE 04`}
         actions={
           <>
@@ -396,9 +399,9 @@ export function ReturnsScreen({ notify }: { notify: Notify }): React.JSX.Element
           accent="#8ed0ff"
         />
         <Kpi
-          label="Remboursements Espèces"
+          label="Valeur retournée"
           value={formatDzd(stats.totalAmountMinor)}
-          sub="Décaissements directs"
+          sub="Avoirs + remboursements"
           accent="#4edea3"
         />
       </div>
@@ -636,7 +639,7 @@ export function ReturnsScreen({ notify }: { notify: Notify }): React.JSX.Element
                         <div className="flex justify-end gap-1">
                           <RowAction
                             label={`Voir ${returnNumber(r.kind, r.number, r.entity_id)}`}
-                            title="Détails"
+                            title="Détails de la fiche"
                             onClick={() => void openDrawer(r)}
                           >
                             <Eye size={15} aria-hidden="true" />

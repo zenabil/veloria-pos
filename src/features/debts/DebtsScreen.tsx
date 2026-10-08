@@ -279,7 +279,6 @@ export function DebtsScreen({ notify }: { notify: Notify }): React.JSX.Element {
           Reste: formatDzd(r.remaining_minor),
           Échéance: dueLabel(r.due_date),
           Statut: debtStatusLabel(r.status),
-          Poste: "Caisse 01",
         })),
       );
       notify(`${list.length} ligne(s) exportée(s).`, "ok");
@@ -296,9 +295,9 @@ export function DebtsScreen({ notify }: { notify: Notify }): React.JSX.Element {
     <div className="flex h-full flex-col gap-4">
       {/* En-tête Stitch : Dettes & Créances Globales · SYNCHRONISATION TERMINÉE */}
       <PageHeader
-        title="Dettes & Créances Globales"
+        title="Dettes et créances"
         module="Registre Consolidé des Engagements"
-        period={`Registre consolidé local · ${total} dette(s) · ${stats.settleOverdue} règlement(s) dépassé(s) · ${stats.settleSoon} proche(s)`}
+        period={`Registre consolidé local · ${total} dette(s) · créances ${formatDzd(stats.customerDebtMinor)} · dettes fourn. ${formatDzd(stats.supplierDebtMinor)} · ${stats.settleOverdue} dépassé(s)`}
         actions={
           <>
             <div className="relative w-full max-w-xs">
@@ -330,13 +329,19 @@ export function DebtsScreen({ notify }: { notify: Notify }): React.JSX.Element {
         }
       />
 
-      {/* Cartes héros Stitch : créances · dettes · net · recouvrement */}
+      {/* Cartes héros Stitch : créances clients · dettes fournisseurs · recouvrement */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi
-          label="Créances Clients (À Encaisser)"
+          label="Créances clients"
           value={formatDzd(stats.customerDebtMinor)}
-          sub="Comptes clients avec solde"
+          sub={`${stats.debtors} débiteur(s)`}
           accent="#fbbf24"
+        />
+        <Kpi
+          label="Dettes fournisseurs"
+          value={formatDzd(stats.supplierDebtMinor)}
+          sub="À payer"
+          accent="#8ed0ff"
         />
         <Kpi
           label="Règlements Dépassés"
@@ -348,12 +353,6 @@ export function DebtsScreen({ notify }: { notify: Notify }): React.JSX.Element {
           label="Règlements Proches (≤ 7j)"
           value={String(stats.settleSoon)}
           sub="À relancer"
-          accent="#8ed0ff"
-        />
-        <Kpi
-          label="Échéances du Jour"
-          value={String(stats.dueToday)}
-          sub="Dossier recouvrement actif"
           accent="#4edea3"
         />
       </div>
@@ -598,7 +597,7 @@ export function DebtsScreen({ notify }: { notify: Notify }): React.JSX.Element {
                         <div className="flex justify-end gap-1">
                           <RowAction
                             label={`Voir ${r.party_name}`}
-                            title="Détails"
+                            title="Détails de la fiche"
                             onClick={() => void openDrawer(r)}
                           >
                             <Eye size={15} aria-hidden="true" />

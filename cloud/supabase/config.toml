@@ -1,0 +1,13 @@
+# Veloria PoS — Supabase CLI config (déploiement suivi, jamais ad hoc).
+# Toute la config Edge vit ici : aucun `supabase functions deploy` hors repo.
+# `client-sync` : verify_jwt = false — les clients APK n'ont pas de JWT
+# utilisateur Supabase ; l'authentification est téléphone + PIN (condensats
+# SHA-256, comparaison temps constant, verrous lus du miroir — voir
+# functions/client-sync/index.ts et ADR-053). L'anon key reste exigée par
+# la passerelle (apikey + Authorization: Bearer).
+project_id = "veloria-pos"
+
+[functions.client-sync]
+enabled = true
+verify_jwt = false
+entrypoint = "functions/client-sync/index.ts"

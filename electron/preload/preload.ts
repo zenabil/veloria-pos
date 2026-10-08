@@ -150,6 +150,16 @@ const api = {
     save: (p: unknown) => invoke(IPC_CHANNELS["printer.save"], p),
     test: () => invoke(IPC_CHANNELS["printing.testPage"]),
   },
+  templates: {
+    list: () => invoke(IPC_CHANNELS["templates.list"]),
+    get: (p: unknown) => invoke(IPC_CHANNELS["templates.get"], p),
+    save: (p: unknown) => invoke(IPC_CHANNELS["templates.save"], p),
+    activate: (p: unknown) => invoke(IPC_CHANNELS["templates.activate"], p),
+    remove: (p: unknown) => invoke(IPC_CHANNELS["templates.remove"], p),
+    reset: (p: unknown) => invoke(IPC_CHANNELS["templates.reset"], p),
+    preview: (p: unknown) => invoke(IPC_CHANNELS["templates.preview"], p),
+    testPrint: (p: unknown) => invoke(IPC_CHANNELS["templates.testPrint"], p),
+  },
   sales: {
     create: (p: unknown) => invoke(IPC_CHANNELS["sales.create"], p),
     get: (p: unknown) => invoke(IPC_CHANNELS["sales.get"], p),
@@ -160,7 +170,8 @@ const api = {
   carts: {
     save: (p: unknown) => invoke(IPC_CHANNELS["carts.save"], p),
     load: () => invoke(IPC_CHANNELS["carts.load"]),
-    clear: () => invoke(IPC_CHANNELS["carts.clear"]),
+    // A1-P0 : operationId transmis (retry/double-clic idempotent, Zod l'accepte).
+    clear: (p?: unknown) => invoke(IPC_CHANNELS["carts.clear"], p ?? {}),
   },
   returns: {
     create: (p: unknown) => invoke(IPC_CHANNELS["returns.create"], p),

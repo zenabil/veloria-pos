@@ -33,6 +33,7 @@
     "license-manager/signing.ts",
     "license-manager/renderer/**/*.tsx",
     "license-manager/renderer/**/*.ts",
+    "src/shared/errors/fr-map.ts",
     "electron/licensing/protocol.ts",
     "electron/licensing/catalog.ts",
     "electron/licensing/fingerprint.ts",

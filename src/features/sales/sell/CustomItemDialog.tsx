@@ -22,7 +22,7 @@ export function CustomItemDialog({
   onAdd: () => void;
 }): React.JSX.Element {
   return (
-    <Modal label="Article libre" title="Article libre [F1]" onClose={onClose}>
+    <Modal label="Article libre" title="Article libre" onClose={onClose}>
       <form
         className="space-y-4"
         onSubmit={(e) => {

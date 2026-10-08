@@ -198,7 +198,15 @@ export function createReturnAtomic(args: {
         );
       }
       requestedByProduct.set(keyOf(item.productId), inRequest + item.quantity);
+      if (
+        !Number.isSafeInteger(sold.unit_price_minor) ||
+        sold.unit_price_minor < 0 ||
+        sold.unit_price_minor > 1_000_000_000
+      )
+        throw new Error("Prix unitaire invalide.");
       const lineTotal = Math.round(sold.unit_price_minor * item.quantity);
+      if (!Number.isSafeInteger(lineTotal) || lineTotal < 0 || lineTotal > 100_000_000_000)
+        throw new Error("Montant de ligne invalide.");
       totalReturn += lineTotal;
       prepared.push({
         productId: sold.product_id,
@@ -459,7 +467,18 @@ export function createSupplierReturnAtomic(args: {
           `Quantité retournée supérieure à l'éligible (${eligible}) pour « ${bought.product_name_snapshot} ».`,
         );
       }
-      const lineTotal = Math.round(bought.purchase_price_minor * item.quantity);
+      const lineTotal = (() => {
+        if (
+          !Number.isSafeInteger(bought.purchase_price_minor) ||
+          bought.purchase_price_minor < 0 ||
+          bought.purchase_price_minor > 1_000_000_000
+        )
+          throw new Error("Prix d'achat invalide.");
+        const out = Math.round(bought.purchase_price_minor * item.quantity);
+        if (!Number.isSafeInteger(out) || out < 0 || out > 100_000_000_000)
+          throw new Error("Montant de ligne invalide.");
+        return out;
+      })();
       totalReturn += lineTotal;
       prepared.push({
         productId: bought.product_id,
@@ -1036,16 +1055,40 @@ export function cancelReturnAtomic(args: {
             // FIFO : la quantité revient dans les couches de la facture d'origine
             // (les plus anciennes d'abord) ; à défaut (facture antérieure à FIFO),
             // couche 'legacy' au coût snapshot pour garder couches = stock.
+            // A1-P0 : garde anti-ABORT trigger 0023 — on ne restaure jamais
+            // au-delà de (original − remaining) ; l'excédent part en couche
+            // 'legacy' au lieu de faire échouer toute l'annulation en brut SQL.
             const intakeLayers = db
               .prepare(
-                `SELECT id FROM inventory_layers WHERE product_id = ? AND stock_intake_id = ? ORDER BY id ASC`,
+                `SELECT id, remaining_quantity, original_quantity FROM inventory_layers WHERE product_id = ? AND stock_intake_id = ? ORDER BY id ASC`,
               )
-              .all(it["product_id"], r["stock_intake_id"]) as { id: number }[];
+              .all(it["product_id"], r["stock_intake_id"]) as {
+              id: number;
+              remaining_quantity: number;
+              original_quantity: number;
+            }[];
             if (intakeLayers.length > 0) {
-              const first = intakeLayers[0] as { id: number };
-              db.prepare(
-                `UPDATE inventory_layers SET remaining_quantity = remaining_quantity + ? WHERE id = ?`,
-              ).run(Number(it["quantity"]), first.id);
+              let need = Number(it["quantity"]);
+              for (const layer of intakeLayers) {
+                if (!(need > 0)) break;
+                const capacity = Number(layer.original_quantity) - Number(layer.remaining_quantity);
+                if (!(capacity > 0)) continue;
+                const take = Math.min(need, capacity);
+                db.prepare(
+                  `UPDATE inventory_layers SET remaining_quantity = remaining_quantity + ? WHERE id = ?`,
+                ).run(take, layer.id);
+                need -= take;
+              }
+              if (need > 0) {
+                createLayer({
+                  productId: Number(it["product_id"]),
+                  intakeId: Number(r["stock_intake_id"]),
+                  qty: need,
+                  unitCostMinor: Math.max(0, Math.round(Number(it["purchase_price_minor"] ?? 0))),
+                  reason: "legacy",
+                  now: args.now,
+                });
+              }
             } else {
               createLayer({
                 productId: Number(it["product_id"]),

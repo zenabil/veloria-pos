@@ -40,13 +40,13 @@ test("restart : la vente reste enregistrée après redémarrage", async () => {
   await page.getByLabel("Stock", { exact: true }).fill("50");
   await page.getByRole("button", { name: "Créer le produit" }).click();
   await readSuccessToast(page, /créé/);
-  await gotoModule(page, "Vente");
+  await gotoModule(page, "Caisse");
   await page.getByLabel("Recherche produit", { exact: true }).fill(name);
   await page
     .getByRole("button", { name: new RegExp(name) })
     .first()
     .click();
-  await page.getByRole("button", { name: "Encaisser [F10]" }).click();
+  await page.getByRole("button", { name: "Encaisser", exact: true }).click();
   await settlePayment(page, "100", false);
   const toast = await readSuccessToast(page, /Vente .* enregistrée/);
   const invoice = /FAC-\S+/.exec(toast)?.[0] ?? "";

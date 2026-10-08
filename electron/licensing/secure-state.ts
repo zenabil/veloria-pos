@@ -4,9 +4,12 @@
 // Le backend est injectable pour les tests (pas de fake en production).
 //
 // H-3 TAMPER-EVIDENT STATE (v2):
-// - version 1 (legacy) : lue et migrée à la prochaine écriture.
-// - version 2 : + firstSeenUtc + monotonicSeq + integrityTag.
-//   integrityTag = sha256(licenseId|firstSeenUtc|monotonicSeq|hardwareFingerprint).
+// - version 1 (legacy) : REFUSÉE (CORRUPTED_STATE, réimport exigé) — jamais
+//   migrée silencieusement : un .dat v1 restauré après coup est un rejeu.
+// - version 2 : + firstSeenUtc + monotonicSeq + integrityTag + maxStanding.
+//   integrityTag = sha256(licenseId|firstSeenUtc|monotonicSeq|hardwareFingerprint)
+//   (inchangé pour compat ascendante des tags v2 existants ; maxStanding est
+//   couvert par le chiffrement + le cross-check séquence ancre/état).
 //   Toute édition manuelle du fichier invalide le tag → CORRUPTED_STATE.
 // - La suppression du fichier NE ramène PLUS à UNACTIVATED si une ancre
 //   indépendante (SQLite `app_settings.license_anchor`, voir license-anchor.ts)
@@ -16,7 +19,7 @@ import { app, safeStorage } from "electron";
 import fs from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
-import type { SignedLicense } from "./protocol";
+import type { LicenseStanding, SignedLicense } from "./protocol";
 
 export interface SecureStoreBackend {
   isAvailable(): boolean;
@@ -44,6 +47,19 @@ export interface PersistedLicenseState {
   monotonicSeq?: number;
   /** H-3 v2+: sha256(licenseId|firstSeenUtc|seq|hw). */
   integrityTag?: string;
+  /**
+   * Anti-rejeu de standing (#31) : sévérité maximale vue pour cette licence
+   * (revoked > suspended > active). Un .vlic plus doux qu'un standing déjà
+   * enregistré (ex. actif après révocation) est refusé à l'import.
+   */
+  maxStanding?: LicenseStanding;
+}
+
+/** Sévérité d'un standing (rejeu = standing inférieur au maximum enregistré). */
+export function standingRank(s: LicenseStanding | undefined): number {
+  if (s === "revoked") return 3;
+  if (s === "suspended") return 2;
+  return 1;
 }
 
 export function computeStateIntegrityTag(state: {
@@ -68,6 +84,7 @@ export function buildSecureStateV2(args: {
   lastSeenUtc: string;
   lastVerifyUtc: string;
   monotonicSeq: number;
+  maxStanding: LicenseStanding;
 }): PersistedLicenseState {
   const licenseId = args.envelope.payload.licenseId;
   return {
@@ -78,6 +95,7 @@ export function buildSecureStateV2(args: {
     lastVerifyUtc: args.lastVerifyUtc,
     firstSeenUtc: args.firstSeenUtc,
     monotonicSeq: args.monotonicSeq,
+    maxStanding: args.maxStanding,
     integrityTag: computeStateIntegrityTag({
       licenseId,
       firstSeenUtc: args.firstSeenUtc,
@@ -96,8 +114,7 @@ export function assertSecureStateIntegrity(state: PersistedLicenseState): void {
   let hardwareFingerprint = "";
   try {
     const payload = (state.envelope as SignedLicense | null)?.payload as
-      | { licenseId?: unknown }
-      | undefined;
+      { licenseId?: unknown } | undefined;
     if (typeof payload?.licenseId === "string") licenseId = payload.licenseId;
     if (typeof state.firstSeenUtc === "string") firstSeenUtc = state.firstSeenUtc;
     if (typeof state.monotonicSeq === "number") monotonicSeq = state.monotonicSeq;

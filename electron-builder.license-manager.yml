@@ -18,6 +18,10 @@ files:
 extraResources:
   - from: resources/license
     to: license
+  # Icône de fenêtre (BrowserWindow) : `public/` n'est PAS empaqueté dans
+  # l'asar, donc exposée via resourcesPath (résolue dans window-manager).
+  - from: public/icons
+    to: icons
 asar: true
 asarUnpack:
   - "**/*.node"
@@ -28,6 +32,9 @@ win:
     - target: portable
       arch: [x64]
   icon: public/icons/manager-icon.ico
+  # REVERTI (ADR-070, 2026-10-06) : idem electron-builder.yml — true obligatoire,
+  # builds release avec privilège symlink (interdit d'expédier à false).
+  signAndEditExecutable: true
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true

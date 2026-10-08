@@ -48,7 +48,7 @@ test("boucle locale : client + vente à crédit + miroir poussé", async () => {
   const product = uniqueTag("BoucleProduit");
 
   // 1. Coquille activée.
-  await expect(page.getByRole("heading", { name: "Vente" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Caisse" })).toBeVisible();
   await page.screenshot({ path: `${SHOT}/01-coquille.png` });
 
   // 2. Créer le client (avec téléphone + crédit autorisé).
@@ -94,7 +94,7 @@ test("boucle locale : client + vente à crédit + miroir poussé", async () => {
   await page.screenshot({ path: `${SHOT}/04-produit.png` });
 
   // 5. Vente à crédit partiel au client (2 × 250 = 500, payé 200, reste 300).
-  await gotoModule(page, "Vente");
+  await gotoModule(page, "Caisse");
   await page.getByLabel("Recherche produit", { exact: true }).fill(product);
   await page
     .getByRole("button", { name: new RegExp(product) })
@@ -106,7 +106,7 @@ test("boucle locale : client + vente à crédit + miroir poussé", async () => {
     .getByRole("button", { name: new RegExp(who.slice(0, 10)) })
     .first()
     .click();
-  await page.getByRole("button", { name: "Encaisser [F10]" }).click();
+  await page.getByRole("button", { name: "Encaisser", exact: true }).click();
   await settlePayment(page, "200", true);
   const toast = await readSuccessToast(page, /Vente .* enregistrée/);
   const invoice = /FAC-\S+/.exec(toast)?.[0] ?? "";

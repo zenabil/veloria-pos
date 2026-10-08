@@ -147,6 +147,16 @@ interface Window {
       save(p: unknown): Promise<VeloriaOutcome>;
       test(): Promise<VeloriaOutcome>;
     };
+    templates: {
+      list(): Promise<VeloriaOutcome>;
+      get(p: unknown): Promise<VeloriaOutcome>;
+      save(p: unknown): Promise<VeloriaOutcome>;
+      activate(p: unknown): Promise<VeloriaOutcome>;
+      remove(p: unknown): Promise<VeloriaOutcome>;
+      reset(p: unknown): Promise<VeloriaOutcome>;
+      preview(p: unknown): Promise<VeloriaOutcome>;
+      testPrint(p: unknown): Promise<VeloriaOutcome>;
+    };
     sales: {
       create(p: unknown): Promise<VeloriaOutcome>;
       get(p: unknown): Promise<VeloriaOutcome>;
@@ -157,7 +167,7 @@ interface Window {
     carts: {
       save(p: unknown): Promise<VeloriaOutcome>;
       load(): Promise<VeloriaOutcome>;
-      clear(): Promise<VeloriaOutcome>;
+      clear(p?: unknown): Promise<VeloriaOutcome>;
     };
     returns: {
       create(p: unknown): Promise<VeloriaOutcome>;

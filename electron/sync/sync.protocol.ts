@@ -7,6 +7,8 @@ export interface SyncConfig {
   enabled: boolean;
   supabaseUrl: string;
   serviceKey: string;
+  /** Clé `anon` publique embarquée dans le QR V2 (ADR-068, jamais la service). */
+  anonKey: string;
   /** Cadence auto-poussée en minutes (défaut 15, min 5 — quota egress). */
   intervalMinutes: number;
 }
@@ -15,6 +17,7 @@ export const SYNC_DEFAULTS: SyncConfig = {
   enabled: false,
   supabaseUrl: "",
   serviceKey: "",
+  anonKey: "",
   intervalMinutes: 15,
 };
 
@@ -22,6 +25,7 @@ export interface SyncConfigView {
   enabled: boolean;
   supabaseUrl: string;
   hasKey: boolean;
+  hasAnonKey: boolean;
   intervalMinutes: number;
   lastPushAt: string | null;
   lastError: string | null;
@@ -36,6 +40,7 @@ export function validateSyncConfig(raw: unknown): SyncConfig {
   const enabled = v.enabled === true;
   const supabaseUrl = typeof v.supabaseUrl === "string" ? v.supabaseUrl.trim() : "";
   const serviceKey = typeof v.serviceKey === "string" ? v.serviceKey.trim() : "";
+  const anonKey = typeof v.anonKey === "string" ? v.anonKey.trim() : "";
   const intervalMinutes =
     typeof v.intervalMinutes === "number" &&
     Number.isInteger(v.intervalMinutes) &&
@@ -54,7 +59,15 @@ export function validateSyncConfig(raw: unknown): SyncConfig {
       throw new Error("Clé service invalide.");
     }
   }
-  return { enabled, supabaseUrl, serviceKey, intervalMinutes };
+  // Clé anon (QR V2) : optionnelle pour la poussée, obligatoire pour le QR.
+  // Validée dès qu'elle est renseignée (même au repos) pour refuser aussitôt
+  // une service_role collée par erreur à la place de l'anon.
+  if (anonKey !== "") {
+    if (anonKey.length < 20 || anonKey.length > 500 || !/^[A-Za-z0-9-_.=]+$/.test(anonKey)) {
+      throw new Error("Clé anon invalide.");
+    }
+  }
+  return { enabled, supabaseUrl, serviceKey, anonKey, intervalMinutes };
 }
 
 /** Vue sans secret pour le renderer (jamais de clé vers l'UI). */
@@ -66,6 +79,7 @@ export function maskConfig(
     enabled: cfg.enabled,
     supabaseUrl: cfg.supabaseUrl,
     hasKey: cfg.serviceKey.length > 0,
+    hasAnonKey: cfg.anonKey.length > 0,
     intervalMinutes: cfg.intervalMinutes,
     lastPushAt: meta.lastPushAt,
     lastError: meta.lastError,
@@ -87,6 +101,10 @@ export interface AccessMirrorRow {
   customer_id: number;
   phone_hash: string;
   pin_hash: string;
+  /** #39 : sel PBKDF2 (absent/NULL = ligne historique SHA-256, chemin transitoire). */
+  pin_salt?: string | null;
+  /** #39 : identifiant de dérivation (lignes neuves : PIN_KDF_ALGO). */
+  pin_algo?: string | null;
   qr_secret_hash: string | null;
   revoked_at: string | null;
   failed_attempts: number;

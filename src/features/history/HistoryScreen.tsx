@@ -6,6 +6,7 @@ import { Download, Eye, Search, SlidersHorizontal, X } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { formatDzd } from "@domain/money/money.ts";
 import { downloadCsv } from "@shared/export/csv.ts";
+import { formatDateFr, paymentMethodLabel } from "@shared/formatters/format.ts";
 import {
   Badge,
   Button,
@@ -79,6 +80,12 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
 
   // F3 : focus recherche (comme en caisse). F6 : réimprimer le dernier
   // ticket (tri antéchronologique uniquement, voir reprintLast).
+  // Ref stable : le handler lit l'état courant via rowsRef (pas de ré-abonnement).
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+  const sortRef = useRef(sort);
+  sortRef.current = sort;
+  const reprintLastRef = useRef<() => Promise<void>>(() => Promise.resolve());
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (isAnyModalOpen()) return;
@@ -87,12 +94,12 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
         searchRef.current?.focus();
       } else if (e.key === "F6") {
         e.preventDefault();
-        void reprintLast();
+        void reprintLastRef.current();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [rows]);
+  }, []);
 
   async function loadStats(f: string, t: string): Promise<void> {
     try {
@@ -101,8 +108,8 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
         to: t === "" ? null : t,
       })) as Stats;
       setStats(s);
-    } catch {
-      /* stats optionnelles */
+    } catch (e) {
+      notify(frError(e, "Statistiques indisponibles."), "err");
     }
   }
 
@@ -197,17 +204,18 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
 
   /** Stitch [F6] : rouvre le ticket le plus récent (tri antéchronologique). */
   async function reprintLast(): Promise<void> {
-    if (sort !== "date_desc") {
+    if (sortRef.current !== "date_desc") {
       notify("Basculez le tri sur « Date ↓ » pour réimprimer le dernier ticket.", "err");
       return;
     }
-    const latest = rows[0];
+    const latest = rowsRef.current[0];
     if (!latest) {
       notify("Aucun ticket à réimprimer.", "err");
       return;
     }
     await openDrawer(latest);
   }
+  reprintLastRef.current = reprintLast;
 
   function refresh(): void {
     void loadStats(from, to);
@@ -265,7 +273,8 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
 
   function toCsvRows(list: HistoryRow[]): Record<string, unknown>[] {
     return list.map((r) => {
-      const { date, time } = splitDateTime(r.created_at);
+      const { time } = splitDateTime(r.created_at);
+      const date = formatDateFr(r.created_at);
       return {
         Date: date,
         Heure: time,
@@ -274,7 +283,7 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
         Description: r.label,
         Entité: r.entity_name ?? "—",
         Montant: r.amount_minor == null ? "" : formatDzd(r.amount_minor),
-        Paiement: r.method ?? "",
+        Paiement: r.method == null || r.method === "" ? "" : paymentMethodLabel(r.method),
         Poste: "Caisse",
         Statut: r.status,
       };
@@ -332,7 +341,7 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
     <div className="flex h-full flex-col gap-4">
       {/* En-tête Stitch : Historique des Ventes & Transactions · JOURNAL FISCAL */}
       <PageHeader
-        title="Historique des Ventes & Transactions"
+        title="Historique des ventes et transactions"
         module="JOURNAL FISCAL EN TEMPS RÉEL · SHA-256 SCELLÉ"
         period={`${total} opération(s) · toutes les activités de la caisse · session active`}
         actions={
@@ -374,10 +383,11 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
               disabled={rows.length === 0}
               title="Réimprimer le dernier ticket [F6]"
             >
-              Réimprimer Dernier
+              Réimprimer le dernier ticket
             </Button>
             <Button onClick={() => void exportAll()} disabled={exporting} title="Exporter en CSV">
-              <Download size={16} aria-hidden="true" /> {exporting ? "Exportation…" : "Exporter"}
+              <Download size={16} aria-hidden="true" />{" "}
+              {exporting ? "Export en cours…" : "Exporter tout (CSV)"}
             </Button>
           </>
         }
@@ -386,7 +396,7 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
       {/* Cartes statistiques Stitch */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi
-          label="Total Ventes (Brut)"
+          label="Total des ventes (brut)"
           value={formatDzd(stats.salesAmountMinor)}
           sub={`${stats.salesCount} ticket(s)`}
           accent="#fbbf24"
@@ -404,7 +414,7 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
           accent="#8ed0ff"
         />
         <Kpi
-          label="Répartition Paiements"
+          label="Répartition des paiements"
           value={formatDzd(stats.paymentsAmountMinor)}
           sub="Encaissé + payé"
           accent="#4edea3"
@@ -595,7 +605,8 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
               </thead>
               <tbody>
                 {rows.map((r) => {
-                  const { date, time } = splitDateTime(r.created_at);
+                  const { time } = splitDateTime(r.created_at);
+                  const date = formatDateFr(r.created_at);
                   const key = rowKey(r);
                   return (
                     <tr
@@ -641,7 +652,7 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
                         )}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-400">
-                        {r.method ?? "—"}
+                        {paymentMethodLabel(r.method)}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-400">Caisse</td>
                       <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-300">
@@ -651,7 +662,7 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
                         <div className="flex justify-end gap-1">
                           <RowAction
                             label={`Voir ${r.label}`}
-                            title="Détails"
+                            title="Détails de la fiche"
                             onClick={() => void openDrawer(r)}
                           >
                             <Eye size={15} aria-hidden="true" />

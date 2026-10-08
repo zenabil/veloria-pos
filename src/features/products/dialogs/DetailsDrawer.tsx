@@ -6,6 +6,7 @@ import { Pencil, RotateCcw, Scale, Trash2 } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { formatDzd } from "@domain/money/money.ts";
+import { formatDzdSigned } from "@shared/formatters/format.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 
 import {
@@ -48,6 +49,10 @@ export function ProductDetailsDrawer({
   );
   const archived = isArchived(product);
   const confirmAsync = useConfirm();
+  // Vente à perte autorisée (confirmée en création) : la marge peut être
+  // négative or formatDzd lèverait — affichage signé explicite.
+  const marginMinor = product.selling_price_minor - product.purchase_price_minor;
+  const marginLabel = formatDzdSigned(marginMinor);
 
   useEffect(() => {
     let alive = true;
@@ -226,11 +231,7 @@ export function ProductDetailsDrawer({
           />
           <InfoRow label="Prix d'achat" value={formatDzd(product.purchase_price_minor)} num />
           <InfoRow label="Prix de vente" value={formatDzd(product.selling_price_minor)} num />
-          <InfoRow
-            label="Marge unitaire"
-            value={formatDzd(product.selling_price_minor - product.purchase_price_minor)}
-            num
-          />
+          <InfoRow label="Marge unitaire" value={marginLabel} num />
         </Card>
         <Card className="space-y-2.5 p-4 text-sm">
           <InfoRow label="Stock actuel" value={String(product.quantity)} num strong />
@@ -332,7 +333,7 @@ function AdjustStockModal({
             Annuler
           </Button>
           <Button type="submit" disabled={busy} className="flex-[2]">
-            {busy ? "Enregistrement." : "Ajuster"}
+            {busy ? "Enregistrement…" : "Ajuster"}
           </Button>
         </div>
       </form>

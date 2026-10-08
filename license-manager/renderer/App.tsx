@@ -1,8 +1,9 @@
-// Veloria License Manager — UI vendor (FR). Création, renouvellement,
-// transfert, suspension, révocation, capabilities, export .vlic, sauvegardes.
+// Veloria License Manager — UI éditeur (FR). Création, renouvellement,
+// transfert, suspension, révocation, droits d'accès, export .vlic, sauvegardes.
 // Aucune clé affichée. Confirmations inline (jamais window.prompt/confirm).
 import { useCallback, useEffect, useState } from "react";
 import { mapi } from "./ipc-client.ts";
+import { frError } from "../../src/shared/errors/fr-map.ts";
 
 type Tab = "list" | "new" | "backups";
 
@@ -51,6 +52,57 @@ interface ConfirmState {
 
 const PLANS = ["BASIC", "STANDARD", "PRO", "ENTERPRISE", "CUSTOM"] as const;
 
+const PLAN_FR: Record<string, string> = {
+  BASIC: "Essentielle",
+  STANDARD: "Standard",
+  PRO: "Pro",
+  ENTERPRISE: "Entreprise",
+  CUSTOM: "Sur mesure",
+};
+
+const EDITION_FR: Record<string, string> = {
+  basic: "Essentielle",
+  standard: "Standard",
+  pro: "Pro",
+  enterprise: "Entreprise",
+  custom: "Sur mesure",
+};
+
+const STATUS_FR: Record<string, string> = {
+  active: "Active",
+  suspended: "Suspendue",
+  revoked: "Révoquée",
+  expired: "Expirée",
+};
+
+const TYPE_FR: Record<string, string> = {
+  term: "Temporaire",
+  lifetime: "À vie",
+};
+
+const EVENT_FR: Record<string, string> = {
+  created: "Créée",
+  renewed: "Renouvelée",
+  transferred: "Transférée",
+  suspended: "Suspendue",
+  reactivated: "Réactivée",
+  revoked: "Révoquée",
+  capabilities_updated: "Accès modifiés",
+  exported: "Exportée",
+  restored: "Restaurée",
+};
+
+const DETAIL_KEY_FR: Record<string, string> = {
+  newFingerprint: "nouvelle empreinte",
+  durationMonths: "durée",
+  licenseType: "type",
+  reason: "motif",
+  status: "statut",
+  features: "fonctions",
+  pages: "pages",
+  maxDevices: "appareils max",
+};
+
 const EDITION_FROM_PLAN: Record<string, string> = {
   BASIC: "basic",
   STANDARD: "standard",
@@ -71,8 +123,8 @@ const PAGES: { id: string; fr: string }[] = [
   { id: "returns", fr: "Retours" },
   { id: "history", fr: "Historique" },
   { id: "reports", fr: "Rapports" },
-  { id: "pain", fr: "Pain" },
-  { id: "breadOrders", fr: "Commandes pain" },
+  { id: "pain", fr: "Gestion du pain" },
+  { id: "breadOrders", fr: "Commandes de pain" },
   { id: "proformas", fr: "Proformas" },
   { id: "invoices", fr: "Factures" },
   { id: "zakat", fr: "Zakat" },
@@ -85,7 +137,7 @@ const FEATURES: { id: string; fr: string }[] = [
   { id: "automatic-backup", fr: "Sauvegarde auto" },
   { id: "restore-backup", fr: "Restauration" },
   { id: "barcode-scanner", fr: "Codes-barres" },
-  { id: "ocr", fr: "OCR" },
+  { id: "ocr", fr: "Reconnaissance (OCR)" },
   { id: "excel-export", fr: "Export Excel" },
   { id: "pdf-export", fr: "Export PDF" },
   { id: "debt-management", fr: "Dettes" },
@@ -96,7 +148,7 @@ const FEATURES: { id: string; fr: string }[] = [
   { id: "multi-printer", fr: "Multi-imprimante" },
 ];
 
-/** Presets locaux (miroir des presets main — l'émission signe le choix final). */
+/** Préréglages locaux (miroir des préréglages main — l'émission signe le choix final). */
 const PRESETS: Record<string, { pages: string[]; features: string[] }> = {
   BASIC: {
     pages: ["dashboard", "sales", "products", "stock", "customers", "history", "settings"],
@@ -183,13 +235,13 @@ const DURATIONS = [
 ] as const;
 
 const input =
-  "w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-amber-400/60";
+  "w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-amber-400/60 focus-visible:ring-2 focus-visible:ring-amber-400/60";
 const btn =
-  "rounded-lg bg-amber-400 px-4 py-2 text-sm font-bold text-black hover:bg-amber-300 disabled:opacity-50";
+  "rounded-lg bg-amber-400 px-4 py-2 text-sm font-bold text-black hover:bg-amber-300 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200";
 const btnDanger =
-  "rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-400 disabled:opacity-50";
+  "rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300";
 const btnGhost =
-  "rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-white/[0.08] disabled:opacity-50";
+  "rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-white/[0.08] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60";
 const label = "mb-1 block text-xs font-semibold text-slate-400";
 const sectionTitle = "text-xs font-extrabold uppercase tracking-wider text-amber-300/90";
 
@@ -198,16 +250,32 @@ function toggle(list: string[], id: string): string[] {
 }
 
 function eventSummary(e: { event: string; details_json?: unknown }): string {
-  if (typeof e.details_json !== "string") return e.event;
+  const eventFr = EVENT_FR[e.event] ?? e.event;
+  if (typeof e.details_json !== "string") return eventFr;
   try {
     const d = JSON.parse(e.details_json) as Record<string, unknown>;
     const parts = Object.entries(d)
       .slice(0, 3)
-      .map(([k, v]) => `${k}=${String(v).slice(0, 24)}`);
-    return parts.length > 0 ? `${e.event} (${parts.join(", ")})` : e.event;
+      .map(([k, v]) => `${DETAIL_KEY_FR[k] ?? k}=${String(v).slice(0, 24)}`);
+    return parts.length > 0 ? `${eventFr} (${parts.join(", ")})` : eventFr;
   } catch {
-    return e.event;
+    return eventFr;
   }
+}
+
+function planFr(plan: string | null, edition: string): string {
+  if (plan && PLAN_FR[plan]) return PLAN_FR[plan] as string;
+  return EDITION_FR[edition] ?? edition;
+}
+
+function featuresFr(ids: string[]): string {
+  if (ids.length === 0) return "—";
+  return ids.map((id) => FEATURES.find((f) => f.id === id)?.fr ?? id).join(", ");
+}
+
+function pagesFr(ids: string[]): string {
+  if (ids.length === 0) return "—";
+  return ids.map((id) => PAGES.find((p) => p.id === id)?.fr ?? id).join(", ");
 }
 
 export function ManagerApp(): React.JSX.Element {
@@ -273,12 +341,12 @@ export function ManagerApp(): React.JSX.Element {
       .catch(() => setBackups([]));
   }, []);
 
-  // P3 : sauvegarde du registre vendor (aucun secret dedans : clé hors base).
+  // P3 : sauvegarde du registre éditeur (aucun secret dedans : clé hors base).
   async function backupNow(): Promise<void> {
     setBusy(true);
     try {
       const r = (await mapi.backup()) as { file: string; size: number };
-      say(`Registre sauvegardé (${Math.round(r.size / 1024)} Ko).`);
+      say(`Registre sauvegardé (${Math.round(r.size / 1024)}\u00A0Ko).`);
       loadBackups();
     } catch {
       say("Sauvegarde impossible.");
@@ -294,7 +362,8 @@ export function ManagerApp(): React.JSX.Element {
       say("Registre restauré.");
       refresh();
     } catch (e) {
-      say(e instanceof Error ? e.message : "Restauration impossible.");
+      console.error("[manager]", e);
+      say(frError(e, "Restauration impossible."));
     } finally {
       setBusy(false);
     }
@@ -324,7 +393,8 @@ export function ManagerApp(): React.JSX.Element {
       })
       .catch((e: unknown) => {
         setDetail(null);
-        setDetailError(e instanceof Error ? e.message : "Détail indisponible.");
+        console.error("[manager]", e);
+        setDetailError(frError(e, "Détail indisponible."));
       });
   }, [selected]);
 
@@ -374,7 +444,7 @@ export function ManagerApp(): React.JSX.Element {
           },
         });
       } else if (r.imported && r.configured) {
-        say(r.encrypted ? "Clé privée installée (chiffrée)." : "Clé privée installée.");
+        say(r.encrypted ? "Clé privée importée (chiffrée)." : "Clé privée importée.");
       } else if (!r.imported) {
         say("Import annulé.");
       } else {
@@ -382,7 +452,8 @@ export function ManagerApp(): React.JSX.Element {
       }
       refresh();
     } catch (e) {
-      say(e instanceof Error ? e.message : "Import impossible.");
+      console.error("[manager]", e);
+      say(frError(e, "Import impossible."));
     } finally {
       setBusy(false);
     }
@@ -397,14 +468,16 @@ export function ManagerApp(): React.JSX.Element {
       if (maxDevices.trim() !== "") {
         const n = Number(maxDevices.trim());
         if (!Number.isInteger(n) || n < 1 || n > 99) {
-          say("Appareils max invalide : saisissez un nombre entier entre 1 et 99 (vide = défaut).");
+          say(
+            "Appareils max invalide : saisissez un nombre entier entre 1 et 99 (laissez vide pour 1 poste).",
+          );
           return;
         }
         maxDevicesValue = n;
       }
       const fp = fingerprint.trim().toLowerCase();
       if (!/^[a-f0-9]{64}$/.test(fp)) {
-        say("Empreinte invalide : 64 caractères hexadécimaux attendus.");
+        say("Empreinte invalide : 64 caractères hexadécimaux (0-9, a-f) attendus.");
         return;
       }
       const payload: Record<string, unknown> = {
@@ -432,11 +505,12 @@ export function ManagerApp(): React.JSX.Element {
         }
       }
       const r = (await mapi.licenseCreate(payload)) as { licenseId: string };
-      say(`Licence ${r.licenseId} créée. Exportez le .vlic.`);
+      say(`Licence ${r.licenseId} créée. Exportez le fichier .vlic.`);
       setTab("list");
       refresh();
     } catch (e) {
-      say(e instanceof Error ? e.message : "Création impossible.");
+      console.error("[manager]", e);
+      say(frError(e, "Création impossible."));
     } finally {
       setBusy(false);
     }
@@ -451,7 +525,8 @@ export function ManagerApp(): React.JSX.Element {
       refresh();
       reloadDetail();
     } catch (e) {
-      say(e instanceof Error ? e.message : "Opération impossible.");
+      console.error("[manager]", e);
+      say(frError(e, "Opération impossible."));
     } finally {
       setBusy(false);
     }
@@ -466,7 +541,8 @@ export function ManagerApp(): React.JSX.Element {
       refresh();
       reloadDetail();
     } catch (e) {
-      say(e instanceof Error ? e.message : "Opération impossible.");
+      console.error("[manager]", e);
+      say(frError(e, "Opération impossible."));
     } finally {
       setBusy(false);
     }
@@ -490,7 +566,8 @@ export function ManagerApp(): React.JSX.Element {
       refresh();
       reloadDetail();
     } catch (e) {
-      say(e instanceof Error ? e.message : "Opération impossible.");
+      console.error("[manager]", e);
+      say(frError(e, "Opération impossible."));
     } finally {
       setBusy(false);
     }
@@ -500,7 +577,7 @@ export function ManagerApp(): React.JSX.Element {
     if (selected == null) return;
     const clean = fpRaw.trim().toLowerCase();
     if (!/^[a-f0-9]{64}$/.test(clean)) {
-      say("Empreinte invalide : 64 caractères hexadécimaux attendus.");
+      say("Empreinte invalide : 64 caractères hexadécimaux (0-9, a-f) attendus.");
       return;
     }
     setBusy(true);
@@ -508,13 +585,14 @@ export function ManagerApp(): React.JSX.Element {
       await mapi.licenseTransfer({
         id: selected,
         newFingerprint: clean,
-        reason: reasonRaw.trim() === "" ? "transfert poste" : reasonRaw.trim().slice(0, 500),
+        reason: reasonRaw.trim() === "" ? "Transfert de poste" : reasonRaw.trim().slice(0, 500),
       });
       say("Licence transférée (ancien poste invalidé).");
       refresh();
       reloadDetail();
     } catch (e) {
-      say(e instanceof Error ? e.message : "Opération impossible.");
+      console.error("[manager]", e);
+      say(frError(e, "Opération impossible."));
     } finally {
       setBusy(false);
     }
@@ -528,9 +606,10 @@ export function ManagerApp(): React.JSX.Element {
         exported: boolean;
         path: string | null;
       };
-      say(r.exported ? `Exportée : ${r.path}` : "Export annulé.");
+      say(r.exported ? `Licence exportée : ${r.path}` : "Export annulé.");
     } catch (e) {
-      say(e instanceof Error ? e.message : "Opération impossible.");
+      console.error("[manager]", e);
+      say(frError(e, "Opération impossible."));
     } finally {
       setBusy(false);
     }
@@ -539,7 +618,7 @@ export function ManagerApp(): React.JSX.Element {
   async function saveCaps(): Promise<void> {
     if (selected == null || capsEdit == null) return;
     if (capsEdit.features.length === 0) {
-      say("Capabilities : au moins 1 fonction requise.");
+      say("Sélectionnez au moins une fonction.");
       return;
     }
     setBusy(true);
@@ -549,11 +628,12 @@ export function ManagerApp(): React.JSX.Element {
         features: capsEdit.features,
         pages: Object.fromEntries(PAGES.map((p) => [p.id, capsEdit.pages.includes(p.id)])),
       });
-      say("Accès mis à jour (exportez le nouveau .vlic).");
+      say("Accès enregistrés. Exportez le nouveau fichier .vlic.");
       refresh();
       reloadDetail();
     } catch (e) {
-      say(e instanceof Error ? e.message : "Opération impossible.");
+      console.error("[manager]", e);
+      say(frError(e, "Opération impossible."));
     } finally {
       setBusy(false);
     }
@@ -574,9 +654,11 @@ export function ManagerApp(): React.JSX.Element {
       <div className="mx-auto max-w-5xl space-y-4">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-xl font-extrabold tracking-tight">Veloria License Manager</h1>
+            <h1 className="text-xl font-extrabold tracking-tight">
+              Veloria — Gestionnaire de licences
+            </h1>
             <p className="text-xs text-slate-500">
-              Outil vendor — création et gestion des licences hors-ligne.
+              Outil éditeur — création et gestion des licences hors-ligne.
             </p>
           </div>
           <div className="flex gap-2">
@@ -602,15 +684,6 @@ export function ManagerApp(): React.JSX.Element {
             >
               Sauvegardes
             </button>
-            <button
-              type="button"
-              onClick={() => void backupNow()}
-              disabled={busy}
-              className={btnGhost}
-              title="Sauvegarder le registre vendor (rotation 10)"
-            >
-              Sauvegarder
-            </button>
           </div>
         </header>
 
@@ -619,16 +692,16 @@ export function ManagerApp(): React.JSX.Element {
             role="alert"
             className="rounded-xl border border-red-500/30 bg-[#1c1113] px-4 py-3 text-sm text-red-100"
           >
-            <p className="font-bold">Clé privée vendor absente.</p>
+            <p className="font-bold">Clé privée éditeur absente.</p>
             <p className="mt-1 text-red-200/80">
-              Importez-la une seule fois : elle sera copiée chiffrée dans le dossier keys du Manager
-              (jamais affichée, jamais exportée).
+              Importez-la une seule fois : elle sera copiée chiffrée dans le dossier de clés du
+              gestionnaire (jamais affichée, jamais exportée).
             </p>
             <button
               type="button"
               disabled={busy}
               onClick={() => void importKey()}
-              className="mt-2 rounded-lg bg-red-400 px-4 py-2 text-sm font-bold text-black hover:bg-red-300 disabled:opacity-50"
+              className={btnDanger}
             >
               Importer la clé privée…
             </button>
@@ -648,11 +721,14 @@ export function ManagerApp(): React.JSX.Element {
             role="alertdialog"
             aria-modal="true"
             aria-label={confirm.title}
+            aria-describedby="manager-confirm-message"
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
           >
             <div className="w-full max-w-md space-y-3 rounded-xl border border-white/10 bg-[#0a0f1c] p-5">
               <h2 className="text-base font-bold">{confirm.title}</h2>
-              <p className="text-sm text-slate-300">{confirm.message}</p>
+              <p id="manager-confirm-message" className="text-sm text-slate-300">
+                {confirm.message}
+              </p>
               {confirm.inputLabel ? (
                 <div>
                   <span className={label}>{confirm.inputLabel}</span>
@@ -722,8 +798,8 @@ export function ManagerApp(): React.JSX.Element {
                   setQuery(e.target.value);
                   loadList(e.target.value);
                 }}
-                placeholder="Rechercher (référence, ID)…"
-                aria-label="Rechercher une licence"
+                placeholder="Rechercher (référence, identifiant, magasin)…"
+                aria-label="Rechercher une licence (référence, identifiant, magasin)"
               />
               <ul className="mt-2 max-h-[480px] space-y-1 overflow-y-auto">
                 {rows.map((r) => (
@@ -734,7 +810,7 @@ export function ManagerApp(): React.JSX.Element {
                       className={`w-full rounded-lg px-3 py-2 text-left text-[13px] hover:bg-white/[0.05] ${selected === r.id ? "bg-amber-400/[0.13] font-bold text-amber-100" : "text-slate-300"}`}
                     >
                       <span className="font-mono">{r.license_id}</span> — {r.customer_ref} ·{" "}
-                      {r.plan ?? r.edition} · {r.status}
+                      {planFr(r.plan, r.edition)} · {STATUS_FR[r.status] ?? r.status}
                     </button>
                   </li>
                 ))}
@@ -755,15 +831,18 @@ export function ManagerApp(): React.JSX.Element {
               ) : detail ? (
                 <div className="space-y-2">
                   <h2 className="font-mono text-base font-bold">{detail.license.license_id}</h2>
-                  <p>Client : {detail.license.customer_ref}</p>
-                  {detail.license.client_id ? <p>Réf : {detail.license.client_id}</p> : null}
-                  {detail.license.client_name ? <p>Nom : {detail.license.client_name}</p> : null}
+                  <p>Référence : {detail.license.customer_ref}</p>
+                  {detail.license.client_id ? (
+                    <p>Identifiant : {detail.license.client_id}</p>
+                  ) : null}
+                  {detail.license.client_name ? <p>Client : {detail.license.client_name}</p> : null}
                   {detail.license.store_name ? <p>Magasin : {detail.license.store_name}</p> : null}
                   <p>
-                    Plan : {detail.license.plan ?? "—"} · Édition : {detail.license.edition} · Type
-                    : {detail.license.license_type}
+                    Offre : {planFr(detail.license.plan, detail.license.edition)} · Édition :{" "}
+                    {EDITION_FR[detail.license.edition] ?? detail.license.edition} · Durée :{" "}
+                    {TYPE_FR[detail.license.license_type] ?? detail.license.license_type}
                   </p>
-                  <p>Statut : {detail.license.status}</p>
+                  <p>Statut : {STATUS_FR[detail.license.status] ?? detail.license.status}</p>
                   <p>Début : {detail.license.starts_at.slice(0, 10)}</p>
                   <p>
                     Fin :{" "}
@@ -772,33 +851,36 @@ export function ManagerApp(): React.JSX.Element {
                   <p>
                     Appareils :{" "}
                     {detail.license.device_binding === 0
-                      ? "flottante"
-                      : `liée${detail.license.max_devices ? ` (max ${detail.license.max_devices})` : ""}`}
+                      ? "Licence flottante"
+                      : `Licence liée${detail.license.max_devices ? ` (max ${detail.license.max_devices})` : ""}`}
                   </p>
                   <p className="break-all font-mono text-xs text-slate-400">
-                    HW : {detail.license.hardware_fingerprint}
+                    Empreinte : {detail.license.hardware_fingerprint}
                   </p>
                   {detail.license.notes ? (
-                    <p className="text-xs text-slate-400">Notes : {detail.license.notes}</p>
+                    <p className="text-xs text-slate-400">
+                      Notes internes : {detail.license.notes}
+                    </p>
                   ) : null}
                   <p className="text-xs text-slate-400">
-                    Fonctions :{" "}
-                    {(JSON.parse(detail.license.features_json) as string[]).join(", ") || "—"}
+                    Fonctions : {featuresFr(JSON.parse(detail.license.features_json) as string[])}
                   </p>
                   <p className="text-xs text-slate-400">
                     Pages :{" "}
                     {detail.license.pages_json
-                      ? Object.entries(
-                          JSON.parse(detail.license.pages_json) as Record<string, boolean>,
+                      ? pagesFr(
+                          Object.entries(
+                            JSON.parse(detail.license.pages_json) as Record<string, boolean>,
+                          )
+                            .filter(([, v]) => v)
+                            .map(([k]) => k),
                         )
-                          .filter(([, v]) => v)
-                          .map(([k]) => k)
-                          .join(", ") || "—"
                       : "—"}
                   </p>
                   {capsEdit ? (
                     <div className="space-y-2 rounded-lg border border-amber-400/30 p-3">
-                      <h3 className={sectionTitle}>Modifier les accès</h3>
+                      <h3 className={sectionTitle}>Nouveaux accès (non enregistrés)</h3>
+                      <h4 className="text-xs font-bold text-slate-400">Pages</h4>
                       <div className="grid max-h-40 grid-cols-2 gap-x-3 gap-y-1 overflow-y-auto text-[13px]">
                         {PAGES.map((p) => (
                           <label key={p.id} className="flex items-center gap-1.5">
@@ -816,6 +898,7 @@ export function ManagerApp(): React.JSX.Element {
                           </label>
                         ))}
                       </div>
+                      <h4 className="text-xs font-bold text-slate-400">Fonctions</h4>
                       <div className="grid max-h-40 grid-cols-2 gap-x-3 gap-y-1 overflow-y-auto text-[13px]">
                         {FEATURES.map((f) => (
                           <label key={f.id} className="flex items-center gap-1.5">
@@ -840,7 +923,7 @@ export function ManagerApp(): React.JSX.Element {
                           onClick={() => void saveCaps()}
                           className={btn}
                         >
-                          Enregistrer (ré-émet)
+                          Enregistrer les accès
                         </button>
                         <button
                           type="button"
@@ -848,7 +931,7 @@ export function ManagerApp(): React.JSX.Element {
                           onClick={() => setCapsEdit(null)}
                           className={btnGhost}
                         >
-                          Annuler
+                          Abandonner
                         </button>
                       </div>
                     </div>
@@ -861,7 +944,7 @@ export function ManagerApp(): React.JSX.Element {
                       onClick={() => void runExport()}
                       className={btnGhost}
                     >
-                      Exporter .vlic
+                      Exporter le fichier .vlic
                     </button>
                     <button
                       type="button"
@@ -869,10 +952,10 @@ export function ManagerApp(): React.JSX.Element {
                       onClick={() =>
                         askConfirm({
                           title: "Renouveler la licence",
-                          message: "Durée en mois (vide = à vie).",
+                          message: "Laissez vide pour une licence à vie.",
                           inputLabel: "Durée (mois)",
                           inputValue: "12",
-                          inputPlaceholder: "12",
+                          inputPlaceholder: "Ex. : 12 (vide = à vie)",
                           input2Value: "",
                           confirmLabel: "Renouveler",
                           onConfirm: (v) => void runRenew(v),
@@ -890,10 +973,10 @@ export function ManagerApp(): React.JSX.Element {
                           title: "Transférer la licence",
                           message:
                             "L'ancien poste deviendra invalide. Saisissez la nouvelle empreinte.",
-                          inputLabel: "Nouvelle empreinte (64 hex)",
+                          inputLabel: "Nouvelle empreinte matérielle (64 caractères hexadécimaux)",
                           inputValue: "",
-                          inputPlaceholder: "a1b2…",
-                          input2Label: "Motif",
+                          inputPlaceholder: "64 caractères hexadécimaux (ex. : a1b2…f9)",
+                          input2Label: "Motif du transfert",
                           input2Value: "",
                           input2Placeholder: "Ex. : changement de PC",
                           confirmLabel: "Transférer",
@@ -910,7 +993,7 @@ export function ManagerApp(): React.JSX.Element {
                       onClick={() =>
                         askConfirm({
                           title: "Suspendre la licence ?",
-                          message: "Le client devra réimporter le nouveau .vlic.",
+                          message: "Le client devra réimporter le nouveau fichier .vlic.",
                           danger: true,
                           inputValue: "",
                           input2Value: "",
@@ -967,7 +1050,7 @@ export function ManagerApp(): React.JSX.Element {
                       Révoquer
                     </button>
                   </div>
-                  <h3 className="pt-2 text-xs font-bold uppercase text-slate-500">Historique</h3>
+                  <h3 className={sectionTitle}>Historique de la licence</h3>
                   <ul className="space-y-1 text-xs text-slate-400">
                     {(
                       detail.events as {
@@ -1005,7 +1088,7 @@ export function ManagerApp(): React.JSX.Element {
                   className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/[0.03] px-3 py-2"
                 >
                   <span className="font-mono text-xs text-slate-300">
-                    {b.file.split(/[/\\]/).pop()} · {Math.round(b.size / 1024)} Ko
+                    {b.file.split(/[/\\]/).pop()} · {Math.round(b.size / 1024)}\u00A0Ko
                   </span>
                   <button
                     type="button"
@@ -1013,8 +1096,7 @@ export function ManagerApp(): React.JSX.Element {
                     onClick={() =>
                       askConfirm({
                         title: "Restaurer le registre ?",
-                        message:
-                          "Le registre actuel sera remplacé (snapshot de sécurité conservé).",
+                        message: "Le registre actuel sera remplacé (copie de sécurité conservée).",
                         danger: true,
                         inputValue: "",
                         input2Value: "",
@@ -1036,6 +1118,7 @@ export function ManagerApp(): React.JSX.Element {
         ) : (
           <div className="space-y-4 rounded-xl border border-white/[0.06] bg-[#0a0f1c] p-5">
             <h2 className="text-sm font-bold">Nouvelle licence</h2>
+            <p className="text-xs text-slate-500">* Champs obligatoires</p>
 
             <section className="space-y-3">
               <h3 className={sectionTitle}>Informations client</h3>
@@ -1055,7 +1138,7 @@ export function ManagerApp(): React.JSX.Element {
                     className={input}
                     value={storeName}
                     onChange={(e) => setStoreName(e.target.value)}
-                    placeholder="Ex. : Épicerie Ennour"
+                    placeholder="Ex. : Épicerie Ennour — Alger"
                   />
                 </div>
               </div>
@@ -1065,12 +1148,14 @@ export function ManagerApp(): React.JSX.Element {
                   <input
                     className={input}
                     value={customerRef}
+                    required
+                    aria-required="true"
                     onChange={(e) => setCustomerRef(e.target.value)}
-                    placeholder="Ex. : Épicerie Ennour — Alger"
+                    placeholder="Ex. : CLI-ENNOUR-001"
                   />
                 </div>
                 <div>
-                  <span className={label}>ID client</span>
+                  <span className={label}>Identifiant client</span>
                   <input
                     className={input}
                     value={clientId}
@@ -1085,7 +1170,7 @@ export function ManagerApp(): React.JSX.Element {
               <h3 className={sectionTitle}>Licence</h3>
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <span className={label}>Plan (preset modifiable)</span>
+                  <span className={label}>Offre (préréglage modifiable)</span>
                   <select
                     className={input}
                     value={plan}
@@ -1093,11 +1178,13 @@ export function ManagerApp(): React.JSX.Element {
                   >
                     {PLANS.map((p) => (
                       <option key={p} value={p}>
-                        {p}
+                        {PLAN_FR[p] ?? p}
                       </option>
                     ))}
                   </select>
-                  <p className="mt-1 text-xs text-slate-500">Édition émise : {derivedEdition}</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Édition émise : {EDITION_FR[derivedEdition] ?? derivedEdition}
+                  </p>
                 </div>
                 <div>
                   <span className={label}>Durée</span>
@@ -1121,7 +1208,7 @@ export function ManagerApp(): React.JSX.Element {
                     className={input}
                     value={maxDevices}
                     onChange={(e) => setMaxDevices(e.target.value)}
-                    placeholder="1"
+                    placeholder="Ex. : 1 (vide = 1 poste)"
                     inputMode="numeric"
                   />
                 </div>
@@ -1129,7 +1216,7 @@ export function ManagerApp(): React.JSX.Element {
               {duration === "custom" ? (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <span className={label}>Début (AAAA-MM-JJ)</span>
+                    <span className={label}>Début</span>
                     <input
                       type="date"
                       className={input}
@@ -1138,7 +1225,7 @@ export function ManagerApp(): React.JSX.Element {
                     />
                   </div>
                   <div>
-                    <span className={label}>Fin (AAAA-MM-JJ)</span>
+                    <span className={label}>Fin</span>
                     <input
                       type="date"
                       className={input}
@@ -1149,17 +1236,21 @@ export function ManagerApp(): React.JSX.Element {
                 </div>
               ) : null}
               <div>
-                <span className={label}>Empreinte matérielle client (64 hex) *</span>
+                <span className={label}>Empreinte matérielle (64 caractères hexadécimaux) *</span>
                 <input
                   className={input + " font-mono"}
                   value={fingerprint}
+                  required
+                  aria-required="true"
                   onChange={(e) => setFingerprint(e.target.value)}
-                  placeholder="a1b2…"
-                  aria-label="Empreinte matérielle"
+                  placeholder="64 caractères hexadécimaux (ex. : a1b2…f9)"
+                  aria-label="Empreinte matérielle (64 caractères hexadécimaux)"
                 />
                 {fingerprint.trim() !== "" ? (
                   <p className={`mt-1 text-xs ${fpValid ? "text-emerald-300" : "text-red-300"}`}>
-                    {fpValid ? "Empreinte valide." : "64 caractères hexadécimaux attendus."}
+                    {fpValid
+                      ? "Empreinte valide."
+                      : "Empreinte invalide : 64 caractères hexadécimaux (0-9, a-f) attendus."}
                   </p>
                 ) : null}
               </div>
@@ -1169,13 +1260,13 @@ export function ManagerApp(): React.JSX.Element {
                   checked={deviceBinding}
                   onChange={(e) => setDeviceBinding(e.target.checked)}
                 />
-                Lier à l&apos;appareil (désactivé = licence flottante)
+                Lier à cet appareil (décoché = licence flottante)
               </label>
             </section>
 
             <section className="space-y-2">
               <h3 className={sectionTitle}>
-                Page access ({pages.length}/{PAGES.length})
+                Pages autorisées ({pages.length}/{PAGES.length})
               </h3>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm md:grid-cols-3">
                 {PAGES.map((p) => (
@@ -1193,7 +1284,7 @@ export function ManagerApp(): React.JSX.Element {
 
             <section className="space-y-2">
               <h3 className={sectionTitle}>
-                Feature access ({features.length}/{FEATURES.length})
+                Fonctions autorisées ({features.length}/{FEATURES.length})
               </h3>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm md:grid-cols-3">
                 {FEATURES.map((f) => (
@@ -1210,16 +1301,16 @@ export function ManagerApp(): React.JSX.Element {
             </section>
 
             <div>
-              <span className={label}>Notes internes</span>
+              <span className={label}>Notes internes (non exportées)</span>
               <input
                 className={input}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Optionnel"
+                placeholder="Facultatif — ex. : client préférentiel"
               />
             </div>
             <button type="button" disabled={busy} onClick={() => void create()} className={btn}>
-              Générer la licence
+              Créer la licence
             </button>
           </div>
         )}

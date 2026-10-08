@@ -29,9 +29,42 @@ describe("Preload bridge shape", () => {
   });
 
   it("uses every Zod validator", () => {
-    const validators = read("electron/ipc/validators.ts");
-    const registry = read("electron/ipc/registry.ts");
-    const printing = read("electron/printing/printing.service.ts");
+    const ipcDir = "electron/ipc";
+    const validatorFiles = [
+      "validators.ts",
+      "validators.common.ts",
+      "validators.catalog.ts",
+      "validators.customers.ts",
+      "validators.sales.ts",
+      "validators.documents.ts",
+      "validators.finance.ts",
+      "validators.stock.ts",
+      "validators.settings.ts",
+      "validators.print.ts",
+      "validators.templates.ts",
+    ];
+    const validators = validatorFiles.map((f) => read(`${ipcDir}/${f}`)).join("\n");
+    const registryFiles = [
+      "electron/ipc/registry.ts",
+      "electron/ipc/registry.core.ts",
+      "electron/ipc/registry.recovery.ts",
+      "electron/ipc/registry.catalog.ts",
+      "electron/ipc/registry.sales.ts",
+      "electron/ipc/registry.customers.ts",
+      "electron/ipc/registry.finance.ts",
+      "electron/ipc/registry.stock.ts",
+      "electron/ipc/registry.documents.ts",
+      "electron/ipc/registry.system.ts",
+      "electron/ipc/handle.ts",
+      "electron/ipc/credit-gates.ts",
+    ];
+    const registry = registryFiles.map(read).join("\n");
+    // Decoupage printing.service : l'union des modules printing porte les schemas.
+    const printingFiles = fs
+      .readdirSync(path.join(root, "electron/printing"))
+      .filter((f) => f.endsWith(".ts"))
+      .map((f) => `electron/printing/${f}`);
+    const printing = printingFiles.map(read).join("\n");
     const backup = read("electron/backup/backup.service.ts");
     const ocr = read("electron/ocr/ocr.service.ts");
     const names = [...validators.matchAll(/export const (\w+Schema)/g)].map((m) => m[1] ?? "");
@@ -61,6 +94,8 @@ describe("Preload bridge shape", () => {
       "cartLineSchema",
       "printFormatSchema",
       "paymentTicketFormatSchema",
+      "templateDocTypeSchema",
+      "templatePaperSchema",
     ]);
     for (const n of names) {
       if (nested.has(n)) continue;

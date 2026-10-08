@@ -1,0 +1,53 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  // Veloria PoS — Offline-first retail POS (Windows, French, DZD).
+  // Source of truth for agent rules: AGENTS.md (11 rules).
+  "formatter": true,
+  "permissions": [
+    {
+      "action": "edit",
+      "resource": "database/migrations/*",
+      "effect": "ask",
+    },
+    {
+      "action": "shell",
+      "resource": "*.sqlite*",
+      "effect": "ask",
+    },
+    {
+      "action": "shell",
+      "resource": "*--help*",
+      "effect": "allow",
+    },
+  ],
+  "mcp": {
+    "servers": {
+      "context7": {
+        "type": "remote",
+        "url": "https://mcp.context7.com/mcp",
+      },
+      "playwright": {
+        "type": "local",
+        "command": ["npx", "-y", "@playwright/mcp@latest"],
+      },
+      "github": {
+        "type": "remote",
+        "url": "https://api.githubcopilot.com/mcp/readonly",
+      },
+      "figma": {
+        "type": "remote",
+        "url": "https://mcp.figma.com/mcp",
+      },
+    },
+  },
+  "references": {
+    "docs": {
+      "path": "./docs",
+      "description": "Veloria ADRs and phase reports — product behavior and terminology",
+    },
+    "migrations": {
+      "path": "./database/migrations",
+      "description": "Immutable SQL migrations — never edit an applied file, always add a NEW numbered migration",
+    },
+  },
+}

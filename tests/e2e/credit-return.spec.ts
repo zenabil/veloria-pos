@@ -51,7 +51,7 @@ test("vente à crédit : reste impayé avec client autorisé", async () => {
   const product = `Credit${tag}`;
   await createProduct(product, "100", "50");
   const client = await createCreditClient(`E2Ecli${tag}`, `Nom${tag}`);
-  await gotoModule(page, "Vente");
+  await gotoModule(page, "Caisse");
   await page.getByLabel("Rechercher un client", { exact: true }).fill(`E2Ecli${tag}`);
   await page
     .getByRole("button", { name: new RegExp(client) })
@@ -63,7 +63,7 @@ test("vente à crédit : reste impayé avec client autorisé", async () => {
     .getByRole("button", { name: new RegExp(product) })
     .first()
     .click();
-  await page.getByRole("button", { name: "Encaisser [F10]" }).click();
+  await page.getByRole("button", { name: "Encaisser", exact: true }).click();
   // Paiement partiel : 50 sur 100 → reste à crédit.
   await settlePayment(page, "50", true);
   const toast = await readSuccessToast(page, /Vente .* enregistrée/);
@@ -75,14 +75,14 @@ test("retour client : remboursement partiel depuis une facture", async () => {
   const tag = uniqueTag("E2E");
   const product = `Retour${tag}`;
   await createProduct(product, "100", "50");
-  await gotoModule(page, "Vente");
+  await gotoModule(page, "Caisse");
   await page.getByLabel("Recherche produit", { exact: true }).fill(product);
   await page
     .getByRole("button", { name: new RegExp(product) })
     .first()
     .click();
   await page.getByRole("button", { name: `Augmenter ${product}` }).click();
-  await page.getByRole("button", { name: "Encaisser [F10]" }).click();
+  await page.getByRole("button", { name: "Encaisser", exact: true }).click();
   await settlePayment(page, "200", false);
   const toast = await readSuccessToast(page, /Vente .* enregistrée/);
   const invoice = /FAC-\S+/.exec(toast)?.[0] ?? "";

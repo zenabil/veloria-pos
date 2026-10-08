@@ -1,0 +1,106 @@
+# Veloria POS — Index unique de la documentation
+
+> Point d entree unique. Les decisions structurantes vivent en `ADR-*.md`,
+> l avancement en `reports/PHASE_*.md`. Ne jamais ecrire de rapport a la racine.
+> Conventions : `AGENTS.md` + `docs/STRUCTURE.md` (carte maintenance).
+
+## Decisions (ADR-001 a ADR-070 — tous saries, jamais supprimes)
+
+- [ADR-001](./ADR-001-vite-renderer.md) Renderer Vite
+- [ADR-002](./ADR-002-native-versions.md) Versions natives
+- [ADR-003](./ADR-003-database-location-backup.md) Base + backup
+- [ADR-004](./ADR-004-phases-6-9-slices.md) Tranches Phases 6-9
+- [ADR-005](./ADR-005-runtime-packaging-fixes.md) Runtime + packaging
+- [ADR-006](./ADR-006-bundled-preload.md) Preload bundle
+- [ADR-007](./ADR-007-audit-deviations.md) Ecarts d audit
+- [ADR-008](./ADR-008-credit-allowed.md) Vente a credit
+- [ADR-009](./ADR-009-suppliers-page.md) Fournisseurs
+- [ADR-010](./ADR-010-stock-page.md) Stock
+- [ADR-011](./ADR-011-history-page.md) Historique
+- [ADR-012](./ADR-012-returns-page.md) Retours
+- [ADR-013](./ADR-013-document-layouts.md) Documents
+- [ADR-014](./ADR-014-expenses-page.md) Depenses
+- [ADR-015](./ADR-015-debts-page.md) Dettes
+- [ADR-016](./ADR-016-four-pages.md) Rapports, proformas, zakat, pain
+- [ADR-017](./ADR-017-settings-page.md) Parametres
+- [ADR-018](./ADR-018-cleanup-financial-integrity.md) Integrite financiere
+- [ADR-019](./ADR-019-reception-pain-dettes-settings.md) Reception + pain + dettes
+- [ADR-020](./ADR-020-database-startup-failure.md) Echec base au demarrage
+- [ADR-021](./ADR-021-fifo-cost-layers.md) FIFO
+- [ADR-022](./ADR-022-ocr-local-stock.md) OCR local
+- [ADR-023](./ADR-023-offline-release.md) Distribution offline
+- [ADR-024](./ADR-024-radical-fixes-p01-p15.md) Correctifs P01-P15
+- [ADR-025](./ADR-025-offline-licensing.md) Licence offline
+- [ADR-026](./ADR-026-license-capabilities.md) Capabilities
+- [ADR-027](./ADR-027-credit-revocation.md) Revocation credit
+- [ADR-028](./ADR-028-money-safety-boundary.md) Securite monetaire
+- [ADR-029](./ADR-029-root-layout-cleanup.md) Racine
+- [ADR-030](./ADR-030-radical-repair.md) Reparation P0-P5
+- [ADR-031](./ADR-031-radical-cleanup-2026-09-22.md) Nettoyage 2026-09-22
+- [ADR-032](./ADR-032-single-step-reset-payment-ticket-2026-09-23.md) Encaissement 1 etape
+- [ADR-033](./ADR-033-stitch-industrial-dark.md) Stitch Industrial Dark
+- [ADR-034](./ADR-034-license-pages-db-writable.md) Licence + base inscriptible
+- [ADR-035](./ADR-035-stitch-headers-kpi-wave.md) Stitch headers + KPI
+- [ADR-036](./ADR-036-stitch-wave-2.md) Stitch vague 2
+- [ADR-037](./ADR-037-deep-audit-zero-lies.md) Audit profond
+- [ADR-038](./ADR-038-strict-audit.md) Audit strict
+- [ADR-039](./ADR-039-dashboard-phases.md) Dashboard
+- [ADR-040](./ADR-040-sidebar-groups-vigilance.md) Sidebar + vigilance
+- [ADR-041](./ADR-041-ocr-review-ergonomics.md) OCR relecture
+- [ADR-042](./ADR-042-radical-repair-2026-09-28.md) Reparation 2026-09-28
+- [ADR-043](./ADR-043-radical-repair-2026-09-28-b.md) Reparation 2026-09-28-b
+- [ADR-044](./ADR-044-radical-repair-2026-09-29.md) Reparation 2026-09-29
+- [ADR-045](./ADR-045-print-bw-qr-tva.md) Impression N&B + QR + TVA
+- [ADR-046](./ADR-046-thermal-labels-logistics.md) Thermique + etiquettes
+- [ADR-047](./ADR-047-client360-supplier-backup.md) Client 360 + backup
+- [ADR-048](./ADR-048-cleanup-guards.md) Nettoyage + gardes
+- [ADR-049](./ADR-049-payment-receipt-360-print.md) Recu + 360 + print
+- [ADR-050](./ADR-050-barcode-packaging.md) Barcode + packaging
+- [ADR-051](./ADR-051-apk-bilingue-exception.md) Exception bilingue APK
+- [ADR-052](./ADR-052-client-repo-layout.md) Chantier client
+- [ADR-053](./ADR-053-client-mirror-supabase.md) Miroir Supabase
+- [ADR-054](./ADR-054-activation-qr-scan.md) QR activation
+- [ADR-055](./ADR-055-client-ui-v3-fintech.md) APK V3 fintech
+- [ADR-056](./ADR-056-tamper-parallel-editing.md) Incident TAMPER
+- [ADR-057](./ADR-057-radical-repair-2026-10-02.md) Reparation 2026-10-02
+- [ADR-058](./ADR-058-repo-organization.md) Organisation repo
+- [ADR-059](./ADR-059-opencode-tooling.md) Outillage OpenCode
+- [ADR-060](./ADR-060-ui-audit-trilingue.md) Audit UI trilingue
+- [ADR-061](./ADR-061-worldclass-cleanup.md) Stabilisation A1
+- [ADR-062](./ADR-062-organisation-2026.md) Organisation 2026
+- [ADR-063](./ADR-063-factures-tickets-c5.md) Factures C5
+- [ADR-064](./ADR-064-print-studio.md) Print Studio C6
+- [ADR-065](./ADR-065-exactitude-affichage.md) Exactitude affichage
+- [ADR-066](./ADR-066-apk-fermeture-lancement.md) APK fermeture
+- [ADR-067](./ADR-067-icone-apk-client.md) Icone APK
+- [ADR-068](./ADR-068-qr-v2-universel.md) QR V2 universel
+- [ADR-069](./ADR-069-invoice-keys-repair.md) Clefs invoice
+- [ADR-070](./ADR-070-sign-and-edit-executables.md) signAndEditExecutable
+
+## Ou ecrire quoi
+
+| Dossier                         | Contenu                                                                            |
+| ------------------------------- | ---------------------------------------------------------------------------------- |
+| `docs/ADR-*.md`                 | Decisions (ce fichier pointe, ne duplique pas)                                     |
+| `docs/reports/PHASE_*.md`       | Avancement canonique                                                               |
+| `docs/reports/maintenance/*.md` | Maintenance poste (scripts et logs en `scripts/maintenance/`)                      |
+| `docs/licensing/`               | Detail licences (17 docs)                                                          |
+| `docs/specs-archive/`           | Spec figee (manifeste local : `specs-archive/INDEX.md`)                            |
+| `docs/archive/`                 | Lecture seule : `root-legacy/` + `stitch/` (manifeste local : `archive/README.md`) |
+| `docs/STRUCTURE.md`             | Carte maintenance (complete cet index, ne le remplace pas)                         |
+
+## Rapports saries
+
+- [AUDIT_REPORT](./reports/AUDIT_REPORT.md)
+- [FINAL_REPAIR_REPORT](./reports/FINAL_REPAIR_REPORT.md)
+- [FULL_PROJECT_QA_AUDIT](./reports/FULL_PROJECT_QA_AUDIT.md)
+- [PHASE_0](./reports/PHASE_0_REPORT.md) … [PHASE_8](./reports/PHASE_8_REPORT.md)
+- [PHASE_9](./reports/PHASE_9_RADICAL_REPAIR_2026-10-02.md)
+- [PHASE_10](./reports/PHASE_10_MONEY_P2_2026-10-02.md)
+- [PHASE_11](./reports/PHASE_11_P2_MATCHING_2026-10-02.md)
+- [PHASE_12](./reports/PHASE_12_P2_SETTINGS_2026-10-02.md)
+- [PHASE_13](./reports/PHASE_13_P2_WIDGETS_2026-10-02.md)
+- [PHASE_CLIENT_V1](./reports/PHASE_CLIENT_V1_REPORT.md)
+- [PHASE_RADICAL_REPAIR](./reports/PHASE_RADICAL_REPAIR_REPORT.md)
+- [RELEASE_NOTES](./reports/RELEASE_NOTES.md)
+- [REPAIR_CHANGELOG](./reports/REPAIR_CHANGELOG.md)

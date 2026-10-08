@@ -169,7 +169,9 @@ export function updateCustomer(args: {
       | undefined;
     if (!exists) throw new Error("Client introuvable.");
     db.prepare(
-      `UPDATE customers SET first_name = ?, last_name = ?, search_name = ?, phone = ?, address = ?, credit_limit_minor = ?, credit_allowed = ?, settlement_day = ?, notes = ?, updated_at = ? WHERE id = ?`,
+      // Plafond modifié → statut recalculé (même règle qu'à la création :
+      // 'none' si solde ≤ 0, 'over_limit' si plafond > 0 dépassé, sinon 'due').
+      `UPDATE customers SET first_name = ?, last_name = ?, search_name = ?, phone = ?, address = ?, credit_limit_minor = ?, credit_allowed = ?, settlement_day = ?, notes = ?, debt_status = CASE WHEN outstanding_balance_minor <= 0 THEN 'none' WHEN ? > 0 AND outstanding_balance_minor > ? THEN 'over_limit' ELSE 'due' END, is_over_limit = CASE WHEN ? > 0 AND outstanding_balance_minor > ? THEN 1 ELSE 0 END, updated_at = ? WHERE id = ?`,
     ).run(
       args.firstName.trim(),
       args.lastName.trim(),
@@ -180,6 +182,10 @@ export function updateCustomer(args: {
       args.creditAllowed ? 1 : 0,
       args.settlementDay,
       args.notes?.trim() || null,
+      args.creditLimitMinor,
+      args.creditLimitMinor,
+      args.creditLimitMinor,
+      args.creditLimitMinor,
       args.now,
       args.id,
     );

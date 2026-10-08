@@ -7,7 +7,7 @@ import { randomUUID } from "node:crypto";
 
 type Db = {
   prepare(sql: string): {
-    run(...p: unknown[]): { changes: number; lastInsertRowid: number | bigint };
+    run(...p: unknown[]): { changes: number | bigint; lastInsertRowid: number | bigint };
     get(...p: unknown[]): unknown;
     all(...p: unknown[]): unknown[];
   };
@@ -70,9 +70,13 @@ function event(db: Db, rowId: number, name: string, details: unknown, now: strin
 
 export function listLicenses(db: Db, query: string): { rows: LicenseRow[]; total: number } {
   const q = query.trim();
-  const where = q ? `WHERE customer_ref LIKE ? ESCAPE '\\' OR license_id LIKE ? ESCAPE '\\'` : "";
+  // #40 : le placeholder promet (référence, identifiant, magasin) — le WHERE
+  // couvre les trois (jamais de promesse de recherche mensongère).
+  const where = q
+    ? `WHERE customer_ref LIKE ? ESCAPE '\\' OR license_id LIKE ? ESCAPE '\\' OR store_name LIKE ? ESCAPE '\\'`
+    : "";
   const like = `%${q.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
-  const params: unknown[] = q ? [like, like] : [];
+  const params: unknown[] = q ? [like, like, like] : [];
   const total = (
     db.prepare(`SELECT COUNT(*) AS c FROM licenses ${where}`).get(...params) as { c: number }
   ).c;
@@ -161,7 +165,7 @@ export function rebindFingerprint(db: Db, id: number, fingerprint: string, now: 
   const r = db
     .prepare(`UPDATE licenses SET hardware_fingerprint = ?, updated_at = ? WHERE id = ?`)
     .run(fingerprint.toLowerCase(), now, id);
-  if (r.changes === 0) throw new Error("Licence introuvable.");
+  if (Number(r.changes) === 0) throw new Error("Licence introuvable.");
 }
 
 /** Échéance = date de début + N mois calendaires (jour clampé fin de mois). */

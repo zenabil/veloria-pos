@@ -434,7 +434,16 @@ export function saveZakatCalculation(args: ZakatCalculationInput): { id: number 
       args.liabilitiesMinor,
   );
   const zakat =
-    net >= args.nisabMinor && args.nisabMinor > 0 ? Math.round((net * args.ratePercent) / 100) : 0;
+    net >= args.nisabMinor && args.nisabMinor > 0
+      ? (() => {
+          if (!Number.isSafeInteger(net) || net < 0 || net > 100_000_000_000)
+            throw new Error("Assiette nette invalide.");
+          const out = Math.round((net * args.ratePercent) / 100);
+          if (!Number.isSafeInteger(out) || out < 0 || out > 100_000_000_000)
+            throw new Error("Montant de zakat invalide.");
+          return out;
+        })()
+      : 0;
   // P8: calcul tracé (reporting financier).
   const txz = db.transaction(() => {
     claimIdempotency(args.operationId, "zakat.save", args.now);

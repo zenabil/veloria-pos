@@ -30,8 +30,9 @@ const SCAN_DIRS = [
   "dist",
   "dist-electron",
   // BL-04: manager + migrations + tests (clés .vlic/DB jamais scannées).
-  // NOTE: private/ exclu volontairement — domicile prévu de la clé vendor
-  // (gitignoré, jamais empaqueté) ; le scanner la signalerait à tort.
+  // RADICAL (#23) : AUCUNE exclusion — private/ (domicile clé vendor) et
+  // .opencode/ sont scannés comme tout le reste (les rapports de maintenance
+  // vivent sous docs/, déjà couvert ci-dessous).
   "license-manager",
   "database",
   "tests",
@@ -45,7 +46,12 @@ const SCAN_DIRS = [
   "dist-license-manager",
   "dist-license-manager-renderer",
   "release",
-  "stitch_veloria_client_mobile_app",
+  "docs/archive/stitch/stitch_veloria_client_mobile_app",
+  // RADICAL (#23, #38) : arbres historiquement exclus — aucun angle mort.
+  // (maintenance-reports/ a déménagé sous docs/reports/maintenance/, déjà
+  // couvert par "docs" ; .opencode/ reste adressable — outillage vivant.)
+  "private",
+  ".opencode",
 ];
 const TEXT_EXT = new Set([
   ".ts",
@@ -68,6 +74,10 @@ const TEXT_EXT = new Set([
   ".sql",
   ".sqlite",
   ".vposdb",
+  // RADICAL (#23) : journaux et scripts opérateur scannés (secrets collés
+  // dans un .log ou une clé codée en dur dans un .ps1).
+  ".log",
+  ".ps1",
 ]);
 
 // Motifs assemblés par concaténation : le token complet n'apparaît jamais en
@@ -122,8 +132,21 @@ for (const e of fs.readdirSync(root, { withFileTypes: true })) {
   if (isScanned(e.name)) files.push(path.join(root, e.name));
 }
 
+// Domicile légitime unique de la clé vendor (gitignoré, jamais empaqueté —
+// voir electron-builder.yml : seul resources/license/public.key est livré).
+// keygen.mjs la crée ici, sign-integrity.mjs la lit ici : la signaler comme
+// « fichier interdit » rendait `package` impossible sur machine vendor.
+// Tout autre private.key reste interdit (contrôle n°2 ci-dessous).
+const VENDOR_DOMICILE = new Set(
+  [
+    path.join("private", "vendor-keys", "private.key"),
+    path.join("private", "vendor-keys", "public.key"),
+  ].map((p) => path.join(root, p)),
+);
+
 // 1. Contenu interdit.
 for (const f of files) {
+  if (VENDOR_DOMICILE.has(f)) continue;
   let text = "";
   try {
     text = fs.readFileSync(f, "utf8");
@@ -140,6 +163,7 @@ for (const f of files) {
 // FORBIDDEN_FILES est déclaré en tête (isScanned) : `.env` n'a pas
 // d'extension, il fallait l'ajouter à la collecte AVANT ce contrôle.
 for (const f of files) {
+  if (VENDOR_DOMICILE.has(f)) continue;
   const base = path.basename(f);
   if (FORBIDDEN_FILES.includes(base)) FAIL.push(`${path.relative(root, f)} :: fichier interdit`);
   if (f.endsWith(".map")) FAIL.push(`${path.relative(root, f)} :: source map en build`);

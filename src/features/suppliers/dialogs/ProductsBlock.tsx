@@ -117,7 +117,7 @@ export function SupplierProductsBlock({
                 onClick={() => void unlink(p.id)}
                 disabled={busy}
                 aria-label={`Délier ${p.name}`}
-                title="Délier"
+                title="Délier le produit"
                 className="shrink-0 rounded-lg px-2 py-1 text-xs font-semibold text-slate-400 transition-colors hover:bg-red-500/15 hover:text-red-300 disabled:opacity-50"
               >
                 ✕

@@ -70,15 +70,39 @@ app.whenReady().then(() => {
     if (!curExists) throw new Error("Base actuelle introuvable.");
 
     fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.copyFileSync(current, target);
-    for (const suffix of ["-wal", "-shm", "-journal"]) {
-      const src = `${current}${suffix}`;
+    // WAL actif : wal_checkpoint(TRUNCATE) rabat les frames dans le fichier
+    // principal AVANT toute copie — copier main + -wal séparément est une
+    // course. Base lecture-seule (cas nominal ici) : checkpoint impossible,
+    // on copie ALORS les compagnons, et tout échec devient fatal (un -wal
+    // abandonné silencieusement = transactions perdues malgré un probe vert).
+    let collapsed = false;
+    let ck = null;
+    try {
+      ck = new Database(current, { fileMustExist: true });
+      const row = ck.prepare("PRAGMA wal_checkpoint(TRUNCATE)").get();
+      if (row && Number(row.busy) === 0) collapsed = true;
+    } catch {
+      collapsed = false; // Lecture seule : repli copie stricte des compagnons.
+    } finally {
       try {
-        if (fs.existsSync(src) && fs.statSync(src).size > 0) {
-          fs.copyFileSync(src, `${target}${suffix}`);
-        }
+        if (ck) ck.close();
       } catch {
-        /* compagnon illisible : copie principale conservée */
+        /* ignore */
+      }
+    }
+    fs.copyFileSync(current, target);
+    if (!collapsed) {
+      for (const suffix of ["-wal", "-shm", "-journal"]) {
+        const src = `${current}${suffix}`;
+        if (fs.existsSync(src) && fs.statSync(src).size > 0) {
+          try {
+            fs.copyFileSync(src, `${target}${suffix}`);
+          } catch (err) {
+            throw new Error(
+              `Compagnon ${suffix} illisible : déplacement annulé (${err instanceof Error ? err.message : String(err)}).`,
+            );
+          }
+        }
       }
     }
     // Contrôle readonly miroir de verifyDbFileCopy (jamais la connexion principale).

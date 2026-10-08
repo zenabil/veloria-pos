@@ -5,6 +5,7 @@ import { Search } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 
 import { newOperationId } from "@domain/common/ids.ts";
+import { buildAdjustStockPayload } from "@/application/stock/adjust-stock.ts";
 
 import {
   adjustmentReasonCode,
@@ -73,7 +74,10 @@ export function StockAdjustmentDialog({
         .then((res) => {
           setResults((res as { rows: PickRow[] }).rows);
         })
-        .catch(() => setResults([]));
+        .catch((err: unknown) => {
+          console.error("[Veloria] ajustement : recherche produit illisible", err);
+          setResults([]);
+        });
     });
   }
 
@@ -102,41 +106,38 @@ export function StockAdjustmentDialog({
       notify("Quantité invalide (0 – 1 000 000).", "err");
       return;
     }
-    let target: number;
+    // Slice stock : la charge `stock.adjust` est construite par le use-case
+    // applicatif (mêmes règles, mêmes messages — aucun changement de comportement).
+    const prefix = adjustmentReasonFr(
+      adjustmentReasonCode(toKind, kind === "inventory" ? "inventory" : "adjust"),
+    );
+    let payload: {
+      operationId: string;
+      productId: number;
+      newQuantity: number;
+      reason: string;
+      reference: string | null;
+    };
     try {
-      target = computeAdjustmentNewStock({
+      payload = buildAdjustStockPayload({
+        productId: picked.id,
         currentQty: picked.quantity,
         kind: toKind,
         quantity: qty,
+        reasonPrefix: prefix,
+        reason,
+        notes,
+        reference,
+        operationId: newOperationId(),
       });
     } catch (e) {
       notify(frError(e, "Ajustement invalide."), "err");
       return;
     }
-    if (reason.trim().length < 2) {
-      notify("Motif requis (2 lettres min.).", "err");
-      return;
-    }
-    if (notes.trim().length > 500) {
-      notify("Notes trop longues (500 max).", "err");
-      return;
-    }
-    const prefix = adjustmentReasonFr(
-      adjustmentReasonCode(toKind, kind === "inventory" ? "inventory" : "adjust"),
-    );
-    const fullReason =
-      notes.trim() === ""
-        ? `${prefix} : ${reason.trim()}`
-        : `${prefix} : ${reason.trim()} — ${notes.trim()}`;
+    const target = payload.newQuantity;
     setBusy(true);
     try {
-      await api.stockAdjust({
-        operationId: newOperationId(),
-        productId: picked.id,
-        newQuantity: target,
-        reason: fullReason,
-        reference: reference.trim() === "" ? null : reference.trim(),
-      });
+      await api.stockAdjust(payload);
       notify(`Stock ajusté : ${picked.name} → ${target}.`, "ok");
       // P5 : ajustement validé = succès.
       playSound("success");
@@ -297,7 +298,7 @@ export function StockAdjustmentDialog({
           <TextArea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Détail libre…"
+            placeholder="Précisez le motif…"
             aria-label="Notes"
           />
         </Field>

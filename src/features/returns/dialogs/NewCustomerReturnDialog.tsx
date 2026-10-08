@@ -220,7 +220,10 @@ export function CustomerReturnDialog({
               </thead>
               <tbody>
                 {parsed.map((l, i) => (
-                  <tr key={i} className="border-t border-white/[0.06]">
+                  <tr
+                    key={`${l.product_id ?? "x"}-${l.product_name_snapshot}`}
+                    className="border-t border-white/[0.06]"
+                  >
                     <td className="max-w-[180px] truncate px-3 py-2">{l.product_name_snapshot}</td>
                     <td className="px-3 py-2 text-right tabular-nums text-slate-400">
                       {l.quantity} <span className="text-[11px]">(restant {l.eligible})</span>
@@ -331,7 +334,7 @@ export function CustomerReturnDialog({
             <TextInput
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Détail libre…"
+              placeholder="Précisez le motif…"
               aria-label="Notes"
             />
           </Field>

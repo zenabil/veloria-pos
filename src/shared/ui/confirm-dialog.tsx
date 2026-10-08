@@ -60,7 +60,11 @@ export function ConfirmProvider({ children }: { children: ReactNode }): React.JS
     <ConfirmContext.Provider value={confirm}>
       {children}
       {pending ? (
-        <Modal label="Confirmation" title="Confirmation" onClose={() => settle(false)}>
+        <Modal
+          label="Confirmation requise"
+          title="Confirmer l'action"
+          onClose={() => settle(false)}
+        >
           <p className="text-sm leading-relaxed whitespace-pre-line text-slate-200">
             {pending.message}
           </p>

@@ -5,7 +5,7 @@
 // double-clic rejoue le même UUID et retrouve le résultat, jamais de doublon).
 // Aucune écriture financière ici : les soldes viennent des ventes/paiements.
 
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, pbkdf2Sync, randomBytes, randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
 import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./idempotency";
 
@@ -49,6 +49,32 @@ export function sha256Hex(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
 
+/**
+ * Dérivation PIN lente (#39) — MIROIR du domaine
+ * (`src/domain/customer/client-access.ts`, PIN_KDF_*) : mêmes paramètres que
+ * la vérification Edge et le relais E2E (tout écart = test contrat rouge).
+ * `phone_hash` reste SHA-256 déterministe (clé de recherche) ; seul le
+ * condensat du PIN (secret humain 10^6) est durci.
+ */
+export const PIN_KDF_ALGO = "pbkdf2-sha256-100k";
+export const PIN_KDF_ITERATIONS = 100_000;
+export const PIN_KDF_KEYLEN_BYTES = 32;
+export const PIN_KDF_SALT_BYTES = 16;
+
+export function newPinSaltHex(): string {
+  return randomBytes(PIN_KDF_SALT_BYTES).toString("hex");
+}
+
+export function pbkdf2PinHex(pin: string, saltHex: string): string {
+  return pbkdf2Sync(
+    pin,
+    Buffer.from(saltHex, "hex"),
+    PIN_KDF_ITERATIONS,
+    PIN_KDF_KEYLEN_BYTES,
+    "sha256",
+  ).toString("hex");
+}
+
 /** Code QR opaque à usage unique (32 hex, dans la borne du domaine 16..128). */
 export function newActivationCode(): string {
   return randomUUID().replace(/-/g, "");
@@ -62,6 +88,9 @@ export function newActivationCode(): string {
  */
 export const ACTIVATION_QR_PREFIX = "VELORIA1";
 
+/** Préfixe V2 (ADR-068) — miroir du use-case applicatif (même format, mêmes bornes). */
+export const ACTIVATION_QR_PREFIX_V2 = "VELORIA2";
+
 export function buildActivationQrPayload(phone: string, pin: string, code: string): string {
   const p = phone.trim();
   if (p.length < 1 || p.length > 30 || p.includes("|")) {
@@ -72,13 +101,66 @@ export function buildActivationQrPayload(phone: string, pin: string, code: strin
   return `${ACTIVATION_QR_PREFIX}|${p}|${pin}|${code}`;
 }
 
+function jwtRoleOf(key: string): string | null {
+  const parts = key.split(".");
+  if (parts.length !== 3) return null;
+  try {
+    const b64 = (parts[1] ?? "").replace(/-/g, "+").replace(/_/g, "/");
+    const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+    const json = Buffer.from(padded, "base64").toString("utf8");
+    const obj = JSON.parse(json) as { role?: unknown };
+    return typeof obj.role === "string" ? obj.role : null;
+  } catch {
+    return null;
+  }
+}
+
+function assertValidSupabaseUrlMain(url: string): void {
+  const u = url.trim();
+  const isCloud = /^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(u);
+  const isLoopback = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?\/?$/i.test(u);
+  if ((!isCloud && !isLoopback) || u.includes("|")) {
+    throw new Error("URL Supabase invalide (https://xxx.supabase.co).");
+  }
+}
+
+function assertValidAnonKeyMain(key: string): void {
+  const k = key.trim();
+  if (k.length < 20 || k.length > 500 || !/^[A-Za-z0-9-_.=]+$/.test(k) || k.includes("|")) {
+    throw new Error("Clé anon invalide.");
+  }
+  if (jwtRoleOf(k) === "service_role") {
+    throw new Error("Clé service interdite dans le QR (anon uniquement).");
+  }
+}
+
+/** Charge QR V2 (ADR-068) — miroir du use-case applicatif. */
+export function buildActivationQrPayloadV2(
+  supabaseUrl: string,
+  anonKey: string,
+  phone: string,
+  pin: string,
+  code: string,
+): string {
+  assertValidSupabaseUrlMain(supabaseUrl);
+  assertValidAnonKeyMain(anonKey);
+  const p = phone.trim();
+  if (p.length < 1 || p.length > 30 || p.includes("|")) {
+    throw new Error("Téléphone invalide pour le QR (1 à 30 caractères, sans |).");
+  }
+  if (!/^[0-9]{6}$/.test(pin)) throw new Error("Code PIN invalide (6 chiffres).");
+  if (!/^[A-Za-z0-9_-]{16,128}$/.test(code)) throw new Error("Code d'activation invalide.");
+  return `${ACTIVATION_QR_PREFIX_V2}|${supabaseUrl.trim()}|${anonKey.trim()}|${p}|${pin}|${code}`;
+}
+
 /**
  * SVG N&B du QR d'activation (ADR-054) — même moteur `qrcode` que l'impression.
  * Lecture seule, meilleur effort : échec → "" (le renderer garde le code texte).
  * Le PIN transite ici en clair sur le pont local uniquement (jamais stocké/loggé).
  */
 export function buildActivationQrSvg(payload: string): string {
-  if (typeof payload !== "string" || payload.length < 1 || payload.length > 300) return "";
+  // V2 (ADR-068) ~350 caractères : plafond 800, seuil inchangé sinon.
+  if (typeof payload !== "string" || payload.length < 1 || payload.length > 800) return "";
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const mod = require("qrcode") as {
@@ -184,13 +266,18 @@ export function activateClientAccessAtomic(args: {
     if (reused) {
       throw new Error("Ce numéro de téléphone est déjà activé pour un autre client.");
     }
+    // #39 : PIN durci (PBKDF2 + sel par client). phone_hash reste SHA-256
+    // déterministe (clé de recherche) ; pin_hash = dérivation lente.
+    const pinSalt = newPinSaltHex();
     db.prepare(
-      `INSERT INTO customer_access (customer_id, phone_hash, pin_hash, qr_secret_hash, revoked_at, failed_attempts, locked_until, created_at, updated_at)
-       VALUES (?, ?, ?, ?, NULL, 0, NULL, ?, ?)`,
+      `INSERT INTO customer_access (customer_id, phone_hash, pin_hash, pin_salt, pin_algo, qr_secret_hash, revoked_at, failed_attempts, locked_until, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, NULL, 0, NULL, ?, ?)`,
     ).run(
       args.customerId,
       phoneHash,
-      sha256Hex(args.pin),
+      pbkdf2PinHex(args.pin, pinSalt),
+      pinSalt,
+      PIN_KDF_ALGO,
       sha256Hex(activationCode),
       args.now,
       args.now,

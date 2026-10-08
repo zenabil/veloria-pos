@@ -1,38 +1,28 @@
 // Veloria Client — États vides + squelettes de chargement (V3).
-// Un écran jamais blanc : squelette qui respire, vide avec icône + conseil.
-import { useEffect, useRef } from "react";
-import { Animated, Text, View } from "react-native";
+// Un écran jamais blanc : squelette statique, vide avec icône + conseil.
+// NOTE crash APK 2026-10-04 : pas de nœud Animated dans les styles
+// (même cause que Tap : Map native au lieu de double) — squelette fixe.
+import { Text, View } from "react-native";
 import type { StyleProp, ViewStyle } from "react-native";
 import { COLORS, RADIUS, SPACE, TYPE, tint } from "../tokens.ts";
 import { IconBubble, type IconName } from "./kit.tsx";
 
-/** Bloc squelette animé (pulsation douce, pas de spinner global). */
+/** Bloc squelette (fixe, jamais d'écran blanc). */
 export function Skeleton(props: {
   height?: number;
   width?: number | `${number}%`;
   radius?: number;
   style?: StyleProp<ViewStyle>;
 }): React.JSX.Element {
-  const pulse = useRef(new Animated.Value(0.45)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 1, duration: 750, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 0.45, duration: 750, useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [pulse]);
   return (
-    <Animated.View
+    <View
       style={[
         {
           height: props.height ?? 18,
           width: props.width ?? "100%",
           borderRadius: props.radius ?? 10,
           backgroundColor: COLORS.border,
-          opacity: pulse,
+          opacity: 0.7,
         },
         props.style,
       ]}
@@ -45,8 +35,22 @@ export function SkeletonList(props: {
   count?: number;
   height?: number;
   style?: StyleProp<ViewStyle>;
+  bare?: boolean;
 }): React.JSX.Element {
   const count = props.count ?? 3;
+  if (props.bare === true) {
+    return (
+      <View style={[{ gap: SPACE.sm }, props.style]}>
+        {Array.from({ length: count }, (_, i) => (
+          <View key={i} style={{ gap: SPACE.sm }}>
+            <Skeleton height={14} width="45%" />
+            <Skeleton height={22} width="70%" />
+            <Skeleton height={12} width="30%" />
+          </View>
+        ))}
+      </View>
+    );
+  }
   return (
     <View style={[{ gap: SPACE.sm }, props.style]}>
       {Array.from({ length: count }, (_, i) => (

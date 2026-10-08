@@ -3,6 +3,13 @@
 import { describe, expect, it } from "vitest";
 import {
   CLIENT_LOCK_MINUTES,
+  PIN_KDF_ALGO,
+  PIN_KDF_DIGEST,
+  PIN_KDF_ITERATIONS,
+  PIN_KDF_KEYLEN_BYTES,
+  PIN_KDF_SALT_BYTES,
+  assertValidAnonKey,
+  assertValidSupabaseUrl,
   isLocked,
   isQrExpired,
   isSessionExpired,
@@ -14,6 +21,7 @@ import {
 import {
   buildClientSnapshot,
   buildActivationQrPayload,
+  buildActivationQrPayloadV2,
   selectDetailSaleIds,
   validateActivation,
   validateAnnouncement,
@@ -79,6 +87,43 @@ describe("charge QR d'activation (ADR-054)", () => {
     expect(clientAccessQrSchema.safeParse({ ...base, pin: "12345" }).success).toBe(false);
     expect(clientAccessQrSchema.safeParse({ ...base, code: "court" }).success).toBe(false);
     expect(clientAccessQrSchema.safeParse({ ...base, phone: "a|b" }).success).toBe(false);
+  });
+});
+
+describe("charge QR V2 universelle (ADR-068)", () => {
+  function b64url(obj: unknown): string {
+    return Buffer.from(JSON.stringify(obj), "utf8")
+      .toString("base64")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/g, "");
+  }
+  function jwt(role: string): string {
+    return `${b64url({ alg: "HS256", typ: "JWT" })}.${b64url({ role })}.sig`;
+  }
+  const ANON = jwt("anon");
+  const SERVICE = jwt("service_role");
+  const URL = "https://abcxyz.supabase.co";
+  it("construit VELORIA2|url|anon|phone|pin|code", () => {
+    expect(buildActivationQrPayloadV2(URL, ANON, "0550123456", "482916", QR)).toBe(
+      `VELORIA2|${URL}|${ANON}|0550123456|482916|${QR}`,
+    );
+  });
+  it("refuse URL piégée, anon courte et service_role", () => {
+    expect(() =>
+      buildActivationQrPayloadV2("http://evil.com", ANON, "0550", "123456", QR),
+    ).toThrow();
+    expect(() => buildActivationQrPayloadV2(URL, "court", "0550", "123456", QR)).toThrow();
+    expect(() => buildActivationQrPayloadV2(URL, SERVICE, "0550", "123456", QR)).toThrow();
+    expect(() => buildActivationQrPayloadV2(URL, ANON, "05|50", "123456", QR)).toThrow();
+  });
+  it("domaine : whitelist URL + garde anon", () => {
+    expect(() => assertValidSupabaseUrl(URL)).not.toThrow();
+    expect(() => assertValidSupabaseUrl("http://evil.com")).toThrow();
+    expect(() => assertValidSupabaseUrl("http://127.0.0.1:8099")).not.toThrow();
+    expect(() => assertValidAnonKey(ANON)).not.toThrow();
+    expect(() => assertValidAnonKey(SERVICE)).toThrow(/service/i);
+    expect(() => assertValidAnonKey("court")).toThrow();
   });
 });
 
@@ -269,5 +314,15 @@ describe("cliché d'affichage", () => {
     expect(() =>
       buildClientSnapshot([sale({ id: 9, total_minor: -5 })], [], [], "2026-09", 0),
     ).toThrow();
+  });
+});
+
+describe("#39 : paramètres canoniques de dérivation PIN (devinette lente)", () => {
+  it("constantes KDF exactes (tout miroir doit s'aligner)", () => {
+    expect(PIN_KDF_ALGO).toBe("pbkdf2-sha256-100k");
+    expect(PIN_KDF_ITERATIONS).toBe(100_000);
+    expect(PIN_KDF_KEYLEN_BYTES).toBe(32);
+    expect(PIN_KDF_SALT_BYTES).toBe(16);
+    expect(PIN_KDF_DIGEST).toBe("SHA-256");
   });
 });

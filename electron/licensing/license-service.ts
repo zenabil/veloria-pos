@@ -13,12 +13,13 @@ import {
   isDeviceBinding,
   licensedPages,
   verifyLicenseChain,
+  type LicenseStanding,
   type LicenseState,
   type SignedLicense,
 } from "./protocol";
 import { normalizeFeatures } from "./catalog";
 import type { PersistedLicenseState, SecureStoreBackend } from "./secure-state";
-import { assertSecureStateIntegrity, buildSecureStateV2 } from "./secure-state";
+import { assertSecureStateIntegrity, buildSecureStateV2, standingRank } from "./secure-state";
 import type { LicenseAnchor } from "./license-anchor";
 import type { IntegrityVerdict } from "./integrity";
 
@@ -115,6 +116,7 @@ function touchActivity(deps: LicenseServiceDeps, stored: PersistedLicenseState, 
       lastSeenUtc: iso,
       lastVerifyUtc: next.lastVerifyUtc,
       monotonicSeq: seq,
+      maxStanding: stored.maxStanding ?? next.envelope.payload.licenseStatus ?? "active",
     });
     deps.saveState(deps.backend, full);
     // Future jump observability (long-off machine vs clock tamper: log only).
@@ -183,6 +185,12 @@ export function getLicenseStatus(deps: LicenseServiceDeps): LicenseStatus {
     stored = deps.loadState(deps.backend);
     // H-3: v2 integrity tag check (manual edit / replacement → CORRUPTED).
     if (stored) assertSecureStateIntegrity(stored);
+    // #31: état v1 legacy REFUSÉ (jamais migré silencieusement : un .dat v1
+    // restauré après coup est un rejeu) — réimport exigé.
+    if (stored && stored.version !== 2) {
+      deps.log("WARN", "license.legacy_v1_rejected", {});
+      return { ...unauthenticated(short), state: "CORRUPTED_STATE" };
+    }
   } catch {
     deps.log("WARN", "license.corrupted_state", {});
     return { ...unauthenticated(short), state: "CORRUPTED_STATE" };
@@ -324,12 +332,75 @@ export function importLicenseEnvelope(deps: LicenseServiceDeps, vlicText: string
     throw new Error("Cette licence est associée à un autre ordinateur.");
   }
   if (chain === "EXPIRED") throw new Error("Cette licence a expiré. Demandez un renouvellement.");
-  if (chain === "REVOKED")
-    throw new Error("Cette licence a été révoquée. Contactez votre fournisseur.");
-  if (chain === "SUSPENDED") {
-    throw new Error("Cette licence est suspendue. Contactez votre fournisseur.");
-  }
   if (chain === "CORRUPTED_STATE") throw new Error("Fichier de licence illisible ou corrompu.");
+  const iso = new Date(now).toISOString();
+  // H-3 v2: preserve firstSeen across re-imports/renewals of the SAME license
+  // (old-license replay after renewal stays detectable); new licenseId resets.
+  // #31 anti-replay de standing : on mémorise la sévérité maximale vue
+  // (revoked > suspended > active) ; un .vlic plus doux qu'un standing déjà
+  // enregistré (ex. actif rejoué après révocation) est refusé.
+  const incomingStanding: LicenseStanding = envelope.payload.licenseStatus ?? "active";
+  let firstSeen = iso;
+  let seq = 1;
+  let maxStanding: LicenseStanding = incomingStanding;
+  try {
+    const prev = deps.loadState(deps.backend);
+    if (prev && storedLicenseId(prev) === envelope.payload.licenseId) {
+      const pFirst = typeof prev.firstSeenUtc === "string" ? prev.firstSeenUtc : null;
+      const pLast = typeof prev.lastSeenUtc === "string" ? prev.lastSeenUtc : null;
+      firstSeen = pFirst ?? pLast ?? iso;
+      seq = (typeof prev.monotonicSeq === "number" ? prev.monotonicSeq : 0) + 1;
+      const prevMax: LicenseStanding =
+        prev.maxStanding ?? prev.envelope.payload.licenseStatus ?? "active";
+      if (standingRank(incomingStanding) < standingRank(prevMax)) {
+        deps.log("WARN", "license.import_replay", {
+          licenseId: envelope.payload.licenseId,
+          incoming: incomingStanding,
+          recorded: prevMax,
+        });
+        throw new Error(
+          prevMax === "revoked"
+            ? "Cette licence a été révoquée. Contactez votre fournisseur."
+            : "Cette licence est suspendue. Contactez votre fournisseur.",
+        );
+      }
+      maxStanding =
+        standingRank(prevMax) >= standingRank(incomingStanding) ? prevMax : incomingStanding;
+    }
+  } catch (err) {
+    // Le refus anti-rejeu remonte tel quel (pas de fresh import silencieux).
+    if (err instanceof Error && /révoquée|suspendue/.test(err.message)) throw err;
+    /* fresh import */
+  }
+  // Révocation/suspension : on PERSISTE le standing (sinon la révocation ne
+  // colle jamais et l'ancien actif reste roi), puis on lève le FR.
+  if (chain === "REVOKED" || chain === "SUSPENDED") {
+    const v2revoked = buildSecureStateV2({
+      envelope,
+      hardwareFingerprint: fp,
+      firstSeenUtc: firstSeen,
+      lastSeenUtc: iso,
+      lastVerifyUtc: iso,
+      monotonicSeq: seq,
+      maxStanding,
+    });
+    deps.saveState(deps.backend, v2revoked);
+    saveAnchorBestEffort(deps, {
+      licenseId: envelope.payload.licenseId,
+      firstSeenUtc: firstSeen,
+      monotonicSeq: seq,
+      hardwareFingerprint: fp,
+      updatedAt: iso,
+    });
+    deps.log("WARN", chain === "REVOKED" ? "license.import_revoked" : "license.import_suspended", {
+      licenseId: envelope.payload.licenseId,
+    });
+    throw new Error(
+      chain === "REVOKED"
+        ? "Cette licence a été révoquée. Contactez votre fournisseur."
+        : "Cette licence est suspendue. Contactez votre fournisseur.",
+    );
+  }
   const integrity = deps.verifyIntegrity(
     key,
     true,
@@ -340,22 +411,6 @@ export function importLicenseEnvelope(deps: LicenseServiceDeps, vlicText: string
     deps.log("ERROR", "license.import_integrity_failed", { verdict: integrity });
     throw new Error("Intégrité de l'application compromise. Réinstallez Veloria POS.");
   }
-  const iso = new Date(now).toISOString();
-  // H-3 v2: preserve firstSeen across re-imports/renewals of the SAME license
-  // (old-license replay after renewal stays detectable); new licenseId resets.
-  let firstSeen = iso;
-  let seq = 1;
-  try {
-    const prev = deps.loadState(deps.backend);
-    if (prev && storedLicenseId(prev) === envelope.payload.licenseId) {
-      const pFirst = typeof prev.firstSeenUtc === "string" ? prev.firstSeenUtc : null;
-      const pLast = typeof prev.lastSeenUtc === "string" ? prev.lastSeenUtc : null;
-      firstSeen = pFirst ?? pLast ?? iso;
-      seq = (typeof prev.monotonicSeq === "number" ? prev.monotonicSeq : 0) + 1;
-    }
-  } catch {
-    /* fresh import */
-  }
   const v2 = buildSecureStateV2({
     envelope,
     hardwareFingerprint: fp,
@@ -363,6 +418,7 @@ export function importLicenseEnvelope(deps: LicenseServiceDeps, vlicText: string
     lastSeenUtc: iso,
     lastVerifyUtc: iso,
     monotonicSeq: seq,
+    maxStanding,
   });
   deps.saveState(deps.backend, v2);
   saveAnchorBestEffort(deps, {
@@ -383,17 +439,6 @@ export function requireLicensedMutation(deps: LicenseServiceDeps, feature?: stri
     if (feature && !st.features.includes(feature)) {
       deps.log("WARN", "license.feature_denied", { feature });
       throw new Error(FEATURE_NOT_LICENSED_MESSAGE);
-    }
-    // H-3: heartbeat via touchActivity (v2 seq + tag + anchor), throttled.
-    // getLicenseStatus above already touched on ACTIVE; refresh here only if
-    // the stored copy is still v1 (migration) — touchActivity handles the rest.
-    try {
-      const stored = deps.loadState(deps.backend);
-      if (stored && stored.version !== 2) {
-        touchActivity(deps, stored, deps.nowMs());
-      }
-    } catch {
-      /* état déjà classé par getLicenseStatus */
     }
     return;
   }

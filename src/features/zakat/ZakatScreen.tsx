@@ -5,6 +5,7 @@ import { Calculator, Download, FileDown, Printer } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { useCompany } from "@shared/company/use-company.ts";
 import { formatDzd } from "@domain/money/money.ts";
+import { formatDateFr } from "@shared/formatters/format.ts";
 import { downloadCsv } from "@shared/export/csv.ts";
 import {
   Badge,
@@ -34,6 +35,7 @@ const PAGE_SIZE = 20;
 export function ZakatScreen({ notify }: { notify: Notify }): React.JSX.Element {
   const [hijriYear, setHijriYear] = useState("1448");
   const [sources, setSources] = useState<ZakatSources | null>(null);
+  const [loading, setLoading] = useState(true);
   const [calcOpen, setCalcOpen] = useState(false);
   const [history, setHistory] = useState<ZakatCalculation[]>([]);
   const [total, setTotal] = useState(0);
@@ -46,11 +48,14 @@ export function ZakatScreen({ notify }: { notify: Notify }): React.JSX.Element {
   const { record: companyRecord } = useCompany();
 
   async function load(): Promise<void> {
+    setLoading(true);
     try {
       const s = (await api.zakatSources()) as ZakatSources;
       setSources(s);
     } catch (e) {
       notify(frError(e, "Chargement impossible."), "err");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -63,8 +68,8 @@ export function ZakatScreen({ notify }: { notify: Notify }): React.JSX.Element {
       setHistory(res.rows);
       setTotal(res.total);
       setPage(p);
-    } catch {
-      /* historique optionnel */
+    } catch (e) {
+      notify(frError(e, "Historique indisponible."), "err");
     }
   }
 
@@ -100,18 +105,22 @@ export function ZakatScreen({ notify }: { notify: Notify }): React.JSX.Element {
       notify("Rien à exporter.", "err");
       return;
     }
-    downloadCsv(
-      `zakat-${new Date().toISOString().slice(0, 10)}.csv`,
-      history.map((h) => ({
-        Date: h.calc_date,
-        "Année hégirienne": h.hijri_year,
-        "Montant zakatable": formatDzd(h.net_minor),
-        Nisab: formatDzd(h.nisab_minor),
-        Zakat: formatDzd(h.zakat_minor),
-        Statut: h.status === "paid" ? "Payée" : "Calculée",
-      })),
-    );
-    notify(`${history.length} ligne(s) exportée(s).`, "ok");
+    try {
+      downloadCsv(
+        `zakat-${new Date().toISOString().slice(0, 10)}.csv`,
+        history.map((h) => ({
+          Date: formatDateFr(h.calc_date),
+          "Année hégirienne": h.hijri_year,
+          "Montant zakatable": formatDzd(h.net_minor),
+          Nisab: formatDzd(h.nisab_minor),
+          Zakat: formatDzd(h.zakat_minor),
+          Règlement: h.status === "paid" ? "Payée" : "Calculée",
+        })),
+      );
+      notify(`${history.length} ligne(s) exportée(s).`, "ok");
+    } catch (e) {
+      notify(frError(e, "Export impossible."), "err");
+    }
   }
 
   async function printLast(): Promise<void> {
@@ -123,7 +132,7 @@ export function ZakatScreen({ notify }: { notify: Notify }): React.JSX.Element {
     try {
       const payload = {
         title: `Rapport Zakat — ${last.hijri_year}`,
-        period: `Calculé le ${last.calc_date.slice(0, 10)}`,
+        period: `Calculé le ${formatDateFr(last.calc_date)}`,
         company: companyRecord?.["company_name"] ?? "Veloria",
         kpis: [
           { label: "Montant zakatable", value: formatDzd(last.net_minor) },
@@ -160,8 +169,8 @@ export function ZakatScreen({ notify }: { notify: Notify }): React.JSX.Element {
     <div className="flex h-full flex-col gap-4">
       {/* En-tête Stitch : Zakat El-Mal & Décharge Annuelle · MODULE 15 · SHARIA */}
       <PageHeader
-        title="Zakat El-Mal & Décharge Annuelle"
-        module="MODULE 15 · CONFORMITÉ CHARIA · REGISTRE SCELLÉ"
+        title="Zakat el-mal et décharge annuelle"
+        module="Module 15 · Conformité charia · Registre scellé"
         period={
           preview_calc && preview_calc.above
             ? `NISAB ATTEINT (SOUMIS) · Zakat exigible ${formatDzd(preview_calc.zakat)} · Reporting annuel ${hijriYear} H`
@@ -195,7 +204,7 @@ export function ZakatScreen({ notify }: { notify: Notify }): React.JSX.Element {
           {sources ? formatDzd(sources.params.nisabMinor) : "—"} (
           {sources ? nisabMethodLabel(sources.params.nisabMethod) : "—"}) · <strong>Taux :</strong>{" "}
           {sources ? `${sources.params.ratePercent} %` : "—"} · <strong>Statut Hawl :</strong>{" "}
-          {sources?.params.hawlDate ?? "—"}
+          {formatDateFr(sources?.params.hawlDate ?? null)}
         </div>
         <span className="text-xs text-slate-500">Réglages : Paramètres → Documents → Zakat</span>
       </Card>
@@ -211,7 +220,7 @@ export function ZakatScreen({ notify }: { notify: Notify }): React.JSX.Element {
         <Kpi
           label="Assiette Nette Zakatable"
           value={formatDzd(net)}
-          sub="Stocks + banques − passif court terme"
+          sub="Stocks + créances − dettes (hors caisse/banque)"
           accent="#cde8ff"
         />
         <Kpi
@@ -290,17 +299,21 @@ export function ZakatScreen({ notify }: { notify: Notify }): React.JSX.Element {
             <Button
               variant="secondary"
               onClick={() => void printLast()}
-              title="Imprimer le dernier"
+              title="Imprimer le dernier calcul"
             >
               <Printer size={15} aria-hidden="true" /> Imprimer
             </Button>
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-auto">
-          {history.length === 0 ? (
+          {loading ? (
+            <p className="p-8 text-center text-sm text-slate-500" role="status">
+              Chargement…
+            </p>
+          ) : history.length === 0 ? (
             <EmptyState
               title="Aucun calcul"
-              hint="Lancez votre premier calcul avec le bouton « Calculer »."
+              hint="Lancez votre premier calcul avec le bouton « Nouvel Exercice »."
             />
           ) : (
             <table className="w-full min-w-[760px] text-sm">
@@ -311,14 +324,14 @@ export function ZakatScreen({ notify }: { notify: Notify }): React.JSX.Element {
                   <th className="px-3 py-2.5 text-right">Montant zakatable</th>
                   <th className="px-3 py-2.5 text-right">Nisab</th>
                   <th className="px-3 py-2.5 text-right">Zakat</th>
-                  <th className="px-3 py-2.5">Statut</th>
+                  <th className="px-3 py-2.5">Seuil</th>
                 </tr>
               </thead>
               <tbody>
                 {history.map((h) => (
                   <tr key={h.id} className="border-t border-white/[0.06]">
                     <td className="whitespace-nowrap px-3 py-2 tabular-nums text-slate-300">
-                      {h.calc_date.slice(0, 10)}
+                      {formatDateFr(h.calc_date)}
                     </td>
                     <td className="px-3 py-2 tabular-nums">{h.hijri_year}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{formatDzd(h.net_minor)}</td>

@@ -65,14 +65,18 @@ export function updateSaleDueDate(
   const db = getDb();
   const fast = peekOptional<{ updated: boolean }>(operationId, "sales.setDueDate");
   if (fast) return;
-  const sale = db.prepare(`SELECT is_cancelled FROM sales WHERE id = ?`).get(id) as
-    | { is_cancelled: number }
-    | undefined;
-  if (!sale) throw new Error("Vente introuvable.");
-  if (sale.is_cancelled === 1) throw new Error("Vente annulée : échéance non modifiable.");
+  // A1-P0 : lecture + écriture DANS la tx avec garde WHERE (TOCTOU annulation
+  // concurrente : une annulation entre SELECT et UPDATE ne doit pas écrire).
   const tx = db.transaction(() => {
     claimOptional(operationId, "sales.setDueDate", now);
-    db.prepare(`UPDATE sales SET due_date = ?, updated_at = ? WHERE id = ?`).run(dueDate, now, id);
+    const sale = db.prepare(`SELECT is_cancelled FROM sales WHERE id = ?`).get(id) as
+      { is_cancelled: number } | undefined;
+    if (!sale) throw new Error("Vente introuvable.");
+    if (sale.is_cancelled === 1) throw new Error("Vente annulée : échéance non modifiable.");
+    const r = db
+      .prepare(`UPDATE sales SET due_date = ?, updated_at = ? WHERE id = ? AND is_cancelled = 0`)
+      .run(dueDate, now, id);
+    if (Number(r.changes) !== 1) throw new Error("Vente annulée : échéance non modifiable.");
     // P8: échéance tracée (pilotage des créances) — audit déterministe.
     db.prepare(
       `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at) VALUES (?, 'sale.due_date', 'sale', ?, ?, ?, ?)`,
@@ -183,8 +187,7 @@ export function createSaleAtomic(input: CreateSaleInput): {
   // transaction : le trigger SQL `trg_sales_credit_allowed` tranche en dernier ressort).
   if (input.remainingMinor > 0) {
     const salesCfg = db.prepare(`SELECT value_json FROM app_settings WHERE key = 'sales'`).get() as
-      | { value_json: string }
-      | undefined;
+      { value_json: string } | undefined;
     let creditOpen = true;
     try {
       if (salesCfg) {
@@ -211,16 +214,25 @@ export function createSaleAtomic(input: CreateSaleInput): {
   }
 
   const tx = db.transaction(() => {
-    // 1. stock availability check (unless explicitly allowed)
+    // 1. stock availability check (unless explicitly allowed) — préchargé en
+    // UNE requête (WHERE id IN) avant la boucle : verrou d'écriture plus court
+    // pour les grands paniers, jamais de SELECT dans le for.
+    const wantedIds = [
+      ...new Set(input.lines.filter((l) => l.productId != null).map((l) => l.productId as number)),
+    ];
+    const qtyById = new Map<number, number>();
+    if (wantedIds.length > 0) {
+      const placeholders = wantedIds.map(() => "?").join(",");
+      const rows = db
+        .prepare(`SELECT id, quantity FROM products WHERE id IN (${placeholders})`)
+        .all(...wantedIds) as { id: number; quantity: number }[];
+      for (const r of rows) qtyById.set(Number(r.id), Number(r.quantity));
+    }
     for (const line of input.lines) {
       if (line.productId != null) {
-        const p = db.prepare(`SELECT quantity FROM products WHERE id = ?`).get(line.productId) as
-          | {
-              quantity: number;
-            }
-          | undefined;
-        if (!p) throw new Error("Produit introuvable.");
-        if (!input.allowNegativeStock && line.quantity > Number(p.quantity)) {
+        const q = qtyById.get(line.productId);
+        if (q === undefined) throw new Error("Produit introuvable.");
+        if (!input.allowNegativeStock && line.quantity > q) {
           throw new Error(`Stock insuffisant pour « ${line.productName} ».`);
         }
       }
@@ -322,13 +334,23 @@ export function createSaleAtomic(input: CreateSaleInput): {
         });
         db.prepare(`UPDATE sale_items SET cogs_minor = ? WHERE id = ?`).run(cogsMinor, saleItemId);
         const avgUnit = line.quantity > 0 ? Math.round(cogsMinor / line.quantity) : 0;
-        const p = db.prepare(`SELECT quantity FROM products WHERE id = ?`).get(line.productId) as {
-          quantity: number;
-        };
-        const after = Number(p.quantity) - line.quantity;
+        // Quantité courante issue du préchargé (mis à jour ligne à ligne) :
+        // aucun SELECT dans la boucle.
+        const cur = qtyById.get(line.productId);
+        if (cur === undefined) throw new Error("Produit introuvable.");
+        const after = cur - line.quantity;
+        // Garde quantité 0037 : même en survente autorisée, un stock négatif
+        // est interdit — échec fermé AVANT l'UPDATE (le trigger reste le
+        // dernier rempart, y compris contre le SQL direct).
+        if (after < 0) {
+          throw new Error(
+            `Stock insuffisant pour « ${line.productName} » (survente refusée : stock négatif interdit).`,
+          );
+        }
         db.prepare(
           `UPDATE products SET quantity = ?, stock_status = CASE WHEN ? <= 0 THEN 'out_of_stock' WHEN ? <= min_stock_level THEN 'low_stock' ELSE 'in_stock' END, updated_at = ? WHERE id = ?`,
         ).run(after, after, after, input.now, line.productId);
+        qtyById.set(line.productId, after);
         db.prepare(
           `INSERT INTO stock_movements (uuid, product_id, movement_type, quantity_delta, quantity_after, unit_cost_minor, related_entity_type, related_entity_id, reason, created_at)
            VALUES (?, ?, 'sale_out', ?, ?, ?, 'sale', ?, 'Vente', ?)`,
@@ -396,6 +418,10 @@ export function createSaleAtomic(input: CreateSaleInput): {
       err instanceof Error &&
       /UNIQUE constraint failed: sales\.operation_id/i.test(err.message)
     ) {
+      // #36 : doublon concurrent — relecture tracée, pas d'avalage.
+      console.warn("[Veloria][WARN] sales.operation_race_replayed", {
+        operationId: input.operationId,
+      });
       const retry = findExisting();
       if (retry) return retry;
     }
@@ -406,6 +432,9 @@ export function createSaleAtomic(input: CreateSaleInput): {
       err instanceof Error &&
       /UNIQUE constraint failed: sales\.invoice_number/i.test(err.message)
     ) {
+      console.warn("[Veloria][WARN] sales.invoice_race_retry", {
+        operationId: input.operationId,
+      });
       try {
         db.prepare(
           `UPDATE number_sequences SET next_value = next_value + 1, updated_at = ? WHERE sequence_key = 'sale_invoice'`,
@@ -437,8 +466,7 @@ export function cancelSaleAtomic(saleId: number, now: string, operationId: strin
   const tx = db.transaction(() => {
     claimIdempotency(operationId, "sales.cancel", now);
     const sale = db.prepare(`SELECT * FROM sales WHERE id = ?`).get(saleId) as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     if (!sale) throw new Error("Vente introuvable.");
     if (sale["is_cancelled"] === 1) throw new Error("Vente déjà annulée.");
     const items = db.prepare(`SELECT * FROM sale_items WHERE sale_id = ?`).all(saleId) as {
@@ -452,16 +480,28 @@ export function cancelSaleAtomic(saleId: number, now: string, operationId: strin
     // Ventes antérieures à FIFO (sans traçabilité) ou part survendue : une
     // couche 'legacy' au coût snapshot préserve l'invariant couches = stock.
     const consumed = consumptionsOfSale(saleId);
-    // restore stock
+    // restore stock — quantités préchargées (WHERE id IN), aucun SELECT
+    // dans la boucle.
+    const cancelIds = [
+      ...new Set(items.filter((i) => i.product_id != null).map((i) => i.product_id as number)),
+    ];
+    const cancelQty = new Map<number, number>();
+    if (cancelIds.length > 0) {
+      const placeholders = cancelIds.map(() => "?").join(",");
+      const rows = db
+        .prepare(`SELECT id, quantity FROM products WHERE id IN (${placeholders})`)
+        .all(...cancelIds) as { id: number; quantity: number }[];
+      for (const r of rows) cancelQty.set(Number(r.id), Number(r.quantity));
+    }
     for (const it of items) {
       if (it.product_id != null) {
-        const p = db.prepare(`SELECT quantity FROM products WHERE id = ?`).get(it.product_id) as {
-          quantity: number;
-        };
-        const after = Number(p.quantity) + Number(it.quantity);
+        const cur = cancelQty.get(it.product_id);
+        if (cur === undefined) throw new Error("Produit introuvable.");
+        const after = cur + Number(it.quantity);
         db.prepare(
           `UPDATE products SET quantity = ?, stock_status = CASE WHEN ? <= 0 THEN 'out_of_stock' WHEN ? <= min_stock_level THEN 'low_stock' ELSE 'in_stock' END, updated_at = ? WHERE id = ?`,
         ).run(after, after, after, now, it.product_id);
+        cancelQty.set(it.product_id, after);
         const slices = consumed.filter(
           (c) => c.productId === it.product_id && c.saleItemId === it.id,
         );

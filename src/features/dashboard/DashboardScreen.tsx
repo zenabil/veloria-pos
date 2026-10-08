@@ -4,6 +4,7 @@ import { FileDown, RefreshCw } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { useCompany } from "@shared/company/use-company.ts";
 import { formatDzd } from "@domain/money/money.ts";
+import { formatDateFr, formatDateTimeFr, formatDzdSigned } from "@shared/formatters/format.ts";
 import { BarChart } from "@shared/charts/BarChart.tsx";
 import { todayUtcDate } from "@shared/dates/dates.ts";
 import { downloadCsv } from "@shared/export/csv.ts";
@@ -185,17 +186,17 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
     const companyName = companyRecord?.["company_name"] ?? "Veloria";
     return {
       title: "Tableau de bord",
-      period: `Du ${s.from} au ${s.to}`,
+      period: `Du ${formatDateFr(s.from)} au ${formatDateFr(s.to)}`,
       company: companyName,
       kpis: [
         { label: "Ventes nettes", value: formatDzd(kk.salesMinor) },
         { label: "Achats nets", value: formatDzd(kk.purchasesMinor) },
         { label: "Dépenses", value: formatDzd(kk.expensesMinor) },
-        { label: "Marge brute", value: formatDzd(kk.profitMinor) },
+        { label: "Marge brute", value: formatDzdSigned(kk.profitMinor) },
         { label: "Créances", value: formatDzd(kk.customerDebtMinor) },
         { label: "Dettes", value: formatDzd(kk.supplierDebtMinor) },
         { label: "Stock", value: formatDzd(kk.stockValueMinor) },
-        { label: "Trésorerie", value: formatDzd(kk.cashMinor) },
+        { label: "Trésorerie", value: formatDzdSigned(kk.cashMinor) },
       ],
       charts: [
         {
@@ -234,7 +235,7 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
             .map((p) => [p.name.slice(0, 60), String(p.quantity), String(p.min_stock_level)]),
         },
       ],
-      footer: `${companyName} — synthèse générée le ${todayUtcDate()}.`,
+      footer: `${companyName} — synthèse générée le ${formatDateFr(todayUtcDate())}.`,
     };
   }
 
@@ -309,7 +310,7 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
         title="Tableau de bord"
         period={
           summary
-            ? `Période analytique : ${summary.from} au ${summary.to} · Net des avoirs et retours caisse`
+            ? `Période analytique : ${formatDateFr(summary.from)} au ${formatDateFr(summary.to)} · Net des avoirs et retours caisse`
             : "Vue d'ensemble — synthèse d'activité"
         }
         actions={
@@ -345,13 +346,13 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
               disabled={pdfBusy || summary == null}
               title="Aperçu PDF du rapport"
             >
-              PDF
+              Exporter PDF
             </Button>
-            <Button variant="secondary" onClick={exportExcel} title="Classeur Excel (CSV)">
-              Excel
+            <Button variant="secondary" onClick={exportExcel} title="Exporter pour Excel (CSV)">
+              Exporter Excel
             </Button>
             <Button variant="secondary" onClick={exportReport} title="Exporter CSV brut [F8]">
-              CSV <Kbd>F8</Kbd>
+              Exporter CSV <Kbd>F8</Kbd>
             </Button>
           </>
         }
@@ -412,7 +413,7 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
             />
             <Kpi
               label="Marge brute"
-              value={formatDzd(k.profitMinor)}
+              value={formatDzdSigned(k.profitMinor)}
               sub="Ventes − achats revendus"
               accent="#4edea3"
             />
@@ -431,12 +432,12 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
             <Kpi
               label="Valeur stock (achat)"
               value={formatDzd(k.stockValueMinor)}
-              sub="PMP calculé"
+              sub="Valorisation FIFO"
               accent="#cde8ff"
             />
             <Kpi
               label="Trésorerie globale"
-              value={formatDzd(k.cashMinor)}
+              value={formatDzdSigned(k.cashMinor)}
               sub="Encaissé − décaissé"
               accent="#6ffbbe"
             />
@@ -602,7 +603,7 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                         <tr key={i} className="border-t border-white/[0.06]">
                           <td className="max-w-[180px] truncate py-1.5">{d.party}</td>
                           <td className="py-1.5 tabular-nums text-slate-400">
-                            {d.due.slice(0, 10)}
+                            {formatDateFr(d.due)}
                           </td>
                           <td className="py-1.5 text-right font-bold tabular-nums">
                             {formatDzd(d.remaining)}
@@ -625,7 +626,7 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                   left={s.invoice_number}
                   mid={s.party}
                   right={formatDzd(s.total_minor)}
-                  sub={s.created_at.slice(0, 16).replace("T", " ")}
+                  sub={formatDateTimeFr(s.created_at)}
                 />
               ))}
               {summary.recent.sales.length === 0 ? <EmptyMini /> : null}
@@ -637,7 +638,7 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                   left={p.dir === "in" ? "Encaissé" : "Payé"}
                   mid={p.party}
                   right={formatDzd(p.amount_minor)}
-                  sub={`${p.payment_date.slice(0, 10)} · ${paymentMethodLabel(p.method)}`}
+                  sub={`${formatDateFr(p.payment_date)} · ${paymentMethodLabel(p.method)}`}
                 />
               ))}
               {summary.recent.payments.length === 0 ? <EmptyMini /> : null}
@@ -649,7 +650,7 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                   left={p.ref}
                   mid={p.party}
                   right={formatDzd(p.total_minor)}
-                  sub={p.created_at.slice(0, 10)}
+                  sub={formatDateFr(p.created_at)}
                 />
               ))}
               {summary.recent.purchases.length === 0 ? <EmptyMini /> : null}
@@ -661,7 +662,7 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                   left={r.ref}
                   mid={r.kind === "client" ? "Client" : "Fournisseur"}
                   right={formatDzd(r.total)}
-                  sub={r.created_at.slice(0, 10)}
+                  sub={formatDateFr(r.created_at)}
                 />
               ))}
               {summary.recent.returns.length === 0 ? <EmptyMini /> : null}
@@ -673,7 +674,7 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                   left={e.description}
                   mid={e.category}
                   right={formatDzd(e.amount_minor)}
-                  sub={e.expense_date.slice(0, 10)}
+                  sub={formatDateFr(e.expense_date)}
                 />
               ))}
               {summary.recent.expenses.length === 0 ? <EmptyMini /> : null}
@@ -749,7 +750,7 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                           <tr key={i} className="border-t border-white/[0.06]">
                             <td className="max-w-[180px] truncate py-1.5">{d.party}</td>
                             <td className="py-1.5 tabular-nums text-slate-400">
-                              {d.due.slice(0, 10)}
+                              {formatDateFr(d.due)}
                             </td>
                             <td className="py-1.5 text-right font-bold tabular-nums">
                               {formatDzd(d.remaining)}
@@ -766,7 +767,7 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                 <p className="text-xs text-slate-500">
                   {summary.alerts.lastBackup == null
                     ? "Aucune sauvegarde : créez-en une (Paramètres → Sauvegarde)."
-                    : `Dernière sauvegarde : ${summary.alerts.lastBackup.slice(0, 16).replace("T", " ")}.`}{" "}
+                    : `Dernière sauvegarde : ${formatDateTimeFr(summary.alerts.lastBackup)}.`}{" "}
                   {summary.alerts.integrity === "ok"
                     ? "Base saine."
                     : `Base : ${summary.alerts.integrity} — restaurez une sauvegarde.`}

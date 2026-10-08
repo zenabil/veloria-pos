@@ -1001,6 +1001,244 @@ console.log("OK  0026 credit-revocation policy (refused with debt, allowed when 
   console.log("OK  0034 active phone_hash unique (revoked keeps tracing, no block)");
 }
 
+// 0035: identité fiscale complète (NIS + article, NULLables, compat ascendante).
+{
+  const cols = db
+    .prepare("PRAGMA table_info(company_profile)")
+    .all()
+    .map((c) => c.name);
+  for (const col of ["nis", "article_imposition"]) {
+    if (!cols.includes(col)) {
+      console.error(`FAIL: 0035 company_profile.${col} missing`);
+      process.exit(1);
+    }
+  }
+  db.prepare(
+    "INSERT INTO company_profile (id, uuid, company_name, nis, article_imposition, created_at, updated_at) VALUES (1, 'v35', 'SARL Test', '123456789012345', 'ART-1', '2026-01-01', '2026-01-01')",
+  ).run();
+  const row = db.prepare("SELECT nis, article_imposition FROM company_profile WHERE id = 1").get();
+  if (row.nis !== "123456789012345" || row.article_imposition !== "ART-1") {
+    console.error("FAIL: 0035 nis/article_imposition not writable");
+    process.exit(1);
+  }
+  console.log("OK  0035 company_profile.nis + article_imposition (nullable)");
+}
+
+// 0036: Print Studio (7 modèles d'usine, un actif par type, unicités).
+{
+  const rows = db
+    .prepare("SELECT doc_type, name, is_factory, is_active FROM print_templates")
+    .all();
+  if (rows.length !== 7) {
+    console.error(`FAIL: 0036 seed compte ${rows.length}, attendu 7`);
+    process.exit(1);
+  }
+  const types = new Set(rows.map((r) => r.doc_type));
+  for (const t of [
+    "facture",
+    "ticket",
+    "proforma",
+    "bon_livraison",
+    "recu",
+    "avoir",
+    "etiquette",
+  ]) {
+    if (!types.has(t)) {
+      console.error(`FAIL: 0036 seed sans type ${t}`);
+      process.exit(1);
+    }
+  }
+  for (const r of rows) {
+    if (r.name !== "Défaut" || r.is_factory !== 1 || r.is_active !== 1) {
+      console.error("FAIL: 0036 seed non conforme (Défaut/usine/actif)");
+      process.exit(1);
+    }
+  }
+  let dupActive = false;
+  try {
+    db.prepare(
+      "INSERT INTO print_templates (doc_type, name, is_active, created_at, updated_at) VALUES ('ticket', 'X', 1, '2026-01-01', '2026-01-01')",
+    ).run();
+  } catch {
+    dupActive = true;
+  }
+  if (!dupActive) {
+    console.error("FAIL: 0036 double actif accepté");
+    process.exit(1);
+  }
+  console.log("OK  0036 print_templates (seed 7 usines actives, unicités)");
+}
+
+// 0037: garde-fou quantité produit non-négative (triggers FR, rejet négatif).
+{
+  const trg37 = db
+    .prepare(
+      "SELECT COUNT(*) AS c FROM sqlite_master WHERE type = 'trigger' AND name IN ('trg_products_quantity_nonneg_ins','trg_products_quantity_nonneg_upd')",
+    )
+    .get();
+  if (trg37.c !== 2) {
+    console.error(`FAIL: 0037 quantity guards missing (found ${trg37.c}/2)`);
+    process.exit(1);
+  }
+  db.prepare(
+    "INSERT INTO categories (uuid, name, created_at, updated_at) VALUES ('c37','Garde37','2026-01-01','2026-01-01')",
+  ).run();
+  const cat37 = db.prepare("SELECT id FROM categories WHERE uuid = 'c37'").get().id;
+  let negRefused = false;
+  let negMsg = "";
+  try {
+    db.prepare(
+      "INSERT INTO products (uuid, name, unit_code, purchase_price_minor, selling_price_minor, quantity, min_stock_level, stock_status, category_id, created_at, updated_at) VALUES ('p37neg','GardeNeg','PIECE',0,100,-1,0,'in_stock',?,'2026-01-01','2026-01-01')",
+    ).run(cat37);
+  } catch (e) {
+    negRefused = true;
+    negMsg = String(e.message);
+  }
+  if (!negRefused || !/Quantité produit invalide/.test(negMsg)) {
+    console.error("FAIL: 0037 negative quantity accepted or not FR");
+    process.exit(1);
+  }
+  console.log("OK  0037 products.quantity triggers FR (2/2, rejet négatif)");
+}
+
+// 0038: customer_access + sync_outbox en RESTRICT (jamais de disparition silencieuse).
+{
+  const ca = db
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'customer_access'")
+    .get();
+  const so = db
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'sync_outbox'")
+    .get();
+  if (!ca.sql.includes("ON DELETE RESTRICT") || /ON DELETE CASCADE/.test(ca.sql)) {
+    console.error("FAIL: 0038 customer_access without RESTRICT (or still CASCADE)");
+    process.exit(1);
+  }
+  if (!so.sql.includes("ON DELETE RESTRICT") || /ON DELETE CASCADE/.test(so.sql)) {
+    console.error("FAIL: 0038 sync_outbox without RESTRICT (or still CASCADE)");
+    process.exit(1);
+  }
+  db.prepare(
+    "INSERT INTO customers (uuid, first_name, last_name, search_name, created_at, updated_at) VALUES ('c38','Garde','R38','garde r38','2026-01-01','2026-01-01')",
+  ).run();
+  const cust38 = db.prepare("SELECT id FROM customers WHERE uuid = 'c38'").get().id;
+  db.prepare(
+    "INSERT INTO customer_access (customer_id, phone_hash, pin_hash, created_at, updated_at) VALUES (?, 'h38', 'p38', '2026-01-01', '2026-01-01')",
+  ).run(cust38);
+  db.prepare(
+    "INSERT INTO sync_outbox (operation_id, kind, payload_json, status, created_at, customer_id) VALUES ('op38','access_revocation','{}','pending','2026-01-01',?)",
+  ).run(cust38);
+  let custRefused = false;
+  try {
+    db.prepare("DELETE FROM customers WHERE id = ?").run(cust38);
+  } catch {
+    custRefused = true;
+  }
+  if (!custRefused) {
+    console.error("FAIL: 0038 customer with access/outbox deleted (RESTRICT missing)");
+    process.exit(1);
+  }
+  console.log("OK  0038 customer_access + sync_outbox RESTRICT (rebuild, refus suppression)");
+}
+
+// 0039: condensat PIN lent (sel par client, transitoire SHA-256).
+{
+  const cols = db
+    .prepare("PRAGMA table_info(customer_access)")
+    .all()
+    .map((c) => c.name);
+  for (const col of ["pin_salt", "pin_algo"]) {
+    if (!cols.includes(col)) {
+      console.error(`FAIL: 0039 customer_access.${col} missing`);
+      process.exit(1);
+    }
+  }
+  // Ligne historique (sans sel) inscriptible ; ligne neuve avec sel aussi.
+  db.prepare(
+    "INSERT INTO customers (uuid, first_name, last_name, search_name, created_at, updated_at) VALUES ('kdfA','Kdf','A','kdf a','2026-01-01','2026-01-01')",
+  ).run();
+  db.prepare(
+    "INSERT INTO customers (uuid, first_name, last_name, search_name, created_at, updated_at) VALUES ('kdfB','Kdf','B','kdf b','2026-01-01','2026-01-01')",
+  ).run();
+  const kdfA = db.prepare("SELECT id FROM customers WHERE uuid = 'kdfA'").get().id;
+  const kdfB = db.prepare("SELECT id FROM customers WHERE uuid = 'kdfB'").get().id;
+  db.prepare(
+    "INSERT INTO customer_access (customer_id, phone_hash, pin_hash, created_at, updated_at) VALUES (?, 'h39', 'p39', '2026-01-01', '2026-01-01')",
+  ).run(kdfA);
+  db.prepare(
+    "INSERT INTO customer_access (customer_id, phone_hash, pin_hash, pin_salt, pin_algo, created_at, updated_at) VALUES (?, 'h39b', 'k39', 'ab', 'pbkdf2-sha256-100k', '2026-01-01', '2026-01-01')",
+  ).run(kdfB);
+  console.log("OK  0039 customer_access.pin_salt + pin_algo (legacy + KDF rows)");
+}
+
+// 0040: ON DELETE RESTRICT explicite (rebuild) + gardes BEFORE DELETE.
+{
+  const exp = db
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'expenses'")
+    .get();
+  if (!exp.sql.includes("ON DELETE RESTRICT")) {
+    console.error("FAIL: 0040 expenses FK without explicit RESTRICT");
+    process.exit(1);
+  }
+  const conso = db
+    .prepare(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'sale_fifo_consumption'",
+    )
+    .get();
+  const restrictCount = (conso.sql.match(/ON DELETE RESTRICT/g) || []).length;
+  if (restrictCount !== 4) {
+    console.error(`FAIL: 0040 sale_fifo_consumption has ${restrictCount}/4 RESTRICT`);
+    process.exit(1);
+  }
+  const trg40 = db
+    .prepare(
+      "SELECT COUNT(*) AS c FROM sqlite_master WHERE type = 'trigger' AND name IN ('trg_categories_no_delete_with_products','trg_suppliers_no_delete_with_products','trg_customers_no_delete_with_sales','trg_products_no_delete_with_items','trg_products_no_delete_with_layers','trg_stock_intakes_no_delete_with_layers','trg_stock_intake_items_no_delete_with_layers')",
+    )
+    .get();
+  if (trg40.c !== 7) {
+    console.error(`FAIL: 0040 parent guards missing (found ${trg40.c}/7)`);
+    process.exit(1);
+  }
+  // Rebuild réel (clause) : fournisseur avec dépense = refus.
+  db.prepare(
+    "INSERT INTO suppliers (uuid, name, code, created_at, updated_at) VALUES ('r40','Garde R','FOU-40001','2026-01-01','2026-01-01')",
+  ).run();
+  const sup40 = db.prepare("SELECT id FROM suppliers WHERE uuid = 'r40'").get().id;
+  db.prepare(
+    "INSERT INTO expenses (uuid, description, category, amount_minor, expense_date, status, supplier_id, created_at, updated_at) VALUES ('e40','Garde','Autre',100,'2026-01-01','paid',?,'2026-01-01','2026-01-01')",
+  ).run(sup40);
+  let supRefused = false;
+  try {
+    db.prepare("DELETE FROM suppliers WHERE id = ?").run(sup40);
+  } catch {
+    supRefused = true;
+  }
+  if (!supRefused) {
+    console.error("FAIL: 0040 supplier with expense deleted (RESTRICT missing)");
+    process.exit(1);
+  }
+  // Garde parent (trigger FR) : catégorie avec produit = refus explicite.
+  db.prepare(
+    "INSERT INTO categories (uuid, name, created_at, updated_at) VALUES ('c40','Garde','2026-01-01','2026-01-01')",
+  ).run();
+  const cat40 = db.prepare("SELECT id FROM categories WHERE uuid = 'c40'").get().id;
+  db.prepare(
+    "INSERT INTO products (uuid, name, unit_code, purchase_price_minor, selling_price_minor, quantity, min_stock_level, stock_status, category_id, created_at, updated_at) VALUES ('p40','Garde','PIECE',0,100,1,0,'in_stock',?,'2026-01-01','2026-01-01')",
+  ).run(cat40);
+  let catRefused = false;
+  let catMsg = "";
+  try {
+    db.prepare("DELETE FROM categories WHERE id = ?").run(cat40);
+  } catch (e) {
+    catRefused = true;
+    catMsg = String(e.message);
+  }
+  if (!catRefused || !/Suppression impossible/.test(catMsg)) {
+    console.error("FAIL: 0040 category guard missing or not FR");
+    process.exit(1);
+  }
+  console.log("OK  0040 explicit RESTRICT (rebuild) + parent guards FR (7/7)");
+}
+
 // Integrity
 const ic = db.prepare("PRAGMA integrity_check").get();
 const fk = db.prepare("PRAGMA foreign_key_check").all();

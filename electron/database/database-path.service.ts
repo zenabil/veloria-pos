@@ -50,7 +50,15 @@ export function getConfiguredDbPath(): string {
       return path.normalize(cfg.dbPath);
     }
   } catch {
-    // fall through to default
+    // RADICAL (#28) : repli silencieux interdit — un chemin configuré
+    // invalide DOIT être visible (sinon base par défaut + VERIFIED menteur).
+    try {
+      console.warn(
+        "[Veloria][WARN] database-path: config illisible/invalide, repli sur le chemin par défaut",
+      );
+    } catch {
+      /* journal best effort */
+    }
   }
   return defaultDbPath();
 }

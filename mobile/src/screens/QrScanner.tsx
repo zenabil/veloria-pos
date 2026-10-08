@@ -12,10 +12,15 @@ import { parseActivationQr, QrError } from "../qr.ts";
 
 export function QrScannerScreen(props: {
   lang: Lang;
-  onScanned: (phone: string, pin: string) => void;
+  onScanned: (
+    phone: string,
+    pin: string,
+    endpoint?: { supabaseUrl: string; anonKey: string } | null,
+  ) => void;
   onClose: () => void;
 }): React.JSX.Element {
   const l = props.lang;
+  const dir = direction(l);
   const [permission, requestPermission] = useCameraPermissions();
   const [denied, setDenied] = useState(false);
   const [invalid, setInvalid] = useState(false);
@@ -26,7 +31,7 @@ export function QrScannerScreen(props: {
     locked.current = true;
     try {
       const creds = parseActivationQr(result.data);
-      props.onScanned(creds.phone, creds.pin);
+      props.onScanned(creds.phone, creds.pin, creds.endpoint);
     } catch (e) {
       if (e instanceof QrError) {
         setInvalid(true);
@@ -46,11 +51,13 @@ export function QrScannerScreen(props: {
     <View style={{ flex: 1, backgroundColor: COLORS.headerBg }}>
       {permission == null ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <Text style={{ color: COLORS.headerText }}>…</Text>
+          <Text style={{ color: COLORS.headerText }}>{t(l, "loading")}</Text>
         </View>
       ) : !permission.granted || denied ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24 }}>
-          <Text style={{ color: "#fff", fontWeight: "800", fontSize: 17, textAlign: "center" }}>
+          <Text
+            style={{ color: COLORS.white, fontWeight: "800", fontSize: 17, textAlign: "center" }}
+          >
             {t(l, "cameraNeed")}
           </Text>
           <Pressable
@@ -126,32 +133,18 @@ export function QrScannerScreen(props: {
               top: 0,
               left: 0,
               right: 0,
-              flexDirection: flow(direction(l)),
+              flexDirection: flow(dir),
               alignItems: "center",
-              justifyContent: "space-between",
+              justifyContent: "center",
               paddingHorizontal: SPACE.md,
               paddingVertical: SPACE.md,
               paddingTop: 40,
-              backgroundColor: "#05142499",
+              backgroundColor: COLORS.overlay,
             }}
           >
-            <Pressable
-              accessibilityRole="button"
-              onPress={props.onClose}
-              accessibilityLabel={t(l, "close")}
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 20,
-                backgroundColor: tint(COLORS.white, "1F"),
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Ionicons name="close" size={20} color="#fff" />
-            </Pressable>
-            <Text style={{ color: "#fff", fontWeight: "800", fontSize: 15 }}>{t(l, "scanQr")}</Text>
-            <View style={{ width: 40 }} />
+            <Text style={{ color: COLORS.white, fontWeight: "800", fontSize: 15 }}>
+              {t(l, "scanQr")}
+            </Text>
           </View>
           <View
             style={{
@@ -159,7 +152,7 @@ export function QrScannerScreen(props: {
               bottom: 0,
               left: 0,
               right: 0,
-              backgroundColor: "#051424ee",
+              backgroundColor: COLORS.overlay,
               borderTopLeftRadius: RADIUS.sheet,
               borderTopRightRadius: RADIUS.sheet,
               padding: SPACE.lg,
@@ -178,7 +171,7 @@ export function QrScannerScreen(props: {
             />
             <View
               style={{
-                flexDirection: "row",
+                flexDirection: flow(dir),
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 8,
@@ -193,7 +186,7 @@ export function QrScannerScreen(props: {
             {invalid ? (
               <View
                 style={{
-                  flexDirection: "row",
+                  flexDirection: flow(dir),
                   alignItems: "center",
                   justifyContent: "center",
                   gap: 6,
@@ -203,8 +196,8 @@ export function QrScannerScreen(props: {
                   marginBottom: 8,
                 }}
               >
-                <Ionicons name="alert-circle" size={16} color="#ff8a80" />
-                <Text style={{ color: "#ff8a80", fontWeight: "800", fontSize: 12 }}>
+                <Ionicons name="alert-circle" size={16} color={COLORS.dangerLight} />
+                <Text style={{ color: COLORS.dangerLight, fontWeight: "800", fontSize: 12 }}>
                   {t(l, "qrError")}
                 </Text>
               </View>

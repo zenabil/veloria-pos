@@ -56,7 +56,8 @@ export function ExpenseDetailsDrawer({
       return;
     setBusy(true);
     try {
-      await api.expenseDelete({ id: expense.id });
+      // Idempotence (P18) : caller-owned operationId — double-clic/retry sûr.
+      await api.expenseDelete({ id: expense.id, operationId: newOperationId() });
       notify("Dépense supprimée.", "ok");
       onDeleted();
       onClose();
@@ -379,7 +380,7 @@ export function ExpenseFormDialog({
           <TextArea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Détail libre…"
+            placeholder="Précisez le motif…"
             aria-label="Notes"
           />
         </Field>

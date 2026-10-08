@@ -104,7 +104,7 @@ export function SupplierDetailsDrawer({
         <InfoRow label="Code" value={supplierCode(s)} strong />
         <InfoRow label="Contact" value={s.contact_person || "—"} />
         <InfoRow label="Téléphone" value={s.phone || "—"} />
-        <InfoRow label="Email" value={s.email || "—"} />
+        <InfoRow label="E-mail" value={s.email || "—"} />
         <InfoRow label="Adresse" value={s.address || "—"} />
         <InfoRow label="NIF" value={s.tax_number || "—"} />
         <InfoRow label="Registre commerce" value={s.commercial_register || "—"} />

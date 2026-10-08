@@ -380,6 +380,7 @@ export function BreadFormDialog({
   const [customerResults, setCustomerResults] = useState<{ id: number; name: string }[]>([]);
   const [customName, setCustomName] = useState(o?.custom_name ?? "");
   const [quantity, setQuantity] = useState(o ? String(o.quantity) : "1");
+  const [unitPrice, setUnitPrice] = useState(o ? minorToInput(o.unit_price_minor) : "");
   const [recurring, setRecurring] = useState(Number(o?.is_recurring ?? 0) === 1);
   const [pickupDate, setPickupDate] = useState(o?.pickup_date.slice(0, 10) ?? todayUtcDate());
   const [busy, setBusy] = useState(false);
@@ -458,6 +459,11 @@ export function BreadFormDialog({
     }
     setBusy(true);
     try {
+      const unitPriceMinor = strictOrNeg(unitPrice, "Prix unitaire");
+      if (unitPriceMinor < 0) {
+        notify("Prix unitaire invalide.", "err");
+        return;
+      }
       const res = (await api.breadCreate({
         operationId: newOperationId(),
         customerId,
@@ -469,7 +475,7 @@ export function BreadFormDialog({
         pickupDate,
         pickupTime: null,
         quantity: qty,
-        unitPriceMinor: 0,
+        unitPriceMinor,
         amountPaidMinor: 0,
         paymentMethod: null,
         notes: null,
@@ -572,6 +578,19 @@ export function BreadFormDialog({
             inputMode="decimal"
             placeholder="1"
             aria-label="Quantité"
+          />
+        </Field>
+        <Field
+          label="Prix unitaire (DZD) *"
+          hint={editing ? "Fixé à la création (non modifiable)." : "0 = gratuit."}
+        >
+          <TextInput
+            value={unitPrice}
+            onChange={(e) => setUnitPrice(e.target.value)}
+            inputMode="decimal"
+            placeholder="Ex. : 15"
+            aria-label="Prix unitaire"
+            disabled={editing != null}
           />
         </Field>
         <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-sm font-semibold">
@@ -693,7 +712,7 @@ export function BreadStatusDialog({
             disabled={busy || next.length === 0}
             className="flex-[2]"
           >
-            {busy ? "…" : "Confirmer"}
+            {busy ? "…" : "Confirmer la commande"}
           </Button>
         </div>
       </div>

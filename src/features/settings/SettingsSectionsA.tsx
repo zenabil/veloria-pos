@@ -1,7 +1,6 @@
 // Veloria PoS — Paramètres : sections Général → Fournisseurs.
 import { useEffect, useState } from "react";
 import { api } from "@shared/types/ipc-client.ts";
-import { useCompany } from "@shared/company/use-company.ts";
 import { strictOrNeg } from "@shared/money/parse.ts";
 import { minorToInput } from "@domain/money/money.ts";
 import { Field, Select, TextInput } from "@shared/ui/primitives.tsx";
@@ -26,6 +25,8 @@ interface Company {
   city: string | null;
   nif: string | null;
   rc_number: string | null;
+  nis: string | null;
+  article_imposition: string | null;
   invoice_prefix: string | null;
   logo_path: string | null;
 }
@@ -45,6 +46,8 @@ export function CompanySection({ notify }: { notify: Notify }): React.JSX.Elemen
     website: "",
     nif: "",
     rc: "",
+    nis: "",
+    article: "",
     prefix: "",
     logo: "",
   });
@@ -69,6 +72,8 @@ export function CompanySection({ notify }: { notify: Notify }): React.JSX.Elemen
           website: co.website ?? "",
           nif: co.nif ?? "",
           rc: co.rc_number ?? "",
+          nis: co.nis ?? "",
+          article: co.article_imposition ?? "",
           prefix: co.invoice_prefix ?? "",
           logo: co.logo_path ?? "",
         });
@@ -120,6 +125,8 @@ export function CompanySection({ notify }: { notify: Notify }): React.JSX.Elemen
           city: form.city.trim() === "" ? null : form.city.trim(),
           tax_number: form.nif.trim() === "" ? null : form.nif.trim(),
           commercial_register: form.rc.trim() === "" ? null : form.rc.trim(),
+          nis: form.nis.trim() === "" ? null : form.nis.trim(),
+          article_imposition: form.article.trim() === "" ? null : form.article.trim(),
           invoice_prefix: form.prefix.trim() === "" ? null : form.prefix.trim(),
           logo_path: form.logo.trim() === "" ? null : form.logo.trim(),
         });
@@ -148,7 +155,7 @@ export function CompanySection({ notify }: { notify: Notify }): React.JSX.Elemen
         <TextInput value={form.address} onChange={set("address")} aria-label="Adresse" />
       </Field>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Wilaya (ville)">
+        <Field label="Wilaya">
           <TextInput value={form.city} onChange={set("city")} aria-label="Wilaya" />
         </Field>
         <Field label="Téléphone">
@@ -161,12 +168,12 @@ export function CompanySection({ notify }: { notify: Notify }): React.JSX.Elemen
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Email">
+        <Field label="E-mail">
           <TextInput
             value={form.email}
             onChange={set("email")}
             inputMode="email"
-            aria-label="Email"
+            aria-label="E-mail"
           />
         </Field>
         <Field label="Site web">
@@ -179,6 +186,18 @@ export function CompanySection({ notify }: { notify: Notify }): React.JSX.Elemen
         </Field>
         <Field label="Registre de commerce">
           <TextInput value={form.rc} onChange={set("rc")} aria-label="Registre de commerce" />
+        </Field>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="NIS" hint="N° d'identification statistique (facture).">
+          <TextInput value={form.nis} onChange={set("nis")} aria-label="NIS" />
+        </Field>
+        <Field label="Article d'imposition" hint="Article fiscal (facture).">
+          <TextInput
+            value={form.article}
+            onChange={set("article")}
+            aria-label="Article d'imposition"
+          />
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -251,26 +270,16 @@ export function SalesSection({ notify }: { notify: Notify }): React.JSX.Element 
     allowCreditSales: true,
     autoPrintInvoice: false,
   });
-  const [prefix, setPrefix] = useState("");
   const { busy, run } = useBusyFlag();
-  // Préfixe factures : source unique partagée (fiche entreprise).
-  const { record: companyRecord } = useCompany();
 
   useEffect(() => {
     if (value) setForm(value);
   }, [value]);
 
-  useEffect(() => {
-    setPrefix(companyRecord?.invoice_prefix ?? "FAC");
-  }, [companyRecord]);
-
   function save(): void {
     void run(async () => {
       try {
         await saveAppSettings("sales", form);
-        if (prefix.trim() !== "") {
-          await api.companyUpdate({ invoice_prefix: prefix.trim() });
-        }
         notify("Réglages vente enregistrés.", "ok");
       } catch (e) {
         notify(frError(e, "Enregistrement impossible."), "err");
@@ -310,13 +319,6 @@ export function SalesSection({ notify }: { notify: Notify }): React.JSX.Element 
         onChange={(v) => setForm((f) => ({ ...f, autoPrintInvoice: v }))}
         ariaLabel="Impression auto après vente"
       />
-      <Field label="Préfixe factures" hint="Ex. FAC (factures suivantes).">
-        <TextInput
-          value={prefix}
-          onChange={(e) => setPrefix(e.target.value)}
-          aria-label="Préfixe factures"
-        />
-      </Field>
       <SaveBar busy={busy} onSave={save} label="Enregistrer la vente" />
     </Section>
   );

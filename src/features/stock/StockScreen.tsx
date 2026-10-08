@@ -293,7 +293,7 @@ export function StockScreen({ notify }: { notify: Notify }): React.JSX.Element {
     <div className="flex h-full flex-col gap-4">
       {/* En-tête Stitch : Gestion des Stocks & Réceptions · Dépôt Central */}
       <PageHeader
-        title="Gestion des Stocks & Réceptions"
+        title="Gestion des stocks et réceptions"
         module="Dépôt central"
         period={`${total} référence(s) tracée(s) · Valeur globale ${formatDzd(stats.value)} · ${stats.low} sous seuil critique`}
         actions={
@@ -382,18 +382,12 @@ export function StockScreen({ notify }: { notify: Notify }): React.JSX.Element {
               ) : null}
             </div>
             <Button
-              variant="secondary"
-              onClick={() => setOcrOpen(true)}
-              title="Scanner / OCR Facture (100 % local, hors-ligne)"
-            >
-              <FileScan size={16} aria-hidden="true" /> Scanner / OCR
-            </Button>
-            <Button
               onClick={() => setIntakeOpen(true)}
               title="Réception fournisseur (facture + livraison)"
             >
               <PackagePlus size={16} aria-hidden="true" /> Nouveau Bon Réception
             </Button>
+            {/* OCR accessible via « Actions stock → Facture OCR » (pas de doublon). */}
           </>
         }
       />
@@ -401,13 +395,13 @@ export function StockScreen({ notify }: { notify: Notify }): React.JSX.Element {
       {/* Cartes statistiques Stitch */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi
-          label="Entrées du Mois (Réceptions)"
+          label="Valeur du Stock (FIFO)"
           value={formatDzd(stats.value)}
           sub="Valeur globale (achat)"
           accent="#fbbf24"
         />
         <Kpi
-          label="Quantité Totale"
+          label="Quantité totale"
           value={String(stats.qty)}
           sub="Toutes unités"
           accent="#4edea3"
@@ -618,7 +612,7 @@ export function StockScreen({ notify }: { notify: Notify }): React.JSX.Element {
                       {formatDzd(r.purchase_price_minor)}
                     </td>
                     <td className="px-3 py-2 text-right font-bold tabular-nums text-amber-200/90">
-                      {formatDzd(Math.round(r.stock_value_minor))}
+                      {formatDzd(r.stock_value_minor)}
                     </td>
                     <td className="px-3 py-2">
                       <Badge tone={stockStatusTone(r.stock_status)}>
@@ -629,14 +623,14 @@ export function StockScreen({ notify }: { notify: Notify }): React.JSX.Element {
                       <div className="flex justify-end gap-1">
                         <RowAction
                           label={`Voir ${r.name}`}
-                          title="Détails"
+                          title="Détails de la fiche"
                           onClick={() => void openDrawer(r)}
                         >
                           <Eye size={15} aria-hidden="true" />
                         </RowAction>
                         <RowAction
                           label={`Ajuster ${r.name}`}
-                          title="Ajuster"
+                          title="Ajuster le stock"
                           onClick={() => setAdjustFor(r)}
                         >
                           <Wrench size={15} aria-hidden="true" />

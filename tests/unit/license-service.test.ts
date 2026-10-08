@@ -153,4 +153,47 @@ describe("License service", () => {
     expect(canOpenShell(s.deps)).toBe(false);
     expect(() => requireLicensedMutation(s.deps)).toThrow(/activez/);
   });
+
+  it("#31 : .vlic actif rejoué après révocation => refus, REVOKED colle", () => {
+    const s = setup();
+    const base = payload();
+    const active = encodeVlic({ payload: base, signature: signPayload(base, s.priv) });
+    importLicenseEnvelope(s.deps, active);
+    expect(getLicenseStatus(s.deps).state).toBe("ACTIVE");
+    const revokedPayload = { ...base, licenseStatus: "revoked" as const };
+    const revoked = encodeVlic({
+      payload: revokedPayload,
+      signature: signPayload(revokedPayload, s.priv),
+    });
+    expect(() => importLicenseEnvelope(s.deps, revoked)).toThrow(/révoquée/);
+    expect(getLicenseStatus(s.deps).state).toBe("REVOKED");
+    // Rejeu de l'ancien actif : refusé, l'état révoqué est conservé.
+    expect(() => importLicenseEnvelope(s.deps, active)).toThrow(/révoquée/);
+    expect(getLicenseStatus(s.deps).state).toBe("REVOKED");
+    expect(() => requireLicensedMutation(s.deps)).toThrow(/révoquée/);
+    // Une autre licence reste importable (pas de verrou global).
+    const other = { ...base, licenseId: "LIC-SVC-2" };
+    const otherVlic = encodeVlic({ payload: other, signature: signPayload(other, s.priv) });
+    expect(importLicenseEnvelope(s.deps, otherVlic).state).toBe("ACTIVE");
+  });
+
+  it("#31 : état v1 legacy => refus (CORRUPTED_STATE, réimport exigé)", () => {
+    const s = setup();
+    const vlic = encodeVlic({ payload: payload(), signature: signPayload(payload(), s.priv) });
+    importLicenseEnvelope(s.deps, vlic);
+    expect(getLicenseStatus(s.deps).state).toBe("ACTIVE");
+    const stored = s.deps.loadState(s.deps.backend);
+    expect(stored?.version).toBe(2);
+    if (!stored) throw new Error("état attendu");
+    const v1: PersistedLicenseState = {
+      version: 1,
+      envelope: stored.envelope,
+      hardwareFingerprint: stored.hardwareFingerprint,
+      lastSeenUtc: stored.lastSeenUtc,
+      lastVerifyUtc: stored.lastVerifyUtc,
+    };
+    s.deps.saveState(s.deps.backend, v1);
+    expect(getLicenseStatus(s.deps).state).toBe("CORRUPTED_STATE");
+    expect(canOpenShell(s.deps)).toBe(false);
+  });
 });

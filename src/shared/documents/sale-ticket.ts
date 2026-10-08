@@ -1,6 +1,7 @@
 // Veloria PoS — Shared: construction du payload ticket de vente (aperçu/impression).
 // Utilisé par l'historique et les dettes (une seule forme canonique).
 import { formatCustomerCode } from "@shared/formatters/format.ts";
+import { timbreQuittanceLf2025 } from "@domain/invoice/timbre-rules.ts";
 
 type Cell = string | number | null | undefined;
 
@@ -18,6 +19,8 @@ interface SaleTicketCompany {
   email?: string | null | undefined;
   rc_number?: string | null | undefined;
   nif?: string | null | undefined;
+  nis?: string | null | undefined;
+  article_imposition?: string | null | undefined;
 }
 
 interface SaleTicketCustomer {
@@ -61,6 +64,8 @@ export function buildSaleTicketPayload(
     typeof detail.seller === "string"
       ? detail.seller
       : text(detail.sale["seller"] ?? detail.sale["cashier"] ?? detail.sale["created_by"] ?? "");
+  const paymentMethod = text(detail.sale["payment_method"]) || null;
+  const paidMinor = num(detail.sale["amount_paid_minor"]);
   return {
     // P2 : tête entreprise unique (buildCompanyHead — plus de double mapping).
     ...buildCompanyHead(company),
@@ -69,7 +74,7 @@ export function buildSaleTicketPayload(
     customerAddress: customer?.address ?? "",
     customerCode: customerId > 0 ? formatCustomerCode(customerId) : "",
     seller,
-    paymentMethod: text(detail.sale["payment_method"]) || null,
+    paymentMethod,
     dueDate: text(detail.sale["due_date"]),
     invoice: text(detail.sale["invoice_number"]),
     date: dateFr(detail.sale["created_at"]),
@@ -85,7 +90,9 @@ export function buildSaleTicketPayload(
     discountMinor: num(detail.sale["discount_amount_minor"]),
     deliveryMinor: num(detail.sale["delivery_fee_minor"]),
     totalMinor: num(detail.sale["total_minor"]),
-    paidMinor: num(detail.sale["amount_paid_minor"]),
+    paidMinor,
+    // C5 : timbre documentaire LF 2025 sur l'encaissé espèces (quittance).
+    stampMinor: timbreQuittanceLf2025(paidMinor, paymentMethod),
     ...(balances ? { prevBalanceMinor: balances.prev, currentBalanceMinor: balances.current } : {}),
   };
 }
@@ -103,5 +110,7 @@ export function buildCompanyHead(
     companyEmail: company?.email ?? "",
     companyRc: company?.rc_number ?? "",
     companyNif: company?.nif ?? "",
+    companyNis: company?.nis ?? "",
+    companyArticle: company?.article_imposition ?? "",
   };
 }

@@ -20,6 +20,7 @@ import {
   type LicenseServiceDeps,
 } from "../../electron/licensing/license-service.ts";
 import type { PersistedLicenseState } from "../../electron/licensing/secure-state.ts";
+import { buildSecureStateV2 } from "../../electron/licensing/secure-state.ts";
 import { licenseActionSchema } from "../../electron/ipc/validators.ts";
 
 const HW = "a".repeat(64);
@@ -146,13 +147,15 @@ describe("Red-Team : falsification de licence", () => {
     const k = keys();
     const p = payload();
     const envelope = { payload: p, signature: signPayload(p, k.priv) };
-    const stored: PersistedLicenseState = {
-      version: 1,
+    const stored: PersistedLicenseState = buildSecureStateV2({
       envelope,
       hardwareFingerprint: HW,
+      firstSeenUtc: new Date(NOW).toISOString(),
       lastSeenUtc: new Date(NOW).toISOString(),
       lastVerifyUtc: new Date(NOW).toISOString(),
-    };
+      monotonicSeq: 1,
+      maxStanding: "active",
+    });
     expect(getLicenseStatus(depsWith(stored, k, NOW, HW)).state).toBe("ACTIVE");
     expect(getLicenseStatus(depsWith(stored, k, NOW, HW2)).state).toBe("INVALID_HARDWARE");
   });
@@ -160,35 +163,44 @@ describe("Red-Team : falsification de licence", () => {
   it("état local trafiqué => refus sûr (signature ou structure)", () => {
     const k = keys();
     // Forme conservée + signature cassée => INVALID_SIGNATURE.
-    const edited = {
-      version: 1,
-      envelope: { payload: { ...payload(), total: 999999 }, signature: "x" },
+    const edited = buildSecureStateV2({
+      envelope: {
+        payload: { ...payload(), total: 999999 },
+        signature: "x",
+      } as unknown as SignedLicense,
       hardwareFingerprint: HW,
+      firstSeenUtc: new Date(NOW).toISOString(),
       lastSeenUtc: new Date(NOW).toISOString(),
       lastVerifyUtc: new Date(NOW).toISOString(),
-    } as unknown as PersistedLicenseState;
+      monotonicSeq: 1,
+      maxStanding: "active",
+    });
     expect(getLicenseStatus(depsWith(edited, k, NOW)).state).toBe("INVALID_SIGNATURE");
     // Structure brisée (champs manquants) => CORRUPTED_STATE.
-    const broken = {
-      version: 1,
-      envelope: { payload: { licenseId: "x" }, signature: "y" },
+    const broken = buildSecureStateV2({
+      envelope: { payload: { licenseId: "x" }, signature: "y" } as unknown as SignedLicense,
       hardwareFingerprint: HW,
+      firstSeenUtc: new Date(NOW).toISOString(),
       lastSeenUtc: new Date(NOW).toISOString(),
       lastVerifyUtc: new Date(NOW).toISOString(),
-    } as unknown as PersistedLicenseState;
+      monotonicSeq: 1,
+      maxStanding: "active",
+    });
     expect(getLicenseStatus(depsWith(broken, k, NOW)).state).toBe("CORRUPTED_STATE");
   });
 
   it("horloge reculée => CLOCK_ROLLBACK (pas EXPIRED ni ACTIVE)", () => {
     const k = keys();
     const p = payload();
-    const stored: PersistedLicenseState = {
-      version: 1,
+    const stored: PersistedLicenseState = buildSecureStateV2({
       envelope: { payload: p, signature: signPayload(p, k.priv) },
       hardwareFingerprint: HW,
+      firstSeenUtc: new Date(NOW).toISOString(),
       lastSeenUtc: new Date(NOW).toISOString(),
       lastVerifyUtc: new Date(NOW).toISOString(),
-    };
+      monotonicSeq: 1,
+      maxStanding: "active",
+    });
     const d = depsWith(stored, k, Date.parse("2025-01-01T00:00:00.000Z"));
     expect(getLicenseStatus(d).state).toBe("CLOCK_ROLLBACK");
   });

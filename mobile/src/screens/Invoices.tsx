@@ -9,7 +9,7 @@ import { COLORS, GRADIENTS, RADIUS, SPACE, SIZES, tint } from "../tokens.ts";
 import { direction, t, type Lang } from "../i18n.ts";
 import { errorReportText, formatDateFr, formatMinor } from "../format.ts";
 import { filterInvoices, type HomeInvoice, type InvoiceFilter } from "../views.ts";
-import { Amount, Badge, Button, Card, Chip, Field, Tap, flow } from "../ui/kit.tsx";
+import { Amount, Badge, Button, Card, Chip, Field, Tap, farEdge, flow } from "../ui/kit.tsx";
 import { EmptyState } from "../ui/states.tsx";
 
 const CHIPS: InvoiceFilter[] = ["all", "paid", "partial", "unpaid", "cancelled"];
@@ -100,14 +100,16 @@ export function InvoicesScreen(props: {
             marginBottom: SPACE.sm,
           }}
         >
-          <Text style={{ color: "#fff", fontWeight: "900", fontSize: 20 }}>{t(l, "invoices")}</Text>
+          <Text style={{ color: COLORS.white, fontWeight: "900", fontSize: 20 }}>
+            {t(l, "invoices")}
+          </Text>
           <View
             style={{
               backgroundColor: tint(COLORS.primary, "26"),
               borderRadius: RADIUS.pill,
               paddingHorizontal: 10,
               paddingVertical: 4,
-              flexDirection: "row",
+              flexDirection: flow(dir),
               gap: 4,
               alignItems: "center",
             }}
@@ -132,7 +134,7 @@ export function InvoicesScreen(props: {
             setShown(SIZES.pageSize);
           }}
           placeholder={t(l, "searchInvoice")}
-          ariaLabel="search"
+          ariaLabel={t(l, "searchInvoice")}
           lang={l}
           icon="search-outline"
           mono={false}
@@ -142,8 +144,8 @@ export function InvoicesScreen(props: {
               <Tap
                 onPress={() => setQuery("")}
                 accessibilityLabel={t(l, "close")}
-                hitSlop={8}
-                style={{ padding: 4 }}
+                hitSlop={16}
+                style={{ padding: 12 }}
               >
                 <Ionicons name="close-circle" size={20} color={COLORS.cardMuted} />
               </Tap>
@@ -179,12 +181,7 @@ export function InvoicesScreen(props: {
 
       {rows.length === 0 ? (
         <View style={{ flex: 1, justifyContent: "center" }}>
-          <EmptyState
-            icon="search-outline"
-            title={t(l, "noInvoices")}
-            // Ponctuation adaptée : l'arabe ne termine pas par un point latin.
-            hint={`${t(l, "emptyHint")}${rtl ? "" : "."}`}
-          />
+          <EmptyState icon="search-outline" title={t(l, "noInvoices")} hint={t(l, "emptyHint")} />
         </View>
       ) : (
         <FlatList
@@ -263,7 +260,7 @@ export function InvoicesScreen(props: {
                       style={{
                         color: COLORS.debtOverdue,
                         fontSize: 11,
-                        textAlign: rtl ? "left" : "right",
+                        textAlign: farEdge(rtl),
                       }}
                     >
                       {t(l, "remaining")}
@@ -274,7 +271,7 @@ export function InvoicesScreen(props: {
                       }
                       size={16}
                       tone={COLORS.debtOverdue}
-                      align={rtl ? "left" : "right"}
+                      align={farEdge(rtl)}
                     />
                   </View>
                 </View>

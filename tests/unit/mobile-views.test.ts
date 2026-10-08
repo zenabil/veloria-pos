@@ -5,6 +5,7 @@ import {
   buildShareText,
   filterInvoices,
   num,
+  numQty,
   paymentsOfMonth,
   toDetail,
   toHome,
@@ -156,8 +157,11 @@ describe("toDetail", () => {
 });
 
 describe("num", () => {
-  it("montant legacy illisible → 0 entier sûr (formatMinor ne jette jamais)", () => {
-    expect(num("12.9")).toBe(12);
+  it("montant STRICT : non-entier → fallback 0 (jamais tronqué en valeur plausible)", () => {
+    // RADICAL-FIX : tronquer 12.9 → 12 mentait (dette fausse crédible).
+    // Un montant miroir non entier est corrompu → 0, pas une troncature.
+    expect(num("12.9")).toBe(0);
+    expect(num(12.5)).toBe(0);
     expect(num("1000")).toBe(1000);
     expect(num("abc")).toBe(0);
     expect(num(null)).toBe(0);
@@ -167,6 +171,43 @@ describe("num", () => {
     expect(num(1e300)).toBe(0);
     expect(() => formatMinor(num("12.9"), "fr")).not.toThrow();
     expect(() => formatMinor(num(1e300), "ar")).not.toThrow();
+  });
+});
+
+describe("numQty", () => {
+  it("préserve les décimales POS (kg, 3 décimales), rejette l'illisible", () => {
+    // RADICAL-FIX : le POS pousse NUMERIC 3 décimales ; Math.trunc perdait 0.5 kg.
+    expect(numQty(1.5)).toBe(1.5);
+    expect(numQty("2.25")).toBe(2.25);
+    expect(numQty(2)).toBe(2);
+    expect(numQty("abc")).toBe(0);
+    expect(numQty(null)).toBe(0);
+    expect(numQty(-1)).toBe(0);
+    expect(numQty(2_000_000)).toBe(0);
+  });
+  it("toDetail préserve 1.5 kg et arrondit la ligne comme le POS", () => {
+    const d = toDetail({
+      sale: {
+        id: 7,
+        invoice_number: "FAC-KG",
+        total_minor: 2999,
+        remaining_balance_minor: 0,
+        payment_status: "paid",
+        is_cancelled: 0,
+        created_at: "2026-09-26",
+      },
+      items: [
+        {
+          product_name_snapshot: "Sucre",
+          quantity: 1.5,
+          unit_price_minor: 1999,
+          // sans line_total : dérivé Math.round(1.5 * 1999) = 2999 (POS)
+          // l'ancien `trunc(1.5)=1` donnait 1999 — faux de 1000 centimes.
+        },
+      ],
+    });
+    expect(d?.items[0]?.quantity).toBe(1.5);
+    expect(d?.items[0]?.lineTotalMinor).toBe(2999);
   });
 });
 

@@ -260,7 +260,7 @@ describe("Service : authorization pages/features", () => {
       expect(() => importLicenseEnvelope(s.deps, s.vlic)).toThrow(
         standing === "revoked" ? /révoquée/ : /suspendue/,
       );
-      expect(getLicenseStatus(s.deps).state).toBe("UNACTIVATED");
+      expect(getLicenseStatus(s.deps).state).toBe(standing === "revoked" ? "REVOKED" : "SUSPENDED");
     }
   });
 

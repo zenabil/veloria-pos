@@ -36,7 +36,7 @@ export class ErrorBoundary extends Component<Props, State> {
         <div className="flex h-full items-center justify-center p-6">
           <div className="w-[440px] space-y-3 rounded-xl border border-red-500/30 bg-[#1c1113] p-6 text-center">
             <h2 className="text-base font-extrabold text-red-100">
-              Module momentanément indisponible
+              Écran momentanément indisponible
             </h2>
             <p className="text-sm text-slate-400">
               {this.props.moduleLabel} a rencontré un problème d&apos;affichage. Vos données sont

@@ -9,7 +9,7 @@ import { COLORS, GRADIENTS, RADIUS, SPACE, SIZES, tint } from "../tokens.ts";
 import { direction, t, type Lang } from "../i18n.ts";
 import { formatDateFr, formatMinor, monthLabel } from "../format.ts";
 import { paymentsOfMonth, type HomePayment } from "../views.ts";
-import { Amount, Badge, Card, IconBubble, Tap, flow, type IconName } from "../ui/kit.tsx";
+import { Amount, Badge, Card, IconBubble, Tap, farEdge, flow, type IconName } from "../ui/kit.tsx";
 import { EmptyState } from "../ui/states.tsx";
 import { ReceiptSheet, Ticket } from "./ReceiptSheet.tsx";
 
@@ -70,7 +70,9 @@ export function PaymentsScreen(props: {
         end={{ x: 1, y: 1 }}
         style={{ paddingHorizontal: SPACE.md, paddingTop: SPACE.sm, paddingBottom: SPACE.sm }}
       >
-        <Text style={{ color: "#fff", fontWeight: "900", fontSize: 20 }}>{t(l, "payments")}</Text>
+        <Text style={{ color: COLORS.white, fontWeight: "900", fontSize: 20 }}>
+          {t(l, "payments")}
+        </Text>
         <ScrollView
           ref={monthsRef}
           horizontal
@@ -158,12 +160,7 @@ export function PaymentsScreen(props: {
           </Card>
         }
         ListEmptyComponent={
-          <EmptyState
-            icon="wallet-outline"
-            title={t(l, "noPayments")}
-            // Ponctuation adaptée : l'arabe ne termine pas par un point latin.
-            hint={`${t(l, "emptyHint")}${rtl ? "" : "."}`}
-          />
+          <EmptyState icon="wallet-outline" title={t(l, "noPayments")} hint={t(l, "emptyHint")} />
         }
         renderItem={({ item: p }) => (
           <View style={{ flexDirection: flow(dir), marginBottom: SPACE.sm }}>
@@ -203,7 +200,7 @@ export function PaymentsScreen(props: {
                   text={`+${amount(p.amount_minor)}`}
                   tone={COLORS.debtOk}
                   size={20}
-                  align={rtl ? "left" : "right"}
+                  align={farEdge(rtl)}
                 />
               </View>
 
@@ -264,27 +261,21 @@ export function PaymentsScreen(props: {
           lang={l}
           title={t(l, "viewReceipt")}
           onClose={() => setReceiptId(null)}
-          shareText={
-            l === "ar"
-              ? `وصل دفعة: ${amount(receipt.amount_minor)} بتاريخ ${formatDateFr(receipt.payment_date)} (${props.shopName})`
-              : `Reçu paiement : ${amount(receipt.amount_minor)} le ${formatDateFr(receipt.payment_date)} (${props.shopName})`
-          }
+          shareText={`${t(l, "receipt")} ${t(l, "payments")} : ${amount(receipt.amount_minor)} — ${formatDateFr(receipt.payment_date)} (${props.shopName})`}
         >
           <Ticket
             lang={l}
             shopName={props.shopName}
             headLines={[
-              { label: l === "ar" ? "الزبون" : "Client", value: props.customerName },
-              { label: l === "ar" ? "المبلغ" : "Montant", value: amount(receipt.amount_minor) },
-              { label: l === "ar" ? "الطريقة" : "Méthode", value: methodLabel(l, receipt.method) },
-              { label: l === "ar" ? "التاريخ" : "Date", value: formatDateFr(receipt.payment_date) },
+              { label: t(l, "clientLabel"), value: props.customerName },
+              { label: t(l, "amountLabel"), value: amount(receipt.amount_minor) },
+              { label: t(l, "methodLabel"), value: methodLabel(l, receipt.method) },
+              { label: t(l, "dateLabel"), value: formatDateFr(receipt.payment_date) },
               {
-                label: l === "ar" ? "النوع" : "Type",
+                label: t(l, "typeLabel"),
                 value: receipt.sale_id != null ? t(l, "invoicePayment") : t(l, "accountAdvance"),
               },
-              ...(receipt.reference
-                ? [{ label: l === "ar" ? "المرجع" : "Référence", value: receipt.reference }]
-                : []),
+              ...(receipt.reference ? [{ label: t(l, "refLabel"), value: receipt.reference }] : []),
             ]}
             qrText={receipt.reference ?? `PAY-${receipt.id}`}
           />

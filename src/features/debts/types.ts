@@ -55,7 +55,10 @@ export function debtStatusTone(s: string): "red" | "amber" {
 
 export function dueLabel(due: string | null): string {
   if (!due) return "—";
-  return due.slice(0, 10);
+  // JJ/MM/AAAA sans objet Date (pas de décalage fuseau sur les dates seules).
+  const m = due.slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return "—";
+  return `${m[3]}/${m[2]}/${m[1]}`;
 }
 
 export function rowKey(r: DebtRow): string {

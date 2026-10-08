@@ -60,6 +60,7 @@ function SettingRow(props: {
         name={rtl ? "chevron-back" : "chevron-forward"}
         size={16}
         color={COLORS.cardMuted}
+        style={{ opacity: props.onPress === undefined ? 0 : 1 }}
       />
     </Tap>
   );
@@ -88,7 +89,6 @@ export function AccountScreen(props: {
 }): React.JSX.Element {
   const l = props.lang;
   const dir = direction(l);
-  const rtl = dir === "rtl";
   const tone = debtColor(props.debtStatus, props.overLimit);
   const call = (num: string): void => {
     void Linking.openURL(`tel:${num}`).catch(() => undefined);
@@ -98,7 +98,7 @@ export function AccountScreen(props: {
       () => undefined,
     );
   };
-  const initial = (props.customerName.trim()[0] ?? "V").toUpperCase();
+  const initial = (Array.from(props.customerName.trim())[0] ?? "V").toUpperCase();
   const situation =
     props.overLimit || props.debtStatus === "over_limit"
       ? t(l, "overLimit")
@@ -141,10 +141,13 @@ export function AccountScreen(props: {
               justifyContent: "center",
             }}
           >
-            <Text style={{ fontSize: 26, fontWeight: "900", color: "#fff" }}>{initial}</Text>
+            <Text style={{ fontSize: 26, fontWeight: "900", color: COLORS.white }}>{initial}</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 19, fontWeight: "900", color: "#fff" }} numberOfLines={1}>
+            <Text
+              style={{ fontSize: 19, fontWeight: "900", color: COLORS.white }}
+              numberOfLines={1}
+            >
               {props.customerName}
             </Text>
             <Text style={{ color: COLORS.headerText, marginTop: 2, fontSize: 14 }}>
@@ -154,11 +157,7 @@ export function AccountScreen(props: {
               {t(l, "lastLogin")}: {props.lastLoginAt ? formatDateFr(props.lastLoginAt) : "—"}
             </Text>
           </View>
-          <Badge
-            label={rtl ? "موثّق" : "Vérifié"}
-            color={COLORS.headerAccent}
-            icon="shield-checkmark"
-          />
+          <Badge label={t(l, "verified")} color={COLORS.headerAccent} icon="shield-checkmark" />
         </View>
 
         <View
@@ -174,13 +173,13 @@ export function AccountScreen(props: {
         >
           <View style={{ flexDirection: flow(dir), alignItems: "center", gap: 6 }}>
             <Text style={{ color: COLORS.headerText, fontSize: 12 }}>
-              {l === "ar" ? "الوضعية المالية" : "Situation"}
+              {t(l, "financialSituation")}
             </Text>
             <Badge label={situation} color={tone} />
           </View>
           <Amount
             text={props.hidden ? "•••" : formatMinor(props.debtMinor, l)}
-            tone="#fff"
+            tone={COLORS.white}
             size={SIZES.amountMd}
           />
         </View>
@@ -218,7 +217,7 @@ export function AccountScreen(props: {
         </View>
         {props.shopAddress ? (
           <Text style={{ color: COLORS.cardMuted, fontSize: 13 }}>
-            {l === "ar" ? "العنوان" : "Adresse"} : {props.shopAddress}
+            {t(l, "addressLabel")} : {props.shopAddress}
           </Text>
         ) : null}
         {props.announcement ? (
@@ -233,7 +232,9 @@ export function AccountScreen(props: {
             }}
           >
             <Ionicons name="megaphone-outline" size={15} color={COLORS.debtOk} />
-            <Text style={{ color: "#005320", fontWeight: "700", flex: 1, fontSize: 12 }}>
+            <Text
+              style={{ color: COLORS.announcementText, fontWeight: "700", flex: 1, fontSize: 12 }}
+            >
               {props.announcement}
             </Text>
           </View>
@@ -248,10 +249,10 @@ export function AccountScreen(props: {
               style={{ flex: 1 }}
             />
             <Button
-              label="WhatsApp"
+              label={t(l, "whatsapp")}
               variant="success"
               icon="logo-whatsapp"
-              onPress={() => whatsapp(props.shopPhone, t(l, "shareStatement"))}
+              onPress={() => whatsapp(props.shopPhone, t(l, "contactShop"))}
               style={{ flex: 1 }}
             />
           </View>
@@ -260,12 +261,6 @@ export function AccountScreen(props: {
 
       {/* Réglages */}
       <Card style={{ paddingHorizontal: SPACE.md, marginBottom: SPACE.md }}>
-        <SettingRow
-          icon="share-social-outline"
-          label={t(l, "shareStatement")}
-          onPress={props.onShare}
-          dir={dir}
-        />
         <SettingRow
           icon="language-outline"
           label={t(l, "language")}

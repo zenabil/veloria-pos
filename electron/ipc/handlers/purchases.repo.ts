@@ -213,15 +213,19 @@ function transitionPurchaseOrder(
     claimIdempotency(operationId, opType, now);
     const o = orderRow(id);
     if (!o) throw new Error("Commande introuvable.");
-    const allowed = PO_TRANSITIONS[String(o["status"])] ?? [];
+    const from = String(o["status"]);
+    const allowed = PO_TRANSITIONS[from] ?? [];
     if (!allowed.includes(to)) {
-      throw new Error(`Transition commande interdite : ${String(o["status"])} → ${to}.`);
+      throw new Error(`Transition commande interdite : ${from} → ${to}.`);
     }
-    db.prepare(`UPDATE purchase_orders SET status = ?, updated_at = ? WHERE id = ?`).run(
-      to,
-      now,
-      id,
-    );
+    // A1-P0 : garde anti-perte-mise-à-jour (commande vs annulation concurrentes :
+    // le perdant échoue au lieu d'écraser le statut du gagnant).
+    const r = db
+      .prepare(`UPDATE purchase_orders SET status = ?, updated_at = ? WHERE id = ? AND status = ?`)
+      .run(to, now, id, from);
+    if (Number(r.changes) !== 1) {
+      throw new Error("Commande modifiée par une autre opération. Veuillez réessayer.");
+    }
     db.prepare(
       `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at) VALUES (?, ?, 'purchase', ?, ?, ?, ?)`,
     ).run(

@@ -1,10 +1,11 @@
 // Veloria PoS — Écran : Rapports (synthèse période + graphiques + export).
 // Une seule source agrégée (reports.summary) + sections détaillées.
 import { useEffect, useRef, useState } from "react";
-import { Download, FileDown, Printer } from "lucide-react";
+import { Download, FileDown, Printer, X } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { callChecked, closingsListSchema } from "@shared/types/ipc-contracts.ts";
 import { formatDzd, parseDzdInputStrict } from "@domain/money/money.ts";
+import { formatDateFr, formatDzdSigned } from "@shared/formatters/format.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import { playSound } from "@shared/sound/sound.ts";
 import { newOperationId } from "@domain/common/ids.ts";
@@ -268,11 +269,11 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
     <div className="flex h-full flex-col gap-4">
       {/* En-tête Stitch : Rapports & Statistiques · Module 12 · v3.8 */}
       <PageHeader
-        title="Rapports & Statistiques"
+        title="Rapports et statistiques"
         module="Module 12 · v3.8 · DONNÉES EN TEMPS RÉEL (SQLITE WAL)"
         period={
           summary
-            ? `ANALYSE DE PERFORMANCE · POSTE 04 · EXERCICE ${new Date().getUTCFullYear()} · Du ${summary.from} au ${summary.to} ${summary.weekly ? "· par semaine" : "· par jour"}`
+            ? `ANALYSE DE PERFORMANCE · POSTE 04 · EXERCICE ${new Date().getUTCFullYear()} · Du ${formatDateFr(summary.from)} au ${formatDateFr(summary.to)} ${summary.weekly ? "· par semaine" : "· par jour"}`
             : "ANALYSE DE PERFORMANCE · POSTE 04 · Choisissez une période"
         }
         actions={
@@ -378,8 +379,9 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
                   void load({ customer: null });
                 }}
                 className="shrink-0 text-xs font-semibold text-slate-400 hover:text-white"
+                aria-label="Retirer le filtre client"
               >
-                ✕
+                <X size={13} aria-hidden="true" />
               </button>
             </div>
           ) : (
@@ -442,8 +444,9 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
                   void load({ supplier: null });
                 }}
                 className="shrink-0 text-xs font-semibold text-slate-400 hover:text-white"
+                aria-label="Retirer le filtre fournisseur"
               >
-                ✕
+                <X size={13} aria-hidden="true" />
               </button>
             </div>
           ) : (
@@ -542,7 +545,7 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
             <Kpi
               label="Marge Brute Globale"
-              value={formatDzd(k.profitMinor)}
+              value={formatDzdSigned(k.profitMinor)}
               sub="Ventes − achats revendus"
               accent="#4edea3"
             />
@@ -592,7 +595,7 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
                 <p
                   className={`text-2xl font-extrabold tabular-nums ${net >= 0 ? "text-emerald-300" : "text-red-300"}`}
                 >
-                  {formatDzd(net)}
+                  {formatDzdSigned(net)}
                 </p>
               </Card>
             );
@@ -693,7 +696,7 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
           {show("customerDebt") ? (
             <ReportSectionCard title={`Dettes clients · ${formatDzd(k.customerDebtMinor)}`}>
               <MiniTable
-                headers={["Client", "Total"]}
+                headers={["Client", "Achats période"]}
                 rows={summary.tops.customers
                   .filter((t) => t.name !== "Passage")
                   .slice(0, 5)
@@ -701,7 +704,8 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
                 empty="Aucune vente."
               />
               <p className="px-4 pb-3 text-xs text-slate-500">
-                Soldes exacts et relances dans la page Dettes.
+                Ci-dessus : top acheteurs de la période (pas des dettes). Soldes exacts et relances
+                dans la page Dettes.
               </p>
             </ReportSectionCard>
           ) : null}
@@ -768,7 +772,7 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
                   "Clôture",
                 ]}
                 rows={closings.map((c) => [
-                  c.business_date,
+                  formatDateFr(c.business_date),
                   formatDzd(c.opening_balance_minor),
                   formatDzd(c.cash_sales_minor),
                   formatDzd(c.customer_collections_minor),

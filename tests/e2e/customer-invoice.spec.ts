@@ -43,7 +43,7 @@ test("fiche client depuis la vente + aperçu facture 80mm/A4", async () => {
   await readSuccessToast(page, /créé/);
 
   // Vente comptant au client (facture liée, soldée).
-  await gotoModule(page, "Vente");
+  await gotoModule(page, "Caisse");
   await page.getByLabel("Recherche produit", { exact: true }).fill(product);
   await page
     .getByRole("button", { name: new RegExp(product) })
@@ -54,7 +54,7 @@ test("fiche client depuis la vente + aperçu facture 80mm/A4", async () => {
     .getByRole("button", { name: new RegExp(who.slice(0, 10)) })
     .first()
     .click();
-  await page.getByRole("button", { name: "Encaisser [F10]" }).click();
+  await page.getByRole("button", { name: "Encaisser", exact: true }).click();
   await settlePayment(page, "100", false);
   const toast = await readSuccessToast(page, /Vente .* enregistrée/);
   const invoice = /FAC-\S+/.exec(toast)?.[0] ?? "";
@@ -104,13 +104,13 @@ test("historique : aperçu facture 80mm + A4", async () => {
   await page.getByRole("button", { name: "Créer le produit" }).click();
   await readSuccessToast(page, /créé/);
 
-  await gotoModule(page, "Vente");
+  await gotoModule(page, "Caisse");
   await page.getByLabel("Recherche produit", { exact: true }).fill(product);
   await page
     .getByRole("button", { name: new RegExp(product) })
     .first()
     .click();
-  await page.getByRole("button", { name: "Encaisser [F10]" }).click();
+  await page.getByRole("button", { name: "Encaisser", exact: true }).click();
   await settlePayment(page, "50", false);
   const toast = await readSuccessToast(page, /Vente .* enregistrée/);
   const invoice = /FAC-\S+/.exec(toast)?.[0] ?? "";

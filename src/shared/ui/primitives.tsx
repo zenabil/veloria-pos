@@ -1,10 +1,12 @@
 // Veloria PoS — Système de design « Stitch Industrial Dark » (nouvelle génération).
-// Source littérale : stitch_veloria_pos_desktop_system/veloria_industrial_dark_pos/DESIGN.md
+// Source : docs/ADR-033-stitch-industrial-dark.md + docs/ADR-035/036
+// (maquettes d'origine archivées : docs/archive/stitch/). Fond #051424,
 // + 18 × code.html. Fond #051424, surfaces #010f1f→#273647, ambre #fbbf24,
 // Inter (UI) + JetBrains Mono (montants DZD, codes-barres, touches F).
 // Interface en français uniquement.
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import type {
   ButtonHTMLAttributes,
@@ -303,9 +305,9 @@ export function Modal({
               aria-label="Fermer"
               title="Fermer [Échap]"
               onClick={onClose}
-              className="rounded-lg px-2.5 py-1 text-lg leading-none text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
             >
-              ✕
+              <X size={18} aria-hidden="true" />
             </button>
           </div>
           {children}
@@ -337,7 +339,7 @@ export function Pager({
         ← Précédent
       </Button>
       <span className="tabular-nums" aria-live="polite">
-        Page {page} / {pages} · {total} élément(s)
+        Page {page} sur {pages} · {total} élément(s)
       </span>
       <Button variant="secondary" disabled={page >= pages} onClick={() => onPage(page + 1)}>
         Suivant →
@@ -423,19 +425,30 @@ export function RowAction({
   title,
   onClick,
   children,
+  disabled,
 }: {
   label: string;
   title: string;
   onClick: () => void;
   children: ReactNode;
+  /** RADICAL (#27) : verrou anti-double-clic — les impressions/exports et
+   *  les mutations passent `disabled` pendant l'opération (le bouton natif
+   *  `disabled` ne réémet pas `click`, aucun doublon possible). */
+  disabled?: boolean;
 }): ReactNode {
+  const off = disabled === true;
   return (
     <button
       type="button"
       aria-label={label}
       title={title}
-      onClick={onClick}
-      className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+      aria-disabled={off}
+      disabled={off}
+      onClick={() => {
+        if (off) return;
+        onClick();
+      }}
+      className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white disabled:pointer-events-none disabled:opacity-40"
     >
       {children}
     </button>
@@ -564,9 +577,9 @@ export function Drawer({
             onKeyDown={(e) => {
               if (e.key === "Escape") onClose();
             }}
-            className="rounded-lg px-2.5 py-1 text-lg leading-none text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
           >
-            ✕
+            <X size={18} aria-hidden="true" />
           </button>
         </div>
         <div className="min-h-0 flex-1 space-y-3 overflow-auto p-5">{children}</div>

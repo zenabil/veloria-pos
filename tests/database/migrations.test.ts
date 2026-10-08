@@ -28,10 +28,10 @@ describe("SQLite migrations + integrity", () => {
       .readdirSync(migDir)
       .filter((f) => f.endsWith(".sql"))
       .sort();
-    // RADICAL-FIX: contiguïté exacte 0001→0034 (tout trou = drift refusé par verify-migrations).
-    expect(files.length).toBe(34);
+    // RADICAL-FIX: contiguïté exacte 0001→0040 (tout trou = drift refusé par verify-migrations).
+    expect(files.length).toBe(40);
     expect(files[0]).toMatch(/^0001_/);
-    expect(files[files.length - 1]).toMatch(/^0034_/);
+    expect(files[files.length - 1]).toMatch(/^0040_/);
     db.exec(
       "CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL, checksum TEXT NOT NULL);",
     );
@@ -90,7 +90,7 @@ describe("SQLite migrations + integrity", () => {
       .readdirSync(migDir)
       .filter((x) => x.endsWith(".sql"))
       .sort();
-    expect(files.length).toBe(34);
+    expect(files.length).toBe(40);
     const read = (f: string): string => fs.readFileSync(path.join(migDir, f), "utf-8");
     for (const f of files.filter((f) => !f.startsWith("0004"))) db.exec(read(f));
     // Seed: one credit-authorized customer + one sale + one sale-linked payment.
@@ -254,6 +254,33 @@ describe("SQLite migrations + integrity", () => {
       .filter((x) => x.endsWith(".sql"))
       .sort();
     expect(files.some((f) => f.startsWith("0034_"))).toBe(true);
+    db.close();
+  });
+
+  it("0035 adds company NIS + article_imposition (nullable, factures DZ)", () => {
+    const db = new DatabaseSync(path.join(tmp, "p35.sqlite"));
+    db.exec("PRAGMA foreign_keys = ON;");
+    const migDir = path.join(process.cwd(), "database", "migrations");
+    for (const f of fs
+      .readdirSync(migDir)
+      .filter((x) => x.endsWith(".sql"))
+      .sort()) {
+      db.exec(fs.readFileSync(path.join(migDir, f), "utf-8"));
+    }
+    const cols = db
+      .prepare("PRAGMA table_info(company_profile)")
+      .all()
+      .map((c) => (c as { name: string }).name);
+    expect(cols).toContain("nis");
+    expect(cols).toContain("article_imposition");
+    db.prepare(
+      "INSERT INTO company_profile (id, uuid, company_name, nis, article_imposition, created_at, updated_at) VALUES (1, 'u35', 'SARL Test', '123', 'ART-9', '2026-01-01', '2026-01-01')",
+    ).run();
+    const row = db
+      .prepare("SELECT nis, article_imposition FROM company_profile WHERE id = 1")
+      .get() as { nis: string; article_imposition: string };
+    expect(row.nis).toBe("123");
+    expect(row.article_imposition).toBe("ART-9");
     db.close();
   });
 });

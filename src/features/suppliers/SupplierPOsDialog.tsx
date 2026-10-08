@@ -173,6 +173,8 @@ export function SupplierPOsDialog({
                 email: co["email"],
                 rc_number: co["rc_number"] ?? co["commercial_register"],
                 nif: co["nif"],
+                nis: co["nis"],
+                article_imposition: co["article_imposition"],
               }
             : null,
         ),
@@ -462,7 +464,7 @@ export function SupplierPOsDialog({
                   type="button"
                   variant="ghost"
                   onClick={() => addLine(null, query.trim())}
-                  title="Ligne libre (hors catalogue)"
+                  title="Ligne hors catalogue (achats)"
                 >
                   + Libre
                 </Button>
@@ -496,7 +498,7 @@ export function SupplierPOsDialog({
                     aria-label="Nom produit"
                   />
                 </Field>
-                <Field label="Qté">
+                <Field label="Quantité">
                   <TextInput
                     value={l.qtyText}
                     onChange={(e) =>

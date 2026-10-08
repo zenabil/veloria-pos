@@ -2,19 +2,19 @@
 // Composants partagés : pression animée + haptics, cartes à ombre douce,
 // boutons variantés, puces, badges, montants Mono, en-têtes de section.
 // Aucune logique métier ici : purement visuel (voir screens/ pour l'usage).
-import { useRef } from "react";
-import { Animated, Platform, Pressable, Text, TextInput, View } from "react-native";
+import { useState } from "react";
+import { Platform, Pressable, Text, TextInput, View } from "react-native";
 import type { StyleProp, TextStyle, ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { COLORS, FONTS, RADIUS, SHADOW, SPACE, TYPE, tint } from "../tokens.ts";
+import { COLORS, FONTS, RADIUS, SHADOW, SIZES, SPACE, TYPE, tint } from "../tokens.ts";
 import type { Lang } from "../i18n.ts";
 
 export type IconName = React.ComponentProps<typeof Ionicons>["name"];
 export type Flow = "row" | "row-reverse";
 
 const TAP_MIN = 48;
-const CHIP_HEIGHT = 40;
+const CHIP_HEIGHT = SIZES.touchMin;
 const AMOUNT_MD = 18;
 
 /** Sens de flux RTL/LTR (un seul endroit pour la bascule). */
@@ -33,39 +33,41 @@ function buzz(): void {
   }
 }
 
-/** Cible tactile animée (scale 0.97) + retour haptique léger. */
+/** Cible tactile (scale 0.97) + retour haptique léger.
+// NOTE crash APK 2026-10-04 : un Animated.Value dans `transform` arrivait
+// natif comme une Map (ReadableNativeMap→double, FATAL au premier rendu).
+// Pression en nombres purs : aucun nœud animé ne traverse le pont. */
 export function Tap(props: {
   children: React.ReactNode;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
   accessibilityHint?: string;
+  accessibilityLiveRegion?: "none" | "polite" | "assertive";
   disabled?: boolean;
   scaleTo?: number;
   haptic?: boolean;
   hitSlop?: number;
   testID?: string;
 }): React.JSX.Element {
-  const scale = useRef(new Animated.Value(1)).current;
+  const [pressed, setPressed] = useState(false);
   const to = props.scaleTo ?? 0.97;
-  const press = (value: number, duration: number): void => {
-    Animated.timing(scale, { toValue: value, duration, useNativeDriver: true }).start();
-  };
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={props.accessibilityLabel}
       accessibilityHint={props.accessibilityHint}
+      accessibilityLiveRegion={props.accessibilityLiveRegion}
       disabled={props.disabled}
       hitSlop={props.hitSlop}
       testID={props.testID}
-      onPressIn={() => press(to, 90)}
-      onPressOut={() => press(1, 160)}
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
       onPress={() => {
         if (props.haptic !== false) buzz();
         props.onPress?.();
       }}
-      style={[props.style, { transform: [{ scale }] }]}
+      style={[props.style, { transform: [{ scale: pressed ? to : 1 }] }]}
     >
       {props.children}
     </Pressable>
@@ -103,11 +105,11 @@ export type ButtonVariant = "gold" | "navy" | "outline" | "ghost" | "danger" | "
 
 const BUTTON_SKIN: Record<ButtonVariant, { bg: string; fg: string; border?: string }> = {
   gold: { bg: COLORS.primary, fg: COLORS.primaryText },
-  navy: { bg: COLORS.headerBg, fg: "#FFFFFF" },
+  navy: { bg: COLORS.headerBg, fg: COLORS.white },
   outline: { bg: COLORS.cardBg, fg: COLORS.cardText, border: COLORS.border },
   ghost: { bg: COLORS.contentBg, fg: COLORS.cardText },
   danger: { bg: COLORS.dangerBg, fg: COLORS.debtOverdue, border: tint(COLORS.debtOverdue, "40") },
-  success: { bg: COLORS.debtOk, fg: "#FFFFFF" },
+  success: { bg: COLORS.debtOk, fg: COLORS.white },
 };
 
 /** Bouton pilule : variante, icône optionnelle, taille md (48) / lg (56). */
@@ -321,13 +323,13 @@ export function SectionHead(props: {
             paddingVertical: SPACE.xs,
           }}
         >
-          <Text style={{ color: COLORS.debtDue, fontWeight: "800", fontSize: 13 }}>
+          <Text style={{ color: COLORS.cardMuted, fontWeight: "800", fontSize: 13 }}>
             {props.actionLabel}
           </Text>
           <Ionicons
             name={props.dir === "rtl" ? "chevron-back" : "chevron-forward"}
             size={14}
-            color={COLORS.debtDue}
+            color={COLORS.cardMuted}
           />
         </Tap>
       ) : null}

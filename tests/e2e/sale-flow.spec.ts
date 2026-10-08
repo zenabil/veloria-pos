@@ -35,9 +35,9 @@ async function createProduct(name: string, priceDzd: string, stock: string): Pro
   await expect(page.getByRole("row", { name: new RegExp(name) })).toBeVisible();
 }
 
-test("ouverture normale : coquille chargée, module Vente actif", async () => {
+test("ouverture normale : coquille chargée, module Caisse actif", async () => {
   const { page } = ctx;
-  await expect(page.getByRole("heading", { name: "Vente" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Caisse" })).toBeVisible();
   await expect(page.getByLabel("Recherche produit", { exact: true })).toBeVisible();
   await expect(page.getByText("Caisse prête")).toBeVisible();
 });
@@ -51,7 +51,7 @@ test("panier : ajout, quantité, sous-total et total", async () => {
   const { page } = ctx;
   const name = uniqueTag("E2EPanier");
   await createProduct(name, "100", "50");
-  await gotoModule(page, "Vente");
+  await gotoModule(page, "Caisse");
   await page.getByLabel("Recherche produit", { exact: true }).fill(name);
   await page
     .getByRole("button", { name: new RegExp(name) })
@@ -62,21 +62,21 @@ test("panier : ajout, quantité, sous-total et total", async () => {
   await expect(page.getByLabel(`Quantité ${name}`, { exact: true })).toHaveValue("2");
   // Ligne : 2 × 100,00 DZD puis total à payer.
   await expect(page.getByText("200,00 DZD").first()).toBeVisible();
-  await expect(page.getByText("Total Net à Payer")).toBeVisible();
+  await expect(page.getByText("Total net à payer")).toBeVisible();
 });
 
 test("vente comptant : historique, stock et aperçu sans imprimante", async () => {
   const { page } = ctx;
   const name = uniqueTag("E2EVente");
   await createProduct(name, "100", "50");
-  await gotoModule(page, "Vente");
+  await gotoModule(page, "Caisse");
   await page.getByLabel("Recherche produit", { exact: true }).fill(name);
   await page
     .getByRole("button", { name: new RegExp(name) })
     .first()
     .click();
   await page.getByRole("button", { name: `Augmenter ${name}` }).click();
-  await page.getByRole("button", { name: "Encaisser [F10]" }).click();
+  await page.getByRole("button", { name: "Encaisser", exact: true }).click();
   await settlePayment(page, "200", false);
   const toast = await readSuccessToast(page, /Vente .* enregistrée/);
   const invoice = /FAC-\S+/.exec(toast)?.[0] ?? "";

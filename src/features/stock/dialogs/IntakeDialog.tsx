@@ -499,7 +499,12 @@ export function StockIntakeDialog({
                 <p className="text-xs tabular-nums text-slate-400">
                   Net : {l.net ?? "—"} · Ligne : {formatDzd(l.valid ? l.lineTotal : 0)} · Livraison
                   : {formatDzd(l.share)} ·{" "}
-                  <strong className="text-amber-200">Coût unitaire : {formatDzd(l.landing)}</strong>{" "}
+                  <strong
+                    className="text-amber-200"
+                    title="Estimation informative : le stock et la marge valorisent au prix d'achat hors livraison"
+                  >
+                    Coût rendu estimé : {formatDzd(l.landing)}
+                  </strong>{" "}
                   · Vente :{" "}
                   {l.selling == null ? (
                     <span title="Prix actuel conservé">conservé</span>
@@ -532,7 +537,7 @@ export function StockIntakeDialog({
             <TextArea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Détail libre…"
+              placeholder="Précisez le motif…"
               aria-label="Notes de réception"
             />
           </Field>

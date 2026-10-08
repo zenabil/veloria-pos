@@ -73,13 +73,13 @@ installWebviewGuardOnce();
 
 function guardWebContents(wc: Electron.WebContents): void {
   wc.on("will-navigate", (event, url) => {
-    if (!isExternalNavigationAllowed(url)) {
+    if (!isExternalNavigationAllowed(url, app.isPackaged)) {
       event.preventDefault();
       if (isSafeExternalUrl(url)) void shell.openExternal(url);
     }
   });
   wc.on("will-redirect", (event, url) => {
-    if (!isExternalNavigationAllowed(url)) {
+    if (!isExternalNavigationAllowed(url, app.isPackaged)) {
       event.preventDefault();
       if (isSafeExternalUrl(url)) void shell.openExternal(url);
     }
@@ -152,9 +152,13 @@ export function createMainWindow(): BrowserWindow {
 
   const devUrl = process.env["VITE_DEV_SERVER_URL"];
   if (devUrl) {
-    void mainWindow.loadURL(devUrl);
+    mainWindow.loadURL(devUrl).catch((err: unknown) => {
+      console.error("[Veloria][FATAL] mainWindow.loadURL failed", err);
+    });
   } else {
-    void mainWindow.loadFile(path.join(__dirname, "../../dist/index.html"));
+    mainWindow.loadFile(path.join(__dirname, "../../dist/index.html")).catch((err: unknown) => {
+      console.error("[Veloria][FATAL] mainWindow.loadFile failed", err);
+    });
   }
 
   mainWindow.on("closed", () => {
@@ -170,7 +174,11 @@ export function createMainWindow(): BrowserWindow {
  */
 export function showRecoveryWindow(html: string): BrowserWindow {
   if (recoveryWindow) {
-    void recoveryWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+    recoveryWindow
+      .loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+      .catch((err: unknown) => {
+        console.error("[Veloria][FATAL] recoveryWindow.loadURL failed", err);
+      });
     recoveryWindow.focus();
     return recoveryWindow;
   }
@@ -185,7 +193,11 @@ export function showRecoveryWindow(html: string): BrowserWindow {
     backgroundColor: "#0b0f14",
     webPreferences: hardenedWebPreferences(path.join(__dirname, "..", "preload", "preload.js")),
   });
-  void recoveryWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+  recoveryWindow
+    .loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+    .catch((err: unknown) => {
+      console.error("[Veloria][FATAL] recoveryWindow.loadURL failed", err);
+    });
   // P1: même politique que la fenêtre principale.
   secureWindow(recoveryWindow);
 
@@ -207,7 +219,11 @@ export function getLicenseWindow(): BrowserWindow | null {
 
 export function showLicenseWindow(html: string): BrowserWindow {
   if (licenseWindow && !licenseWindow.isDestroyed()) {
-    void licenseWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+    licenseWindow
+      .loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+      .catch((err: unknown) => {
+        console.error("[Veloria][FATAL] licenseWindow.loadURL failed", err);
+      });
     licenseWindow.focus();
     return licenseWindow;
   }
@@ -222,7 +238,11 @@ export function showLicenseWindow(html: string): BrowserWindow {
     backgroundColor: "#0b0f14",
     webPreferences: hardenedWebPreferences(path.join(__dirname, "..", "preload", "preload.js")),
   });
-  void licenseWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+  licenseWindow
+    .loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+    .catch((err: unknown) => {
+      console.error("[Veloria][FATAL] licenseWindow.loadURL failed", err);
+    });
   // P1: même politique que la fenêtre principale.
   secureWindow(licenseWindow);
   licenseWindow.on("closed", () => {

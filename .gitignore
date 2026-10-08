@@ -1,5 +1,10 @@
 # Veloria PoS — ignores
 node_modules/
+# Outillage vivant (jamais committé, jamais déplacé : adresses stables).
+.opencode/
+# Rapports de maintenance historisés sous docs/reports/maintenance/ (#38) :
+# toute recréation à la racine est ignorée.
+maintenance-reports/
 dist/
 dist-electron/
 dist-license-manager/
@@ -56,5 +61,12 @@ coverage/
 playwright-report/
 test-results/
 *.tsbuildinfo
+# Graphe généré (hooks) — jamais committé, régénérable via `graphify update .`.
+graphify-out/
 # Expo local (jamais committé)
 .expo/
+mobile/android/
+mobile/ios/
+*.keystore
+*.jks
+local.properties

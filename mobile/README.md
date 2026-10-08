@@ -23,3 +23,13 @@ Domaine pur réutilisé tel quel depuis le POS (`money`, `debt-rules`, formatter
 - `package.json` + `app.json` : manifeste Expo (installation sur machine de build uniquement).
 
 Prochaine tranche : `src/screens/` (5 onglets) + cache SecureStore/expo-sqlite.
+
+## Signature release (#41)
+
+Le keystore de signature (`veloria-release.keystore`) ne vit JAMAIS à côté
+du code : domicile `%USERPROFILE%\.veloria-keys\veloria-release.keystore`
+(hors repo, ignoré par `*.keystore`, sauvegardé hors ligne par le vendor).
+Les builds EAS (`build:apk`) utilisent les credentials EAS ; pour une
+signature manuelle locale :
+`apksigner sign --ks %USERPROFILE%\.veloria-keys\veloria-release.keystore …`.
+Ne jamais committer ni empaqueter un `.keystore`/`.jks`.

@@ -2,10 +2,10 @@
 // Session persistée (SecureStore, repli mémoire) + clichés persistés
 // (expo-sqlite, repli mémoire) : l'appli rouvre sur les dernières données.
 import { useEffect, useRef, useState } from "react";
-import { BackHandler, Linking, Modal, Platform, Pressable, Text, View } from "react-native";
+import { BackHandler, Image, Linking, Modal, Platform, Pressable, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { COLORS, GRADIENTS, RADIUS, SHADOW, SPACE, tint } from "./tokens.ts";
+import { COLORS, GRADIENTS, RADIUS, SHADOW, SIZES, SPACE, tint } from "./tokens.ts";
 import { formatDateFr } from "./format.ts";
 import { t, type Lang } from "./i18n.ts";
 import { SyncError, fetchInvoiceDetail, syncNow } from "./api.ts";
@@ -26,6 +26,7 @@ import { buildShareText, toDetail, type InvoiceDetail } from "./views.ts";
 import type { HomeInvoice, HomePayment } from "./views.ts";
 import { TabBar, type TabId } from "./ui/nav.tsx";
 import { IconBubble, flow, Tap } from "./ui/kit.tsx";
+import { RootErrorBoundary } from "./ui/error-boundary.tsx";
 import { LoginScreen } from "./screens/Login.tsx";
 import { HomeScreen } from "./screens/Home.tsx";
 import { InvoicesScreen } from "./screens/Invoices.tsx";
@@ -43,7 +44,12 @@ function asRows(payload: unknown, key: string): Record<string, unknown>[] {
 
 export function App(): React.JSX.Element {
   const [lang, setLang] = useState<Lang>("ar");
-  const [session, setSession] = useState<{ phone: string; pin: string } | null>(null);
+  const [session, setSession] = useState<{
+    phone: string;
+    pin: string;
+    supabaseUrl: string | null;
+    anonKey: string | null;
+  } | null>(null);
   const [cache, setCache] = useState<MirrorCache>(EMPTY_CACHE);
   const [tab, setTab] = useState<Tab>("home");
   const [hidden, setHidden] = useState(true);
@@ -74,20 +80,30 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     let alive = true;
     void (async () => {
-      const [sess, cached] = await Promise.all([loadSession(), Promise.resolve(loadCache())]);
-      if (!alive) return;
-      if (sess) {
-        setSession({ phone: sess.phone, pin: sess.pin });
-        setLang(sess.lang);
-        setHidden(sess.amountsHidden);
+      try {
+        const [sess, cached] = await Promise.all([loadSession(), Promise.resolve(loadCache())]);
+        if (!alive) return;
+        if (sess) {
+          setSession({
+            phone: sess.phone,
+            pin: sess.pin,
+            supabaseUrl: sess.supabaseUrl ?? null,
+            anonKey: sess.anonKey ?? null,
+          });
+          setLang(sess.lang);
+          setHidden(sess.amountsHidden);
+        }
+        if (cached.syncedAt) {
+          setCache(cached);
+          setCustomerName(nameOf(cached.snapshot));
+          setStale(true);
+        }
+        if (sess) await refreshWith(sess);
+      } catch {
+        // Stockage illisible : on démarre quand même sur l'écran de connexion.
+      } finally {
+        if (alive) setBooted(true);
       }
-      if (cached.syncedAt) {
-        setCache(cached);
-        setCustomerName(nameOf(cached.snapshot));
-        setStale(true);
-      }
-      setBooted(true);
-      if (sess) await refreshWith(sess);
     })();
     return () => {
       alive = false;
@@ -105,6 +121,8 @@ export function App(): React.JSX.Element {
       lang,
       amountsHidden: hidden,
       lastLoginAt: cache.syncedAt,
+      supabaseUrl: session.supabaseUrl ?? null,
+      anonKey: session.anonKey ?? null,
     };
     void saveSession(s);
   }, [lang, hidden, session, booted, cache.syncedAt]);
@@ -154,13 +172,33 @@ export function App(): React.JSX.Element {
     setStale(false);
   }
 
-  async function login(phone: string, pin: string): Promise<void> {
+  async function login(
+    phone: string,
+    pin: string,
+    endpoint?: { supabaseUrl: string; anonKey: string } | null,
+  ): Promise<void> {
     setError(null);
+    // QR V2 (ADR-068) : l'endpoint du magasin prime ; sinon repli V1 gravé.
+    const baseUrl = endpoint?.supabaseUrl ?? SYNC_URL;
+    const anon = endpoint?.anonKey ?? ANON_KEY;
     try {
-      const data = await syncNow(SYNC_URL, ANON_KEY, phone, pin, fetch);
-      setSession({ phone, pin });
+      const data = await syncNow(baseUrl, anon, phone, pin, fetch);
+      setSession({
+        phone,
+        pin,
+        supabaseUrl: endpoint?.supabaseUrl ?? null,
+        anonKey: endpoint?.anonKey ?? null,
+      });
       applyPayloads(data);
-      await saveSession({ phone, pin, lang, amountsHidden: hidden, lastLoginAt: data.syncedAt });
+      await saveSession({
+        phone,
+        pin,
+        lang,
+        amountsHidden: hidden,
+        lastLoginAt: data.syncedAt,
+        supabaseUrl: endpoint?.supabaseUrl ?? null,
+        anonKey: endpoint?.anonKey ?? null,
+      });
       setTab("home");
     } catch (e) {
       if (e instanceof SyncError) {
@@ -173,9 +211,20 @@ export function App(): React.JSX.Element {
     }
   }
 
-  async function refreshWith(sess: { phone: string; pin: string }): Promise<void> {
+  async function refreshWith(sess: {
+    phone: string;
+    pin: string;
+    supabaseUrl?: string | null;
+    anonKey?: string | null;
+  }): Promise<void> {
     try {
-      const data = await syncNow(SYNC_URL, ANON_KEY, sess.phone, sess.pin, fetch);
+      const data = await syncNow(
+        sess.supabaseUrl ?? SYNC_URL,
+        sess.anonKey ?? ANON_KEY,
+        sess.phone,
+        sess.pin,
+        fetch,
+      );
       applyPayloads(data);
     } catch (e) {
       // Accès refusé (PIN changé, révoqué ou verrouillé) : on n'affiche JAMAIS
@@ -258,8 +307,8 @@ export function App(): React.JSX.Element {
     }
     try {
       const d = await fetchInvoiceDetail(
-        SYNC_URL,
-        ANON_KEY,
+        session.supabaseUrl ?? SYNC_URL,
+        session.anonKey ?? ANON_KEY,
         session.phone,
         session.pin,
         row.id,
@@ -289,24 +338,17 @@ export function App(): React.JSX.Element {
         end={{ x: 0.9, y: 1 }}
         style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: SPACE.md }}
       >
-        <LinearGradient
-          colors={GRADIENTS.gold}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[
-            {
-              width: 76,
-              height: 76,
-              borderRadius: 24,
-              alignItems: "center",
-              justifyContent: "center",
-            },
-            SHADOW.gold,
-          ]}
-        >
-          <Text style={{ fontSize: 40, fontWeight: "900", color: COLORS.headerBg }}>V</Text>
-        </LinearGradient>
-        <Text style={{ fontSize: 24, fontWeight: "900", color: "#fff", letterSpacing: 0.6 }}>
+        <Image
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          source={require("../assets/brand/veloria-customer.png")}
+          style={{
+            width: 76,
+            height: 76,
+            borderRadius: 24,
+          }}
+          accessibilityLabel="Veloria"
+        />
+        <Text style={{ fontSize: 24, fontWeight: "900", color: COLORS.white, letterSpacing: 0.6 }}>
           Veloria
         </Text>
         <Text style={{ color: COLORS.navyMuted, fontSize: 12 }}>{t(lang, "loading")}</Text>
@@ -318,15 +360,16 @@ export function App(): React.JSX.Element {
     return <LoginScreen lang={lang} onLang={setLang} onLogin={login} error={error} />;
   }
 
-  // Montants passés par `num()` (vue testée) : un montant legacy illisible
-  // dégrade en 0 au lieu de faire planter formatMinor() au rendu.
+  // Montants passés par `num()` STRICT (vue testée) : un montant legacy non
+  // entier (ex. 12.9) dégrade en dérivé `total - remaining` (ou 0), jamais
+  // tronqué en valeur plausible. Les quantités décimales vont à `numQty`.
   const invoiceRows = asRows(cache.invoices, "sales").map((s) => ({
     id: num(s["id"]),
     invoice_number: String(s["invoice_number"] ?? ""),
     total_minor: num(s["total_minor"]),
     amount_paid_minor:
-      typeof s["amount_paid_minor"] === "number"
-        ? num(s["amount_paid_minor"])
+      typeof s["amount_paid_minor"] === "number" && Number.isSafeInteger(s["amount_paid_minor"])
+        ? (s["amount_paid_minor"] as number)
         : num(s["total_minor"]) - num(s["remaining_balance_minor"]),
     remaining_balance_minor: num(s["remaining_balance_minor"]),
     payment_status: String(s["payment_status"] ?? ""),
@@ -379,15 +422,23 @@ export function App(): React.JSX.Element {
               width: 34,
               height: 34,
               borderRadius: 11,
-              backgroundColor: COLORS.primary,
+              overflow: "hidden",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <Text style={{ fontWeight: "900", color: COLORS.headerBg, fontSize: 17 }}>V</Text>
+            <Image
+              // eslint-disable-next-line @typescript-eslint/no-require-imports
+              source={require("../assets/brand/veloria-customer.png")}
+              style={{ width: 34, height: 34 }}
+              accessibilityLabel="Veloria"
+            />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: "#fff", fontWeight: "900", fontSize: 15 }} numberOfLines={1}>
+            <Text
+              style={{ color: COLORS.white, fontWeight: "900", fontSize: 15 }}
+              numberOfLines={1}
+            >
               Veloria Client
             </Text>
             <View
@@ -412,14 +463,16 @@ export function App(): React.JSX.Element {
           </View>
         </View>
         <View style={{ flexDirection: flow(lang === "ar" ? "rtl" : "ltr"), gap: SPACE.sm }}>
-          {/* Cloche : annonce boutique + fraîcheur (pas de push en V1) */}
+          {/* Cloche : annonce boutique + fraîcheur (pas de push en V1).
+              Changement de langue : écran Compte (post-connexion) et écran
+              de connexion (pré-connexion) — un seul endroit par contexte. */}
           <Tap
             onPress={() => setNotifOpen(true)}
             accessibilityLabel={t(lang, "notifications")}
             style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
+              width: SIZES.touchMin,
+              height: SIZES.touchMin,
+              borderRadius: SIZES.touchMin / 2,
               backgroundColor: tint(COLORS.white, "14"),
               alignItems: "center",
               justifyContent: "center",
@@ -430,25 +483,6 @@ export function App(): React.JSX.Element {
               size={18}
               color={home.announcement ? COLORS.primary : COLORS.headerText}
             />
-          </Tap>
-          <Tap
-            onPress={() => setLang(lang === "ar" ? "fr" : "ar")}
-            accessibilityLabel={lang === "ar" ? "Français" : "عربي"}
-            style={{
-              backgroundColor: tint(COLORS.white, "14"),
-              borderRadius: RADIUS.pill,
-              paddingHorizontal: SPACE.md,
-              minHeight: 40,
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 5,
-            }}
-          >
-            <Ionicons name="language-outline" size={14} color={COLORS.primary} />
-            <Text style={{ color: COLORS.primary, fontWeight: "800", fontSize: 12 }}>
-              {lang === "ar" ? "FR" : "عربي"}
-            </Text>
           </Tap>
         </View>
       </LinearGradient>
@@ -466,9 +500,14 @@ export function App(): React.JSX.Element {
             onBack={closeDetail}
             onRetry={() => void openDetail(detailRow)}
             onReport={(text) => {
-              void Linking.openURL(`https://wa.me/?text=${encodeURIComponent(text)}`).catch(
-                () => undefined,
-              );
+              // Signaler une erreur → conversation avec LA BOUTIQUE (numéro connu),
+              // pas un partage générique.
+              const shop = home.shop.phone ?? "";
+              const url =
+                shop !== ""
+                  ? `https://wa.me/${shop}?text=${encodeURIComponent(text)}`
+                  : `https://wa.me/?text=${encodeURIComponent(text)}`;
+              void Linking.openURL(url).catch(() => undefined);
             }}
             onShare={(text) => {
               void Linking.openURL(`https://wa.me/?text=${encodeURIComponent(text)}`).catch(
@@ -497,9 +536,12 @@ export function App(): React.JSX.Element {
             hidden={hidden}
             onOpenDetail={(row) => void openDetail(row)}
             onReport={(text) => {
-              void Linking.openURL(`https://wa.me/?text=${encodeURIComponent(text)}`).catch(
-                () => undefined,
-              );
+              const shop = home.shop.phone ?? "";
+              const url =
+                shop !== ""
+                  ? `https://wa.me/${shop}?text=${encodeURIComponent(text)}`
+                  : `https://wa.me/?text=${encodeURIComponent(text)}`;
+              void Linking.openURL(url).catch(() => undefined);
             }}
             onRefresh={() => refresh()}
           />
@@ -559,7 +601,9 @@ export function App(): React.JSX.Element {
       {error && session ? (
         <Tap
           onPress={() => setError(null)}
-          accessibilityLabel={error}
+          accessibilityLabel={`${error} — ${t(lang, "close")}`}
+          accessibilityLiveRegion="polite"
+          hitSlop={16}
           style={[
             {
               position: "absolute",
@@ -578,8 +622,10 @@ export function App(): React.JSX.Element {
             SHADOW.nav,
           ]}
         >
-          <IconBubble icon="alert-circle" color="#FF7A7A" size={30} />
-          <Text style={{ color: "#fff", flex: 1, fontSize: 13, fontWeight: "600" }}>{error}</Text>
+          <IconBubble icon="alert-circle" color={COLORS.dangerLight} size={30} />
+          <Text style={{ color: COLORS.white, flex: 1, fontSize: 13, fontWeight: "600" }}>
+            {error}
+          </Text>
           <Ionicons name="close" size={16} color={COLORS.navyMuted} />
         </Tap>
       ) : null}
@@ -592,6 +638,7 @@ export function App(): React.JSX.Element {
       >
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel={t(lang, "close")}
           onPress={() => setNotifOpen(false)}
           style={{
             flex: 1,
@@ -639,20 +686,6 @@ export function App(): React.JSX.Element {
                   {t(lang, "notifications")}
                 </Text>
               </View>
-              <Tap
-                onPress={() => setNotifOpen(false)}
-                accessibilityLabel={t(lang, "close")}
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  backgroundColor: COLORS.contentBg,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Ionicons name="close" size={18} color={COLORS.cardText} />
-              </Tap>
             </View>
 
             <View
@@ -695,7 +728,7 @@ export function App(): React.JSX.Element {
                 alignItems: "center",
               }}
             >
-              <Text style={{ color: "#fff", fontWeight: "800" }}>{t(lang, "close")}</Text>
+              <Text style={{ color: COLORS.white, fontWeight: "800" }}>{t(lang, "close")}</Text>
             </Pressable>
           </Pressable>
         </Pressable>
@@ -705,5 +738,15 @@ export function App(): React.JSX.Element {
         <TabBar lang={lang} active={tab} tabs={tabs} onChange={(id) => setTab(id)} />
       ) : null}
     </View>
+  );
+}
+
+/** Point d'entrée enregistré : toute exception au rendu affiche l'écran
+ * bilingue de secours au lieu de fermer l'appli sans message. */
+export function Root(): React.JSX.Element {
+  return (
+    <RootErrorBoundary>
+      <App />
+    </RootErrorBoundary>
   );
 }

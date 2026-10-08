@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { DatabaseSync } from "node:sqlite";
+import { pbkdf2Sync } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -89,7 +90,7 @@ describe("Migration 0032 client access + sync outbox", () => {
     db.close();
   });
 
-  it("enforces one access row per customer and cascade on delete", () => {
+  it("enforces one access row per customer and restrict on delete (0038)", () => {
     const db = openMigrated();
     db.prepare(
       "INSERT INTO customers (uuid, first_name, last_name, search_name, created_at, updated_at) VALUES ('ca32','Nadia','Bey','nadia bey','2026-01-01','2026-01-01')",
@@ -107,11 +108,15 @@ describe("Migration 0032 client access + sync outbox", () => {
         )
         .run(cid),
     ).toThrow();
+    expect(() => db.prepare("DELETE FROM customers WHERE id = ?").run(cid)).toThrow();
+    const kept = db.prepare("SELECT id FROM customer_access WHERE customer_id = ?").get(cid) as
+      { id: number } | undefined;
+    expect(kept).toBeDefined();
+    db.prepare("DELETE FROM customer_access WHERE customer_id = ?").run(cid);
     db.prepare("DELETE FROM customers WHERE id = ?").run(cid);
-    const gone = db.prepare("SELECT id FROM customer_access WHERE customer_id = ?").get(cid) as
-      | { id: number }
-      | undefined;
-    expect(gone).toBeUndefined();
+    const gone2 = db.prepare("SELECT id FROM customers WHERE id = ?").get(cid) as
+      { id: number } | undefined;
+    expect(gone2).toBeUndefined();
     db.close();
   });
 
@@ -228,11 +233,29 @@ describe("activateClientAccessAtomic : numéro réutilisé refusé à la source"
       }),
     ).toThrow("Ce numéro de téléphone est déjà activé pour un autre client.");
     const rows = db
-      .prepare(`SELECT customer_id, pin_hash FROM customer_access WHERE phone_hash = ?`)
-      .all(sha256Hex("0550123456")) as { customer_id: number; pin_hash: string }[];
+      .prepare(
+        `SELECT customer_id, pin_hash, pin_salt, pin_algo FROM customer_access WHERE phone_hash = ?`,
+      )
+      .all(sha256Hex("0550123456")) as {
+      customer_id: number;
+      pin_hash: string;
+      pin_salt: string;
+      pin_algo: string;
+    }[];
     expect(rows).toHaveLength(1);
     expect(rows[0]?.customer_id).toBe(one);
-    expect(rows[0]?.pin_hash).toBe(sha256Hex("654321"));
+    // #39 : PIN durci — sel par client + PBKDF2 vérifiable, jamais SHA-256 nu.
+    expect(rows[0]?.pin_algo).toBe("pbkdf2-sha256-100k");
+    expect(typeof rows[0]?.pin_salt).toBe("string");
+    expect(rows[0]?.pin_salt).toHaveLength(32);
+    const derived = pbkdf2Sync(
+      "654321",
+      Buffer.from(rows[0]?.pin_salt ?? "", "hex"),
+      100_000,
+      32,
+      "sha256",
+    ).toString("hex");
+    expect(rows[0]?.pin_hash).toBe(derived);
     // 4) Replay idempotent du 1er operationId → résultat stocké, aucun doublon.
     expect(
       activateClientAccessAtomic({

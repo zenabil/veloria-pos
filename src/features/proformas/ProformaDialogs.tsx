@@ -721,7 +721,7 @@ export function ProformaFormDialog({
             <TextArea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Détail libre…"
+              placeholder="Précisez le motif…"
               aria-label="Notes"
             />
           </Field>

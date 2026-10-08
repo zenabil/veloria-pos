@@ -8,6 +8,7 @@ import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { buildCompanyHead } from "@shared/documents/sale-ticket.ts";
 
 import { newOperationId } from "@domain/common/ids.ts";
+import { timbreQuittanceLf2025 } from "@domain/invoice/timbre-rules.ts";
 import { roundQuantity } from "@domain/common/quantity.ts";
 import { formatCustomerCode, formatDzdSafe } from "@shared/formatters/format.ts";
 
@@ -105,6 +106,8 @@ export function ReturnDetailsDrawer({
                 email: co["email"],
                 rc_number: co["rc_number"] ?? co["commercial_register"],
                 nif: co["nif"],
+                nis: co["nis"],
+                article_imposition: co["article_imposition"],
               }
             : null,
         ),
@@ -142,6 +145,13 @@ export function ReturnDetailsDrawer({
         deliveryMinor: 0,
         totalMinor: total,
         paidMinor: settled,
+        // C5 : timbre documentaire LF 2025 sur le remboursé espèces.
+        stampMinor: timbreQuittanceLf2025(
+          settled,
+          (kind === "customer" ? h["refund_method"] : h["recovery_method"]) === "cash"
+            ? "cash"
+            : null,
+        ),
       };
       const pv = (await api.printPreview(payload)) as { htmlA4: string };
       setTicket({ htmlA4: pv.htmlA4, payload });
@@ -231,6 +241,8 @@ export function ReturnDetailsDrawer({
                 email: co["email"],
                 rc_number: co["rc_number"] ?? co["commercial_register"],
                 nif: co["nif"],
+                nis: co["nis"],
+                article_imposition: co["article_imposition"],
               }
             : null,
         ),
@@ -248,6 +260,7 @@ export function ReturnDetailsDrawer({
         totalMinor: subtotal,
         paidMinor: settled,
         returnNumber: num,
+        originNumber: String(h["original_invoice_number"] ?? h["intake_invoice_number"] ?? ""),
         reason: typeof h["reason"] === "string" ? h["reason"] : "",
         refundMinor: Number.isFinite(refunded) && refunded > 0 ? Math.round(refunded) : 0,
       };

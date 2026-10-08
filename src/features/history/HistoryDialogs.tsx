@@ -6,6 +6,7 @@ import { api } from "@shared/types/ipc-client.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { useCompany } from "@shared/company/use-company.ts";
 import { formatDzd } from "@domain/money/money.ts";
+import { formatDateFr } from "@shared/formatters/format.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { buildSaleTicketPayload } from "@shared/documents/sale-ticket.ts";
 import { Badge, Button, Card, Drawer, InfoRow, Modal } from "@shared/ui/primitives.tsx";
@@ -46,7 +47,8 @@ export function HistoryDetailsDrawer({
   const confirmAsync = useConfirm();
   // Fiche entreprise : source unique partagée (ticket).
   const { record: companyRecord } = useCompany();
-  const { date, time } = splitDateTime(detail.createdAt);
+  const { time } = splitDateTime(detail.createdAt);
+  const date = formatDateFr(detail.createdAt);
 
   // Payload ticket canonique partagé (ticket + bon de livraison).
   async function loadTicketPayload(): Promise<Record<string, unknown>> {

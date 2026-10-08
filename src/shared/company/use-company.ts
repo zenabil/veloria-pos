@@ -14,6 +14,9 @@ interface CompanyInfo {
   email: string;
   rc: string;
   nif: string;
+  /** C5 : NIS + article (mentions facture DZ). */
+  nis: string;
+  article: string;
 }
 
 const EMPTY_COMPANY: CompanyInfo = {
@@ -24,6 +27,8 @@ const EMPTY_COMPANY: CompanyInfo = {
   email: "",
   rc: "",
   nif: "",
+  nis: "",
+  article: "",
 };
 
 export function useCompany(): {
@@ -58,6 +63,8 @@ export function useCompany(): {
           // premier enregistrement (company.repo écrit commercial_register → rc_number).
           rc: co?.commercial_register ?? co?.rc_number ?? "",
           nif: co?.nif ?? "",
+          nis: co?.nis ?? "",
+          article: co?.article_imposition ?? "",
         });
         setLogoDataUrl(typeof res.logoDataUrl === "string" ? res.logoDataUrl : null);
       })

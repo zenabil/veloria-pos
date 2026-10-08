@@ -61,6 +61,6 @@ test("factory reset : base vierge après réinitialisation confirmée", async ()
   // Base vierge : produit disparu, caisse prête, schéma courant.
   await gotoModule(ctx.page, "Catalogue");
   await expect(ctx.page.getByRole("row", { name: new RegExp(name) })).toHaveCount(0);
-  await gotoModule(ctx.page, "Vente");
+  await gotoModule(ctx.page, "Caisse");
   await expect(ctx.page.getByText("Caisse prête")).toBeVisible();
 });

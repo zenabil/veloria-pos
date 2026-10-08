@@ -82,8 +82,7 @@ export function adjustStockAtomic(args: {
     const prod = db
       .prepare(`SELECT quantity, min_stock_level, purchase_price_minor FROM products WHERE id = ?`)
       .get(args.productId) as
-      | { quantity: number; min_stock_level: number; purchase_price_minor: number }
-      | undefined;
+      { quantity: number; min_stock_level: number; purchase_price_minor: number } | undefined;
     if (!prod) throw new Error("Produit introuvable.");
     if (!Number.isFinite(args.newQuantity) || args.newQuantity < 0) {
       throw new Error("Quantité d'ajustement invalide.");
@@ -178,6 +177,11 @@ export function receiveStockAtomic(args: {
       if (found) return { intakeId: found.id, totalMinor: found.total_minor };
       return undefined;
     } catch {
+      // #36 : fast-path illisible — la transaction (claim UNIQUE) tranche ;
+      // on trace au lieu d'avaler.
+      console.warn("[Veloria][WARN] intake.fast_lookup_failed", {
+        operationId: args.operationId,
+      });
       return undefined;
     }
   };
@@ -413,12 +417,7 @@ export type StockMovementKind =
   | "return_in"
   | "damage_out";
 export type StockSort =
-  | "name_asc"
-  | "name_desc"
-  | "qty_asc"
-  | "qty_desc"
-  | "value_desc"
-  | "recent_desc";
+  "name_asc" | "name_desc" | "qty_asc" | "qty_desc" | "value_desc" | "recent_desc";
 
 export interface StockProductsOptions {
   categoryId?: number | null;
@@ -505,8 +504,7 @@ export function listMovements(
 ): { rows: unknown[]; total: number } {
   const db = getDb();
   const exists = db.prepare(`SELECT id FROM products WHERE id = ?`).get(productId) as
-    | { id: number }
-    | undefined;
+    { id: number } | undefined;
   if (!exists) throw new Error("Produit introuvable.");
   const conds = [`product_id = ?`];
   const params: unknown[] = [productId];
@@ -578,8 +576,7 @@ export function applyInventoryAtomic(args: {
           `SELECT quantity, min_stock_level, purchase_price_minor FROM products WHERE id = ?`,
         )
         .get(it.productId) as
-        | { quantity: number; min_stock_level: number; purchase_price_minor: number }
-        | undefined;
+        { quantity: number; min_stock_level: number; purchase_price_minor: number } | undefined;
       if (!prod) throw new Error("Produit introuvable.");
       const delta = it.actualQty - Number(prod.quantity);
       if (delta === 0) {

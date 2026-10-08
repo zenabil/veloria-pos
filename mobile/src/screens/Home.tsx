@@ -92,13 +92,6 @@ export function HomeScreen(props: {
       color: COLORS.debtOk,
       run: () => props.onOpenTab("payments"),
     },
-    {
-      id: "sync",
-      label: t(l, "quickRefresh"),
-      icon: "sync-outline",
-      color: COLORS.debtDue,
-      run: () => void props.onRefresh(),
-    },
   ];
 
   return (
@@ -137,10 +130,10 @@ export function HomeScreen(props: {
         >
           <View style={{ flex: 1 }}>
             <Text style={{ color: COLORS.navyMuted, fontSize: 12, fontWeight: "700" }}>
-              {l === "ar" ? "السلام عليكم" : "Bonjour"}
+              {t(l, "greeting")}
             </Text>
             <Text
-              style={{ color: "#fff", fontSize: 22, fontWeight: "900", marginTop: 2 }}
+              style={{ color: COLORS.white, fontSize: 22, fontWeight: "900", marginTop: 2 }}
               numberOfLines={1}
             >
               {h.shop.name}
@@ -171,10 +164,11 @@ export function HomeScreen(props: {
           <Tap
             onPress={props.onToggleHidden}
             accessibilityLabel={props.hidden ? t(l, "showAmounts") : t(l, "hideAmounts")}
+            hitSlop={8}
             style={{
-              width: 44,
-              height: 44,
-              borderRadius: 22,
+              width: SIZES.touchMin,
+              height: SIZES.touchMin,
+              borderRadius: SIZES.touchMin / 2,
               backgroundColor: tint(COLORS.white, "14"),
               alignItems: "center",
               justifyContent: "center",
@@ -258,8 +252,7 @@ export function HomeScreen(props: {
               >
                 <Text style={{ color: COLORS.cardMuted, fontSize: 12 }}>
                   {/* Pourcentage masqué comme les montants (« Masquer » actif). */}
-                  {props.hidden ? "•••" : `${creditUsed}%`}{" "}
-                  {l === "ar" ? "من سقف الائتمان" : "du plafond"}
+                  {props.hidden ? "•••" : `${creditUsed}%`} {t(l, "ofLimit")}
                 </Text>
                 <Amount text={amount(h.creditLimitMinor)} size={13} tone={COLORS.cardText} />
               </View>
@@ -331,7 +324,9 @@ export function HomeScreen(props: {
             }}
           >
             <IconBubble icon="megaphone" color={COLORS.debtOk} size={32} />
-            <Text style={{ color: "#005320", fontWeight: "700", flex: 1, fontSize: 13 }}>
+            <Text
+              style={{ color: COLORS.announcementText, fontWeight: "700", flex: 1, fontSize: 13 }}
+            >
               {h.announcement}
             </Text>
           </View>
@@ -439,7 +434,7 @@ export function HomeScreen(props: {
               <Tap
                 key={s.id}
                 onPress={() => props.onOpenDetail?.(s)}
-                accessibilityLabel={s.invoice_number}
+                accessibilityLabel={`${s.invoice_number}, ${statusText(l, s)}, ${t(l, "remaining")} ${amount(s.remaining_balance_minor)}`}
                 style={{
                   flexDirection: flow(dir),
                   alignItems: "center",
@@ -533,7 +528,7 @@ export function HomeScreen(props: {
         {/* Top produits */}
         {h.topProducts.length > 0 ? (
           <Card style={{ marginTop: SPACE.md }}>
-            <SectionHead title={l === "ar" ? "أكثر ما اشتريته" : "Vos articles phares"} dir={dir} />
+            <SectionHead title={t(l, "topProducts")} dir={dir} />
             <View style={{ flexDirection: flow(dir), flexWrap: "wrap", gap: SPACE.sm }}>
               {h.topProducts.map((p) => (
                 <View

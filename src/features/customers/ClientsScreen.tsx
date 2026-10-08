@@ -230,7 +230,8 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
     try {
       const st = (await api.customerStatement({ id: c.id })) as Statement;
       setDrawer({ customer: enrich(c, st), sales: st.sales });
-    } catch {
+    } catch (e) {
+      notify(frError(e, "Relevé indisponible — fiche sans historique."), "err");
       setDrawer({ customer: c, sales: [] });
     }
   }
@@ -287,7 +288,7 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
     <div className="flex h-full flex-col gap-4">
       {/* En-tête Stitch : Gestion des Clients · Registre Fédéré DZD */}
       <PageHeader
-        title="Gestion des Clients"
+        title="Gestion des clients"
         module="Registre Fédéré DZD"
         period={`${total} fiche(s) active(s) · ${stats.credit} compte(s) avec créance · ${formatDzd(stats.debt)} de dettes globales en cours`}
         actions={
@@ -337,9 +338,9 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
           accent="#ffb4ab"
         />
         <Kpi
-          label="Total Créances Clients"
+          label="Solde global clients"
           value={formatDzd(stats.debt)}
-          sub="Tous clients"
+          sub="Comptes clients (avoirs inclus)"
           accent="#cde8ff"
         />
         <Kpi
@@ -534,7 +535,7 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
                       <div className="flex justify-end gap-1">
                         <RowAction
                           label={`Voir ${fullName(c)}`}
-                          title="Détails"
+                          title="Détails de la fiche"
                           onClick={() => void openDrawer(c)}
                         >
                           <Eye size={15} aria-hidden="true" />
@@ -550,7 +551,7 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
                         ) : (
                           <RowAction
                             label={`Restaurer ${fullName(c)}`}
-                            title="Restaurer"
+                            title="Restaurer la fiche"
                             onClick={() => void restoreRow(c)}
                           >
                             <RotateCcw size={15} aria-hidden="true" />

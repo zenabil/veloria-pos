@@ -24,7 +24,7 @@ const DEFAULTS: Record<string, unknown> = {
     vatRate: 0,
     defaultSeller: "",
   },
-  printing: { silent: true, thermalWidth: "80" },
+  printing: { silent: true, thermalWidth: "80mm" },
   // P2 : clé "suppliers" lue par useDefaultMethod — défaut local "cash"
   // (même valeur que le main, jamais de null silencieux au 1er chargement).
   suppliers: { defaultPaymentMethod: "cash" },

@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Eye, HandCoins, Pencil, Plus, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
+import { formatDateFr } from "@shared/formatters/format.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import {
@@ -304,8 +305,8 @@ export function BreadScreen({ notify }: { notify: Notify }): React.JSX.Element {
     <div className="flex h-full flex-col gap-4">
       {/* En-tête Stitch : Pain & Commandes Boulangerie · MODULE 14 · PRIX SUBVENTIONNÉ */}
       <PageHeader
-        title="Pain & Commandes Boulangerie"
-        module="MODULE 14 · PRIX SUBVENTIONNÉ RÉGLEMENTÉ (DZD)"
+        title="Pain et commandes de boulangerie"
+        module="Module 14 · Prix subventionné réglementé (DZD)"
         period={`${total} commande(s) · ${stats.pending} en cours · ${stats.recurring} quotidienne(s) · Exercice ${new Date().getFullYear()}`}
         actions={
           <>
@@ -360,12 +361,12 @@ export function BreadScreen({ notify }: { notify: Notify }): React.JSX.Element {
         }
       />
 
-      {/* Cartes statistiques Stitch */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {/* Cartes statistiques Stitch (5 cartes : total + 4 statuts) */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <Kpi
-          label="Commandes du Jour"
+          label="Total commandes"
           value={String(stats.total)}
-          sub="Volume total planifié"
+          sub="Toutes commandes"
           accent="#fbbf24"
         />
         <Kpi
@@ -375,13 +376,19 @@ export function BreadScreen({ notify }: { notify: Notify }): React.JSX.Element {
           accent="#8ed0ff"
         />
         <Kpi
+          label="Prêtes au Retrait"
+          value={String(stats.ready)}
+          sub="À remettre au client"
+          accent="#4edea3"
+        />
+        <Kpi
           label="Commandes Quotidiennes"
           value={String(stats.recurring)}
           sub="Abonnés récurrents"
           accent="#cde8ff"
         />
         <Kpi
-          label="Livrées & Encaissées"
+          label="Commandes livrées"
           value={String(stats.delivered)}
           sub="Terminées"
           accent="#4edea3"
@@ -603,7 +610,7 @@ export function BreadScreen({ notify }: { notify: Notify }): React.JSX.Element {
           ) : rows.length === 0 ? (
             <EmptyState
               title="Aucune commande"
-              hint="Créez votre première commande avec le bouton « Commande »."
+              hint="Créez votre première commande avec le bouton « Nouvelle Commande »."
             />
           ) : (
             <table className="w-full min-w-[980px] text-sm">
@@ -662,7 +669,7 @@ export function BreadScreen({ notify }: { notify: Notify }): React.JSX.Element {
                       )}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 tabular-nums text-slate-300">
-                      {o.pickup_date.slice(0, 10)}
+                      {formatDateFr(o.pickup_date)}
                     </td>
                     <td className="px-3 py-2">
                       <Badge tone={orderStatusTone(o.order_status)}>
@@ -673,7 +680,7 @@ export function BreadScreen({ notify }: { notify: Notify }): React.JSX.Element {
                       <div className="flex justify-end gap-1">
                         <RowAction
                           label={`Voir ${o.order_number}`}
-                          title="Détails"
+                          title="Détails de la fiche"
                           onClick={() => void openDrawer(o)}
                         >
                           <Eye size={15} aria-hidden="true" />

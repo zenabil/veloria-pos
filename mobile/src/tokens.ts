@@ -26,18 +26,21 @@ export const COLORS = {
   overlay: "#051424B3",
   dangerBg: "#FEF2F2",
   dangerText: "#B42318",
+  dangerLight: "#FF7A7A",
+  announcementText: "#005320",
 } as const;
 
-// Aliases Stitch veloria_industrial_client/DESIGN.md (mêmes teintes, noms Stitch).
+// Aliases Stitch veloria_industrial_client/DESIGN.md — une seule source :
+// STITCH réexporte les teintes COLORS (mêmes valeurs, noms Stitch).
 export const STITCH = {
-  navy: "#051424",
-  navyContainer: "#0e1c2d",
-  gold: "#fbbf24",
+  navy: COLORS.headerBg,
+  navyContainer: COLORS.navySoft,
+  gold: COLORS.primary,
   goldContainer: "#ffc329",
-  emerald: "#16A34A",
-  emeraldGlow: "#4edea3",
-  surface: "#F6F7F9",
-  outline: "#E2E8F0",
+  emerald: COLORS.debtOk,
+  emeraldGlow: COLORS.headerAccent,
+  surface: COLORS.contentBg,
+  outline: COLORS.border,
 } as const;
 
 export const RADIUS = {
@@ -82,7 +85,7 @@ export const SIZES = {
   amountLg: 26,
   amountMd: 18,
   touchMin: 48,
-  filterChipHeight: 40,
+  filterChipHeight: 48,
   pageSize: 20,
   tabBar: 64,
 } as const;
@@ -108,7 +111,9 @@ export const SPACE = {
   xxl: 24,
 } as const;
 
-/** Dégradés signature (LinearGradient). */
+/** Dégradés signature (LinearGradient).
+ * hero = cartes et écrans (clair-obscur bleu) ; heroDeep = splash et
+ * TopAppBar (variante plus profonde, 3e ton encre). */
 export const GRADIENTS = {
   hero: ["#051424", "#0A1E33", "#123A5C"],
   heroDeep: ["#030D18", "#051424", "#0A1E33"],

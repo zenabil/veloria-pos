@@ -184,6 +184,15 @@ export const IPC_CHANNELS = {
   "printing.testPage": "printing.testPage",
   "printer.get": "printer.get",
   "printer.save": "printer.save",
+  // print templates studio (C6 : modèles SQLite, un actif par type)
+  "templates.list": "templates.list",
+  "templates.get": "templates.get",
+  "templates.save": "templates.save",
+  "templates.activate": "templates.activate",
+  "templates.remove": "templates.remove",
+  "templates.reset": "templates.reset",
+  "templates.preview": "templates.preview",
+  "templates.testPrint": "templates.testPrint",
   // system (logs)
   "system.openLogsFolder": "system.openLogsFolder",
   // recovery (base non prête : surface minimale explicite)

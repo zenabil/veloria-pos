@@ -5,6 +5,7 @@
 import { getDb } from "../../database/sqlite.service";
 import { getSaleDetail } from "./sales.repo";
 import { buildHistoryQuery, type HistoryFilters, type HistoryKind } from "./history-query";
+import { paymentMethodLabel } from "../../printing/receipt-documents";
 
 // RADICAL-FIX: garde allowlist pour les identifiants SQL interpolés (tables/colonnes
 // internes uniquement — jamais de saisie utilisateur). Échec fort si dérive future.
@@ -110,10 +111,23 @@ export function getHistoryStats(
     count("stock_movements") +
     count("audit_log");
   const payIn = sum("sale_payments", "amount_minor");
+  // Cohérence finance (dashboard/rapports) : les ventes ANNULÉES ne sont
+  // plus du chiffre d'affaires — même grain `is_cancelled = 0` partout.
+  const salesRange = range("created_at");
+  const validSales =
+    salesRange.cond === "" ? "WHERE is_cancelled = 0" : `${salesRange.cond} AND is_cancelled = 0`;
   return {
     totalOperations: ops,
-    salesCount: count("sales"),
-    salesAmountMinor: sum("sales", "total_minor"),
+    salesCount: (
+      db.prepare(`SELECT COUNT(*) AS c FROM sales ${validSales}`).get(...salesRange.params) as {
+        c: number;
+      }
+    ).c,
+    salesAmountMinor: (
+      db
+        .prepare(`SELECT COALESCE(SUM(total_minor), 0) AS s FROM sales ${validSales}`)
+        .get(...salesRange.params) as { s: number }
+    ).s,
     purchasesCount: count("stock_intakes"),
     purchasesAmountMinor: sum("stock_intakes", "total_minor"),
     paymentsAmountMinor: payIn + sum("supplier_payments", "amount_minor"),
@@ -147,6 +161,29 @@ const str = (v: unknown): string => {
 };
 const rawText = (v: unknown): string | null => (typeof v === "string" && v !== "" ? v : null);
 
+/** Centimes → "1 250,00 DA" (même rendu que le ticket main, SANS FLOAT). */
+const fmtMinorDa = (v: unknown): string => {
+  const n = Math.round(num(v));
+  if (!Number.isSafeInteger(n)) return "—";
+  const sign = n < 0 ? "-" : "";
+  const abs = Math.abs(n);
+  const major = Math.trunc(abs / 100);
+  const cents = abs % 100;
+  const grouped = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(major);
+  return `${sign}${grouped},${String(cents).padStart(2, "0")} DA`;
+};
+const PAYMENT_STATUS_FR: Record<string, string> = {
+  paid: "Payée",
+  partial: "Partielle",
+  unpaid: "Non payée",
+};
+/** Statut paiement DB (paid/partial/unpaid) → libellé FR affiché. */
+const paymentStatusFr = (s: unknown): string =>
+  typeof s === "string" && PAYMENT_STATUS_FR[s] != null ? PAYMENT_STATUS_FR[s] : "—";
+/** Moyen DB (cash/cheque/transfer) → libellé FR (miroir print, "—" si inconnu). */
+const methodFr = (m: unknown): string =>
+  typeof m === "string" && m !== "" ? paymentMethodLabel(m) || "—" : "—";
+
 export function getHistoryDetail(kind: HistoryKind, id: number): HistoryDetail {
   const db = getDb();
   const base = {
@@ -176,13 +213,13 @@ export function getHistoryDetail(kind: HistoryKind, id: number): HistoryDetail {
         { label: "Facture", value: str(sale["invoice_number"]) },
         { label: "Client", value: cust?.search_name ?? "Client de passage" },
         { label: "Articles", value: String(d.items.length) },
-        { label: "Statut paiement", value: str(sale["payment_status"]) },
+        { label: "Statut paiement", value: paymentStatusFr(sale["payment_status"]) },
       ],
       entity: { type: "Vente", name: str(sale["invoice_number"]), id },
       financial: {
         amount: num(sale["total_minor"]),
         method: typeof sale["payment_method"] === "string" ? sale["payment_method"] : null,
-        extra: `Payé ${num(sale["amount_paid_minor"])} · Reste ${num(sale["remaining_balance_minor"])}`,
+        extra: `Payé ${fmtMinorDa(sale["amount_paid_minor"])} · Reste ${fmtMinorDa(sale["remaining_balance_minor"])}`,
       },
       ticketSaleId: id,
     };
@@ -240,7 +277,7 @@ export function getHistoryDetail(kind: HistoryKind, id: number): HistoryDetail {
           : undefined;
       return {
         ...base,
-        title: `Paiement client ${num(pay["amount_minor"])}`,
+        title: `Paiement client ${fmtMinorDa(pay["amount_minor"])}`,
         reference: sale?.invoice_number ?? "Encaissement",
         createdAt: str(pay["created_at"]),
         status: "Encaissé",
@@ -250,7 +287,11 @@ export function getHistoryDetail(kind: HistoryKind, id: number): HistoryDetail {
           { label: "Référence", value: str(pay["reference"]) },
         ],
         entity: { type: "Client", name: cust?.search_name ?? "—", id: num(pay["customer_id"]) },
-        financial: { amount: num(pay["amount_minor"]), method: str(pay["method"]), extra: null },
+        financial: {
+          amount: num(pay["amount_minor"]),
+          method: methodFr(pay["method"]),
+          extra: null,
+        },
       };
     }
     const sup =
@@ -261,7 +302,7 @@ export function getHistoryDetail(kind: HistoryKind, id: number): HistoryDetail {
         : undefined;
     return {
       ...base,
-      title: `Paiement fournisseur ${num(pay["amount_minor"])}`,
+      title: `Paiement fournisseur ${fmtMinorDa(pay["amount_minor"])}`,
       reference: str(pay["reference"]),
       createdAt: str(pay["created_at"]),
       status: "Payé",
@@ -270,7 +311,7 @@ export function getHistoryDetail(kind: HistoryKind, id: number): HistoryDetail {
         { label: "Référence", value: str(pay["reference"]) },
       ],
       entity: { type: "Fournisseur", name: sup?.name ?? "—", id: num(pay["supplier_id"]) },
-      financial: { amount: num(pay["amount_minor"]), method: str(pay["method"]), extra: null },
+      financial: { amount: num(pay["amount_minor"]), method: methodFr(pay["method"]), extra: null },
     };
   }
   if (

@@ -108,7 +108,7 @@ export const accessActivateResultSchema = z
 
 /** QR d'activation scannable (ADR-054) : SVG N&B, "" = repli texte. */
 export const accessQrSvgResultSchema = z
-  .object({ svg: z.string().max(200_000), payload: z.string().min(1).max(300) })
+  .object({ svg: z.string().max(200_000), payload: z.string().min(1).max(800) })
   .passthrough();
 
 /** État d'accès APK (jamais de condensats vers le renderer). */
@@ -141,6 +141,7 @@ export const syncConfigViewSchema = z
     enabled: z.boolean(),
     supabaseUrl: z.string(),
     hasKey: z.boolean(),
+    hasAnonKey: z.boolean().optional().default(false),
     intervalMinutes: z.number().int().min(5),
     lastPushAt: z.string().nullable(),
     lastError: z.string().nullable(),

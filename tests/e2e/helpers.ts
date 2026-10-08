@@ -3,7 +3,7 @@
 // temporaires) : répétable, sans production, indépendant de l'ordre.
 
 import { _electron as electron, type ElectronApplication, type Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
 import { execFile } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -69,12 +69,12 @@ export function vendorPrivateKey(): string | null {
   }
 }
 
-/** Ignore proprement les tests exigeant une licence sans clé vendor. */
+/** Sans clé vendor, ÉCHEC FORT (#37) : jamais de skip silencieux qui ferait
+ * passer la suite au vert sans activer réellement. */
 export function skipIfNoVendorKey(): void {
-  test.skip(
-    vendorPrivateKey() == null,
-    "Clé vendor absente (private/vendor-keys) : activation E2E impossible.",
-  );
+  if (vendorPrivateKey() == null) {
+    throw new Error("Clé vendor absente (private/vendor-keys) : activation E2E impossible.");
+  }
 }
 
 /**
@@ -201,7 +201,7 @@ export async function issueTestLicense(
  * l'app) → fermeture → import externe (chiffré avec LA clé du profil) →
  * reboot. Un import avant tout boot corrompt la continuité du trousseau
  * (deux Chromium ne partagent jamais un userData).
- * Sans clé vendor, le test est ignoré (pas d'activation possible).
+ * Sans clé vendor, ÉCHEC FORT (#37, jamais de skip silencieux).
  */
 export async function launchActivatedApp(
   dirs?: IsolatedDirs,
@@ -374,7 +374,7 @@ export async function settlePayment(
   if (expectCreditStep) {
     await page.getByLabel("Échéance du crédit", { exact: true }).waitFor();
   }
-  await page.getByRole("button", { name: /Valider & Encaisser/ }).click();
+  await page.getByRole("button", { name: /Valider et encaisser/ }).click();
 }
 
 export { expect };

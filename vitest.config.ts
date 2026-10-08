@@ -13,6 +13,9 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
+    // #37 : aucun `.only` commis ne passe (échec FORT au lieu d'une
+    // sélection silencieuse qui masquerait le reste de la suite).
+    allowOnly: false,
     include: [
       "tests/unit/**/*.test.ts",
       "tests/integration/**/*.test.ts",
@@ -29,6 +32,9 @@ export default defineConfig({
         branches: 75,
         functions: 88,
         lines: 80,
+        // RADICAL: seuils par fichier (pas de moyenne vanité) — toute
+        // régression d'un module critique (domain/handlers) échoue.
+        perFile: true,
       },
     },
     testTimeout: 15000,

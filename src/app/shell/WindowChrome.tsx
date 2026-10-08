@@ -17,8 +17,9 @@ function bridgeAvailable(): boolean {
 async function toggleMaximize(): Promise<void> {
   try {
     await api.windowToggleMaximize();
-  } catch {
-    /* le main journalise ; l'état est repoussé par l'événement */
+  } catch (err: unknown) {
+    // Le main journalise ; log renderer pour le diagnostic, état repoussé par l'événement.
+    console.error("[Veloria] fenêtre : bascule agrandissement impossible", err);
   }
 }
 
@@ -100,13 +101,15 @@ function TitleBar({
           <CaptionButton
             label="Réduire"
             onClick={() => {
-              api.windowMinimize().catch(() => undefined);
+              api.windowMinimize().catch((err: unknown) => {
+                console.error("[Veloria] fenêtre : réduction impossible", err);
+              });
             }}
           >
             <Minus size={15} aria-hidden="true" />
           </CaptionButton>
           <CaptionButton
-            label={maximized ? "Restaurer" : "Agrandir"}
+            label={maximized ? "Restaurer la fenêtre" : "Agrandir la fenêtre"}
             onClick={() => void toggleMaximize()}
           >
             {maximized ? (
@@ -120,7 +123,9 @@ function TitleBar({
             close
             rounded={!maximized}
             onClick={() => {
-              api.windowClose().catch(() => undefined);
+              api.windowClose().catch((err: unknown) => {
+                console.error("[Veloria] fenêtre : fermeture impossible", err);
+              });
             }}
           >
             <X size={16} aria-hidden="true" />

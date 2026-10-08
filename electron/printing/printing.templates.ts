@@ -1,0 +1,226 @@
+// Veloria PoS — Electron: modeles Print Studio + primitifs (decoupage printing.service, zero changement).
+
+import { log } from "../services/logger";
+import { getActiveTemplate } from "../ipc/handlers/templates.repo";
+import { templateSettingsSchema } from "../ipc/validators";
+import { getThermalWidth, printOptions } from "./printing.printer-settings";
+import { enrichReceipt } from "./printing.enrich";
+import {
+  buildReceiptText,
+  proformaFromReceipt,
+  type PaymentTicketData,
+  type ProformaData,
+  type ReceiptData,
+  type ThermalWidth,
+} from "./receipt-documents";
+
+export function renderCopies(docType: string): number {
+  try {
+    return activeTemplateSettings(docType).copies;
+  } catch {
+    return 1;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// C6 : Print Studio — application du modèle actif (SQLite, migration 0036).
+// Contenu via les données (jamais de SQL générique), mise en page via les
+// options explicites des builders. Repli = rendu historique (défauts).
+// ---------------------------------------------------------------------------
+
+export interface TemplateRender {
+  settings: {
+    paper: string;
+    copies: number;
+    marginMm: number;
+    thermalFontPx: number;
+    logoSize: string;
+    showLogo: boolean;
+    showIdentity: boolean;
+    showTva: boolean;
+    showDiscountZero: boolean;
+    showQr: boolean;
+    showCodes: boolean;
+    showSignatures: boolean;
+    showWatermark: boolean;
+    watermarkText: string;
+    headerText: string;
+    footerText: string;
+  };
+}
+
+/** Réglages du modèle actif (défauts d'usine si absent/illisible). */
+export function activeTemplateSettings(docType: string): TemplateRender["settings"] {
+  try {
+    const row = getActiveTemplate(docType);
+    return mergeTemplateMirror(docType, row ? row.settings : {});
+  } catch (err) {
+    log("WARN", "printing", "template.unreadable", { docType, error: String(err) });
+    return mergeTemplateMirror(docType, {});
+  }
+}
+
+/**
+ * C6 : fusion main des réglages — MIROIR de
+ * `src/domain/print/template-rules.ts#mergeTemplateSettings`
+ * (electron ne peut pas importer src/). Toute modification ici doit être
+ * répercutée là-bas (parité testée).
+ */
+export function mergeTemplateMirror(docType: string, raw: unknown): TemplateRender["settings"] {
+  const parsed = templateSettingsSchema.parse(raw ?? {});
+  const obj = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {};
+  const allowed: readonly string[] =
+    docType === "facture"
+      ? ["A4", "A5"]
+      : docType === "etiquette"
+        ? ["A4"]
+        : ["80mm", "58mm", "A4"];
+  const fallbackPaper = docType === "ticket" || docType === "recu" ? "80mm" : "A4";
+  const paper =
+    obj["paper"] !== undefined && allowed.includes(parsed.paper) ? parsed.paper : fallbackPaper;
+  const showQr =
+    docType === "etiquette" ? (obj["showQr"] !== undefined ? parsed.showQr : false) : parsed.showQr;
+  return { ...(parsed as TemplateRender["settings"]), paper, showQr };
+}
+
+/** Papier effectif : modèle Studio, sinon largeur thermique configurée. */
+export function thermalWidthFor(paper: string): ThermalWidth {
+  if (paper === "58mm" || paper === "80mm") return paper;
+  return getThermalWidth();
+}
+
+/** Enveloppe de rendu (papier + police thermique) pour un type. */
+export function templateRenderOf(docType: string): {
+  settings: TemplateRender["settings"];
+  width: ThermalWidth;
+} {
+  const settings = activeTemplateSettings(docType);
+  return { settings, width: thermalWidthFor(settings.paper) };
+}
+
+/** Options @page (A4/A5 + marges) pour un type. */
+export function pageOptsOf(docType: string): { page: string; marginMm: number } {
+  const s = activeTemplateSettings(docType);
+  return { page: s.paper === "A5" ? "A5" : "A4", marginMm: s.marginMm };
+}
+
+export type TemplateSettings = TemplateRender["settings"];
+
+export function applySettingsToReceipt(s: TemplateSettings, d: ReceiptData): ReceiptData {
+  return {
+    ...d,
+    companyLogo: s.showLogo ? d.companyLogo : "",
+    companyRc: s.showIdentity ? d.companyRc : "",
+    companyNif: s.showIdentity ? d.companyNif : "",
+    companyNis: s.showIdentity ? (d.companyNis ?? "") : "",
+    companyArticle: s.showIdentity ? (d.companyArticle ?? "") : "",
+    tvaRatePercent: s.showTva ? d.tvaRatePercent : 0,
+    htMinor: s.showTva ? d.htMinor : 0,
+    tvaMinor: s.showTva ? d.tvaMinor : 0,
+    qrSvg: s.showQr ? d.qrSvg : "",
+    qrPayload: s.showQr ? d.qrPayload : "",
+    qrOff: !s.showQr,
+    codesOff: !s.showCodes,
+    footerText: s.footerText !== "" ? s.footerText : d.footerText,
+    headerNote: s.headerText !== "" ? s.headerText : undefined,
+    watermark: s.showWatermark ? s.watermarkText : undefined,
+    logoSize: s.logoSize,
+    hideSigns: !s.showSignatures,
+    hideZeroRows: !s.showDiscountZero,
+  };
+}
+
+export function applyTemplateToReceipt(docType: string, d: ReceiptData): ReceiptData {
+  return applySettingsToReceipt(activeTemplateSettings(docType), d);
+}
+
+export function applyTemplateToPayment(d: PaymentTicketData): PaymentTicketData {
+  return applySettingsToPayment(activeTemplateSettings("recu"), d);
+}
+
+export function applySettingsToPayment(
+  s: TemplateSettings,
+  d: PaymentTicketData,
+): PaymentTicketData {
+  return {
+    ...d,
+    companyLogo: s.showLogo ? d.companyLogo : "",
+    companyRc: s.showIdentity ? d.companyRc : "",
+    companyNif: s.showIdentity ? d.companyNif : "",
+    companyNis: s.showIdentity ? (d.companyNis ?? "") : "",
+    companyArticle: s.showIdentity ? (d.companyArticle ?? "") : "",
+    qrSvg: s.showQr ? (d.qrSvg ?? "") : "",
+    qrPayload: s.showQr ? (d.qrPayload ?? "") : "",
+    logoSize: s.logoSize,
+    hideSigns: !s.showSignatures,
+    qrOff: !s.showQr,
+    codesOff: !s.showCodes,
+    watermark: s.showWatermark ? s.watermarkText : undefined,
+    headerNote: s.headerText !== "" ? s.headerText : undefined,
+  };
+}
+
+/** Impression N exemplaires (double copie Studio) — boucle explicite. */
+export async function printCopies(html: string, copies: number, waitMs: number): Promise<void> {
+  const n = Number.isInteger(copies) && copies >= 1 ? Math.min(5, copies) : 1;
+  for (let i = 0; i < n; i++) {
+    await printHtml(html, waitMs);
+  }
+}
+
+export async function printHtml(html: string, waitMs: number): Promise<void> {
+  const { BrowserWindow: BW } = await import("electron");
+  // Fenêtre cachée durcie : aucun preload, aucun Node côté document —
+  // le HTML est généré par des builders qui échappent déjà les entrées.
+  // EL-05: mêmes garde-fous que les fenêtres visibles (permissions refusées,
+  // navigation interne refusée, pas de window.open).
+  const printWin = new BW({
+    show: false,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      webviewTag: false,
+    },
+  });
+  try {
+    try {
+      printWin.webContents.session.setPermissionRequestHandler((_wc, _p, cb) => cb(false));
+    } catch {
+      /* session indisponible en test */
+    }
+    printWin.webContents.on("will-navigate", (event) => event.preventDefault());
+    // P3: redirect aussi refusé (pas seulement navigate).
+    printWin.webContents.on("will-redirect", (event) => event.preventDefault());
+    printWin.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+    // P06: attendre did-finish-load (logo/base64 volumineux) au lieu d'un délai
+    // fixe seul — le délai reste en garde-fou maximal.
+    const loaded = new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, Math.max(waitMs, 1500));
+      printWin.webContents.once("did-finish-load", () => {
+        clearTimeout(timer);
+        // Un tick de rendu pour les images dataURL avant print.
+        setTimeout(resolve, Math.min(waitMs, 300));
+      });
+    });
+    await printWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+    await loaded;
+    await new Promise<void>((resolve, reject) => {
+      printWin.webContents.print(printOptions(), (success, err) => {
+        if (!success) reject(new Error(err || "print failed"));
+        else resolve();
+      });
+    });
+  } finally {
+    printWin.destroy();
+  }
+}
+
+export function receiptTextOf(d: ReceiptData, width?: ThermalWidth): string {
+  return buildReceiptText(d, width ?? getThermalWidth());
+}
+
+export function proformaWithSettings(raw: unknown): ProformaData {
+  const receipt = applyTemplateToReceipt("proforma", enrichReceipt(raw));
+  return proformaFromReceipt(receipt);
+}

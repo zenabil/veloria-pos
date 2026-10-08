@@ -2,7 +2,7 @@
 // Branchés sur le bridge window.veloria (jamais de SQLite côté renderer).
 import { useMemo, useState, Fragment } from "react";
 
-import { formatDzd } from "@domain/money/money.ts";
+import { formatDzd, multiplyMinorByQuantity } from "@domain/money/money.ts";
 
 import { Badge, EmptyState, Pager, Select, TextInput, cn } from "@shared/ui/primitives.tsx";
 import type { SupplierStatement } from "../SuppliersScreen.tsx";
@@ -22,6 +22,16 @@ import { totalPaid, totalPurchases } from "./common.ts";
 // ---------------------------------------------------------------------------
 
 const HISTORY_PAGE_SIZE = 15;
+
+/** Total de ligne en centimes via le domaine (gardé), jamais de float en UI. */
+function formatLineTotalSafe(unitPriceMinor: unknown, qty: unknown): string {
+  try {
+    if (typeof unitPriceMinor !== "number" || typeof qty !== "number") return "—";
+    return formatDzd(multiplyMinorByQuantity(unitPriceMinor, qty));
+  } catch {
+    return "—";
+  }
+}
 
 export function SupplierHistoryDrawer({
   statement,
@@ -353,7 +363,7 @@ function IntakeItemsTable({
               {formatDzd(it.purchase_price_minor)}
             </td>
             <td className="py-1 text-right font-bold tabular-nums">
-              {formatDzd(it.landing_cost_minor)}
+              {formatLineTotalSafe(it.purchase_price_minor, it.quantity_received)}
             </td>
           </tr>
         ))}

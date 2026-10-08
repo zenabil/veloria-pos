@@ -47,13 +47,15 @@ export interface SoundSettings {
 function readKey<T>(key: string, fallback: T): T {
   const db = getDb();
   const row = db.prepare(`SELECT value_json FROM app_settings WHERE key = ?`).get(key) as
-    | { value_json: string }
-    | undefined;
+    { value_json: string } | undefined;
   if (!row) return fallback;
   try {
     const parsed = JSON.parse(row.value_json) as Partial<T>;
     return { ...fallback, ...parsed };
   } catch {
+    // #36 : réglage corrompu — repli sur les défauts, mais JAMAIS silencieux
+    // (un défaut invisible peut changer la politique caisse/stock).
+    console.warn("[Veloria][WARN] settings.corrupted_row", { key });
     return fallback;
   }
 }

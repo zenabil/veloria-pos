@@ -29,6 +29,10 @@ files:
   - "!node_modules/pdfjs-dist/**/*"
   - node_modules/pdfjs-dist/package.json
   - node_modules/pdfjs-dist/legacy/build/pdf.mjs
+  # Fake worker pdfjs (import relatif "./pdf.worker.mjs" depuis pdf.mjs) :
+  # extraction texte 100 % locale, sans lui le portable répond
+  # "Setting up fake worker failed" (faux "PDF invalide").
+  - node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs
 extraResources:
   # Icône de fenêtre (BrowserWindow) : `public/` n'est PAS empaqueté dans
   # l'asar, donc exposée via resourcesPath (résolue dans window-manager).
@@ -50,6 +54,7 @@ asarUnpack:
   - "node_modules/tesseract.js/**/*"
   - "node_modules/tesseract.js-core/**/*"
   - "node_modules/pdfjs-dist/legacy/build/pdf.mjs"
+  - "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"
 win:
   target:
     - target: nsis
@@ -59,6 +64,10 @@ win:
   icon: public/icons/icon.ico
   legalTrademarks: Veloria
   verifyUpdateCodeSignature: false
+  # REVERTI (ADR-070, 2026-10-06) : le contournement TEMP-BUILD est terminé —
+  # `signAndEditExecutable` doit rester à true (interdit d'expédier à false) ;
+  # les builds release exigent le privilège symlink (fail-closed sinon).
+  signAndEditExecutable: true
 nsis:
   # Assistant classique (pas one-click) : choix du dossier, sans offres.
   oneClick: false

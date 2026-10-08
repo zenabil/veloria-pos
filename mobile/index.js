@@ -1,4 +1,4 @@
 import { registerRootComponent } from "expo";
-import { App } from "./src/App.tsx";
+import { Root } from "./src/App.tsx";
 
-registerRootComponent(App);
+registerRootComponent(Root);

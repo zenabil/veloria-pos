@@ -18,3 +18,24 @@ export const SYNC_URL: string = process.env.EXPO_PUBLIC_SYNC_URL ?? "http://127.
 
 /** Clé `anon` (publique) envoyée en `apikey` + `Authorization: Bearer`. */
 export const ANON_KEY: string = process.env.EXPO_PUBLIC_ANON_KEY ?? "demo";
+
+// RADICAL (#29) : garde-fou d'exécution — un bundle avec placeholder ou HTTP
+// clair distant DOIT échouer FORT au démarrage (jamais de PIN envoyé dans le
+// vide/en clair). Seuls https:// et le miroir démo local sont acceptés.
+const IS_PLACEHOLDER = /VOTRE-PROJET|VOTRE-CLE|VOTRE_|EXAMPLE|PLACEHOLDER/i;
+function isLocalDemoHttp(url: string): boolean {
+  return (
+    url === "http://127.0.0.1:8099" ||
+    url.startsWith("http://127.0.0.1:8099/") ||
+    url === "http://localhost:8099" ||
+    url.startsWith("http://localhost:8099/")
+  );
+}
+if (IS_PLACEHOLDER.test(SYNC_URL) || IS_PLACEHOLDER.test(ANON_KEY)) {
+  throw new Error(
+    "Configuration Supabase manquante (placeholder) : renseignez EXPO_PUBLIC_SYNC_URL / EXPO_PUBLIC_ANON_KEY.",
+  );
+}
+if (SYNC_URL.startsWith("http://") && !isLocalDemoHttp(SYNC_URL)) {
+  throw new Error("SYNC_URL HTTP clair refusée : https:// exigée (jamais de PIN en clair).");
+}

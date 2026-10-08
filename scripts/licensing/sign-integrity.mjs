@@ -73,19 +73,29 @@ for (const c of privCandidates) {
 }
 if (!priv) {
   if (ifKeyPresent) {
-    console.log(
-      "SKIP integrity: clé vendor absente (private/vendor-keys/private.key) — re-signature sautée (hook automatique).",
+    // #35 : SKIP = AVERTISSEMENT explicite (stderr), jamais silencieux — mais
+    // exit 0 conservé UNIQUEMENT pour les hooks automatiques (posttypecheck,
+    // build:electron) qui tournent sur les postes sans clé. Les scripts
+    // `package*` (strict, sans flag) restent en ÉCHEC exit 1 ci-dessous.
+    console.warn(
+      "WARNING integrity SKIP : clé vendor absente (private/vendor-keys/private.key) — re-signature sautée (hook automatique, build NON signé).",
     );
     process.exit(0);
   }
   console.error("ÉCHEC: clé privée vendor introuvable (private/vendor-keys/private.key).");
   process.exit(1);
 }
-let appVersion = "0.0.0";
+let appVersion;
 try {
-  appVersion = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf-8")).version;
+  const parsed = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf-8"));
+  const v = parsed.version;
+  if (typeof v !== "string" || v.length === 0) throw new Error("bad version");
+  appVersion = v;
 } catch {
-  /* défaut */
+  // #35 : repli 0.0.0 REFUSÉ — signer un manifeste « 0.0.0 » ferait passer un
+  // build non versionné pour signé.
+  console.error("ÉCHEC: version applicative illisible (package.json) — signature refusée.");
+  process.exit(1);
 }
 
 const rels = [];

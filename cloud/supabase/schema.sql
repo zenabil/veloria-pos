@@ -5,11 +5,17 @@
 -- Conventions miroirs du domaine : QR 7 jours, session 90 jours, 5 échecs →
 -- verrou 5 minutes (voir src/domain/customer/client-access.ts).
 
--- 1) Identités d'accès (condensats SHA-256 hex, jamais en clair).
+-- 1) Identités d'accès (condensats hex, jamais en clair).
+-- pin_hash : lignes neuves = PBKDF2-HMAC-SHA256 (100 000 itérations, sel
+-- par client pin_salt, voir pin_algo) ; lignes historiques = SHA-256 nu
+-- (pin_salt NULL, chemin transitoire côté Edge — jamais de réactivation
+-- forcée). phone_hash reste déterministe (clé de recherche).
 CREATE TABLE IF NOT EXISTS client_access (
   customer_id INTEGER PRIMARY KEY,
   phone_hash TEXT NOT NULL,
   pin_hash TEXT NOT NULL,
+  pin_salt TEXT NULL,
+  pin_algo TEXT NOT NULL DEFAULT 'sha256',
   qr_secret_hash TEXT,
   revoked_at TEXT,
   failed_attempts INTEGER NOT NULL DEFAULT 0 CHECK (failed_attempts >= 0),

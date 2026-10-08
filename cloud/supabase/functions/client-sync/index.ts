@@ -2,12 +2,10 @@
 // Un seul aller-retour : vérifie téléphone + PIN puis renvoie les derniers
 // clichés (accueil + factures + paiements + annonce). Deno runtime.
 // Secrets : SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY (jamais dans l'APK).
-// Verrous miroirs du domaine : 5 échecs → 5 minutes (même règle que le POS).
+// Verrous miroirs du domaine : 5 échecs → 5 minutes, poussés par le POS
+// (master) et appliqués ici en LECTURE SEULE (aucune écriture Deno, ADR-053).
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const MAX_FAILED = 5;
-const LOCK_MS = 5 * 60_000;
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.44.4";
 /**
  * Détail à la demande : on ne balaye que les 50 derniers clichés
  * `invoice_detail` (ils s'accumulent, UNIQUE operation_id).
@@ -44,6 +42,33 @@ function constantTimeEquals(a: string, b: string): boolean {
     diff |= ca ^ cb;
   }
   return diff === 0;
+}
+
+// #39 : vérification PIN lente — MIROIR du domaine
+// (`src/domain/customer/client-access.ts`, PIN_KDF_*) : mêmes paramètres que
+// l'écriture POS et le relais E2E (tout écart = test contrat rouge).
+// Ligne neuve (pin_salt présent) → PBKDF2-HMAC-SHA256 ; ligne historique
+// (sel NULL) → ancien SHA-256 nu (transitoire, jamais de réactivation forcée).
+const PIN_KDF_ITERATIONS = 100_000;
+const PIN_KDF_KEYLEN_BITS = 256;
+
+function hexToBytes(hex: string): Uint8Array {
+  if (hex.length % 2 !== 0 || !/^[0-9a-fA-F]*$/.test(hex)) throw new Error("bad salt");
+  const out = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < out.length; i += 1) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  return out;
+}
+
+async function pbkdf2PinHex(pin: string, saltHex: string): Promise<string> {
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(pin), "PBKDF2", false, [
+    "deriveBits",
+  ]);
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt: hexToBytes(saltHex), iterations: PIN_KDF_ITERATIONS, hash: "SHA-256" },
+    key,
+    PIN_KDF_KEYLEN_BITS,
+  );
+  return [...new Uint8Array(bits)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 function fail(code: string, message: string, status: number): Response {
@@ -105,7 +130,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   //   - aucune active, ≥ 1 révoquée → accès coupé (403)
   const { data: matches, error: lookupError } = await supa
     .from("client_access")
-    .select("customer_id, pin_hash, revoked_at, failed_attempts, locked_until")
+    .select("customer_id, pin_hash, pin_salt, revoked_at, locked_until")
     .eq("phone_hash", phoneHash)
     .order("revoked_at", { ascending: true, nullsFirst: true })
     .limit(2);
@@ -136,39 +161,24 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return fail("LOCKED_ERROR", "Compte verrouillé 5 minutes (5 échecs).", 429);
   }
   const pinHash = await sha256Hex(pin);
-  // Verrou éventuel déjà expiré (sinon on aurait répondu 429 plus haut).
-  const lockExpired =
-    typeof access.locked_until === "string" && Date.parse(access.locked_until) <= now.getTime();
-  if (!constantTimeEquals(pinHash, access.pin_hash)) {
-    // Quand le verrou PRÉCÉDENT a expiré, on repart de 0 : sans cette remise
-    // à zéro, `failed_attempts` restait ≥5 et le tout premier mauvais PIN
-    // après l'expiration reverrouillait instantanément (1 essai / 5 min pour
-    // toujours, au lieu de 5 échecs / 5 min — règle du POS).
-    const base = lockExpired ? 0 : (access.failed_attempts ?? 0);
-    const failed = base + 1;
-    const locked = failed >= MAX_FAILED ? new Date(now.getTime() + LOCK_MS).toISOString() : null;
-    // Écriture de SÉCURITÉ : si elle échoue, le compteur ne bouge plus =
-    // force brute PIN illimitée. On échoue fermé (500) plutôt que de servir.
-    const { error: attemptError } = await supa
-      .from("client_access")
-      .update({ failed_attempts: failed, locked_until: locked, updated_at: now.toISOString() })
-      .eq("customer_id", access.customer_id);
-    if (attemptError) {
-      console.error("client-sync: compteur d'echecs non mis a jour", attemptError.code);
+  // V1 lecture seule : aucune écriture Deno (compteurs poussés par le POS).
+  // PIN faux = 401 générique, sans toucher à l'état. Ligne neuve (sel
+  // présent) : dérivation lente PBKDF2 ; sinon ancien SHA-256 (transitoire).
+  const rowSalt =
+    typeof access.pin_salt === "string" && access.pin_salt.length > 0 ? access.pin_salt : null;
+  let expectedHash: string;
+  if (rowSalt) {
+    try {
+      expectedHash = await pbkdf2PinHex(pin, rowSalt);
+    } catch {
+      console.error("client-sync: sel PIN illisible");
       return fail("SERVER_ERROR", "Service de synchronisation indisponible.", 500);
     }
-    return fail("AUTH_ERROR", "Téléphone ou code incorrect.", 401);
+  } else {
+    expectedHash = pinHash;
   }
-  // Succès : compteur remis à zéro, puis derniers clichés en une lecture.
-  // Écriture de sécurité contrôlée aussi : un reset perdu laisserait un
-  // compte verrouillé/denied sans raison (déni de service silencieux).
-  const { error: resetError } = await supa
-    .from("client_access")
-    .update({ failed_attempts: 0, locked_until: null, updated_at: now.toISOString() })
-    .eq("customer_id", access.customer_id);
-  if (resetError) {
-    console.error("client-sync: compteur non remis a zero", resetError.code);
-    return fail("SERVER_ERROR", "Service de synchronisation indisponible.", 500);
+  if (!constantTimeEquals(expectedHash, access.pin_hash)) {
+    return fail("AUTH_ERROR", "Téléphone ou code incorrect.", 401);
   }
   const { data: rows, error: payloadError } = await supa
     .from("latest_client_payloads")

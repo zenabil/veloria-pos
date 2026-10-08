@@ -2,9 +2,10 @@
 // Clés éphémères : la clé vendor réelle n'est jamais touchée par les tests.
 import { describe, it, expect } from "vitest";
 import { generateKeyPairSync } from "node:crypto";
+import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
-import { addMonths, inTx } from "../../license-manager/ipc/licenses.ts";
+import { addMonths, inTx, listLicenses } from "../../license-manager/ipc/licenses.ts";
 import {
   licenseCreateSchema,
   licenseRenewSchema,
@@ -186,5 +187,59 @@ describe("L1/L2 : standing conservé par transfert/capabilities, réaligné par 
   it("le renouvellement écrit les deux colonnes de statut (P12)", () => {
     const renew = block("manager.licenseRenew");
     expect(renew).toContain("status = 'active', license_status = 'active'");
+  });
+
+  it("#32 : renouvellement et transfert conservent pages_json (jamais d'escalade ni de perte)", () => {
+    // LEGACY_PAGES_CUTOFF (protocol.ts) : sans `pages`, seules les licences
+    // émises avant le cutoff sont grandfathered — une ré-émission qui
+    // laisserait tomber pages_json offrirait (ou retirerait) silencieusement
+    // des capabilities. Les deux blocs doivent donc re-signer avec les pages
+    // stockées (pages: row.pages_json ? … : null), jamais `pages: null` en dur.
+    for (const name of ["manager.licenseRenew", "manager.licenseTransfer"]) {
+      const b = block(name);
+      expect(b.length).toBeGreaterThan(0);
+      expect(b).toContain("pages: row.pages_json ?");
+      expect(b).not.toContain("pages: null");
+    }
+  });
+
+  it("#33 : garde revoked uniforme sur les cinq voies (aucune réactivation silencieuse)", () => {
+    // Export/renew/transfer/capabilities/standing refusent toute transition
+    // depuis 'revoked' (révocation terminale : seul un nouveau licenseId
+    // ré-équipe le poste). Aucune voie sans le garde explicite.
+    for (const name of [
+      "manager.licenseExport",
+      "manager.licenseRenew",
+      "manager.licenseTransfer",
+      "manager.licenseCapabilities",
+      "manager.licenseStanding",
+    ]) {
+      const b = block(name);
+      expect(b.length).toBeGreaterThan(0);
+      expect(b).toContain('row.status === "revoked"');
+    }
+  });
+
+  it("#40 : recherche par magasin (placeholder tenu : référence, identifiant, magasin)", () => {
+    const db = new DatabaseSync(":memory:");
+    db.exec(
+      "CREATE TABLE licenses (id INTEGER PRIMARY KEY, license_id TEXT, customer_ref TEXT, store_name TEXT)",
+    );
+    db.prepare("INSERT INTO licenses (license_id, customer_ref, store_name) VALUES (?, ?, ?)").run(
+      "LIC-001",
+      "CLI-ENNOUR-001",
+      "Épicerie Ennour",
+    );
+    db.prepare("INSERT INTO licenses (license_id, customer_ref, store_name) VALUES (?, ?, ?)").run(
+      "LIC-002",
+      "CLI-AUTRE-002",
+      "Superette Lumière",
+    );
+    expect(listLicenses(db, "ennour").total).toBe(1);
+    expect(listLicenses(db, "LIC-002").total).toBe(1);
+    expect(listLicenses(db, "lumière").total).toBe(1);
+    expect(listLicenses(db, "introuvable").total).toBe(0);
+    expect(listLicenses(db, "").total).toBe(2);
+    db.close();
   });
 });

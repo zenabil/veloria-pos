@@ -216,18 +216,20 @@ export function ExpensesScreen({ notify }: { notify: Notify }): React.JSX.Elemen
     setFormOpen(true);
   }
 
-  // Raccourci réel Stitch : F8 exporter.
+  // Raccourci réel Stitch : F8 exporter (dépendances stables via ref).
+  const exportAllRef = useRef(exportAll);
+  exportAllRef.current = exportAll;
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (isAnyModalOpen()) return;
       if (e.key === "F8") {
         e.preventDefault();
-        void exportAll();
+        void exportAllRef.current();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  });
+  }, []);
 
   /** Export CSV [F8] : journal des décaissements (filtres courants, max 1000). */
   async function exportAll(): Promise<void> {
@@ -335,9 +337,9 @@ export function ExpensesScreen({ notify }: { notify: Notify }): React.JSX.Elemen
     <div className="flex h-full flex-col gap-4">
       {/* En-tête Stitch : Dépenses & Charges d'Exploitation · Module 10 · JOURNAL SCELLÉ WAL */}
       <PageHeader
-        title="Dépenses & Charges d'Exploitation"
+        title="Dépenses et charges d'exploitation"
         module="Module 10 · JOURNAL SCELLÉ WAL"
-        period={`${total} dépense(s) · ${formatDzd(stats.totalMinor)} au total · Suivi Budgétaire & Décaissements · Poste 04 · Exercice 2025`}
+        period={`${total} dépense(s) · ${formatDzd(stats.totalMinor)} au total · Suivi Budgétaire & Décaissements · Poste 04 · Exercice ${new Date().getFullYear()}`}
         actions={
           <>
             <div className="relative w-full max-w-xs">
@@ -373,7 +375,7 @@ export function ExpensesScreen({ notify }: { notify: Notify }): React.JSX.Elemen
               <Download size={16} aria-hidden="true" /> Exporter
             </Button>
             <Button onClick={openCreate} title="Nouvelle dépense">
-              <Plus size={16} aria-hidden="true" /> Nouvelle Dépense
+              <Plus size={16} aria-hidden="true" /> Nouvelle dépense
             </Button>
           </>
         }
@@ -382,25 +384,25 @@ export function ExpensesScreen({ notify }: { notify: Notify }): React.JSX.Elemen
       {/* Cartes statistiques Stitch */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi
-          label="Total Dépenses (Mois)"
+          label="Total mois en cours"
           value={formatDzd(stats.monthlyMinor)}
           sub="Mois en cours"
           accent="#fbbf24"
         />
         <Kpi
-          label="Décaissements Caisse (Jour)"
+          label="Total payé"
           value={formatDzd(stats.paidMinor)}
-          sub="Retraits tiroir-caisse"
+          sub="Toutes périodes"
           accent="#4edea3"
         />
         <Kpi
-          label="Charges Fixes en Attente"
+          label="Charges fixes en attente"
           value={formatDzd(stats.pendingMinor)}
           sub="À régler"
           accent="#ffb4ab"
         />
         <Kpi
-          label="Total Dépenses"
+          label="Total période filtrée"
           value={formatDzd(stats.totalMinor)}
           sub="Toutes périodes"
           accent="#cde8ff"
@@ -644,7 +646,7 @@ export function ExpensesScreen({ notify }: { notify: Notify }): React.JSX.Elemen
                       <div className="flex justify-end gap-1">
                         <RowAction
                           label={`Voir ${e.description}`}
-                          title="Détails"
+                          title="Détails de la fiche"
                           onClick={() => setDrawer(e)}
                         >
                           <Eye size={15} aria-hidden="true" />

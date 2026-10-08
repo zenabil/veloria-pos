@@ -139,27 +139,39 @@ export function parseDzdInputStrict(raw: string, label = "Montant invalide"): nu
   return out;
 }
 
-/** Format minor units for French UI: "1 250,00 DZD". */
+/** Format minor units for French UI: "1 250,00 DZD" — SANS FLOAT.
+ * Arithmétique entière uniquement (même règle que l'APK `formatMinor`) :
+ * `minor / 100` en float perdrait le centime au-delà de 2^53 et diverge du
+ * Client. Ici : partie entière groupée via Intl (entier seul, exact) +
+ * centimes `abs % 100`. */
 export function formatDzd(minor: number): string {
   assertMinorInteger(minor);
-  const value = minor / MINOR_PER_MAJOR;
-  return `${new Intl.NumberFormat("fr-FR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value)} DZD`;
+  const sign = minor < 0 ? "-" : "";
+  const abs = Math.abs(minor);
+  const major = Math.trunc(abs / MINOR_PER_MAJOR);
+  const cents = abs % MINOR_PER_MAJOR;
+  const grouped = new Intl.NumberFormat("fr-FR", {
+    maximumFractionDigits: 0,
+  }).format(major);
+  return `${sign}${grouped},${String(cents).padStart(2, "0")} DZD`;
 }
 
 /**
  * RADICAL-FIX: valeur initiale des CHAMPS de saisie (sans suffixe/groupement).
  * Sortie STRICTEMENT identique à l'ancien motif dispersé
- * `(minor / 100).toString().replace(".", ",")` ("12,5"), centralisé + gardé :
+ * `(minor / 100).toString().replace(".", ",")` ("12,5"), centralisé + gardé —
+ * mais SANS FLOAT (arithmétique entière : major + centimes) :
  * corrompu/NaN → MoneyError (jamais de textesilencieux dans le champ).
  * Round-trip garanti : `parseDzdInputStrict(minorToInput(m)) === m`.
  * Réservé aux inputs — l'affichage utilise `formatDzd` (groupement + "DZD").
  */
 export function minorToInput(minor: number): string {
   assertSafeMinor(minor);
-  return (minor / MINOR_PER_MAJOR).toString().replace(".", ",");
+  const major = Math.trunc(minor / MINOR_PER_MAJOR);
+  const cents = minor % MINOR_PER_MAJOR;
+  if (cents === 0) return String(major);
+  if (cents % 10 === 0) return `${major},${cents / 10}`;
+  return `${major},${String(cents).padStart(2, "0")}`;
 }
 
 /** Multiply minor by a quantity (quantity may be decimal, e.g. kg). Rounds to nearest minor. */
