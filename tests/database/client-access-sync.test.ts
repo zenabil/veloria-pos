@@ -110,12 +110,14 @@ describe("Migration 0032 client access + sync outbox", () => {
     ).toThrow();
     expect(() => db.prepare("DELETE FROM customers WHERE id = ?").run(cid)).toThrow();
     const kept = db.prepare("SELECT id FROM customer_access WHERE customer_id = ?").get(cid) as
-      { id: number } | undefined;
+      | { id: number }
+      | undefined;
     expect(kept).toBeDefined();
     db.prepare("DELETE FROM customer_access WHERE customer_id = ?").run(cid);
     db.prepare("DELETE FROM customers WHERE id = ?").run(cid);
     const gone2 = db.prepare("SELECT id FROM customers WHERE id = ?").get(cid) as
-      { id: number } | undefined;
+      | { id: number }
+      | undefined;
     expect(gone2).toBeUndefined();
     db.close();
   });

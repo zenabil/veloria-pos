@@ -47,7 +47,8 @@ export interface SoundSettings {
 function readKey<T>(key: string, fallback: T): T {
   const db = getDb();
   const row = db.prepare(`SELECT value_json FROM app_settings WHERE key = ?`).get(key) as
-    { value_json: string } | undefined;
+    | { value_json: string }
+    | undefined;
   if (!row) return fallback;
   try {
     const parsed = JSON.parse(row.value_json) as Partial<T>;
