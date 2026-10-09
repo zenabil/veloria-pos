@@ -22,7 +22,6 @@ export const LICENSE_PROTECTED_CHANNELS: ReadonlySet<string> = new Set([
   IPC_CHANNELS["customers.archive"],
   IPC_CHANNELS["customers.restore"],
   IPC_CHANNELS["customers.recordPayment"],
-  IPC_CHANNELS["customers.import"],
   // Accès clients APK : écritures gardées (activation, révocation, file de
   // synchro, annonces). Lectures (statut, file en attente) restent ouvertes.
   IPC_CHANNELS["customers.accessActivate"],
@@ -97,7 +96,6 @@ export const PAGE_GATED_CHANNELS: Readonly<Record<string, readonly string[]>> = 
   [IPC_CHANNELS["products.getByBarcode"]]: ["products"],
   [IPC_CHANNELS["products.matchBatch"]]: ["products"],
   [IPC_CHANNELS["products.barcodes"]]: ["products"],
-  [IPC_CHANNELS["products.get"]]: ["products"],
   [IPC_CHANNELS["products.create"]]: ["products"],
   [IPC_CHANNELS["products.update"]]: ["products"],
   [IPC_CHANNELS["products.archive"]]: ["products"],
@@ -115,7 +113,6 @@ export const PAGE_GATED_CHANNELS: Readonly<Record<string, readonly string[]>> = 
   [IPC_CHANNELS["customers.paymentReceipt"]]: ["customers", "debts"],
   [IPC_CHANNELS["customers.statement"]]: ["customers", "debts"],
   [IPC_CHANNELS["customers.stats"]]: ["customers"],
-  [IPC_CHANNELS["customers.import"]]: ["customers"],
   // Accès clients APK + synchro + annonces : page clients (registre fédéré).
   [IPC_CHANNELS["customers.accessActivate"]]: ["customers"],
   [IPC_CHANNELS["customers.accessRevoke"]]: ["customers"],
@@ -132,12 +129,10 @@ export const PAGE_GATED_CHANNELS: Readonly<Record<string, readonly string[]>> = 
   [IPC_CHANNELS["stock.products"]]: ["stock"],
   [IPC_CHANNELS["stock.movements"]]: ["stock"],
   [IPC_CHANNELS["stock.inventory"]]: ["stock"],
-  [IPC_CHANNELS["stock.lowStock"]]: ["stock"],
   [IPC_CHANNELS["stock.ledger"]]: ["stock"],
   [IPC_CHANNELS["stock.adjust"]]: ["stock"],
   [IPC_CHANNELS["stock.intake"]]: ["stock"],
   [IPC_CHANNELS["stock.intakes"]]: ["stock"],
-  [IPC_CHANNELS["stock.valuation"]]: ["stock"],
   [IPC_CHANNELS["suppliers.search"]]: ["suppliers"],
   [IPC_CHANNELS["suppliers.create"]]: ["suppliers"],
   [IPC_CHANNELS["suppliers.update"]]: ["suppliers"],
@@ -164,7 +159,6 @@ export const PAGE_GATED_CHANNELS: Readonly<Record<string, readonly string[]>> = 
   [IPC_CHANNELS["debts.list"]]: ["debts"],
   [IPC_CHANNELS["debts.detail"]]: ["debts"],
   [IPC_CHANNELS["debts.stats"]]: ["debts"],
-  [IPC_CHANNELS["reports.full"]]: ["reports"],
   [IPC_CHANNELS["reports.summary"]]: ["reports"],
   [IPC_CHANNELS["dashboard.summary"]]: ["dashboard"],
   [IPC_CHANNELS["closings.get"]]: ["reports"],
@@ -228,7 +222,6 @@ export const PAGE_GATED_CHANNELS: Readonly<Record<string, readonly string[]>> = 
  */
 export const FEATURE_GATED_CHANNELS: Readonly<Record<string, string>> = {
   [IPC_CHANNELS["products.import"]]: "excel-export",
-  [IPC_CHANNELS["customers.import"]]: "excel-export",
   [IPC_CHANNELS["returns.create"]]: "returns",
   [IPC_CHANNELS["returns.refund"]]: "returns",
   [IPC_CHANNELS["returns.cancel"]]: "returns",
@@ -237,7 +230,6 @@ export const FEATURE_GATED_CHANNELS: Readonly<Record<string, string>> = {
   [IPC_CHANNELS["proformas.convert"]]: "proformas",
   [IPC_CHANNELS["proformas.update"]]: "proformas",
   [IPC_CHANNELS["proformas.delete"]]: "proformas",
-  [IPC_CHANNELS["reports.full"]]: "advanced-reports",
   [IPC_CHANNELS["reports.summary"]]: "advanced-reports",
 };
 

@@ -3,7 +3,6 @@
 
 export const IPC_CHANNELS = {
   // app
-  "app.getVersion": "app.getVersion",
   "app.restart": "app.restart",
   "app.diagnostics": "app.diagnostics",
   // system / data folder
@@ -22,7 +21,6 @@ export const IPC_CHANNELS = {
   "products.getByBarcode": "products.getByBarcode",
   "products.matchBatch": "products.matchBatch",
   "products.barcodes": "products.barcodes",
-  "products.get": "products.get",
   "products.create": "products.create",
   "products.update": "products.update",
   "products.archive": "products.archive",
@@ -45,7 +43,6 @@ export const IPC_CHANNELS = {
   "customers.paymentReceipt": "customers.paymentReceipt",
   "customers.statement": "customers.statement",
   "customers.stats": "customers.stats",
-  "customers.import": "customers.import",
   // accès clients APK (V1 lecture seule, miroir ADR-053)
   "customers.accessActivate": "customers.accessActivate",
   "customers.accessRevoke": "customers.accessRevoke",
@@ -67,12 +64,10 @@ export const IPC_CHANNELS = {
   "stock.products": "stock.products",
   "stock.movements": "stock.movements",
   "stock.inventory": "stock.inventory",
-  "stock.lowStock": "stock.lowStock",
   "stock.ledger": "stock.ledger",
   "stock.adjust": "stock.adjust",
   "stock.intake": "stock.intake",
   "stock.intakes": "stock.intakes",
-  "stock.valuation": "stock.valuation",
   // suppliers (Phase 6)
   "suppliers.search": "suppliers.search",
   "suppliers.create": "suppliers.create",
@@ -103,7 +98,6 @@ export const IPC_CHANNELS = {
   "debts.list": "debts.list",
   "debts.detail": "debts.detail",
   "debts.stats": "debts.stats",
-  "reports.full": "reports.full",
   "reports.summary": "reports.summary",
   "dashboard.summary": "dashboard.summary",
   "closings.get": "closings.get",
@@ -135,7 +129,6 @@ export const IPC_CHANNELS = {
   // carts (P4 : brouillons paniers, jamais de LocalStorage métier)
   "carts.save": "carts.save",
   "carts.load": "carts.load",
-  "carts.clear": "carts.clear",
   // returns
   "returns.create": "returns.create",
   "returns.list": "returns.list",
@@ -213,15 +206,12 @@ export const IPC_CHANNELS = {
   "license.getHardwareId": "license.getHardwareId",
   "license.importLicense": "license.importLicense",
   "license.validate": "license.validate",
-  "license.getInfo": "license.getInfo",
-  "license.getPermissions": "license.getPermissions",
   // backup
   "backup.create": "backup.create",
   "backup.list": "backup.list",
   "backup.restore": "backup.restore",
   "backup.status": "backup.status",
   "backup.export": "backup.export",
-  "backup.autoGet": "backup.autoGet",
   "backup.autoSave": "backup.autoSave",
   // ocr local (factures fournisseurs → stock, après relecture humaine)
   "ocr.selectFile": "ocr.selectFile",

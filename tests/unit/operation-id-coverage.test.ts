@@ -52,7 +52,6 @@ const OPTIONAL_EXCEPTION = [
   ["finance", Finance.companyUpdateSchema],
   ["finance", Finance.expenseUpdateSchema],
   ["sales", Sales.cartsSaveSchema],
-  ["sales", Sales.cartsClearSchema],
   ["documents", Documents.proformaUpdateSchema],
   ["settings", Settings.inventorySettingsSchema],
   ["settings", Settings.salesSettingsSchema],

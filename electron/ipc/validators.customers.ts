@@ -36,21 +36,6 @@ export const customerDebtFilterSchema = z.enum(["all", "with_debt", "no_debt", "
 // P1-3 : filtre serveur « archivés seuls » (total réel côté main).
 export const archivedOnlySchema = z.boolean().default(false);
 
-export const customersImportSchema = z.object({
-  // M-2 caller-owned batch operation (same rule as productsImportSchema).
-  operationId: z.string().uuid(),
-  rows: z
-    .array(
-      z.object({
-        firstName: z.string().min(1).max(100),
-        lastName: z.string().min(1).max(100),
-        phone: z.string().max(30).default(""),
-      }),
-    )
-    .min(1)
-    .max(5000),
-});
-
 // Liaison produits �?" fournisseurs (jonction 0015).
 
 export const clientAccessActivateSchema = z.object({

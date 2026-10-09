@@ -188,47 +188,6 @@ export function getDebtDetail(
   return { header, party: header, payments };
 }
 
-export function getPeriodReport(from: string, to: string): Record<string, unknown> {
-  const db = getDb();
-  const sales = db
-    .prepare(
-      `SELECT COUNT(*) AS n, COALESCE(SUM(total_minor),0) AS t, COALESCE(SUM(amount_paid_minor),0) AS p, COALESCE(SUM(remaining_balance_minor),0) AS c
-       FROM sales WHERE substr(created_at,1,10) BETWEEN ? AND ? AND is_cancelled = 0`,
-    )
-    .get(from, to);
-  const collections = db
-    .prepare(
-      `SELECT COALESCE(SUM(amount_minor),0) AS standalone FROM sale_payments WHERE substr(payment_date,1,10) BETWEEN ? AND ? AND sale_id IS NULL`,
-    )
-    .get(from, to);
-  const expenses = db
-    .prepare(
-      `SELECT COALESCE(SUM(amount_minor),0) AS e, COUNT(*) AS n FROM expenses WHERE expense_date BETWEEN ? AND ?`,
-    )
-    .get(from, to);
-  const refunds = db
-    .prepare(
-      `SELECT COALESCE(SUM(amount_refunded_minor),0) AS r, COALESCE(SUM(total_return_value_minor),0) AS v, COUNT(*) AS n FROM returns WHERE substr(created_at,1,10) BETWEEN ? AND ?`,
-    )
-    .get(from, to);
-  const top = db
-    .prepare(
-      `SELECT si.product_name_snapshot AS name, SUM(si.quantity) AS qty, SUM(si.line_total_minor) AS revenue
-       FROM sale_items si JOIN sales s ON s.id = si.sale_id
-       WHERE substr(s.created_at,1,10) BETWEEN ? AND ? AND s.is_cancelled = 0
-       GROUP BY si.product_name_snapshot ORDER BY revenue DESC LIMIT 10`,
-    )
-    .all(from, to);
-  const debt = db
-    .prepare(`SELECT COALESCE(SUM(outstanding_balance_minor),0) AS d FROM customers`)
-    .get();
-  const supplierDebt = db
-    .prepare(`SELECT COALESCE(SUM(outstanding_balance_minor),0) AS d FROM suppliers`)
-    .get();
-  const inventory = { v: fifoValuation() };
-  return { sales, collections, expenses, refunds, top, debt, supplierDebt, inventory, from, to };
-}
-
 export function listClosings(from: string, to: string): { rows: unknown[] } {
   const db = getDb();
   const rows = db

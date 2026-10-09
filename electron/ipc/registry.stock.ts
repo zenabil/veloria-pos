@@ -10,9 +10,6 @@ import { handle } from "./handle";
 export function registerStockChannels(): void {
   // ---- Phase 6 : stock ----
   handle(IPC_CHANNELS["stock.overview"], V.emptyPayloadSchema, () => Inventory.getStockOverview());
-  handle(IPC_CHANNELS["stock.lowStock"], V.paginationSchema, (input) => ({
-    rows: Inventory.listLowStock(input.pageSize),
-  }));
   handle(IPC_CHANNELS["stock.ledger"], V.idSchema, (input) => ({
     rows: Inventory.getLedger(input.id, 100),
   }));
@@ -73,9 +70,6 @@ export function registerStockChannels(): void {
   );
   handle(IPC_CHANNELS["stock.intakes"], V.paginationSchema, (input) =>
     Inventory.listIntakes(input.page, input.pageSize),
-  );
-  handle(IPC_CHANNELS["stock.valuation"], V.emptyPayloadSchema, () =>
-    Inventory.getInventoryValuation(),
   );
 
   // ---- Phase 6 : fournisseurs ----

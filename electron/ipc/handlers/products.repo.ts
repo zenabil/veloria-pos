@@ -120,16 +120,6 @@ export function matchProductsBatch(items: ProductMatchBatchItem[]): ProductMatch
   });
 }
 
-export function getProduct(id: number): ProductRow | null {
-  const db = getDb();
-  const row = db
-    .prepare(
-      `SELECT p.*, c.name AS category_name, NULL AS primary_barcode FROM products p LEFT JOIN categories c ON c.id = p.category_id WHERE p.id = ? LIMIT 1`,
-    )
-    .get(id) as ProductRow | undefined;
-  return row ?? null;
-}
-
 /** Tous les codes-barres (principal d'abord) pour l'éditeur multi-barcodes. */
 export function getProductBarcodes(id: number): { barcode: string; is_primary: number }[] {
   const db = getDb();

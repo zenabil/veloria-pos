@@ -251,7 +251,4 @@ export function registerSystemChannels(): void {
   handle(IPC_CHANNELS["products.import"], V.productsImportSchema, (input) =>
     Imports.importProductsAtomic(input.rows, new Date().toISOString(), input.operationId),
   );
-  handle(IPC_CHANNELS["customers.import"], V.customersImportSchema, (input) =>
-    Imports.importCustomersAtomic(input.rows, new Date().toISOString(), input.operationId),
-  );
 }

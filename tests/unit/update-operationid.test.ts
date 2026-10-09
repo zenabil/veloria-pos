@@ -7,7 +7,6 @@
 // Ce test verrouille le contrat : nouveau comportement + compat ascendante.
 import { describe, expect, it } from "vitest";
 import {
-  customersImportSchema,
   expenseUpdateSchema,
   idempotentIdSchema,
   productsImportSchema,
@@ -104,10 +103,5 @@ describe("M-2 : suppressions + imports exigent operationId du caller", () => {
     };
     expect(productsImportSchema.safeParse({ rows: [prodRow] }).success).toBe(false);
     expect(productsImportSchema.safeParse({ operationId: OP, rows: [prodRow] }).success).toBe(true);
-    const custRow = { firstName: "A", lastName: "B", phone: "" };
-    expect(customersImportSchema.safeParse({ rows: [custRow] }).success).toBe(false);
-    expect(customersImportSchema.safeParse({ operationId: OP, rows: [custRow] }).success).toBe(
-      true,
-    );
   });
 });

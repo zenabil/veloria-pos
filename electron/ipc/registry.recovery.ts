@@ -135,34 +135,7 @@ export function registerLicenseIpc(callbacks?: { onActivated?: () => void }): vo
     }
     return status;
   });
-  handle(IPC_CHANNELS["license.getInfo"], V.licenseActionSchema, () => {
-    const s = getLicenseStatus(deps);
-    return {
-      state: s.state,
-      licenseId: s.licenseId,
-      edition: s.edition,
-      licenseType: s.licenseType,
-      plan: s.plan,
-      clientId: s.clientId,
-      clientName: s.clientName,
-      storeName: s.storeName,
-      maxDevices: s.maxDevices,
-      deviceBinding: s.deviceBinding,
-      expiresAt: s.expiresAt,
-      daysLeft: s.daysLeft,
-      features: s.features,
-      pages: s.pages,
-    };
-  });
   // Capabilities en lecture seule (§23) : pages + features issues du payload
   // SIGN�? vérifié. Aucune écriture, aucun paramètre �?" le renderer ne peut pas
   // s'octroyer de permissions (pas de setLicensePermissions).
-  handle(IPC_CHANNELS["license.getPermissions"], V.licenseActionSchema, () => {
-    const s = getLicenseStatus(deps);
-    return {
-      state: s.state,
-      pages: s.pages,
-      features: s.features,
-    };
-  });
 }

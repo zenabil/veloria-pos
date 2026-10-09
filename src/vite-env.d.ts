@@ -10,7 +10,6 @@ interface VeloriaOutcome<T = unknown> {
 interface Window {
   veloria?: {
     app: {
-      getVersion(): Promise<VeloriaOutcome>;
       restart(): Promise<VeloriaOutcome>;
       diagnostics(): Promise<VeloriaOutcome>;
     };
@@ -33,7 +32,6 @@ interface Window {
       getByBarcode(p: unknown): Promise<VeloriaOutcome>;
       matchBatch(p: unknown): Promise<VeloriaOutcome>;
       barcodes(p: unknown): Promise<VeloriaOutcome>;
-      get(p: unknown): Promise<VeloriaOutcome>;
       create(p: unknown): Promise<VeloriaOutcome>;
       update(p: unknown): Promise<VeloriaOutcome>;
       archive(p: unknown): Promise<VeloriaOutcome>;
@@ -52,7 +50,6 @@ interface Window {
       paymentReceipt(p: unknown): Promise<VeloriaOutcome>;
       statement(p: unknown): Promise<VeloriaOutcome>;
       stats(): Promise<VeloriaOutcome>;
-      import(p: unknown): Promise<VeloriaOutcome>;
       accessActivate(p: unknown): Promise<VeloriaOutcome>;
       accessRevoke(p: unknown): Promise<VeloriaOutcome>;
       accessStatus(p: unknown): Promise<VeloriaOutcome>;
@@ -79,12 +76,10 @@ interface Window {
       products(p: unknown): Promise<VeloriaOutcome>;
       movements(p: unknown): Promise<VeloriaOutcome>;
       inventory(p: unknown): Promise<VeloriaOutcome>;
-      lowStock(p: unknown): Promise<VeloriaOutcome>;
       ledger(p: unknown): Promise<VeloriaOutcome>;
       adjust(p: unknown): Promise<VeloriaOutcome>;
       intake(p: unknown): Promise<VeloriaOutcome>;
       intakes(p: unknown): Promise<VeloriaOutcome>;
-      valuation(): Promise<VeloriaOutcome>;
     };
     suppliers: {
       search(p: unknown): Promise<VeloriaOutcome>;
@@ -167,7 +162,6 @@ interface Window {
     carts: {
       save(p: unknown): Promise<VeloriaOutcome>;
       load(): Promise<VeloriaOutcome>;
-      clear(p?: unknown): Promise<VeloriaOutcome>;
     };
     returns: {
       create(p: unknown): Promise<VeloriaOutcome>;
@@ -187,7 +181,6 @@ interface Window {
       stats(): Promise<VeloriaOutcome>;
     };
     reports: {
-      full(p: unknown): Promise<VeloriaOutcome>;
       summary(p: unknown): Promise<VeloriaOutcome>;
     };
     dashboard: {
@@ -234,7 +227,6 @@ interface Window {
       restore(p: unknown): Promise<VeloriaOutcome>;
       status(): Promise<VeloriaOutcome>;
       export(p: unknown): Promise<VeloriaOutcome>;
-      autoGet(): Promise<VeloriaOutcome>;
       autoSave(p: unknown): Promise<VeloriaOutcome>;
     };
     ocr: {
@@ -261,8 +253,6 @@ interface Window {
       hardwareId(): Promise<VeloriaOutcome>;
       importLicense(): Promise<VeloriaOutcome>;
       validate(): Promise<VeloriaOutcome>;
-      info(): Promise<VeloriaOutcome>;
-      permissions(): Promise<VeloriaOutcome>;
     };
     window: {
       minimize(): Promise<VeloriaOutcome>;

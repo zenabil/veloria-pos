@@ -4,7 +4,7 @@ import { DomainError } from "../common/errors.ts";
 import { assertValidQuantity } from "../common/quantity.ts";
 import { assertSafeMinor } from "../money/money.ts";
 import { isRealCalendarDate } from "../common/dates.ts";
-import { normalizeUnitCodeStrict } from "../units/units.ts";
+import { UNIT_CODES, normalizeUnitCodeStrict, type UnitCode } from "../units/units.ts";
 import { validateBarcode } from "../barcode/barcode-rules.ts";
 
 export interface ProductDraft {
@@ -21,9 +21,6 @@ export interface ProductDraft {
   supplierId: number | null;
   barcodes: string[];
 }
-
-const UNIT_CODES = ["PIECE", "KG", "G", "L", "ML", "M", "CARTON", "PAQUET", "AUTRE"] as const;
-export type UnitCode = (typeof UNIT_CODES)[number];
 
 export function normalizeUnitCode(raw: string): string {
   const v = raw.trim().toUpperCase();

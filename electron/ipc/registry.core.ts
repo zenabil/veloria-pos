@@ -43,11 +43,6 @@ export function registerCoreIpc(): void {
   if (coreIpcRegistered) return;
   coreIpcRegistered = true;
   // app
-  handle(IPC_CHANNELS["app.getVersion"], V.emptyPayloadSchema, () => ({
-    version: app.getVersion(),
-    logicalDb: LOGICAL_DB_NAME,
-    file: PHYSICAL_DB_FILENAME,
-  }));
   handle(IPC_CHANNELS["app.restart"], V.emptyPayloadSchema, () => {
     try {
       checkpointAndClose();

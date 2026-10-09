@@ -173,8 +173,8 @@ export function ZakatScreen({ notify }: { notify: Notify }): React.JSX.Element {
         module="Module 15 · Conformité charia · Registre scellé"
         period={
           preview_calc && preview_calc.above
-            ? `NISAB ATTEINT (SOUMIS) · Zakat exigible ${formatDzd(preview_calc.zakat)} · Reporting annuel ${hijriYear} H`
-            : `Sous le nisab · Reporting annuel ${hijriYear} H · DZD`
+            ? `NISAB ATTEINT (SOUMIS) · Zakat exigible ${formatDzd(preview_calc.zakat)} · Rapport annuel ${hijriYear} H`
+            : `Sous le nisab · Rapport annuel ${hijriYear} H · DZD`
         }
         actions={
           <>

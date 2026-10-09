@@ -58,10 +58,4 @@ export const cartsSaveSchema = z.object({
     )
     .max(20),
 });
-
-// RADICAL-FIX: effacement brouillons idempotent quand operationId fourni
-// (double-clic/retry) ; sans operationId, comportement historique.
-export const cartsClearSchema = z.object({
-  operationId: optionalOperationId,
-});
 // Phase 9 �?" pain (simplifié : nom commande + client + quantité, récurrence quotidienne).

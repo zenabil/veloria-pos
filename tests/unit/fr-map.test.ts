@@ -33,4 +33,21 @@ describe("frError (P1-7)", () => {
     expect(isTechnicalMessage("Attention : prix sous coût.")).toBe(false);
     expect(isTechnicalMessage("at Object.parse (file.ts:10:5)")).toBe(true);
   });
+  it("miroir Android (RADICAL 2026-10-09) : lastError brut → repli FR, jamais d'affichage brut", () => {
+    // Non-régression use-notifications.ts:60 : le lastError du main (string | null)
+    // ne doit jamais être interpolé tel quel dans l'UI.
+    expect(
+      frError("SQLITE_CORRUPT: database disk image is malformed", "Miroir Android indisponible."),
+    ).toBe("Miroir Android indisponible.");
+    expect(frError("ENOENT: no such file or directory", "Miroir Android indisponible.")).toBe(
+      "Miroir Android indisponible.",
+    );
+    expect(
+      frError("TypeError: Cannot read properties of null", "Miroir Android indisponible."),
+    ).toBe("Miroir Android indisponible.");
+    // Un message métier FR du main passe tel quel.
+    expect(frError("Miroir hors ligne.", "Miroir Android indisponible.")).toBe(
+      "Miroir hors ligne.",
+    );
+  });
 });

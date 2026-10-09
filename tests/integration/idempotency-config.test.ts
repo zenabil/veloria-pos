@@ -57,7 +57,6 @@ import { saveSelectedPrinterName } from "../../electron/printing/printing.servic
 import { saveBackupAuto } from "../../electron/backup/backup.service";
 import {
   cartsSaveSchema,
-  cartsClearSchema,
   printerSaveSchema,
   backupAutoSchema,
 } from "../../electron/ipc/validators";
@@ -128,8 +127,7 @@ describe("RADICAL-FIX : configurations idempotentes", () => {
     expect(n.n).toBe(1);
   });
 
-  it("carts.clear idempotent par operationId", () => {
-    cartsClearSchema.parse({ operationId: null });
+  it("carts.clear repo idempotent par operationId", () => {
     const op = "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb";
     const tabs = [
       {

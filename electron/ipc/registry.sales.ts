@@ -141,7 +141,4 @@ export function registerSalesChannels(): void {
   handle(IPC_CHANNELS["carts.load"], V.emptyPayloadSchema, () => ({
     tabs: Carts.loadCartDrafts(),
   }));
-  handle(IPC_CHANNELS["carts.clear"], V.cartsClearSchema, (input) =>
-    Carts.clearCartDrafts(input.operationId ?? null),
-  );
 }

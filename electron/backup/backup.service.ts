@@ -26,7 +26,6 @@ import { log } from "../services/logger";
 import { sha256File } from "../licensing/hash";
 import { IPC_CHANNELS } from "../ipc/channels";
 import * as V from "../ipc/validators";
-import { backupAutoSchema, backupExportSchema, backupRestoreSchema } from "../ipc/validators";
 import { claimOptional, peekOptional, storeOptional } from "../ipc/handlers/idempotency";
 import { prodLicenseDeps } from "../licensing/prod-deps";
 import { getLicenseStatus, requireLicensedFeature } from "../licensing/license-service";
@@ -520,7 +519,7 @@ export function registerBackupIpc(): void {
     const denied = guardBackup("automatic-backup");
     if (denied) return denied;
     try {
-      const input = backupExportSchema.parse(raw ?? {});
+      const input = V.backupExportSchema.parse(raw ?? {});
       // EL-35: validation racine centralisée (absolu + anti-système + symlink).
       let safe: string;
       try {
@@ -539,25 +538,11 @@ export function registerBackupIpc(): void {
       };
     }
   });
-  ipcMain.handle(IPC_CHANNELS["backup.autoGet"], (_e, raw: unknown) => {
-    try {
-      V.emptyPayloadSchema.parse(raw ?? {});
-    } catch (err) {
-      log("WARN", "backup", "autoGet.invalid", { error: String(err) });
-      return { ok: false, code: "VALIDATION_ERROR", message: "Données invalides." };
-    }
-    try {
-      return { ok: true, data: getBackupAuto() };
-    } catch (err) {
-      log("ERROR", "backup", "autoGet.failed", { error: String(err) });
-      return { ok: false, code: "BACKUP_FAILED", message: "Paramètres indisponibles." };
-    }
-  });
   ipcMain.handle(IPC_CHANNELS["backup.autoSave"], (_e, raw: unknown) => {
     const denied = guardBackup("automatic-backup");
     if (denied) return denied;
     try {
-      const input = backupAutoSchema.parse(raw ?? {});
+      const input = V.backupAutoSchema.parse(raw ?? {});
       saveBackupAuto(
         {
           enabled: input.enabled,
@@ -579,7 +564,7 @@ export function registerBackupIpc(): void {
     const denied = guardBackup("restore-backup");
     if (denied) return denied;
     try {
-      const input = backupRestoreSchema.parse(raw ?? {});
+      const input = V.backupRestoreSchema.parse(raw ?? {});
       const file = input.file;
       if (!isAllowedDatabaseFile(file)) {
         return { ok: false, code: "VALIDATION_ERROR", message: "Fichier de sauvegarde invalide." };

@@ -181,11 +181,6 @@ export const saleDueDateSchema = z.object({
   operationId: optionalOperationId,
 });
 
-export const periodSchema = z.object({
-  from: businessDate,
-  to: businessDate,
-});
-
 export const closingCreateSchema = z.object({
   operationId: z.string().uuid(),
   businessDate,
@@ -217,7 +212,10 @@ export const zakatCalculationSchema = z.object({
 
 // P3 : bons de commande fournisseurs (cycle draft �?' ordered �?' �?� �?' received).
 
-export const closingsListSchema = periodSchema;
+export const closingsListSchema = z.object({
+  from: businessDate,
+  to: businessDate,
+});
 
 // Import CSV (lignes déjà validées côté renderer, re-validées côté main)
 

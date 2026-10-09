@@ -10,7 +10,6 @@ async function invoke<T>(channel: Channel, payload?: unknown): Promise<T> {
 
 const api = {
   app: {
-    getVersion: () => invoke(IPC_CHANNELS["app.getVersion"]),
     restart: () => invoke(IPC_CHANNELS["app.restart"]),
     diagnostics: () => invoke(IPC_CHANNELS["app.diagnostics"]),
   },
@@ -33,7 +32,6 @@ const api = {
     getByBarcode: (p: unknown) => invoke(IPC_CHANNELS["products.getByBarcode"], p),
     matchBatch: (p: unknown) => invoke(IPC_CHANNELS["products.matchBatch"], p),
     barcodes: (p: unknown) => invoke(IPC_CHANNELS["products.barcodes"], p),
-    get: (p: unknown) => invoke(IPC_CHANNELS["products.get"], p),
     create: (p: unknown) => invoke(IPC_CHANNELS["products.create"], p),
     update: (p: unknown) => invoke(IPC_CHANNELS["products.update"], p),
     archive: (p: unknown) => invoke(IPC_CHANNELS["products.archive"], p),
@@ -52,7 +50,6 @@ const api = {
     paymentReceipt: (p: unknown) => invoke(IPC_CHANNELS["customers.paymentReceipt"], p),
     statement: (p: unknown) => invoke(IPC_CHANNELS["customers.statement"], p),
     stats: () => invoke(IPC_CHANNELS["customers.stats"]),
-    import: (p: unknown) => invoke(IPC_CHANNELS["customers.import"], p),
     accessActivate: (p: unknown) => invoke(IPC_CHANNELS["customers.accessActivate"], p),
     accessRevoke: (p: unknown) => invoke(IPC_CHANNELS["customers.accessRevoke"], p),
     accessStatus: (p: unknown) => invoke(IPC_CHANNELS["customers.accessStatus"], p),
@@ -82,12 +79,10 @@ const api = {
     products: (p: unknown) => invoke(IPC_CHANNELS["stock.products"], p),
     movements: (p: unknown) => invoke(IPC_CHANNELS["stock.movements"], p),
     inventory: (p: unknown) => invoke(IPC_CHANNELS["stock.inventory"], p),
-    lowStock: (p: unknown) => invoke(IPC_CHANNELS["stock.lowStock"], p),
     ledger: (p: unknown) => invoke(IPC_CHANNELS["stock.ledger"], p),
     adjust: (p: unknown) => invoke(IPC_CHANNELS["stock.adjust"], p),
     intake: (p: unknown) => invoke(IPC_CHANNELS["stock.intake"], p),
     intakes: (p: unknown) => invoke(IPC_CHANNELS["stock.intakes"], p),
-    valuation: () => invoke(IPC_CHANNELS["stock.valuation"]),
   },
   suppliers: {
     search: (p: unknown) => invoke(IPC_CHANNELS["suppliers.search"], p),
@@ -170,8 +165,6 @@ const api = {
   carts: {
     save: (p: unknown) => invoke(IPC_CHANNELS["carts.save"], p),
     load: () => invoke(IPC_CHANNELS["carts.load"]),
-    // A1-P0 : operationId transmis (retry/double-clic idempotent, Zod l'accepte).
-    clear: (p?: unknown) => invoke(IPC_CHANNELS["carts.clear"], p ?? {}),
   },
   returns: {
     create: (p: unknown) => invoke(IPC_CHANNELS["returns.create"], p),
@@ -191,7 +184,6 @@ const api = {
     stats: () => invoke(IPC_CHANNELS["expenses.stats"]),
   },
   reports: {
-    full: (p: unknown) => invoke(IPC_CHANNELS["reports.full"], p),
     summary: (p: unknown) => invoke(IPC_CHANNELS["reports.summary"], p),
   },
   dashboard: {
@@ -245,7 +237,6 @@ const api = {
     restore: (p: unknown) => invoke(IPC_CHANNELS["backup.restore"], p),
     status: () => invoke(IPC_CHANNELS["backup.status"]),
     export: (p: unknown) => invoke(IPC_CHANNELS["backup.export"], p),
-    autoGet: () => invoke(IPC_CHANNELS["backup.autoGet"]),
     autoSave: (p: unknown) => invoke(IPC_CHANNELS["backup.autoSave"], p),
   },
   ocr: {
@@ -293,8 +284,6 @@ const api = {
     hardwareId: () => invoke(IPC_CHANNELS["license.getHardwareId"]),
     importLicense: () => invoke(IPC_CHANNELS["license.importLicense"]),
     validate: () => invoke(IPC_CHANNELS["license.validate"]),
-    info: () => invoke(IPC_CHANNELS["license.getInfo"]),
-    permissions: () => invoke(IPC_CHANNELS["license.getPermissions"]),
   },
   window: {
     minimize: () => invoke(IPC_CHANNELS["window.minimize"]),

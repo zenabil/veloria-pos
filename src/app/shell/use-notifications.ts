@@ -1,6 +1,7 @@
 // Veloria PoS — Centre de notifications (données réelles : licence, sauvegarde, miroir).
 import { useCallback, useState } from "react";
 import { api } from "@shared/types/ipc-client.ts";
+import { frError } from "@shared/errors/fr-map.ts";
 import { backupFrequencyMinutes } from "@domain/backup/backup-rules.ts";
 import type { LicenseStatusView } from "@features/license/use-license.ts";
 
@@ -57,8 +58,14 @@ export function useNotifications(licenseStatus: LicenseStatusView | null): {
     }
     try {
       const s = (await api.syncGetConfig()) as { lastError: string | null; pendingCount: number };
-      if (s.lastError) items.push({ tone: "err", text: `Miroir Android : ${s.lastError}` });
-      else if (Number(s.pendingCount) > 0) {
+      if (s.lastError) {
+        try {
+          console.error("[Veloria] miroir:", s.lastError);
+        } catch {
+          /* journal best effort */
+        }
+        items.push({ tone: "err", text: frError(s.lastError, "Miroir Android indisponible.") });
+      } else if (Number(s.pendingCount) > 0) {
         items.push({
           tone: "warn",
           text: `${s.pendingCount} cliché(s) en attente vers le miroir.`,

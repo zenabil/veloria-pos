@@ -33,9 +33,6 @@ export function registerCatalogChannels(): void {
   handle(IPC_CHANNELS["products.barcodes"], V.idSchema, (input) => ({
     rows: Products.getProductBarcodes(input.id),
   }));
-  handle(IPC_CHANNELS["products.get"], V.idSchema, (input) => ({
-    product: Products.getProduct(input.id),
-  }));
   handle(IPC_CHANNELS["products.create"], V.productCreateSchema, (input) => {
     const now = new Date().toISOString();
     const id = Products.createProduct({

@@ -9,6 +9,12 @@ import { consumeLayers, createLayer, fifoValuation } from "./fifo";
 import { assertOrderClause } from "./sql-guard";
 import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./idempotency";
 
+// ADR-075 : fragment CASE unique du statut stock (3 sites : adjust/intake/
+// inventory) — texte SQL identique, mêmes positions de `?` (quantité ×2),
+// valeurs toujours liées (jamais de valeur interpolée, cf. sql-guard).
+const STOCK_STATUS_CASE =
+  "CASE WHEN ? <= 0 THEN 'out_of_stock' WHEN ? <= min_stock_level THEN 'low_stock' ELSE 'in_stock' END";
+
 export interface IntakeLineInput {
   productId: number | null;
   productName: string;
@@ -49,17 +55,6 @@ export function getStockOverview(): {
   };
 }
 
-export function listLowStock(limit: number): unknown[] {
-  const db = getDb();
-  return db
-    .prepare(
-      `SELECT id, name, quantity, min_stock_level, stock_status, selling_price_minor
-       FROM products WHERE is_active = 1 AND quantity <= min_stock_level
-       ORDER BY quantity ASC LIMIT ?`,
-    )
-    .all(limit);
-}
-
 export function getLedger(productId: number, limit: number): unknown[] {
   const db = getDb();
   return db
@@ -94,7 +89,7 @@ export function adjustStockAtomic(args: {
     if (delta === 0) throw new Error("Aucune variation à enregistrer.");
     const movement: "adjust_in" | "adjust_out" = delta > 0 ? "adjust_in" : "adjust_out";
     db.prepare(
-      `UPDATE products SET quantity = ?, stock_status = CASE WHEN ? <= 0 THEN 'out_of_stock' WHEN ? <= min_stock_level THEN 'low_stock' ELSE 'in_stock' END, updated_at = ? WHERE id = ?`,
+      `UPDATE products SET quantity = ?, stock_status = ${STOCK_STATUS_CASE}, updated_at = ? WHERE id = ?`,
     ).run(args.newQuantity, args.newQuantity, args.newQuantity, args.now, args.productId);
     // FIFO : apport → nouvelle couche (au dernier coût connu) ; retrait →
     // consommation des couches les plus anciennes (même transaction).
@@ -327,7 +322,7 @@ export function receiveStockAtomic(args: {
           const after = Number(prod.quantity) + p.net;
           const nextSelling = p.selling ?? Number(prod.selling_price_minor);
           db.prepare(
-            `UPDATE products SET quantity = ?, purchase_price_minor = ?, selling_price_minor = ?, stock_status = CASE WHEN ? <= 0 THEN 'out_of_stock' WHEN ? <= min_stock_level THEN 'low_stock' ELSE 'in_stock' END, updated_at = ? WHERE id = ?`,
+            `UPDATE products SET quantity = ?, purchase_price_minor = ?, selling_price_minor = ?, stock_status = ${STOCK_STATUS_CASE}, updated_at = ? WHERE id = ?`,
           ).run(after, p.cost, nextSelling, after, after, args.now, pid);
           if (args.supplierId != null) {
             db.prepare(
@@ -386,26 +381,6 @@ export function listIntakes(page: number, pageSize: number): { rows: unknown[]; 
     )
     .all(pageSize, (page - 1) * pageSize);
   return { rows, total };
-}
-
-export function getInventoryValuation(): {
-  valueMinor: number;
-  skuActive: number;
-  lines: unknown[];
-} {
-  const db = getDb();
-  const head = db.prepare(`SELECT COUNT(*) AS sku FROM products WHERE is_active = 1`).get() as {
-    sku: number;
-  };
-  // Lignes : valeur FIFO par produit (couches restantes), tri décroissant.
-  const lines = db
-    .prepare(
-      `SELECT id, name, quantity, purchase_price_minor,
-        (SELECT COALESCE(SUM(remaining_quantity * unit_cost_minor), 0) FROM inventory_layers WHERE product_id = products.id) AS line_value
-       FROM products WHERE is_active = 1 ORDER BY line_value DESC LIMIT 50`,
-    )
-    .all();
-  return { valueMinor: fifoValuation(), skuActive: head.sku, lines };
 }
 
 export type StockStatus = "all" | "in_stock" | "low_stock" | "out_of_stock";
@@ -613,7 +588,7 @@ export function applyInventoryAtomic(args: {
       }
       const movement: "adjust_in" | "adjust_out" = delta > 0 ? "adjust_in" : "adjust_out";
       db.prepare(
-        `UPDATE products SET quantity = ?, stock_status = CASE WHEN ? <= 0 THEN 'out_of_stock' WHEN ? <= min_stock_level THEN 'low_stock' ELSE 'in_stock' END, updated_at = ? WHERE id = ?`,
+        `UPDATE products SET quantity = ?, stock_status = ${STOCK_STATUS_CASE}, updated_at = ? WHERE id = ?`,
       ).run(it.actualQty, it.actualQty, it.actualQty, args.now, it.productId);
       db.prepare(
         `INSERT INTO stock_movements (uuid, product_id, movement_type, quantity_delta, quantity_after, related_entity_type, reason, reference, created_at)

@@ -3,10 +3,6 @@
 // P3 : computeZakatLocal a déménagé vers @domain/zakat/zakat-rules.ts
 // (computeZakat) — la feature ne garde que le formulaire et l'UI.
 
-import type { ZakatForm } from "@domain/zakat/zakat-rules.ts";
-
-export type { ZakatForm };
-
 export interface ZakatSources {
   cash: { paid: number; total: number };
   inventory: { v: number };

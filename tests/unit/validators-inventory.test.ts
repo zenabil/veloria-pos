@@ -18,7 +18,9 @@ const MODULES = [
   "validators.templates.ts",
 ];
 
-const FROZEN_SCHEMA_COUNT = 125;
+// ADR-075 (2026-10-09) : 125 → 122 (cartsClearSchema, customersImportSchema,
+// periodSchema retirés avec leurs canaux morts ; closingsListSchema inliné).
+const FROZEN_SCHEMA_COUNT = 122;
 const FROZEN_MAX_LINES = 300;
 
 describe("Validators inventory (split guard)", () => {

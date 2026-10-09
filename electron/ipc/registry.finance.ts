@@ -136,9 +136,6 @@ export function registerFinanceChannels(): void {
     Finance.getDebtDetail(input.debtType, input.id),
   );
   handle(IPC_CHANNELS["debts.stats"], V.emptyPayloadSchema, () => Finance.getDebtStats());
-  handle(IPC_CHANNELS["reports.full"], V.periodSchema, (input) =>
-    Finance.getPeriodReport(input.from, input.to),
-  );
   handle(IPC_CHANNELS["reports.summary"], V.reportSummarySchema, (input) =>
     Finance.getReportsSummary({
       from: input.from,

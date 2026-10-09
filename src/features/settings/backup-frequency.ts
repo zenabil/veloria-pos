@@ -1,19 +1,13 @@
 // Veloria PoS — Paramètres : fréquences sauvegarde (pur, sans IO).
 // Extrait verbatim de `SettingsSectionsB.tsx` (P2 : découpage sans changement
-// de comportement). NOTE : `backupFrequencyMinutes` renderer CLAMP UNIQUEMENT
-// via `custom` validé en amont (diffère de `backupFrequencyMinutes` du domaine
-// `@domain/backup/backup-rules.ts` qui borne [5,10080] — parité main/domaine
-// couverte par `main-domain-parity.test.ts`, ici logique d'affichage seule).
+// de comportement). ADR-075 : `backupFrequencyMinutes` + `BackupFrequency`
+// sont réexportés du domaine `@domain/backup/backup-rules.ts` (source unique,
+// borne [5,10080]) ; ici ne restent que les libellés d'affichage FR
+// (`BACKUP_FREQUENCIES`) et le repli legacy (`backupFrequencyFromAuto`).
 
-export type BackupFrequency =
-  | "10min"
-  | "30min"
-  | "1h"
-  | "6h"
-  | "12h"
-  | "daily"
-  | "weekly"
-  | "custom";
+import type { BackupFrequency } from "@domain/backup/backup-rules.ts";
+export type { BackupFrequency };
+export { backupFrequencyMinutes } from "@domain/backup/backup-rules.ts";
 
 export const BACKUP_FREQUENCIES: { value: BackupFrequency; label: string; minutes: number }[] = [
   { value: "10min", label: "Toutes les 10 minutes", minutes: 10 },
@@ -25,11 +19,6 @@ export const BACKUP_FREQUENCIES: { value: BackupFrequency; label: string; minute
   { value: "weekly", label: "Hebdomadaire", minutes: 10080 },
   { value: "custom", label: "Personnalisé", minutes: 0 },
 ];
-
-export function backupFrequencyMinutes(frequency: BackupFrequency, customMinutes: number): number {
-  if (frequency === "custom") return customMinutes;
-  return BACKUP_FREQUENCIES.find((f) => f.value === frequency)?.minutes ?? 1440;
-}
 
 /** Repli legacy : `auto` ne portait que `intervalDays` (jours). */
 export function backupFrequencyFromAuto(auto: {
