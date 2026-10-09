@@ -70,7 +70,8 @@ export function updateSaleDueDate(
   const tx = db.transaction(() => {
     claimOptional(operationId, "sales.setDueDate", now);
     const sale = db.prepare(`SELECT is_cancelled FROM sales WHERE id = ?`).get(id) as
-      { is_cancelled: number } | undefined;
+      | { is_cancelled: number }
+      | undefined;
     if (!sale) throw new Error("Vente introuvable.");
     if (sale.is_cancelled === 1) throw new Error("Vente annulée : échéance non modifiable.");
     const r = db
@@ -187,7 +188,8 @@ export function createSaleAtomic(input: CreateSaleInput): {
   // transaction : le trigger SQL `trg_sales_credit_allowed` tranche en dernier ressort).
   if (input.remainingMinor > 0) {
     const salesCfg = db.prepare(`SELECT value_json FROM app_settings WHERE key = 'sales'`).get() as
-      { value_json: string } | undefined;
+      | { value_json: string }
+      | undefined;
     let creditOpen = true;
     try {
       if (salesCfg) {
@@ -466,7 +468,8 @@ export function cancelSaleAtomic(saleId: number, now: string, operationId: strin
   const tx = db.transaction(() => {
     claimIdempotency(operationId, "sales.cancel", now);
     const sale = db.prepare(`SELECT * FROM sales WHERE id = ?`).get(saleId) as
-      Record<string, unknown> | undefined;
+      | Record<string, unknown>
+      | undefined;
     if (!sale) throw new Error("Vente introuvable.");
     if (sale["is_cancelled"] === 1) throw new Error("Vente déjà annulée.");
     const items = db.prepare(`SELECT * FROM sale_items WHERE sale_id = ?`).all(saleId) as {

@@ -114,7 +114,8 @@ export function assertSecureStateIntegrity(state: PersistedLicenseState): void {
   let hardwareFingerprint = "";
   try {
     const payload = (state.envelope as SignedLicense | null)?.payload as
-      { licenseId?: unknown } | undefined;
+      | { licenseId?: unknown }
+      | undefined;
     if (typeof payload?.licenseId === "string") licenseId = payload.licenseId;
     if (typeof state.firstSeenUtc === "string") firstSeenUtc = state.firstSeenUtc;
     if (typeof state.monotonicSeq === "number") monotonicSeq = state.monotonicSeq;
