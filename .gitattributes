@@ -1,0 +1,10 @@
+# Veloria POS — fins de ligne normalisées LF partout (prettier endOfLine: lf).
+# Évite que core.autocrlf=true ne réintroduise des CRLF qui cassent format:check.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.icns binary
+*.sqlite binary
+*.db binary
