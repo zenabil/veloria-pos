@@ -4,7 +4,7 @@
 > l avancement en `reports/PHASE_*.md`. Ne jamais ecrire de rapport a la racine.
 > Conventions : `AGENTS.md` + `docs/STRUCTURE.md` (carte maintenance).
 
-## Decisions (ADR-001 a ADR-075 — tous saries, jamais supprimes)
+## Decisions (ADR-001 a ADR-076 — tous saries, jamais supprimes)
 
 - [ADR-001](./ADR-001-vite-renderer.md) Renderer Vite
 - [ADR-002](./ADR-002-native-versions.md) Versions natives
@@ -81,6 +81,7 @@
 - [ADR-073](./ADR-073-compact-header-manager-icon.md) Header compact + manager
 - [ADR-074](./ADR-074-council-radical-repair.md) Reparation council
 - [ADR-075](./ADR-075-dead-code-radical-cleanup.md) Nettoyage code mort
+- [ADR-076](./ADR-076-sidebar-vertical.md) Sidebar verticale repliable
 - [ADR-NEW-app-boundaries](./ADR-NEW-app-boundaries.md) Frontieres app
 - [ADR-NEW-docs-hygiene](./ADR-NEW-docs-hygiene.md) Hygiene docs
 - [ADR-NEW-slices](./ADR-NEW-slices.md) Tranches

@@ -1,5 +1,8 @@
-// Veloria PoS — Navigation compacte : recherche + 17 modules en ligne.
-// Le nom n'apparaît que sur le module actif (ADR-073). Mêmes props et flux.
+// Veloria PoS — Barre latérale verticale : recherche + 17 modules en colonne.
+// Repliable (icônes seules) avec préférence persistée (voir App.tsx).
+// Un seul <nav> « Navigation principale » : le nom accessible des boutons
+// vient du `title` (« Label — hint »), identique dans les deux modes pour
+// le clavier et les tests (helpers e2e : gotoModule, correspondance nom).
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { cn } from "@shared/ui/primitives.tsx";
 import type { ModuleDef } from "./modules.ts";
@@ -28,19 +31,26 @@ export function Sidebar({
   onToggle,
 }: SidebarProps): React.JSX.Element {
   return (
-    <div className="flex items-center gap-2 px-3 pb-2">
+    <div
+      className={cn(
+        "flex min-h-0 shrink-0 flex-col self-stretch border-r border-white/[0.06] bg-[#0a0f1c] transition-[width] duration-200",
+        collapsed ? "w-[68px]" : "w-60",
+      )}
+    >
       {collapsed ? null : (
-        <input
-          type="search"
-          value={navQuery}
-          onChange={(e) => onQueryChange(e.target.value)}
-          placeholder="Filtrer…"
-          aria-label="Filtrer les modules"
-          className="min-h-[44px] w-full max-w-[200px] shrink-0 rounded-lg border border-white/10 bg-[#010f1f] px-3 py-1.5 text-[12px] text-[#d4e4fa] placeholder:text-[#d3c5ac]/50 hover:border-white/25 focus:border-[#fbbf24]"
-        />
+        <div className="shrink-0 px-3 pt-3">
+          <input
+            type="search"
+            value={navQuery}
+            onChange={(e) => onQueryChange(e.target.value)}
+            placeholder="Filtrer…"
+            aria-label="Filtrer les modules"
+            className="min-h-[44px] w-full rounded-lg border border-white/10 bg-[#010f1f] px-3 py-1.5 text-[12px] text-[#d4e4fa] placeholder:text-[#d3c5ac]/50 hover:border-white/25 focus:border-[#fbbf24]"
+          />
+        </div>
       )}
       <nav
-        className="flex min-w-0 flex-1 items-stretch gap-1 overflow-x-auto"
+        className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2 py-2"
         aria-label="Navigation principale"
       >
         {MODULE_GROUPS.map((group) => {
@@ -52,8 +62,15 @@ export function Sidebar({
           );
           if (items.length === 0) return null;
           return (
-            <div key={group} role="group" aria-label={group} className="flex items-stretch gap-1">
-              <ul className="flex items-stretch gap-1">
+            <div key={group} role="group" aria-label={group} className="flex flex-col gap-0.5">
+              {collapsed ? (
+                <span aria-hidden="true" className="mx-2 my-1.5 h-px bg-white/[0.06]" />
+              ) : (
+                <p className="px-3 pb-0.5 pt-2 text-[10px] font-bold uppercase tracking-[0.12em] text-[#d3c5ac]/60">
+                  {group}
+                </p>
+              )}
+              <ul className="flex flex-col gap-0.5">
                 {items.map((m) => {
                   const selected = m.id === active;
                   const Icon = m.icon;
@@ -67,26 +84,30 @@ export function Sidebar({
                         data-path={m.id}
                         onClick={() => onSelect(m.id)}
                         className={cn(
-                          "relative flex min-h-[44px] items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] transition-all duration-150 focus-visible:outline-none",
+                          "relative flex min-h-[44px] w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] transition-colors duration-150 focus-visible:outline-none",
+                          collapsed && "justify-center px-0",
                           selected
                             ? "bg-[#fbbf24] font-bold text-[#402d00]"
                             : "font-medium text-[#d3c5ac] hover:bg-[#122131] hover:text-[#d4e4fa]",
                         )}
                       >
                         <Icon
-                          size={18}
+                          size={19}
                           strokeWidth={selected ? 2.25 : 2}
                           aria-hidden="true"
                           className={cn("shrink-0", selected ? "text-[#402d00]" : "text-[#d3c5ac]")}
                         />
-                        {!collapsed && selected ? (
-                          <span className="whitespace-nowrap leading-snug">{m.label}</span>
-                        ) : null}
+                        {collapsed ? null : (
+                          <span className="min-w-0 flex-1 truncate whitespace-nowrap leading-snug">
+                            {m.label}
+                          </span>
+                        )}
                         {count != null && count > 0 ? (
                           <span
                             title={`${count} point(s) de vigilance`}
                             className={cn(
                               "rounded-full px-1.5 py-0.5 font-mono text-[10px] font-bold",
+                              collapsed && "absolute right-1 top-1",
                               selected
                                 ? "bg-[#402d00]/15 text-[#402d00]"
                                 : "bg-red-500/20 text-red-200",
@@ -100,40 +121,37 @@ export function Sidebar({
                             {m.kbd}
                           </span>
                         ) : null}
-                        <span
-                          aria-hidden="true"
-                          className={cn(
-                            "topnav-indicator absolute inset-x-3 -bottom-0.5 h-0.5 origin-center rounded-full bg-[#fbbf24] transition-transform duration-150",
-                            selected ? "scale-x-100" : "scale-x-0",
-                          )}
-                        />
                       </button>
                     </li>
                   );
                 })}
               </ul>
-              <span aria-hidden="true" className="mx-1 w-px self-stretch bg-white/[0.06]" />
             </div>
           );
         })}
       </nav>
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={!collapsed}
-        aria-label={collapsed ? "Développer le menu" : "Réduire le menu"}
-        title={collapsed ? "Développer le menu" : "Réduire le menu"}
-        className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg px-3 py-2 text-[12px] font-semibold text-slate-500 transition-colors duration-150 hover:bg-white/[0.05] hover:text-slate-200 focus-visible:outline-none"
-      >
-        {collapsed ? (
-          <PanelLeftOpen size={18} aria-hidden="true" className="shrink-0" />
-        ) : (
-          <>
-            <PanelLeftClose size={18} aria-hidden="true" className="shrink-0" />
-            <span className="ml-2 hidden sm:inline">Réduire</span>
-          </>
-        )}
-      </button>
+      <div className="shrink-0 border-t border-white/[0.06] p-2">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? "Développer le menu" : "Réduire le menu"}
+          title={collapsed ? "Développer le menu" : "Réduire le menu"}
+          className={cn(
+            "flex min-h-[44px] w-full items-center gap-2 rounded-lg px-3 py-2 text-[12px] font-semibold text-slate-500 transition-colors duration-150 hover:bg-white/[0.05] hover:text-slate-200 focus-visible:outline-none",
+            collapsed && "justify-center px-0",
+          )}
+        >
+          {collapsed ? (
+            <PanelLeftOpen size={18} aria-hidden="true" className="shrink-0" />
+          ) : (
+            <>
+              <PanelLeftClose size={18} aria-hidden="true" className="shrink-0" />
+              <span>Réduire</span>
+            </>
+          )}
+        </button>
+      </div>
     </div>
   );
 }

@@ -210,35 +210,35 @@ export function App(): React.JSX.Element {
   }
   return (
     <WindowChrome pageName={current?.label ?? "Veloria PoS"}>
-      <div className="flex min-h-0 flex-1 flex-col bg-[#051424] text-[#d4e4fa]">
-        <div className="shrink-0 border-b border-white/[0.06] bg-[#0a0f1c]">
-          <TopBar
-            licenseStatus={licenseStatus}
-            sqliteVersion={sqliteVersion}
-            printMode={printMode}
-            currentLabel={current?.label}
-            currentHint={current?.hint}
-            notifCount={notifCount}
-            licenseExpired={licenseExpired}
-            onHelp={() => setHelpOpen(true)}
-            onOpenNotifications={() => void openNotifications()}
-            onPrintMode={setPrintMode}
-            onGoLicense={() => setActive("license")}
-            theme={theme}
-            onToggleTheme={toggleTheme}
-          />
-          <Sidebar
-            active={active}
-            collapsed={collapsed}
-            navQuery={navQuery}
-            visibleModules={visibleModules}
-            vigilanceCount={vigilanceCount}
-            onSelect={setActive}
-            onQueryChange={setNavQuery}
-            onToggle={toggleSidebar}
-          />
-        </div>
-        <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 bg-[#051424] text-[#d4e4fa]">
+        <Sidebar
+          active={active}
+          collapsed={collapsed}
+          navQuery={navQuery}
+          visibleModules={visibleModules}
+          vigilanceCount={vigilanceCount}
+          onSelect={setActive}
+          onQueryChange={setNavQuery}
+          onToggle={toggleSidebar}
+        />
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className="shrink-0 border-b border-white/[0.06] bg-[#0a0f1c]">
+            <TopBar
+              licenseStatus={licenseStatus}
+              sqliteVersion={sqliteVersion}
+              printMode={printMode}
+              currentLabel={current?.label}
+              currentHint={current?.hint}
+              notifCount={notifCount}
+              licenseExpired={licenseExpired}
+              onHelp={() => setHelpOpen(true)}
+              onOpenNotifications={() => void openNotifications()}
+              onPrintMode={setPrintMode}
+              onGoLicense={() => setActive("license")}
+              theme={theme}
+              onToggleTheme={toggleTheme}
+            />
+          </div>
           <main className="min-h-0 flex-1 overflow-auto p-6" aria-live="polite">
             {routeBlocked ? (
               <RouteBlocked moduleLabel={current?.label} onGoLicense={() => setActive("license")} />
