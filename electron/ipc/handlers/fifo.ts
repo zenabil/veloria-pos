@@ -207,6 +207,7 @@ export function consumeLayers(args: {
 
 /** Put quantities back into their original layers (sale cancel / customer return). */
 export function restoreToLayers(items: { layerId: number; quantity: number }[]): void {
+  assertCallerTransaction();
   if (items.length === 0) return;
   const db = getDb();
   for (const it of items) {
@@ -262,6 +263,7 @@ export function deductIntakeLayers(args: {
   intakeId: number;
   qty: number;
 }): { layerId: number; quantity: number }[] {
+  assertCallerTransaction();
   if (!(args.qty > 0)) throw new Error("Quantité à déduire invalide.");
   const db = getDb();
   const layers = db
