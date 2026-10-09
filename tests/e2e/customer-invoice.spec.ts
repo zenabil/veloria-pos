@@ -78,10 +78,10 @@ test("fiche client depuis la vente + aperçu facture 80mm/A4", async () => {
   await page.getByRole("tab", { name: "Factures" }).click();
   await expect(page.getByText(invoice, { exact: false }).first()).toBeVisible();
   // Requête 2 : aperçu facture depuis la fiche, deux formats.
-  // (nom accessible = aria-label « Apercevoir la facture … », pas le texte
-  // visible « Aperçu / Réimprimer » qu'il remplace — même piège que la fiche).
+  // (nom accessible = aria-label « Ouvrir la facture … », pas le texte
+  // visible « Facture » qu'il remplace — même piège que la fiche).
   await page
-    .getByRole("button", { name: new RegExp(`Apercevoir la facture ${invoice}`) })
+    .getByRole("button", { name: new RegExp(`Ouvrir la facture ${invoice}`) })
     .first()
     .click();
   await expect(page.getByRole("tab", { name: "Facture A4" })).toBeVisible();
@@ -126,8 +126,13 @@ test("historique : aperçu facture 80mm + A4", async () => {
     .getByRole("row", { name: new RegExp(invoice) })
     .filter({ hasText: "Vente" })
     .first();
-  await histRow.scrollIntoViewIfNeeded();
-  await histRow.click();
+  // Ouverture via le bouton « Voir … » de la colonne Actions (colonne
+  // visible, pas de recouvrement) plutôt que le clic sur la ligne (thead
+  // sticky + scroll horizontal min-w-[1240px] — voir ADR-077).
+  // Alignement explicite : fin horizontale (colonne Actions à droite) +
+  // centre vertical (sous le thead sticky grâce au scroll-padding).
+  await histRow.evaluate((el) => el.scrollIntoView({ block: "center", inline: "end" }));
+  await histRow.getByRole("button", { name: /Voir/ }).click();
   await page.getByRole("button", { name: /Voir le document/ }).click();
   await expect(page.getByRole("tab", { name: "Facture A4" })).toBeVisible();
   await expect(page.locator("iframe").first()).toBeVisible();

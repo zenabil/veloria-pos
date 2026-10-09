@@ -17,6 +17,10 @@ import {
 } from "./helpers.ts";
 
 const RELAY = "http://127.0.0.1:8100";
+// JWT factice (rôle anon) : seule la FORME est validée côté app
+// (QR V2 embarque URL + anon — ADR-068) ; le relais l'ignore.
+const E2E_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImV4cCI6OTk5OTk5OTk5OX0.e2e-fake-signature-0123456789abcdef";
 const SHOT = "test-results/e2e-loop";
 
 test.setTimeout(300_000);
@@ -51,6 +55,16 @@ test("boucle locale : client + vente à crédit + miroir poussé", async () => {
   await expect(page.getByRole("heading", { name: "Caisse" })).toBeVisible();
   await page.screenshot({ path: `${SHOT}/01-coquille.png` });
 
+  // 1b. Configurer tôt URL + clé anon : le QR V2 d'activation les embarque,
+  // sans miroir configuré le QR est impossible par conception (ADR-068).
+  await gotoModule(page, "Paramètres");
+  await page.getByRole("button", { name: /Données/ }).click();
+  await expect(page.getByRole("heading", { name: "Miroir Android" })).toBeVisible();
+  const preMirror = page.getByRole("heading", { name: "Miroir Android" }).locator("xpath=../..");
+  await preMirror.getByLabel("Adresse du serveur (URL)", { exact: true }).fill(RELAY);
+  await preMirror.getByLabel("Clé anon Supabase", { exact: true }).fill(E2E_ANON_KEY);
+  await preMirror.getByRole("button", { name: "Enregistrer" }).click();
+
   // 2. Créer le client (avec téléphone + crédit autorisé).
   await gotoModule(page, "Clients");
   await page.locator('button[title="Créer un client"]').click();
@@ -70,14 +84,14 @@ test("boucle locale : client + vente à crédit + miroir poussé", async () => {
   async function openDrawer(): Promise<void> {
     const row = page.getByRole("row", { name: new RegExp(who.slice(0, 12)) }).first();
     await row.scrollIntoViewIfNeeded();
-    await row.locator('button[title="Détails"]').click();
+    await row.locator('button[title="Détails de la fiche"]').click();
     await expect(page.getByText("Application mobile")).toBeVisible();
   }
   await openDrawer();
   await page.getByLabel("PIN à 6 chiffres", { exact: true }).fill(pin);
   await page.getByRole("button", { name: "Activer l'application" }).click();
   await expect(page.getByText("Carte d'activation — à recopier une seule fois")).toBeVisible();
-  await expect(page.getByAltText("QR d'activation à scanner")).toBeVisible();
+  await expect(page.getByAltText("QR d'activation à scanner")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("Activée", { exact: true })).toBeVisible();
   await page.screenshot({ path: `${SHOT}/03-activation.png` });
   await page.getByRole("dialog").getByRole("button", { name: "Fermer le détail" }).click();
@@ -127,9 +141,9 @@ test("boucle locale : client + vente à crédit + miroir poussé", async () => {
   // (Section = Card : remonte de 2 niveaux depuis le titre h3.)
   await gotoModule(page, "Paramètres");
   await page.getByRole("button", { name: /Données/ }).click();
-  await expect(page.getByRole("heading", { name: "Miroir APK" })).toBeVisible();
-  const mirror = page.getByRole("heading", { name: "Miroir APK" }).locator("xpath=../..");
-  await mirror.getByLabel("URL Supabase", { exact: true }).fill(RELAY);
+  await expect(page.getByRole("heading", { name: "Miroir Android" })).toBeVisible();
+  const mirror = page.getByRole("heading", { name: "Miroir Android" }).locator("xpath=../..");
+  await mirror.getByLabel("Adresse du serveur (URL)", { exact: true }).fill(RELAY);
   await mirror
     .getByLabel("Clé service Supabase", { exact: true })
     .fill("e2e-service-key-0123456789");

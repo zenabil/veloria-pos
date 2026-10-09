@@ -23,14 +23,21 @@ function importAllowingExpired(deps, svc, text, root) {
   if (chain !== "ACTIVE" && chain !== "EXPIRING_SOON" && chain !== "EXPIRED") {
     throw new Error(`État non importable en test : ${chain}.`);
   }
+  // H-3 : l'état persisté est v2 scellé (buildSecureStateV2 + integrityTag).
+  // L'ancien objet v1 artisanal est rejeté en CORRUPTED_STATE par
+  // getLicenseStatus (legacy v1 refusé, jamais migré).
+  const secureState = require(path.join(root, "dist-electron", "licensing", "secure-state.js"));
   const iso = new Date(now).toISOString();
-  deps.saveState(deps.backend, {
-    version: 1,
+  const v2 = secureState.buildSecureStateV2({
     envelope,
     hardwareFingerprint: fp,
+    firstSeenUtc: iso,
     lastSeenUtc: iso,
     lastVerifyUtc: iso,
+    monotonicSeq: 1,
+    maxStanding: "active",
   });
+  deps.saveState(deps.backend, v2);
   return svc.getLicenseStatus(deps);
 }
 

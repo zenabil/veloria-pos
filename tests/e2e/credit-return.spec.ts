@@ -89,7 +89,7 @@ test("retour client : remboursement partiel depuis une facture", async () => {
   expect(invoice).toMatch(/FAC-/);
 
   await gotoModule(page, "Retours");
-  await page.locator('button[title="Nouveau retour"]').click();
+  await page.locator('button[title="Nouveau retour [F2]"]').click();
   await page.getByPlaceholder(/N° facture ou scan/).fill(invoice);
   await page.getByRole("button", { name: "Chercher" }).click();
   await page.getByLabel(`Quantité ${product}`, { exact: true }).fill("1");

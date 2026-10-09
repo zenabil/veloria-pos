@@ -65,7 +65,7 @@ test("restart : la vente reste enregistrée après redémarrage", async () => {
   // Relance sur les mêmes dossiers : démarrage normal + données conservées.
   ctx = await relaunchApp(ctx);
   await gotoModule(ctx.page, "Historique");
-  await ctx.page.getByPlaceholder("N° facture / scan code-barres… [F3]").fill(invoice);
+  await ctx.page.getByPlaceholder("Référence, N° facture, scan code-barres…").fill(invoice);
   await expect(
     ctx.page
       .getByRole("row", { name: new RegExp(invoice) })

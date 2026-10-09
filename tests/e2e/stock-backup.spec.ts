@@ -92,8 +92,12 @@ test("restauration : la base revient à l'état sauvegardé", async () => {
     .getByRole("button", { name: "Données (sauvegarde, base)" })
     .click();
   // La confirmation est une modale applicative (ConfirmProvider), pas un
-  // dialogue natif : on clique sur « Confirmer ».
-  await page.getByRole("button", { name: "Restaurer" }).first().click();
+  // dialogue natif : on clique sur « Confirmer ». La liste se rafraîchit en
+  // arrière-plan (sauvegarde auto) : le clic est rejoué jusqu'à ouverture.
+  await expect(async () => {
+    await page.getByRole("button", { name: "Restaurer" }).first().click({ timeout: 5_000 });
+    await page.getByRole("dialog", { name: "Confirmation" }).waitFor({ timeout: 5_000 });
+  }).toPass({ timeout: 30_000 });
   await page
     .getByRole("dialog", { name: "Confirmation" })
     .getByRole("button", { name: "Confirmer" })

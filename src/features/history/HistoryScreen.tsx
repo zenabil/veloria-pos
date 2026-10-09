@@ -566,8 +566,15 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
       ) : null}
 
       {/* Table historique */}
-      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="min-h-0 flex-1 overflow-auto">
+      {/* min-h : à basse résolution (720p) le contenu fixe ci-dessus mange
+          tout l'espace et flex-1 seul écrase la zone à quelques px (lignes
+          invisibles/incliquables) — hauteur plancher + scroll de page,
+          voir ADR-077. */}
+      <Card className="flex min-h-[320px] min-w-0 flex-1 flex-col overflow-hidden">
+        {/* scroll-padding : thead sticky (top-0) — tout défilement
+            programmatique (scrollIntoView, focus clavier) laisse la place
+            à l'en-tête au lieu de glisser la ligne dessous (voir ADR-077). */}
+        <div className="min-h-0 flex-1 scroll-pt-14 overflow-auto">
           {loading && rows.length === 0 ? (
             <p className="p-8 text-center text-sm text-slate-500" role="status">
               Chargement…
@@ -613,7 +620,7 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
                       key={key}
                       onClick={() => void openDrawer(r)}
                       className={cn(
-                        "cursor-pointer border-t border-white/[0.06] transition-colors hover:bg-amber-400/[0.06]",
+                        "cursor-pointer scroll-mt-16 border-t border-white/[0.06] transition-colors hover:bg-amber-400/[0.06]",
                         selection.has(key) && "bg-amber-400/[0.08]",
                       )}
                     >

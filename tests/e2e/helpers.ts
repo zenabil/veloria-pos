@@ -336,9 +336,13 @@ export function uniqueTag(prefix: string): string {
 }
 
 export async function gotoModule(page: Page, label: string): Promise<void> {
+  // « Clients » est sous-chaîne de « Retours — Clients et fournisseurs » :
+  // .first() retient le bon bouton (ordre DOM : groupe Tiers, Clients avant
+  // Retours — voir MODULE_GROUPS dans src/app/shell/modules.ts).
   await page
     .getByRole("navigation", { name: "Navigation principale" })
     .getByRole("button", { name: label })
+    .first()
     .click();
   await page.getByRole("heading", { name: label }).first().waitFor();
 }

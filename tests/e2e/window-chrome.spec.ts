@@ -238,6 +238,15 @@ async function mainBounds(): Promise<{ x: number; y: number; width: number; heig
   });
 }
 
+/** Écran trop petit (< 1600×900, taille native de la fenêtre) : l'OS démarre
+ * maximisé. Ces tests exigent un démarrage fenêtré — on ignore plutôt
+ * qu'échouer à tort (même philosophie que les skips drag/resize ci-dessus). */
+async function skipIfMaximizedBoot(): Promise<void> {
+  if (await isMaximizedMain()) {
+    test.skip(true, "Écran < 1600×900 : démarrage maximisé par l'OS.");
+  }
+}
+
 async function waitForMainState(check: () => Promise<boolean>, timeoutMs = 15_000): Promise<void> {
   const start = Date.now();
   for (;;) {
@@ -248,6 +257,7 @@ async function waitForMainState(check: () => Promise<boolean>, timeoutMs = 15_00
 }
 
 test("démarrage : barre de titre personnalisée avec 3 contrôles", async () => {
+  await skipIfMaximizedBoot();
   const { page } = ctx;
   const bar = page.locator('header[aria-label="Barre de titre Veloria PoS"]');
   await expect(bar).toBeVisible();
@@ -288,6 +298,7 @@ test("réduire : la fenêtre se minimise puis revient", async () => {
 });
 
 test("agrandir puis restaurer via les boutons", async () => {
+  await skipIfMaximizedBoot();
   const { page } = ctx;
   await page.getByRole("button", { name: "Agrandir" }).click();
   await waitForMainState(() => isMaximizedMain());
@@ -298,6 +309,7 @@ test("agrandir puis restaurer via les boutons", async () => {
 });
 
 test("double-clic : bascule agrandi / restauré", async () => {
+  await skipIfMaximizedBoot();
   const { page } = ctx;
   await page.mouse.dblclick(400, 24);
   await waitForMainState(() => isMaximizedMain());
@@ -319,6 +331,7 @@ test("redimensionner : le bord droit agrandit la fenêtre", async () => {
 });
 
 test("rouvrir après fermeture : démarrage fenêtré avec coquille", async () => {
+  await skipIfMaximizedBoot();
   const { page } = ctx;
   const child = ctx.app.process();
   const closeBtn = page.getByRole("button", { name: "Fermer" });
