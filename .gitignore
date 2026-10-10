@@ -67,6 +67,7 @@ graphify-out/
 .expo/
 mobile/android/
 mobile/ios/
+mobile/dist-web/
 *.keystore
 *.jks
 local.properties
