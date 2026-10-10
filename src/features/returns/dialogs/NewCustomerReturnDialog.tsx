@@ -11,7 +11,15 @@ import { newOperationId } from "@domain/common/ids.ts";
 
 import { RETURN_REASONS } from "@domain/returns/return-rules.ts";
 import { todayUtcDate } from "@shared/dates/dates.ts";
-import { Button, EmptyState, Field, Select, TextInput, cn } from "@shared/ui/primitives.tsx";
+import {
+  Button,
+  EmptyState,
+  Field,
+  Select,
+  Switch,
+  TextInput,
+  cn,
+} from "@shared/ui/primitives.tsx";
 import { type ItemCondition } from "../types.ts";
 
 import type { Notify } from "@shared/ui/primitives.tsx";
@@ -260,24 +268,11 @@ export function CustomerReturnDialog({
 
           <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-sm font-semibold">
             <span>Remettre en stock</span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={restockAll}
-              aria-label="Remettre en stock"
-              onClick={() => setRestockAll((a) => !a)}
-              className={cn(
-                "relative h-7 w-12 shrink-0 rounded-full transition-colors",
-                restockAll ? "bg-amber-400" : "bg-white/15",
-              )}
-            >
-              <span
-                className={cn(
-                  "absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all",
-                  restockAll ? "left-6" : "left-1",
-                )}
-              />
-            </button>
+            <Switch
+              checked={restockAll}
+              onChange={() => setRestockAll((a) => !a)}
+              ariaLabel="Remettre en stock"
+            />
           </label>
 
           <div className="grid grid-cols-2 gap-3">

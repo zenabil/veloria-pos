@@ -85,8 +85,8 @@ export function ProductMovementsDialog({
               title="Flux par jour (14 derniers jours)"
               labels={days.map((d) => d.day)}
               series={[
-                { label: "Entrées", values: days.map((d) => d.in), color: "#34d399" },
-                { label: "Sorties", values: days.map((d) => d.out), color: "#f87171" },
+                { label: "Entrées", values: days.map((d) => d.in), color: "#4edea3" },
+                { label: "Sorties", values: days.map((d) => d.out), color: "#ffb4ab" },
               ]}
             />
           </Card>

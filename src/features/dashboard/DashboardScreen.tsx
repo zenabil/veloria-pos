@@ -450,7 +450,7 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                 title="Ventes par jour"
                 labels={summary.daily.map((d) => d.d)}
                 series={[
-                  { label: "Ventes", values: summary.daily.map((d) => d.t), color: "#34d399" },
+                  { label: "Ventes", values: summary.daily.map((d) => d.t), color: "#4edea3" },
                 ]}
               />
             </Card>

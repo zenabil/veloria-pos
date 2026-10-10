@@ -6,7 +6,7 @@ import { api } from "@shared/types/ipc-client.ts";
 import { minorToInput, parseDzdInputStrict } from "@domain/money/money.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import { newOperationId } from "@domain/common/ids.ts";
-import { Button, Field, Modal, TextArea, TextInput, cn } from "@shared/ui/primitives.tsx";
+import { Button, Field, Modal, Switch, TextArea, TextInput } from "@shared/ui/primitives.tsx";
 import { fullName, splitFullName } from "../types.ts";
 import type { ClientFormDialogProps } from "./types.ts";
 
@@ -187,24 +187,11 @@ export function ClientFormDialog({
               </span>
             ) : null}
           </span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={creditAllowed}
-            aria-label="Crédit autorisé"
-            onClick={() => setCreditAllowed((a) => !a)}
-            className={cn(
-              "relative h-7 w-12 shrink-0 rounded-full transition-colors",
-              creditAllowed ? "bg-amber-400" : "bg-white/15",
-            )}
-          >
-            <span
-              className={cn(
-                "absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all",
-                creditAllowed ? "left-6" : "left-1",
-              )}
-            />
-          </button>
+          <Switch
+            checked={creditAllowed}
+            onChange={() => setCreditAllowed((a) => !a)}
+            ariaLabel="Crédit autorisé"
+          />
         </label>
         {creditAllowed ? (
           <Field label="Plafond de crédit (DZD)" hint="Alerte dépassement au-delà.">

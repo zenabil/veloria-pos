@@ -120,6 +120,43 @@ export function Card({
   );
 }
 
+/** Interrupteur nu (sans ligne de libellé) : même rendu que le bouton de
+ * `SwitchRow` (voir settings/bits.tsx). Source unique des 9 interrupteurs
+ * des formulaires — libellé/état gérés par l'appelant. */
+export function Switch({
+  checked,
+  onChange,
+  ariaLabel,
+  disabled = false,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  ariaLabel: string;
+  disabled?: boolean;
+}): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={ariaLabel}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={cn(
+        "relative h-7 w-12 shrink-0 rounded-full transition-colors",
+        checked ? "bg-amber-400" : "bg-white/15",
+      )}
+    >
+      <span
+        className={cn(
+          "absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all",
+          checked ? "left-6" : "left-1",
+        )}
+      />
+    </button>
+  );
+}
+
 /** En-tête de section : titre + indication + action optionnelle à droite. */
 export function SectionTitle({
   title,

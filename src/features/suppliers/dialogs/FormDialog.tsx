@@ -7,7 +7,7 @@ import { api } from "@shared/types/ipc-client.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { validateSupplierDraft } from "@domain/suppliers/supplier-rules.ts";
 
-import { Button, Field, Modal, TextArea, TextInput, cn } from "@shared/ui/primitives.tsx";
+import { Button, Field, Modal, Switch, TextArea, TextInput } from "@shared/ui/primitives.tsx";
 
 import { type Supplier } from "../types.ts";
 
@@ -183,24 +183,11 @@ export function SupplierFormDialog({
               Inactif = masqué du filtre « Actifs », historique conservé.
             </span>
           </span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={isActive}
-            aria-label="Fournisseur actif"
-            onClick={() => setIsActive((a) => !a)}
-            className={cn(
-              "relative h-7 w-12 shrink-0 rounded-full transition-colors",
-              isActive ? "bg-amber-400" : "bg-white/15",
-            )}
-          >
-            <span
-              className={cn(
-                "absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all",
-                isActive ? "left-6" : "left-1",
-              )}
-            />
-          </button>
+          <Switch
+            checked={isActive}
+            onChange={() => setIsActive((a) => !a)}
+            ariaLabel="Fournisseur actif"
+          />
         </label>
         <div className="flex gap-2">
           <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
@@ -394,24 +381,11 @@ export function SupplierQuickForm({
             Inactif = masqué du filtre « Actifs », historique conservé.
           </span>
         </span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={isActive}
-          aria-label="Fournisseur actif"
-          onClick={() => setIsActive((a) => !a)}
-          className={cn(
-            "relative h-7 w-12 shrink-0 rounded-full transition-colors",
-            isActive ? "bg-amber-400" : "bg-white/15",
-          )}
-        >
-          <span
-            className={cn(
-              "absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all",
-              isActive ? "left-6" : "left-1",
-            )}
-          />
-        </button>
+        <Switch
+          checked={isActive}
+          onChange={() => setIsActive((a) => !a)}
+          ariaLabel="Fournisseur actif"
+        />
       </label>
       <div className="flex gap-2">
         <Button type="button" variant="secondary" onClick={onClose} className="flex-1">

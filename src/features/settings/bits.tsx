@@ -1,6 +1,6 @@
 // Veloria PoS — Paramètres : blocs d'interface partagés des sections.
 import { useState } from "react";
-import { Button, Card, cn } from "@shared/ui/primitives.tsx";
+import { Button, Card, Switch, cn } from "@shared/ui/primitives.tsx";
 
 export function Section({
   title,
@@ -49,25 +49,7 @@ export function SwitchRow({
         {label}
         {hint ? <span className="block text-xs font-normal text-slate-500">{hint}</span> : null}
       </span>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        aria-label={ariaLabel}
-        disabled={disabled}
-        onClick={() => onChange(!checked)}
-        className={cn(
-          "relative h-7 w-12 shrink-0 rounded-full transition-colors",
-          checked ? "bg-amber-400" : "bg-white/15",
-        )}
-      >
-        <span
-          className={cn(
-            "absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all",
-            checked ? "left-6" : "left-1",
-          )}
-        />
-      </button>
+      <Switch checked={checked} onChange={onChange} ariaLabel={ariaLabel} disabled={disabled} />
     </label>
   );
 }

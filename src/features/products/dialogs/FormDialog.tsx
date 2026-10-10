@@ -9,7 +9,7 @@ import { newOperationId } from "@domain/common/ids.ts";
 import { normalizeUnitCode, validateProductDraft } from "@domain/product/product-rules.ts";
 import { evaluateMargin } from "@domain/pricing/price-rules.ts";
 
-import { Button, Field, Modal, Select, TextInput, cn } from "@shared/ui/primitives.tsx";
+import { Button, Field, Modal, Select, Switch, TextInput } from "@shared/ui/primitives.tsx";
 import { SupplierQuickCreateDialog } from "@features/suppliers/dialogs/FormDialog.tsx";
 import { UNIT_OPTIONS, isArchived, unitLabel, type Category, type Product } from "../types.ts";
 
@@ -449,24 +449,11 @@ export function ProductFormDialog({
                   Inactif = archivé (restaurable).
                 </span>
               </span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={active}
-                aria-label="Produit actif"
-                onClick={() => setActive((a) => !a)}
-                className={cn(
-                  "relative h-7 w-12 shrink-0 rounded-full transition-colors",
-                  active ? "bg-amber-400" : "bg-white/15",
-                )}
-              >
-                <span
-                  className={cn(
-                    "absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all",
-                    active ? "left-6" : "left-1",
-                  )}
-                />
-              </button>
+              <Switch
+                checked={active}
+                onChange={() => setActive((a) => !a)}
+                ariaLabel="Produit actif"
+              />
             </label>
           ) : null}
           <div className="flex gap-2">

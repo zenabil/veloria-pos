@@ -6,7 +6,7 @@ import { useCompany } from "@shared/company/use-company.ts";
 import { formatDzd } from "@domain/money/money.ts";
 import { formatDateFr, formatDzdSigned } from "@shared/formatters/format.ts";
 import { downloadCsv } from "@shared/export/csv.ts";
-import { Button, Field, Modal, Select, TextInput, cn } from "@shared/ui/primitives.tsx";
+import { Button, Field, Modal, Select, Switch, TextInput } from "@shared/ui/primitives.tsx";
 import type { ReportSummary } from "./types.ts";
 
 import type { Notify } from "@shared/ui/primitives.tsx";
@@ -176,46 +176,20 @@ export function ReportExportDialog({
         </Field>
         <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-sm font-semibold">
           <span>Inclure le détail (jours, tops)</span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={withDetails}
-            aria-label="Inclure le détail"
-            onClick={() => setWithDetails((v) => !v)}
-            className={cn(
-              "relative h-7 w-12 shrink-0 rounded-full transition-colors",
-              withDetails ? "bg-amber-400" : "bg-white/15",
-            )}
-          >
-            <span
-              className={cn(
-                "absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all",
-                withDetails ? "left-6" : "left-1",
-              )}
-            />
-          </button>
+          <Switch
+            checked={withDetails}
+            onChange={() => setWithDetails((v) => !v)}
+            ariaLabel="Inclure le détail"
+          />
         </label>
         {format === "print" ? (
           <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-sm font-semibold">
             <span>Inclure les graphiques</span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={withCharts}
-              aria-label="Inclure les graphiques"
-              onClick={() => setWithCharts((v) => !v)}
-              className={cn(
-                "relative h-7 w-12 shrink-0 rounded-full transition-colors",
-                withCharts ? "bg-amber-400" : "bg-white/15",
-              )}
-            >
-              <span
-                className={cn(
-                  "absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all",
-                  withCharts ? "left-6" : "left-1",
-                )}
-              />
-            </button>
+            <Switch
+              checked={withCharts}
+              onChange={() => setWithCharts((v) => !v)}
+              ariaLabel="Inclure les graphiques"
+            />
           </label>
         ) : null}
         <div className="flex gap-2">

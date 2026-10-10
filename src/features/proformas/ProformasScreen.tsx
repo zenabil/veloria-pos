@@ -638,7 +638,7 @@ export function ProformasScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                               />
                               <div
                                 role="menu"
-                                className="absolute right-0 z-20 mt-1 w-52 space-y-1 rounded-xl border border-white/10 bg-[#141d33] p-2 shadow-xl"
+                                className="absolute right-0 z-20 mt-1 w-52 space-y-1 rounded-xl border border-white/10 bg-[#122131] p-2 shadow-xl"
                               >
                                 {isProformaEditable(p.status) ? (
                                   <RowAction

@@ -19,6 +19,7 @@ import {
   InfoRow,
   Modal,
   Select,
+  Switch,
   TextInput,
 } from "@shared/ui/primitives.tsx";
 import { PaymentTicketModal, type PaymentTicketInput } from "@shared/documents/payment-preview.tsx";
@@ -600,18 +601,11 @@ export function BreadFormDialog({
               Répétée chaque jour (badge « Quotidienne »).
             </span>
           </span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={recurring}
-            aria-label="Commande récurrente quotidienne"
-            onClick={() => setRecurring((v) => !v)}
-            className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${recurring ? "bg-amber-400" : "bg-white/15"}`}
-          >
-            <span
-              className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${recurring ? "left-6" : "left-1"}`}
-            />
-          </button>
+          <Switch
+            checked={recurring}
+            onChange={() => setRecurring((v) => !v)}
+            ariaLabel="Commande récurrente quotidienne"
+          />
         </label>
         <Field label="Retrait le *" hint="Par défaut : aujourd'hui.">
           <TextInput

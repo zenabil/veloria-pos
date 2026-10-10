@@ -611,7 +611,7 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
                   {
                     label: "Ventes",
                     values: summary.buckets.map((b) => b.sales),
-                    color: "#34d399",
+                    color: "#4edea3",
                   },
                   {
                     label: "Achats",
@@ -621,7 +621,7 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
                   {
                     label: "Dépenses",
                     values: summary.buckets.map((b) => b.expenses),
-                    color: "#f87171",
+                    color: "#ffb4ab",
                   },
                 ]}
               />
@@ -632,7 +632,7 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
                   {
                     label: "Marge",
                     values: summary.buckets.map((b) => b.profit),
-                    color: "#818cf8",
+                    color: "#8ed0ff",
                   },
                 ]}
               />
