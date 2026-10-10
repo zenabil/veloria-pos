@@ -21,14 +21,20 @@ export const ANON_KEY: string = process.env.EXPO_PUBLIC_ANON_KEY ?? "demo";
 
 // RADICAL (#29) : garde-fou d'exécution — un bundle avec placeholder ou HTTP
 // clair distant DOIT échouer FORT au démarrage (jamais de PIN envoyé dans le
-// vide/en clair). Seuls https:// et le miroir démo local sont acceptés.
+// vide/en clair). Seuls https://, le miroir démo local (:8099) et le relais
+// E2E loopback (:8100, jamais hors machine — voir scripts/e2e-mirror-relay.mjs
+// + e2e-mobile-shots.mjs) sont acceptés.
 const IS_PLACEHOLDER = /VOTRE-PROJET|VOTRE-CLE|VOTRE_|EXAMPLE|PLACEHOLDER/i;
 function isLocalDemoHttp(url: string): boolean {
   return (
     url === "http://127.0.0.1:8099" ||
     url.startsWith("http://127.0.0.1:8099/") ||
     url === "http://localhost:8099" ||
-    url.startsWith("http://localhost:8099/")
+    url.startsWith("http://localhost:8099/") ||
+    url === "http://127.0.0.1:8100" ||
+    url.startsWith("http://127.0.0.1:8100/") ||
+    url === "http://localhost:8100" ||
+    url.startsWith("http://localhost:8100/")
   );
 }
 if (IS_PLACEHOLDER.test(SYNC_URL) || IS_PLACEHOLDER.test(ANON_KEY)) {

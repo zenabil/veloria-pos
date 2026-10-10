@@ -620,7 +620,7 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
                       key={key}
                       onClick={() => void openDrawer(r)}
                       className={cn(
-                        "cursor-pointer scroll-mt-16 border-t border-white/[0.06] transition-colors hover:bg-amber-400/[0.06]",
+                        "cursor-pointer border-t border-white/[0.06] transition-colors hover:bg-amber-400/[0.06]",
                         selection.has(key) && "bg-amber-400/[0.08]",
                       )}
                     >

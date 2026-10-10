@@ -297,3 +297,11 @@ body {
     transition: none !important;
   }
 }
+
+/* Tableaux à en-tête collant (thead.sticky, ~20 écrans) : toute ligne
+   défilée programmatiquement (scrollIntoView, focus clavier, Playwright)
+   s'arrête sous l'en-tête au lieu de glisser dessous et de rendre son
+   point de clic inaccessible (voir ADR-077). Sans aucun effet visuel. */
+tbody tr {
+  scroll-margin-top: 3.5rem;
+}
