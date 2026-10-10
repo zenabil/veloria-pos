@@ -2,7 +2,7 @@
 // En-tête + 4 cartes stats + barre d'outils + table serveur + pagination +
 // tiroir détail + formulaire.
 import { useEffect, useRef, useState } from "react";
-import { Eye, Download, Pencil, Plus, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
+import { Eye, Download, Pencil, Plus, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { formatDzd } from "@domain/money/money.ts";
@@ -17,6 +17,7 @@ import {
   PageHeader,
   Pager,
   RowAction,
+  SearchField,
   Select,
   TextInput,
   cn,
@@ -342,21 +343,14 @@ export function ExpensesScreen({ notify }: { notify: Notify }): React.JSX.Elemen
         period={`${total} dépense(s) · ${formatDzd(stats.totalMinor)} au total · Suivi Budgétaire & Décaissements · Poste 04 · Exercice ${new Date().getFullYear()}`}
         actions={
           <>
-            <div className="relative w-full max-w-xs">
-              <Search
-                size={16}
-                aria-hidden="true"
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-              />
-              <TextInput
-                ref={searchRef}
-                value={query}
-                onChange={(e) => onQueryChange(e.target.value)}
-                placeholder="Rechercher… [F3]"
-                aria-label="Rechercher une dépense"
-                className="pl-9"
-              />
-            </div>
+            <SearchField
+              value={query}
+              onChange={onQueryChange}
+              placeholder="Rechercher… [F3]"
+              ariaLabel="Rechercher une dépense"
+              inputRef={searchRef}
+              className="w-full max-w-xs"
+            />
             {/* P4 : les dates Du/Au vivent dans la barre d'outils (étiquetées) —
                 fin du doublon d'en-tête. */}
             <Button

@@ -2,7 +2,7 @@
 // En-tête + 4 cartes stats + barre d'outils + table enrichie (relevés) +
 // pagination + tiroir détail + formulaire + règlement.
 import { useEffect, useRef, useState } from "react";
-import { Eye, Pencil, Plus, RotateCcw, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
+import { Eye, Pencil, Plus, RotateCcw, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import {
   callChecked,
@@ -22,6 +22,7 @@ import {
   PageHeader,
   Pager,
   RowAction,
+  SearchField,
   Select,
   TextInput,
   cn,
@@ -293,21 +294,14 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
         period={`${total} fiche(s) active(s) · ${stats.credit} compte(s) avec créance · ${formatDzd(stats.debt)} de dettes globales en cours`}
         actions={
           <>
-            <div className="relative w-full max-w-xs">
-              <Search
-                size={16}
-                aria-hidden="true"
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-              />
-              <TextInput
-                ref={searchRef}
-                value={query}
-                onChange={(e) => onQueryChange(e.target.value)}
-                placeholder="Rechercher… [F3]"
-                aria-label="Rechercher un client"
-                className="pl-9"
-              />
-            </div>
+            <SearchField
+              value={query}
+              onChange={onQueryChange}
+              placeholder="Rechercher… [F3]"
+              ariaLabel="Rechercher un client"
+              inputRef={searchRef}
+              className="w-full max-w-xs"
+            />
             <Button
               variant="secondary"
               onClick={() => setToolbarOpen((o) => !o)}

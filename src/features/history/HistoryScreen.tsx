@@ -2,7 +2,7 @@
 // En-tête (recherche, période, export) + 4 cartes stats + barre d'outils +
 // table serveur + pagination + tiroir détail + export CSV.
 import { useEffect, useRef, useState } from "react";
-import { Download, Eye, Search, SlidersHorizontal, X } from "lucide-react";
+import { Download, Eye, SlidersHorizontal, X } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { formatDzd } from "@domain/money/money.ts";
 import { downloadCsv } from "@shared/export/csv.ts";
@@ -16,6 +16,7 @@ import {
   PageHeader,
   Pager,
   RowAction,
+  SearchField,
   Select,
   TextInput,
   cn,
@@ -346,27 +347,21 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
         period={`${total} opération(s) · toutes les activités de la caisse · session active`}
         actions={
           <>
-            <div className="relative w-full max-w-xs">
-              <Search
-                size={16}
-                aria-hidden="true"
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-              />
-              <TextInput
-                ref={searchRef}
-                value={query}
-                onChange={(e) => onQueryChange(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    void searchAndOpen(e.currentTarget.value);
-                  }
-                }}
-                placeholder="N° Ticket, Client, Réf, Code-barre… [F3]"
-                aria-label="Rechercher dans l'historique (ticket, client, référence ou code-barres)"
-                className="pl-9 font-mono"
-              />
-            </div>
+            <SearchField
+              value={query}
+              onChange={onQueryChange}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void searchAndOpen(e.currentTarget.value);
+                }
+              }}
+              placeholder="N° Ticket, Client, Réf, Code-barre… [F3]"
+              ariaLabel="Rechercher dans l'historique (ticket, client, référence ou code-barres)"
+              inputRef={searchRef}
+              className="w-full max-w-xs"
+              inputClassName="pl-9 font-mono"
+            />
             {/* P4 : les dates Du/Au vivent dans la barre d'outils (étiquetées) —
                 fin du doublon d'en-tête. */}
             <Button

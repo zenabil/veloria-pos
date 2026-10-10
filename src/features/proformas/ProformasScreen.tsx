@@ -27,6 +27,7 @@ import {
   PageHeader,
   Pager,
   RowAction,
+  SearchField,
   Select,
   TextInput,
   cn,
@@ -313,21 +314,14 @@ export function ProformasScreen({ notify }: { notify: Notify }): React.JSX.Eleme
         period={`${total} devis · ${stats.pending} en attente/négociation · ${stats.converted} converti(s) en vente`}
         actions={
           <>
-            <div className="relative w-full max-w-xs">
-              <Search
-                size={16}
-                aria-hidden="true"
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-              />
-              <TextInput
-                ref={searchRef}
-                value={query}
-                onChange={(e) => onQueryChange(e.target.value)}
-                placeholder="N° Devis PRF-… [F3]"
-                aria-label="Rechercher un devis"
-                className="pl-9"
-              />
-            </div>
+            <SearchField
+              value={query}
+              onChange={onQueryChange}
+              placeholder="N° Devis PRF-… [F3]"
+              ariaLabel="Rechercher un devis"
+              inputRef={searchRef}
+              className="w-full max-w-xs"
+            />
             <Button
               variant="secondary"
               onClick={() => setToolbarOpen((o) => !o)}

@@ -4,7 +4,7 @@
 > l avancement en `reports/PHASE_*.md`. Ne jamais ecrire de rapport a la racine.
 > Conventions : `AGENTS.md` + `docs/STRUCTURE.md` (carte maintenance).
 
-## Decisions (ADR-001 a ADR-078 — tous saries, jamais supprimes)
+## Decisions (ADR-001 a ADR-079 — tous saries, jamais supprimes)
 
 - [ADR-001](./ADR-001-vite-renderer.md) Renderer Vite
 - [ADR-002](./ADR-002-native-versions.md) Versions natives
@@ -84,6 +84,7 @@
 - [ADR-076](./ADR-076-sidebar-vertical.md) Sidebar verticale repliable
 - [ADR-077](./ADR-077-e2e-production-prep.md) Résurrection E2E + prépa prod
 - [ADR-078](./ADR-078-ui-unification-safe.md) Unification UI sûre
+- [ADR-079](./ADR-079-searchfield-unifie.md) SearchField unifié
 - [ADR-NEW-app-boundaries](./ADR-NEW-app-boundaries.md) Frontieres app
 - [ADR-NEW-docs-hygiene](./ADR-NEW-docs-hygiene.md) Hygiene docs
 - [ADR-NEW-slices](./ADR-NEW-slices.md) Tranches

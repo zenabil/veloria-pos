@@ -9,7 +9,6 @@ import {
   History,
   Pencil,
   Plus,
-  Search,
   SlidersHorizontal,
   Trash2,
   X,
@@ -27,6 +26,7 @@ import {
   PageHeader,
   Pager,
   RowAction,
+  SearchField,
   Select,
   TextInput,
   cn,
@@ -324,21 +324,14 @@ export function SuppliersScreen({ notify }: { notify: Notify }): React.JSX.Eleme
         period={`${total} fournisseur(s) référencé(s) · ${formatDzd(stats.debt)} de dettes à régler`}
         actions={
           <>
-            <div className="relative w-full max-w-xs">
-              <Search
-                size={16}
-                aria-hidden="true"
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-              />
-              <TextInput
-                ref={searchRef}
-                value={query}
-                onChange={(e) => onQueryChange(e.target.value)}
-                placeholder="Rechercher… [F3]"
-                aria-label="Rechercher un fournisseur"
-                className="pl-9"
-              />
-            </div>
+            <SearchField
+              value={query}
+              onChange={onQueryChange}
+              placeholder="Rechercher… [F3]"
+              ariaLabel="Rechercher un fournisseur"
+              inputRef={searchRef}
+              className="w-full max-w-xs"
+            />
             <Button
               variant="secondary"
               onClick={() => setToolbarOpen((o) => !o)}

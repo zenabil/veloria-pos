@@ -2,7 +2,7 @@
 // En-tête + 4 cartes stats + barre d'outils + table serveur + pagination +
 // tiroir détail + paiement + échéance.
 import { useEffect, useRef, useState } from "react";
-import { Download, Eye, HandCoins, Pencil, Search, SlidersHorizontal, X } from "lucide-react";
+import { Download, Eye, HandCoins, Pencil, SlidersHorizontal, X } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { formatDzd } from "@domain/money/money.ts";
 import { downloadCsv } from "@shared/export/csv.ts";
@@ -15,6 +15,7 @@ import {
   PageHeader,
   Pager,
   RowAction,
+  SearchField,
   Select,
   TextInput,
   cn,
@@ -300,21 +301,14 @@ export function DebtsScreen({ notify }: { notify: Notify }): React.JSX.Element {
         period={`Registre consolidé local · ${total} dette(s) · créances ${formatDzd(stats.customerDebtMinor)} · dettes fourn. ${formatDzd(stats.supplierDebtMinor)} · ${stats.settleOverdue} dépassé(s)`}
         actions={
           <>
-            <div className="relative w-full max-w-xs">
-              <Search
-                size={16}
-                aria-hidden="true"
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-              />
-              <TextInput
-                ref={searchRef}
-                value={query}
-                onChange={(e) => onQueryChange(e.target.value)}
-                placeholder="Rechercher… [F3]"
-                aria-label="Rechercher une dette"
-                className="pl-9"
-              />
-            </div>
+            <SearchField
+              value={query}
+              onChange={onQueryChange}
+              placeholder="Rechercher… [F3]"
+              ariaLabel="Rechercher une dette"
+              inputRef={searchRef}
+              className="w-full max-w-xs"
+            />
             {/* P4 : les selects Statut/Règlement vivent dans la barre d'outils
                 (étiquetés) — fin du doublon d'en-tête. */}
             <Button

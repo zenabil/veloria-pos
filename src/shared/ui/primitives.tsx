@@ -6,7 +6,7 @@
 // Interface en français uniquement.
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import type {
   ButtonHTMLAttributes,
@@ -174,6 +174,51 @@ export function SectionTitle({
         {hint ? <p className="mt-0.5 text-xs text-slate-500">{hint}</p> : null}
       </div>
       {action}
+    </div>
+  );
+}
+
+/** Champ de recherche unifié : icône + zone de saisie + contenu final
+ *  optionnel. Source unique des zones de recherche (écrans + caisse) —
+ *  même icône, même position, même retrait `pl-9` par défaut. */
+export function SearchField({
+  value,
+  onChange,
+  placeholder,
+  ariaLabel,
+  inputRef,
+  onKeyDown,
+  trailing,
+  className,
+  inputClassName = "pl-9",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  ariaLabel: string;
+  inputRef?: Ref<HTMLInputElement>;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  trailing?: ReactNode;
+  className?: string;
+  inputClassName?: string;
+}): ReactNode {
+  return (
+    <div className={cn("relative", className)}>
+      <Search
+        size={16}
+        aria-hidden="true"
+        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+      />
+      <TextInput
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={onKeyDown}
+        placeholder={placeholder}
+        aria-label={ariaLabel}
+        className={inputClassName}
+        {...(inputRef === undefined ? null : { ref: inputRef })}
+      />
+      {trailing}
     </div>
   );
 }

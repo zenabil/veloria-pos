@@ -1,7 +1,6 @@
 // Veloria PoS — Stock : réception + détail + ajustement + historique + inventaire.
 // Branchés sur le bridge window.veloria (jamais de SQLite côté renderer).
 import { useEffect, useState } from "react";
-import { Search } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 
 import { newOperationId } from "@domain/common/ids.ts";
@@ -13,7 +12,16 @@ import {
   type AdjustmentKind,
 } from "@domain/inventory/stock-rules.ts";
 import { adjustmentReasonFr } from "@shared/formatters/format.ts";
-import { Button, Field, Modal, Select, TextArea, TextInput, cn } from "@shared/ui/primitives.tsx";
+import {
+  Button,
+  Field,
+  Modal,
+  SearchField,
+  Select,
+  TextArea,
+  TextInput,
+  cn,
+} from "@shared/ui/primitives.tsx";
 import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
 
 import { parseQtyInput, type StockRow } from "../types.ts";
@@ -190,20 +198,12 @@ export function StockAdjustmentDialog({
           </dl>
         ) : (
           <Field label="Produit">
-            <div className="relative">
-              <Search
-                size={16}
-                aria-hidden="true"
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-              />
-              <TextInput
-                value={search}
-                onChange={(e) => onSearchChange(e.target.value)}
-                placeholder="Rechercher un produit… (min. 2 lettres)"
-                aria-label="Rechercher un produit"
-                className="pl-9"
-              />
-            </div>
+            <SearchField
+              value={search}
+              onChange={onSearchChange}
+              placeholder="Rechercher un produit… (min. 2 lettres)"
+              ariaLabel="Rechercher un produit"
+            />
             {results.length > 0 ? (
               <ul className="mt-2 max-h-36 divide-y divide-white/[0.06] overflow-auto rounded-xl border border-white/10">
                 {results.map((r) => (

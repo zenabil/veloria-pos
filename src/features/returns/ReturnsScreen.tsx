@@ -2,7 +2,7 @@
 // En-tête + 4 cartes stats + barre d'outils + table unifiée (serveur) +
 // pagination + tiroir détail + création + remboursement.
 import { useEffect, useRef, useState } from "react";
-import { Download, Eye, HandCoins, Plus, Search, SlidersHorizontal, Undo2, X } from "lucide-react";
+import { Download, Eye, HandCoins, Plus, SlidersHorizontal, Undo2, X } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { newOperationId } from "@domain/common/ids.ts";
@@ -18,6 +18,7 @@ import {
   PageHeader,
   Pager,
   RowAction,
+  SearchField,
   Select,
   TextInput,
   cn,
@@ -327,21 +328,15 @@ export function ReturnsScreen({ notify }: { notify: Notify }): React.JSX.Element
         period={`${total} retour(s) · ${formatDzd(stats.totalAmountMinor)} de marchandises retournées · REGISTRE DES RETOURS ACTIF · POSTE 04`}
         actions={
           <>
-            <div className="relative w-full max-w-xs">
-              <Search
-                size={16}
-                aria-hidden="true"
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-              />
-              <TextInput
-                ref={searchRef}
-                value={query}
-                onChange={(e) => onQueryChange(e.target.value)}
-                placeholder="N° retour / facture / scan… [F3]"
-                aria-label="Rechercher un retour (numéro, facture ou scan code-barres)"
-                className="pl-9 font-mono"
-              />
-            </div>
+            <SearchField
+              value={query}
+              onChange={onQueryChange}
+              placeholder="N° retour / facture / scan… [F3]"
+              ariaLabel="Rechercher un retour (numéro, facture ou scan code-barres)"
+              inputRef={searchRef}
+              className="w-full max-w-xs"
+              inputClassName="pl-9 font-mono"
+            />
             <TextInput
               type="date"
               value={from}

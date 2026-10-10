@@ -2,7 +2,7 @@
 // En-tête + 4 cartes stats + barre d'outils + table serveur + pagination +
 // tiroir détail + formulaire + statut + encaissement.
 import { useEffect, useRef, useState } from "react";
-import { Eye, HandCoins, Pencil, Plus, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
+import { Eye, HandCoins, Pencil, Plus, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { formatDateFr } from "@shared/formatters/format.ts";
 import { newOperationId } from "@domain/common/ids.ts";
@@ -16,6 +16,7 @@ import {
   PageHeader,
   Pager,
   RowAction,
+  SearchField,
   Select,
   TextInput,
   cn,
@@ -310,21 +311,14 @@ export function BreadScreen({ notify }: { notify: Notify }): React.JSX.Element {
         period={`${total} commande(s) · ${stats.pending} en cours · ${stats.recurring} quotidienne(s) · Exercice ${new Date().getFullYear()}`}
         actions={
           <>
-            <div className="relative w-full max-w-xs">
-              <Search
-                size={16}
-                aria-hidden="true"
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-              />
-              <TextInput
-                ref={searchRef}
-                value={query}
-                onChange={(e) => onQueryChange(e.target.value)}
-                placeholder="Nom, client… [F3]"
-                aria-label="Rechercher une commande"
-                className="pl-9"
-              />
-            </div>
+            <SearchField
+              value={query}
+              onChange={onQueryChange}
+              placeholder="Nom, client… [F3]"
+              ariaLabel="Rechercher une commande"
+              inputRef={searchRef}
+              className="w-full max-w-xs"
+            />
             <Select
               value={recurringFilter}
               onChange={(e) => {

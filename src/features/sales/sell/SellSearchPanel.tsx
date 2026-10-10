@@ -1,7 +1,6 @@
 // Veloria PoS — Caisse : panneau recherche produit (extrait de SellScreen, JSX pur).
-import { Search } from "lucide-react";
 import { formatDzd } from "@domain/money/money.ts";
-import { Button, Card, Kbd, TextInput } from "@shared/ui/primitives.tsx";
+import { Button, Card, Kbd, SearchField } from "@shared/ui/primitives.tsx";
 import type { RefObject } from "react";
 import type { SearchRow } from "./sell-types.ts";
 
@@ -41,27 +40,22 @@ export function SellSearchPanel({
             Scanner prêt
           </span>
         </div>
-        <div className="relative">
-          <Search
-            size={17}
-            aria-hidden="true"
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-          />
-          <TextInput
-            ref={searchRef}
-            value={query}
-            onChange={(e) => onQueryChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && results.length > 0) onEnterFirst();
-            }}
-            placeholder="Nom, code-barres… (Entrée = premier résultat)"
-            aria-label="Recherche produit"
-            className="pl-10 pr-20"
-          />
-          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
-            <Kbd>Entrée ↵</Kbd>
-          </span>
-        </div>
+        <SearchField
+          value={query}
+          onChange={onQueryChange}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && results.length > 0) onEnterFirst();
+          }}
+          placeholder="Nom, code-barres… (Entrée = premier résultat)"
+          ariaLabel="Recherche produit"
+          inputRef={searchRef}
+          inputClassName="pl-10 pr-20"
+          trailing={
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
+              <Kbd>Entrée ↵</Kbd>
+            </span>
+          }
+        />
       </div>
       {searching ? (
         <p className="mt-2 text-xs text-slate-500" role="status">
