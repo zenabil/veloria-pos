@@ -117,7 +117,7 @@ anon JWT `role:anon` (voir full-loop-client.spec.ts).
    `operationId` · 5. Domaine sans framework, prepared statements ·
 3. UI 100 % FR, erreurs FR + log · 7. Tranches verticales ·
 4. format → typecheck → tests → build · 9. better-sqlite3 vs Electron 37 ·
-5. ADR-*.md + INDEX · 11. Migrations IMMUABLES + verify vert ·
+5. ADR-\*.md + INDEX · 11. Migrations IMMUABLES + verify vert ·
    12-13. Skill-first + routage (db/slice/ui-fr, graphify, impeccable+craft-floor
    avant tout edit UI, audit-avant-suppression, dragon si aucun match).
 
