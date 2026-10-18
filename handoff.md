@@ -5,15 +5,18 @@
 > (§9), 2026-10-11 (§1-8) et 2026-10-12 (§10) archivées ci-dessous.
 > §11 = session scan sans Entrée (2026-10-18). §12 = session politique
 > opération→format d'impression (2026-10-18 bis). §13 = lancement POS
-> opérateur (2026-10-18 ter). Répondre à l'utilisateur en arabe.
+> opérateur (2026-10-18 ter). §14 = préparation du prompt d'audit
+> dead-code (2026-10-18 quater). Répondre à l'utilisateur en arabe.
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — travail session `860c11a`
-  (ADR-117, §12), commit `docs(handoff)` de ce §12 en tête de branche.
-  Arbre PROPRE ; restent : revue + tag opérateur, packaging/`release/`
-  (dernière passe verte : 2026-10-12). Dernière session : §13 (lancement
-  POS + licence ACTIVE — aucun changement de code).
+- Branche : `chore/root-layout` — tête = `docs(handoff)` §13 puis §14
+  (aucun commit de code). **Arbre NON propre** : chantier impression /
+  `*.capabilities` en cours non commité (11 fichiers M + 2 nouveaux,
+  voir §14) — ne pas l'emballer dans un commit `docs(handoff)`.
+  Restent : revue + tag opérateur (`v1.0.0-format-ops`), packaging/
+  `release/` (dernière passe verte : 2026-10-12). Dernière session : §14
+  (prompt audit dead-code — aucun changement de code).
 - Harness : `.agents`/`.claude` purgés du repo (skills installés côté
   `.opencode/`, git-ignoré) ; `AGENTS.md` = routage 12-13 à jour.
 - Tags locaux (pas de remote) : `v1.0.0-adr075`, `v1.0.0-e2e-green`,
@@ -337,3 +340,26 @@ crashed` + crash GPU/service réseau de l'instance POS (2ᵉ lancement
   NODE_MODULE_VERSION 136≠127).
 - **Git** : arbre propre avant/après (builds git-ignorés) ; seul ce
   §13 + §8 commités (`docs(handoff)`).
+
+## 14) Session 2026-10-18 quater (préparation du prompt d'audit dead-code)
+
+- **Demande opérateur** : « برومبت احترافي » pour un audit complet des
+  codes morts — aucun changement de code ; livrable = prompt prêt à
+  coller, remis dans le chat (seul ce §14 est committé).
+- **Prompt préparé** : audit-first (AGENTS §13/§14 + ADR-075) ;
+  périmètre repo entier (src, electron, license-manager, mobile, cloud,
+  private, tests, scripts, racine) ; knip/ts-prune/depcheck + repli rg ;
+  vérification IPC 3 couches (channels ↔ preload ↔ renderer) + gardes
+  `bridge-shape`, `ipc-channel-inventory`, `validators-inventory` ;
+  rapport `docs/reports/DEAD_CODE_AUDIT_<date>.md` ; suppressions par
+  lots APRÈS approbation explicite, portes format→typecheck→lint→tests→
+  build + `graphify update` + handoff + commit par lot.
+- **État arbre** : chantier impression en cours non commité (11 M :
+  `validators.templates.ts`, `printing.receipt.ts`,
+  `printing.templates.ts`, `receipt-documents*.ts`, `thermal.ts`,
+  `template-rules.ts` ; 2 nouveaux : `printing.capabilities.ts`,
+  `template-capabilities.ts`) — laissé intact, NON touché ici ; à
+  committer par sa session dédiée après portes vertes.
+- **Git** : commit `docs(handoff)` explicite sur `handoff.md` uniquement
+  (les fichiers du chantier impression restent dans l'arbre, non
+  touchés).
