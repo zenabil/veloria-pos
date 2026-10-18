@@ -360,6 +360,12 @@ crashed` + crash GPU/service réseau de l'instance POS (2ᵉ lancement
   `template-rules.ts` ; 2 nouveaux : `printing.capabilities.ts`,
   `template-capabilities.ts`) — laissé intact, NON touché ici ; à
   committer par sa session dédiée après portes vertes.
-- **Git** : commit `docs(handoff)` explicite sur `handoff.md` uniquement
+- **Complément (même session)** : recommandation du modèle gratuit pour
+  l'audit — `opencode/space-bunny-free#max` (1M ctx, zero-retention) ;
+  alternatives `longcat-2.5-preview-free`, `beam-free#max`,
+  `deepseek-v4.1-flash-free#high` ; à éviter pour du code confidentiel :
+  Nemotron free (trial NVIDIA loggé), MiMo / Big Pickle. Sources :
+  catalogue `tools.opencode.models` + models.dev + docs Console.
+- **Git** : commits `docs(handoff)` explicites sur `handoff.md` uniquement
   (les fichiers du chantier impression restent dans l'arbre, non
   touchés).
