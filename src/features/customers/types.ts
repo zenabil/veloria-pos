@@ -106,6 +106,9 @@ export function enrichCustomer(c: Customer, st: CustomerStatement | null): Enric
   };
 }
 
+/** Repli local hors UI : le tri faisant autorité est serveur (`customers.search`,
+ * param `sort`) — le tri local ne réordonne qu'une page affichée et recréait
+ * l'illusion de clients « disparus » (débiteurs hors page 1). */
 export function sortCustomers(rows: EnrichedCustomer[], sort: CustomerSort): EnrichedCustomer[] {
   const copy = [...rows];
   switch (sort) {

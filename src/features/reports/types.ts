@@ -52,17 +52,17 @@ export interface ReportSummary {
   returns: { count: number; amountMinor: number };
 }
 
+/**
+ * FIX racine (audit) : 5 onglets sur 11 ("lure tabs") n'avaient aucune carte —
+ * liste limitée aux rubriques réellement rendues. Les données profit/dépenses/
+ * retours restent visibles via les KPI + graphiques de la rubrique « Tout ».
+ */
 export const REPORT_SECTIONS: { value: ReportSection; label: string }[] = [
   { value: "all", label: "Tout le rapport" },
   { value: "sales", label: "Ventes" },
   { value: "purchases", label: "Achats" },
-  { value: "profit", label: "Bénéfices" },
-  { value: "expenses", label: "Dépenses" },
-  { value: "stock", label: "Stock" },
   { value: "customerDebt", label: "Dettes clients" },
-  { value: "supplierDebt", label: "Dettes fournisseurs" },
   { value: "payments", label: "Paiements" },
-  { value: "returns", label: "Retours" },
   { value: "closings", label: "Clôtures (Z)" },
 ];
 

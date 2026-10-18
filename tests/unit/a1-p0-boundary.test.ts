@@ -5,8 +5,6 @@ import {
   recordPaymentSchema,
   stockIntakeSchema,
   proformaCreateSchema,
-  breadCreateSchema,
-  breadPaySchema,
   closingCreateSchema,
   zakatCalculationSchema,
   productsImportSchema,
@@ -61,13 +59,6 @@ describe("A1-P0 frontière Zod : argent borné", () => {
         category: "Loyer",
         amountMinor: 9_000_000_000_000_000,
         expenseDate: "2026-10-03",
-      }),
-    ).toThrow();
-    expect(() =>
-      breadPaySchema.parse({
-        operationId: "11111111-1111-4111-8111-111111111111",
-        id: 1,
-        amountMinor: 9_000_000_000_000_000,
       }),
     ).toThrow();
     expect(() =>
@@ -189,21 +180,13 @@ describe("A1-P0 frontière Zod : argent borné", () => {
     ).toThrow();
   });
 
-  it("borne proforma + pain (unitaires et globaux)", () => {
+  it("borne proforma (unitaires et globaux)", () => {
     expect(() =>
       proformaCreateSchema.parse({
         operationId: "11111111-1111-4111-8111-111111111111",
         lines: [
           { productId: 1, productName: "X", unitPriceMinor: 9_000_000_000_000_000, quantity: 1 },
         ],
-      }),
-    ).toThrow();
-    expect(() =>
-      breadCreateSchema.parse({
-        operationId: "11111111-1111-4111-8111-111111111111",
-        pickupDate: "2026-10-03",
-        quantity: 1,
-        unitPriceMinor: 9_000_000_000_000_000,
       }),
     ).toThrow();
   });

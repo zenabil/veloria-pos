@@ -1,6 +1,7 @@
 // Veloria PoS — Documents purs : livraison / retour / commande (pur).
 
-import { escapeHtml, type ReceiptData, type ThermalWidth } from "./common";
+import { escapeHtml } from "./html";
+import type { ReceiptData, ThermalWidth } from "./common";
 import {
   thermalCols,
   thermalField,
@@ -9,7 +10,7 @@ import {
   thermalSep,
   wrapThermal,
 } from "./thermal";
-import { tvaBreakdown } from "./amounts";
+import { tvaBreakdown, formatMinorDa } from "./amounts";
 import {
   codeBlocks,
   companyHead,
@@ -95,8 +96,7 @@ export function buildDeliveryHtml(d: LogisticsDocData, page?: PageOpts): string 
 export function buildDeliveryText(d: LogisticsDocData, width?: ThermalWidth): string {
   const cols = thermalCols(width);
   const sep = thermalSep(cols);
-  const fmt = (m: number): string =>
-    `${new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2 }).format(m / 100)} DA`;
+  const fmt = formatMinorDa;
   const out = [...wrapThermal(`*** ${d.company} ***`, cols), `BON DE LIVRAISON`];
   out.push(...thermalField("N°", d.invoice, cols));
   out.push(...thermalField("Date", d.date, cols));
@@ -140,8 +140,7 @@ export function buildReturnSlipHtml(d: LogisticsDocData, page?: PageOpts): strin
 export function buildReturnSlipText(d: LogisticsDocData, width?: ThermalWidth): string {
   const cols = thermalCols(width);
   const sep = thermalSep(cols);
-  const fmt = (m: number): string =>
-    `${new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2 }).format(m / 100)} DA`;
+  const fmt = formatMinorDa;
   const refund = typeof d.refundMinor === "number" ? d.refundMinor : 0;
   const out = [
     ...wrapThermal(`*** ${d.company} ***`, cols),
@@ -189,8 +188,7 @@ export function buildPurchaseOrderHtml(d: LogisticsDocData, page?: PageOpts): st
 export function buildPurchaseOrderText(d: LogisticsDocData, width?: ThermalWidth): string {
   const cols = thermalCols(width);
   const sep = thermalSep(cols);
-  const fmt = (m: number): string =>
-    `${new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2 }).format(m / 100)} DA`;
+  const fmt = formatMinorDa;
   const out = [
     ...wrapThermal(`*** ${d.company} ***`, cols),
     `BON DE COMMANDE`,

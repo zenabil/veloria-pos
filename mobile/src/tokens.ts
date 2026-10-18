@@ -30,19 +30,6 @@ export const COLORS = {
   announcementText: "#005320",
 } as const;
 
-// Aliases Stitch veloria_industrial_client/DESIGN.md — une seule source :
-// STITCH réexporte les teintes COLORS (mêmes valeurs, noms Stitch).
-export const STITCH = {
-  navy: COLORS.headerBg,
-  navyContainer: COLORS.navySoft,
-  gold: COLORS.primary,
-  goldContainer: "#ffc329",
-  emerald: COLORS.debtOk,
-  emeraldGlow: COLORS.headerAccent,
-  surface: COLORS.contentBg,
-  outline: COLORS.border,
-} as const;
-
 export const RADIUS = {
   card: 24,
   cardSm: 16,
@@ -118,9 +105,7 @@ export const GRADIENTS = {
   hero: ["#051424", "#0A1E33", "#123A5C"],
   heroDeep: ["#030D18", "#051424", "#0A1E33"],
   gold: ["#FFD976", "#FBBF24"],
-  ok: ["#22C55E", "#16A34A"],
   danger: ["#F87171", "#DC2626"],
-  slate: ["#0E1C2D", "#1B3149"],
 } as const;
 
 /** Ombres : carte (plan 1), surélevée (plan 2), nav flottante, halo or. */

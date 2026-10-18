@@ -35,7 +35,7 @@ async function copyText(text: string): Promise<boolean> {
 }
 
 export function LicenseScreen({ notify }: { notify: Notify }): React.JSX.Element {
-  const { status, refresh } = useLicense();
+  const { status, refresh } = useLicense(notify);
   const [busy, setBusy] = useState(false);
   const [fingerprint, setFingerprint] = useState<string>("");
 
@@ -112,8 +112,8 @@ export function LicenseScreen({ notify }: { notify: Notify }): React.JSX.Element
     <div className="mx-auto w-full max-w-3xl space-y-4">
       <PageHeader
         title="Licence et activation de l'appareil"
-        module="Module 17 · Sécurité système · Valide hors-ligne"
-        period="Certificat local x509 scellé SQLite · Terminaux de caisse autorisés · Garantie & support technique national."
+        module="Licence · Activation hors-ligne"
+        period="Certificat local x509 · Terminaux de caisse autorisés · Garantie et support technique national."
       />
       <Card className="space-y-3 p-5">
         <div className="flex flex-wrap items-center gap-2">

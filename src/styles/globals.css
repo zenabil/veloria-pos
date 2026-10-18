@@ -158,6 +158,22 @@ body {
   line-height: 28px;
   letter-spacing: -0.02em;
 }
+/* D2 : chiffre héros du rendu monnaie (PayDialog) — lisible à deux mètres. */
+.font-mono-currency-xl {
+  font-family: var(--font-mono);
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 34px;
+  letter-spacing: -0.02em;
+}
+/* Caisse : total héros XXL — lisible d'un coup d'œil au comptoir. */
+.font-mono-currency-hero {
+  font-family: var(--font-mono);
+  font-size: 44px;
+  font-weight: 800;
+  line-height: 48px;
+  letter-spacing: -0.02em;
+}
 .font-mono-currency-md {
   font-family: var(--font-mono);
   font-size: 14px;
@@ -190,6 +206,48 @@ body {
 }
 .veloria-pulse-dot {
   animation: veloria-pulse-dot 1.6s ease-in-out infinite;
+}
+
+/* Surfaces navigateur : sélection + curseur aux couleurs du monde (craft-floor).
+   Lebyte le moins cher d'un système « construit, pas assemblé ». */
+::selection {
+  background: rgba(251, 191, 36, 0.32);
+  color: #ffe1a7;
+}
+input,
+textarea,
+select {
+  caret-color: #fbbf24;
+}
+
+/* Impeccable — l'unique moment de mouvement (D3) : entrée dialogue + toast.
+   Ease-out exponentiel depuis un défaut déjà visible ; `prefers-reduced-motion`
+   global (ci-dessous) le neutralise — jamais d'animation décorative dispersée. */
+@keyframes veloria-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes veloria-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.veloria-dialog-in {
+  animation: veloria-dialog-in 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.veloria-toast-in {
+  animation: veloria-toast-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* Chrome frameless : zone de déplacement + contrôles exclus du drag. */
@@ -280,6 +338,59 @@ body {
 [data-theme="light"] .text-\[\#fbbf24\] {
   color: #9a6206;
 }
+/* D8 : panneaux d'alerte sombres (toast ok, erreurs, bandeau licence) —
+   teintes claires + texte sombre, sinon illisibles en thème clair. */
+[data-theme="light"] .bg-\[\#171207\] {
+  background-color: #fdf3e0;
+}
+[data-theme="light"] .bg-\[\#1c1113\] {
+  background-color: #fdeceb;
+}
+[data-theme="light"] .text-amber-100 {
+  color: #7a4a00;
+}
+[data-theme="light"] .text-red-100 {
+  color: #8f1d12;
+}
+/* Jour — rapport « écriture invisible » : pastels + variantes d'opacité
+   sans équivalent clair (invisibles sur fond blanc). Contrastes AAA. */
+[data-theme="light"] .text-amber-200,
+[data-theme="light"] .text-amber-300,
+[data-theme="light"] .text-amber-200\/90,
+[data-theme="light"] .text-amber-300\/90 {
+  color: #8a5a00;
+}
+[data-theme="light"] .text-emerald-200,
+[data-theme="light"] .text-emerald-300,
+[data-theme="light"] .text-emerald-300\/90 {
+  color: #007a55;
+}
+[data-theme="light"] .text-red-200,
+[data-theme="light"] .text-red-300,
+[data-theme="light"] .text-red-200\/80 {
+  color: #8f1d12;
+}
+[data-theme="light"] .text-sky-200,
+[data-theme="light"] .text-sky-300 {
+  color: #075985;
+}
+[data-theme="light"] .text-\[\#d3c5ac\]\/60,
+[data-theme="light"] .text-\[\#d3c5ac\]\/70,
+[data-theme="light"] .text-\[\#d3c5ac\]\/80 {
+  color: #6b6250;
+}
+[data-theme="light"] .text-\[\#fbbf24\]\/70 {
+  color: #9a6206;
+}
+[data-theme="light"] .placeholder\:text-\[\#d3c5ac\]\/50::placeholder {
+  color: #8a8172;
+}
+[data-theme="light"] .bg-black\/40 {
+  background-color: #e9edf2;
+}
+[data-theme="light"] .hover\:text-white:hover {
+  color: #14202e;
+}
 [data-theme="light"] .bg-black\/25 {
   background-color: rgba(20, 32, 46, 0.06);
 }
@@ -296,6 +407,18 @@ body {
   .topnav-indicator {
     transition: none !important;
   }
+}
+
+/* D5 : densité compacte — resserre les cellules de tableaux (écrans 720p).
+   Spécificité (0,1,2) > utilitaires (0,1,0) : surcharge effective garantie. */
+[data-density="compact"] table th {
+  padding-top: 0.375rem;
+  padding-bottom: 0.375rem;
+}
+[data-density="compact"] table td {
+  padding-top: 0.375rem;
+  padding-bottom: 0.375rem;
+  font-size: 12px;
 }
 
 /* Tableaux à en-tête collant (thead.sticky, ~20 écrans) : toute ligne

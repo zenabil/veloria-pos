@@ -27,11 +27,15 @@ export const businessDate = z
 // DB-14: quantités centralisées �?" finies, > 0, �?� 1M, 3 décimales max (kg/L).
 // Même règle que domain/common/quantity (assertValidQuantity) : la frontière
 // IPC rejette tôt au lieu de laisser FIFO arrondir silencieusement.
+// ADR-114 : ce refine DOIT rester identique à assertValidQuantity (round-trip
+// q ↔ Math.round(q*1000)/1000). L’ancienne formule |q*1000 − round(q*1000)|
+// rejetait des quantités 3-décimales valides dès ~16 384 (erreur flottante),
+// provoquant un « Échec de la vente. » opaque. Parité verrouillée par le test P2.
 export const quantity = z
   .number()
   .positive()
   .max(1_000_000)
-  .refine((q) => Number.isFinite(q) && Math.abs(q * 1000 - Math.round(q * 1000)) < 1e-9, {
+  .refine((q) => Number.isFinite(q) && Math.abs(q - Math.round(q * 1000) / 1000) <= 1e-9, {
     message: "Quantité invalide (3 décimales maximum).",
   });
 
@@ -48,7 +52,7 @@ export const quantityNonNegative = z
   .number()
   .min(0)
   .max(1_000_000)
-  .refine((q) => Number.isFinite(q) && Math.abs(q * 1000 - Math.round(q * 1000)) < 1e-9, {
+  .refine((q) => Number.isFinite(q) && Math.abs(q - Math.round(q * 1000) / 1000) <= 1e-9, {
     message: "Quantité invalide (3 décimales maximum).",
   });
 // A1-P0 : date d'expiration calendrier réel (vide/null = sans péremption).

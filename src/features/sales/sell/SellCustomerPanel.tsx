@@ -1,8 +1,15 @@
 // Veloria PoS — Caisse : panneau client (extrait de SellScreen, JSX pur).
-import { HandCoins, User, X } from "lucide-react";
+// + création express (nom + tél) sans quitter la caisse.
+import { useState } from "react";
+import { HandCoins, Plus, User, X } from "lucide-react";
 import { formatDzd } from "@domain/money/money.ts";
-import { Badge, Card, Field, TextInput } from "@shared/ui/primitives.tsx";
+import { newOperationId } from "@domain/common/ids.ts";
+import { frError } from "@shared/errors/fr-map.ts";
+import { api } from "@shared/types/ipc-client.ts";
+import { Badge, Button, Card, Field, TextInput } from "@shared/ui/primitives.tsx";
+import type { Notify } from "@shared/ui/primitives.tsx";
 import type { RefObject } from "react";
+import { splitFullName } from "../../customers/types.ts";
 import type { CustomerRow } from "./sell-types.ts";
 
 export function SellCustomerPanel({
@@ -13,12 +20,17 @@ export function SellCustomerPanel({
   creditUnknown,
   customerCredit,
   customerBalance,
+  customerCreditLimit,
+  projectedMinor,
+  limitExceeded,
   onOpenDetails,
   onOpenSettle,
   onSelectPassage,
   customerResults,
+  customerTotal,
   onSelectCustomer,
   customerRef,
+  notify,
 }: {
   customerQuery: string;
   onSearchCustomers: (q: string) => void;
@@ -27,13 +39,73 @@ export function SellCustomerPanel({
   creditUnknown: boolean;
   customerCredit: boolean | null;
   customerBalance: number | null;
+  customerCreditLimit: number | null;
+  projectedMinor: number | null;
+  limitExceeded: boolean;
   onOpenDetails: () => void;
   onOpenSettle: () => void;
   onSelectPassage: () => void;
   customerResults: CustomerRow[];
+  customerTotal: number;
   onSelectCustomer: (c: CustomerRow) => void;
   customerRef: RefObject<HTMLInputElement | null>;
+  notify: Notify;
 }): React.JSX.Element {
+  // Création express : prénom + nom (+ tél optionnel), comptant par défaut.
+  // La fiche complète (plafond, crédit) reste dans Clients.
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [quickName, setQuickName] = useState("");
+  const [quickPhone, setQuickPhone] = useState("");
+  const [quickBusy, setQuickBusy] = useState(false);
+  // Idempotence : identifiant figé tant que la création n'a pas abouti —
+  // double Entrée = un seul client (rejeu serveur), pas deux fiches.
+  const [quickOpId, setQuickOpId] = useState(() => newOperationId());
+
+  async function createQuick(): Promise<void> {
+    const { firstName, lastName } = splitFullName(quickName);
+    if (firstName.length < 1 || lastName.length < 1) {
+      notify("Nom complet requis (prénom + nom).", "err");
+      return;
+    }
+    if (quickPhone.trim().length > 30) {
+      notify("Téléphone trop long (30 max).", "err");
+      return;
+    }
+    setQuickBusy(true);
+    try {
+      const res = (await api.customerCreate({
+        operationId: quickOpId,
+        firstName,
+        lastName,
+        phone: quickPhone.trim() === "" ? null : quickPhone.trim(),
+        address: null,
+        creditLimitMinor: 0,
+        initialBalanceMinor: 0,
+        settlementDay: null,
+        isBreadClient: false,
+        creditAllowed: false,
+        notes: null,
+      })) as { id: number };
+      // Succès : nouvel UUID pour la prochaine création.
+      setQuickOpId(newOperationId());
+      setQuickOpen(false);
+      setQuickName("");
+      setQuickPhone("");
+      notify(`Client « ${firstName} ${lastName} » créé.`, "ok");
+      onSelectCustomer({
+        id: res.id,
+        first_name: firstName,
+        last_name: lastName,
+        outstanding_balance_minor: 0,
+        credit_allowed: 0,
+      });
+    } catch (e) {
+      notify(frError(e, "Création impossible."), "err");
+    } finally {
+      setQuickBusy(false);
+    }
+  }
+
   return (
     <Card className="p-4">
       <Field label="Client">
@@ -82,6 +154,21 @@ export function SellCustomerPanel({
             Solde : {formatDzd(customerBalance)}
           </span>
         ) : null}
+        {customerCreditLimit != null && customerCreditLimit > 0 ? (
+          <span className="text-xs tabular-nums text-slate-400">
+            Plafond : {formatDzd(customerCreditLimit)}
+          </span>
+        ) : null}
+        {limitExceeded ? (
+          <Badge tone="red">Dépassement de plafond</Badge>
+        ) : projectedMinor != null &&
+          customerCreditLimit != null &&
+          customerCreditLimit > 0 &&
+          customerId != null ? (
+          <span className="text-xs tabular-nums text-slate-500">
+            Projeté : {formatDzd(projectedMinor)}
+          </span>
+        ) : null}
         {customerId != null && (customerBalance ?? 0) > 0 ? (
           <button
             type="button"
@@ -101,7 +188,45 @@ export function SellCustomerPanel({
             <X size={13} aria-hidden="true" /> Passage
           </button>
         ) : null}
+        <button
+          type="button"
+          onClick={() => setQuickOpen((o) => !o)}
+          title="Créer un client sans quitter la caisse"
+          className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-white"
+        >
+          <Plus size={13} aria-hidden="true" /> Nouveau
+        </button>
       </div>
+      {quickOpen ? (
+        <form
+          className="mt-2 space-y-2 rounded-xl border border-white/10 bg-black/25 p-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void createQuick();
+          }}
+        >
+          <Field label="Nouveau client (express)">
+            <TextInput
+              value={quickName}
+              onChange={(e) => setQuickName(e.target.value)}
+              placeholder="Prénom Nom"
+              aria-label="Nom complet du nouveau client"
+            />
+          </Field>
+          <div className="grid grid-cols-[1fr_auto] gap-2">
+            <TextInput
+              value={quickPhone}
+              onChange={(e) => setQuickPhone(e.target.value)}
+              inputMode="tel"
+              placeholder="Téléphone (optionnel)"
+              aria-label="Téléphone du nouveau client"
+            />
+            <Button type="submit" disabled={quickBusy}>
+              {quickBusy ? "…" : "Créer"}
+            </Button>
+          </div>
+        </form>
+      ) : null}
       {customerResults.length > 0 ? (
         <ul className="mt-2 max-h-32 divide-y divide-white/[0.06] overflow-auto rounded-xl border border-white/10">
           {customerResults.map((c) => (
@@ -127,6 +252,13 @@ export function SellCustomerPanel({
           ))}
         </ul>
       ) : null}
+      {/* Slot à hauteur constante : l'apparition du compteur ne doit pas
+          déplacer le panier sous les doigts du caissier (saisie en cours). */}
+      <p className="mt-1 min-h-[1rem] text-xs font-semibold text-slate-500" role="status">
+        {customerTotal > customerResults.length
+          ? `+${customerTotal - customerResults.length} autre(s) — affinez la recherche.`
+          : ""}
+      </p>
     </Card>
   );
 }

@@ -31,7 +31,9 @@ export function LabelsDialog({
 }): React.JSX.Element {
   const printable = items.filter((i) => i.barcode.trim() !== "");
   const [copies, setCopies] = useState("1");
-  const [format, setFormat] = useState<"30x20" | "50x30" | "58x40" | "A4-24" | "custom">("A4-24");
+  const [format, setFormat] = useState<
+    "30x20" | "45x20" | "50x30" | "58x30" | "58x40" | "A4-24" | "custom"
+  >("45x20");
   const [customWidth, setCustomWidth] = useState("50");
   const [customHeight, setCustomHeight] = useState("30");
   /** C5 : QR du code-barres sous le Code 39 (opt-in). */
@@ -155,12 +157,23 @@ export function LabelsDialog({
         <Select
           value={format}
           onChange={(e) =>
-            setFormat(e.target.value as "30x20" | "50x30" | "58x40" | "A4-24" | "custom")
+            setFormat(
+              e.target.value as
+                | "30x20"
+                | "45x20"
+                | "50x30"
+                | "58x30"
+                | "58x40"
+                | "A4-24"
+                | "custom",
+            )
           }
           aria-label="Format d'étiquette"
         >
           <option value="30x20">Thermique 30 × 20 mm</option>
+          <option value="45x20">Thermique 45 × 20 mm</option>
           <option value="50x30">Thermique 50 × 30 mm</option>
+          <option value="58x30">Thermique 58 × 30 mm</option>
           <option value="58x40">Thermique 58 × 40 mm</option>
           <option value="A4-24">Planche A4 — 24 étiquettes</option>
           <option value="custom">Personnalisé…</option>

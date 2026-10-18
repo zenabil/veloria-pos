@@ -63,6 +63,9 @@ test-results/
 *.tsbuildinfo
 # Graphe généré (hooks) — jamais committé, régénérable via `graphify update .`.
 graphify-out/
+# Scratch local (audits/sessions) — jamais committé
+check_like.py
+full-inventory.txt
 # Expo local (jamais committé)
 .expo/
 mobile/android/

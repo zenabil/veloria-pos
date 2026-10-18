@@ -1,6 +1,6 @@
 // Veloria PoS — Documents purs : rapports generiques (pur).
 
-import { escapeHtml } from "./common";
+import { escapeHtml } from "./html";
 
 // ---------------------------------------------------------------------------
 // Rapports génériques : tableaux de bord validés (RP-*. schéma Zod).

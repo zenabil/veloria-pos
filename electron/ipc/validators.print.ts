@@ -180,7 +180,7 @@ export const printFormatSchema = z.enum(["A4", "80mm"]).optional();
 
 // Reçu de règlement de dette (ticket تسد�Sد ا�"د�S�?) : aperçu + impression
 // 80mm/A4 après encaissement (client / fournisseur / pain). Cohérence
-// arithmétique exigée : nouveau solde = ancien �^' montant (jamais négatif).
+// arithmétique exigée : nouveau solde = ancien − montant (jamais négatif).
 export const paymentTicketSchema = z
   .object({
     company: z.string().max(200).default("Veloria"),
@@ -194,7 +194,7 @@ export const paymentTicketSchema = z
     companyArticle: z.string().max(50).default(""),
     companyLogo: z.string().max(600_000).default(""),
     partyLabel: z.string().min(1).max(200),
-    kind: z.enum(["customer", "supplier", "bread"]),
+    kind: z.enum(["customer", "supplier"]),
     reference: z.string().max(50).default(""),
     date: z.string().max(50).default(""),
     amountMinor: z.number().int().min(1).max(1_000_000_000),
@@ -210,7 +210,7 @@ export const paymentTicketSchema = z
     if (v.newBalanceMinor !== v.prevBalanceMinor - v.amountMinor) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Soldes incohérents (nouveau = ancien �^' montant).",
+        message: "Soldes incohérents (nouveau = ancien − montant).",
         path: ["newBalanceMinor"],
       });
     }
@@ -223,7 +223,15 @@ export const labelItemSchema = z.object({
   copies: z.number().int().min(1).max(100).default(1),
 });
 
-export const labelFormatSchema = z.enum(["30x20", "50x30", "58x40", "A4-24", "custom"]);
+export const labelFormatSchema = z.enum([
+  "30x20",
+  "45x20",
+  "50x30",
+  "58x30",
+  "58x40",
+  "A4-24",
+  "custom",
+]);
 
 export const labelsPayloadSchema = z.object({
   items: z.array(labelItemSchema).min(1).max(50),

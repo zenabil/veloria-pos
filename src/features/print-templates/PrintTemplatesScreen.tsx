@@ -13,8 +13,8 @@ import {
   type TemplateDocType,
   type TemplateSettings,
 } from "@domain/print/template-rules.ts";
-import { useAppSettings } from "@shared/settings/use-app-settings.ts";
 import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
+import { PrinterCard } from "@shared/printer/PrinterCard.tsx";
 import {
   Button,
   Card,
@@ -49,11 +49,6 @@ interface TemplateView {
   updated_at: string;
 }
 
-interface PrintingSettingsView {
-  silent?: boolean;
-  thermalWidth?: string;
-}
-
 function Toggle({
   label,
   value,
@@ -78,11 +73,7 @@ function Toggle({
 }
 
 export function PrintTemplatesScreen({ notify }: { notify: Notify }): React.JSX.Element {
-  const [printers, setPrinters] = useState<{ name: string; isDefault: boolean }[]>([]);
-  const [selected, setSelected] = useState("");
   const [busy, setBusy] = useState(false);
-  const { value: printing } = useAppSettings<PrintingSettingsView>("printing");
-  const thermalWidth = printing?.thermalWidth === "58mm" ? "58mm" : "80mm";
 
   const [docType, setDocType] = useState<TemplateDocType>("facture");
   const [templates, setTemplates] = useState<TemplateView[]>([]);
@@ -99,20 +90,12 @@ export function PrintTemplatesScreen({ notify }: { notify: Notify }): React.JSX.
   const selected_ = templates.find((t) => t.id === selectedId) ?? null;
   const typeTemplates = templates.filter((t) => t.doc_type === docType);
 
-  async function refreshPrinters(): Promise<void> {
-    try {
-      const current = (await api.printerGet()) as { name: string | null };
-      setSelected(current.name ?? "");
-      const r = (await api.printersList()) as {
-        printers: { name: string; isDefault: boolean }[];
-        selected: string | null;
-      };
-      setPrinters(r.printers);
-      if (r.selected) setSelected(r.selected);
-    } catch (e) {
-      notify(frError(e, "Imprimantes indisponibles."), "err");
-    }
-  }
+  // Chargement initial + rechargement à chaque changement de type document.
+  // (Fix racine P0 : trois useEffect dupliqués appelaient loadTemplates 3×
+  // au montage — IPC inutiles ×2. L'effet [docType] couvre le montage aussi.)
+  useEffect(() => {
+    void loadTemplates();
+  }, [docType]);
 
   async function loadTemplates(keepId?: number | null): Promise<void> {
     try {
@@ -144,15 +127,6 @@ export function PrintTemplatesScreen({ notify }: { notify: Notify }): React.JSX.
       notify(frError(e, "Modèles indisponibles."), "err");
     }
   }
-
-  useEffect(() => {
-    void refreshPrinters();
-    void loadTemplates();
-  }, []);
-
-  useEffect(() => {
-    void loadTemplates();
-  }, [docType]);
 
   // Aperçu live (données démo, 500 ms après la dernière modification).
   function schedulePreview(next: TemplateSettings): void {
@@ -356,47 +330,6 @@ export function PrintTemplatesScreen({ notify }: { notify: Notify }): React.JSX.
     }
   }
 
-  async function savePrinter(name: string): Promise<void> {
-    setSelected(name);
-    setBusy(true);
-    try {
-      await api.printerSave({ name: name === "" ? null : name, operationId: newOperationId() });
-      notify("Imprimante enregistrée.", "ok");
-    } catch (e) {
-      notify(frError(e, "Enregistrement impossible."), "err");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function saveThermalWidth(v: string): Promise<void> {
-    setBusy(true);
-    try {
-      const width = v === "58mm" ? "58mm" : "80mm";
-      await api.settingsSave({
-        key: "printing",
-        value: { silent: printing?.silent ?? true, thermalWidth: width },
-      });
-      notify("Largeur thermique enregistrée.", "ok");
-    } catch (e) {
-      notify(frError(e, "Enregistrement impossible."), "err");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function testPage(): Promise<void> {
-    setBusy(true);
-    try {
-      await api.printerTest();
-      notify("Page de test envoyée.", "ok");
-    } catch (e) {
-      notify(frError(e, "Impression impossible."), "err");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   const papers = allowedPapers(docType);
   const isThermalDoc = docType === "ticket" || docType === "recu";
 
@@ -406,48 +339,10 @@ export function PrintTemplatesScreen({ notify }: { notify: Notify }): React.JSX.
         title="Studio d'impression"
         module="MODÈLES SQLITE · APERÇU DÉMO · N&B"
         period="Chaque document a son modèle actif — aperçu sur données démo, sans valeur fiscale."
-        actions={
-          <Button variant="secondary" onClick={() => void testPage()} disabled={busy}>
-            <Printer size={15} aria-hidden="true" /> Page de test
-          </Button>
-        }
       />
 
       <div className="grid gap-3 xl:grid-cols-2">
-        <Card className="space-y-3 p-4">
-          <div className="text-[15px] font-bold text-[#ffe1a7]">Imprimante active</div>
-          <Field label="Imprimante">
-            <Select
-              value={selected}
-              onChange={(e) => void savePrinter(e.target.value)}
-              aria-label="Imprimante active"
-              disabled={busy}
-            >
-              <option value="">Imprimante système par défaut</option>
-              {printers.map((p) => (
-                <option key={p.name} value={p.name}>
-                  {p.name}
-                  {p.isDefault ? " (défaut)" : ""}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Largeur thermique par défaut" hint="Repli quand le modèle ne l'impose pas.">
-            <Select
-              value={thermalWidth}
-              onChange={(e) => void saveThermalWidth(e.target.value)}
-              aria-label="Largeur thermique"
-              disabled={busy}
-            >
-              <option value="58mm">58mm</option>
-              <option value="80mm">80mm</option>
-            </Select>
-          </Field>
-          <p className="text-xs text-slate-500">
-            Thermique 58/80mm · étiquettes 30x20 / 50x30 / 58x40 / personnalisé · impression N&amp;B
-            avec QR · TVA selon Paramètres → Facturation.
-          </p>
-        </Card>
+        <PrinterCard notify={notify} showTestPage />
 
         <Card className="space-y-2 p-4">
           <div className="text-[15px] font-bold text-[#ffe1a7]">Modèles du document</div>

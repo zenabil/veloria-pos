@@ -17,7 +17,6 @@ import { computeDebtStatus, applyPaymentToBalance } from "../../src/domain/custo
 import { validateReturnLines } from "../../src/domain/returns/return-rules.ts";
 import { computeIntakeTotals } from "../../src/domain/inventory/intake-rules.ts";
 import { computeProformaTotals } from "../../src/domain/proforma/proforma-rules.ts";
-import { computeBreadTotals } from "../../src/domain/bread/bread-rules.ts";
 import { computeClosingBalance } from "../../src/domain/closings/closing-rules.ts";
 import { parseProductsCsv } from "../../src/domain/import/csv-import.ts";
 import {
@@ -123,9 +122,6 @@ const pro = computeProformaTotals(
   500,
 );
 assert(pro.totalMinor === 19500, "proforma 20000-1000+500=19500");
-
-const bread = computeBreadTotals(10, 1500, 10000);
-assert(bread.totalMinor === 15000 && bread.remainingMinor === 5000, "bread 10x1500 paid 10000");
 
 assert(
   computeClosingBalance({

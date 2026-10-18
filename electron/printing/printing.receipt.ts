@@ -8,6 +8,7 @@ import { prodLicenseDeps } from "../licensing/prod-deps";
 import { requireLicensedMutation } from "../licensing/license-service";
 import { emptyPayloadSchema, printerSaveSchema } from "../ipc/validators";
 import { guardPrint, isValidationError, unavailable, validationError } from "./printing.guards";
+import { enforceRawChannelGates } from "../ipc/raw-guards";
 import {
   assertConfiguredPrinterAvailable,
   getSelectedPrinterName,
@@ -30,7 +31,10 @@ export function registerReceiptIpc(getMainWindow: () => BrowserWindow | null): v
   ipcMain.handle(IPC_CHANNELS["printing.listPrinters"], async (event, raw: unknown) => {
     try {
       // RADICAL-FIX: charge vide validée comme tous les canaux (AGENTS.md §3).
-      emptyPayloadSchema.parse(raw ?? {});
+      const input = emptyPayloadSchema.parse(raw ?? {});
+      // R1 RADICAL : lecture matériel = permission settings (écran paramètres).
+      const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.listPrinters"], input);
+      if (staffDenied) return staffDenied;
       const contents = event.sender;
       const printers = await contents.getPrintersAsync();
       return {
@@ -52,6 +56,8 @@ export function registerReceiptIpc(getMainWindow: () => BrowserWindow | null): v
   ipcMain.handle(IPC_CHANNELS["printing.printReceipt"], async (_e, raw: unknown) => {
     const denied = guardPrint("receipt-80mm", ["sales"]);
     if (denied) return denied;
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.printReceipt"], raw);
+    if (staffDenied) return staffDenied;
     if (!getMainWindow()) return unavailable("Fenêtre d'impression indisponible.");
     try {
       await assertConfiguredPrinterAvailable(getMainWindow);
@@ -74,6 +80,8 @@ export function registerReceiptIpc(getMainWindow: () => BrowserWindow | null): v
   ipcMain.handle(IPC_CHANNELS["printing.preview"], (_e, raw: unknown) => {
     const denied = guardPrint("receipt-80mm", ["sales"]);
     if (denied) return denied;
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.preview"], raw);
+    if (staffDenied) return staffDenied;
     try {
       const e = enrichReceipt(raw);
       const t = applyTemplateToReceipt("ticket", e);
@@ -93,6 +101,8 @@ export function registerReceiptIpc(getMainWindow: () => BrowserWindow | null): v
   ipcMain.handle(IPC_CHANNELS["printing.printA4"], async (_e, raw: unknown) => {
     const denied = guardPrint("invoice-a4", ["invoices", "sales"]);
     if (denied) return denied;
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.printA4"], raw);
+    if (staffDenied) return staffDenied;
     if (!getMainWindow()) return unavailable("Fenêtre d'impression indisponible.");
     try {
       await assertConfiguredPrinterAvailable(getMainWindow);
@@ -131,6 +141,9 @@ export function registerReceiptIpc(getMainWindow: () => BrowserWindow | null): v
     }
     try {
       const input = printerSaveSchema.parse(raw ?? {});
+      // R1 RADICAL : écriture matériel = permission settings (comme settings.save).
+      const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printer.save"], input);
+      if (staffDenied) return staffDenied;
       saveSelectedPrinterName(input.name, new Date().toISOString(), input.operationId ?? null);
       return { ok: true, data: { saved: true } };
     } catch (err) {
@@ -146,6 +159,8 @@ export function registerReceiptIpc(getMainWindow: () => BrowserWindow | null): v
   ipcMain.handle(IPC_CHANNELS["printing.testPage"], async (_e, raw: unknown) => {
     const denied = guardPrint("receipt-80mm", ["sales"]);
     if (denied) return denied;
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.testPage"], raw);
+    if (staffDenied) return staffDenied;
     if (!getMainWindow()) return unavailable("Fenêtre d'impression indisponible.");
     try {
       emptyPayloadSchema.parse(raw ?? {});

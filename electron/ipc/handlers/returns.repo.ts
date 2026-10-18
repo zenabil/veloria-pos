@@ -121,6 +121,8 @@ export function createReturnAtomic(args: {
   notes: string | null;
   createdAt: string;
   now: string;
+  /** Auteur du retour (session main, 0046). */
+  staffUserId?: number | null;
 }): { id: number; number: string; totalReturnMinor: number } {
   const db = getDb();
   const fast = peekIdempotency<{ id: number; number: string; totalReturnMinor: number }>(
@@ -237,8 +239,8 @@ export function createReturnAtomic(args: {
     const number = allocateReturnNumber("customer", args.now);
     const r = db
       .prepare(
-        `INSERT INTO returns (uuid, return_number, original_sale_id, original_invoice_number, customer_id, total_return_value_minor, amount_refunded_minor, credit_to_customer_minor, refund_method, reason, notes, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO returns (uuid, return_number, original_sale_id, original_invoice_number, customer_id, total_return_value_minor, amount_refunded_minor, credit_to_customer_minor, refund_method, reason, notes, status, staff_user_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         randomUUID(),
@@ -253,6 +255,7 @@ export function createReturnAtomic(args: {
         args.reason || null,
         args.notes?.trim() || null,
         returnStatus(totalReturn, args.refundMinor + args.creditMinor),
+        args.staffUserId ?? null,
         args.createdAt,
         args.now,
       );
@@ -299,8 +302,8 @@ export function createReturnAtomic(args: {
         }
         restoredUnit = p.qty > 0 ? Math.round(cost / p.qty) : Math.round(p.purchase);
         db.prepare(
-          `INSERT INTO stock_movements (uuid, product_id, movement_type, quantity_delta, quantity_after, unit_cost_minor, related_entity_type, related_entity_id, reason, reference, created_at)
-           VALUES (?, ?, 'return_in', ?, ?, ?, 'return', ?, 'Retour client', ?, ?)`,
+          `INSERT INTO stock_movements (uuid, product_id, movement_type, quantity_delta, quantity_after, unit_cost_minor, related_entity_type, related_entity_id, reason, reference, staff_user_id, created_at)
+           VALUES (?, ?, 'return_in', ?, ?, ?, 'return', ?, 'Retour client', ?, ?, ?)`,
         ).run(
           randomUUID(),
           p.productId,
@@ -309,6 +312,7 @@ export function createReturnAtomic(args: {
           restoredUnit,
           String(returnId),
           number,
+          args.staffUserId ?? null,
           args.now,
         );
       }
@@ -347,13 +351,14 @@ export function createReturnAtomic(args: {
       );
     }
     db.prepare(
-      `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at) VALUES (?, 'return.created', 'return', ?, ?, ?, ?)`,
+      `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at, actor_user_id) VALUES (?, 'return.created', 'return', ?, ?, ?, ?, ?)`,
     ).run(
       randomUUID(),
       String(returnId),
       args.operationId,
       JSON.stringify({ sale: args.originalSaleId, total: totalReturn }),
       args.now,
+      args.staffUserId ?? null,
     );
     const result = { id: returnId, number, totalReturnMinor: totalReturn };
     storeIdempotencyResult(args.operationId, result);
@@ -431,6 +436,10 @@ export function createSupplierReturnAtomic(args: {
     if (!intake) throw new Error("Bon d'achat d'origine introuvable.");
     if (intake.status === "cancelled") throw new Error("Bon d'achat annulé : retour impossible.");
     let totalReturn = 0;
+    // FIX-P1-01 : cumul demandé par produit DANS cette requête (miroir du
+    // retour client : 2 lignes même produit ne doivent pas dépasser l'éligible).
+    const requestedByProduct = new Map<string, number>();
+    const keyOf = (pid: number | null): string => (pid == null ? "null" : `p${pid}`);
     const prepared: {
       productId: number | null;
       name: string;
@@ -461,13 +470,20 @@ export function createSupplierReturnAtomic(args: {
           )
           .get(args.intakeId, item.productId, item.productId) as { q: number }
       ).q;
-      const eligible = Number(bought.quantity_received) - Number(already);
+      const eligible =
+        Number(bought.quantity_received) -
+        Number(already) -
+        (requestedByProduct.get(keyOf(item.productId)) ?? 0);
       if (!(item.quantity > 0)) throw new Error("Quantité retournée invalide.");
       if (item.quantity > eligible) {
         throw new Error(
           `Quantité retournée supérieure à l'éligible (${eligible}) pour « ${bought.product_name_snapshot} ».`,
         );
       }
+      requestedByProduct.set(
+        keyOf(item.productId),
+        (requestedByProduct.get(keyOf(item.productId)) ?? 0) + item.quantity,
+      );
       const lineTotal = (() => {
         if (
           !Number.isSafeInteger(bought.purchase_price_minor) ||

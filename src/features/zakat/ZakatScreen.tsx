@@ -167,14 +167,14 @@ export function ZakatScreen({ notify }: { notify: Notify }): React.JSX.Element {
 
   return (
     <div className="flex h-full flex-col gap-4">
-      {/* En-tête Stitch : Zakat El-Mal & Décharge Annuelle · MODULE 15 · SHARIA */}
+      {/* En-tête Stitch : Zakat El-Mal & Décharge Annuelle · REPORTING */}
       <PageHeader
         title="Zakat el-mal et décharge annuelle"
-        module="Module 15 · Conformité charia · Registre scellé"
+        module="Module 15 · Reporting annuel · jamais un registre"
         period={
           preview_calc && preview_calc.above
-            ? `NISAB ATTEINT (SOUMIS) · Zakat exigible ${formatDzd(preview_calc.zakat)} · Rapport annuel ${hijriYear} H`
-            : `Sous le nisab · Rapport annuel ${hijriYear} H · DZD`
+            ? `NISAB PROBABLEMENT ATTEINT (estimation hors caisse/banque) · Zakat exigible ≈ ${formatDzd(preview_calc.zakat)} · Rapport ${hijriYear} H`
+            : `Estimation partielle sous le nisab (hors caisse/banque) · Rapport ${hijriYear} H · DZD`
         }
         actions={
           <>
@@ -218,9 +218,9 @@ export function ZakatScreen({ notify }: { notify: Notify }): React.JSX.Element {
           accent="#fbbf24"
         />
         <Kpi
-          label="Assiette Nette Zakatable"
+          label="Assiette Nette Zakatable (estimation)"
           value={formatDzd(net)}
-          sub="Stocks + créances − dettes (hors caisse/banque)"
+          sub="Partielle : stocks + créances − dettes (caisse/banque à saisir au calcul)"
           accent="#cde8ff"
         />
         <Kpi

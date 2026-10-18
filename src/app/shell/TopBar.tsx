@@ -1,11 +1,11 @@
 // Veloria PoS — Bandeau unique : badges + module courant + horloge + actions.
 // Fusionné avec la navigation (ADR-073) : une seule bande, mêmes props.
 import { useEffect, useState } from "react";
-import { Bell, CircleHelp, Moon, Sun, User } from "lucide-react";
+import { Bell } from "lucide-react";
 import { LicenseBadge } from "@features/license/LicenseBadge.tsx";
 import type { LicenseStatusView } from "@features/license/use-license.ts";
 import { cn } from "@shared/ui/primitives.tsx";
-import type { PrintMode, Theme } from "./shell-types.ts";
+import type { PrintMode } from "./shell-types.ts";
 
 function formatHeure(d: Date): string {
   return new Intl.DateTimeFormat("fr-DZ", {
@@ -57,12 +57,9 @@ export interface TopBarProps {
   currentHint: string | undefined;
   notifCount: number;
   licenseExpired: boolean;
-  onHelp: () => void;
   onOpenNotifications: () => void;
   onPrintMode: (mode: PrintMode) => void;
   onGoLicense: () => void;
-  theme?: Theme;
-  onToggleTheme?: () => void;
 }
 
 export function TopBar({
@@ -73,12 +70,9 @@ export function TopBar({
   currentHint,
   notifCount,
   licenseExpired,
-  onHelp,
   onOpenNotifications,
   onPrintMode,
   onGoLicense,
-  theme,
-  onToggleTheme,
 }: TopBarProps): React.JSX.Element {
   return (
     <>
@@ -97,10 +91,7 @@ export function TopBar({
           }
         >
           <span className="veloria-pulse-dot h-1.5 w-1.5 rounded-full bg-emerald-400" />
-          SQLITE {sqliteVersion ?? "…"} · WAL
-        </span>
-        <span className="rounded bg-[#1c2b3c] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[#4edea3]">
-          Session active
+          SQLITE · WAL
         </span>
         <span aria-hidden="true" className="mx-1 hidden h-4 w-px bg-white/10 xl:inline-block" />
         <span className="truncate text-[13px] font-bold tracking-tight text-[#d4e4fa]">
@@ -138,34 +129,7 @@ export function TopBar({
           ))}
         </div>
         <div className="ml-auto flex items-center gap-2 font-mono text-[10px] font-semibold text-[#d3c5ac]">
-          <span className="hidden rounded bg-[#1c2b3c] px-1.5 py-0.5 sm:inline">Caisse</span>
           <Horloge />
-          <span className="hidden rounded bg-[#1c2b3c] px-1.5 py-0.5 md:inline">Poste vendeur</span>
-          {theme && onToggleTheme ? (
-            <button
-              type="button"
-              title={theme === "light" ? "Passer en mode sombre" : "Passer en mode clair"}
-              aria-label={theme === "light" ? "Passer en mode sombre" : "Passer en mode clair"}
-              aria-pressed={theme === "light"}
-              onClick={onToggleTheme}
-              className="rounded p-1 text-[#d3c5ac] transition-colors hover:bg-[#1c2b3c] hover:text-[#d4e4fa]"
-            >
-              {theme === "light" ? (
-                <Moon size={14} aria-hidden="true" />
-              ) : (
-                <Sun size={14} aria-hidden="true" />
-              )}
-            </button>
-          ) : null}
-          <button
-            type="button"
-            title="Aide — raccourcis du module [?]"
-            aria-label="Aide — raccourcis du module"
-            onClick={onHelp}
-            className="rounded p-1 text-[#d3c5ac] transition-colors hover:bg-[#1c2b3c] hover:text-[#d4e4fa]"
-          >
-            <CircleHelp size={14} aria-hidden="true" />
-          </button>
           <button
             type="button"
             title="Notifications"
@@ -181,9 +145,6 @@ export function TopBar({
               />
             ) : null}
           </button>
-          <span title="Caissier" className="rounded bg-[#1c2b3c] p-1 text-[#d3c5ac]">
-            <User size={14} aria-hidden="true" />
-          </span>
         </div>
       </div>
       {licenseExpired ? (

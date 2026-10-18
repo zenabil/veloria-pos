@@ -260,6 +260,19 @@ export function DebtsScreen({ notify }: { notify: Notify }): React.JSX.Element {
     });
   }
 
+  function rowsToCsv(list: typeof rows): Record<string, unknown>[] {
+    return list.map((r) => ({
+      Type: debtTypeLabel(r.debt_type),
+      Partie: r.party_name,
+      Référence: r.ref,
+      "Montant initial": formatDzd(r.original_minor),
+      Payé: formatDzd(r.paid_minor),
+      Reste: formatDzd(r.remaining_minor),
+      Échéance: dueLabel(r.due_date),
+      Statut: debtStatusLabel(r.status),
+    }));
+  }
+
   function exportSelection(): void {
     if (exporting) return;
     const list = rows.filter((r) => selection.has(rowKey(r)));
@@ -269,20 +282,25 @@ export function DebtsScreen({ notify }: { notify: Notify }): React.JSX.Element {
     }
     setExporting(true);
     try {
-      downloadCsv(
-        `dettes-${new Date().toISOString().slice(0, 10)}.csv`,
-        list.map((r) => ({
-          Type: debtTypeLabel(r.debt_type),
-          Partie: r.party_name,
-          Référence: r.ref,
-          "Montant initial": formatDzd(r.original_minor),
-          Payé: formatDzd(r.paid_minor),
-          Reste: formatDzd(r.remaining_minor),
-          Échéance: dueLabel(r.due_date),
-          Statut: debtStatusLabel(r.status),
-        })),
-      );
+      downloadCsv(`dettes-${new Date().toISOString().slice(0, 10)}.csv`, rowsToCsv(list));
       notify(`${list.length} ligne(s) exportée(s).`, "ok");
+    } catch {
+      notify("Export impossible.", "err");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  function exportAll(): void {
+    if (exporting) return;
+    if (rows.length === 0) {
+      notify("Rien à exporter.", "err");
+      return;
+    }
+    setExporting(true);
+    try {
+      downloadCsv(`dettes-tout-${new Date().toISOString().slice(0, 10)}.csv`, rowsToCsv(rows));
+      notify(`${rows.length} ligne(s) exportée(s).`, "ok");
     } catch {
       notify("Export impossible.", "err");
     } finally {
@@ -463,6 +481,14 @@ export function DebtsScreen({ notify }: { notify: Notify }): React.JSX.Element {
           </div>
           <Button variant="ghost" onClick={resetFilters} title="Réinitialiser les filtres">
             <X size={15} aria-hidden="true" /> Réinitialiser
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={exportAll}
+            disabled={exporting || rows.length === 0}
+            title="Exporter toutes les lignes filtrées (CSV)"
+          >
+            <Download size={15} aria-hidden="true" /> Tout exporter
           </Button>
         </Card>
       ) : null}

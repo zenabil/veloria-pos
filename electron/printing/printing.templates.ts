@@ -168,7 +168,26 @@ export async function printCopies(html: string, copies: number, waitMs: number):
   }
 }
 
-export async function printHtml(html: string, waitMs: number): Promise<void> {
+export interface PrintPage {
+  html: string;
+  pageSizeMicrons?: { width: number; height: number } | undefined;
+}
+
+export async function printHtml(
+  html: string,
+  waitMs: number,
+  extra?: { pageSizeMicrons?: { width: number; height: number } | undefined },
+): Promise<void> {
+  await printHtmlPages([{ html, pageSizeMicrons: extra?.pageSizeMicrons }], waitMs);
+}
+
+/**
+ * Imprime N pages dans UNE seule fenêtre cachée, UN job par page.
+ * Étiquettes rouleau : 1 étiquette = 1 job = 1 avance papier — demander 2
+ * étiquettes ne peut plus sortir 1 seule (plus de pagination Chromium
+ * multi-étiquettes sur une page pilote trop grande).
+ */
+export async function printHtmlPages(pages: PrintPage[], waitMs: number): Promise<void> {
   const { BrowserWindow: BW } = await import("electron");
   // Fenêtre cachée durcie : aucun preload, aucun Node côté document —
   // le HTML est généré par des builders qui échappent déjà les entrées.
@@ -193,24 +212,32 @@ export async function printHtml(html: string, waitMs: number): Promise<void> {
     // P3: redirect aussi refusé (pas seulement navigate).
     printWin.webContents.on("will-redirect", (event) => event.preventDefault());
     printWin.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
-    // P06: attendre did-finish-load (logo/base64 volumineux) au lieu d'un délai
-    // fixe seul — le délai reste en garde-fou maximal.
-    const loaded = new Promise<void>((resolve) => {
-      const timer = setTimeout(resolve, Math.max(waitMs, 1500));
-      printWin.webContents.once("did-finish-load", () => {
-        clearTimeout(timer);
-        // Un tick de rendu pour les images dataURL avant print.
-        setTimeout(resolve, Math.min(waitMs, 300));
+    for (const page of pages) {
+      // P06: attendre did-finish-load (logo/base64 volumineux) au lieu d'un délai
+      // fixe seul — le délai reste en garde-fou maximal.
+      const loaded = new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, Math.max(waitMs, 1500));
+        printWin.webContents.once("did-finish-load", () => {
+          clearTimeout(timer);
+          // Un tick de rendu pour les images dataURL avant print.
+          setTimeout(resolve, Math.min(waitMs, 300));
+        });
       });
-    });
-    await printWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
-    await loaded;
-    await new Promise<void>((resolve, reject) => {
-      printWin.webContents.print(printOptions(), (success, err) => {
-        if (!success) reject(new Error(err || "print failed"));
-        else resolve();
+      await printWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(page.html)}`);
+      await loaded;
+      // Étiquettes rouleau : format exact en microns + marges nulles, sinon
+      // Chromium imprime au format du pilote et fait sortir des vierges.
+      const base = printOptions();
+      const printOpts = page.pageSizeMicrons
+        ? { ...base, pageSize: page.pageSizeMicrons, margins: { marginType: "none" as const } }
+        : base;
+      await new Promise<void>((resolve, reject) => {
+        printWin.webContents.print(printOpts, (success, err) => {
+          if (!success) reject(new Error(err || "print failed"));
+          else resolve();
+        });
       });
-    });
+    }
   } finally {
     printWin.destroy();
   }

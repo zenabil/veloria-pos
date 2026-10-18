@@ -33,7 +33,7 @@ export function MiniTable({
   return (
     <div className="overflow-auto px-4">
       <table className="w-full text-sm">
-        <thead className="text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
+        <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
           <tr>
             {headers.map((h, i) => (
               <th key={i} className={cn("py-1.5 pr-3", i > 0 && "text-right")}>

@@ -11,15 +11,19 @@ import { useSellShortcuts, type SellKeyActions } from "./sell/useSellShortcuts.t
 import { useSellState } from "./sell/useSellState.ts";
 import {
   addCustomProduct,
-  addProduct,
+  addProductOrAskQuantity,
+  confirmWeightedAdd,
   fetchCustomerCredit,
   onQueryChange,
+  parseQtyPrefix,
   searchCustomers,
   searchDepsFrom,
   selectCustomer,
+  type QtyPrefix,
 } from "./sell/sell-search.ts";
 import {
   bumpLastQty,
+  cancelLastSale,
   clearActiveCart,
   closeTab,
   finalizeSale,
@@ -41,12 +45,14 @@ import { SellCustomerPanel } from "./sell/SellCustomerPanel.tsx";
 import { SellTabsBar } from "./sell/SellTabsBar.tsx";
 import { SellTotalsPanel } from "./sell/SellTotalsPanel.tsx";
 import { SellOverlays } from "./sell/SellOverlays.tsx";
+import { SellShortcutsHelp } from "./sell/SellShortcutsHelp.tsx";
 import { useAppSettings, type SalesSettings } from "@shared/settings/use-app-settings.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { useCompany } from "@shared/company/use-company.ts";
 import type { PrintMode } from "@/app/shell/App.tsx";
 import type { Notify } from "@shared/ui/primitives.tsx";
 import type { Customer } from "../customers/types.ts";
+import type { SearchRow } from "./sell/sell-types.ts";
 
 export function SellScreen({
   notify,
@@ -73,19 +79,23 @@ export function SellScreen({
     s.searchRef.current?.focus();
   }, []);
 
-  // Solde + autorisation crédit du client sélectionné (lecture seule, avant encaissement).
+  // Solde + autorisation + plafond du client sélectionné (lecture seule, avant encaissement).
   useEffect(() => {
     if (cart.customerId == null) {
       s.setCustomerBalance(null);
       s.setCustomerCredit(null);
+      s.setCustomerCreditLimit(null);
+      s.setLimitOverride(false);
       s.setCreditUnknown(false);
       return;
     }
     let cancelled = false;
-    void fetchCustomerCredit(cart.customerId).then(({ balance, allowed }) => {
+    void fetchCustomerCredit(cart.customerId).then(({ balance, allowed, limit }) => {
       if (cancelled) return;
       s.setCustomerBalance(balance);
       s.setCustomerCredit(allowed);
+      s.setCustomerCreditLimit(limit);
+      s.setLimitOverride(false);
       // Échec de lecture : ni solde ni autorisation fiables (pas de défaut
       // « Comptant uniquement » trompeur — badge « indisponible » explicite).
       s.setCreditUnknown(balance == null || allowed == null);
@@ -112,6 +122,7 @@ export function SellScreen({
       clearCart: () => clearActiveCart(flowDeps),
       closeTab: () => closeTab(flowDeps, cart.activeId),
       focusClient: () => s.customerRef.current?.focus(),
+      openHelp: () => s.setHelpOpen(true),
       bump: (delta) => bumpLastQty(cart, delta),
     };
   });
@@ -125,20 +136,32 @@ export function SellScreen({
   });
 
   const changeMinor = computeChangeMinor(s.paidText, s.payOpen, s.totals);
-  const { blocked: creditBlocked, message: creditBlockedMsg } = creditBlockState(
-    s.payOpen,
-    s.totals,
-    cart.customerId,
-    s.customerCredit,
-  );
+  const {
+    blocked: creditBlocked,
+    message: creditBlockedMsg,
+    limitExceeded,
+    projectedMinor,
+  } = creditBlockState(s.payOpen, s.totals, cart.customerId, s.customerCredit, {
+    outstandingMinor: s.customerBalance,
+    creditLimitMinor: s.customerCreditLimit,
+    limitOverrideApproved: s.limitOverride,
+  });
+
+  /**
+   * ADR-114 — Ajout depuis la recherche : unité continue (poids/volume/
+   * longueur) sans quantité tapée → dialogue « quantité vendue » ; la
+   * recherche est CONSERVÉE (annulation = retour direct aux résultats).
+   * Quantité tapée (`5*code`) ou unité discrète → ajout direct.
+   */
+  function addRow(r: SearchRow, prefix: QtyPrefix): void {
+    if (addProductOrAskQuantity(searchDeps, r, prefix) === "dialog") return;
+    s.setQuery("");
+    s.setResults([]);
+  }
 
   function pickFirstResult(): void {
     const first = s.results[0];
-    if (first) {
-      addProduct(searchDeps, first);
-      s.setQuery("");
-      s.setResults([]);
-    }
+    if (first) addRow(first, parseQtyPrefix(s.query));
   }
 
   function onEditCustomer(c: Customer): void {
@@ -157,16 +180,13 @@ export function SellScreen({
           onEnterFirst={pickFirstResult}
           results={s.results}
           searching={s.searching}
-          onPick={(r) => {
-            addProduct(searchDeps, r);
-            s.setQuery("");
-            s.setResults([]);
-          }}
+          onPick={(r) => addRow(r, parseQtyPrefix(s.query))}
           onOpenCustom={() => s.setCustomOpen(true)}
           onCreateProforma={() => void createProforma(flowDeps)}
           proformaBusy={s.proformaBusy}
           cartEmpty={cart.lines.length === 0}
           searchRef={s.searchRef}
+          onOpenHelp={() => s.setHelpOpen(true)}
         />
         <SellCustomerPanel
           customerQuery={s.customerQuery}
@@ -176,12 +196,17 @@ export function SellScreen({
           creditUnknown={s.creditUnknown}
           customerCredit={s.customerCredit}
           customerBalance={s.customerBalance}
+          customerCreditLimit={s.customerCreditLimit}
+          projectedMinor={s.totals ? (s.customerBalance ?? 0) + s.totals.remainingMinor : null}
+          limitExceeded={limitExceeded}
           onOpenDetails={() => void openCustomerDetails(flowDeps)}
           onOpenSettle={() => openSettle(flowDeps)}
           onSelectPassage={() => selectCustomer(searchDeps, null)}
           customerResults={s.customerResults}
+          customerTotal={s.customerTotal}
           onSelectCustomer={(c) => selectCustomer(searchDeps, c)}
           customerRef={s.customerRef}
+          notify={notify}
         />
       </div>
 
@@ -194,8 +219,6 @@ export function SellScreen({
         onCloseTab={(id) => closeTab(flowDeps, id)}
         tabTotal={tabTotalOf}
         onNewTab={() => openNewTab(flowDeps)}
-        soundOn={s.soundOn}
-        setSoundOn={s.setSoundOn}
       />
 
       {/* Panier + totaux */}
@@ -212,10 +235,15 @@ export function SellScreen({
           totalQty={s.totalQty}
           totals={s.totals}
           totalsErr={s.totalsErr}
+          deliveryText={s.deliveryText}
+          setDeliveryText={s.setDeliveryText}
+          deliveryFeeMinor={cart.deliveryFeeMinor}
           onOpenPay={() => openPay(flowDeps)}
           preview={s.preview}
           printMode={printMode}
           onPrint={() => void print()}
+          onCancelLastSale={s.preview?.saleId != null ? () => void cancelLastSale(flowDeps) : null}
+          cancelBusy={s.cancelBusy}
         />
       </div>
 
@@ -234,6 +262,12 @@ export function SellScreen({
         busy={s.busy}
         creditBlocked={creditBlocked}
         creditBlockedMsg={creditBlockedMsg}
+        outstandingMinor={s.customerBalance}
+        creditLimitMinor={s.customerCreditLimit}
+        projectedMinor={projectedMinor}
+        limitExceeded={limitExceeded}
+        limitOverride={s.limitOverride}
+        onToggleOverride={(v) => s.setLimitOverride(v)}
         onClosePay={() => s.setPayOpen(false)}
         onValidatePay={() => void finalizeSale(flowDeps)}
         notify={notify}
@@ -273,7 +307,20 @@ export function SellScreen({
         customPriceRef={s.customPriceRef}
         onCloseCustom={() => s.setCustomOpen(false)}
         onAddCustom={() => addCustomProduct(searchDeps)}
+        quantityFor={s.quantityFor}
+        onCloseQuantity={() => {
+          // Annulation : le dialogue se ferme, la recherche (requête +
+          // résultats) est conservée — focus rendu au champ de recherche.
+          s.setQuantityFor(null);
+          s.searchRef.current?.focus();
+        }}
+        onConfirmQuantity={(qty) => {
+          confirmWeightedAdd(searchDeps, qty);
+        }}
       />
+
+      {/* Aide raccourcis clavier ([?]) */}
+      {s.helpOpen ? <SellShortcutsHelp onClose={() => s.setHelpOpen(false)} /> : null}
     </div>
   );
 }

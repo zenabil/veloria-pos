@@ -9,7 +9,8 @@ import { formatDzd } from "@domain/money/money.ts";
 import { formatDateFr } from "@shared/formatters/format.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { buildSaleTicketPayload } from "@shared/documents/sale-ticket.ts";
-import { Badge, Button, Card, Drawer, InfoRow, Modal } from "@shared/ui/primitives.tsx";
+import { Badge, Button, Card, Drawer, InfoRow } from "@shared/ui/primitives.tsx";
+import { DocumentPreviewModal } from "@shared/documents/DocumentPreviewModal.tsx";
 import { KIND_LABELS, kindTone, splitDateTime, type HistoryDetail } from "./types.ts";
 
 import type { Notify } from "@shared/ui/primitives.tsx";
@@ -32,8 +33,8 @@ export function HistoryDetailsDrawer({
     text80: string;
     payload: Record<string, unknown>;
   } | null>(null);
-  // Requête 3 : aperçu double format (Ticket 80mm + Facture A4).
-  const [ticketFormat, setTicketFormat] = useState<"80mm" | "A4">("A4");
+  // Requête 3 : aperçu double format (Ticket 80mm + Facture A4) — le format
+  // vit désormais dans le chrome partagé (DocumentPreviewModal).
   const [ticketBusy, setTicketBusy] = useState(false);
   // Bon de livraison (previewDelivery/printDelivery) : aperçu vivant A4/80mm.
   const [delivery, setDelivery] = useState<{
@@ -41,7 +42,6 @@ export function HistoryDetailsDrawer({
     text80: string;
     payload: Record<string, unknown>;
   } | null>(null);
-  const [deliveryFormat, setDeliveryFormat] = useState<"80mm" | "A4">("A4");
   const [deliveryBusy, setDeliveryBusy] = useState(false);
   const [cancelBusy, setCancelBusy] = useState(false);
   const confirmAsync = useConfirm();
@@ -88,7 +88,6 @@ export function HistoryDetailsDrawer({
       const payload = await loadTicketPayload();
       const pv = (await api.printPreview(payload)) as { text80: string; htmlA4: string };
       setTicket({ htmlA4: pv.htmlA4, text80: pv.text80, payload });
-      setTicketFormat("A4");
     } catch (e) {
       notify(frError(e, "Aperçu indisponible."), "err");
     } finally {
@@ -126,7 +125,6 @@ export function HistoryDetailsDrawer({
       };
       const pv = (await api.deliveryPreview(payload)) as { text80: string; htmlA4: string };
       setDelivery({ htmlA4: pv.htmlA4, text80: pv.text80, payload });
-      setDeliveryFormat("A4");
     } catch (e) {
       notify(frError(e, "Aperçu indisponible."), "err");
     } finally {
@@ -269,110 +267,59 @@ export function HistoryDetailsDrawer({
       </Drawer>
 
       {ticket ? (
-        <Modal label="Ticket de vente" title="Ticket de vente" onClose={() => setTicket(null)} wide>
-          <div className="mb-3 flex gap-1.5" role="tablist" aria-label="Format d'aperçu">
-            {(["A4", "80mm"] as const).map((f) => (
-              <button
-                key={f}
-                type="button"
-                role="tab"
-                aria-selected={ticketFormat === f}
-                onClick={() => setTicketFormat(f)}
-                className={
-                  ticketFormat === f
-                    ? "rounded-lg bg-amber-400 px-4 py-1.5 text-xs font-bold text-black"
-                    : "rounded-lg border border-white/10 px-4 py-1.5 text-xs font-bold text-slate-400 hover:text-white"
-                }
+        <DocumentPreviewModal
+          label="Ticket de vente"
+          title="Ticket de vente"
+          htmlA4={ticket.htmlA4}
+          text80={ticket.text80}
+          a4TabLabel="Facture A4"
+          onClose={() => setTicket(null)}
+          actions={
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => void printTicket("80mm")}
+                className="flex-1"
               >
-                {f === "A4" ? "Facture A4" : "Ticket 80mm"}
-              </button>
-            ))}
-          </div>
-          {ticketFormat === "A4" ? (
-            <iframe
-              sandbox=""
-              srcDoc={ticket.htmlA4}
-              title="Aperçu ticket"
-              className="h-[50vh] w-full rounded-xl border border-white/10 bg-white"
-            />
-          ) : (
-            <pre
-              className="h-[50vh] overflow-auto rounded-xl border border-white/10 bg-white p-4 font-mono text-[12px] leading-snug text-black"
-              aria-label="Aperçu ticket 80mm"
-            >
-              {ticket.text80}
-            </pre>
-          )}
-          <div className="mt-3 flex gap-2">
-            <Button variant="secondary" onClick={() => void printTicket("80mm")} className="flex-1">
-              <Printer size={15} aria-hidden="true" /> Ticket 80mm
-            </Button>
-            <Button variant="secondary" onClick={() => void printTicket("A4")} className="flex-1">
-              <Printer size={15} aria-hidden="true" /> Facture A4
-            </Button>
-          </div>
-        </Modal>
+                <Printer size={15} aria-hidden="true" /> Ticket 80mm
+              </Button>
+              <Button variant="secondary" onClick={() => void printTicket("A4")} className="flex-1">
+                <Printer size={15} aria-hidden="true" /> Facture A4
+              </Button>
+            </div>
+          }
+        />
       ) : null}
 
       {delivery ? (
-        <Modal
+        <DocumentPreviewModal
           label="Bon de livraison"
           title="Bon de livraison"
+          htmlA4={delivery.htmlA4}
+          text80={delivery.text80}
+          a4TabLabel="Format A4"
           onClose={() => setDelivery(null)}
-          wide
-        >
-          <div className="mb-3 flex gap-1.5" role="tablist" aria-label="Format d'aperçu">
-            {(["A4", "80mm"] as const).map((f) => (
-              <button
-                key={f}
-                type="button"
-                role="tab"
-                aria-selected={deliveryFormat === f}
-                onClick={() => setDeliveryFormat(f)}
-                className={
-                  deliveryFormat === f
-                    ? "rounded-lg bg-amber-400 px-4 py-1.5 text-xs font-bold text-black"
-                    : "rounded-lg border border-white/10 px-4 py-1.5 text-xs font-bold text-slate-400 hover:text-white"
-                }
+          actions={
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => void printDelivery("80mm")}
+                disabled={deliveryBusy}
+                className="flex-1"
               >
-                {f === "A4" ? "Format A4" : "Ticket 80mm"}
-              </button>
-            ))}
-          </div>
-          {deliveryFormat === "A4" ? (
-            <iframe
-              sandbox=""
-              srcDoc={delivery.htmlA4}
-              title="Aperçu bon de livraison"
-              className="h-[50vh] w-full rounded-xl border border-white/10 bg-white"
-            />
-          ) : (
-            <pre
-              className="h-[50vh] overflow-auto rounded-xl border border-white/10 bg-white p-4 font-mono text-[12px] leading-snug text-black"
-              aria-label="Aperçu bon de livraison 80mm"
-            >
-              {delivery.text80}
-            </pre>
-          )}
-          <div className="mt-3 flex gap-2">
-            <Button
-              variant="secondary"
-              onClick={() => void printDelivery("80mm")}
-              disabled={deliveryBusy}
-              className="flex-1"
-            >
-              <Printer size={15} aria-hidden="true" /> Imprimer 80mm
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => void printDelivery("A4")}
-              disabled={deliveryBusy}
-              className="flex-1"
-            >
-              <Printer size={15} aria-hidden="true" /> Imprimer A4
-            </Button>
-          </div>
-        </Modal>
+                <Printer size={15} aria-hidden="true" /> Imprimer 80mm
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => void printDelivery("A4")}
+                disabled={deliveryBusy}
+                className="flex-1"
+              >
+                <Printer size={15} aria-hidden="true" /> Imprimer A4
+              </Button>
+            </div>
+          }
+        />
       ) : null}
     </>
   );

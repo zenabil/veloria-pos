@@ -50,6 +50,8 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
   const [customerName, setCustomerName] = useState("");
   const [customerQ, setCustomerQ] = useState("");
   const [customerResults, setCustomerResults] = useState<{ id: number; name: string }[]>([]);
+  // Total serveur : si > 8 affichés, hint « affinez » au lieu de tronquer en silence.
+  const [customerTotal, setCustomerTotal] = useState(0);
   const [supplierId, setSupplierId] = useState<number | null>(null);
   const [supplierName, setSupplierName] = useState("");
   const [supplierQ, setSupplierQ] = useState("");
@@ -121,7 +123,11 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
       if (!isSeqCurrent(seq)) return;
       setSummary(s);
       setStockValue(st.inventoryValueMinor);
-      await loadClosings(f, t, seq);
+      // Clôtures Z : chargées uniquement quand leur carte est visible (le
+      // reste du temps l'IPC + setState étaient superflu à chaque filtre).
+      if (section === "closings" || section === "all") {
+        await loadClosings(f, t, seq);
+      }
     } catch (e) {
       if (!isSeqCurrent(seq)) return;
       notify(frError(e, "Chargement impossible."), "err");
@@ -150,7 +156,8 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
           closing_balance_minor: Math.round(r.closing_balance_minor),
         })),
       );
-    } catch {
+    } catch (e) {
+      notify(frError(e, "Clôtures indisponibles."), "err");
       setClosings([]);
     }
   }
@@ -194,8 +201,9 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
     try {
       const res = (await api.categoriesList()) as { rows: Category[] };
       setCategories(res.rows);
-    } catch {
-      /* filtre catégorie optionnel */
+    } catch (e) {
+      // Filtre optionnel : journal seul (l'écran reste utilisable sans).
+      console.error("[Veloria] rapports : catégories illisibles", e);
     }
   }
 
@@ -204,6 +212,14 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
     void loadCategories();
     void load({ f: monthStartUtc(), t: todayUtcDate() });
   }, []);
+
+  // Clôtures Z : au premier passage sur l'onglet, si la période a changé
+  // depuis le dernier chargement de données complet.
+  useEffect(() => {
+    if (section === "closings" && from !== "" && to !== "") {
+      void loadClosings(from, to);
+    }
+  }, [section]);
 
   function changeRange(f: string, t: string): void {
     setFrom(f);
@@ -236,12 +252,16 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
         query: customerQ.trim(),
         page: 1,
         pageSize: 8,
-      })) as { rows: { id: number; first_name: string; last_name: string }[] };
+      })) as { rows: { id: number; first_name: string; last_name: string }[]; total: number };
       setCustomerResults(
         res.rows.map((c) => ({ id: c.id, name: `${c.first_name} ${c.last_name}`.trim() })),
       );
-    } catch {
+      setCustomerTotal(typeof res.total === "number" ? res.total : res.rows.length);
+    } catch (e) {
+      // Recherche d'arrière-plan : journal seul, sans toast (anti-spam).
+      console.error("[Veloria] rapports : clients illisibles", e);
       setCustomerResults([]);
+      setCustomerTotal(0);
     }
   }
 
@@ -254,7 +274,9 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
         pageSize: 8,
       })) as { rows: { id: number; name: string }[] };
       setSupplierResults(res.rows);
-    } catch {
+    } catch (e) {
+      // Recherche d'arrière-plan : journal seul, sans toast (anti-spam).
+      console.error("[Veloria] rapports : fournisseurs illisibles", e);
       setSupplierResults([]);
     }
   }
@@ -270,11 +292,11 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
       {/* En-tête Stitch : Rapports & Statistiques · Module 12 · v3.8 */}
       <PageHeader
         title="Rapports et statistiques"
-        module="Module 12 · v3.8 · DONNÉES EN TEMPS RÉEL (SQLITE WAL)"
+        module="Module 12 · Analyse de performance"
         period={
           summary
-            ? `ANALYSE DE PERFORMANCE · POSTE 04 · EXERCICE ${new Date().getUTCFullYear()} · Du ${formatDateFr(summary.from)} au ${formatDateFr(summary.to)} ${summary.weekly ? "· par semaine" : "· par jour"}`
-            : "ANALYSE DE PERFORMANCE · POSTE 04 · Choisissez une période"
+            ? `Analyse de performance · Exercice ${new Date().getUTCFullYear()} · Du ${formatDateFr(summary.from)} au ${formatDateFr(summary.to)} ${summary.weekly ? "· par semaine" : "· par jour"}`
+            : "Analyse de performance · Choisissez une période"
         }
         actions={
           <>
@@ -414,6 +436,7 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
                       setCustomerId(c.id);
                       setCustomerName(c.name);
                       setCustomerResults([]);
+                      setCustomerTotal(0);
                       setCustomerQ("");
                       void load({ customer: c.id });
                     }}
@@ -425,6 +448,12 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
               ))}
             </ul>
           ) : null}
+          {/* Slot à hauteur constante (pas de saut de mise en page). */}
+          <p className="mt-1 min-h-[1rem] text-xs font-semibold text-slate-500" role="status">
+            {customerTotal > customerResults.length
+              ? `+${customerTotal - customerResults.length} autre(s) — affinez la recherche.`
+              : ""}
+          </p>
         </div>
         <div className="min-w-[180px]">
           <label
@@ -669,50 +698,10 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
               />
             </ReportSectionCard>
           ) : null}
-          {show("profit") ? (
-            <ReportSectionCard title={`Bénéfices · marge ${formatDzd(k.profitMinor)}`}>
-              <p className="px-4 pb-3 text-xs text-slate-500">
-                Marge brute = ventes nettes − coût d'achat des lignes vendues (remises et livraison
-                incluses via les totaux nets).
-              </p>
-            </ReportSectionCard>
-          ) : null}
-          {show("expenses") ? (
-            <ReportSectionCard title={`Dépenses · ${formatDzd(k.expensesMinor)}`}>
-              <p className="px-4 pb-3 text-xs text-slate-500">
-                Détail complet dans la page Dépenses.
-              </p>
-            </ReportSectionCard>
-          ) : null}
-          {show("stock") ? (
-            <ReportSectionCard
-              title={`Stock · valorisation ${stockValue == null ? "—" : formatDzd(stockValue)}`}
-            >
-              <p className="px-4 pb-3 text-xs text-slate-500">
-                Valeur au prix d'achat, instantané actuel (hors période). Détail dans la page Stock.
-              </p>
-            </ReportSectionCard>
-          ) : null}
           {show("customerDebt") ? (
             <ReportSectionCard title={`Dettes clients · ${formatDzd(k.customerDebtMinor)}`}>
-              <MiniTable
-                headers={["Client", "Achats période"]}
-                rows={summary.tops.customers
-                  .filter((t) => t.name !== "Passage")
-                  .slice(0, 5)
-                  .map((t) => [t.name, formatDzd(t.total)])}
-                empty="Aucune vente."
-              />
               <p className="px-4 pb-3 text-xs text-slate-500">
-                Ci-dessus : top acheteurs de la période (pas des dettes). Soldes exacts et relances
-                dans la page Dettes.
-              </p>
-            </ReportSectionCard>
-          ) : null}
-          {show("supplierDebt") ? (
-            <ReportSectionCard title={`Dettes fournisseurs · ${formatDzd(k.supplierDebtMinor)}`}>
-              <p className="px-4 pb-3 text-xs text-slate-500">
-                Soldes exacts et paiements dans les pages Dettes et Fournisseurs.
+                Soldes exacts, relances et règlements dans la page Dettes.
               </p>
             </ReportSectionCard>
           ) : null}
@@ -726,15 +715,6 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
                 ]}
                 empty=""
               />
-            </ReportSectionCard>
-          ) : null}
-          {show("returns") ? (
-            <ReportSectionCard
-              title={`Retours · ${summary.returns.count} (${formatDzd(summary.returns.amountMinor)})`}
-            >
-              <p className="px-4 pb-3 text-xs text-slate-500">
-                Détail complet dans la page Retours.
-              </p>
             </ReportSectionCard>
           ) : null}
           {show("closings") ? (

@@ -78,7 +78,6 @@ export const historyListSchema = z.object({
       "supplier_delete",
     ])
     .default("all"),
-  user: z.enum(["all", "caisse"]).default("all"),
   from: businessDate.nullable().optional(),
   to: businessDate.nullable().optional(),
   sort: z.enum(["date_desc", "date_asc", "amount_desc", "amount_asc"]).default("date_desc"),

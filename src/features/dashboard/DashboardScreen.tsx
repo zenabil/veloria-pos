@@ -26,6 +26,60 @@ import { paymentMethodLabel, type DashboardSummary } from "./types.ts";
 import type { Notify } from "@shared/ui/primitives.tsx";
 import { EmptyMini, RecentCard, RecentRow } from "./widgets.tsx";
 import { frError } from "@shared/errors/fr-map.ts";
+import { useCountUp } from "@shared/ui/use-count-up.ts";
+
+/** D7+D16 : bande « Aujourd'hui » — trois chiffres de décision animés
+ *  (compteur 300 ms, réduit au final si `prefers-reduced-motion`). */
+function TodayStrip({
+  salesMinor,
+  overdue,
+  out,
+}: {
+  /** Sentinel -1 = today is excluded from the filtered period (hide the cell). */
+  salesMinor: number;
+  overdue: number;
+  out: number;
+}): React.JSX.Element {
+  const sales = useCountUp(salesMinor >= 0 ? salesMinor : 0);
+  const late = useCountUp(overdue);
+  const ruptures = useCountUp(out);
+  const cells: { label: string; value: string; tone: string }[] = [];
+  // Sentinelle -1 : période sans aujourd'hui → cellule masquée (jamais « 0 » trompeur).
+  if (salesMinor >= 0) {
+    cells.push({
+      label: "Ventes du jour",
+      value: formatDzd(sales),
+      tone: "text-[#d4e4fa]",
+    });
+  }
+  cells.push(
+    {
+      label: "Échéances dépassées",
+      value: String(late),
+      tone: late > 0 ? "text-red-300" : "text-emerald-300",
+    },
+    {
+      label: "Ruptures",
+      value: String(ruptures),
+      tone: ruptures > 0 ? "text-amber-300" : "text-emerald-300",
+    },
+  );
+  return (
+    <div
+      aria-label="Chiffres du jour"
+      className="grid grid-cols-1 gap-3 rounded-xl border border-white/[0.07] bg-[#0a0f1c] p-3 sm:grid-cols-3"
+    >
+      {cells.map((c) => (
+        <div key={c.label} className="flex items-baseline justify-between gap-2 px-2">
+          <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#d3c5ac]/70">
+            {c.label}
+          </span>
+          <span className={`font-mono-currency-lg tabular-nums ${c.tone}`}>{c.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Element {
   const [from, setFrom] = useState(todayUtcDate());
@@ -391,6 +445,18 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
         )
       ) : (
         <>
+          <TodayStrip
+            // Fix racine : « Ventes du jour : 0 » trompeur quand la période
+            // analysée n'inclut pas aujourd'hui — la cellule n'est rendue
+            // que si le jour courant appartient à la période filtrée.
+            salesMinor={
+              from <= todayUtcDate() && todayUtcDate() <= to
+                ? (summary.daily.find((d) => d.d === todayUtcDate())?.t ?? 0)
+                : -1
+            }
+            overdue={summary.overdue.length}
+            out={summary.stock.out}
+          />
           {/* KPIs Stitch : 8 cartes, liseré accent 3px */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Kpi
@@ -523,8 +589,8 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
               ) : (
                 <table className="w-full text-sm">
                   <tbody>
-                    {summary.fastMoving.map((p, i) => (
-                      <tr key={i} className="border-t border-white/[0.06]">
+                    {summary.fastMoving.map((p) => (
+                      <tr key={p.name} className="border-t border-white/[0.06]">
                         <td className="max-w-[220px] truncate py-1.5">{p.name}</td>
                         <td className="py-1.5 text-right tabular-nums text-slate-400">{p.qty}</td>
                         <td className="py-1.5 text-right font-bold tabular-nums">
@@ -580,8 +646,8 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
               ) : (
                 <table className="w-full text-sm">
                   <tbody>
-                    {summary.overdue.map((d, i) => (
-                      <tr key={i} className="border-t border-white/[0.06]">
+                    {summary.overdue.map((d) => (
+                      <tr key={`${d.kind}-${d.ref}`} className="border-t border-white/[0.06]">
                         <td className="max-w-[180px] truncate py-1.5">{d.party}</td>
                         <td className="py-1.5 font-mono text-xs text-slate-400">{d.ref}</td>
                         <td className="py-1.5 text-right font-bold tabular-nums text-red-300">
@@ -599,8 +665,8 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                   </h3>
                   <table className="w-full text-sm">
                     <tbody>
-                      {summary.upcoming.map((d, i) => (
-                        <tr key={i} className="border-t border-white/[0.06]">
+                      {summary.upcoming.map((d) => (
+                        <tr key={`${d.kind}-${d.ref}`} className="border-t border-white/[0.06]">
                           <td className="max-w-[180px] truncate py-1.5">{d.party}</td>
                           <td className="py-1.5 tabular-nums text-slate-400">
                             {formatDateFr(d.due)}
@@ -634,7 +700,7 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
             <RecentCard title="Derniers paiements">
               {summary.recent.payments.map((p, i) => (
                 <RecentRow
-                  key={i}
+                  key={`${p.payment_date}-${p.party}-${p.amount_minor}-${p.method}-${i}`}
                   left={p.dir === "in" ? "Encaissé" : "Payé"}
                   mid={p.party}
                   right={formatDzd(p.amount_minor)}
@@ -656,9 +722,9 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
               {summary.recent.purchases.length === 0 ? <EmptyMini /> : null}
             </RecentCard>
             <RecentCard title="Derniers retours">
-              {summary.recent.returns.map((r, i) => (
+              {summary.recent.returns.map((r) => (
                 <RecentRow
-                  key={i}
+                  key={`${r.kind}-${r.ref}`}
                   left={r.ref}
                   mid={r.kind === "client" ? "Client" : "Fournisseur"}
                   right={formatDzd(r.total)}
@@ -681,99 +747,17 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
             </RecentCard>
           </div>
 
-          {/* Vigilance : panneau unique, tout inline, sans navigation */}
-          <Card className="space-y-4 p-4">
-            <h3 className="text-sm font-extrabold">Vigilance</h3>
-            <div className="grid gap-4 xl:grid-cols-2">
-              <div className="space-y-2">
-                <h4 className="text-[12px] font-bold uppercase tracking-wider text-slate-400">
-                  Stock bas ({summary.stock.low}) · Ruptures ({summary.stock.out})
-                </h4>
-                {summary.stock.lowRows.length === 0 ? (
-                  <p className="text-xs text-emerald-300">Stock sain.</p>
-                ) : (
-                  <table className="w-full text-sm">
-                    <tbody>
-                      {summary.stock.lowRows.slice(0, 8).map((p) => (
-                        <tr key={p.id} className="border-t border-white/[0.06]">
-                          <td className="max-w-[220px] truncate py-1.5">{p.name}</td>
-                          <td className="py-1.5 text-right tabular-nums text-red-300">
-                            {p.quantity}
-                          </td>
-                          <td className="py-1.5 text-right tabular-nums text-slate-500">
-                            min {p.min_stock_level}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-                <h4 className="pt-2 text-[12px] font-bold uppercase tracking-wider text-slate-400">
-                  Pain — en cours ({summary.bread.pending}) · prêtes ({summary.bread.ready}) ·
-                  livrées ({summary.bread.delivered})
-                </h4>
-                <p className="text-xs text-slate-500">
-                  {summary.bread.pending + summary.bread.ready > 0
-                    ? `${summary.bread.pending} commande(s) en cours, ${summary.bread.ready} prête(s).`
-                    : "Aucune commande pain en cours."}
-                </p>
-              </div>
-              <div className="space-y-2">
-                <h4 className="text-[12px] font-bold uppercase tracking-wider text-slate-400">
-                  Échéances dépassées ({summary.overdue.length})
-                </h4>
-                {summary.overdue.length === 0 ? (
-                  <p className="text-xs text-emerald-300">Aucune échéance dépassée.</p>
-                ) : (
-                  <table className="w-full text-sm">
-                    <tbody>
-                      {summary.overdue.slice(0, 8).map((d, i) => (
-                        <tr key={i} className="border-t border-white/[0.06]">
-                          <td className="max-w-[180px] truncate py-1.5">{d.party}</td>
-                          <td className="py-1.5 font-mono text-xs text-slate-400">{d.ref}</td>
-                          <td className="py-1.5 text-right font-bold tabular-nums text-red-300">
-                            {formatDzd(d.remaining)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-                {summary.upcoming.length > 0 ? (
-                  <>
-                    <h4 className="pt-2 text-[12px] font-bold uppercase tracking-wider text-slate-400">
-                      Échéances 7 jours ({summary.upcoming.length})
-                    </h4>
-                    <table className="w-full text-sm">
-                      <tbody>
-                        {summary.upcoming.slice(0, 8).map((d, i) => (
-                          <tr key={i} className="border-t border-white/[0.06]">
-                            <td className="max-w-[180px] truncate py-1.5">{d.party}</td>
-                            <td className="py-1.5 tabular-nums text-slate-400">
-                              {formatDateFr(d.due)}
-                            </td>
-                            <td className="py-1.5 text-right font-bold tabular-nums">
-                              {formatDzd(d.remaining)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </>
-                ) : null}
-                <h4 className="pt-2 text-[12px] font-bold uppercase tracking-wider text-slate-400">
-                  Système
-                </h4>
-                <p className="text-xs text-slate-500">
-                  {summary.alerts.lastBackup == null
-                    ? "Aucune sauvegarde : créez-en une (Paramètres → Sauvegarde)."
-                    : `Dernière sauvegarde : ${formatDateTimeFr(summary.alerts.lastBackup)}.`}{" "}
-                  {summary.alerts.integrity === "ok"
-                    ? "Base saine."
-                    : `Base : ${summary.alerts.integrity} — restaurez une sauvegarde.`}
-                </p>
-              </div>
-            </div>
+          {/* Vigilance système (sauvegarde + intégrité) */}
+          <Card className="space-y-2 p-4">
+            <h3 className="text-sm font-extrabold">Vigilance système</h3>
+            <p className="text-xs text-slate-500">
+              {summary.alerts.lastBackup == null
+                ? "Aucune sauvegarde : créez-en une (Paramètres → Sauvegarde)."
+                : `Dernière sauvegarde : ${formatDateTimeFr(summary.alerts.lastBackup)}.`}{" "}
+              {summary.alerts.integrity === "ok"
+                ? "Base saine."
+                : `Base : ${summary.alerts.integrity} — restaurez une sauvegarde.`}
+            </p>
           </Card>
 
           {/* Aperçu PDF */}

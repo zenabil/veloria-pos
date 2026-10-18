@@ -117,6 +117,7 @@ describe("RADICAL-FIX : configurations idempotentes", () => {
         customerLabel: "Client de passage",
         amountPaidMinor: 0,
         paymentMethod: null,
+        deliveryFeeMinor: 0,
       },
     ];
     const now = new Date().toISOString();
@@ -149,6 +150,7 @@ describe("RADICAL-FIX : configurations idempotentes", () => {
         customerLabel: "Client de passage",
         amountPaidMinor: 0,
         paymentMethod: null,
+        deliveryFeeMinor: 0,
       },
     ];
     const now = new Date().toISOString();

@@ -43,8 +43,14 @@ export function QrScannerScreen(props: {
   }
 
   async function grant(): Promise<void> {
-    const res = await requestPermission();
-    setDenied(!res.granted);
+    try {
+      const res = await requestPermission();
+      setDenied(!res.granted);
+    } catch {
+      // Demande rejetée (rejet natif) : on reste sur l'invite (réessai +
+      // fermeture possibles), jamais d'écran bloqué ni rejet non géré.
+      setDenied(false);
+    }
   }
 
   return (

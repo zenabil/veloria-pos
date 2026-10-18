@@ -10,6 +10,7 @@ import { registerSalesChannels } from "./registry.sales";
 import { registerCustomersChannels } from "./registry.customers";
 import { registerFinanceChannels } from "./registry.finance";
 import { registerStockChannels } from "./registry.stock";
+import { registerStaffChannels } from "./registry.staff";
 import { registerDocumentsChannels } from "./registry.documents";
 import { registerSystemChannels } from "./registry.system";
 
@@ -23,5 +24,6 @@ export function registerIpc(): void {
   registerSalesChannels();
   registerFinanceChannels();
   registerStockChannels();
+  registerStaffChannels();
   registerDocumentsChannels();
 }

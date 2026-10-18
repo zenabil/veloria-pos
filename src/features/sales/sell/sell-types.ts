@@ -17,6 +17,8 @@ export interface CustomerRow {
   last_name: string;
   outstanding_balance_minor: number;
   credit_allowed: number;
+  /** Plafond du client (centimes). Absent = inconnu (relevé à relire). */
+  credit_limit_minor?: number;
 }
 
 export interface PreviewLine {

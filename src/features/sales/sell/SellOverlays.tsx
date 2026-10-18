@@ -7,10 +7,11 @@ import type { Notify } from "@shared/ui/primitives.tsx";
 import { PayDialog } from "./PayDialog.tsx";
 import { SettleDialog } from "./SettleDialog.tsx";
 import { CustomItemDialog, type CustomForm } from "./CustomItemDialog.tsx";
+import { QuantityDialog } from "./QuantityDialog.tsx";
 import { ClientDetailsDrawer, ClientFormDialog } from "../../customers/ClientDialogs.tsx";
 import type { Customer, EnrichedCustomer, StatementSale } from "../../customers/types.ts";
 import type { SellTotals } from "./useSellState.ts";
-import type { ProformaDoc } from "./sell-types.ts";
+import type { ProformaDoc, SearchRow } from "./sell-types.ts";
 
 export function SellOverlays({
   payOpen,
@@ -27,6 +28,12 @@ export function SellOverlays({
   busy,
   creditBlocked,
   creditBlockedMsg,
+  outstandingMinor,
+  creditLimitMinor,
+  projectedMinor,
+  limitExceeded,
+  limitOverride,
+  onToggleOverride,
   onClosePay,
   onValidatePay,
   notify,
@@ -59,6 +66,9 @@ export function SellOverlays({
   customPriceRef,
   onCloseCustom,
   onAddCustom,
+  quantityFor,
+  onCloseQuantity,
+  onConfirmQuantity,
 }: {
   payOpen: boolean;
   totals: SellTotals | null;
@@ -74,6 +84,12 @@ export function SellOverlays({
   busy: boolean;
   creditBlocked: boolean;
   creditBlockedMsg: string;
+  outstandingMinor: number | null;
+  creditLimitMinor: number | null;
+  projectedMinor: number | null;
+  limitExceeded: boolean;
+  limitOverride: boolean;
+  onToggleOverride: (v: boolean) => void;
   onClosePay: () => void;
   onValidatePay: () => void;
   notify: Notify;
@@ -106,6 +122,10 @@ export function SellOverlays({
   customPriceRef: RefObject<HTMLInputElement | null>;
   onCloseCustom: () => void;
   onAddCustom: () => void;
+  /** ADR-114 : produit à unité continue (poids/volume/longueur) à quantifier. */
+  quantityFor: SearchRow | null;
+  onCloseQuantity: () => void;
+  onConfirmQuantity: (quantity: number) => void;
 }): React.JSX.Element {
   return (
     <>
@@ -125,6 +145,12 @@ export function SellOverlays({
           busy={busy}
           creditBlocked={creditBlocked}
           creditBlockedMsg={creditBlockedMsg}
+          outstandingMinor={outstandingMinor}
+          creditLimitMinor={creditLimitMinor}
+          projectedMinor={projectedMinor}
+          limitExceeded={limitExceeded}
+          limitOverride={limitOverride}
+          onToggleOverride={onToggleOverride}
           onClose={onClosePay}
           onValidate={onValidatePay}
           notify={notify}
@@ -238,6 +264,12 @@ export function SellOverlays({
           onClose={onCloseCustom}
           onAdd={onAddCustom}
         />
+      ) : null}
+
+      {/* Quantité vendue (ADR-114) : produit au poids/volume/longueur —
+          saisie du poids OU du montant avant ajout au panier. */}
+      {quantityFor ? (
+        <QuantityDialog row={quantityFor} onClose={onCloseQuantity} onConfirm={onConfirmQuantity} />
       ) : null}
     </>
   );

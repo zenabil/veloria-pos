@@ -33,6 +33,12 @@ export const customerUpdateSchema = z.object({
 
 export const customerDebtFilterSchema = z.enum(["all", "with_debt", "no_debt", "over_limit"]);
 
+// Tri serveur (miroir du type `CustomerSort` main + `CustomerSort` renderer) :
+// whitelist fermée, jamais d'interpolation SQL brute.
+export const customerSortSchema = z
+  .enum(["name_asc", "name_desc", "debt_desc", "debt_asc", "purchases_desc"])
+  .default("name_asc");
+
 // P1-3 : filtre serveur « archivés seuls » (total réel côté main).
 export const archivedOnlySchema = z.boolean().default(false);
 

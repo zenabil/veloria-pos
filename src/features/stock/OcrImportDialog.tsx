@@ -10,6 +10,7 @@ import { callChecked, productsMatchBatchSchema } from "@shared/types/ipc-contrac
 import { formatDzd, parseDzdInputStrict } from "@domain/money/money.ts";
 import { formatBytes } from "@shared/formatters/files.ts";
 import { newOperationId } from "@domain/common/ids.ts";
+import { useOperationId } from "@shared/ui/use-operation-id.ts";
 import { todayUtcDate } from "@shared/dates/dates.ts";
 import { parseInvoiceText } from "@domain/ocr/parser.ts";
 import { confidenceLabelFr, matchByName, normalizeProductName } from "@domain/ocr/matcher.ts";
@@ -27,6 +28,7 @@ import {
   EmptyState,
   Field,
   Modal,
+  Select,
   TextInput,
   cn,
 } from "@shared/ui/primitives.tsx";
@@ -140,6 +142,19 @@ export function OcrImportDialog({
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
   const [importing, setImporting] = useState(false);
+  // P0 load-bearing : clé d'import figée + clés produits figées par ligne
+  // (jamais `newOperationId()` inline — chaque retry rejoue la MÊME opération)
+  // + garde synchrone anti-double-clic même tick (le state `importing` est async).
+  const importGuard = useRef(false);
+  const intakeOp = useOperationId();
+  const productOpIds = useRef(new Map<number, string>());
+  function productOpIdFor(rowKey: number): string {
+    const known = productOpIds.current.get(rowKey);
+    if (known) return known;
+    const fresh = newOperationId();
+    productOpIds.current.set(rowKey, fresh);
+    return fresh;
+  }
   const mounted = useRef(true);
   const fileRef = useRef<string | null>(null);
   /** Lecture anti-rétrécissement TS : muté par le démontage (autre flux). */
@@ -331,6 +346,9 @@ export function OcrImportDialog({
       });
       if (!alive()) return;
       setParsed(invoice);
+      // Nouvelle analyse = nouveau périmètre produits (les clés figées
+      // précédentes ne doivent jamais fuir vers ces nouvelles lignes).
+      productOpIds.current.clear();
       setRows(matched);
       setInvoiceNumber(invoice.number ?? "");
       setInvoiceDate(invoice.date ?? todayUtcDate());
@@ -551,7 +569,7 @@ export function OcrImportDialog({
   }
 
   async function importIntoStock(): Promise<void> {
-    if (importing) return;
+    if (importing || importGuard.current) return;
     if (invoiceDate === "") {
       notify("Date de facture requise.", "err");
       return;
@@ -562,6 +580,7 @@ export function OcrImportDialog({
       return;
     }
     const bad = rows.length - usable.length;
+    importGuard.current = true;
     setImporting(true);
     try {
       const lines: {
@@ -580,8 +599,9 @@ export function OcrImportDialog({
         let pid = r.productId;
         if (r.createNew) {
           const created = (await api.productCreate({
-            // Un UUID par produit créé (import rejoué = produits retrouvés).
-            operationId: newOperationId(),
+            // Un UUID figé par ligne (import rejoué = produits retrouvés,
+            // jamais dupliqués — voir `products.operation_id` UNIQUE).
+            operationId: productOpIdFor(r.key),
             name: r.ocrName.trim().slice(0, 200),
             purchasePriceMinor: purchase,
             sellingPriceMinor: selling ?? 0,
@@ -601,7 +621,7 @@ export function OcrImportDialog({
       }
       if (lines.length === 0) throw new Error("Aucune ligne valide à importer.");
       const res = (await api.stockIntake({
-        operationId: newOperationId(),
+        operationId: intakeOp.operationId,
         supplierId,
         invoiceNumber: invoiceNumber.trim() === "" ? null : invoiceNumber.trim().slice(0, 100),
         invoiceDate,
@@ -613,10 +633,14 @@ export function OcrImportDialog({
         `Réception #${res.intakeId} importée : ${formatDzd(res.totalMinor)}.${bad > 0 ? ` (${bad} ligne(s) ignorée(s))` : ""}`,
         "ok",
       );
+      // Succès : le prochain import est une NOUVELLE opération (produits
+      // conservés par leurs clés figées → rejoués, jamais dupliqués).
+      intakeOp.regen();
       onSaved();
     } catch (e) {
       notify(frError(e, "Import impossible."), "err");
     } finally {
+      importGuard.current = false;
       if (mounted.current) setImporting(false);
     }
   }
@@ -843,17 +867,17 @@ export function OcrImportDialog({
                 {selected.size > 0 ? ` · ${selected.size} cochée(s)` : ""}
               </h4>
               <div className="flex flex-wrap items-center gap-2">
-                <select
+                <Select
                   value={rowFilter}
                   onChange={(e) => setRowFilter(e.target.value as "all" | "review" | "unmatched")}
                   aria-label="Filtrer les lignes par confiance"
                   title="Filtrer les lignes par confiance"
-                  className="cursor-pointer rounded-lg border border-white/10 bg-[#010f1f] px-2 py-1.5 text-xs text-slate-100 [&>option]:bg-[#010f1f]"
+                  className="px-2 py-1.5 text-xs"
                 >
                   <option value="all">Toutes les lignes</option>
                   <option value="review">À vérifier (douteuses)</option>
                   <option value="unmatched">Non appariées</option>
-                </select>
+                </Select>
                 <Button type="button" variant="secondary" onClick={addManualRow}>
                   <Plus size={15} aria-hidden="true" /> Ligne manuelle
                 </Button>

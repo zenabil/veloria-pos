@@ -147,6 +147,20 @@ export interface ManagerBackupInfo {
   createdAt: string;
 }
 
+/** Nom `manager-<horodatage>.sqlite` → ISO lisible (`2026-10-11T12:00:00.000Z`).
+ * L'horodatage remplace `:` et `.` par `-` (nom de fichier sûr) : seule la
+ * partie heure après `T` est reconvertie, les tirets de la date sont gardés. */
+export function backupFileToCreatedAt(fileName: string): string {
+  const stamp = fileName.slice(8, -7);
+  const t = stamp.indexOf("T");
+  if (t < 0) return stamp;
+  const time = stamp
+    .slice(t + 1)
+    .replace(/-/g, ":")
+    .replace(/:(\d{3}Z)$/, ".$1");
+  return `${stamp.slice(0, t)}T${time}`;
+}
+
 /** Liste les sauvegardes du registre (plus récentes d'abord). */
 export function listManagerBackups(): ManagerBackupInfo[] {
   const dir = path.join(app.getPath("userData"), "backups");
@@ -168,7 +182,7 @@ export function listManagerBackups(): ManagerBackupInfo[] {
     } catch {
       /* ignore */
     }
-    return { file, size, createdAt: f.slice(8, -7).replace(/-/g, ":") };
+    return { file, size, createdAt: backupFileToCreatedAt(f) };
   });
 }
 

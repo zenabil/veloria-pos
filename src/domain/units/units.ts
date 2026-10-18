@@ -20,6 +20,41 @@ export const UNIT_CODES = [
 ] as const;
 export type UnitCode = (typeof UNIT_CODES)[number];
 
+/**
+ * ADR-114 : unités de mesure CONTINUES (poids/volume/longueur) — vendues au
+ * poids exact : la quantité décimale est saisie par le vendeur, jamais « 1
+ * par défaut » à la caisse.
+ */
+export const MEASURED_UNIT_CODES = ["KG", "G", "L", "ML", "CL", "M"] as const;
+
+/** true si l'unité est continue (kg, g, l, ml, cl, m) — casse/espaces tolérés. */
+export function isMeasuredUnit(code: string): boolean {
+  const v = code.trim().toUpperCase();
+  return (MEASURED_UNIT_CODES as readonly string[]).includes(v);
+}
+
+/**
+ * Libellés FR des unités — SOURCE UNIQUE (le Catalogue `products/types.ts` la
+ * ré-exporte pour compatibilité). Utilisée par les écrans et le dialogue
+ * « quantité vendue » (ADR-114).
+ */
+export const UNIT_LABELS: Record<string, string> = {
+  PIECE: "Pièce",
+  KG: "Kilogramme",
+  G: "Gramme",
+  L: "Litre",
+  ML: "Millilitre",
+  CL: "Centilitre",
+  M: "Mètre",
+  CARTON: "Carton",
+  PAQUET: "Paquet",
+  AUTRE: "Autre",
+};
+
+export function unitLabel(code: string): string {
+  return UNIT_LABELS[code] ?? code;
+}
+
 /** Facteur vers l'unité de base (G pour masses, ML pour volumes, 1 sinon) — null si inconvertible. */
 const TO_BASE: Record<string, { base: string; factor: number } | null> = {
   KG: { base: "G", factor: 1000 },

@@ -16,9 +16,11 @@ import {
   clearSession,
   loadCache,
   loadDetail,
+  loadLastEndpoint,
   loadSession,
   saveCache,
   saveDetail,
+  saveLastEndpoint,
   saveSession,
 } from "./cache.ts";
 import { num, toHome } from "./views.ts";
@@ -75,30 +77,46 @@ export function App(): React.JSX.Element {
     return `${fn} ${ln}`.trim();
   }
 
-  // Restauration au démarrage : session SecureStore + clichés expo-sqlite,
-  // puis rafraîchissement silencieux si une session existe.
+  // Restauration au démarrage : session SecureStore + clichés expo-sqlite
+  // + dernier endpoint connu (re-connexion distante sans re-scan), puis
+  // rafraîchissement silencieux si une session existe.
   useEffect(() => {
     let alive = true;
     void (async () => {
       try {
-        const [sess, cached] = await Promise.all([loadSession(), Promise.resolve(loadCache())]);
+        const [sess, cached, lastEp] = await Promise.all([
+          loadSession(),
+          Promise.resolve(loadCache()),
+          loadLastEndpoint(),
+        ]);
         if (!alive) return;
         if (sess) {
-          setSession({
+          // Session V1 (sans endpoint gravé) + endpoint mémorisé : la
+          // restauration silencieuse réutilise ce dernier au lieu du repli
+          // gravé (jamais de mélange : les deux champs voyagent ensemble).
+          const remembered = sess.supabaseUrl == null && sess.anonKey == null ? lastEp : null;
+          const restored = {
             phone: sess.phone,
             pin: sess.pin,
-            supabaseUrl: sess.supabaseUrl ?? null,
-            anonKey: sess.anonKey ?? null,
-          });
+            supabaseUrl: remembered?.supabaseUrl ?? sess.supabaseUrl ?? null,
+            anonKey: remembered?.anonKey ?? sess.anonKey ?? null,
+          };
+          setSession(restored);
           setLang(sess.lang);
           setHidden(sess.amountsHidden);
-        }
-        if (cached.syncedAt) {
+          if (cached.syncedAt) {
+            setCache(cached);
+            setCustomerName(nameOf(cached.snapshot));
+            setStale(true);
+          }
+          // Langue explicite : le `lang` du closure est celui du premier
+          // rendu ("ar") — sess.lang prime pour ce rafraîchissement.
+          await refreshWith(restored, sess.lang);
+        } else if (cached.syncedAt) {
           setCache(cached);
           setCustomerName(nameOf(cached.snapshot));
           setStale(true);
         }
-        if (sess) await refreshWith(sess);
       } catch {
         // Stockage illisible : on démarre quand même sur l'écran de connexion.
       } finally {
@@ -146,12 +164,12 @@ export function App(): React.JSX.Element {
     return () => sub.remove();
   }, [detailRow, notifOpen]);
 
-  function syncErrorMessage(code: SyncError["code"]): string {
-    if (code === "AUTH_ERROR") return t(lang, "loginError");
-    if (code === "LOCKED_ERROR") return t(lang, "lockedError");
-    if (code === "REVOKED_ERROR") return t(lang, "revokedError");
-    if (code === "OFFLINE_ERROR") return t(lang, "offlineError");
-    return t(lang, "serverError");
+  function syncErrorMessage(code: SyncError["code"], l: Lang = lang): string {
+    if (code === "AUTH_ERROR") return t(l, "loginError");
+    if (code === "LOCKED_ERROR") return t(l, "lockedError");
+    if (code === "REVOKED_ERROR") return t(l, "revokedError");
+    if (code === "OFFLINE_ERROR") return t(l, "offlineError");
+    return t(l, "serverError");
   }
 
   function applyPayloads(data: {
@@ -178,26 +196,31 @@ export function App(): React.JSX.Element {
     endpoint?: { supabaseUrl: string; anonKey: string } | null,
   ): Promise<void> {
     setError(null);
-    // QR V2 (ADR-068) : l'endpoint du magasin prime ; sinon repli V1 gravé.
-    const baseUrl = endpoint?.supabaseUrl ?? SYNC_URL;
-    const anon = endpoint?.anonKey ?? ANON_KEY;
+    // QR V2 (ADR-068) : l'endpoint du magasin prime ; sinon dernier endpoint
+    // connu (re-connexion distante sans re-scan) ; sinon repli V1 gravé.
+    // Les deux champs voyagent ensemble (jamais de mélange QR/mémorisé).
+    const remembered = endpoint ? null : await loadLastEndpoint();
+    const used = endpoint ?? remembered;
+    const baseUrl = used?.supabaseUrl ?? SYNC_URL;
+    const anon = used?.anonKey ?? ANON_KEY;
     try {
       const data = await syncNow(baseUrl, anon, phone, pin, fetch);
       setSession({
         phone,
         pin,
-        supabaseUrl: endpoint?.supabaseUrl ?? null,
-        anonKey: endpoint?.anonKey ?? null,
+        supabaseUrl: used?.supabaseUrl ?? null,
+        anonKey: used?.anonKey ?? null,
       });
       applyPayloads(data);
+      if (used) await saveLastEndpoint(used);
       await saveSession({
         phone,
         pin,
         lang,
         amountsHidden: hidden,
         lastLoginAt: data.syncedAt,
-        supabaseUrl: endpoint?.supabaseUrl ?? null,
-        anonKey: endpoint?.anonKey ?? null,
+        supabaseUrl: used?.supabaseUrl ?? null,
+        anonKey: used?.anonKey ?? null,
       });
       setTab("home");
     } catch (e) {
@@ -211,12 +234,15 @@ export function App(): React.JSX.Element {
     }
   }
 
-  async function refreshWith(sess: {
-    phone: string;
-    pin: string;
-    supabaseUrl?: string | null;
-    anonKey?: string | null;
-  }): Promise<void> {
+  async function refreshWith(
+    sess: {
+      phone: string;
+      pin: string;
+      supabaseUrl?: string | null;
+      anonKey?: string | null;
+    },
+    l: Lang = lang,
+  ): Promise<void> {
     try {
       const data = await syncNow(
         sess.supabaseUrl ?? SYNC_URL,
@@ -233,7 +259,7 @@ export function App(): React.JSX.Element {
         e instanceof SyncError &&
         (e.code === "AUTH_ERROR" || e.code === "REVOKED_ERROR" || e.code === "LOCKED_ERROR")
       ) {
-        setError(syncErrorMessage(e.code));
+        setError(syncErrorMessage(e.code, l));
         await endSession();
         return;
       }

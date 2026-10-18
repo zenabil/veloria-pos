@@ -7,6 +7,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@shared/types/ipc-client.ts";
+import { frError } from "@shared/errors/fr-map.ts";
+import type { Notify } from "@shared/ui/primitives.tsx";
 
 export interface LicenseStatusView {
   state: string;
@@ -28,7 +30,7 @@ export interface LicenseStatusView {
   lastVerifyUtc: string | null;
 }
 
-export function useLicense(): {
+export function useLicense(notify?: Notify): {
   status: LicenseStatusView | null;
   refresh: () => void;
   hasPageAccess: (page: string) => boolean;
@@ -39,8 +41,12 @@ export function useLicense(): {
     api
       .licenseStatus()
       .then((s) => setStatus(normalize(s as RawLicenseStatus)))
-      .catch(() => undefined);
-  }, []);
+      .catch((e: unknown) => {
+        // Règle 6 : un échec IPC ne doit jamais masquer les modules en
+        // silence — message FR + journal technique (frError journalise).
+        notify?.(frError(e, "Licence indisponible."), "err");
+      });
+  }, [notify]);
   useEffect(() => {
     refresh();
   }, [refresh]);

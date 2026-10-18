@@ -319,15 +319,27 @@ export function ExpensesScreen({ notify }: { notify: Notify }): React.JSX.Elemen
     if (!(await confirmAsync(`Supprimer ${selection.size} dépense(s) ? Irréversible.`))) return;
     setBulkBusy(true);
     let done = 0;
+    const failed: string[] = [];
     for (const id of selection) {
+      // P18: UUID frais par suppression (caller-owned : une confirmation
+      // = une opération). Chaque ligne est une entité distincte.
       try {
         await api.expenseDelete({ id, operationId: newOperationId() });
         done += 1;
-      } catch {
-        /* on continue */
+      } catch (e) {
+        // Règle 6 : pas de catch silencieux — les échecs sont listés à l'utilisateur.
+        const row = rows.find((r2) => r2.id === id);
+        failed.push(`${row ? row.description : `DEP-${id}`} — ${frError(e, "échec")}`);
       }
     }
-    notify(`${done}/${selection.size} dépense(s) supprimée(s).`, done > 0 ? "ok" : "err");
+    if (failed.length === 0) {
+      notify(`${done}/${selection.size} dépense(s) supprimée(s).`, "ok");
+    } else {
+      notify(
+        `${done}/${selection.size} supprimée(s) · échec(s) : ${failed.slice(0, 3).join(" ; ")}`,
+        "err",
+      );
+    }
     setBulkBusy(false);
     refresh();
   }
@@ -336,11 +348,11 @@ export function ExpensesScreen({ notify }: { notify: Notify }): React.JSX.Elemen
 
   return (
     <div className="flex h-full flex-col gap-4">
-      {/* En-tête Stitch : Dépenses & Charges d'Exploitation · Module 10 · JOURNAL SCELLÉ WAL */}
+      {/* En-tête Stitch : Dépenses & Charges d'Exploitation · JOURNAL */}
       <PageHeader
         title="Dépenses et charges d'exploitation"
-        module="Module 10 · JOURNAL SCELLÉ WAL"
-        period={`${total} dépense(s) · ${formatDzd(stats.totalMinor)} au total · Suivi Budgétaire & Décaissements · Poste 04 · Exercice ${new Date().getFullYear()}`}
+        module="Module 10 · Journal des décaissements"
+        period={`${total} dépense(s) · ${formatDzd(stats.totalMinor)} au total · Suivi budgétaire et décaissements · Exercice ${new Date().getFullYear()}`}
         actions={
           <>
             <SearchField

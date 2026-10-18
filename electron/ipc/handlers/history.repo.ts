@@ -27,9 +27,12 @@ function assertHistoryIdentifier(name: string): void {
 
 export type { HistoryFilters, HistoryKind };
 
-export function listHistory(f: HistoryFilters): { rows: unknown[]; total: number } {
+export function listHistory(
+  f: HistoryFilters,
+  staffUserId: number | null = null,
+): { rows: unknown[]; total: number } {
   const db = getDb();
-  const q = buildHistoryQuery(f);
+  const q = buildHistoryQuery(f, staffUserId);
   const total = (db.prepare(q.countSql).get(...q.countParams) as { c: number }).c;
   const rows = db.prepare(q.sql).all(...q.params) as Record<string, unknown>[];
   // Noms des entités supprimées (audit details_json), sans dépendre de JSON1.
@@ -57,6 +60,7 @@ export function listHistory(f: HistoryFilters): { rows: unknown[]; total: number
 export function getHistoryStats(
   from: string | null,
   to: string | null,
+  staffUserId: number | null = null,
 ): {
   totalOperations: number;
   salesCount: number;
@@ -66,6 +70,11 @@ export function getHistoryStats(
   paymentsAmountMinor: number;
 } {
   const db = getDb();
+  // R2 (0046) : périmètre auteur — null = gérant (tout).
+  const scope = (alias: string): { cond: string; params: unknown[] } =>
+    staffUserId == null
+      ? { cond: "", params: [] }
+      : { cond: ` AND ${alias}.staff_user_id = ?`, params: [staffUserId] };
   const range = (col: string): { cond: string; params: unknown[] } => {
     const conds: string[] = [];
     const params: unknown[] = [];
@@ -79,58 +88,94 @@ export function getHistoryStats(
     }
     return { cond: conds.length > 0 ? `WHERE ${conds.join(" AND ")}` : "", params };
   };
-  const count = (table: string, col = "created_at"): number => {
+  const count = (table: string, col = "created_at", alias: string | null = null): number => {
     // RADICAL-FIX: allowlist interne (jamais d'entrée utilisateur) — interpolation sûre.
     assertHistoryIdentifier(table);
     assertHistoryIdentifier(col);
     const r = range(col);
+    const s = alias && staffUserId != null ? scope(alias) : { cond: "", params: [] as unknown[] };
+    const where =
+      r.cond === "" ? (s.cond === "" ? "" : `WHERE 1=1${s.cond}`) : `${r.cond}${s.cond}`;
     return (
-      db.prepare(`SELECT COUNT(*) AS c FROM ${table} ${r.cond}`).get(...r.params) as { c: number }
+      db.prepare(`SELECT COUNT(*) AS c FROM ${table} ${where}`).get(...r.params, ...s.params) as {
+        c: number;
+      }
     ).c;
   };
-  const sum = (table: string, col: string, dateCol = "created_at"): number => {
+  const sum = (
+    table: string,
+    col: string,
+    dateCol = "created_at",
+    alias: string | null = null,
+  ): number => {
     assertHistoryIdentifier(table);
     assertHistoryIdentifier(col);
     assertHistoryIdentifier(dateCol);
     const r = range(dateCol);
+    const s = alias && staffUserId != null ? scope(alias) : { cond: "", params: [] as unknown[] };
+    const where =
+      r.cond === "" ? (s.cond === "" ? "" : `WHERE 1=1${s.cond}`) : `${r.cond}${s.cond}`;
     return (
       db
-        .prepare(`SELECT COALESCE(SUM(${col}), 0) AS s FROM ${table} ${r.cond}`)
-        .get(...r.params) as {
+        .prepare(`SELECT COALESCE(SUM(${col}), 0) AS s FROM ${table} ${where}`)
+        .get(...r.params, ...s.params) as {
         s: number;
       }
     ).s;
   };
   const rs = range("created_at");
+  const salesScope =
+    staffUserId != null
+      ? { cond: ` AND sales.staff_user_id = ?`, params: [staffUserId] as unknown[] }
+      : { cond: "", params: [] as unknown[] };
+  const salesWhere =
+    rs.cond === ""
+      ? salesScope.cond === ""
+        ? ""
+        : `WHERE 1=1${salesScope.cond}`
+      : `${rs.cond}${salesScope.cond}`;
+  const salesParams = [...rs.params, ...salesScope.params];
   const ops =
-    (db.prepare(`SELECT COUNT(*) AS c FROM sales ${rs.cond}`).get(...rs.params) as { c: number })
-      .c +
-    count("stock_intakes") +
-    count("sale_payments") +
-    count("supplier_payments") +
-    count("stock_movements") +
-    count("audit_log");
-  const payIn = sum("sale_payments", "amount_minor");
+    (
+      db.prepare(`SELECT COUNT(*) AS c FROM sales ${salesWhere}`).get(...salesParams) as {
+        c: number;
+      }
+    ).c +
+    count("stock_intakes", "created_at", "stock_intakes") +
+    count("sale_payments", "created_at", "sale_payments") +
+    count("supplier_payments", "created_at", "supplier_payments") +
+    count("stock_movements", "created_at", "stock_movements") +
+    (staffUserId == null
+      ? count("audit_log")
+      : (
+          db
+            .prepare(`SELECT COUNT(*) AS c FROM audit_log WHERE actor_user_id = ?`)
+            .get(staffUserId) as { c: number }
+        ).c);
+  const payIn = sum("sale_payments", "amount_minor", "created_at", "sale_payments");
   // Cohérence finance (dashboard/rapports) : les ventes ANNULÉES ne sont
   // plus du chiffre d'affaires — même grain `is_cancelled = 0` partout.
   const salesRange = range("created_at");
-  const validSales =
+  const baseValid =
     salesRange.cond === "" ? "WHERE is_cancelled = 0" : `${salesRange.cond} AND is_cancelled = 0`;
+  const validSales = staffUserId == null ? baseValid : `${baseValid} AND sales.staff_user_id = ?`;
+  const validParams = staffUserId == null ? salesRange.params : [...salesRange.params, staffUserId];
   return {
     totalOperations: ops,
     salesCount: (
-      db.prepare(`SELECT COUNT(*) AS c FROM sales ${validSales}`).get(...salesRange.params) as {
+      db.prepare(`SELECT COUNT(*) AS c FROM sales ${validSales}`).get(...validParams) as {
         c: number;
       }
     ).c,
     salesAmountMinor: (
       db
         .prepare(`SELECT COALESCE(SUM(total_minor), 0) AS s FROM sales ${validSales}`)
-        .get(...salesRange.params) as { s: number }
+        .get(...validParams) as { s: number }
     ).s,
-    purchasesCount: count("stock_intakes"),
-    purchasesAmountMinor: sum("stock_intakes", "total_minor"),
-    paymentsAmountMinor: payIn + sum("supplier_payments", "amount_minor"),
+    purchasesCount: count("stock_intakes", "created_at", "stock_intakes"),
+    purchasesAmountMinor: sum("stock_intakes", "total_minor", "created_at", "stock_intakes"),
+    paymentsAmountMinor:
+      payIn + sum("supplier_payments", "amount_minor", "created_at", "supplier_payments"),
   };
 }
 
@@ -184,7 +229,11 @@ const paymentStatusFr = (s: unknown): string =>
 const methodFr = (m: unknown): string =>
   typeof m === "string" && m !== "" ? paymentMethodLabel(m) || "—" : "—";
 
-export function getHistoryDetail(kind: HistoryKind, id: number): HistoryDetail {
+export function getHistoryDetail(
+  kind: HistoryKind,
+  id: number,
+  staffUserId: number | null = null,
+): HistoryDetail {
   const db = getDb();
   const base = {
     kind,
@@ -195,7 +244,8 @@ export function getHistoryDetail(kind: HistoryKind, id: number): HistoryDetail {
     ticketSaleId: null as number | null,
   };
   if (kind === "sale") {
-    const d = getSaleDetail(id) as { sale: Row; items: Row[]; payments: Row[] };
+    // R2 (0046) : propriété vérifiée dans getSaleDetail (refus si autre auteur).
+    const d = getSaleDetail(id, staffUserId) as { sale: Row; items: Row[]; payments: Row[] };
     const sale = d.sale;
     const cust =
       sale["customer_id"] != null
@@ -229,6 +279,10 @@ export function getHistoryDetail(kind: HistoryKind, id: number): HistoryDetail {
       | Row
       | undefined;
     if (!intake) throw new Error("Achat introuvable.");
+    // R2 (0046) : un utilisateur ne rouvre que ses achats.
+    if (staffUserId != null && intake["staff_user_id"] !== staffUserId) {
+      throw new Error("Action non autorisée pour cet utilisateur.");
+    }
     const sup =
       intake["supplier_id"] != null
         ? (db.prepare(`SELECT name FROM suppliers WHERE id = ?`).get(intake["supplier_id"]) as
@@ -262,6 +316,10 @@ export function getHistoryDetail(kind: HistoryKind, id: number): HistoryDetail {
     const table = kind === "payment_in" ? "sale_payments" : "supplier_payments";
     const pay = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(id) as Row | undefined;
     if (!pay) throw new Error("Paiement introuvable.");
+    // R2 (0046) : un utilisateur ne rouvre que ses paiements.
+    if (staffUserId != null && pay["staff_user_id"] !== staffUserId) {
+      throw new Error("Action non autorisée pour cet utilisateur.");
+    }
     if (kind === "payment_in") {
       const cust =
         pay["customer_id"] != null
@@ -322,6 +380,10 @@ export function getHistoryDetail(kind: HistoryKind, id: number): HistoryDetail {
   ) {
     const m = db.prepare(`SELECT * FROM stock_movements WHERE id = ?`).get(id) as Row | undefined;
     if (!m) throw new Error("Mouvement introuvable.");
+    // R2 (0046) : un utilisateur ne rouvre que ses mouvements.
+    if (staffUserId != null && m["staff_user_id"] !== staffUserId) {
+      throw new Error("Action non autorisée pour cet utilisateur.");
+    }
     const prod = db
       .prepare(`SELECT name, unit_code FROM products WHERE id = ?`)
       .get(m["product_id"]) as { name: string; unit_code: string } | undefined;

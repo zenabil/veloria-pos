@@ -115,6 +115,7 @@ export function ClientFormDialog({
       } else {
         await api.customerUpdate({
           id: customer.id,
+          operationId,
           firstName,
           lastName,
           phone: phone.trim() === "" ? null : phone.trim(),
@@ -124,6 +125,7 @@ export function ClientFormDialog({
           settlementDay: settle,
           notes: notes.trim() === "" ? null : notes.trim(),
         });
+        setOperationId(newOperationId());
         notify("Fiche client enregistrée.", "ok");
       }
       onSaved();

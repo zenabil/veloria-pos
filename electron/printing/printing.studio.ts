@@ -8,6 +8,7 @@ import { IPC_CHANNELS } from "../ipc/channels";
 import { getTemplate } from "../ipc/handlers/templates.repo";
 import { templatePreviewSchema, templateTestPrintSchema } from "../ipc/validators";
 import { guardPrint, isValidationError, unavailable, validationError } from "./printing.guards";
+import { enforceRawChannelGates } from "../ipc/raw-guards";
 import { assertConfiguredPrinterAvailable } from "./printing.printer-settings";
 import {
   activeTemplateSettings,
@@ -23,6 +24,9 @@ export function registerStudioIpc(getMainWindow: () => BrowserWindow | null): vo
   ipcMain.handle(IPC_CHANNELS["templates.preview"], (_e, raw: unknown) => {
     try {
       const input = templatePreviewSchema.parse(raw ?? {});
+      // R1 RADICAL : studio = permission settings (comme templates.save).
+      const staffDenied = enforceRawChannelGates(IPC_CHANNELS["templates.preview"], input);
+      if (staffDenied) return staffDenied;
       const settings = mergeTemplateMirror(input.docType, input.settings);
       const html = renderTemplateSample(
         input.docType,
@@ -42,6 +46,8 @@ export function registerStudioIpc(getMainWindow: () => BrowserWindow | null): vo
   ipcMain.handle(IPC_CHANNELS["templates.testPrint"], async (_e, raw: unknown) => {
     const denied = guardPrint("receipt-80mm", ["sales"]);
     if (denied) return denied;
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["templates.testPrint"], raw);
+    if (staffDenied) return staffDenied;
     if (!getMainWindow()) return unavailable("Fenêtre d'impression indisponible.");
     try {
       const input = templateTestPrintSchema.parse(raw ?? {});

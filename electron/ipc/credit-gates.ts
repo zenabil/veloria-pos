@@ -15,33 +15,12 @@ export function enforceCreditGates(
   // Crédit (reste > 0) �?' debt-management ; partiel (0 < payé < total) �?'
   // partial-payments. Comptant intégral : aucune feature requise.
   // EL-24: mêmes gates pour les workflows qui créent du crédit sans
-  // passer par sales.create (returns crédit, bread partiel, conversions).
+  // passer par sales.create (returns crédit, conversions).
   if (channel === IPC_CHANNELS["returns.create"]) {
     const rc = input as { creditMinor?: unknown };
     if (typeof rc.creditMinor === "number" && rc.creditMinor > 0) {
       requireLicensedFeature(deps, "debt-management");
     }
-  }
-  if (channel === IPC_CHANNELS["bread.create"]) {
-    const bc = input as {
-      quantity?: unknown;
-      unitPriceMinor?: unknown;
-      amountPaidMinor?: unknown;
-    };
-    if (
-      typeof bc.quantity === "number" &&
-      typeof bc.unitPriceMinor === "number" &&
-      typeof bc.amountPaidMinor === "number"
-    ) {
-      const total = Math.round(bc.unitPriceMinor * bc.quantity);
-      if (total > 0 && bc.amountPaidMinor < total) {
-        requireLicensedFeature(deps, "debt-management");
-        if (bc.amountPaidMinor > 0) requireLicensedFeature(deps, "partial-payments");
-      }
-    }
-  }
-  if (channel === IPC_CHANNELS["bread.transfer"]) {
-    requireLicensedFeature(deps, "debt-management");
   }
   // Conversions : le total vient de la DB (devis/commande) �?" on le charge
   // ici (lecture synchrone) pour gater avant toute mutation.
@@ -56,25 +35,6 @@ export function enforceCreditGates(
         if (ptotal != null && ptotal > 0 && cc.amountPaidMinor < ptotal) {
           requireLicensedFeature(deps, "debt-management");
           if (cc.amountPaidMinor > 0) requireLicensedFeature(deps, "partial-payments");
-        }
-      } catch (err) {
-        log("WARN", "ipc", "license.gate_best_effort", {
-          channel,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-    }
-  }
-  if (channel === IPC_CHANNELS["bread.convert"]) {
-    const bc2 = input as { id?: unknown };
-    if (typeof bc2.id === "number") {
-      try {
-        const brow = getDb()
-          .prepare(`SELECT total_minor, amount_paid_minor FROM bread_orders WHERE id = ?`)
-          .get(bc2.id) as { total_minor: number; amount_paid_minor: number } | undefined;
-        if (brow && brow.total_minor > brow.amount_paid_minor) {
-          requireLicensedFeature(deps, "debt-management");
-          if (brow.amount_paid_minor > 0) requireLicensedFeature(deps, "partial-payments");
         }
       } catch (err) {
         log("WARN", "ipc", "license.gate_best_effort", {

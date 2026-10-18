@@ -8,6 +8,7 @@ import { useCompany } from "@shared/company/use-company.ts";
 import { useAppSettings } from "@shared/settings/use-app-settings.ts";
 import { formatDzd, minorToInput } from "@domain/money/money.ts";
 import { formatDzdSafe } from "@shared/formatters/format.ts";
+import { DocumentPreviewModal } from "@shared/documents/DocumentPreviewModal.tsx";
 import { PaymentTicketModal, type PaymentTicketInput } from "@shared/documents/payment-preview.tsx";
 import { strictOrNeg } from "@shared/money/parse.ts";
 import { newOperationId } from "@domain/common/ids.ts";
@@ -65,9 +66,11 @@ export function DebtDetailsDrawer({
   const party = data.party;
   // Fiche entreprise : source unique partagée (ticket).
   const { record: companyRecord } = useCompany();
-  const [ticket, setTicket] = useState<{ htmlA4: string; payload: Record<string, unknown> } | null>(
-    null,
-  );
+  const [ticket, setTicket] = useState<{
+    htmlA4: string;
+    text80: string;
+    payload: Record<string, unknown>;
+  } | null>(null);
   const [busy, setBusy] = useState(false);
 
   const remaining =
@@ -118,8 +121,8 @@ export function DebtDetailsDrawer({
         customer,
         customerId,
       );
-      const pv = (await api.printPreview(payload)) as { htmlA4: string };
-      setTicket({ htmlA4: pv.htmlA4, payload });
+      const pv = (await api.printPreview(payload)) as { text80: string; htmlA4: string };
+      setTicket({ htmlA4: pv.htmlA4, text80: pv.text80, payload });
     } catch (e) {
       notify(frError(e, "Aperçu indisponible."), "err");
     } finally {
@@ -203,7 +206,8 @@ export function DebtDetailsDrawer({
           <InfoRow label="Type" value={debtTypeLabel(debtType)} />
           <InfoRow label={debtType === "customer" ? "Client" : "Fournisseur"} value={partyName} />
           <InfoRow label="Référence" value={ref} />
-          <InfoRow label="Poste" value="Caisse 01" />
+          {/* Rétiré : InfoRow « Poste » valait « Caisse 01 » CODÉ EN DUR —
+              donnée jamais sourcée (audit). À rebrancher sur la vente avant restitution. */}
           {settleDay != null ? (
             <InfoRow
               label="Règlement mensuel"
@@ -281,22 +285,28 @@ export function DebtDetailsDrawer({
       </Drawer>
 
       {ticket ? (
-        <Modal label="Ticket de vente" title="Ticket de vente" onClose={() => setTicket(null)} wide>
-          <iframe
-            sandbox=""
-            srcDoc={ticket.htmlA4}
-            title="Aperçu ticket"
-            className="h-[50vh] w-full rounded-xl border border-white/10 bg-white"
-          />
-          <div className="mt-3 flex gap-2">
-            <Button variant="secondary" onClick={() => void printTicket("80mm")} className="flex-1">
-              <Printer size={15} aria-hidden="true" /> Ticket 80mm
-            </Button>
-            <Button variant="secondary" onClick={() => void printTicket("A4")} className="flex-1">
-              <Printer size={15} aria-hidden="true" /> Facture A4
-            </Button>
-          </div>
-        </Modal>
+        <DocumentPreviewModal
+          label="Ticket de vente"
+          title="Ticket de vente"
+          htmlA4={ticket.htmlA4}
+          text80={ticket.text80}
+          a4TabLabel="Facture A4"
+          onClose={() => setTicket(null)}
+          actions={
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => void printTicket("80mm")}
+                className="flex-1"
+              >
+                <Printer size={15} aria-hidden="true" /> Ticket 80mm
+              </Button>
+              <Button variant="secondary" onClick={() => void printTicket("A4")} className="flex-1">
+                <Printer size={15} aria-hidden="true" /> Facture A4
+              </Button>
+            </div>
+          }
+        />
       ) : null}
     </>
   );
@@ -536,11 +546,18 @@ export function DebtDueDateDialog({
 }): React.JSX.Element {
   const [date, setDate] = useState(row.due_date ? row.due_date.slice(0, 10) : "");
   const [busy, setBusy] = useState(false);
+  // Idempotence : un UUID par dialogue, régénéré après succès (retry = no-op).
+  const [operationId, setOperationId] = useState<string>(() => newOperationId());
 
   async function save(clear: boolean): Promise<void> {
     setBusy(true);
     try {
-      await api.saleSetDueDate({ id: row.entity_id, dueDate: clear ? null : date });
+      await api.saleSetDueDate({
+        id: row.entity_id,
+        dueDate: clear ? null : date,
+        operationId,
+      });
+      setOperationId(newOperationId());
       notify(clear ? "Échéance retirée." : `Échéance fixée au ${date}.`, "ok");
       onSaved();
     } catch (e) {

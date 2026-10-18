@@ -6,6 +6,11 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { SellScreen } from "@features/sales/SellScreen.tsx";
 import { useLicense } from "@features/license/use-license.ts";
+import { useStaff } from "@features/staff/use-staff.ts";
+import { StaffGate } from "@features/staff/StaffGate.tsx";
+import { ChangeCodeCard } from "@features/staff/ChangeCodeCard.tsx";
+import { InitialCodeOnce } from "@features/staff/InitialCodeOnce.tsx";
+import { RecoveryCodeOnce } from "@features/staff/RecoveryCodeOnce.tsx";
 import { LICENSE_BLOCKING_STATES } from "@features/license/types.ts";
 import { ErrorBoundary } from "@shared/ui/error-boundary.tsx";
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
@@ -24,12 +29,11 @@ import {
 import type { ModuleId, PrintMode, Toast, ToastKind } from "./shell-types.ts";
 import { useVigilance } from "./use-vigilance.ts";
 import { useNotifications } from "./use-notifications.ts";
-import { useTheme } from "./use-theme.ts";
+import { useDensity, useTheme } from "@shared/ui/theme-density.ts";
 import { Sidebar } from "./Sidebar.tsx";
 import { TopBar } from "./TopBar.tsx";
 import {
   BridgeMissing,
-  HelpModal,
   LicenseBlockedScreen,
   NotificationsModal,
   RouteBlocked,
@@ -44,7 +48,11 @@ let toastSeq = 0;
 export function App(): React.JSX.Element {
   const [active, setActive] = useState<ModuleId>("sell");
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [helpOpen, setHelpOpen] = useState(false);
+  // Code de secours bootstrap : mémoire uniquement, affiché une fois.
+  const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
+  // R6 : code initial porté par le login quand c'est lui qui a créé le
+  // compte (course liste/login au premier démarrage).
+  const [initialCode, setInitialCode] = useState<string | null>(null);
   const [printMode, setPrintModeState] = useState<PrintMode>(initialPrintMode);
   const [collapsed, setCollapsed] = useState<boolean>(initialSidebarCollapsed);
   // Version SQLite réelle (santé main) — jamais codée en dur (ADR-038).
@@ -66,7 +74,10 @@ export function App(): React.JSX.Element {
     activeRef.current = active;
   }, [active]);
   const { vigilanceCount } = useVigilance();
-  const { theme, toggleTheme } = useTheme();
+  // Thème/densité appliqués au document ; les boutons vivent en Paramètres
+  // (rubrique Système → Affichage), plus dans le bandeau de caisse.
+  useTheme();
+  useDensity();
   // Recherche modules + F1 global → Caisse (la F1 caisse ouvre l'article libre).
   const [navQuery, setNavQuery] = useState("");
   useEffect(() => {
@@ -177,7 +188,14 @@ export function App(): React.JSX.Element {
   // les hooks, sinon le basculement false→true changerait le nombre de hooks
   // entre deux renders (crash React + white-screen, pas de ErrorBoundary).
   const current = MODULES.find((m) => m.id === active);
-  const { status: licenseStatus, hasPageAccess } = useLicense();
+  const { status: licenseStatus, hasPageAccess } = useLicense(notify);
+  const {
+    session: staffSession,
+    loading: staffLoading,
+    refresh: staffRefresh,
+    logout: staffLogout,
+    hasPermission: staffHasPermission,
+  } = useStaff(notify);
   const { notifOpen, setNotifOpen, notifLoading, notifItems, notifCount, openNotifications } =
     useNotifications(licenseStatus);
   const ActiveScreen = active === "sell" ? null : LAZY_SCREENS[active];
@@ -192,22 +210,101 @@ export function App(): React.JSX.Element {
       licenseStatus.state as (typeof LICENSE_BLOCKING_STATES)[number],
     );
   const licenseExpired = licenseStatus?.state === "EXPIRED";
-  // Garde de route (§10) : sidebar filtrée + accès direct bloqué.
-  // Enveloppes legacy sans pages : le main expose tout autorisé.
-  function moduleAllowed(id: ModuleId): boolean {
-    if (id === "license") return true;
-    if (!licenseStatus) return true;
-    if (licenseBlocked) return true;
-    const required = MODULE_PAGES[id];
-    return required.some((p) => hasPageAccess(p));
-  }
-  const visibleModules = MODULES.filter((m) => moduleAllowed(m.id));
-  const routeBlocked = !licenseBlocked && licenseStatus != null && !moduleAllowed(active);
   // Licence bloquante (build packagé sans activation valide) : écran
-  // d'activation plein écran, jamais les modules métier.
+  // d'activation plein écran, jamais les modules métier — avant la porte
+  // session (un poste non activé n'ouvre pas de session).
   if (licenseBlocked) {
     return <LicenseBlockedScreen notify={notify} />;
   }
+  // Session interne (0041) : choix de l'utilisateur à chaque ouverture.
+  // Rendu après tous les hooks (même règle que bridgeOk ci-dessus).
+  if (staffLoading) {
+    return (
+      <WindowChrome pageName="Veloria PoS">
+        <p className="py-10 text-center text-sm text-slate-500" role="status">
+          Chargement de la session…
+        </p>
+      </WindowChrome>
+    );
+  }
+  if (!staffSession) {
+    return (
+      <>
+        <StaffGate
+          notify={notify}
+          onLoggedIn={(u) => {
+            if (u.recoveryCode) setRecoveryCode(u.recoveryCode);
+            if (u.initialCode) setInitialCode(u.initialCode);
+            staffRefresh();
+          }}
+        />
+        <Toasts toasts={toasts} />
+      </>
+    );
+  }
+  if (staffSession.mustChangeCode) {
+    // R6 : le code initial porté par le login s'affiche UNE fois avant
+    // l'écran de changement (cas normal : déjà vu sur la porte).
+    if (initialCode) {
+      return <InitialCodeOnce code={initialCode} onAcknowledged={() => setInitialCode(null)} />;
+    }
+    return (
+      <WindowChrome pageName="Veloria PoS">
+        <div className="mx-auto w-full max-w-md p-6">
+          <ChangeCodeCard notify={notify} forced onChanged={() => staffRefresh()} />
+        </div>
+        <Toasts toasts={toasts} />
+      </WindowChrome>
+    );
+  }
+  // Secours venant d'être créé : affichage unique, jamais persisté.
+  if (recoveryCode) {
+    return <RecoveryCodeOnce code={recoveryCode} onAcknowledged={() => setRecoveryCode(null)} />;
+  }
+  // Garde de route (§10) : sidebar filtrée + accès direct bloqué.
+  // Enveloppes legacy sans pages : le main expose tout autorisé.
+  // Permissions équipe (0041, affichage uniquement — le main décide) :
+  // le gérant voit tout, l'utilisateur voit les modules accordés.
+  // Miroir de staff-gates.ts (ADR-087) : mêmes clés par module.
+  // R2 : tableau de bord / historique / rapports TOUJOURS visibles (données
+  // filtrées par auteur côté main, 0046) ; zakat / impression / paramètres /
+  // licence exigent `settings` (le main garde les mutations).
+  const STAFF_MODULE_PERMS: Partial<Record<ModuleId, string>> = {
+    sell: "sales",
+    stock: "stock",
+    debts: "debts",
+    expenses: "expenses",
+    returns: "returns",
+    settings: "settings",
+    products: "stock",
+    suppliers: "stock",
+    customers: "debts",
+    proformas: "sales",
+    templates: "settings",
+    zakat: "settings",
+    license: "settings",
+  };
+  function staffModuleAllowed(id: ModuleId): boolean {
+    if (!staffSession) return false;
+    if (staffSession.role === "manager") return true;
+    const key = STAFF_MODULE_PERMS[id];
+    // dashboard / history / reports : pas de clé = visibles (filtrés par auteur).
+    if (!key) return true;
+    return staffHasPermission(key);
+  }
+  function moduleAllowed(id: ModuleId): boolean {
+    if (!staffModuleAllowed(id)) return false;
+    if (!licenseStatus) return true;
+    if (licenseBlocked) return true;
+    const required = MODULE_PAGES[id];
+    // Licence : aucune page requise (toujours accessible si permission staff OK).
+    if (required.length === 0) return true;
+    return required.some((p) => hasPageAccess(p));
+  }
+  const visibleModules = MODULES.filter((m) => moduleAllowed(m.id));
+  // Licence bloquante déjà court-circuitée plus haut (écran plein écran
+  // retourné avant cette ligne) : inutile de re-tester `licenseBlocked`.
+  const routeBlocked = licenseStatus != null && !moduleAllowed(active);
   return (
     <WindowChrome pageName={current?.label ?? "Veloria PoS"}>
       <div className="flex min-h-0 flex-1 bg-[#051424] text-[#d4e4fa]">
@@ -222,6 +319,25 @@ export function App(): React.JSX.Element {
           onToggle={toggleSidebar}
         />
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/[0.06] bg-[#0a0f1c] px-4 py-1.5 text-xs text-slate-300">
+            <p aria-live="polite">
+              Session : <span className="font-bold text-white">{staffSession.displayName}</span>
+              <span className="text-slate-500">
+                {" "}
+                ({staffSession.role === "manager" ? "Gérant" : "Utilisateur"})
+              </span>
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setRecoveryCode(null);
+                void staffLogout();
+              }}
+              className="min-h-[44px] rounded-lg bg-white/[0.08] px-3 py-1 font-bold text-slate-200"
+            >
+              Changer d&apos;utilisateur
+            </button>
+          </div>
           <div className="shrink-0 border-b border-white/[0.06] bg-[#0a0f1c]">
             <TopBar
               licenseStatus={licenseStatus}
@@ -231,12 +347,9 @@ export function App(): React.JSX.Element {
               currentHint={current?.hint}
               notifCount={notifCount}
               licenseExpired={licenseExpired}
-              onHelp={() => setHelpOpen(true)}
               onOpenNotifications={() => void openNotifications()}
               onPrintMode={setPrintMode}
               onGoLicense={() => setActive("license")}
-              theme={theme}
-              onToggleTheme={toggleTheme}
             />
           </div>
           <main className="min-h-0 flex-1 overflow-auto p-6" aria-live="polite">
@@ -272,14 +385,6 @@ export function App(): React.JSX.Element {
             ))}
           </footer>
         </div>
-        {/* Aide Stitch [?] : raccourcis réels du module actif + généraux. */}
-        {helpOpen ? (
-          <HelpModal
-            active={active}
-            currentLabel={current?.label}
-            onClose={() => setHelpOpen(false)}
-          />
-        ) : null}
         {/* Centre de notifications : signaux réels, jamais de stub. */}
         {notifOpen ? (
           <NotificationsModal

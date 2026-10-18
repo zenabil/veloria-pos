@@ -495,6 +495,7 @@ export function convertProformaToSaleAtomic(args: {
       uuid: randomUUID(),
       invoiceNumber: "",
       customerId: (pro["customer_id"] as number | null) ?? null,
+      limitOverrideApproved: false,
       subtotalMinor: subtotal,
       discountType: discount > 0 ? "amount" : "none",
       discountValueMinor: discount,

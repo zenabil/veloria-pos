@@ -91,7 +91,10 @@ export function StockIntakeDialog({
         pageSize: 8,
       })) as { rows: { id: number; name: string; code: string | null }[] };
       setSupplierResults(res.rows.map((s) => ({ id: s.id, name: s.name, code: s.code ?? null })));
-    } catch {
+    } catch (e) {
+      // Recherche d'arrière-plan (frappe au clavier) : journal seul, sans
+      // toast (anti-spam) — la liste vide signifie « pas de réponse serveur ».
+      console.error("[Veloria] fournisseurs : recherche illisible", e);
       setSupplierResults([]);
     }
   }
@@ -148,7 +151,9 @@ export function StockIntakeDialog({
         rows: { id: number; name: string; unit_code: string; quantity: number }[];
       };
       setLines((prev) => prev.map((l) => (l.key === key ? { ...l, results: res.rows } : l)));
-    } catch {
+    } catch (e) {
+      // Recherche d'arrière-plan : journal seul, sans toast (anti-spam).
+      console.error("[Veloria] réception : produits illisibles", e);
       setLines((prev) => prev.map((l) => (l.key === key ? { ...l, results: [] } : l)));
     }
   }
@@ -313,6 +318,8 @@ export function StockIntakeDialog({
                     type="button"
                     variant="secondary"
                     onClick={() => void searchSuppliers(supplierQ)}
+                    aria-label="Rechercher un fournisseur"
+                    title="Rechercher un fournisseur"
                   >
                     <Search size={15} aria-hidden="true" />
                   </Button>

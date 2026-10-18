@@ -18,7 +18,9 @@ import { newOperationId } from "@domain/common/ids.ts";
 import { saveAppSettings, useAppSettings } from "@shared/settings/use-app-settings.ts";
 import { confirmDeletesEnabled, setConfirmDeletesEnabled } from "@shared/ui/confirm.ts";
 import { SaveBar, Section, SwitchRow, useBusyFlag } from "./bits.tsx";
+import { PrinterCard } from "@shared/printer/PrinterCard.tsx";
 import { InfoRow, type Notify } from "@shared/ui/primitives.tsx";
+import { useDensity, useTheme } from "@shared/ui/theme-density.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import { licenseStateLabel } from "@features/license/types.ts";
 import {
@@ -202,158 +204,8 @@ export function InvoiceSection({ notify }: { notify: Notify }): React.JSX.Elemen
 // ---------------------------------------------------------------------------
 
 export function PrintingSection({ notify }: { notify: Notify }): React.JSX.Element {
-  const { value } = useAppSettings<{ silent: boolean; thermalWidth?: string }>("printing");
-  const [silent, setSilent] = useState(true);
-  const [thermalWidth, setThermalWidth] = useState<"58mm" | "80mm">("80mm");
-  const [printers, setPrinters] = useState<{ name: string; isDefault: boolean }[]>([]);
-  const [selected, setSelected] = useState("");
-  const { busy, run } = useBusyFlag();
-
-  useEffect(() => {
-    if (value) {
-      setSilent(value.silent);
-      if (value.thermalWidth === "58mm" || value.thermalWidth === "80mm") {
-        setThermalWidth(value.thermalWidth);
-      }
-    }
-  }, [value]);
-
-  useEffect(() => {
-    api
-      .printersList()
-      .then((r) => {
-        const d = r as {
-          printers: { name: string; isDefault: boolean }[];
-          selected: string | null;
-        };
-        setPrinters(d.printers);
-        setSelected(d.selected ?? "");
-      })
-      .catch(() => undefined);
-  }, []);
-
-  function saveSilent(v: boolean): void {
-    setSilent(v);
-    void run(async () => {
-      try {
-        await saveAppSettings("printing", { silent: v, thermalWidth });
-        notify("Impression enregistrée.", "ok");
-      } catch (e) {
-        notify(frError(e, "Enregistrement impossible."), "err");
-      }
-    });
-  }
-
-  function saveThermalWidth(v: "58mm" | "80mm"): void {
-    setThermalWidth(v);
-    void run(async () => {
-      try {
-        await saveAppSettings("printing", { silent, thermalWidth: v });
-        notify("Largeur thermique enregistrée.", "ok");
-      } catch (e) {
-        notify(frError(e, "Enregistrement impossible."), "err");
-      }
-    });
-  }
-
-  function savePrinter(name: string): void {
-    setSelected(name);
-    void run(async () => {
-      try {
-        await api.printerSave({ name: name === "" ? null : name, operationId: newOperationId() });
-        notify("Imprimante enregistrée.", "ok");
-      } catch (e) {
-        notify(frError(e, "Enregistrement impossible."), "err");
-      }
-    });
-  }
-
-  function test(): void {
-    void run(async () => {
-      try {
-        await api.printerTest();
-        notify("Page de test envoyée.", "ok");
-      } catch (e) {
-        notify(frError(e, "Impression impossible."), "err");
-      }
-    });
-  }
-
-  /** Stitch : Tester Connexions Matériel (sans gaspiller de papier). */
-  function testHardware(): void {
-    void run(async () => {
-      const parts: string[] = [];
-      try {
-        const r = (await api.printersList()) as {
-          printers: { name: string; isDefault: boolean }[];
-        };
-        parts.push(`Imprimantes détectées : ${r.printers.length}`);
-      } catch {
-        parts.push("Imprimantes : échec de détection");
-      }
-      try {
-        const h = (await api.dbIntegrity()) as { integrity?: string };
-        parts.push(`Base : ${h.integrity === "ok" ? "saine" : "à contrôler"}`);
-      } catch {
-        parts.push("Base : contrôle impossible");
-      }
-      try {
-        const s = (await api.backupStatus()) as { count?: number; lastAt?: string | null };
-        parts.push(`Sauvegardes : ${s.count ?? 0} (dernière ${s.lastAt ?? "—"})`);
-      } catch {
-        parts.push("Sauvegardes : état inconnu");
-      }
-      notify(`Matériel — ${parts.join(" · ")}.`, "ok");
-    });
-  }
-
-  return (
-    <Section
-      title="Imprimante Thermique"
-      hint="Imprimante système + tiroir-caisse + comportement (58/80mm)."
-    >
-      <Field label="Imprimante">
-        <Select
-          value={selected}
-          onChange={(e) => savePrinter(e.target.value)}
-          aria-label="Imprimante"
-        >
-          <option value="">Défaut système</option>
-          {printers.map((p) => (
-            <option key={p.name} value={p.name}>
-              {p.name}
-              {p.isDefault ? " (défaut)" : ""}
-            </option>
-          ))}
-        </Select>
-      </Field>
-      <Field label="Largeur thermique" hint="Format des tickets (58 ou 80mm).">
-        <Select
-          value={thermalWidth}
-          onChange={(e) => saveThermalWidth(e.target.value === "58mm" ? "58mm" : "80mm")}
-          aria-label="Largeur thermique"
-        >
-          <option value="58mm">58mm</option>
-          <option value="80mm">80mm</option>
-        </Select>
-      </Field>
-      <SwitchRow
-        label="Impression silencieuse"
-        hint="Coupé = dialogue système à chaque fois."
-        checked={silent}
-        onChange={saveSilent}
-        ariaLabel="Impression silencieuse"
-      />
-      <p className="text-xs text-slate-500">
-        Tiroir-caisse RJ11 : impulsion via l&apos;imprimante (pilote système ESC/POS) — coupe papier
-        et tiroir non pilotés directement (impression HTML système).
-      </p>
-      <div className="flex flex-wrap gap-2">
-        <SaveBar busy={busy} onSave={test} label="Imprimer une page de test" />
-        <SaveBar busy={busy} onSave={testHardware} label="Tester les connexions matériel" />
-      </div>
-    </Section>
-  );
+  // Source unique : la carte partagée (même écriture que le Studio).
+  return <PrinterCard notify={notify} showSilent showHardwareTest showTestPage />;
 }
 
 // ---------------------------------------------------------------------------
@@ -880,7 +732,9 @@ export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Ele
           label="Clé anon (QR V2)"
           value={view?.hasAnonKey ? "Enregistrée (vide = conserver)" : "Absente — QR V2 impossible"}
         />
-        {view?.lastError ? <InfoRow label="Dernière erreur" value={view.lastError} /> : null}
+        {view?.lastError ? (
+          <InfoRow label="Dernière erreur" value={frError(view.lastError, "Poussée impossible.")} />
+        ) : null}
       </dl>
       <SwitchRow
         label="Synchronisation activée"
@@ -954,6 +808,7 @@ export function DatabaseSection({ notify }: { notify: Notify }): React.JSX.Eleme
     foreignKeyViolations: unknown[];
     schemaVersion: number;
   } | null>(null);
+  const [sqliteVersion, setSqliteVersion] = useState<string | null>(null);
   const [size, setSize] = useState<number | null>(null);
   const { busy, run } = useBusyFlag();
   const confirmAsync = useConfirm();
@@ -973,6 +828,13 @@ export function DatabaseSection({ notify }: { notify: Notify }): React.JSX.Eleme
           foreignKeyViolations: [],
           schemaVersion: diag.schemaVersion,
         });
+      })
+      .catch(() => undefined);
+    api
+      .dbHealth()
+      .then((h) => {
+        const v = (h as { sqliteVersion?: unknown }).sqliteVersion;
+        if (typeof v === "string") setSqliteVersion(v);
       })
       .catch(() => undefined);
   }
@@ -1057,6 +919,7 @@ export function DatabaseSection({ notify }: { notify: Notify }): React.JSX.Eleme
       <dl className="space-y-2.5">
         <InfoRow label="Emplacement" value={location?.path ?? "—"} />
         <InfoRow label="Taille" value={size == null ? "—" : formatBytes(size)} />
+        <InfoRow label="Moteur" value={sqliteVersion ? `SQLite ${sqliteVersion} · WAL` : "—"} />
         <InfoRow label="Schéma" value={health ? `v${health.schemaVersion}` : "—"} />
         <InfoRow
           label="Santé"
@@ -1278,6 +1141,34 @@ export function ZakatSettingsSection({ notify }: { notify: Notify }): React.JSX.
         </Field>
       </div>
       <SaveBar busy={busy} onSave={save} label="Enregistrer la zakat" />
+    </Section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Affichage : préférences du poste (ex-bandeau de caisse — réglage posé,
+// jamais de bascule accidentelle en encaissement).
+// ---------------------------------------------------------------------------
+
+export function DisplaySection(): React.JSX.Element {
+  const { theme, toggleTheme } = useTheme();
+  const { density, toggleDensity } = useDensity();
+  return (
+    <Section title="Affichage" hint="Préférences de ce poste (enregistrées localement).">
+      <SwitchRow
+        label="Mode clair"
+        hint="Sombre par défaut (repos visuel en caisse)."
+        checked={theme === "light"}
+        onChange={() => toggleTheme()}
+        ariaLabel="Basculer en mode clair ou sombre"
+      />
+      <SwitchRow
+        label="Affichage compact"
+        hint="Resserre les tableaux (confortable par défaut)."
+        checked={density === "compact"}
+        onChange={() => toggleDensity()}
+        ariaLabel="Basculer en affichage compact ou confortable"
+      />
     </Section>
   );
 }

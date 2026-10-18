@@ -6,8 +6,18 @@ import { randomUUID } from "node:crypto";
 import * as Sales from "./handlers/sales.repo";
 import * as Carts from "./handlers/carts.repo";
 import { getDb } from "../database/sqlite.service";
+import { getCurrentStaffUser } from "./handlers/staff-session";
+import { getStaffRole } from "./handlers/staff.repo";
 import { enqueueCustomerRefresh } from "../sync/sync.service";
 import { handle } from "./handle";
+import { priceLine } from "./money-guard";
+
+/** Périmètre auteur 0046 : null = gérant (tout), sinon id de l'utilisateur. */
+function staffScope(): number | null {
+  const id = getCurrentStaffUser();
+  if (id == null) return null;
+  return getStaffRole(id) === "manager" ? null : id;
+}
 
 export function registerSalesChannels(): void {
   // sales
@@ -17,30 +27,15 @@ export function registerSalesChannels(): void {
     // P0-7 : la remise vit dans les lignes �?" subtotal aux prix d'ORIGINE,
     // remise = Σ(original �^' final) �- qty (même règle que sale-rules).
     const now = new Date().toISOString();
+    // R7 RADICAL : arithmétique entière via money-guard (source unique main,
+    // parité prouvée avec le domaine — plus de littéraux 1e9/1e11 ici).
     const priced = input.lines.map((l) => {
-      // Garde-fou arithmétique entière (miroir du domaine money.ts, sans import
-      // croisé main/renderer) : prix borné, quantité bornée, total plafonné.
-      if (
-        !Number.isSafeInteger(l.unitPriceMinor) ||
-        l.unitPriceMinor < 0 ||
-        l.unitPriceMinor > 1_000_000_000
-      )
-        throw new Error("Prix unitaire invalide.");
-      if (
-        !Number.isSafeInteger(l.originalUnitPriceMinor) ||
-        l.originalUnitPriceMinor < 0 ||
-        l.originalUnitPriceMinor > 1_000_000_000
-      )
-        throw new Error("Prix d'origine invalide.");
-      if (!Number.isFinite(l.quantity) || l.quantity <= 0 || l.quantity > 1_000_000)
-        throw new Error("Quantité invalide.");
-      const charged = Math.round(l.unitPriceMinor * l.quantity);
-      const original = Math.round(l.originalUnitPriceMinor * l.quantity);
-      if (!Number.isSafeInteger(charged) || charged < 0 || charged > 100_000_000_000)
-        throw new Error("Montant de ligne invalide.");
-      if (!Number.isSafeInteger(original) || original < 0 || original > 100_000_000_000)
-        throw new Error("Montant de ligne invalide.");
-      return { line: l, charged, original, discount: original - charged };
+      const p = priceLine({
+        unitPriceMinor: l.unitPriceMinor,
+        originalUnitPriceMinor: l.originalUnitPriceMinor,
+        quantity: l.quantity,
+      });
+      return { line: l, ...p };
     });
     const subtotal = priced.reduce((a, p) => a + p.original, 0);
     const discountAmount = priced.reduce((a, p) => a + p.discount, 0);
@@ -72,6 +67,7 @@ export function registerSalesChannels(): void {
       uuid: randomUUID(),
       invoiceNumber: "",
       customerId: input.customerId ?? null,
+      limitOverrideApproved: input.limitOverrideApproved,
       subtotalMinor: subtotal,
       // P0-7 : vente sans remise globale �?" la remise est portée par les lignes
       // (discount_amount_minor = Σ remises de lignes, colonnes conservées).
@@ -97,6 +93,8 @@ export function registerSalesChannels(): void {
       lineTotals: chargedTotals,
       now,
       allowNegativeStock: settings.allowNegativeStock,
+      // R2 (0046) : la vente porte son auteur (filtrage tableau/historique/rapports).
+      staffUserId: getCurrentStaffUser(),
     });
     // Miroir APK (best-effort) : la vente réussie rafraîchit la file du client
     // (jamais d'exception vers la caisse �?" loggé et ignoré dans le service).
@@ -106,13 +104,15 @@ export function registerSalesChannels(): void {
   handle(
     IPC_CHANNELS["sales.history"],
     V.paginationSchema.extend({ query: V.productSearchSchema.shape.query }),
-    (input) => Sales.listSalesHistory(input.page, input.pageSize, input.query),
+    (input) => Sales.listSalesHistory(input.page, input.pageSize, input.query, staffScope()),
   );
   handle(IPC_CHANNELS["sales.cancel"], V.idempotentIdSchema, (input) => {
     Sales.cancelSaleAtomic(input.id, new Date().toISOString(), input.operationId);
     return { cancelled: true };
   });
-  handle(IPC_CHANNELS["sales.get"], V.idSchema, (input) => Sales.getSaleDetail(input.id));
+  handle(IPC_CHANNELS["sales.get"], V.idSchema, (input) =>
+    Sales.getSaleDetail(input.id, staffScope()),
+  );
   handle(IPC_CHANNELS["sales.setDueDate"], V.saleDueDateSchema, (input) => {
     Sales.updateSaleDueDate(
       input.id,

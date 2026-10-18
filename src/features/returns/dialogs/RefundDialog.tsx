@@ -6,7 +6,7 @@ import { api } from "@shared/types/ipc-client.ts";
 
 import { formatDzd, minorToInput } from "@domain/money/money.ts";
 import { strictOrNeg } from "@shared/money/parse.ts";
-import { newOperationId } from "@domain/common/ids.ts";
+import { useOperationId } from "@shared/ui/use-operation-id.ts";
 
 import { Button, Field, Modal, Select, TextInput } from "@shared/ui/primitives.tsx";
 import { returnNumber, type ReturnRow } from "../types.ts";
@@ -34,6 +34,8 @@ export function ReturnRefundDialog({
   const [amountText, setAmountText] = useState(minorToInput(remaining));
   const [method, setMethod] = useState<"cash" | "cheque" | "transfer">("cash");
   const [busy, setBusy] = useState(false);
+  // R8 : UUID figé à l'ouverture — retry / double-clic = un seul règlement.
+  const { operationId, regen } = useOperationId();
   const amount = strictOrNeg(amountText, "Montant");
   const valid = Number.isInteger(amount) && amount > 0 && amount <= remaining;
 
@@ -49,8 +51,10 @@ export function ReturnRefundDialog({
         id: row.entity_id,
         amountMinor: amount,
         method,
-        operationId: newOperationId(),
+        operationId,
       });
+      // Nouveau paiement distinct possible plus tard : UUID régénéré.
+      regen();
       notify(`Règlement ${formatDzd(amount)} enregistré.`, "ok");
       // P5 : mouvement d'argent = caisse.
       playSound("cash");

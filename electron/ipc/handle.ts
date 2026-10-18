@@ -19,6 +19,22 @@ import {
 } from "./license-gates";
 import { ok, toUserMessage } from "./ipc-errors";
 import { enforceCreditGates } from "./credit-gates";
+import { enforceStaffGates } from "./staff-gates";
+import { getCurrentStaffUser, touchStaffSession } from "./handlers/staff-session";
+import { mustChangeCode } from "./handlers/staff.repo";
+import { IPC_CHANNELS } from "./channels";
+
+/**
+ * Canaux autorisés malgré un code à changer (0041 must_change_code = 1) :
+ * le changement lui-même, la lecture de session et la sortie. Toute autre
+ * action (y compris via IPC direct, sans passer par App.tsx) est refusée
+ * jusqu'au changement — verrou main, pas seulement visuel.
+ */
+const MUST_CHANGE_ALLOWLIST = new Set<string>([
+  IPC_CHANNELS["staff.changeCode"],
+  IPC_CHANNELS["staff.session"],
+  IPC_CHANNELS["staff.logout"],
+]);
 
 export function handle<TInput>(
   channel: string,
@@ -40,7 +56,7 @@ export function handle<TInput>(
         requireLicensedMutation(deps);
       }
       // Capabilities : pages d'abord (routage/filtrage), puis features.
-      // Au moins une page de la liste suffit (ex. breadOrders OU pain).
+      // Au moins une page de la liste suffit (ex. templates = settings OU invoices).
       const pages = PAGE_GATED_CHANNELS[channel];
       if (pages) {
         let allowed = false;
@@ -76,6 +92,14 @@ export function handle<TInput>(
         }
       }
       enforceCreditGates(channel, input, deps);
+      enforceStaffGates(channel, input);
+      // R2 RADICAL : session expirante (30 min d'inactivité) + verrou
+      // must_change_code côté main (l'UI seule ne suffit pas).
+      touchStaffSession();
+      const sessionId = getCurrentStaffUser();
+      if (sessionId != null && !MUST_CHANGE_ALLOWLIST.has(channel) && mustChangeCode(sessionId)) {
+        throw new Error("Veuillez d'abord changer votre code d'accès.");
+      }
       const data = await fn(input);
       return ok(data);
     } catch (err) {

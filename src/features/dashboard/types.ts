@@ -58,7 +58,6 @@ export interface DashboardSummary {
       expense_date: string;
     }[];
   };
-  bread: { total: number; pending: number; ready: number; delivered: number };
   alerts: { integrity: string; lastBackup: string | null };
 }
 

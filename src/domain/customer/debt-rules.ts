@@ -61,9 +61,17 @@ export interface CreditSaleInput {
   /** `customers.credit_allowed = 1` (opt-in). Ignoré si aucun reste à payer. */
   creditAllowed: boolean;
   remainingMinor: number;
+  /** Solde actuel du client (centimes). Si absent → contrôle plafond ignoré (compat). */
+  outstandingMinor?: number | null;
+  /** Plafond du client (centimes). 0/absent = sans plafond explicite. */
+  creditLimitMinor?: number | null;
+  /** Dépassement validé par le vendeur (case à cocher caisse). */
+  limitOverrideApproved?: boolean;
 }
 
-/** Vente à crédit réservée aux clients autorisés (comptant libre pour tous). */
+/** Vente à crédit réservée aux clients autorisés (comptant libre pour tous).
+ * + Plafond : solde + reste > plafond (si plafond > 0) = refus,
+ * sauf `limitOverrideApproved` (accord vendeur explicite, tracé en audit). */
 export function assertCreditSaleAllowed(input: CreditSaleInput): void {
   try {
     assertSafeTotal(input.remainingMinor, "Reste à payer invalide");
@@ -81,6 +89,45 @@ export function assertCreditSaleAllowed(input: CreditSaleInput): void {
     throw new DomainError(
       "SALE_ERROR",
       "Vente à crédit refusée : ce client n'est pas autorisé au crédit.",
+    );
+  }
+  assertCreditLimitNotExceeded({
+    outstandingMinor: input.outstandingMinor ?? null,
+    creditLimitMinor: input.creditLimitMinor ?? null,
+    remainingMinor: input.remainingMinor,
+    limitOverrideApproved: input.limitOverrideApproved ?? false,
+  });
+}
+
+export interface CreditLimitInput {
+  outstandingMinor?: number | null;
+  creditLimitMinor?: number | null;
+  remainingMinor: number;
+  limitOverrideApproved?: boolean;
+}
+
+/** Plafond : solde + reste > plafond (> 0) = refus sauf accord vendeur. */
+export function assertCreditLimitNotExceeded(input: CreditLimitInput): void {
+  const outstanding = input.outstandingMinor;
+  const limit = input.creditLimitMinor;
+  if (outstanding == null || limit == null) return;
+  if (!Number.isSafeInteger(outstanding) || outstanding < 0) return;
+  if (!Number.isSafeInteger(limit) || limit < 0) {
+    throw new DomainError("CUSTOMER_ERROR", "Plafond de crédit invalide.");
+  }
+  if (limit === 0) return;
+  if (input.limitOverrideApproved === true) return;
+  let projected = 0;
+  try {
+    assertSafeTotal(outstanding + input.remainingMinor, "Solde projeté invalide");
+    projected = outstanding + input.remainingMinor;
+  } catch {
+    throw new DomainError("SALE_ERROR", "Solde projeté invalide.");
+  }
+  if (projected > limit) {
+    throw new DomainError(
+      "SALE_ERROR",
+      "Plafond de crédit dépassé : vente à crédit refusée (solde + reste > plafond). Accord vendeur requis.",
     );
   }
 }

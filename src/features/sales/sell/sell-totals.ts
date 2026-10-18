@@ -43,30 +43,76 @@ export function computeChangeMinor(
     : 0;
 }
 
-/** Vente à crédit réservée aux clients autorisés (règle appliquée aussi côté main). */
+/** Vente à crédit réservée aux clients autorisés + plafond bloquant (règle appliquée aussi côté main).
+ * `opts` : solde + plafond relus (null = inconnus → pas de contrôle plafond côté UI,
+ * le main tranche). Dépassement = solde + reste > plafond (> 0), sauf accord vendeur. */
 export function creditBlockState(
   payOpen: boolean,
   totals: { remainingMinor: number } | null,
   customerId: number | null,
   customerCredit: boolean | null,
-): { blocked: boolean; message: string } {
-  const blocked =
+  opts?: {
+    outstandingMinor?: number | null;
+    creditLimitMinor?: number | null;
+    limitOverrideApproved?: boolean;
+  },
+): { blocked: boolean; message: string; limitExceeded: boolean; projectedMinor: number | null } {
+  const remaining = totals?.remainingMinor ?? 0;
+  const outstanding = opts?.outstandingMinor;
+  const limit = opts?.creditLimitMinor;
+  const override = opts?.limitOverrideApproved ?? false;
+  const projected =
+    payOpen && totals != null && outstanding != null ? outstanding + remaining : null;
+  const limitExceeded =
+    payOpen &&
+    totals != null &&
+    remaining > 0 &&
+    limit != null &&
+    limit > 0 &&
+    outstanding != null &&
+    projected != null &&
+    projected > limit;
+  if (
     payOpen &&
     totals != null &&
     totals.remainingMinor > 0 &&
-    !(customerId != null && customerCredit === true);
+    !(customerId != null && customerCredit === true)
+  ) {
+    const message =
+      customerId == null
+        ? "Vente à crédit : choisissez un client autorisé au crédit."
+        : "Vente à crédit refusée : ce client n'est pas autorisé au crédit.";
+    return { blocked: true, message, limitExceeded: false, projectedMinor: projected };
+  }
+  if (limitExceeded && !override) {
+    return {
+      blocked: true,
+      message: "Plafond de crédit dépassé : solde + reste > plafond. Accord vendeur requis.",
+      limitExceeded: true,
+      projectedMinor: projected,
+    };
+  }
   const message =
     customerId == null
       ? "Vente à crédit : choisissez un client autorisé au crédit."
       : "Vente à crédit refusée : ce client n'est pas autorisé au crédit.";
-  return { blocked, message };
+  return {
+    blocked: false,
+    message,
+    limitExceeded: Boolean(limitExceeded),
+    projectedMinor: projected,
+  };
 }
 
 /** Total d'un onglet (null = vide ou incalculable). */
 export function tabTotalOf(t: CartTab): number | null {
   if (t.lines.length === 0) return null;
   try {
-    return totalsOf({ lines: t.lines, deliveryFeeMinor: 0, amountPaidMinor: 0 }).totalMinor;
+    return totalsOf({
+      lines: t.lines,
+      deliveryFeeMinor: t.deliveryFeeMinor,
+      amountPaidMinor: 0,
+    }).totalMinor;
   } catch {
     return null;
   }
@@ -89,7 +135,7 @@ export function buildSaleSnapshot(
     })),
     subtotalMinor: totals.subtotalMinor,
     discountMinor: totals.discountAmountMinor,
-    deliveryMinor: 0,
+    deliveryMinor: cart.deliveryFeeMinor,
     totalMinor: totals.totalMinor,
     paidMinor: cart.amountPaidMinor,
     customerLabel: cart.customerLabel,

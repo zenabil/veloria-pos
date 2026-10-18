@@ -5,6 +5,7 @@ import * as V from "./validators";
 import * as Inventory from "./handlers/inventory.repo";
 import * as Suppliers from "./handlers/suppliers.repo";
 import * as Purchase from "./handlers/purchases.repo";
+import { getCurrentStaffUser } from "./handlers/staff-session";
 import { handle } from "./handle";
 
 export function registerStockChannels(): void {
@@ -21,6 +22,8 @@ export function registerStockChannels(): void {
       reference: input.reference ?? null,
       operationId: input.operationId,
       now: new Date().toISOString(),
+      // R2 (0046) : l'ajustement porte son auteur.
+      staffUserId: getCurrentStaffUser(),
     }),
   );
   handle(IPC_CHANNELS["stock.products"], V.stockProductsSchema, (input) =>
@@ -45,6 +48,8 @@ export function registerStockChannels(): void {
       reference: input.reference ?? null,
       operationId: input.operationId,
       now: new Date().toISOString(),
+      // R2 (0046) : l'inventaire porte son auteur.
+      staffUserId: getCurrentStaffUser(),
     }),
   );
   handle(IPC_CHANNELS["stock.intake"], V.stockIntakeSchema, (input) =>
@@ -66,6 +71,8 @@ export function registerStockChannels(): void {
       // le même IPC retourne la réception existante sans double stock/dette.
       operationId: input.operationId,
       now: new Date().toISOString(),
+      // R2 (0046) : la réception porte son auteur.
+      staffUserId: getCurrentStaffUser(),
     }),
   );
   handle(IPC_CHANNELS["stock.intakes"], V.paginationSchema, (input) =>
@@ -131,6 +138,8 @@ export function registerStockChannels(): void {
       notes: input.notes ?? null,
       paymentDate: input.paymentDate,
       now: new Date().toISOString(),
+      // R2 (0046) : le décaissement porte son auteur.
+      staffUserId: getCurrentStaffUser(),
     });
     return { paid: true, paymentId };
   });
@@ -187,6 +196,8 @@ export function registerStockChannels(): void {
       })),
       operationId: input.operationId,
       now: new Date().toISOString(),
+      // R2 (0046) : la réception porte son auteur (via l'entrée de stock).
+      staffUserId: getCurrentStaffUser(),
     }),
   );
 }

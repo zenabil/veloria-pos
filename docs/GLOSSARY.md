@@ -2,7 +2,7 @@
 
 > Statut : normatif pour tout texte VISIBLE par l utilisateur du POS.
 > Le code (identifiants, chemins, canaux IPC, colonnes DB) reste EN :
-> convention unique, voir ADR-NEW ci-dessous. Seul `mobile/` est bilingue
+> convention unique, voir ADR-101/102/103 (ex-ADR-NEW) ci-dessous. Seul `mobile/` est bilingue
 > (exception ADR-051, isolee).
 
 ## Termes UI (FR uniquement)

@@ -3,45 +3,8 @@
 import { Button, Card, Modal, cn } from "@shared/ui/primitives.tsx";
 import { WindowChrome } from "./WindowChrome.tsx";
 import { LAZY_SCREENS } from "./module-screens.ts";
-import { hintsFor } from "./footer-hints.ts";
-import type { ModuleId, Notify, Toast } from "./shell-types.ts";
+import type { Notify, Toast } from "./shell-types.ts";
 import type { NotifItem } from "./use-notifications.ts";
-
-export function HelpModal({
-  active,
-  currentLabel,
-  onClose,
-}: {
-  active: ModuleId;
-  currentLabel: string | undefined;
-  onClose: () => void;
-}): React.JSX.Element {
-  return (
-    <Modal
-      label="Aide — raccourcis clavier"
-      title={`Aide — ${currentLabel ?? "Veloria PoS"}`}
-      onClose={onClose}
-    >
-      <ul className="space-y-1.5 text-sm">
-        {hintsFor(active).map((h) => (
-          <li key={h.k} className="flex items-center gap-2 text-slate-200">
-            <span className="rounded bg-[#1c2b3c] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[#ffe1a7]">
-              {h.k}
-            </span>
-            {h.label}
-          </li>
-        ))}
-        <li className="flex items-center gap-2 text-slate-200">
-          <span className="rounded bg-[#1c2b3c] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[#ffe1a7]">
-            F2
-          </span>
-          Format d&apos;impression (Ticket 80mm ↔ Facture A4)
-        </li>
-      </ul>
-      <Button onClick={onClose}>Fermer</Button>
-    </Modal>
-  );
-}
 
 export function NotificationsModal({
   loading,
@@ -93,7 +56,7 @@ export function Toasts({ toasts }: { toasts: Toast[] }): React.JSX.Element {
           key={t.id}
           role={t.kind === "err" ? "alert" : "status"}
           className={cn(
-            "pointer-events-auto rounded-xl border px-4 py-2.5 text-sm font-medium shadow-xl",
+            "veloria-toast-in pointer-events-auto rounded-xl border px-4 py-2.5 text-sm font-medium shadow-xl",
             t.kind === "ok"
               ? "border-amber-400/30 bg-[#171207] text-amber-100"
               : "border-red-500/30 bg-[#1c1113] text-red-100",

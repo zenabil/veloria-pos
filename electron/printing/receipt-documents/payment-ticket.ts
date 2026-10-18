@@ -1,7 +1,8 @@
 // Veloria PoS — Documents purs : recu de reglement (pur).
 
-import { escapeHtml, paymentMethodLabel, type ThermalWidth } from "./common";
-import { amountInWordsFr } from "./amounts";
+import { escapeHtml } from "./html";
+import { paymentMethodLabel, type ThermalWidth } from "./common";
+import { amountInWordsFr, formatMinorDa } from "./amounts";
 import { thermalCols, thermalField, thermalRow, thermalSep, wrapThermal } from "./thermal";
 import {
   barcodeBlock,
@@ -10,6 +11,7 @@ import {
   headerNoteHtml,
   legalFooter,
   pageAtRule,
+  safeQrSvg,
   signsHtml,
   watermarkHtml,
   type PageOpts,
@@ -21,7 +23,7 @@ import {
 // Pur et déterministe comme les autres builders (zéro import).
 // ---------------------------------------------------------------------------
 
-export type PaymentTicketKind = "customer" | "supplier" | "bread";
+export type PaymentTicketKind = "customer" | "supplier";
 
 export interface PaymentTicketData {
   company: string;
@@ -61,7 +63,6 @@ export interface PaymentTicketData {
 
 export function paymentTicketKindLabel(kind: PaymentTicketKind): string {
   if (kind === "supplier") return "RÈGLEMENT FOURNISSEUR";
-  if (kind === "bread") return "RÈGLEMENT PAIN";
   return "REÇU DE RÈGLEMENT";
 }
 
@@ -69,8 +70,7 @@ export function paymentTicketKindLabel(kind: PaymentTicketKind): string {
 export function buildPaymentText(d: PaymentTicketData, width?: ThermalWidth): string {
   const cols = thermalCols(width);
   const sep = thermalSep(cols);
-  const fmt = (m: number): string =>
-    `${new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2 }).format(m / 100)} DA`;
+  const fmt = formatMinorDa;
   const out: string[] = [];
   for (const l of wrapThermal(`*** ${d.company} ***`, cols)) out.push(l);
   out.push(paymentTicketKindLabel(d.kind));
@@ -109,8 +109,7 @@ export function toPaymentTicketData(raw: unknown): PaymentTicketData {
   const str = (v: unknown): string => (typeof v === "string" ? v : "");
   const int = (v: unknown): number =>
     typeof v === "number" && Number.isSafeInteger(v) && v >= 0 ? v : 0;
-  const kind: PaymentTicketKind =
-    p["kind"] === "supplier" ? "supplier" : p["kind"] === "bread" ? "bread" : "customer";
+  const kind: PaymentTicketKind = p["kind"] === "supplier" ? "supplier" : "customer";
   return {
     company: str(p["company"]) || "Veloria",
     companyPhone: str(p["companyPhone"]),
@@ -173,7 +172,7 @@ ${companyHead(
 )}
 ${headerNoteHtml(d.headerNote ?? "")}
 <div class="client"><h2>Partie</h2><div><span class="lbl">Nom :</span> ${escapeHtml(d.partyLabel || "—")}</div>${method ? `<div><span class="lbl">Mode :</span> ${escapeHtml(method)}</div>` : ""}</div>
-${showCodes ? barcodeBlock(d.reference) : ""}${d.qrOff === true ? "" : d.qrSvg ? `<div class="qr">${d.qrSvg}<div class="qrpayload">${escapeHtml(d.qrPayload || d.reference)}</div></div>` : d.qrPayload ? `<div class="qrpayload">${escapeHtml(d.qrPayload)}</div>` : ""}
+${showCodes ? barcodeBlock(d.reference) : ""}${d.qrOff === true ? "" : safeQrSvg(d.qrSvg) ? `<div class="qr">${safeQrSvg(d.qrSvg)}<div class="qrpayload">${escapeHtml(d.qrPayload || d.reference)}</div></div>` : d.qrPayload ? `<div class="qrpayload">${escapeHtml(d.qrPayload)}</div>` : ""}
 <table class="items"><thead><tr><th>Désignation</th><th class="num">Montant</th></tr></thead>
 <tbody><tr><td>Règlement${d.notes ? ` — ${escapeHtml(d.notes)}` : ""}</td><td class="num">${fmtDzd(d.amountMinor)}</td></tr></tbody></table>
 <table class="totals"><tbody>

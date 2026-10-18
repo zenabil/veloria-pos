@@ -452,6 +452,8 @@ export function recordSupplierPaymentAtomic(args: {
   notes: string | null;
   paymentDate: string;
   now: string;
+  /** Auteur du paiement (session main, 0046). */
+  staffUserId?: number | null;
 }): { paymentId: number } {
   const db = getDb();
   // Idempotence par operationId (même motif que les paiements clients) :
@@ -476,7 +478,7 @@ export function recordSupplierPaymentAtomic(args: {
       throw new Error("Le paiement dépasse la dette fournisseur.");
     }
     db.prepare(
-      `INSERT INTO supplier_payments (uuid, supplier_id, amount_minor, method, reference, payment_date, notes, operation_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO supplier_payments (uuid, supplier_id, amount_minor, method, reference, payment_date, notes, operation_id, staff_user_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       randomUUID(),
       args.supplierId,
@@ -486,19 +488,21 @@ export function recordSupplierPaymentAtomic(args: {
       args.paymentDate,
       args.notes?.trim() || null,
       args.operationId,
+      args.staffUserId ?? null,
       args.now,
     );
     db.prepare(
       `UPDATE suppliers SET outstanding_balance_minor = outstanding_balance_minor - ?, updated_at = ? WHERE id = ?`,
     ).run(args.amountMinor, args.now, args.supplierId);
     db.prepare(
-      `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at) VALUES (?, 'supplier.payment', 'supplier', ?, ?, ?, ?)`,
+      `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at, actor_user_id) VALUES (?, 'supplier.payment', 'supplier', ?, ?, ?, ?, ?)`,
     ).run(
       randomUUID(),
       String(args.supplierId),
       args.operationId,
       JSON.stringify({ amount: args.amountMinor, method: args.method }),
       args.now,
+      args.staffUserId ?? null,
     );
     const inserted = db
       .prepare(`SELECT id FROM supplier_payments WHERE operation_id = ?`)

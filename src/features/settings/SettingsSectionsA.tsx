@@ -7,10 +7,13 @@ import { Field, Select, TextInput } from "@shared/ui/primitives.tsx";
 import { saveAppSettings, useAppSettings } from "@shared/settings/use-app-settings.ts";
 import { SaveBar, Section, SwitchRow, useBusyFlag } from "./bits.tsx";
 import {
+  clampVolume,
+  getSoundVolume,
   isSoundEnabled,
   persistSoundEnabled,
   playSound,
   setSoundEnabled,
+  setSoundVolume,
 } from "@shared/sound/sound.ts";
 import type { Notify } from "@shared/ui/primitives.tsx";
 import { frError } from "@shared/errors/fr-map.ts";
@@ -329,8 +332,9 @@ export function SalesSection({ notify }: { notify: Notify }): React.JSX.Element 
 // ---------------------------------------------------------------------------
 
 export function SoundSection({ notify }: { notify: Notify }): React.JSX.Element {
-  const { value } = useAppSettings<{ enabled: boolean }>("sound");
+  const { value } = useAppSettings<{ enabled: boolean; volume?: number }>("sound");
   const [enabled, setEnabled] = useState<boolean>(() => isSoundEnabled());
+  const [volume, setVolume] = useState<number>(() => getSoundVolume());
   const { busy, run } = useBusyFlag();
 
   useEffect(() => {
@@ -339,12 +343,17 @@ export function SoundSection({ notify }: { notify: Notify }): React.JSX.Element 
       setEnabled(value.enabled);
       setSoundEnabled(value.enabled);
     }
+    if (value && value.volume !== undefined) {
+      const v = clampVolume(value.volume);
+      setVolume(v);
+      setSoundVolume(v);
+    }
   }, [value]);
 
   function save(): void {
     void run(async () => {
       try {
-        await persistSoundEnabled(enabled);
+        await persistSoundEnabled(enabled, volume);
         if (enabled) playSound("success");
         notify("Sons enregistrés.", "ok");
       } catch (e) {
@@ -357,7 +366,7 @@ export function SoundSection({ notify }: { notify: Notify }): React.JSX.Element 
     <Section title="Sons" hint="Bips de caisse (vente, encaissement, erreurs).">
       <SwitchRow
         label="Activer les sons"
-        hint="Coupé = caisse silencieuse (même bouton en tête de caisse)."
+        hint="Coupé = caisse silencieuse."
         checked={enabled}
         onChange={(v) => {
           setEnabled(v);
@@ -365,6 +374,41 @@ export function SoundSection({ notify }: { notify: Notify }): React.JSX.Element 
         }}
         ariaLabel="Activer les sons"
       />
+      <div className="space-y-1.5">
+        <div className="flex items-baseline justify-between gap-3">
+          <label
+            htmlFor="son-volume"
+            className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
+          >
+            Volume
+          </label>
+          <span
+            aria-hidden="true"
+            className="font-mono text-xs font-bold tabular-nums text-slate-300"
+          >
+            {volume} %
+          </span>
+        </div>
+        <input
+          id="son-volume"
+          type="range"
+          min={0}
+          max={100}
+          step={1}
+          value={volume}
+          disabled={!enabled}
+          aria-label={`Volume des sons, ${volume} pour cent`}
+          onChange={(e) => {
+            const v = clampVolume(Number(e.target.value));
+            setVolume(v);
+            setSoundVolume(v);
+            // Aperçu immédiat (bridé anti-spam côté moteur).
+            if (enabled) playSound("blip");
+          }}
+          className="w-full accent-[#fbbf24] disabled:opacity-40"
+        />
+        <p className="text-xs text-slate-500">0 = muet (l'interrupteur reste actif).</p>
+      </div>
       <SaveBar busy={busy} onSave={save} label="Enregistrer les sons" />
     </Section>
   );

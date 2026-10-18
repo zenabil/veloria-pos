@@ -106,17 +106,6 @@ export const IPC_CHANNELS = {
   "zakat.saveParams": "zakat.saveParams",
   "zakat.history": "zakat.history",
   "zakat.save": "zakat.save",
-  // bread (Phase 9)
-  "bread.create": "bread.create",
-  "bread.list": "bread.list",
-  "bread.pay": "bread.pay",
-  "bread.transfer": "bread.transfer",
-  "bread.updateQty": "bread.updateQty",
-  "bread.convert": "bread.convert",
-  "bread.update": "bread.update",
-  "bread.status": "bread.status",
-  "bread.stats": "bread.stats",
-  "bread.detail": "bread.detail",
   // settings (clés explicites uniquement)
   "settings.get": "settings.get",
   "settings.save": "settings.save",
@@ -190,6 +179,17 @@ export const IPC_CHANNELS = {
   "templates.reset": "templates.reset",
   "templates.preview": "templates.preview",
   "templates.testPrint": "templates.testPrint",
+  // staff internes (0041 : gérant / utilisateur, session main uniquement)
+  "staff.list": "staff.list",
+  "staff.login": "staff.login",
+  "staff.logout": "staff.logout",
+  "staff.session": "staff.session",
+  "staff.create": "staff.create",
+  "staff.setPermissions": "staff.setPermissions",
+  "staff.changeCode": "staff.changeCode",
+  "staff.setActive": "staff.setActive",
+  "staff.recover": "staff.recover",
+  "staff.regenRecovery": "staff.regenRecovery",
   // system (logs)
   "system.openLogsFolder": "system.openLogsFolder",
   // recovery (base non prête : surface minimale explicite)

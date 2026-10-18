@@ -58,13 +58,6 @@ export const LICENSE_PROTECTED_CHANNELS: ReadonlySet<string> = new Set([
   IPC_CHANNELS["expenses.create"],
   IPC_CHANNELS["expenses.update"],
   IPC_CHANNELS["expenses.delete"],
-  IPC_CHANNELS["bread.create"],
-  IPC_CHANNELS["bread.pay"],
-  IPC_CHANNELS["bread.transfer"],
-  IPC_CHANNELS["bread.updateQty"],
-  IPC_CHANNELS["bread.convert"],
-  IPC_CHANNELS["bread.update"],
-  IPC_CHANNELS["bread.status"],
   IPC_CHANNELS["closings.create"],
   IPC_CHANNELS["zakat.saveParams"],
   IPC_CHANNELS["zakat.save"],
@@ -86,7 +79,7 @@ export const LICENSE_PROTECTED_CHANNELS: ReadonlySet<string> = new Set([
 /**
  * Capabilities exigées par canal (Authorization Layer, §2/§10/§11).
  * PAGE_GATED : au moins UNE des pages listées doit être autorisée
- * (ex. bread = breadOrders OU pain). FEATURE_GATED : feature requise.
+ * (ex. templates = settings OU invoices). FEATURE_GATED : feature requise.
  * Vérifié dans le main sur le payload SIGN�? �?" jamais depuis le renderer.
  * Les canaux absents des deux tables restent soumis à la seule garde
  * d'état (LICENSE_PROTECTED_CHANNELS) ou ouverts (lectures, réglages).
@@ -167,16 +160,6 @@ export const PAGE_GATED_CHANNELS: Readonly<Record<string, readonly string[]>> = 
   [IPC_CHANNELS["zakat.saveParams"]]: ["zakat"],
   [IPC_CHANNELS["zakat.history"]]: ["zakat"],
   [IPC_CHANNELS["zakat.save"]]: ["zakat"],
-  [IPC_CHANNELS["bread.create"]]: ["breadOrders", "pain"],
-  [IPC_CHANNELS["bread.list"]]: ["breadOrders", "pain"],
-  [IPC_CHANNELS["bread.pay"]]: ["breadOrders", "pain"],
-  [IPC_CHANNELS["bread.transfer"]]: ["breadOrders", "pain"],
-  [IPC_CHANNELS["bread.updateQty"]]: ["breadOrders", "pain"],
-  [IPC_CHANNELS["bread.convert"]]: ["breadOrders", "pain"],
-  [IPC_CHANNELS["bread.update"]]: ["breadOrders", "pain"],
-  [IPC_CHANNELS["bread.status"]]: ["breadOrders", "pain"],
-  [IPC_CHANNELS["bread.stats"]]: ["breadOrders", "pain"],
-  [IPC_CHANNELS["bread.detail"]]: ["breadOrders", "pain"],
   [IPC_CHANNELS["sales.create"]]: ["sales"],
   [IPC_CHANNELS["sales.get"]]: ["sales"],
   [IPC_CHANNELS["sales.history"]]: ["sales", "history"],
@@ -240,5 +223,4 @@ export const FEATURE_GATED_CHANNELS: Readonly<Record<string, string>> = {
 export const DEBT_PAYMENT_CHANNELS: ReadonlySet<string> = new Set([
   IPC_CHANNELS["customers.recordPayment"],
   IPC_CHANNELS["suppliers.pay"],
-  IPC_CHANNELS["bread.pay"],
 ]);

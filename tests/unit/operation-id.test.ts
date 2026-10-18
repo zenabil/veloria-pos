@@ -10,8 +10,6 @@ import path from "node:path";
 import {
   schemaRequiresOperationId,
   saleCreateSchema,
-  breadStatusSchema,
-  breadTransferSchema,
   zakatCalculationSchema,
   idempotentIdSchema,
   idSchema,
@@ -23,8 +21,6 @@ import {
 describe("P1-6 : couche centrale operationId", () => {
   it("exige un UUID pour les mutations idempotentes", () => {
     expect(schemaRequiresOperationId(saleCreateSchema)).toBe(true);
-    expect(schemaRequiresOperationId(breadStatusSchema)).toBe(true);
-    expect(schemaRequiresOperationId(breadTransferSchema)).toBe(true);
     expect(schemaRequiresOperationId(zakatCalculationSchema)).toBe(true);
     expect(schemaRequiresOperationId(idempotentIdSchema)).toBe(true);
   });

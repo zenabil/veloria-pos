@@ -71,6 +71,18 @@ interface Window {
       get(p: unknown): Promise<VeloriaOutcome>;
       save(p: unknown): Promise<VeloriaOutcome>;
     };
+    staff: {
+      list(): Promise<VeloriaOutcome>;
+      login(p: unknown): Promise<VeloriaOutcome>;
+      logout(): Promise<VeloriaOutcome>;
+      session(): Promise<VeloriaOutcome>;
+      create(p: unknown): Promise<VeloriaOutcome>;
+      setPermissions(p: unknown): Promise<VeloriaOutcome>;
+      changeCode(p: unknown): Promise<VeloriaOutcome>;
+      setActive(p: unknown): Promise<VeloriaOutcome>;
+      recover(p: unknown): Promise<VeloriaOutcome>;
+      regenRecovery(p: unknown): Promise<VeloriaOutcome>;
+    };
     stock: {
       overview(): Promise<VeloriaOutcome>;
       products(p: unknown): Promise<VeloriaOutcome>;
@@ -124,18 +136,6 @@ interface Window {
       saveParams(p: unknown): Promise<VeloriaOutcome>;
       history(p: unknown): Promise<VeloriaOutcome>;
       save(p: unknown): Promise<VeloriaOutcome>;
-    };
-    bread: {
-      create(p: unknown): Promise<VeloriaOutcome>;
-      list(p: unknown): Promise<VeloriaOutcome>;
-      pay(p: unknown): Promise<VeloriaOutcome>;
-      transfer(p: unknown): Promise<VeloriaOutcome>;
-      updateQty(p: unknown): Promise<VeloriaOutcome>;
-      convert(p: unknown): Promise<VeloriaOutcome>;
-      update(p: unknown): Promise<VeloriaOutcome>;
-      status(p: unknown): Promise<VeloriaOutcome>;
-      stats(): Promise<VeloriaOutcome>;
-      detail(p: unknown): Promise<VeloriaOutcome>;
     };
     printer: {
       get(): Promise<VeloriaOutcome>;

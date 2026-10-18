@@ -130,6 +130,25 @@ export function buildQrPayload(d: {
 }
 
 // ---------------------------------------------------------------------------
+// Format monétaire FR depuis des centimes ENTIERS (jamais de float `m/100` :
+// au-delà de 2^53 le centime serait perdu — voir src/domain/money/money.ts).
+// Source unique de tous les documents (A4 + thermiques) : `fmtDzd`
+// (chrome.ts) et les rendus thermiques délèguent ici.
+// ---------------------------------------------------------------------------
+
+const GROUP_FR = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 });
+
+/** `123456` → `1 234,56 DA` (signe préservé, non-fini → `0,00 DA`). */
+export function formatMinorDa(m: number): string {
+  const rounded = typeof m === "number" && Number.isFinite(m) ? Math.round(m) : 0;
+  const sign = rounded < 0 ? "-" : "";
+  const abs = Math.abs(rounded);
+  const dinars = Math.trunc(abs / 100);
+  const centimes = abs % 100;
+  return `${sign}${GROUP_FR.format(dinars)},${String(centimes).padStart(2, "0")} DA`;
+}
+
+// ---------------------------------------------------------------------------
 // C5 : timbre de quittance LF 2025 — MIROIR de `src/domain/invoice/
 // timbre-rules.ts` (electron ne peut pas importer src/ : rootDir — même
 // convention que validators/fifo). Toute modification ici doit être

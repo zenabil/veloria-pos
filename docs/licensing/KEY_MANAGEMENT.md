@@ -25,9 +25,16 @@ Refuse d'écraser sans `--force` (rotation = procédure ci-dessous).
 
 1. `license:keygen --force` (nouveau couple).
 2. Re-signer le manifeste (`license:integrity`) + rebuild POS + release.
-3. Ré-émettre les licences actives (le Manager garde l'historique : `renew`
-   avec la nouvelle clé ; anciennes licences = `INVALID_SIGNATURE` après MAJ).
-4. Révoquer l'ancienne clé (détruire copies sauf archive scellée).
+3. Ré-importer la clé dans le Manager (écran « Importer la clé privée… »).
+   Sans cette étape, le Manager continue de signer avec l'ANCIENNE clé :
+   toutes les licences émises ensuite sont refusées par le POS
+   (« Licence invalide : signature non reconnue ») — incident 2026-10-17.
+4. Ré-émettre les licences actives (le Manager garde l'historique :
+   réémission avec la nouvelle clé ; anciennes licences = `INVALID_SIGNATURE`
+   après MAJ). Poste vendor : `npx electron ./scripts/licensing/issue-local-license.cjs`.
+5. Vérifier toute la chaîne : `npm run verify:licensing` (paire du dépôt, clé
+   embarquée, clé stockée Manager, licence locale) — doit être vert.
+6. Révoquer l'ancienne clé (détruire copies sauf archive scellée).
 
 ## Compromission suspectée
 

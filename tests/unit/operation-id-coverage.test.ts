@@ -34,9 +34,6 @@ const REQUIRED = [
   ["documents", Documents.returnRefundSchema],
   ["documents", Documents.proformaCreateSchema],
   ["documents", Documents.proformaConvertSchema],
-  ["documents", Documents.breadCreateSchema],
-  ["documents", Documents.breadPaySchema],
-  ["documents", Documents.breadUpdateSchema],
 ] as const;
 
 // Exception LWW documentée (ADR-074) : mises à jour/brouillons/réglages,

@@ -1,9 +1,8 @@
 // Veloria PoS — Documents purs : types, codes, echappement (zero import).
-
-// Veloria PoS — Documents d'impression purs (zéro import : testables en vitest).
-// Source unique du ticket 80mm, de la facture A4 et du proforma (déterministes,
-// français). Les handlers Electron (printing.service) ne font que valider +
-// injecter le logo + imprimer. Maquettes : wireframes A4 / 80mm / proforma.
+// Découpage gabarit (P0 test split-parity ≤300 lignes/fichier) : les tables
+// Code 39 / Code 128 et l'échappement vivent dans ./barcode39, ./barcode128
+// et ./html. Ce module garde les types + helpers + ré-exports de compat
+// (surface publique inchangée, aucun changement fonctionnel).
 
 export interface ReceiptLine {
   name: string;
@@ -99,112 +98,10 @@ export function paymentMethodLabel(method: string): string {
   return "";
 }
 
-// ---------------------------------------------------------------------------
-// Code-barres Code 39 (SVG pur, sans dépendance) : numéros de facture/devis
-// scannables vers la recherche. Alphabet : 0-9 A-Z et `- . $ / + % espace`.
-// Chaque caractère = 9 modules (barre/espace alternés) dont exactement 3 larges.
-// ---------------------------------------------------------------------------
-
-/** Motifs Code 39 : 9 largeurs (n = étroit, w = large), positions paires = barres.
- * Vérifiés contre JsBarcode (MIT) + équations ISO 16388 (2 barres larges +
- * 1 espace large par caractère) ; testés exhaustivement (structure + A/P/0). */
-export const CODE39_PATTERNS: Record<string, string> = {
-  "0": "nnnwwnwnn",
-  "1": "wnnwnnnnw",
-  "2": "nnwwnnnnw",
-  "3": "wnwwnnnnn",
-  "4": "nnnwwnnnw",
-  "5": "wnnwwnnnn",
-  "6": "nnwwwnnnn",
-  "7": "nnnwnnwnw",
-  "8": "wnnwnnwnn",
-  "9": "nnwwnnwnn",
-  A: "wnnnnwnnw",
-  B: "nnwnnwnnw",
-  C: "wnwnnwnnn",
-  D: "nnnnwwnnw",
-  E: "wnnnwwnnn",
-  F: "nnwnwwnnn",
-  G: "nnnnnwwnw",
-  H: "wnnnnwwnn",
-  I: "nnwnnwwnn",
-  J: "nnnnwwwnn",
-  K: "wnnnnnnww",
-  L: "nnwnnnnww",
-  M: "wnwnnnnwn",
-  N: "nnnnwnnww",
-  O: "wnnnwnnwn",
-  P: "nnwnwnnwn",
-  Q: "nnnnnnwww",
-  R: "wnnnnnwwn",
-  S: "nnwnnnwwn",
-  T: "nnnnwnwwn",
-  U: "wwnnnnnnw",
-  V: "nwwnnnnnw",
-  W: "wwwnnnnnn",
-  X: "nwnnwnnnw",
-  Y: "wwnnwnnnn",
-  Z: "nwwnwnnnn",
-  "-": "nwnnnnwnw",
-  ".": "wwnnnnwnn",
-  " ": "nwwnnnwnn",
-  $: "nwnwnwnnn",
-  "/": "nwnwnnnwn",
-  "+": "nwnnnwnwn",
-  "%": "nnnwnwnwn",
-  "*": "nwnnwnwnn",
-};
-
-/** Normalise pour Code 39 (majuscules, alphabet supporté) ; « » si vide. */
-export function sanitizeCode39(raw: string): string {
-  return raw
-    .toUpperCase()
-    .split("")
-    .filter((c) => Object.prototype.hasOwnProperty.call(CODE39_PATTERNS, c))
-    .join("");
-}
-
-/** SVG Code 39 (début/fin `*`, texte lisible) ; « » si rien d'encodable. */
-export function code39Svg(raw: string, height = 46): string {
-  const text = sanitizeCode39(raw);
-  if (!text) return "";
-  const narrow = 2;
-  const wide = narrow * 2 + 1;
-  const gap = narrow;
-  let x = 0;
-  let rects = "";
-  const full = `*${text}*`;
-  for (const ch of full) {
-    const pattern = CODE39_PATTERNS[ch] as string;
-    for (let i = 0; i < 9; i++) {
-      const w = pattern[i] === "w" ? wide : narrow;
-      if (i % 2 === 0) {
-        rects += `<rect x="${x}" y="0" width="${w}" height="${height}" fill="#000"/>`;
-      }
-      x += w;
-    }
-    x += gap;
-  }
-  const width = x - gap;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height + 16}" width="${width}" height="${height + 16}" role="img" aria-label="Code-barres ${escapeHtml(text)}">${rects}<text x="${width / 2}" y="${height + 13}" text-anchor="middle" font-family="monospace" font-size="12" fill="#000">${escapeHtml(text)}</text></svg>`;
-}
-
-export function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-/**
- * Échappement texte brut pour conteneur HTML (ticket thermique <pre>) :
- * source centrale unique (P28) — buildReceiptText étant du texte non échappé,
- * thermalHtml passe par ici au lieu d'un replace partiel.
- */
-export function escapePreText(s: string): string {
-  return escapeHtml(s).replace(/'/g, "&#39;");
-}
-
 /** Largeur thermique supportée (58/80mm, sans coupe). */
 export type ThermalWidth = "58mm" | "80mm";
+
+// Compat : ré-exports (surface publique inchangée, sources découpées).
+export { escapeHtml, escapePreText } from "./html";
+export { CODE39_PATTERNS, code39Svg, sanitizeCode39 } from "./barcode39";
+export { CODE128_WIDTHS, code128Svg, code128Symbols, sanitizeCode128 } from "./barcode128";

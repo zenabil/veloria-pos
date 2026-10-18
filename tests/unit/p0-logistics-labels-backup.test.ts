@@ -8,7 +8,12 @@ import {
   buildPurchaseOrderText,
   buildReturnSlipHtml,
   buildReturnSlipText,
+  code128Svg,
+  code128Symbols,
+  labelPageMicrons,
+  sanitizeCode128,
   type LogisticsDocData,
+  CODE128_WIDTHS,
 } from "../../electron/printing/receipt-documents";
 import {
   backupAutoSchema,
@@ -91,17 +96,73 @@ describe("P0-3 documents logistiques", () => {
 
 describe("P0-4 étiquettes multi-formats", () => {
   const items = [{ name: "Coca", priceMinor: 10000, barcode: "FAC-2026-00001" }];
-  it("5 formats N&B déterministes", () => {
-    for (const format of ["30x20", "50x30", "58x40", "A4-24", "custom"] as const) {
+  it("7 formats N&B déterministes", () => {
+    for (const format of [
+      "30x20",
+      "45x20",
+      "50x30",
+      "58x30",
+      "58x40",
+      "A4-24",
+      "custom",
+    ] as const) {
       const opts = { format, customWidthMm: 40, customHeightMm: 25 } as const;
       const html = buildLabelsHtml(items, opts);
-      expect(html).toContain("Coca");
+      // Étiquette épurée : prix + Code39 seuls (ni nom, ni code répété).
+      expect(html).not.toContain("Coca");
+      expect(html).toContain("100,00");
       expect(html).toContain("<svg");
       expect(html).not.toMatch(/#111|#555|#999|#eee|#888/i);
       expect(buildLabelsHtml(items, opts)).toBe(html);
     }
     expect(buildLabelsHtml(items, { format: "30x20" })).toContain("30mm 20mm");
+    expect(buildLabelsHtml(items, { format: "45x20" })).toContain("45mm 20mm");
+    expect(buildLabelsHtml(items, { format: "58x30" })).toContain("58mm 30mm");
     expect(buildLabelsHtml(items, { format: "58x40" })).toContain("58mm 40mm");
+  });
+  it("thermique : 1 étiquette = 1 page (pas de vierges)", () => {
+    // Sans break-after + marges CSS, Chromium débordait sur 2-4 pages
+    // → la 365B sortait des étiquettes vierges pour 1 seule demandée.
+    for (const format of ["30x20", "45x20", "50x30", "58x30", "58x40", "custom"] as const) {
+      const html = buildLabelsHtml(items, { format, customWidthMm: 40, customHeightMm: 25 });
+      expect(html).toContain("break-after:page");
+      expect(html).toContain("body{margin:0}");
+      expect(html).not.toContain("margin:5mm");
+    }
+    // Planche A4 inchangée (aperçu = impression).
+    const a4 = buildLabelsHtml(items, { format: "A4-24" });
+    expect(a4).toContain("margin:5mm");
+    expect(a4).not.toContain("break-after");
+  });
+  it("1 article = 1 cellule (jobs unitaires)", () => {
+    // printLabels envoie 1 page par étiquette : le HTML unitaire ne doit
+    // contenir qu'une seule cellule pour garantir 2 demandées = 2 sorties.
+    const one = { name: "Coca", priceMinor: 10000, barcode: "FAC-2026-00001" };
+    for (const format of [
+      "30x20",
+      "45x20",
+      "50x30",
+      "58x30",
+      "58x40",
+      "A4-24",
+      "custom",
+    ] as const) {
+      const html = buildLabelsHtml([one], { format, customWidthMm: 40, customHeightMm: 25 });
+      expect(html.match(/class="label"/g)).toHaveLength(1);
+    }
+  });
+  it("labelPageMicrons : formats exacts en microns", () => {
+    expect(labelPageMicrons({ format: "30x20" })).toEqual({ width: 30000, height: 20000 });
+    expect(labelPageMicrons({ format: "50x30" })).toEqual({ width: 50000, height: 30000 });
+    expect(labelPageMicrons({ format: "45x20" })).toEqual({ width: 45000, height: 20000 });
+    expect(labelPageMicrons({ format: "58x30" })).toEqual({ width: 58000, height: 30000 });
+    expect(labelPageMicrons({ format: "58x40" })).toEqual({ width: 58000, height: 40000 });
+    expect(labelPageMicrons({ format: "custom", customWidthMm: 40, customHeightMm: 25 })).toEqual({
+      width: 40000,
+      height: 25000,
+    });
+    expect(labelPageMicrons({ format: "A4-24" })).toBeNull();
+    expect(labelPageMicrons({})).toBeNull();
   });
   it("schéma labels accepte format + custom", () => {
     expect(() =>
@@ -110,12 +171,64 @@ describe("P0-4 étiquettes multi-formats", () => {
     expect(() =>
       labelsPayloadSchema.parse({
         items: [{ name: "C", priceMinor: 1, barcode: "X" }],
-        format: "58x40",
+        format: "58x30",
       }),
     ).not.toThrow();
   });
 });
 
+describe("Code 128 étiquettes (ISO 15417)", () => {
+  it("table 107 symboles intègre (11 modules, barres paires)", () => {
+    expect(CODE128_WIDTHS).toHaveLength(107);
+    for (const w of CODE128_WIDTHS) {
+      expect(w).toMatch(/^[1-4]{6}$/);
+      const runs = w.split("").map(Number);
+      expect(runs.reduce((a, b) => a + b, 0)).toBe(11);
+      const bars = (runs[0] ?? 0) + (runs[2] ?? 0) + (runs[4] ?? 0);
+      const spaces = (runs[1] ?? 0) + (runs[3] ?? 0) + (runs[5] ?? 0);
+      expect(bars % 2).toBe(0);
+      expect(spaces % 2).toBe(1);
+    }
+  });
+  it("vecteur Wikipedia PJJ123C en B → contrôle 55", () => {
+    expect(code128Symbols("PJJ123C")).toEqual([104, 48, 42, 42, 17, 18, 19, 35, 55, 106]);
+  });
+  it("chiffres pairs → set C compact", () => {
+    expect(code128Symbols("0012")).toEqual([105, 0, 12, 26, 106]);
+    expect(code128Symbols("11")).toEqual([105, 11, 13, 106]);
+  });
+  it("chiffres impairs → B + latch C", () => {
+    const s = code128Symbols("1234567");
+    expect(s.slice(0, 3)).toEqual([104, 17, 99]);
+    expect(s[s.length - 1]).toBe(106);
+    expect(s).toHaveLength(8);
+  });
+  it("sanitize garde ASCII 32-126 (minuscules incluses)", () => {
+    expect(sanitizeCode128("Ab-12")).toBe("Ab-12");
+    expect(sanitizeCode128("café")).toBe("caf");
+    expect(code128Symbols("café")).not.toEqual([]);
+    expect(code128Symbols("é")).toEqual([]);
+  });
+  it("zones de silence 10 modules + zone de sécurité thermique", () => {
+    const svg = code128Svg("11", 22);
+    // Première barre à x=20 (silence gauche), largeur totale = symboles + 2×20.
+    expect(svg).toContain('x="20"');
+    expect(svg).toContain("viewBox");
+    const thermal = buildLabelsHtml([{ name: "C", priceMinor: 10000, barcode: "11" }], {
+      format: "45x20",
+    });
+    expect(thermal).toContain("margin:0 2mm");
+    expect(buildLabelsHtml([{ name: "C", priceMinor: 10000, barcode: "11" }], {})).not.toContain(
+      "margin:0 2mm",
+    );
+  });
+  it("45x20 : code-barres compact (barH 18)", () => {
+    const html = buildLabelsHtml([{ name: "C", priceMinor: 10000, barcode: "11" }], {
+      format: "45x20",
+    });
+    expect(html).toContain('height="34"');
+  });
+});
 describe("P1-3 backup 8 fréquences", () => {
   it("schéma + minutes par fréquence", () => {
     const parsed = backupAutoSchema.parse({

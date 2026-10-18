@@ -6,12 +6,14 @@ import { log } from "../services/logger";
 import { IPC_CHANNELS } from "../ipc/channels";
 import { labelsPayloadSchema, reportPayloadSchema } from "../ipc/validators";
 import { guardPrint, isValidationError, unavailable, validationError } from "./printing.guards";
+import { enforceRawChannelGates } from "../ipc/raw-guards";
 import { assertConfiguredPrinterAvailable } from "./printing.printer-settings";
-import { activeTemplateSettings, printHtml } from "./printing.templates";
+import { activeTemplateSettings, printHtml, printHtmlPages } from "./printing.templates";
 import { qrSvgOf } from "./printing.enrich";
 import {
   buildLabelsHtml,
   buildReportHtml,
+  labelPageMicrons,
   toReportData,
   type LabelItem,
 } from "./receipt-documents";
@@ -23,7 +25,7 @@ import {
 // perdre des étiquettes silencieusement.
 export function labelsOf(raw: unknown): {
   items: LabelItem[];
-  format: "30x20" | "50x30" | "58x40" | "A4-24" | "custom";
+  format: "30x20" | "45x20" | "50x30" | "58x30" | "58x40" | "A4-24" | "custom";
   customWidthMm: number;
   customHeightMm: number;
 } {
@@ -69,6 +71,8 @@ export function registerReportsLabelsIpc(getMainWindow: () => BrowserWindow | nu
   ipcMain.handle(IPC_CHANNELS["printing.previewReport"], (_e, raw: unknown) => {
     const denied = guardPrint("advanced-reports", ["reports"]);
     if (denied) return denied;
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.previewReport"], raw);
+    if (staffDenied) return staffDenied;
     try {
       const d = toReportData(reportPayloadSchema.parse(raw));
       return { ok: true, data: { htmlA4: buildReportHtml(d) } };
@@ -82,6 +86,8 @@ export function registerReportsLabelsIpc(getMainWindow: () => BrowserWindow | nu
   ipcMain.handle(IPC_CHANNELS["printing.printReport"], async (_e, raw: unknown) => {
     const denied = guardPrint("advanced-reports", ["reports"]);
     if (denied) return denied;
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.printReport"], raw);
+    if (staffDenied) return staffDenied;
     if (!getMainWindow()) return unavailable("Fenêtre d'impression indisponible.");
     try {
       await assertConfiguredPrinterAvailable(getMainWindow);
@@ -98,6 +104,8 @@ export function registerReportsLabelsIpc(getMainWindow: () => BrowserWindow | nu
   ipcMain.handle(IPC_CHANNELS["printing.previewLabels"], (_e, raw: unknown) => {
     const denied = guardPrint("barcode-scanner", ["products"]);
     if (denied) return denied;
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.previewLabels"], raw);
+    if (staffDenied) return staffDenied;
     try {
       const l = labelsOf(raw);
       return {
@@ -120,16 +128,26 @@ export function registerReportsLabelsIpc(getMainWindow: () => BrowserWindow | nu
   ipcMain.handle(IPC_CHANNELS["printing.printLabels"], async (_e, raw: unknown) => {
     const denied = guardPrint("barcode-scanner", ["products"]);
     if (denied) return denied;
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.printLabels"], raw);
+    if (staffDenied) return staffDenied;
     if (!getMainWindow()) return unavailable("Fenêtre d'impression indisponible.");
     try {
       await assertConfiguredPrinterAvailable(getMainWindow);
       const l = labelsOf(raw);
-      await printHtml(
-        buildLabelsHtml(l.items, {
-          format: l.format,
-          customWidthMm: l.customWidthMm,
-          customHeightMm: l.customHeightMm,
-        }),
+      // 1 étiquette = 1 job = 1 avance papier (même fenêtre cachée).
+      // Plusieurs étiquettes sur une seule page Chromium se retrouvaient
+      // sur une page pilote trop grande → 2 demandées = 1 sortie.
+      const labelOpts = {
+        format: l.format,
+        customWidthMm: l.customWidthMm,
+        customHeightMm: l.customHeightMm,
+      };
+      const microns = labelPageMicrons(labelOpts) ?? undefined;
+      await printHtmlPages(
+        l.items.map((item) => ({
+          html: buildLabelsHtml([item], labelOpts),
+          pageSizeMicrons: microns,
+        })),
         400,
       );
       return { ok: true, data: { printed: true } };

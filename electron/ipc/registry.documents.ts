@@ -1,10 +1,10 @@
-// Veloria PoS - IPC: retours + proformas + pain (extrait de registry.ts, deplacement pur).
+// Veloria PoS - IPC: retours + proformas (extrait de registry.ts, deplacement pur).
 
 import { IPC_CHANNELS } from "./channels";
 import * as V from "./validators";
 import * as Returns from "./handlers/returns.repo";
 import * as Proformas from "./handlers/proformas.repo";
-import * as Bread from "./handlers/bread.repo";
+import { getCurrentStaffUser } from "./handlers/staff-session";
 import { handle } from "./handle";
 
 export function registerDocumentsChannels(): void {
@@ -47,6 +47,8 @@ export function registerDocumentsChannels(): void {
       notes: input.notes ?? null,
       createdAt,
       now,
+      // R2 (0046) : le retour porte son auteur.
+      staffUserId: getCurrentStaffUser(),
     });
   });
   handle(IPC_CHANNELS["returns.list"], V.returnListSchema, (input) =>
@@ -168,91 +170,4 @@ export function registerDocumentsChannels(): void {
     Proformas.getProformaDetail(input.id),
   );
   handle(IPC_CHANNELS["proformas.stats"], V.emptyPayloadSchema, () => Proformas.getProformaStats());
-
-  // ---- Phase 9 : pain (simplifié + récurrence quotidienne) ----
-  handle(IPC_CHANNELS["bread.create"], V.breadCreateSchema, (input) =>
-    Bread.createBreadOrderAtomic({
-      customerId: input.customerId ?? null,
-      customName: input.customName ?? null,
-      customPhone: input.customPhone ?? null,
-      breadType: input.breadType,
-      orderName: input.orderName ?? null,
-      isRecurring: input.isRecurring,
-      pickupDate: input.pickupDate,
-      pickupTime: input.pickupTime ?? null,
-      quantity: input.quantity,
-      unitPriceMinor: input.unitPriceMinor,
-      amountPaidMinor: input.amountPaidMinor,
-      paymentMethod: input.paymentMethod ?? null,
-      notes: input.notes ?? null,
-      operationId: input.operationId,
-      now: new Date().toISOString(),
-    }),
-  );
-  handle(IPC_CHANNELS["bread.list"], V.breadListSchema, (input) =>
-    Bread.listBreadOrders(input.pickupDate ?? null, input.page, input.pageSize, {
-      query: input.query,
-      status: input.status ?? null,
-      customer: input.customer,
-      recurring: input.recurring,
-      orderFrom: input.orderFrom ?? null,
-      orderTo: input.orderTo ?? null,
-      pickupFrom: input.pickupFrom ?? null,
-      pickupTo: input.pickupTo ?? null,
-      sort: input.sort,
-    }),
-  );
-  handle(IPC_CHANNELS["bread.pay"], V.breadPaySchema, (input) => {
-    Bread.recordBreadPayment(
-      input.id,
-      input.amountMinor,
-      input.method ?? null,
-      new Date().toISOString(),
-      input.operationId,
-    );
-    return { paid: true };
-  });
-  handle(IPC_CHANNELS["bread.update"], V.breadUpdateSchema, (input) => {
-    Bread.updateBreadOrder({
-      id: input.id,
-      customerId: input.customerId ?? null,
-      customName: input.customName ?? null,
-      customPhone: input.customPhone ?? null,
-      breadType: input.breadType,
-      orderName: input.orderName ?? null,
-      isRecurring: input.isRecurring,
-      pickupDate: input.pickupDate,
-      pickupTime: input.pickupTime ?? null,
-      notes: input.notes ?? null,
-      operationId: input.operationId,
-      now: new Date().toISOString(),
-    });
-    return { updated: true };
-  });
-  handle(IPC_CHANNELS["bread.status"], V.breadStatusSchema, (input) => {
-    Bread.setBreadOrderStatus(input.id, input.to, new Date().toISOString(), input.operationId);
-    return { updated: true };
-  });
-  handle(IPC_CHANNELS["bread.stats"], V.emptyPayloadSchema, () => Bread.getBreadStats());
-  handle(IPC_CHANNELS["bread.detail"], V.idSchema, (input) => Bread.getBreadOrder(input.id));
-  handle(IPC_CHANNELS["bread.transfer"], V.breadTransferSchema, (input) => {
-    Bread.transferBreadToCustomerAccount(input.id, new Date().toISOString(), input.operationId);
-    return { transferred: true };
-  });
-  handle(IPC_CHANNELS["bread.updateQty"], V.breadUpdateQtySchema, (input) => {
-    Bread.updateBreadQuantity(
-      input.id,
-      input.quantity,
-      new Date().toISOString(),
-      input.operationId,
-    );
-    return { updated: true };
-  });
-  handle(IPC_CHANNELS["bread.convert"], V.idempotentIdSchema, (input) =>
-    Bread.convertBreadToSaleAtomic({
-      breadId: input.id,
-      operationId: input.operationId,
-      now: new Date().toISOString(),
-    }),
-  );
 }

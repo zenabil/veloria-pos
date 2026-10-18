@@ -272,6 +272,8 @@ export function receivePurchaseOrderAtomic(args: {
   lines: { itemId: number; quantityReceived: number }[];
   operationId: string;
   now: string;
+  /** Auteur de la réception (session main, 0046). */
+  staffUserId?: number | null;
 }): { intakeId: number } {
   const db = getDb();
   const fast = peekIdempotency<{ intakeId: number }>(args.operationId, "purchase.receive");
@@ -336,6 +338,7 @@ export function receivePurchaseOrderAtomic(args: {
       lines: intakeLines,
       operationId: `${args.operationId}:intake`,
       now: args.now,
+      staffUserId: args.staffUserId ?? null,
     });
     const remaining = (
       db

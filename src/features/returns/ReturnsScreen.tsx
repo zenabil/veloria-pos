@@ -303,15 +303,25 @@ export function ReturnsScreen({ notify }: { notify: Notify }): React.JSX.Element
       return;
     setBulkBusy(true);
     let done = 0;
+    const failed: string[] = [];
     for (const r of rows.filter((x) => selection.has(rowKey(x)))) {
       try {
         await api.returnCancel({ kind: r.kind, id: r.entity_id, operationId: newOperationId() });
         done += 1;
-      } catch {
-        /* on continue : le garde-fou explique au cas par cas dans le tiroir */
+      } catch (e) {
+        // Règle 6 : le garde-fou main explique mieux dans le tiroir, mais la
+        // boucle ne doit jamais avaler les échecs sans trace visible.
+        failed.push(`${returnNumber(r.kind, r.number, r.entity_id)} — ${frError(e, "échec")}`);
       }
     }
-    notify(`${done}/${selection.size} retour(s) annulé(s).`, done > 0 ? "ok" : "err");
+    if (failed.length === 0) {
+      notify(`${done}/${selection.size} retour(s) annulé(s).`, "ok");
+    } else {
+      notify(
+        `${done}/${selection.size} annulé(s) · échec(s) : ${failed.slice(0, 3).join(" ; ")}`,
+        "err",
+      );
+    }
     setBulkBusy(false);
     refresh();
   }
@@ -324,8 +334,8 @@ export function ReturnsScreen({ notify }: { notify: Notify }): React.JSX.Element
       {/* En-tête Stitch : Retours & Avoirs Clients · MODULE 09 · FISCAL V3.2 */}
       <PageHeader
         title="Retours et avoirs"
-        module="Module 09 · Fiscal v3.2"
-        period={`${total} retour(s) · ${formatDzd(stats.totalAmountMinor)} de marchandises retournées · REGISTRE DES RETOURS ACTIF · POSTE 04`}
+        module="Module 09 · Retours clients et fournisseurs"
+        period={`${total} retour(s) · ${formatDzd(stats.totalAmountMinor)} de marchandises retournées`}
         actions={
           <>
             <SearchField

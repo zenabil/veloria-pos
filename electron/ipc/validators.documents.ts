@@ -94,61 +94,6 @@ export const proformaConvertSchema = z.object({
 
 // Phase 8 �?" finance
 
-export const breadCreateSchema = z.object({
-  operationId: z.string().uuid(),
-  customerId: z.number().int().positive().nullable().optional(),
-  customName: z.string().max(200).nullable().optional(),
-  customPhone: z.string().max(30).nullable().optional(),
-  breadType: z.string().min(2).max(100).default("Pain"),
-  orderName: z.string().max(200).nullable().optional(),
-  isRecurring: z.boolean().default(false),
-  pickupDate: businessDate,
-  pickupTime: z.string().max(10).nullable().optional(),
-  quantity,
-  unitPriceMinor: moneyMinor,
-  amountPaidMinor: moneyMinor.default(0),
-  paymentMethod: z.enum(["cash", "cheque", "transfer"]).nullable().optional(),
-  notes: z.string().max(500).nullable().optional(),
-});
-
-export const breadPaySchema = z.object({
-  operationId: z.string().uuid(),
-  id: z.number().int().positive(),
-  amountMinor: moneyMinorPositive,
-  method: z.enum(["cash", "cheque", "transfer"]).nullable().optional(),
-});
-
-export const breadUpdateQtySchema = z.object({
-  operationId: z.string().uuid(),
-  id: z.number().int().positive(),
-  quantity,
-});
-
-export const breadUpdateSchema = z.object({
-  operationId: z.string().uuid(),
-  id: z.number().int().positive(),
-  customerId: z.number().int().positive().nullable().optional(),
-  customName: z.string().max(200).nullable().optional(),
-  customPhone: z.string().max(30).nullable().optional(),
-  breadType: z.string().min(2).max(100),
-  orderName: z.string().max(200).nullable().optional(),
-  isRecurring: z.boolean().default(false),
-  pickupDate: businessDate,
-  pickupTime: z.string().max(10).nullable().optional(),
-  notes: z.string().max(500).nullable().optional(),
-});
-
-export const breadStatusSchema = z.object({
-  operationId: z.string().uuid(),
-  id: z.number().int().positive(),
-  to: z.enum(["new", "confirmed", "preparing", "ready", "delivered", "cancelled"]),
-});
-
-export const breadTransferSchema = z.object({
-  operationId: z.string().uuid(),
-  id: z.number().int().positive(),
-});
-
 export const proformaListSchema = paginationSchema.extend({
   status: z.enum(["draft", "sent", "converted", "cancelled"]).nullable().optional(),
   query: z.string().max(200).default(""),
@@ -178,20 +123,4 @@ export const proformaUpdateSchema = z.object({
   dueDate: businessDate.nullable().optional(),
   notes: z.string().max(500).nullable().optional(),
   terms: z.string().max(2000).nullable().optional(),
-});
-
-export const breadListSchema = paginationSchema.extend({
-  pickupDate: businessDate.nullable().optional(),
-  query: z.string().max(200).default(""),
-  status: z
-    .enum(["new", "confirmed", "preparing", "ready", "delivered", "cancelled"])
-    .nullable()
-    .optional(),
-  customer: z.string().max(200).default(""),
-  recurring: z.enum(["all", "recurring", "once"]).default("all"),
-  orderFrom: businessDate.nullable().optional(),
-  orderTo: businessDate.nullable().optional(),
-  pickupFrom: businessDate.nullable().optional(),
-  pickupTo: businessDate.nullable().optional(),
-  sort: z.enum(["pickup_asc", "pickup_desc", "date_desc", "amount_desc"]).default("pickup_asc"),
 });

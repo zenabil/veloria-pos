@@ -18,6 +18,38 @@ import {
 
 export type CustomerDebtFilter = "all" | "with_debt" | "no_debt" | "over_limit";
 
+/** Tri serveur (miroir du `CustomerSort` renderer `src/features/customers/types.ts`). */
+export type CustomerSort = "name_asc" | "name_desc" | "debt_desc" | "debt_asc" | "purchases_desc";
+
+/**
+ * Normalisation de recherche FR (MIROIR de la migration 0047) : minuscules,
+ * accents stripped (NFD), ligatures non décomposées (œ/æ → oe/ae, ø → o),
+ * espaces repliés. Ordre : minuscules d'abord (NFD n'abaisse pas la casse),
+ * décomposition + retrait des diacritiques, puis ligatures. Toute évolution
+ * doit changer aussi le backfill 0047 (sinon les lignes historiques
+ * deviennent introuvables).
+ */
+export function normCustomerSearch(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/œ/g, "oe")
+    .replace(/æ/g, "ae")
+    .replace(/ø/g, "o")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Téléphone comparé sans séparateurs (tout caractère non chiffre). */
+export function digitsOnly(value: string): string {
+  return value.replace(/\D/g, "");
+}
+
+// Séparateurs téléphone courants retirés de la colonne (côté requête :
+// digitsOnly) : espaces, tirets, points, slash, parenthèses, indicatif +.
+const PHONE_DIGITS_EXPR = `REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone,' ',''),'-',''),'.',''),'/',''),'(',''),')',''),'+',''),char(160),'')`;
+
 export function searchCustomers(
   query: string,
   page: number,
@@ -27,6 +59,9 @@ export function searchCustomers(
   // P1-3 : filtre serveur « archivés seuls » — total réel (plus de
   // filtrage client borné à la page).
   archivedOnly = false,
+  // Tri serveur : le renderer ne réordonne plus la page seule (les débiteurs
+  // hors page 1 semblaient « disparus »).
+  sort: CustomerSort = "name_asc",
 ): { rows: unknown[]; total: number } {
   const db = getDb();
   const q = query.trim();
@@ -43,14 +78,43 @@ export function searchCustomers(
         : debtFilter === "over_limit"
           ? " AND is_over_limit = 1"
           : "";
+  const escapeLike = (s: string): string => s.replace(/[%_\\]/g, (c) => `\\${c}`);
+  const norm = normCustomerSearch(q);
+  const digits = digitsOnly(q);
+  // Téléphone saisi sans espaces (« 0550123456 ») vs stocké avec (« 0550 12… ») :
+  // branche chiffres seuls, activée à ≥ 2 chiffres (même seuil que la caisse).
+  const useDigits = digits.length >= 2;
   const where = q
-    ? `WHERE (search_name LIKE ? ESCAPE '\\' OR phone LIKE ?)${alive}${debt}`
+    ? `WHERE (search_name LIKE ? ESCAPE '\\' OR COALESCE(search_norm, '') LIKE ? ESCAPE '\\' OR phone LIKE ? ESCAPE '\\'${useDigits ? ` OR ${PHONE_DIGITS_EXPR} LIKE ? ESCAPE '\\'` : ""})${alive}${debt}`
     : `WHERE 1 = 1${alive}${debt}`;
-  const like = `%${q.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
-  const params: unknown[] = q ? [like, like] : [];
+  const like = `%${escapeLike(q)}%`;
+  // Repli si la normalisation vide la requête (diacritiques combinants seuls) :
+  // LIKE '%%' renverrait tout le registre — on retombe sur la forme brute.
+  const normLike = `%${escapeLike(norm !== "" ? norm : q)}%`;
+  const params: unknown[] = q
+    ? useDigits
+      ? [like, normLike, like, `%${digits}%`]
+      : [like, normLike, like]
+    : [];
   const total = (
     db.prepare(`SELECT COUNT(*) AS c FROM customers ${where}`).get(...params) as { c: number }
   ).c;
+  // Tri serveur (whitelist fermée, jamais d'interpolation brute) : l'ordre est
+  // global à la pagination, plus de réordonnancement d'une page seule côté UI.
+  // Note : `assertOrderClause` des autres repos ne s'applique pas ici — sa
+  // regex refuse `COALESCE(...)` ; l'ordre est construit uniquement depuis les
+  // branches littérales ci-dessous (aucune entrée utilisateur interpolée).
+  const nameKey = `COALESCE(c.search_norm, c.search_name)`;
+  const order =
+    sort === "name_desc"
+      ? `${nameKey} DESC, c.id ASC`
+      : sort === "debt_desc"
+        ? `c.outstanding_balance_minor DESC, ${nameKey} ASC, c.id ASC`
+        : sort === "debt_asc"
+          ? `c.outstanding_balance_minor ASC, ${nameKey} ASC, c.id ASC`
+          : sort === "purchases_desc"
+            ? `total_purchases_minor DESC, ${nameKey} ASC, c.id ASC`
+            : `${nameKey} ASC, c.id ASC`;
   // Agrégats par client en sous-requêtes corrélées (ventes non annulées ;
   // `sales.customer_id` est indexé : ~1 ms pour une page de 20).
   const rows = db
@@ -59,7 +123,7 @@ export function searchCustomers(
         (SELECT COUNT(*) FROM sales s WHERE s.customer_id = c.id AND s.is_cancelled = 0) AS invoice_count,
         (SELECT COALESCE(SUM(s.total_minor), 0) FROM sales s WHERE s.customer_id = c.id AND s.is_cancelled = 0) AS total_purchases_minor,
         (SELECT MAX(s.created_at) FROM sales s WHERE s.customer_id = c.id AND s.is_cancelled = 0) AS last_sale_at
-       FROM customers c ${where} ORDER BY search_name LIMIT ? OFFSET ?`,
+       FROM customers c ${where} ORDER BY ${order} LIMIT ? OFFSET ?`,
     )
     .all(...params, pageSize, (page - 1) * pageSize);
   return { rows, total };
@@ -90,14 +154,17 @@ export function createCustomer(args: {
   const fast = findExisting();
   if (fast != null) return fast;
   const search = `${args.firstName} ${args.lastName}`.trim().toLowerCase();
+  // search_norm (migration 0047) : maintenu à chaque écriture, jamais NULL
+  // sur les lignes neuves (le backfill couvre l'historique).
+  const searchNorm = normCustomerSearch(search);
   // Solde initial ≥ 0 garanti par le validateur : stocké tel quel + statut
   // calculé (même règle que les ventes, jamais de clamp silencieux).
   // AUDIT-ROOT: création tracée comme updateCustomer (history aveugle sinon).
   const tx = db.transaction(() => {
     const r = db
       .prepare(
-        `INSERT INTO customers (uuid, operation_id, first_name, last_name, search_name, phone, address, credit_limit_minor, initial_balance_minor, outstanding_balance_minor, debt_status, is_over_limit, settlement_day, is_bread_client, credit_allowed, notes, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? <= 0 THEN 'none' WHEN ? > 0 AND ? > ? THEN 'over_limit' ELSE 'due' END, CASE WHEN ? > 0 AND ? > ? THEN 1 ELSE 0 END, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO customers (uuid, operation_id, first_name, last_name, search_name, search_norm, phone, address, credit_limit_minor, initial_balance_minor, outstanding_balance_minor, debt_status, is_over_limit, settlement_day, is_bread_client, credit_allowed, notes, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? <= 0 THEN 'none' WHEN ? > 0 AND ? > ? THEN 'over_limit' ELSE 'due' END, CASE WHEN ? > 0 AND ? > ? THEN 1 ELSE 0 END, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         randomUUID(),
@@ -105,6 +172,7 @@ export function createCustomer(args: {
         args.firstName.trim(),
         args.lastName.trim(),
         search,
+        searchNorm,
         args.phone,
         args.address,
         args.creditLimitMinor,
@@ -162,6 +230,9 @@ export function updateCustomer(args: {
   const fast = peekOptional<{ updated: boolean }>(args.operationId, "customers.update");
   if (fast) return;
   const search = `${args.firstName} ${args.lastName}`.trim().toLowerCase();
+  // search_norm (migration 0047) : maintenu à chaque écriture, jamais NULL
+  // sur les lignes neuves (le backfill couvre l'historique).
+  const searchNorm = normCustomerSearch(search);
   const tx = db.transaction(() => {
     claimOptional(args.operationId, "customers.update", args.now);
     const exists = db.prepare(`SELECT id FROM customers WHERE id = ?`).get(args.id) as
@@ -171,11 +242,12 @@ export function updateCustomer(args: {
     db.prepare(
       // Plafond modifié → statut recalculé (même règle qu'à la création :
       // 'none' si solde ≤ 0, 'over_limit' si plafond > 0 dépassé, sinon 'due').
-      `UPDATE customers SET first_name = ?, last_name = ?, search_name = ?, phone = ?, address = ?, credit_limit_minor = ?, credit_allowed = ?, settlement_day = ?, notes = ?, debt_status = CASE WHEN outstanding_balance_minor <= 0 THEN 'none' WHEN ? > 0 AND outstanding_balance_minor > ? THEN 'over_limit' ELSE 'due' END, is_over_limit = CASE WHEN ? > 0 AND outstanding_balance_minor > ? THEN 1 ELSE 0 END, updated_at = ? WHERE id = ?`,
+      `UPDATE customers SET first_name = ?, last_name = ?, search_name = ?, search_norm = ?, phone = ?, address = ?, credit_limit_minor = ?, credit_allowed = ?, settlement_day = ?, notes = ?, debt_status = CASE WHEN outstanding_balance_minor <= 0 THEN 'none' WHEN ? > 0 AND outstanding_balance_minor > ? THEN 'over_limit' ELSE 'due' END, is_over_limit = CASE WHEN ? > 0 AND outstanding_balance_minor > ? THEN 1 ELSE 0 END, updated_at = ? WHERE id = ?`,
     ).run(
       args.firstName.trim(),
       args.lastName.trim(),
       search,
+      searchNorm,
       args.phone?.trim() || null,
       args.address?.trim() || null,
       args.creditLimitMinor,
@@ -446,6 +518,8 @@ export function recordCustomerPaymentAtomic(args: {
   notes: string | null;
   paymentDate: string;
   now: string;
+  /** Auteur de l'encaissement (session main, 0046). */
+  staffUserId?: number | null;
 }): { paymentId: number } {
   if (args.saleId == null && args.customerId == null) {
     throw new Error("Client ou vente requis pour enregistrer un paiement.");
@@ -506,7 +580,7 @@ export function recordCustomerPaymentAtomic(args: {
       }
     }
     db.prepare(
-      `INSERT INTO sale_payments (uuid, sale_id, customer_id, amount_minor, method, reference, notes, payment_date, operation_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO sale_payments (uuid, sale_id, customer_id, amount_minor, method, reference, notes, payment_date, operation_id, staff_user_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       randomUUID(),
       args.saleId,
@@ -517,6 +591,7 @@ export function recordCustomerPaymentAtomic(args: {
       args.notes,
       args.paymentDate,
       args.operationId,
+      args.staffUserId ?? null,
       args.now,
     );
     if (args.customerId != null) {

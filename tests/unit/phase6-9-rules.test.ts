@@ -9,7 +9,6 @@ import {
   computeProformaTotals,
   assertProformaTransition,
 } from "@/domain/proforma/proforma-rules.ts";
-import { computeBreadTotals, assertBreadPickupTransition } from "@/domain/bread/bread-rules.ts";
 import { computeClosingBalance } from "@/domain/closings/closing-rules.ts";
 import { parseProductsCsv, parseCustomersCsv } from "@/domain/import/csv-import.ts";
 
@@ -78,22 +77,6 @@ describe("Phase 7 — proformas", () => {
     expect(() => assertProformaTransition("draft", "sent")).not.toThrow();
     expect(() => assertProformaTransition("draft", "converted")).toThrow();
     expect(() => assertProformaTransition("converted", "cancelled")).toThrow();
-  });
-});
-
-describe("Phase 9 — pain", () => {
-  it("calcule total / reste / statut", () => {
-    expect(computeBreadTotals(10, 1500, 10000)).toEqual({
-      totalMinor: 15000,
-      remainingMinor: 5000,
-      paymentStatus: "partial",
-    });
-    expect(computeBreadTotals(2, 1500, 3000).paymentStatus).toBe("paid");
-  });
-  it("refuse le surpaiement et les retraits illégaux", () => {
-    expect(() => computeBreadTotals(1, 1000, 1500)).toThrow();
-    expect(() => assertBreadPickupTransition("pending", "ready")).not.toThrow();
-    expect(() => assertBreadPickupTransition("pending", "delivered")).toThrow();
   });
 });
 

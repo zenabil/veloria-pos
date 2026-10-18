@@ -6,7 +6,7 @@ import { describe, it, expect } from "vitest";
 import { isRealCalendarDate as mainIsRealCalendarDate } from "../../electron/ipc/validators.ts";
 import { isRealCalendarDate as domainIsRealCalendarDate } from "@/domain/common/dates.ts";
 import { assertValidQuantity } from "@/domain/common/quantity.ts";
-import { breadUpdateQtySchema } from "../../electron/ipc/validators.ts";
+import { saleItemSchema, closingCreateSchema } from "../../electron/ipc/validators.ts";
 
 const DATES = [
   "2026-09-20",
@@ -31,10 +31,15 @@ describe("P2 : parité calendaire main/domaine", () => {
       expect(mainIsRealCalendarDate(d), `main:${d}`).toBe(domainIsRealCalendarDate(d));
     }
   });
-  it("businessDate rejette les impossibles via le schéma pain", () => {
+  it("businessDate rejette les impossibles", () => {
     const OP = "123e4567-e89b-12d3-a456-426614174000";
-    expect(breadUpdateQtySchema.parse({ operationId: OP, id: 1, quantity: 2 }).quantity).toBe(2);
-    expect(() => breadUpdateQtySchema.parse({ operationId: OP, id: 1, quantity: 0 })).toThrow();
+    expect(
+      closingCreateSchema.parse({ operationId: OP, businessDate: "2026-09-20", openingMinor: 0 })
+        .businessDate,
+    ).toBe("2026-09-20");
+    expect(() =>
+      closingCreateSchema.parse({ operationId: OP, businessDate: "2026-02-31", openingMinor: 0 }),
+    ).toThrow();
   });
 });
 
@@ -42,6 +47,9 @@ const QUANTITIES: Array<{ q: number; ok: boolean }> = [
   { q: 1, ok: true },
   { q: 0.001, ok: true },
   { q: 1_000_000, ok: true },
+  // ADR-114 : au-delà de ~16 384, `q*1000` dépasse 1e-9 d'écart flottant —
+  // l'ancienne formule IPC rejetait cette quantité pourtant valide (3 déc.).
+  { q: 16384.005, ok: true },
   { q: 0, ok: false },
   { q: -1, ok: false },
   { q: 1.00005, ok: false },
@@ -52,7 +60,6 @@ const QUANTITIES: Array<{ q: number; ok: boolean }> = [
 
 describe("P2 : parité quantité main/domaine", () => {
   it("mêmes verdicts (Zod main vs assertValidQuantity)", () => {
-    const OP = "123e4567-e89b-12d3-a456-426614174000";
     for (const { q, ok } of QUANTITIES) {
       let domainOk = true;
       try {
@@ -62,7 +69,13 @@ describe("P2 : parité quantité main/domaine", () => {
       }
       let mainOk = true;
       try {
-        breadUpdateQtySchema.parse({ operationId: OP, id: 1, quantity: q });
+        saleItemSchema.parse({
+          productId: null,
+          productName: "X",
+          originalUnitPriceMinor: 100,
+          unitPriceMinor: 100,
+          quantity: q,
+        });
       } catch {
         mainOk = false;
       }

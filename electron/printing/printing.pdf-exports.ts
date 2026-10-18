@@ -11,6 +11,7 @@ import {
   reportPayloadSchema,
 } from "../ipc/validators";
 import { guardPdfExport, isValidationError, validationError } from "./printing.guards";
+import { enforceRawChannelGates } from "../ipc/raw-guards";
 import { exportDocumentPdf, pdfExportFailed, safeInvoiceFileName } from "./printing.pdf";
 import {
   applyTemplateToReceipt,
@@ -37,6 +38,8 @@ export function registerPdfExportsIpc(getMainWindow: () => BrowserWindow | null)
   ipcMain.handle(IPC_CHANNELS["printing.exportReceiptPdf"], async (_e, raw: unknown) => {
     const denied = guardPdfExport("receipt-80mm", ["sales"]);
     if (denied) return denied;
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.exportReceiptPdf"], raw);
+    if (staffDenied) return staffDenied;
     try {
       const input = printPayloadSchema.parse(raw ?? {});
       const { filePath } = pdfFilePathSchema.parse(raw ?? {});
@@ -61,6 +64,8 @@ export function registerPdfExportsIpc(getMainWindow: () => BrowserWindow | null)
   ipcMain.handle(IPC_CHANNELS["printing.exportA4Pdf"], async (_e, raw: unknown) => {
     const denied = guardPdfExport("invoice-a4", ["invoices", "sales"]);
     if (denied) return denied;
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.exportA4Pdf"], raw);
+    if (staffDenied) return staffDenied;
     try {
       const input = printPayloadSchema.parse(raw ?? {});
       const { filePath } = pdfFilePathSchema.parse(raw ?? {});
@@ -86,6 +91,8 @@ export function registerPdfExportsIpc(getMainWindow: () => BrowserWindow | null)
   ipcMain.handle(IPC_CHANNELS["printing.exportProformaPdf"], async (_e, raw: unknown) => {
     const denied = guardPdfExport("proformas", ["proformas"]);
     if (denied) return denied;
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.exportProformaPdf"], raw);
+    if (staffDenied) return staffDenied;
     try {
       const input = printPayloadSchema.parse(raw ?? {});
       const { filePath } = pdfFilePathSchema.parse(raw ?? {});
@@ -106,14 +113,13 @@ export function registerPdfExportsIpc(getMainWindow: () => BrowserWindow | null)
   });
 
   ipcMain.handle(IPC_CHANNELS["printing.exportPaymentPdf"], async (_e, raw: unknown) => {
-    const denied = guardPdfExport("receipt-80mm", [
-      "customers",
-      "suppliers",
-      "debts",
-      "breadOrders",
-      "pain",
-    ]);
+    const denied = guardPdfExport("receipt-80mm", ["customers", "suppliers", "debts"]);
     if (denied) return denied;
+    const staffDeniedPayment = enforceRawChannelGates(
+      IPC_CHANNELS["printing.exportPaymentPdf"],
+      raw,
+    );
+    if (staffDeniedPayment) return staffDeniedPayment;
     try {
       const { filePath } = pdfFilePathSchema.parse(raw ?? {});
       const { text80, htmlA4, codes } = paymentOf(raw);
@@ -138,6 +144,8 @@ export function registerPdfExportsIpc(getMainWindow: () => BrowserWindow | null)
   ipcMain.handle(IPC_CHANNELS["printing.exportReportPdf"], async (_e, raw: unknown) => {
     const denied = guardPdfExport("advanced-reports", ["reports"]);
     if (denied) return denied;
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.exportReportPdf"], raw);
+    if (staffDenied) return staffDenied;
     try {
       const d = toReportData(reportPayloadSchema.parse(raw ?? {}));
       const { filePath } = pdfFilePathSchema.parse(raw ?? {});
@@ -159,6 +167,8 @@ export function registerPdfExportsIpc(getMainWindow: () => BrowserWindow | null)
   ipcMain.handle(IPC_CHANNELS["printing.exportLabelsPdf"], async (_e, raw: unknown) => {
     const denied = guardPdfExport("barcode-scanner", ["products"]);
     if (denied) return denied;
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.exportLabelsPdf"], raw);
+    if (staffDenied) return staffDenied;
     try {
       const { filePath } = pdfFilePathSchema.parse(raw ?? {});
       const l = labelsOf(raw);

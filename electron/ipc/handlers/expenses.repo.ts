@@ -50,7 +50,9 @@ function normalizeUpsert(args: ExpenseUpsert): void {
   }
 }
 
-export function createExpense(args: ExpenseUpsert & { operationId: string; now: string }): number {
+export function createExpense(
+  args: ExpenseUpsert & { operationId: string; now: string; staffUserId?: number | null },
+): number {
   const db = getDb();
   normalizeUpsert(args);
   if (args.supplierId != null) {
@@ -71,8 +73,8 @@ export function createExpense(args: ExpenseUpsert & { operationId: string; now: 
   const tx = db.transaction(() => {
     const r = db
       .prepare(
-        `INSERT INTO expenses (uuid, operation_id, description, category, amount_minor, expense_date, supplier_id, payment_method, status, reference, notes, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO expenses (uuid, operation_id, description, category, amount_minor, expense_date, supplier_id, payment_method, status, reference, notes, staff_user_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         randomUUID(),
@@ -86,12 +88,13 @@ export function createExpense(args: ExpenseUpsert & { operationId: string; now: 
         args.status,
         args.reference?.trim() || null,
         args.notes?.trim() || null,
+        args.staffUserId ?? null,
         args.now,
         args.now,
       );
     const id = Number(r.lastInsertRowid);
     db.prepare(
-      `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at) VALUES (?, 'expense.created', 'expense', ?, ?, ?, ?)`,
+      `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at, actor_user_id) VALUES (?, 'expense.created', 'expense', ?, ?, ?, ?, ?)`,
     ).run(
       randomUUID(),
       String(id),
@@ -99,6 +102,7 @@ export function createExpense(args: ExpenseUpsert & { operationId: string; now: 
       args.operationId,
       JSON.stringify({ amount: args.amountMinor, category: args.category.trim() }),
       args.now,
+      args.staffUserId ?? null,
     );
     return id;
   });

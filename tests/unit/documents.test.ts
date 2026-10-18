@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import {
-  formatBreadOrderNumber,
   formatInvoiceNumber,
   formatProformaNumber,
   padSequence,
@@ -23,7 +22,6 @@ import {
   type ProformaData,
   type ReceiptData,
 } from "../../electron/printing/receipt-documents";
-import { computeBreadTotals } from "@/domain/bread/bread-rules";
 import { computeClosingBalance, validateBusinessDate } from "@/domain/closings/closing-rules";
 import { validateExpenseDraft } from "@/domain/expenses/expense-rules";
 
@@ -70,7 +68,6 @@ describe("Document numbering (single format)", () => {
   it("pads and prefixes", () => {
     expect(formatInvoiceNumber("FAC", 2026, 1)).toBe("FAC-2026-00001");
     expect(formatProformaNumber("", 2026, 42)).toBe("PRO-2026-00042");
-    expect(formatBreadOrderNumber(2026, 7)).toBe("PAIN-2026-00007");
     expect(() => padSequence(0)).toThrow();
   });
 });
@@ -367,18 +364,6 @@ describe("Proforma documents (no fiscal value)", () => {
     expect(d.companyLogo).toBe("data:image/png;base64,QUJD");
     const html = buildProformaA4Html(d);
     expect(html.includes('src="data:image/png;base64,QUJD"')).toBe(true);
-  });
-});
-
-describe("Bread sale mapping", () => {
-  it("moves the remainder to the sale exactly once", () => {
-    // P2 : computeBreadSaleMapping (alias) supprimé — computeBreadTotals direct.
-    const t = computeBreadTotals(10, 1500, 10000);
-    expect({ subtotalMinor: t.totalMinor, totalMinor: t.totalMinor }).toEqual({
-      subtotalMinor: 15000,
-      totalMinor: 15000,
-    });
-    expect(t.remainingMinor).toBe(5000);
   });
 });
 

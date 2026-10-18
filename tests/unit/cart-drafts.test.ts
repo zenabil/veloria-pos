@@ -25,6 +25,7 @@ describe("toCartDraftTabs (projection carts.save)", () => {
         customerLabel: "Amine Benali",
         amountPaidMinor: 50000,
         paymentMethod: "cash",
+        deliveryFeeMinor: 1500,
       },
       {
         id: 2,
@@ -34,6 +35,7 @@ describe("toCartDraftTabs (projection carts.save)", () => {
         customerLabel: "Client de passage",
         amountPaidMinor: 0,
         paymentMethod: null,
+        deliveryFeeMinor: 0,
       },
     ];
     expect(toCartDraftTabs(tabs)).toEqual([
@@ -56,6 +58,7 @@ describe("toCartDraftTabs (projection carts.save)", () => {
         customerLabel: "Amine Benali",
         amountPaidMinor: 50000,
         paymentMethod: "cash",
+        deliveryFeeMinor: 1500,
       },
       {
         tabId: 2,
@@ -65,6 +68,7 @@ describe("toCartDraftTabs (projection carts.save)", () => {
         customerLabel: "Client de passage",
         amountPaidMinor: 0,
         paymentMethod: null,
+        deliveryFeeMinor: 0,
       },
     ]);
   });

@@ -6,7 +6,7 @@ import {
   type ReceiptLine,
   type ThermalWidth,
 } from "./common";
-import { amountInWordsFr, tvaBreakdown } from "./amounts";
+import { amountInWordsFr, formatMinorDa, tvaBreakdown } from "./amounts";
 import {
   thermalCols,
   thermalField,
@@ -145,8 +145,7 @@ export function toReceiptData(raw: unknown): ReceiptData {
 export function buildReceiptText(d: ReceiptData, width?: ThermalWidth): string {
   const cols = thermalCols(width);
   const sep = thermalSep(cols);
-  const fmt = (m: number): string =>
-    `${new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2 }).format(m / 100)} DA`;
+  const fmt = formatMinorDa;
   const out: string[] = [];
   for (const l of wrapThermal(`*** ${d.company} ***`, cols)) out.push(l);
   if (d.companyAddress || d.companyCity) {

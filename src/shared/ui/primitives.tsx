@@ -379,7 +379,7 @@ export function Modal({
         onClick={(e) => e.stopPropagation()}
         className={cn("w-full", wide === true ? "max-w-[680px]" : "max-w-[500px]")}
       >
-        <Card className="max-h-[90vh] space-y-4 overflow-auto rounded-[18px] border-[#28395d] p-6 shadow-[0_24px_48px_-12px_rgba(2,6,13,0.85)]">
+        <Card className="veloria-dialog-in max-h-[90vh] space-y-4 overflow-auto rounded-[18px] border-[#28395d] p-6 shadow-[0_24px_48px_-12px_rgba(2,6,13,0.85)]">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-[17px] font-bold tracking-tight text-slate-100">{title}</h2>
             <button
@@ -430,11 +430,71 @@ export function Pager({
   );
 }
 
-export function EmptyState({ title, hint }: { title: string; hint?: string }): ReactNode {
+/** D11 : marques géométriques dessinées (jamais d'Unicode ◌ en guise
+ *  d'icône). Traits 1.5px, slate-500, 22px — géométrie exacte, pas de scène. */
+type EmptyGlyph = "box" | "doc" | "shield" | "cart";
+
+function EmptyGlyphMark({ glyph }: { glyph: EmptyGlyph }): ReactNode {
+  const common = {
+    width: 22,
+    height: 22,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.5,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    "aria-hidden": true,
+  } as const;
+  switch (glyph) {
+    case "doc":
+      return (
+        <svg {...common}>
+          <path d="M6 3h8l4 4v14H6z" />
+          <path d="M14 3v4h4" />
+          <path d="M9 12h6M9 16h6" />
+        </svg>
+      );
+    case "shield":
+      return (
+        <svg {...common}>
+          <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" />
+          <path d="M9.5 12l2 2 3.5-4" />
+        </svg>
+      );
+    case "cart":
+      return (
+        <svg {...common}>
+          <path d="M3 4h2l2.5 11h10L20 8H7" />
+          <circle cx="9.5" cy="19" r="1.4" />
+          <circle cx="16.5" cy="19" r="1.4" />
+        </svg>
+      );
+    case "box":
+    default:
+      return (
+        <svg {...common}>
+          <path d="M3.5 8L12 3.5 20.5 8v8L12 20.5 3.5 16z" />
+          <path d="M3.5 8L12 12.5 20.5 8" />
+          <path d="M12 12.5v8" />
+        </svg>
+      );
+  }
+}
+
+export function EmptyState({
+  title,
+  hint,
+  glyph = "box",
+}: {
+  title: string;
+  hint?: string;
+  glyph?: EmptyGlyph;
+}): ReactNode {
   return (
     <div className="flex flex-col items-center justify-center gap-2.5 px-6 py-16 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.03] text-xl text-slate-500">
-        ◌
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.03] text-slate-500">
+        <EmptyGlyphMark glyph={glyph} />
       </div>
       <div className="text-[13px] font-bold uppercase tracking-[0.14em] text-slate-400">
         {title}
@@ -569,8 +629,8 @@ export function InfoRow({
 }
 
 /** Tiroir latéral droit (détail) : fond + panneau + en-tête + fermeture Échap.
- * Source unique des 10 tiroirs de détail (produits, clients, dettes, historique,
- * retours, dépenses, stock, fournisseurs, proformas, pain) : `above`/`below`
+ * Source unique des 9 tiroirs de détail (produits, clients, dettes, historique,
+ * retours, dépenses, stock, fournisseurs, proformas) : `above`/`below`
  * portent les badges/références d'en-tête, `footer` la barre d'actions. */
 export function Drawer({
   label,

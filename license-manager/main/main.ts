@@ -1,7 +1,7 @@
 // Veloria License Manager — Entrée outil vendor (processus isolé du POS).
 // Dossier de données DÉDIÉ (jamais celui du POS) + instance unique.
 
-import { app } from "electron";
+import { app, dialog } from "electron";
 import path from "node:path";
 import { createManagerWindow, getManagerWindow } from "./window-manager";
 import { registerManagerIpc } from "../ipc/registry";
@@ -39,13 +39,30 @@ if (!gotLock) {
 let ipcRegistered = false;
 
 async function startup(): Promise<void> {
-  await app.whenReady();
-  // P10: outil vendor = fail-closed comme le POS (dev non-packagé : skip).
-  if (!enforceManagerIntegrityOrQuit()) return;
-  openManagerDb();
-  if (!ipcRegistered) {
-    registerManagerIpc();
-    ipcRegistered = true;
+  try {
+    await app.whenReady();
+    // P10: outil vendor = fail-closed comme le POS (dev non-packagé : skip).
+    if (!enforceManagerIntegrityOrQuit()) return;
+    openManagerDb();
+    if (!ipcRegistered) {
+      registerManagerIpc();
+      ipcRegistered = true;
+    }
+    createManagerWindow();
+  } catch (err) {
+    console.error("[manager] démarrage impossible:", err);
+    try {
+      dialog.showErrorBox(
+        "Démarrage impossible",
+        "Veloria License Manager ne peut pas démarrer (registre inaccessible). Détail technique journalisé.",
+      );
+    } catch {
+      /* pas de dialogue : sortie directe */
+    }
+    try {
+      app.quit();
+    } catch {
+      /* ignore */
+    }
   }
-  createManagerWindow();
 }

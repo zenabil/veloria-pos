@@ -13,6 +13,7 @@ import {
   peekIdempotency,
   storeIdempotencyResult,
 } from "../ipc/handlers/idempotency";
+import { toUserMessage } from "../ipc/ipc-errors";
 import { enqueueSnapshotAtomic } from "../ipc/handlers/client-access.repo";
 import {
   SYNC_DEFAULTS,
@@ -25,8 +26,25 @@ import {
   type SyncConfig,
   type SyncConfigView,
 } from "./sync.protocol";
+import {
+  decodeSecretWith,
+  encodeSecret,
+  safeStorageSecretBackend,
+  type SecretBackend,
+} from "./sync-secrets";
 
 const SETTINGS_KEY = "client_sync";
+
+/** Backend de chiffrement (DPAPI en prod, injectable en test). */
+let secretBackend: SecretBackend | null = null;
+/** Tests uniquement : substitue le backend DPAPI (jamais en production). */
+export function setSecretBackendForTests(backend: SecretBackend | null): void {
+  secretBackend = backend;
+}
+function secrets(): SecretBackend {
+  if (!secretBackend) secretBackend = safeStorageSecretBackend();
+  return secretBackend;
+}
 
 interface SyncDoc {
   enabled: boolean;
@@ -47,7 +65,16 @@ function readDoc(): SyncDoc {
       .get(SETTINGS_KEY) as { value_json: string } | undefined;
     if (!row) return fallback;
     const parsed = JSON.parse(row.value_json) as Partial<SyncDoc>;
-    return { ...fallback, ...parsed };
+    // R5 RADICAL : les secrets sont déchiffrés ici (legacy clair accepté en
+    // lecture, réchiffré à la prochaine écriture). Le reste du service ne
+    // manipule QUE du clair en mémoire, jamais persisté tel quel.
+    const backend = secrets();
+    return {
+      ...fallback,
+      ...parsed,
+      serviceKey: decodeSecretWith(backend, parsed.serviceKey),
+      anonKey: decodeSecretWith(backend, parsed.anonKey),
+    };
   } catch (err) {
     log("WARN", "sync", "read_failed", { error: String(err) });
     return fallback;
@@ -56,9 +83,16 @@ function readDoc(): SyncDoc {
 
 function writeDoc(doc: SyncDoc, now: string): void {
   const db = getDb();
+  const backend = secrets();
+  const stored: SyncDoc = {
+    ...doc,
+    // R5 RADICAL : persistance TOUJOURS chiffrée (vide → vide).
+    serviceKey: doc.serviceKey === "" ? "" : encodeSecret(doc.serviceKey, backend),
+    anonKey: doc.anonKey === "" ? "" : encodeSecret(doc.anonKey, backend),
+  };
   db.prepare(
     `INSERT INTO app_settings (key, value_json, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at`,
-  ).run(SETTINGS_KEY, JSON.stringify({ ...doc, serviceKey: doc.serviceKey }), now);
+  ).run(SETTINGS_KEY, JSON.stringify(stored), now);
 }
 
 function pendingCount(): number {
@@ -211,11 +245,17 @@ export async function pushNowAtomic(
       });
       if (!res.ok) {
         const detail = await res.text().catch(() => "");
-        throw new Error(`Miroir injoignable (HTTP ${res.status}). ${detail.slice(0, 120)}`);
+        // FIX-P1-03 : le détail serveur brut (anglais/JSON) reste au log
+        // technique ; seul un message FR est persisté dans lastError (lu par
+        // l'UI) — règle 6 (jamais d'exception brute à l'utilisateur).
+        log("ERROR", "sync", "push.http", { status: res.status, detail: detail.slice(0, 500) });
+        throw new Error(`Miroir injoignable (HTTP ${res.status}).`);
       }
     }
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Échec de la poussée.";
+    // FIX-P1-03 : lastError affiché par l'UI → message FR garanti via la
+    // source unique main (toUserMessage : technique → repli FR générique).
+    const msg = toUserMessage(err).message;
     try {
       writeDoc({ ...doc, lastError: msg }, args.now);
     } catch {

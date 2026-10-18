@@ -20,7 +20,9 @@ const MODULES = [
 
 // ADR-075 (2026-10-09) : 125 → 122 (cartsClearSchema, customersImportSchema,
 // periodSchema retirés avec leurs canaux morts ; closingsListSchema inliné).
-const FROZEN_SCHEMA_COUNT = 122;
+// ADR-109 (2026-10-16) : 122 → 115 (7 schémas bread.* supprimés avec le module).
+// ADR-112 (2026-10-17) : 115 → 116 (customerSortSchema : tri serveur customers.search).
+const FROZEN_SCHEMA_COUNT = 116;
 const FROZEN_MAX_LINES = 300;
 
 describe("Validators inventory (split guard)", () => {

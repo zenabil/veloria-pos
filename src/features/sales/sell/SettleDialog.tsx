@@ -1,7 +1,7 @@
 // Veloria PoS — Caisse : règlement de dette standalone (P4, extrait de SellScreen).
 import { formatDzd } from "@domain/money/money.ts";
-import { PAYMENT_METHOD_LABELS } from "@shared/formatters/format.ts";
-import { Button, Field, Modal, Select, TextInput } from "@shared/ui/primitives.tsx";
+import { Button, Modal } from "@shared/ui/primitives.tsx";
+import { AmountMethodFields } from "./AmountMethodFields.tsx";
 
 export function SettleDialog({
   customerLabel,
@@ -41,28 +41,14 @@ export function SettleDialog({
             </dd>
           </div>
         </dl>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Montant (DZD)">
-            <TextInput
-              value={settleAmount}
-              onChange={(e) => setSettleAmount(e.target.value)}
-              inputMode="decimal"
-              placeholder="0,00"
-              aria-label="Montant du règlement"
-            />
-          </Field>
-          <Field label="Moyen de paiement">
-            <Select
-              value={settleMethod}
-              onChange={(e) => setSettleMethod(e.target.value as "cash" | "cheque" | "transfer")}
-              aria-label="Moyen de paiement"
-            >
-              <option value="cash">{PAYMENT_METHOD_LABELS["cash"]}</option>
-              <option value="cheque">{PAYMENT_METHOD_LABELS["cheque"]}</option>
-              <option value="transfer">{PAYMENT_METHOD_LABELS["transfer"]}</option>
-            </Select>
-          </Field>
-        </div>
+        <AmountMethodFields
+          amountLabel="Montant (DZD)"
+          amountAria="Montant du règlement"
+          amountValue={settleAmount}
+          onAmountChange={setSettleAmount}
+          methodValue={settleMethod}
+          onMethodChange={setSettleMethod}
+        />
         <div className="flex gap-2">
           <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
             Retour

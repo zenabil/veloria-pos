@@ -6,6 +6,7 @@ import { log } from "../services/logger";
 import { IPC_CHANNELS } from "../ipc/channels";
 import { paymentTicketSchema } from "../ipc/validators";
 import { guardPrint, isValidationError, unavailable, validationError } from "./printing.guards";
+import { enforceRawChannelGates } from "../ipc/raw-guards";
 import { assertConfiguredPrinterAvailable } from "./printing.printer-settings";
 import {
   applyTemplateToPayment,
@@ -86,14 +87,10 @@ export function paymentOf(raw: unknown): {
 
 export function registerPaymentIpc(getMainWindow: () => BrowserWindow | null): void {
   ipcMain.handle(IPC_CHANNELS["printing.previewPayment"], (_e, raw: unknown) => {
-    const denied = guardPrint("receipt-80mm", [
-      "customers",
-      "suppliers",
-      "debts",
-      "breadOrders",
-      "pain",
-    ]);
+    const denied = guardPrint("receipt-80mm", ["customers", "suppliers", "debts"]);
     if (denied) return denied;
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.previewPayment"], raw);
+    if (staffDenied) return staffDenied;
     try {
       return { ok: true, data: paymentOf(raw) };
     } catch (err) {
@@ -104,14 +101,10 @@ export function registerPaymentIpc(getMainWindow: () => BrowserWindow | null): v
   });
 
   ipcMain.handle(IPC_CHANNELS["printing.printPayment"], async (_e, raw: unknown) => {
-    const denied = guardPrint("receipt-80mm", [
-      "customers",
-      "suppliers",
-      "debts",
-      "breadOrders",
-      "pain",
-    ]);
+    const denied = guardPrint("receipt-80mm", ["customers", "suppliers", "debts"]);
     if (denied) return denied;
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.printPayment"], raw);
+    if (staffDenied) return staffDenied;
     if (!getMainWindow()) return unavailable("Fenêtre d'impression indisponible.");
     try {
       await assertConfiguredPrinterAvailable(getMainWindow);

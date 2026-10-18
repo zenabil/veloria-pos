@@ -35,7 +35,20 @@ export interface ZakatCalculation {
   created_at: string;
 }
 
-export const HIJRI_YEARS = ["1446", "1447", "1448", "1449"];
+export const HIJRI_YEARS = hijriYearsWindow();
+
+/**
+ * Fenêtre glissante de 4 années hégiriennes autour de l'année courante
+ * (approximation calendaire : an = jours/354,367 depuis le 16 juillet 622,
+ * dérive possible de ±1 — l'éditeur valide l'année dans le dialogue).
+ * Fin du tableau statique 1446–1449 figé (périmé par construction).
+ */
+function hijriYearsWindow(): string[] {
+  const HIJRI_EPOCH_MS = Date.UTC(622, 6, 16);
+  const HIJRI_YEAR_DAYS = 354.367;
+  const current = Math.floor((Date.now() - HIJRI_EPOCH_MS) / 86400000 / HIJRI_YEAR_DAYS);
+  return [current - 1, current, current + 1, current + 2].map(String);
+}
 
 export function nisabMethodLabel(m: string): string {
   if (m === "silver") return "Argent";

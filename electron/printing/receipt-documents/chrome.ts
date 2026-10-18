@@ -1,15 +1,22 @@
 // Veloria PoS — Documents purs : habillage A4 commun (pur, zero import hors common/amounts).
 
-import { code39Svg, escapeHtml } from "./common";
-import { buildQrPayload } from "./amounts";
+import { code39Svg } from "./barcode39";
+import { escapeHtml } from "./html";
+import { buildQrPayload, formatMinorDa } from "./amounts";
 
 /** Bloc QR pour HTML (SVG réel injecté côté main + payload texte). */
-function qrBlockSvg(qrSvg: string, qrPayload: string): string {
+export function safeQrSvg(qrSvg: unknown): string {
   const svg = typeof qrSvg === "string" ? qrSvg.trim() : "";
+  // M2 RADICAL : seul un SVG réel généré main est injecté ; tout autre
+  // contenu (template, preview, entrée future) est neutralisé en vide.
+  return svg.startsWith("<svg") ? svg : "";
+}
+
+function qrBlockSvg(qrSvg: string, qrPayload: string): string {
+  const svg = safeQrSvg(qrSvg);
   const payload = typeof qrPayload === "string" ? qrPayload : "";
   if (!svg && !payload) return "";
-  const safeSvg = svg.startsWith("<svg") ? svg : "";
-  return `<div class="qr">${safeSvg}<div class="qrpayload">${escapeHtml(payload)}</div></div>`;
+  return `<div class="qr">${svg}<div class="qrpayload">${escapeHtml(payload)}</div></div>`;
 }
 
 /**
@@ -33,7 +40,7 @@ export function identityThermalLines(d: {
 }
 
 export function fmtDzd(m: number): string {
-  return `${new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2 }).format(m / 100)} DA`;
+  return formatMinorDa(m);
 }
 
 interface CompanyHead {

@@ -60,6 +60,7 @@ export const MANAGER_MANIFEST_CRITICAL: readonly string[] = [
   "dist-license-manager/license-manager/main/main.js",
   // P2 : le schéma Manager est embarqué ici (pas de database/migrations livré).
   "dist-license-manager/license-manager/db/manager-db.js",
+  "dist-license-manager/license-manager/preload/preload.js",
   "dist-license-manager-renderer/index.html",
   "resources/license/public.key",
 ];

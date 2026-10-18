@@ -5,6 +5,7 @@ import type { BrowserWindow } from "electron";
 import { log } from "../services/logger";
 import { IPC_CHANNELS } from "../ipc/channels";
 import { guardPrint, isValidationError, unavailable, validationError } from "./printing.guards";
+import { enforceRawChannelGates } from "../ipc/raw-guards";
 import { assertConfiguredPrinterAvailable } from "./printing.printer-settings";
 import {
   pageOptsOf,
@@ -20,6 +21,8 @@ export function registerProformaIpc(getMainWindow: () => BrowserWindow | null): 
   ipcMain.handle(IPC_CHANNELS["printing.previewProforma"], (_e, raw: unknown) => {
     const denied = guardPrint("proformas", ["proformas"]);
     if (denied) return denied;
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.previewProforma"], raw);
+    if (staffDenied) return staffDenied;
     try {
       const d = proformaWithSettings(raw);
       const { width } = templateRenderOf("proforma");
@@ -40,6 +43,8 @@ export function registerProformaIpc(getMainWindow: () => BrowserWindow | null): 
   ipcMain.handle(IPC_CHANNELS["printing.printProformaA4"], async (_e, raw: unknown) => {
     const denied = guardPrint("invoice-a4", ["proformas"]);
     if (denied) return denied;
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.printProformaA4"], raw);
+    if (staffDenied) return staffDenied;
     if (!getMainWindow()) return unavailable("Fenêtre d'impression indisponible.");
     try {
       await assertConfiguredPrinterAvailable(getMainWindow);
@@ -58,6 +63,8 @@ export function registerProformaIpc(getMainWindow: () => BrowserWindow | null): 
   ipcMain.handle(IPC_CHANNELS["printing.printProforma80mm"], async (_e, raw: unknown) => {
     const denied = guardPrint("proformas", ["proformas"]);
     if (denied) return denied;
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.printProforma80mm"], raw);
+    if (staffDenied) return staffDenied;
     if (!getMainWindow()) return unavailable("Fenêtre d'impression indisponible.");
     try {
       await assertConfiguredPrinterAvailable(getMainWindow);

@@ -1,6 +1,8 @@
 // Veloria PoS — Documents purs : texte thermique + ticket HTML (pur, zero import hors common).
 
-import { code39Svg, escapeHtml, escapePreText, type ThermalWidth } from "./common";
+import { code39Svg } from "./barcode39";
+import { escapeHtml, escapePreText } from "./html";
+import type { ThermalWidth } from "./common";
 
 // ---------------------------------------------------------------------------
 // C5 : texte thermique sans coupe (58mm = 32 cols, 80mm = 42 cols).

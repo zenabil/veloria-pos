@@ -60,7 +60,7 @@ export interface HistoryFilters {
   pageSize: number;
 }
 
-const BASE_COLUMNS = `kind, entity_id, ref, label, entity_type, entity_name, amount_minor, method, status, created_at, stock_before, stock_delta, stock_after, details_json`;
+const BASE_COLUMNS = `kind, entity_id, ref, label, entity_type, entity_name, amount_minor, method, status, created_at, stock_before, stock_delta, stock_after, details_json, actor_id`;
 
 function saleBranch(): string {
   return `SELECT 'sale' AS kind, s.id AS entity_id, s.invoice_number AS ref,
@@ -69,7 +69,8 @@ function saleBranch(): string {
     s.total_minor AS amount_minor, s.payment_method AS method,
     CASE WHEN s.is_cancelled = 1 THEN 'Annulée' ELSE 'Validée' END AS status,
     s.created_at AS created_at,
-    NULL AS stock_before, NULL AS stock_delta, NULL AS stock_after, NULL AS details_json
+    NULL AS stock_before, NULL AS stock_delta, NULL AS stock_after, NULL AS details_json,
+    s.staff_user_id AS actor_id
   FROM sales s LEFT JOIN customers c ON c.id = s.customer_id`;
 }
 
@@ -81,7 +82,8 @@ function purchaseBranch(): string {
     si.total_minor AS amount_minor, NULL AS method,
     CASE si.status WHEN 'committed' THEN 'Validée' WHEN 'draft' THEN 'Brouillon' ELSE 'Annulée' END AS status,
     si.created_at AS created_at,
-    NULL AS stock_before, NULL AS stock_delta, NULL AS stock_after, NULL AS details_json
+    NULL AS stock_before, NULL AS stock_delta, NULL AS stock_after, NULL AS details_json,
+    si.staff_user_id AS actor_id
   FROM stock_intakes si LEFT JOIN suppliers s ON s.id = si.supplier_id`;
 }
 
@@ -92,7 +94,8 @@ function paymentInBranch(): string {
     'customer' AS entity_type, COALESCE(c.search_name, '—') AS entity_name,
     sp.amount_minor AS amount_minor, sp.method AS method, 'Encaissé' AS status,
     sp.created_at AS created_at,
-    NULL AS stock_before, NULL AS stock_delta, NULL AS stock_after, NULL AS details_json
+    NULL AS stock_before, NULL AS stock_delta, NULL AS stock_after, NULL AS details_json,
+    sp.staff_user_id AS actor_id
   FROM sale_payments sp LEFT JOIN sales s ON s.id = sp.sale_id LEFT JOIN customers c ON c.id = sp.customer_id`;
 }
 
@@ -103,7 +106,8 @@ function paymentOutBranch(): string {
     'supplier' AS entity_type, COALESCE(s.name, '—') AS entity_name,
     sp.amount_minor AS amount_minor, sp.method AS method, 'Payé' AS status,
     sp.created_at AS created_at,
-    NULL AS stock_before, NULL AS stock_delta, NULL AS stock_after, NULL AS details_json
+    NULL AS stock_before, NULL AS stock_delta, NULL AS stock_after, NULL AS details_json,
+    sp.staff_user_id AS actor_id
   FROM supplier_payments sp LEFT JOIN suppliers s ON s.id = sp.supplier_id`;
 }
 
@@ -123,7 +127,7 @@ function movementBranch(kind: string, labelWords: string, extraWhere: string): s
     NULL AS amount_minor, NULL AS method, 'Enregistré' AS status,
     m.created_at AS created_at,
     (m.quantity_after - m.quantity_delta) AS stock_before, m.quantity_delta AS stock_delta, m.quantity_after AS stock_after,
-    NULL AS details_json
+    NULL AS details_json, m.staff_user_id AS actor_id
   FROM stock_movements m LEFT JOIN products p ON p.id = m.product_id
   WHERE ${extraWhere}`;
 }
@@ -150,7 +154,8 @@ function auditBranch(
     NULL AS amount_minor, NULL AS method,
     CASE WHEN '${kind}' LIKE '%delete' THEN 'Supprimé' ELSE 'Enregistré' END AS status,
     a.created_at AS created_at,
-    NULL AS stock_before, NULL AS stock_delta, NULL AS stock_after, a.details_json AS details_json
+    NULL AS stock_before, NULL AS stock_delta, NULL AS stock_after, a.details_json AS details_json,
+    a.actor_user_id AS actor_id
   FROM audit_log a LEFT JOIN ${table} e ON e.id = CAST(a.entity_id AS INTEGER)
   WHERE a.event_type = '${event}'`;
 }
@@ -173,7 +178,8 @@ function tableCreateBranch(
     '${table}' AS entity_type, ${nameExpr} AS entity_name,
     NULL AS amount_minor, NULL AS method, 'Enregistré' AS status,
     t.created_at AS created_at,
-    NULL AS stock_before, NULL AS stock_delta, NULL AS stock_after, NULL AS details_json
+    NULL AS stock_before, NULL AS stock_delta, NULL AS stock_after, NULL AS details_json,
+    NULL AS actor_id
   FROM ${table} t`;
 }
 
@@ -213,7 +219,8 @@ function branchesFor(op: HistoryOpFilter): string[] {
       'customers' AS entity_type, t.search_name AS entity_name,
       NULL AS amount_minor, NULL AS method, 'Archivé' AS status,
       t.deleted_at AS created_at,
-      NULL AS stock_before, NULL AS stock_delta, NULL AS stock_after, NULL AS details_json
+      NULL AS stock_before, NULL AS stock_delta, NULL AS stock_after, NULL AS details_json,
+      NULL AS actor_id
     FROM customers t WHERE t.deleted_at IS NOT NULL`,
     tableCreateBranch("supplier_create", "suppliers", "t.name", "Création fournisseur"),
     auditBranch("supplier_update", "supplier.updated", "supplier", "Modification fournisseur"),
@@ -222,7 +229,8 @@ function branchesFor(op: HistoryOpFilter): string[] {
       'supplier' AS entity_type, e.name AS entity_name,
       NULL AS amount_minor, NULL AS method, 'Supprimé' AS status,
       a.created_at AS created_at,
-      NULL AS stock_before, NULL AS stock_delta, NULL AS stock_after, a.details_json AS details_json
+      NULL AS stock_before, NULL AS stock_delta, NULL AS stock_after, a.details_json AS details_json,
+      a.actor_user_id AS actor_id
     FROM audit_log a LEFT JOIN suppliers e ON e.id = CAST(a.entity_id AS INTEGER)
     WHERE a.event_type IN ('supplier.deleted','supplier.deleted_many')`,
   ];
@@ -257,7 +265,12 @@ function orderBy(sort: HistorySort): string {
 }
 
 /** Requête paginée + comptage (mêmes filtres). Params : [from?, to?, like?] + [limit, offset]. */
-export function buildHistoryQuery(f: HistoryFilters): {
+/** R2 (0046) : staffUserId null = gérant (tout) ; sinon seules les lignes
+ *  dont actor_id = l'utilisateur (les lignes sans auteur sont invisibles). */
+export function buildHistoryQuery(
+  f: HistoryFilters,
+  staffUserId: number | null = null,
+): {
   sql: string;
   countSql: string;
   params: unknown[];
@@ -279,6 +292,10 @@ export function buildHistoryQuery(f: HistoryFilters): {
     conds.push(`(ref LIKE ? ESCAPE '\\' OR label LIKE ? ESCAPE '\\' OR entity_name LIKE ?)`);
     const like = `%${q.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
     params.push(like, like, like);
+  }
+  if (staffUserId != null) {
+    conds.push(`actor_id = ?`);
+    params.push(staffUserId);
   }
   const where = conds.length > 0 ? `WHERE ${conds.join(" AND ")}` : "";
   const order = orderBy(f.sort);

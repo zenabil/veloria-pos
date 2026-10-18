@@ -38,10 +38,10 @@ import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
 import {
   ProductDetailsDrawer,
   ProductFormDialog,
-  ProductMovementsDialog,
   LabelsDialog,
   type LabelTarget,
 } from "./ProductDialogs.tsx";
+import { StockMovementHistoryDrawer } from "@features/stock/dialogs/HistoryDrawer.tsx";
 import {
   isArchived,
   sortProducts,
@@ -656,11 +656,12 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
         />
       ) : null}
 
-      {/* Mouvements (graphe + journal) */}
+      {/* Mouvements : tiroir Stock unique (journal + filtres, source unique)
+          — l'ancien MovementsDialog Catalogue (doublon faible, audit) est
+          supprimé avec son graphe agrégé incomplet (100 dernières lignes). */}
       {movementsFor ? (
-        <ProductMovementsDialog
-          productId={movementsFor.id}
-          productName={movementsFor.name}
+        <StockMovementHistoryDrawer
+          product={{ ...movementsFor, stock_value_minor: 0, last_movement_at: null }}
           onClose={() => setMovementsFor(null)}
         />
       ) : null}

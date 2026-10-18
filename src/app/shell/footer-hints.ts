@@ -52,7 +52,6 @@ export const FOOTER_HINTS: Record<ModuleId, FooterHint[]> = {
     { k: "F4", label: "Filtrer par date" },
     { k: "F8", label: "Exporter" },
   ],
-  bread: [{ k: "F3", label: "Recherche" }],
   proformas: [{ k: "F3", label: "Recherche" }],
   templates: [],
   zakat: [],

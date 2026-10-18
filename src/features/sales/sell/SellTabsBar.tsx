@@ -1,7 +1,6 @@
 // Veloria PoS — Caisse : barre d'onglets paniers (extrait de SellScreen, JSX pur).
 // Chaque panier garde ses articles et son client. F6 = nouvel onglet, F8 = fermer l'actif.
-import { Volume2, VolumeX, X } from "lucide-react";
-import { persistSoundEnabled } from "@shared/sound/sound.ts";
+import { X } from "lucide-react";
 import { formatDzd } from "@domain/money/money.ts";
 import { Badge, Button } from "@shared/ui/primitives.tsx";
 import type { CartTab } from "../cart-store.ts";
@@ -13,8 +12,6 @@ export function SellTabsBar({
   onCloseTab,
   tabTotal,
   onNewTab,
-  soundOn,
-  setSoundOn,
 }: {
   tabs: CartTab[];
   activeId: number;
@@ -22,8 +19,6 @@ export function SellTabsBar({
   onCloseTab: (id: number) => void;
   tabTotal: (t: CartTab) => number | null;
   onNewTab: () => void;
-  soundOn: boolean;
-  setSoundOn: (v: boolean) => void;
 }): React.JSX.Element {
   return (
     <div
@@ -90,25 +85,6 @@ export function SellTabsBar({
         className="shrink-0"
       >
         + Panier [F6]
-      </Button>
-      {/* P5 : coupure son locale (persistée, voir Réglages → Sons). */}
-      <Button
-        variant="ghost"
-        onClick={() => {
-          const next = !soundOn;
-          setSoundOn(next);
-          void persistSoundEnabled(next);
-        }}
-        title={soundOn ? "Couper les sons" : "Activer les sons"}
-        aria-pressed={soundOn}
-        className="shrink-0"
-      >
-        {soundOn ? (
-          <Volume2 size={16} aria-hidden="true" />
-        ) : (
-          <VolumeX size={16} aria-hidden="true" />
-        )}
-        <span className="text-xs font-semibold">Bip caisse actif</span>
       </Button>
     </div>
   );

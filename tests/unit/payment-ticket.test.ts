@@ -34,10 +34,9 @@ const TICKET: PaymentTicketData = {
 };
 
 describe("payment ticket builders", () => {
-  it("libellés par nature (client / fournisseur / pain)", () => {
+  it("libellés par nature (client / fournisseur)", () => {
     expect(paymentTicketKindLabel("customer")).toBe("REÇU DE RÈGLEMENT");
     expect(paymentTicketKindLabel("supplier")).toBe("RÈGLEMENT FOURNISSEUR");
-    expect(paymentTicketKindLabel("bread")).toBe("RÈGLEMENT PAIN");
   });
 
   it("texte 80mm : montants FR + soldes + mode en majuscules", () => {

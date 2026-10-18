@@ -19,7 +19,6 @@ const ALL_IDS: ModuleId[] = [
   "expenses",
   "debts",
   "reports",
-  "bread",
   "proformas",
   "templates",
   "zakat",
@@ -28,9 +27,9 @@ const ALL_IDS: ModuleId[] = [
 ];
 
 describe("shell split", () => {
-  it("MODULES : 17 entrées uniques", () => {
-    expect(MODULES).toHaveLength(17);
-    expect(new Set(MODULES.map((m) => m.id)).size).toBe(17);
+  it("MODULES : 16 entrées uniques", () => {
+    expect(MODULES).toHaveLength(16);
+    expect(new Set(MODULES.map((m) => m.id)).size).toBe(16);
   });
 
   it("MODULE_PAGES : license=[] et tous les modules couverts", () => {
@@ -45,7 +44,7 @@ describe("shell split", () => {
     }
     expect(FALLBACK_HINTS.length).toBeGreaterThan(0);
     expect(hintsFor("templates")).toEqual(FALLBACK_HINTS);
-    expect(Object.keys(FOOTER_HINTS)).toHaveLength(17);
+    expect(Object.keys(FOOTER_HINTS)).toHaveLength(16);
   });
 
   it("LAZY_SCREENS : 16 écrans (tout sauf la caisse)", () => {

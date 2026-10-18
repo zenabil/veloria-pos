@@ -18,9 +18,48 @@ export type SoundName =
   | "warning" // confirmation destructive / sous-coût (alternance)
   | "click"; // navigation discrète (optionnel)
 
+/** Volume par défaut (0-100) quand aucune préférence persistée. */
+export const DEFAULT_VOLUME = 70;
+
 let ctx: AudioContext | null = null;
 let enabled = true;
 let unlocked = false;
+let volume = DEFAULT_VOLUME;
+let hydrated = false;
+let visibilityWired = false;
+
+/** Normalise un volume persistant (ordures → défaut, jamais NaN). */
+export function clampVolume(v: unknown): number {
+  const n = typeof v === "number" && Number.isFinite(v) ? Math.round(v) : DEFAULT_VOLUME;
+  return Math.min(100, Math.max(0, n));
+}
+
+export function setSoundVolume(v: number): void {
+  volume = clampVolume(v);
+}
+
+export function getSoundVolume(): number {
+  return volume;
+}
+
+/** Crête effective = gain nominal × volume (0 = muet). Pure, testée. */
+export function scaledPeak(nominalGain: number, vol: number): number {
+  return nominalGain * (clampVolume(vol) / 100);
+}
+
+/** Anti-spam : intervalle minimal entre deux émissions (rafales de scan).
+ *  Seuls les sons haute-fréquence sont bridés ; les autres passent toujours. */
+const MIN_GAP_MS: Partial<Record<SoundName, number>> = { blip: 50, click: 50 };
+
+export function minGapFor(name: SoundName): number {
+  return MIN_GAP_MS[name] ?? 0;
+}
+
+const lastAt = new Map<SoundName, number>();
+
+function nowMs(): number {
+  return typeof performance.now === "function" ? performance.now() : Date.now();
+}
 
 /** Interrupteur global (Réglages + tête de caisse). */
 export function setSoundEnabled(v: boolean): void {
@@ -58,6 +97,24 @@ function ensureCtx(): AudioContext | null {
       return null;
     }
   }
+  // Durcissement : onglet masqué = contexte suspendu (zéro son fantôme au
+  // retour, reprise explicite dans playTones). Câblé une seule fois.
+  if (!visibilityWired && typeof document !== "undefined") {
+    visibilityWired = true;
+    try {
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+          try {
+            void ctx?.suspend();
+          } catch {
+            /* ignore */
+          }
+        }
+      });
+    } catch {
+      /* ignore */
+    }
+  }
   return ctx;
 }
 
@@ -69,8 +126,16 @@ interface Tone {
   gain?: number;
 }
 
-function playTones(tones: Tone[]): void {
-  if (!enabled || !unlocked) return;
+function playTones(name: SoundName, tones: Tone[]): void {
+  // Garde dure : préférence non hydratée = silence (jamais de bip avant
+  // lecture SQLite) ; volume 0 = muet ; anti-spam haute-fréquence.
+  if (!enabled || !unlocked || !hydrated || volume <= 0) return;
+  const gap = minGapFor(name);
+  if (gap > 0) {
+    const t = nowMs();
+    if (t - (lastAt.get(name) ?? Number.NEGATIVE_INFINITY) < gap) return;
+    lastAt.set(name, t);
+  }
   const ac = ensureCtx();
   if (!ac) return;
   try {
@@ -81,9 +146,9 @@ function playTones(tones: Tone[]): void {
       const g = ac.createGain();
       osc.type = t.type ?? "sine";
       osc.frequency.value = t.freq;
-      const peak = t.gain ?? 0.08;
+      const peak = scaledPeak(t.gain ?? 0.08, volume);
       g.gain.setValueAtTime(0.0001, t0 + t.at);
-      g.gain.exponentialRampToValueAtTime(peak, t0 + t.at + 0.012);
+      g.gain.exponentialRampToValueAtTime(Math.max(peak, 0.0002), t0 + t.at + 0.012);
       g.gain.exponentialRampToValueAtTime(0.0001, t0 + t.at + t.dur);
       osc.connect(g);
       g.connect(ac.destination);
@@ -125,28 +190,34 @@ export function playSound(name: SoundName): void {
   const table: Record<string, Tone[] | undefined> = SCORES;
   const score = table[name];
   if (score === undefined) return;
-  playTones(score);
+  playTones(name, score);
 }
 
 /** Charge la préférence SQLite (défaut ON discret si illisible). */
 export async function loadSoundEnabled(): Promise<void> {
   try {
     const r: unknown = await api.settingsGet({ key: "sound" });
-    const enabled =
+    const v =
       typeof r === "object" && r !== null && "value" in r
-        ? (r as { value?: { enabled?: unknown } }).value?.enabled
+        ? (r as { value?: { enabled?: unknown; volume?: unknown } }).value
         : undefined;
-    if (typeof enabled === "boolean") setSoundEnabled(enabled);
+    if (typeof v?.enabled === "boolean") setSoundEnabled(v.enabled);
+    setSoundVolume(clampVolume(v?.volume));
   } catch {
     /* défaut */
+  } finally {
+    // Hydraté dans tous les cas : le silence pré-préférence ne doit pas
+    // devenir un mutisme définitif si le bridge est indisponible.
+    hydrated = true;
   }
 }
 
 /** Persiste la préférence (mémoire d'abord, SQLite best-effort). */
-export async function persistSoundEnabled(v: boolean): Promise<void> {
+export async function persistSoundEnabled(v: boolean, vol?: number): Promise<void> {
   setSoundEnabled(v);
+  if (vol !== undefined) setSoundVolume(vol);
   try {
-    await api.settingsSave({ key: "sound", value: { enabled: v } });
+    await api.settingsSave({ key: "sound", value: { enabled: v, volume: getSoundVolume() } });
   } catch {
     /* mémoire seule */
   }

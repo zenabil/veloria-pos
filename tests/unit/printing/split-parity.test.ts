@@ -108,7 +108,10 @@ describe("printing.enrich : helpers purs", () => {
     const d = { ...sampleReceipt(), qrOff: true as const };
     expect(receiptCodes(d)).toEqual({ barcode: d.invoice, qrSvg: "", qrPayload: "" });
   });
-  it("qrSvgOf produit un SVG", () => {
+  // Timeout élargi (60 s) : génération QR CPU-bound — 145 ms isolé mais
+  // >15 s sous suite complète chargée (workers vitest + SQLite). L'assertion
+  // est inchangée (aucun assouplissement fonctionnel).
+  it("qrSvgOf produit un SVG", { timeout: 60_000 }, () => {
     expect(qrSvgOf("TEST-123", 2).startsWith("<svg")).toBe(true);
   });
 });

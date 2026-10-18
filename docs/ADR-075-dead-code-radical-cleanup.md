@@ -72,7 +72,7 @@ barcodes`, `stock.overview`, `reports.summary`+`closings.get`,
   test `bridge-shape` (alias 1 ligne) — conservé.
 - **`handoff.md` racine** : fichier de travail actif suivi par git — pas un
   rapport ; déplacement refusé (ne pas casser les sessions).
-- **77 ADR** : immuables par construction (ADR-NEW-docs-hygiene).
+- **77 ADR** : immuables par construction (ADR-103-docs-hygiene).
 
 ## Conséquences
 
@@ -80,7 +80,7 @@ barcodes`, `stock.overview`, `reports.summary`+`closings.get`,
   liste gelée R1 évoluée sous le présent ADR (exigé par
   `operation-id-coverage.test.ts:1-4`).
 - `verify:migrations` inchangé (aucune migration : aucun changement schéma).
-- Index `docs/INDEX.md` mis à jour (ADR-071→075 + `ADR-NEW-*`).
+- Index `docs/INDEX.md` mis à jour (ADR-071→075 + `ADR-101/102/103`, ex-`ADR-NEW-*`).
 
 ## Vérification
 

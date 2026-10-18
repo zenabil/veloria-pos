@@ -14,6 +14,7 @@ export type DomainErrorCode =
   | "PROFORMA_ERROR"
   | "BREAD_ERROR"
   | "SUPPLIER_ERROR"
+  | "STAFF_ERROR"
   | "CLOSING_ERROR"
   | "IMPORT_ERROR"
   | "ZAKAT_ERROR"

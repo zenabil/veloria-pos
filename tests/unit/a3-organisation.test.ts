@@ -38,13 +38,20 @@ function resolveTarget(imp: string, cur: string): string {
 }
 
 // Arêtes inter-features autorisées (sens unique, jamais de store→store).
+// settings>staff (ADR-085) : la rubrique Paramètres héberge l'onglet Équipe,
+// comme settings>license — staff n'importe jamais settings (zéro cycle).
 const ALLOWED: ReadonlySet<string> = new Set([
   "customers>debts",
   "customers>history",
   "customers>returns",
+  // products>stock (FIX racine, audit) : le Catalogue délègue ses dialogs
+  // dupliqués au Stock (Ajustement + Historique mouvements) — arête
+  // unidirectionnelle, zéro cycle (stock n'importe jamais products).
+  "products>stock",
   "products>suppliers",
   "sales>customers",
   "settings>license",
+  "settings>staff",
   "stock>suppliers",
 ]);
 

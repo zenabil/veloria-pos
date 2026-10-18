@@ -10,7 +10,7 @@ let mainWindow: BrowserWindow | null = null;
  * (voir electron-builder.license-manager.yml). En dev, repli `public/icons`.
  */
 export function resolveManagerIcon(): string {
-  const candidates = [
+  const candidates: [string, string, string] = [
     path.join(process.resourcesPath, "icons", "manager-icon.ico"),
     path.join(app.getAppPath(), "public", "icons", "manager-icon.ico"),
     path.join(process.cwd(), "public", "icons", "manager-icon.ico"),
@@ -22,7 +22,7 @@ export function resolveManagerIcon(): string {
       /* candidat suivant */
     }
   }
-  return candidates[0] ?? "";
+  return "";
 }
 
 export function getManagerWindow(): BrowserWindow | null {
@@ -34,15 +34,24 @@ export function createManagerWindow(): BrowserWindow {
     mainWindow.focus();
     return mainWindow;
   }
+  // Icône vérifiée avant usage : chemin absent = pas d'icône (jamais de
+  // chaîne vide ou de fichier manquant passé à Electron).
+  const iconPath = resolveManagerIcon();
+  let iconExists = false;
+  try {
+    iconExists = iconPath !== "" && fs.existsSync(iconPath);
+  } catch {
+    iconExists = false;
+  }
   mainWindow = new BrowserWindow({
     width: 1180,
     height: 800,
     minWidth: 1024,
     minHeight: 640,
     title: "Veloria License Manager",
-    icon: resolveManagerIcon(),
+    ...(iconExists ? { icon: iconPath } : {}),
     autoHideMenuBar: true,
-    backgroundColor: "#0b0f14",
+    backgroundColor: "#0c1220",
     webPreferences: {
       preload: path.join(__dirname, "..", "preload", "preload.js"),
       contextIsolation: true,

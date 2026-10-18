@@ -80,6 +80,7 @@ if (rels.length === 0) {
 for (const c of [
   "dist-license-manager/license-manager/main/main.js",
   "dist-license-manager/license-manager/db/manager-db.js",
+  "dist-license-manager/license-manager/preload/preload.js",
   "dist-license-manager-renderer/index.html",
   "resources/license/public.key",
 ]) {

@@ -2,8 +2,9 @@
 // Vérifie les profils EAS (mobile/eas.json) + l'environnement courant :
 // - placeholder (VOTRE-PROJET / VOTRE-CLE-…) = build REFUSÉ (exit 1) ;
 // - http:// non-localhost = REFUSÉ (jamais de PIN en clair, Android le
-//   bloquerait de toute façon) ; seul https:// + le miroir démo local
-//   (http://127.0.0.1:8099, clé « demo ») sont acceptés.
+//   bloquerait de toute façon) ; seuls https://, le miroir démo local
+//   (http://127.0.0.1:8099, clé « demo ») et le relais E2E loopback (:8100,
+//   jamais hors machine — voir config.ts) sont acceptés.
 // Usage : `npm run validate-env` (branché sur `build:apk` et `test`).
 import fs from "node:fs";
 import path from "node:path";
@@ -20,7 +21,11 @@ function isLocalDemoHttp(url) {
     url === "http://127.0.0.1:8099" ||
     url.startsWith("http://127.0.0.1:8099/") ||
     url === "http://localhost:8099" ||
-    url.startsWith("http://localhost:8099/")
+    url.startsWith("http://localhost:8099/") ||
+    url === "http://127.0.0.1:8100" ||
+    url.startsWith("http://127.0.0.1:8100/") ||
+    url === "http://localhost:8100" ||
+    url.startsWith("http://localhost:8100/")
   );
 }
 

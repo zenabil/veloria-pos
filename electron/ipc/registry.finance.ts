@@ -7,8 +7,17 @@ import * as Expenses from "./handlers/expenses.repo";
 import * as Company from "./handlers/company.repo";
 import * as History from "./handlers/history.repo";
 import * as Settings from "./handlers/settings.repo";
+import { getCurrentStaffUser } from "./handlers/staff-session";
+import { getStaffRole } from "./handlers/staff.repo";
 import { readLogoDataUrlFromFile } from "../services/logo";
 import { handle } from "./handle";
+
+/** Périmètre auteur 0046 : null = gérant (tout), sinon id de l'utilisateur. */
+function staffScope(): number | null {
+  const id = getCurrentStaffUser();
+  if (id == null) return null;
+  return getStaffRole(id) === "manager" ? null : id;
+}
 
 export function registerFinanceChannels(): void {
   // reports/dashboard (repository : handlers/finance.repo.ts).
@@ -18,22 +27,26 @@ export function registerFinanceChannels(): void {
   // a été supprimé �?" `dashboard.summary` est l'unique synthèse.
 
   // historique unifié (lecture seule, UNION multi-tables).
+  // R2 (0046) : filtré par auteur — le gérant (scope null) voit tout.
   handle(IPC_CHANNELS["history.list"], V.historyListSchema, (input) =>
-    History.listHistory({
-      op: input.op,
-      from: input.from ?? null,
-      to: input.to ?? null,
-      query: input.query,
-      sort: input.sort,
-      page: input.page,
-      pageSize: input.pageSize,
-    }),
+    History.listHistory(
+      {
+        op: input.op,
+        from: input.from ?? null,
+        to: input.to ?? null,
+        query: input.query,
+        sort: input.sort,
+        page: input.page,
+        pageSize: input.pageSize,
+      },
+      staffScope(),
+    ),
   );
   handle(IPC_CHANNELS["history.detail"], V.historyDetailSchema, (input) =>
-    History.getHistoryDetail(input.kind, input.id),
+    History.getHistoryDetail(input.kind, input.id, staffScope()),
   );
   handle(IPC_CHANNELS["history.stats"], V.historyStatsSchema, (input) =>
-    History.getHistoryStats(input.from ?? null, input.to ?? null),
+    History.getHistoryStats(input.from ?? null, input.to ?? null, staffScope()),
   );
 
   // expenses (repository : handlers/expenses.repo.ts)
@@ -50,6 +63,8 @@ export function registerFinanceChannels(): void {
       reference: input.reference ?? null,
       notes: input.notes ?? null,
       now: new Date().toISOString(),
+      // R2 (0046) : la dépense porte son auteur.
+      staffUserId: getCurrentStaffUser(),
     }),
   }));
   handle(IPC_CHANNELS["expenses.list"], V.expenseListSchema, (input) =>
@@ -143,10 +158,12 @@ export function registerFinanceChannels(): void {
       customerId: input.customerId ?? null,
       supplierId: input.supplierId ?? null,
       categoryId: input.categoryId ?? null,
+      // R2 (0046) : l'utilisateur ne chiffre que ses opérations.
+      staffUserId: staffScope(),
     }),
   );
   handle(IPC_CHANNELS["dashboard.summary"], V.dashboardSummarySchema, (input) =>
-    Finance.getDashboardSummary(input.from, input.to),
+    Finance.getDashboardSummary(input.from, input.to, staffScope()),
   );
   handle(IPC_CHANNELS["closings.get"], V.closingsListSchema, (input) =>
     Finance.listClosings(input.from, input.to),

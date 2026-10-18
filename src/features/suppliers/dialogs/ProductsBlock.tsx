@@ -38,7 +38,9 @@ export function SupplierProductsBlock({
     try {
       const res = (await api.supplierProducts({ id: supplierId })) as { rows?: LinkedProduct[] };
       setRows(res.rows ?? []);
-    } catch {
+    } catch (e) {
+      // Recherche d'arrière-plan : journal seul, sans toast (anti-spam).
+      console.error("[Veloria] fournisseur : produits liés illisibles", e);
       setRows([]);
     }
   }
@@ -58,7 +60,9 @@ export function SupplierProductsBlock({
         rows?: { id: number; name: string }[];
       };
       setFound((res.rows ?? []).filter((p) => !rows.some((r) => r.id === p.id)).slice(0, 8));
-    } catch {
+    } catch (e) {
+      // Recherche d'arrière-plan : journal seul, sans toast (anti-spam).
+      console.error("[Veloria] fournisseur : recherche produits illisible", e);
       setFound([]);
     }
   }

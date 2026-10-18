@@ -25,6 +25,7 @@ export interface CartDraftTab {
   customerLabel: string;
   amountPaidMinor: number;
   paymentMethod: "cash" | "cheque" | "transfer" | null;
+  deliveryFeeMinor: number;
 }
 
 function cleanLine(l: CartDraftLine): CartDraftLine | null {
@@ -72,6 +73,8 @@ export function saveCartDraftsAtomic(
       if (lines.length === 0 && t.customerId == null) continue;
       const paid =
         Number.isInteger(t.amountPaidMinor) && t.amountPaidMinor >= 0 ? t.amountPaidMinor : 0;
+      const deliveryFee =
+        Number.isInteger(t.deliveryFeeMinor) && t.deliveryFeeMinor >= 0 ? t.deliveryFeeMinor : 0;
       const method =
         t.paymentMethod === "cash" || t.paymentMethod === "cheque" || t.paymentMethod === "transfer"
           ? t.paymentMethod
@@ -96,8 +99,8 @@ export function saveCartDraftsAtomic(
         }
       }
       db.prepare(
-        `INSERT INTO cart_drafts (tab_id, name, lines_json, customer_id, customer_label, amount_paid_minor, payment_method, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO cart_drafts (tab_id, name, lines_json, customer_id, customer_label, amount_paid_minor, payment_method, delivery_fee_minor, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         t.tabId,
         t.name.slice(0, 40),
@@ -106,6 +109,7 @@ export function saveCartDraftsAtomic(
         keptLabel,
         paid,
         method,
+        deliveryFee,
         now,
       );
       saved += 1;
@@ -154,6 +158,7 @@ export function loadCartDrafts(): CartDraftTab[] {
     }
     if (lines.length === 0) continue;
     const paid = Number(r["amount_paid_minor"]);
+    const fee = Number(r["delivery_fee_minor"]);
     const method = typeof r["payment_method"] === "string" ? r["payment_method"] : "";
     const rawName = typeof r["name"] === "string" ? r["name"] : "";
     const rawLabel = typeof r["customer_label"] === "string" ? r["customer_label"] : "";
@@ -166,6 +171,7 @@ export function loadCartDrafts(): CartDraftTab[] {
       amountPaidMinor: Number.isInteger(paid) && paid >= 0 ? paid : 0,
       paymentMethod:
         method === "cash" || method === "cheque" || method === "transfer" ? method : null,
+      deliveryFeeMinor: Number.isInteger(fee) && fee >= 0 ? fee : 0,
     });
   }
   return out;

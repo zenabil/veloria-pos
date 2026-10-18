@@ -189,6 +189,7 @@ export function InvoicesScreen(props: {
           data={rows.slice(0, shown)}
           keyExtractor={(s) => String(s.id)}
           initialNumToRender={20}
+          onEndReachedThreshold={0.5}
           onEndReached={() => setShown((n) => n + SIZES.pageSize)}
           refreshControl={
             <RefreshControl

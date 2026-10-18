@@ -1,6 +1,7 @@
 // Veloria PoS — Documents purs : facture A4 (pur).
 
-import { escapeHtml, paymentMethodLabel, type ReceiptData } from "./common";
+import { escapeHtml } from "./html";
+import { paymentMethodLabel, type ReceiptData } from "./common";
 import { amountInWordsFr, tvaBreakdown } from "./amounts";
 import {
   codeBlocks,

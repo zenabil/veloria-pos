@@ -69,6 +69,8 @@ export function adjustStockAtomic(args: {
   reference: string | null;
   operationId: string;
   now: string;
+  /** Auteur de l'ajustement (session main, 0046). */
+  staffUserId?: number | null;
 }): { quantityAfter: number } {
   const db = getDb();
   const fast = peekIdempotency<{ quantityAfter: number }>(args.operationId, "stock.adjust");
@@ -111,8 +113,8 @@ export function adjustStockAtomic(args: {
       });
     }
     db.prepare(
-      `INSERT INTO stock_movements (uuid, product_id, movement_type, quantity_delta, quantity_after, related_entity_type, reason, reference, created_at)
-       VALUES (?, ?, ?, ?, ?, 'adjustment', ?, ?, ?)`,
+      `INSERT INTO stock_movements (uuid, product_id, movement_type, quantity_delta, quantity_after, related_entity_type, reason, reference, staff_user_id, created_at)
+       VALUES (?, ?, ?, ?, ?, 'adjustment', ?, ?, ?, ?)`,
     ).run(
       randomUUID(),
       args.productId,
@@ -121,16 +123,18 @@ export function adjustStockAtomic(args: {
       args.newQuantity,
       args.reason,
       args.reference?.trim() || null,
+      args.staffUserId ?? null,
       args.now,
     );
     db.prepare(
-      `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at) VALUES (?, 'stock.adjusted', 'product', ?, ?, ?, ?)`,
+      `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at, actor_user_id) VALUES (?, 'stock.adjusted', 'product', ?, ?, ?, ?, ?)`,
     ).run(
       randomUUID(),
       String(args.productId),
       args.operationId,
       JSON.stringify({ delta, after: args.newQuantity, reason: args.reason }),
       args.now,
+      args.staffUserId ?? null,
     );
     const result = { quantityAfter: args.newQuantity };
     storeIdempotencyResult(args.operationId, result);
@@ -159,6 +163,8 @@ export function receiveStockAtomic(args: {
   lines: IntakeLineInput[];
   operationId: string;
   now: string;
+  /** Auteur de la réception (session main, 0046). */
+  staffUserId?: number | null;
 }): { intakeId: number; totalMinor: number } {
   const db = getDb();
   // Idempotence : rejouer le même operationId (double-clic, retry IPC) retourne
@@ -229,8 +235,8 @@ export function receiveStockAtomic(args: {
     const total = subtotal + args.shippingMinor;
     const r = db
       .prepare(
-        `INSERT INTO stock_intakes (uuid, supplier_id, invoice_number, invoice_date, subtotal_minor, shipping_cost_minor, total_minor, status, notes, operation_id, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'committed', ?, ?, ?, ?)`,
+        `INSERT INTO stock_intakes (uuid, supplier_id, invoice_number, invoice_date, subtotal_minor, shipping_cost_minor, total_minor, status, notes, operation_id, staff_user_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'committed', ?, ?, ?, ?, ?)`,
       )
       .run(
         randomUUID(),
@@ -242,6 +248,7 @@ export function receiveStockAtomic(args: {
         total,
         args.notes?.trim() || null,
         args.operationId,
+        args.staffUserId ?? null,
         args.now,
         args.now,
       );
@@ -330,15 +337,33 @@ export function receiveStockAtomic(args: {
             ).run(pid, args.supplierId, args.now);
           }
           db.prepare(
-            `INSERT INTO stock_movements (uuid, product_id, movement_type, quantity_delta, quantity_after, unit_cost_minor, related_entity_type, related_entity_id, reason, created_at)
-             VALUES (?, ?, 'intake_in', ?, ?, ?, 'intake', ?, 'Entrée fournisseur', ?)`,
-          ).run(randomUUID(), pid, p.net, after, p.cost, String(intakeId), args.now);
+            `INSERT INTO stock_movements (uuid, product_id, movement_type, quantity_delta, quantity_after, unit_cost_minor, related_entity_type, related_entity_id, reason, staff_user_id, created_at)
+             VALUES (?, ?, 'intake_in', ?, ?, ?, 'intake', ?, 'Entrée fournisseur', ?, ?)`,
+          ).run(
+            randomUUID(),
+            pid,
+            p.net,
+            after,
+            p.cost,
+            String(intakeId),
+            args.staffUserId ?? null,
+            args.now,
+          );
         } else {
           // Produit créé ci-dessus (quantité déjà = net) : seul le mouvement manque.
           db.prepare(
-            `INSERT INTO stock_movements (uuid, product_id, movement_type, quantity_delta, quantity_after, unit_cost_minor, related_entity_type, related_entity_id, reason, created_at)
-             VALUES (?, ?, 'intake_in', ?, ?, ?, 'intake', ?, 'Entrée fournisseur', ?)`,
-          ).run(randomUUID(), pid, p.net, p.net, p.cost, String(intakeId), args.now);
+            `INSERT INTO stock_movements (uuid, product_id, movement_type, quantity_delta, quantity_after, unit_cost_minor, related_entity_type, related_entity_id, reason, staff_user_id, created_at)
+             VALUES (?, ?, 'intake_in', ?, ?, ?, 'intake', ?, 'Entrée fournisseur', ?, ?)`,
+          ).run(
+            randomUUID(),
+            pid,
+            p.net,
+            p.net,
+            p.cost,
+            String(intakeId),
+            args.staffUserId ?? null,
+            args.now,
+          );
         }
       }
     }
@@ -530,6 +555,8 @@ export function applyInventoryAtomic(args: {
   reference: string | null;
   operationId: string;
   now: string;
+  /** Auteur de l'inventaire (session main, 0046). */
+  staffUserId?: number | null;
 }): { applied: number; skipped: number } {
   const db = getDb();
   const fastInv = peekIdempotency<{ applied: number; skipped: number }>(
@@ -591,8 +618,8 @@ export function applyInventoryAtomic(args: {
         `UPDATE products SET quantity = ?, stock_status = ${STOCK_STATUS_CASE}, updated_at = ? WHERE id = ?`,
       ).run(it.actualQty, it.actualQty, it.actualQty, args.now, it.productId);
       db.prepare(
-        `INSERT INTO stock_movements (uuid, product_id, movement_type, quantity_delta, quantity_after, related_entity_type, reason, reference, created_at)
-         VALUES (?, ?, ?, ?, ?, 'inventory', ?, ?, ?)`,
+        `INSERT INTO stock_movements (uuid, product_id, movement_type, quantity_delta, quantity_after, related_entity_type, reason, reference, staff_user_id, created_at)
+         VALUES (?, ?, ?, ?, ?, 'inventory', ?, ?, ?, ?)`,
       ).run(
         randomUUID(),
         it.productId,
@@ -601,18 +628,20 @@ export function applyInventoryAtomic(args: {
         it.actualQty,
         `Inventaire : ${args.reason.trim()}`,
         args.reference?.trim() || null,
+        args.staffUserId ?? null,
         args.now,
       );
       applied += 1;
     }
     if (applied === 0) throw new Error("Aucun écart à valider.");
     db.prepare(
-      `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at) VALUES (?, 'stock.inventory', 'inventory', 'all', ?, ?, ?)`,
+      `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at, actor_user_id) VALUES (?, 'stock.inventory', 'inventory', 'all', ?, ?, ?, ?)`,
     ).run(
       randomUUID(),
       args.operationId,
       JSON.stringify({ applied, skipped, reason: args.reason.trim() }),
       args.now,
+      args.staffUserId ?? null,
     );
     const result = { applied, skipped };
     storeIdempotencyResult(args.operationId, result);

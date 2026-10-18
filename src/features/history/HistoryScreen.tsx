@@ -34,7 +34,6 @@ import {
   type HistoryOpFilter,
   type HistoryRow,
   type HistorySort,
-  type HistoryUserFilter,
 } from "./types.ts";
 
 import type { Notify } from "@shared/ui/primitives.tsx";
@@ -55,12 +54,11 @@ interface Stats {
 export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element {
   const [query, setQuery] = useState("");
   const [op, setOp] = useState<HistoryOpFilter>("all");
-  const [user, setUser] = useState<HistoryUserFilter>("all");
+  const [page, setPage] = useState(1);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [sort, setSort] = useState<HistorySort>("date_desc");
   const [toolbarOpen, setToolbarOpen] = useState(true);
-  const [page, setPage] = useState(1);
   const [rows, setRows] = useState<HistoryRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -117,7 +115,6 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
   async function load(
     q: string,
     o: HistoryOpFilter,
-    u: HistoryUserFilter,
     f: string,
     t: string,
     s: HistorySort,
@@ -129,7 +126,6 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
       const res = (await api.historyList({
         query: q.trim(),
         op: o,
-        user: u,
         from: f === "" ? null : f,
         to: t === "" ? null : t,
         sort: s,
@@ -150,14 +146,14 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
   // Chargement initial.
   useEffect(() => {
     void loadStats("", "");
-    void load("", "all", "all", "", "", "date_desc", 1);
+    void load("", "all", "", "", "date_desc", 1);
   }, []);
 
   function onQueryChange(q: string): void {
     setQuery(q);
     setPage(1);
     queryTimer.schedule(250, () => {
-      void load(q, op, user, from, to, sort, 1);
+      void load(q, op, from, to, sort, 1);
     });
   }
 
@@ -165,7 +161,7 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
     setOp(o);
     setPage(1);
     setSelection(new Set());
-    void load(query, o, user, from, to, sort, 1);
+    void load(query, o, from, to, sort, 1);
   }
 
   function changeRange(f: string, t: string): void {
@@ -173,25 +169,24 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
     setTo(t);
     setPage(1);
     void loadStats(f, t);
-    void load(query, op, user, f, t, sort, 1);
+    void load(query, op, f, t, sort, 1);
   }
 
   function changePage(p: number): void {
     setPage(p);
-    void load(query, op, user, from, to, sort, p);
+    void load(query, op, from, to, sort, p);
   }
 
   function resetFilters(): void {
     setQuery("");
     setOp("all");
-    setUser("all");
     setFrom("");
     setTo("");
     setSort("date_desc");
     setPage(1);
     setSelection(new Set());
     void loadStats("", "");
-    void load("", "all", "all", "", "", "date_desc", 1);
+    void load("", "all", "", "", "date_desc", 1);
   }
 
   async function openDrawer(r: HistoryRow): Promise<void> {
@@ -220,7 +215,7 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
 
   function refresh(): void {
     void loadStats(from, to);
-    void load(query, op, user, from, to, sort, page);
+    void load(query, op, from, to, sort, page);
   }
 
   async function searchAndOpen(raw: string): Promise<void> {
@@ -232,7 +227,6 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
       const res = (await api.historyList({
         query: code,
         op,
-        user,
         from: from === "" ? null : from,
         to: to === "" ? null : to,
         sort,
@@ -285,7 +279,6 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
         Entité: r.entity_name ?? "—",
         Montant: r.amount_minor == null ? "" : formatDzd(r.amount_minor),
         Paiement: r.method == null || r.method === "" ? "" : paymentMethodLabel(r.method),
-        Poste: "Caisse",
         Statut: r.status,
       };
     });
@@ -313,7 +306,6 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
       const res = (await api.historyList({
         query: query.trim(),
         op,
-        user,
         from: from === "" ? null : from,
         to: to === "" ? null : to,
         sort,
@@ -340,10 +332,10 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
 
   return (
     <div className="flex h-full flex-col gap-4">
-      {/* En-tête Stitch : Historique des Ventes & Transactions · JOURNAL FISCAL */}
+      {/* En-tête Stitch : Historique des Ventes & Transactions · JOURNAL FIGÉ */}
       <PageHeader
         title="Historique des ventes et transactions"
-        module="JOURNAL FISCAL EN TEMPS RÉEL · SHA-256 SCELLÉ"
+        module="Journal des opérations · en temps réel"
         period={`${total} opération(s) · toutes les activités de la caisse · session active`}
         actions={
           <>
@@ -416,31 +408,10 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
         />
       </div>
 
-      {/* Barre d'outils */}
+      {/* Barre d'outils : un SEUL champ de recherche (en-tête, F3) — fin du
+          doublon name/toolbar sur le même état `query`. */}
       {toolbarOpen ? (
         <Card className="flex flex-wrap items-end gap-3 p-4">
-          <div className="min-w-[220px] flex-1">
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="history-search"
-            >
-              Recherche
-            </label>
-            <TextInput
-              id="history-search"
-              value={query}
-              onChange={(e) => onQueryChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  void searchAndOpen(e.currentTarget.value);
-                }
-              }}
-              placeholder="Référence, N° facture, scan code-barres…"
-              aria-label="Recherche historique"
-              className="font-mono"
-            />
-          </div>
           <div>
             <label
               className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
@@ -459,28 +430,6 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
                   {o.label}
                 </option>
               ))}
-            </Select>
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="history-user"
-            >
-              Poste
-            </label>
-            <Select
-              id="history-user"
-              value={user}
-              onChange={(e) => {
-                setUser(e.target.value as HistoryUserFilter);
-                setPage(1);
-                void load(query, op, e.target.value as HistoryUserFilter, from, to, sort, 1);
-              }}
-              aria-label="Filtre utilisateur"
-              title="Poste unique : toutes les opérations sont enregistrées à cette caisse."
-            >
-              <option value="all">Tous</option>
-              <option value="caisse">Caisse (ce poste)</option>
             </Select>
           </div>
           <div>
@@ -527,7 +476,7 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
                 const s = e.target.value as HistorySort;
                 setSort(s);
                 setPage(1);
-                void load(query, op, user, from, to, s, 1);
+                void load(query, op, from, to, s, 1);
               }}
               aria-label="Tri"
             >
@@ -600,7 +549,6 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
                   <th className="px-3 py-2.5">Entité</th>
                   <th className="px-3 py-2.5 text-right">Montant</th>
                   <th className="px-3 py-2.5">Paiement</th>
-                  <th className="px-3 py-2.5">Poste</th>
                   <th className="px-3 py-2.5">Statut</th>
                   <th className="px-3 py-2.5 text-right">Actions</th>
                 </tr>
@@ -656,7 +604,6 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
                       <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-400">
                         {paymentMethodLabel(r.method)}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-400">Caisse</td>
                       <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-300">
                         {r.status}
                       </td>

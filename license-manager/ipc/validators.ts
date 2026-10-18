@@ -67,7 +67,6 @@ export const licenseCreateSchema = z
     edition,
     plan: plan.nullable().optional(),
     licenseType: z.enum(["term", "lifetime"]),
-    licenseStatus: z.enum(["active", "suspended", "revoked"]).nullable().optional(),
     deviceBinding: z.boolean().default(true),
     maxDevices: z.number().int().min(1).max(99).nullable().optional(),
     durationMonths: z.number().int().min(1).max(120).nullable().optional(),

@@ -14,9 +14,10 @@ export interface CartTab {
   customerLabel: string;
   amountPaidMinor: number;
   paymentMethod: "cash" | "cheque" | "transfer" | null;
+  deliveryFeeMinor: number;
 }
 
-type TotalsPatch = Partial<Pick<CartTab, "amountPaidMinor" | "paymentMethod">>;
+type TotalsPatch = Partial<Pick<CartTab, "amountPaidMinor" | "paymentMethod" | "deliveryFeeMinor">>;
 
 interface CartsStore {
   tabs: CartTab[];
@@ -64,6 +65,7 @@ function makeTab(name: string): CartTab {
     customerLabel: "Client de passage",
     amountPaidMinor: 0,
     paymentMethod: "cash",
+    deliveryFeeMinor: 0,
   };
 }
 
@@ -124,7 +126,11 @@ export const useCartsStore = create<CartsStore>((set) => ({
             ...t,
             lines: t.lines.map((l) =>
               l.key === existing.key
-                ? { ...l, quantity: roundQuantity(l.quantity + line.quantity) }
+                ? {
+                    ...l,
+                    quantity: roundQuantity(l.quantity + line.quantity),
+                    stockQty: line.stockQty ?? l.stockQty ?? null,
+                  }
                 : l,
             ),
           };
@@ -172,6 +178,7 @@ export const useCartsStore = create<CartsStore>((set) => ({
         lines: [],
         amountPaidMinor: 0,
         paymentMethod: "cash",
+        deliveryFeeMinor: 0,
         customerId: null,
         customerLabel: "Client de passage",
       })),
@@ -213,6 +220,10 @@ export const useCartsStore = create<CartsStore>((set) => ({
           amountPaidMinor:
             Number.isInteger(t.amountPaidMinor) && t.amountPaidMinor >= 0 ? t.amountPaidMinor : 0,
           paymentMethod: t.paymentMethod ?? null,
+          deliveryFeeMinor:
+            Number.isInteger(t.deliveryFeeMinor) && t.deliveryFeeMinor >= 0
+              ? t.deliveryFeeMinor
+              : 0,
         }))
         .filter((t) => t.lines.length > 0);
       if (clean.length === 0) return {};

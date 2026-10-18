@@ -12,7 +12,37 @@ export interface SellKeyActions {
   clearCart: () => void;
   closeTab: () => void;
   focusClient: () => void;
+  openHelp: () => void;
   bump: (d: 1 | -1) => void;
+}
+
+export interface ScanKey {
+  key: string;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  altKey: boolean;
+  repeat: boolean;
+  isComposing: boolean;
+}
+
+/**
+ * Douchette clavier : une frappe du jeu scan hors champ ramène le focus en
+ * recherche (pur, testé). Espace exclu (activation des boutons au clavier,
+ * WCAG 2.1.1) ; Entrée exclue par sa longueur ; modificateurs, répétition et
+ * composition IME exclus. Le caractère n'est jamais avalé : il atterrit dans
+ * le champ refocalisé. Arbitrage documenté : sur un bouton focalisé, une
+ * frappe scan déplace le focus (priorité douchette en caisse).
+ */
+export function shouldRefocusSearch(
+  key: ScanKey,
+  activeTagName: string | null,
+  modalOpen: boolean,
+): boolean {
+  if (modalOpen) return false;
+  if (key.ctrlKey || key.metaKey || key.altKey || key.repeat || key.isComposing) return false;
+  if (key.key.length !== 1 || key.key === " ") return false;
+  if (!/^[0-9A-Za-z\-_.]$/.test(key.key)) return false;
+  return activeTagName == null || !["INPUT", "SELECT", "TEXTAREA"].includes(activeTagName);
 }
 
 export function useSellShortcuts(
@@ -62,6 +92,15 @@ export function useSellShortcuts(
         keyActions.current?.clearCart();
         return;
       }
+      // Aide raccourcis ([?] ou F12) : jamais dans un champ (le « ? » reste
+      // saisissable en recherche — produit « quoi ? »).
+      if (e.key === "?" || e.key === "F12") {
+        const active = document.activeElement;
+        if (active && ["INPUT", "SELECT", "TEXTAREA"].includes(active.tagName)) return;
+        e.preventDefault();
+        keyActions.current?.openHelp();
+        return;
+      }
       if (e.key === "+" || e.key === "=" || e.code === "NumpadAdd") {
         const active = document.activeElement;
         if (active && ["INPUT", "SELECT", "TEXTAREA"].includes(active.tagName)) return;
@@ -74,6 +113,27 @@ export function useSellShortcuts(
         if (active && ["INPUT", "SELECT", "TEXTAREA"].includes(active.tagName)) return;
         e.preventDefault();
         keyActions.current?.bump(-1);
+        return;
+      }
+      // Douchette clavier : si le focus n'est dans aucun champ (clic ailleurs,
+      // modale fermée), une frappe du jeu scan ramène le focus en recherche
+      // SANS l'avaler — les chiffres du scan atterrissent dans le champ.
+      // Espace exclu (activation boutons), voir shouldRefocusSearch.
+      if (
+        shouldRefocusSearch(
+          {
+            key: e.key,
+            ctrlKey: e.ctrlKey,
+            metaKey: e.metaKey,
+            altKey: e.altKey,
+            repeat: e.repeat,
+            isComposing: e.isComposing,
+          },
+          document.activeElement?.tagName ?? null,
+          false,
+        )
+      ) {
+        searchRef.current?.focus();
       }
     };
     window.addEventListener("keydown", onKey);

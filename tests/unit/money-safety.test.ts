@@ -14,7 +14,6 @@ import {
   sumSafeMinors,
 } from "@domain/money/money.ts";
 import { computeSaleTotals } from "@domain/sales/sale-rules.ts";
-import { computeBreadTotals } from "@domain/bread/bread-rules.ts";
 import { computeProformaTotals } from "@domain/proforma/proforma-rules.ts";
 import { computeIntakeTotals } from "@domain/inventory/intake-rules.ts";
 import { computeDebtStatus } from "@domain/customer/debt-rules.ts";
@@ -105,8 +104,7 @@ describe("H-1 money safety boundary", () => {
     ).toThrow();
   });
 
-  it("bread/proforma/intake reject unsafe money", () => {
-    expect(() => computeBreadTotals(1, MAX_MINOR_SINGLE + 1, 0)).toThrow();
+  it("proforma/intake reject unsafe money", () => {
     expect(() =>
       computeProformaTotals(
         [{ productId: null, productName: "X", unitPriceMinor: MAX_MINOR_SINGLE + 1, quantity: 1 }],

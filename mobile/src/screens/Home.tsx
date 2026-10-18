@@ -72,6 +72,13 @@ export function HomeScreen(props: {
   const h = toHome(props.snapshot);
   const [spinning, setSpinning] = useState(false);
   const tone = debtColor(h.debtStatus, h.overLimit);
+  // D12 : salut selon l'heure (soir après 18h) + ligne dynamique — une seule
+  // phrase utile sous le nom : les impayés s'ils existent, sinon rien (propre).
+  const hour = new Date().getHours();
+  const greetKey = hour >= 18 || hour < 5 ? "greetingEvening" : "greeting";
+  const dueCount = h.lastSales.filter(
+    (s) => s.is_cancelled !== 1 && s.payment_status !== "paid",
+  ).length;
   const amount = (v: number): string => (props.hidden ? "•••" : formatMinor(v, l));
   const creditUsed =
     h.creditLimitMinor > 0
@@ -130,7 +137,7 @@ export function HomeScreen(props: {
         >
           <View style={{ flex: 1 }}>
             <Text style={{ color: COLORS.navyMuted, fontSize: 12, fontWeight: "700" }}>
-              {t(l, "greeting")}
+              {t(l, greetKey)}
             </Text>
             <Text
               style={{ color: COLORS.white, fontSize: 22, fontWeight: "900", marginTop: 2 }}
@@ -138,6 +145,13 @@ export function HomeScreen(props: {
             >
               {h.shop.name}
             </Text>
+            {dueCount > 0 ? (
+              <Text
+                style={{ color: COLORS.primary, fontSize: 12, fontWeight: "700", marginTop: 4 }}
+              >
+                {dueCount} · {t(l, "dueInvoices")}
+              </Text>
+            ) : null}
             <View
               style={{
                 flexDirection: flow(dir),
@@ -256,21 +270,34 @@ export function HomeScreen(props: {
                 </Text>
                 <Amount text={amount(h.creditLimitMinor)} size={13} tone={COLORS.cardText} />
               </View>
+              {/* D13 : barre segmentée (10 crans) — lisible d'un coup d'œil,
+                  jamais d'anneau décoratif. Danger à 90 %+. */}
               <View
                 style={{
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: COLORS.border,
+                  flexDirection: flow(dir),
+                  gap: 3,
                   marginTop: 8,
-                  overflow: "hidden",
                 }}
               >
-                <LinearGradient
-                  colors={creditUsed >= 90 ? GRADIENTS.danger : GRADIENTS.gold}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={{ height: 8, borderRadius: 4, width: `${creditUsed}%` }}
-                />
+                {Array.from({ length: 10 }, (_, i) => {
+                  const filled = i * 10 < creditUsed;
+                  const danger = creditUsed >= 90;
+                  return (
+                    <View
+                      key={i}
+                      style={{
+                        flex: 1,
+                        height: 8,
+                        borderRadius: 4,
+                        backgroundColor: filled
+                          ? danger
+                            ? COLORS.debtOverdue
+                            : COLORS.primary
+                          : COLORS.border,
+                      }}
+                    />
+                  );
+                })}
               </View>
             </View>
           ) : null}
@@ -530,9 +557,9 @@ export function HomeScreen(props: {
           <Card style={{ marginTop: SPACE.md }}>
             <SectionHead title={t(l, "topProducts")} dir={dir} />
             <View style={{ flexDirection: flow(dir), flexWrap: "wrap", gap: SPACE.sm }}>
-              {h.topProducts.map((p) => (
+              {h.topProducts.map((p, i) => (
                 <View
-                  key={p.name}
+                  key={`${p.name}#${i}`}
                   style={{
                     flexDirection: flow(dir),
                     alignItems: "center",

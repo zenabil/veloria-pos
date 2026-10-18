@@ -1,14 +1,14 @@
 // Veloria PoS — Fournisseurs : bons de commande (P3).
 // Cycle draft → ordered → partially_received → received (+ cancelled).
 // La réception crée une entrée de stock traçée (même UUID rejoué = replay).
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PackagePlus, Printer, Search, Trash2, Truck } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { formatDzd, minorToInput, parseDzdInputStrict } from "@domain/money/money.ts";
 import { buildCompanyHead } from "@shared/documents/sale-ticket.ts";
 import { strictOrNeg } from "@shared/money/parse.ts";
 import { frError } from "@shared/errors/fr-map.ts";
-import { newOperationId } from "@domain/common/ids.ts";
+import { useOperationId } from "@shared/ui/use-operation-id.ts";
 import { roundQuantity } from "@domain/common/quantity.ts";
 import { poStatusLabelFr } from "@domain/suppliers/po-rules.ts";
 import {
@@ -91,6 +91,14 @@ export function SupplierPOsDialog({
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [busy, setBusy] = useState(false);
+  // P0 load-bearing : clés d'idempotence figées par action (jamais
+  // `newOperationId()` inline — chaque retry rejoue la MÊME opération) +
+  // garde synchrone anti-double-clic même tick (le state `busy` est async).
+  const submitGuard = useRef(false);
+  const createOp = useOperationId();
+  const orderOp = useOperationId();
+  const cancelOp = useOperationId();
+  const receiveOp = useOperationId();
   const [recv, setRecv] = useState<Record<number, string>>({});
   const [orderPreview, setOrderPreview] = useState<{
     htmlA4: string;
@@ -308,10 +316,12 @@ export function SupplierPOsDialog({
         unitCostMinor: cost,
       });
     }
+    if (submitGuard.current) return;
+    submitGuard.current = true;
     setBusy(true);
     try {
       const res = (await api.purchaseCreate({
-        operationId: newOperationId(),
+        operationId: createOp.operationId,
         supplierId,
         expectedDate: expectedDate === "" ? null : expectedDate,
         notes: notes.trim() === "" ? null : notes.trim(),
@@ -324,9 +334,11 @@ export function SupplierPOsDialog({
       setNotes("");
       onChanged();
       await refresh();
+      createOp.regen();
     } catch (e) {
       notify(frError(e, "Création impossible."), "err");
     } finally {
+      submitGuard.current = false;
       setBusy(false);
     }
   }
@@ -352,10 +364,17 @@ export function SupplierPOsDialog({
     label: string,
     done: string,
   ): Promise<void> {
+    if (submitGuard.current) return;
+    submitGuard.current = true;
     setBusy(true);
     try {
-      if (kind === "order") await api.purchaseOrder({ id, operationId: newOperationId() });
-      else await api.purchaseCancel({ id, operationId: newOperationId() });
+      if (kind === "order") {
+        await api.purchaseOrder({ id, operationId: orderOp.operationId });
+        orderOp.regen();
+      } else {
+        await api.purchaseCancel({ id, operationId: cancelOp.operationId });
+        cancelOp.regen();
+      }
       notify(`${label} : ${done}.`, "ok");
       onChanged();
       await refresh();
@@ -363,6 +382,7 @@ export function SupplierPOsDialog({
     } catch (e) {
       notify(frError(e, `${label} impossible.`), "err");
     } finally {
+      submitGuard.current = false;
       setBusy(false);
     }
   }
@@ -384,18 +404,21 @@ export function SupplierPOsDialog({
       notify("Saisissez au moins une quantité reçue.", "err");
       return;
     }
+    if (submitGuard.current) return;
+    submitGuard.current = true;
     setBusy(true);
     try {
       // P1-5 : strict sur chaque quantité (jamais de float non borné).
       for (const b of built) {
         if (strictOrNeg(String(b.quantityReceived), "Quantité") < 0) {
           notify("Quantité reçue invalide.", "err");
+          submitGuard.current = false;
           setBusy(false);
           return;
         }
       }
       const res = (await api.purchaseReceive({
-        operationId: newOperationId(),
+        operationId: receiveOp.operationId,
         id: detail.order.id,
         lines: built,
       })) as { intakeId: number };
@@ -403,9 +426,11 @@ export function SupplierPOsDialog({
       onChanged();
       await refresh();
       await openDetail(detail.order.id);
+      receiveOp.regen();
     } catch (e) {
       notify(frError(e, "Réception impossible."), "err");
     } finally {
+      submitGuard.current = false;
       setBusy(false);
     }
   }
@@ -542,7 +567,11 @@ export function SupplierPOsDialog({
             Chargement…
           </p>
         ) : rows.length === 0 ? (
-          <EmptyState title="Aucune commande" hint="Créez la première commande fournisseur." />
+          <EmptyState
+            title="Aucune commande"
+            hint="Créez la première commande fournisseur."
+            glyph="doc"
+          />
         ) : (
           <table className="w-full text-sm">
             <thead className="text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">

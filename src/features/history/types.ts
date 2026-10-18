@@ -42,7 +42,6 @@ export type HistoryOpFilter =
   | "supplier_delete";
 
 export type HistorySort = "date_desc" | "date_asc" | "amount_desc" | "amount_asc";
-export type HistoryUserFilter = "all" | "caisse";
 
 export interface HistoryRow {
   kind: HistoryKind;

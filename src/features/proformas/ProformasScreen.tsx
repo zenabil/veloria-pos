@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Copy,
+  Download,
   Eye,
   FileCheck,
   MoreHorizontal,
@@ -34,6 +35,7 @@ import {
 } from "@shared/ui/primitives.tsx";
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
 import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
+import { downloadCsv } from "@shared/export/csv.ts";
 import { useLoadSeq } from "@shared/ui/use-load-seq.ts";
 import {
   ProformaConversionDialog,
@@ -78,6 +80,8 @@ export function ProformasScreen({ notify }: { notify: Notify }): React.JSX.Eleme
   const [customerName, setCustomerName] = useState("");
   const [customerQ, setCustomerQ] = useState("");
   const [customerResults, setCustomerResults] = useState<{ id: number; name: string }[]>([]);
+  // Total serveur : si > 8 affichés, hint « affinez » au lieu de tronquer en silence.
+  const [customerTotal, setCustomerTotal] = useState(0);
   const [statusFilter, setStatusFilter] = useState<ProformaStatusFilter>("all");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -210,6 +214,7 @@ export function ProformasScreen({ notify }: { notify: Notify }): React.JSX.Eleme
     setCustomerName("");
     setCustomerQ("");
     setCustomerResults([]);
+    setCustomerTotal(0);
     setStatusFilter("all");
     setFrom("");
     setTo("");
@@ -226,12 +231,16 @@ export function ProformasScreen({ notify }: { notify: Notify }): React.JSX.Eleme
         query: customerQ.trim(),
         page: 1,
         pageSize: 8,
-      })) as { rows: { id: number; first_name: string; last_name: string }[] };
+      })) as { rows: { id: number; first_name: string; last_name: string }[]; total: number };
       setCustomerResults(
         res.rows.map((c) => ({ id: c.id, name: `${c.first_name} ${c.last_name}`.trim() })),
       );
-    } catch {
+      setCustomerTotal(typeof res.total === "number" ? res.total : res.rows.length);
+    } catch (e) {
+      // Journal seul (recherche d'arrière-plan, anti-spam de toasts).
+      console.error("[Veloria] proformas : clients illisibles pour la recherche", e);
       setCustomerResults([]);
+      setCustomerTotal(0);
     }
   }
 
@@ -239,6 +248,7 @@ export function ProformasScreen({ notify }: { notify: Notify }): React.JSX.Eleme
     setCustomerId(id);
     setCustomerName(name);
     setCustomerResults([]);
+    setCustomerTotal(0);
     setCustomerQ("");
     setPage(1);
     void load(query, id, statusFilter, from, to, sort, 1);
@@ -303,6 +313,29 @@ export function ProformasScreen({ notify }: { notify: Notify }): React.JSX.Eleme
     refresh();
   }
 
+  function exportCsv(): void {
+    if (rows.length === 0) {
+      notify("Rien à exporter.", "err");
+      return;
+    }
+    try {
+      downloadCsv(
+        `devis-${new Date().toISOString().slice(0, 10)}.csv`,
+        rows.map((p) => ({
+          Numéro: p.proforma_number,
+          Date: p.created_at.slice(0, 10),
+          Validité: p.due_date ? p.due_date.slice(0, 10) : "",
+          Client: p.customer_name || "",
+          Total: formatDzd(p.total_minor),
+          Statut: proformaStatusLabel(p.status),
+        })),
+      );
+      notify(`${rows.length} ligne(s) exportée(s).`, "ok");
+    } catch {
+      notify("Export impossible.", "err");
+    }
+  }
+
   const allPageSelected = rows.length > 0 && rows.every((r) => selection.has(r.id));
 
   return (
@@ -339,6 +372,9 @@ export function ProformasScreen({ notify }: { notify: Notify }): React.JSX.Eleme
               title="Nouveau devis"
             >
               <Plus size={16} aria-hidden="true" /> Nouvelle Proforma
+            </Button>
+            <Button variant="secondary" onClick={exportCsv} title="Exporter la liste (CSV)">
+              <Download size={16} aria-hidden="true" /> CSV
             </Button>
           </>
         }
@@ -439,6 +475,12 @@ export function ProformasScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                 ))}
               </ul>
             ) : null}
+            {/* Slot à hauteur constante (pas de saut de mise en page). */}
+            <p className="mt-1 min-h-[1rem] text-xs font-semibold text-slate-500" role="status">
+              {customerTotal > customerResults.length
+                ? `+${customerTotal - customerResults.length} autre(s) — affinez la recherche.`
+                : ""}
+            </p>
           </div>
           <div>
             <label

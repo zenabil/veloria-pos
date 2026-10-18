@@ -1,6 +1,6 @@
 // Veloria PoS — Caisse : panneau panier (P4, extrait de SellScreen).
 // La remise vit UNIQUEMENT dans le prix unitaire (clic sur le P.U. → PriceDialog).
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Minus, Plus, Trash2, X } from "lucide-react";
 import { formatDzd, minorToInput, parseDzdInputStrict } from "@domain/money/money.ts";
 import { computeLineTotal } from "@domain/sales/sale-rules.ts";
@@ -8,9 +8,12 @@ import { roundQuantity } from "@domain/common/quantity.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import type { ActiveCart } from "../cart-store.ts";
 import { PriceDialog, type PriceTarget } from "./PriceDialog.tsx";
-import { Button, Card, EmptyState, SectionTitle } from "@shared/ui/primitives.tsx";
+import { Badge, Button, Card, EmptyState, SectionTitle } from "@shared/ui/primitives.tsx";
 
 import type { Notify } from "@shared/ui/primitives.tsx";
+
+/** Rendu progressif : au-delà, le tableau tronque + bouton « tout afficher ». */
+const RENDER_LIMIT = 60;
 
 export function CartPanel({
   cart,
@@ -29,6 +32,13 @@ export function CartPanel({
   const [priceFor, setPriceFor] = useState<PriceTarget | null>(null);
   const [priceText, setPriceText] = useState("");
   const [priceBelowCostAck, setPriceBelowCostAck] = useState(false);
+  // Grands paniers : rendu progressif (pas de lib de virtualisation — ADR requise).
+  const [showAll, setShowAll] = useState(false);
+  useEffect(() => {
+    setShowAll(false);
+  }, [cart.activeId]);
+  const truncated = !showAll && cart.lines.length > RENDER_LIMIT + 20;
+  const visibleLines = truncated ? cart.lines.slice(0, RENDER_LIMIT) : cart.lines;
 
   /** P0-7 : ouvre le dialogue de changement de prix d'une ligne. */
   function openPrice(line: {
@@ -96,6 +106,7 @@ export function CartPanel({
             <EmptyState
               title="Caisse prête"
               hint="Scannez un code-barres ou recherchez un produit pour commencer la vente."
+              glyph="cart"
             />
           ) : (
             <table className="w-full text-sm">
@@ -109,9 +120,29 @@ export function CartPanel({
                 </tr>
               </thead>
               <tbody>
-                {cart.lines.map((l) => (
-                  <tr key={l.key} className="border-t border-white/[0.06]">
-                    <td className="px-3 py-2 font-medium">{l.productName}</td>
+                {visibleLines.map((l) => (
+                  <tr
+                    key={l.key}
+                    className="border-t border-white/[0.06] [content-visibility:auto] [contain-intrinsic-size:auto_64px]"
+                  >
+                    <td className="px-3 py-2 font-medium">
+                      {l.productName}
+                      {l.stockQty != null ? (
+                        l.stockQty <= 0 ? (
+                          <div className="mt-1">
+                            <Badge tone="red">Rupture</Badge>
+                          </div>
+                        ) : l.quantity > l.stockQty ? (
+                          <div className="mt-1 text-[11px] font-bold text-red-300 tabular-nums">
+                            Stock : {Math.round(l.stockQty * 1000) / 1000} — dépassement
+                          </div>
+                        ) : (
+                          <div className="mt-1 text-[11px] text-slate-500 tabular-nums">
+                            Stock : {Math.round(l.stockQty * 1000) / 1000}
+                          </div>
+                        )
+                      ) : null}
+                    </td>
                     <td className="px-3 py-2">
                       <div className="flex items-center justify-center gap-1">
                         <button
@@ -130,9 +161,9 @@ export function CartPanel({
                             }
                             cart.setQty(l.key, next);
                           }}
-                          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+                          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
                         >
-                          <Minus size={14} aria-hidden="true" />
+                          <Minus size={16} aria-hidden="true" />
                         </button>
                         <input
                           aria-label={`Quantité ${l.productName}`}
@@ -143,18 +174,36 @@ export function CartPanel({
                           onChange={(e) => {
                             // Garde : une saisie vide ou invalide ne doit
                             // jamais supprimer la ligne (× fait cela).
-                            const v = Number(e.target.value);
-                            if (Number.isFinite(v) && v > 0) cart.setQty(l.key, v);
+                            // Virgule FR acceptée (clavier caisse).
+                            const v = Number(e.target.value.replace(",", "."));
+                            if (Number.isFinite(v) && v > 0) {
+                              if (l.stockQty != null && roundQuantity(v) > l.stockQty) {
+                                notify(
+                                  `Stock insuffisant : « ${l.productName} » — disponible ${Math.round(l.stockQty * 1000) / 1000}.`,
+                                  "err",
+                                );
+                              }
+                              cart.setQty(l.key, v);
+                            }
                           }}
-                          className="w-[72px] rounded-lg border border-white/10 bg-black/30 px-2 py-1.5 text-center text-sm tabular-nums"
+                          className="w-[88px] min-h-[44px] rounded-lg border border-white/10 bg-black/30 px-2 py-2 text-center text-base tabular-nums"
                         />
                         <button
                           type="button"
                           aria-label={`Augmenter ${l.productName}`}
-                          onClick={() => cart.setQty(l.key, roundQuantity(l.quantity + 1))}
-                          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+                          onClick={() => {
+                            const next = roundQuantity(l.quantity + 1);
+                            if (l.stockQty != null && next > l.stockQty) {
+                              notify(
+                                `Stock insuffisant : « ${l.productName} » — disponible ${Math.round(l.stockQty * 1000) / 1000}.`,
+                                "err",
+                              );
+                            }
+                            cart.setQty(l.key, next);
+                          }}
+                          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
                         >
-                          <Plus size={14} aria-hidden="true" />
+                          <Plus size={16} aria-hidden="true" />
                         </button>
                       </div>
                     </td>
@@ -189,10 +238,17 @@ export function CartPanel({
                       <button
                         type="button"
                         aria-label={`Retirer ${l.productName}`}
-                        onClick={() => cart.removeLine(l.key)}
-                        className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-red-500/15 hover:text-red-300"
+                        onClick={() => {
+                          // Même garde que − jusqu'à 0 : jamais de suppression
+                          // silencieuse (l'ancienne × supprimait sans confirm).
+                          void (async () => {
+                            if (await confirmAsync(`Retirer « ${l.productName} » du panier ?`))
+                              cart.removeLine(l.key);
+                          })();
+                        }}
+                        className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-red-500/15 hover:text-red-300"
                       >
-                        <X size={15} aria-hidden="true" />
+                        <X size={16} aria-hidden="true" />
                       </button>
                     </td>
                   </tr>
@@ -200,6 +256,15 @@ export function CartPanel({
               </tbody>
             </table>
           )}
+          {truncated ? (
+            <button
+              type="button"
+              onClick={() => setShowAll(true)}
+              className="mt-2 w-full rounded-xl border border-white/10 bg-black/25 px-3 py-3 text-sm font-bold text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              Afficher tout ({cart.lines.length} articles)
+            </button>
+          ) : null}
         </div>
       </Card>
 

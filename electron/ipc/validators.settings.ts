@@ -75,8 +75,11 @@ export const suppliersSettingsSchema = z.object({
 });
 
 // P5 : sons d'interface (WebAudio, aucun asset).
+// Volume 0-100, défaut 70 (miroir de DEFAULT_VOLUME côté renderer).
+const DEFAULT_SOUND_VOLUME = 70;
 export const soundSettingsSchema = z.object({
   enabled: z.boolean().default(true),
+  volume: z.number().int().min(0).max(100).default(DEFAULT_SOUND_VOLUME),
 });
 
 export const settingsSaveSchema = z.discriminatedUnion("key", [

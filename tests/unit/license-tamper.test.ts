@@ -244,8 +244,9 @@ describe("P0-4 : manifeste vide ou incomplet = refus", () => {
       managerManifestCoversCritical({
         "dist-license-manager/license-manager/main/main.js": "a",
         "dist-license-manager/license-manager/db/manager-db.js": "b",
-        "dist-license-manager-renderer/index.html": "c",
-        "resources/license/public.key": "d",
+        "dist-license-manager/license-manager/preload/preload.js": "c",
+        "dist-license-manager-renderer/index.html": "d",
+        "resources/license/public.key": "e",
       }),
     ).toBe(true);
   });

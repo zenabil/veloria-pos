@@ -26,6 +26,7 @@ import { log } from "../services/logger";
 import { sha256File } from "../licensing/hash";
 import { IPC_CHANNELS } from "../ipc/channels";
 import * as V from "../ipc/validators";
+import { enforceRawChannelGates } from "../ipc/raw-guards";
 import { claimOptional, peekOptional, storeOptional } from "../ipc/handlers/idempotency";
 import { prodLicenseDeps } from "../licensing/prod-deps";
 import { getLicenseStatus, requireLicensedFeature } from "../licensing/license-service";
@@ -481,7 +482,10 @@ export function registerBackupIpc(): void {
     if (denied) return denied;
     try {
       // RADICAL-FIX P0: charge vide validée depuis le payload réel (contrat explicite).
-      V.emptyPayloadSchema.parse(raw ?? {});
+      const input = V.emptyPayloadSchema.parse(raw ?? {});
+      // R1 RADICAL : même décision staff que handle() (permission settings).
+      const staffDenied = enforceRawChannelGates(IPC_CHANNELS["backup.create"], input);
+      if (staffDenied) return staffDenied;
       return { ok: true, data: createBackup(true) };
     } catch (err) {
       log("ERROR", "backup", "backup.failed", { error: String(err) });
@@ -520,6 +524,9 @@ export function registerBackupIpc(): void {
     if (denied) return denied;
     try {
       const input = V.backupExportSchema.parse(raw ?? {});
+      // R1 RADICAL : garde staff avant tout accès disque.
+      const staffDenied = enforceRawChannelGates(IPC_CHANNELS["backup.export"], input);
+      if (staffDenied) return staffDenied;
       // EL-35: validation racine centralisée (absolu + anti-système + symlink).
       let safe: string;
       try {
@@ -543,6 +550,8 @@ export function registerBackupIpc(): void {
     if (denied) return denied;
     try {
       const input = V.backupAutoSchema.parse(raw ?? {});
+      const staffDenied = enforceRawChannelGates(IPC_CHANNELS["backup.autoSave"], input);
+      if (staffDenied) return staffDenied;
       saveBackupAuto(
         {
           enabled: input.enabled,
@@ -565,8 +574,19 @@ export function registerBackupIpc(): void {
     if (denied) return denied;
     try {
       const input = V.backupRestoreSchema.parse(raw ?? {});
+      // R1 RADICAL : garde staff (permission settings) — jamais de restore
+      // sans session autorisée, même avec licence valide.
+      const staffDenied = enforceRawChannelGates(IPC_CHANNELS["backup.restore"], input);
+      if (staffDenied) return staffDenied;
       const file = input.file;
       if (!isAllowedDatabaseFile(file)) {
+        return { ok: false, code: "VALIDATION_ERROR", message: "Fichier de sauvegarde invalide." };
+      }
+      // R4 RADICAL : confinement du dossier source (anti USB piégée hors
+      // backupDir : refuse racines, système, UNC — message FR, jamais de chemin brut).
+      try {
+        assertSafeUserFolder(path.dirname(path.normalize(file)));
+      } catch {
         return { ok: false, code: "VALIDATION_ERROR", message: "Fichier de sauvegarde invalide." };
       }
       if (!fs.existsSync(file)) {

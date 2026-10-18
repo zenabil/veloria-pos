@@ -2,7 +2,7 @@
 // En-tête + 4 cartes stats + barre d'outils + table enrichie (relevés) +
 // pagination + tiroir détail + formulaire + règlement.
 import { useEffect, useRef, useState } from "react";
-import { Eye, Pencil, Plus, RotateCcw, SlidersHorizontal, Trash2, X } from "lucide-react";
+import { Download, Eye, Pencil, Plus, RotateCcw, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import {
   callChecked,
@@ -28,6 +28,7 @@ import {
   cn,
 } from "@shared/ui/primitives.tsx";
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
+import { downloadCsv } from "@shared/export/csv.ts";
 import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
 import { ClientDetailsDrawer, ClientFormDialog } from "./ClientDialogs.tsx";
 import {
@@ -36,7 +37,6 @@ import {
   enrichCustomer,
   fullName,
   isArchived,
-  sortCustomers,
   type ArchiveFilter,
   type CreditFilter,
   type Customer,
@@ -139,12 +139,14 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
     arch: ArchiveFilter,
     cred: CreditFilter,
     p: number,
+    srt: CustomerSort,
   ): Promise<void> {
     const seq = (loadSeq.current += 1);
     setLoading(true);
     try {
-      // UNE requête : recherche + filtre dette + agrégats (factures, achats,
-      // dernière vente) calculés côté main — contrat validé, jamais de N+1.
+      // UNE requête : recherche + filtre dette + TRI SERVEUR + agrégats
+      // (factures, achats, dernière vente) calculés côté main — contrat validé,
+      // jamais de N+1, ordre global à la pagination.
       const res = await callChecked(
         (a) =>
           a.customers.search({
@@ -155,10 +157,18 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
             // P1-3 : le serveur filtre + compte (total réel, plus de filtre client).
             archivedOnly: arch === "archived",
             debtFilter: cred,
+            sort: srt,
           }),
         enrichedCustomerSearchSchema,
       );
       if (seq !== loadSeq.current) return;
+      // Page devenue hors bornes (ex. archivage massif sur la dernière page) :
+      // repli page 1 au lieu d'un tableau vide trompeur.
+      if (p > 1 && (p - 1) * PAGE_SIZE >= res.total && res.total > 0) {
+        setPage(1);
+        void load(q, arch, cred, 1, srt);
+        return;
+      }
       setRows(res.rows.map(toEnriched));
       setTotal(res.total);
     } catch (err) {
@@ -172,48 +182,60 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
   // Chargement initial.
   useEffect(() => {
     void loadStats();
-    void load("", "active", "all", 1);
+    void load("", "active", "all", 1, "name_asc");
   }, []);
 
   function onQueryChange(q: string): void {
     setQuery(q);
     setPage(1);
     queryTimer.schedule(250, () => {
-      void load(q, archiveFilter, creditFilter, 1);
+      void load(q, archiveFilter, creditFilter, 1, sort);
     });
   }
 
   function changeArchive(a: ArchiveFilter): void {
+    // Filtre/tri changé pendant le délai de frappe : la planification périmée
+    // repartirait avec l'ancien état — on l'annule (recherche de page 1 recomposée).
+    queryTimer.cancel();
     setArchiveFilter(a);
     setPage(1);
     setSelection(new Set());
-    void load(query, a, creditFilter, 1);
+    void load(query, a, creditFilter, 1, sort);
   }
 
   function changeCredit(c: CreditFilter): void {
+    queryTimer.cancel();
     setCreditFilter(c);
     setPage(1);
-    void load(query, archiveFilter, c, 1);
+    void load(query, archiveFilter, c, 1, sort);
+  }
+
+  function changeSort(s: CustomerSort): void {
+    queryTimer.cancel();
+    setSort(s);
+    setPage(1);
+    void load(query, archiveFilter, creditFilter, 1, s);
   }
 
   function changePage(p: number): void {
     setPage(p);
-    void load(query, archiveFilter, creditFilter, p);
+    void load(query, archiveFilter, creditFilter, p, sort);
   }
 
   function refresh(): void {
     setSelection(new Set());
     void loadStats();
-    void load(query, archiveFilter, creditFilter, page);
+    void load(query, archiveFilter, creditFilter, page, sort);
   }
 
   function resetFilters(): void {
+    queryTimer.cancel();
     setQuery("");
     setArchiveFilter("active");
     setCreditFilter("all");
     setPage(1);
     setSelection(new Set());
-    void load("", "active", "all", 1);
+    void load("", "active", "all", 1, sort);
   }
 
   function openCreate(): void {
@@ -260,16 +282,28 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
     if (selection.size === 0) return;
     if (!(await confirmAsync(`Archiver ${selection.size} client(s) ?`))) return;
     let done = 0;
+    let failed = 0;
     for (const id of selection) {
       try {
         await api.customerArchive({ id, operationId: newOperationId() });
         done += 1;
-      } catch {
-        /* on continue */
+      } catch (e) {
+        failed += 1;
+        console.error("[Veloria] clients : archivage impossible", id, e);
       }
     }
-    notify(`${done} client(s) archivé(s).`, done > 0 ? "ok" : "err");
-    refresh();
+    // Échec partiel = erreur (avant : toast vert malgré les échecs silencieux).
+    notify(
+      failed > 0
+        ? `${done} client(s) archivé(s), ${failed} échec(s).`
+        : `${done} client(s) archivé(s).`,
+      failed > 0 ? "err" : "ok",
+    );
+    // Retour page 1 : la page courante peut ne plus exister après l'archivage.
+    setPage(1);
+    setSelection(new Set());
+    void loadStats();
+    void load(query, archiveFilter, creditFilter, 1, sort);
   }
 
   async function restoreRow(c: EnrichedCustomer): Promise<void> {
@@ -282,8 +316,56 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
     }
   }
 
-  const visible = sortCustomers(rows, sort);
+  async function exportCsv(): Promise<void> {
+    if (total === 0) {
+      notify("Rien à exporter.", "err");
+      return;
+    }
+    try {
+      // Export COMPLET du filtre courant (l'en-tête annonce le total filtré :
+      // n'exporter que la page affichée était une troncature silencieuse de
+      // plus). Boucle bornée par le total serveur.
+      const all: EnrichedCustomer[] = [];
+      const pageCount = Math.ceil(total / PAGE_SIZE);
+      for (let p = 1; p <= pageCount; p++) {
+        const res = await callChecked(
+          (a) =>
+            a.customers.search({
+              query: query.trim(),
+              page: p,
+              pageSize: PAGE_SIZE,
+              includeArchived: archiveFilter !== "active",
+              archivedOnly: archiveFilter === "archived",
+              debtFilter: creditFilter,
+              sort,
+            }),
+          enrichedCustomerSearchSchema,
+        );
+        all.push(...res.rows.map(toEnriched));
+      }
+      downloadCsv(
+        `clients-${new Date().toISOString().slice(0, 10)}.csv`,
+        all.map((c) => ({
+          Client: fullName(c),
+          Téléphone: c.phone || "",
+          "Jour règlement": c.settlement_day ?? "",
+          Achats: formatDzd(c.totalPurchasesMinor),
+          Dette: formatDzd(c.outstanding_balance_minor),
+          "Dernière vente": c.lastSaleAt ? formatDateTimeFr(c.lastSaleAt) : "",
+          Statut: debtLabel(c),
+        })),
+      );
+      notify(`${all.length} ligne(s) exportée(s).`, "ok");
+    } catch (e) {
+      console.error("[Veloria] clients : export CSV impossible", e);
+      notify("Export impossible.", "err");
+    }
+  }
+
+  const visible = rows;
   const allPageSelected = rows.length > 0 && rows.every((r) => selection.has(r.id));
+  // Le compteur reflète la recherche + les filtres (pas le registre entier).
+  const filtersActive = query.trim() !== "" || archiveFilter !== "active" || creditFilter !== "all";
 
   return (
     <div className="flex h-full flex-col gap-4">
@@ -291,7 +373,7 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
       <PageHeader
         title="Gestion des clients"
         module="Registre Fédéré DZD"
-        period={`${total} fiche(s) active(s) · ${stats.credit} compte(s) avec créance · ${formatDzd(stats.debt)} de dettes globales en cours`}
+        period={`${total} fiche(s) ${filtersActive ? "affichée(s)" : "active(s)"} · ${stats.credit} compte(s) avec créance · ${formatDzd(stats.debt)} de dettes globales en cours`}
         actions={
           <>
             <SearchField
@@ -312,6 +394,13 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
             </Button>
             <Button onClick={openCreate} title="Créer un client">
               <Plus size={16} aria-hidden="true" /> Nouveau client
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => void exportCsv()}
+              title="Exporter tout le filtre (CSV)"
+            >
+              <Download size={16} aria-hidden="true" /> CSV
             </Button>
           </>
         }
@@ -410,7 +499,7 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
             <Select
               id="clients-sort"
               value={sort}
-              onChange={(e) => setSort(e.target.value as CustomerSort)}
+              onChange={(e) => changeSort(e.target.value as CustomerSort)}
               aria-label="Tri"
             >
               <option value="name_asc">Nom A → Z</option>

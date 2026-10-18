@@ -23,6 +23,7 @@ const SCANNED = [
   "electron/ipc/registry.stock.ts",
   "electron/ipc/registry.documents.ts",
   "electron/ipc/registry.system.ts",
+  "electron/ipc/registry.staff.ts",
   "electron/backup/backup.service.ts",
   "electron/printing/printing.service.ts",
   "electron/printing/printing.receipt.ts",

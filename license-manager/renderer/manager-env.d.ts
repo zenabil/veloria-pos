@@ -9,7 +9,6 @@ interface ManagerOutcome<T = unknown> {
 
 interface Window {
   veloriaManager?: {
-    appInfo(): Promise<ManagerOutcome>;
     keyStatus(): Promise<ManagerOutcome>;
     keyImport(p?: unknown): Promise<ManagerOutcome>;
     licensesList(p?: unknown): Promise<ManagerOutcome>;

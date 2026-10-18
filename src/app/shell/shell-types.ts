@@ -13,7 +13,6 @@ export type ModuleId =
   | "expenses"
   | "debts"
   | "reports"
-  | "bread"
   | "proformas"
   | "templates"
   | "zakat"
@@ -34,18 +33,17 @@ export type Notify = (message: string, kind?: ToastKind) => void;
 
 export const PRINT_MODE_KEY = "veloria.printMode";
 export const SIDEBAR_KEY = "veloria.sidebarCollapsed";
-export const THEME_KEY = "veloria.theme";
 
-export type Theme = "dark" | "light";
-
-export function initialTheme(): Theme {
-  // Préférence d'interface uniquement (pas une donnée métier).
-  try {
-    return window.localStorage.getItem(THEME_KEY) === "light" ? "light" : "dark";
-  } catch {
-    return "dark";
-  }
-}
+// Préférences thème/densité : source unique partagée (les rubriques
+// Paramètres y accèdent sans inverser le sens shell→features).
+export {
+  DENSITY_KEY,
+  THEME_KEY,
+  initialDensity,
+  initialTheme,
+  type Density,
+  type Theme,
+} from "@shared/ui/theme-density.ts";
 
 export function initialPrintMode(): PrintMode {
   // Préférence d'interface uniquement (pas une donnée métier).

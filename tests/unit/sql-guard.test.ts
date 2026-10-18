@@ -8,7 +8,7 @@ const PRODUCTION_CLAUSES = [
   "remaining_minor DESC, created_at DESC",
   "created_at DESC",
   "due_date IS NULL, due_date ASC, created_at DESC",
-  // bread.repo.ts
+  // ex-bread.repo.ts (supprimé ADR-109 — vecteurs conservés pour la garde)
   "b.pickup_date DESC, b.id DESC",
   "b.id DESC",
   "b.total_amount_minor DESC, b.id DESC",

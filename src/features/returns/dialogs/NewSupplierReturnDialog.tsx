@@ -6,7 +6,7 @@ import { api } from "@shared/types/ipc-client.ts";
 
 import { formatDzd } from "@domain/money/money.ts";
 import { strictOrNeg } from "@shared/money/parse.ts";
-import { newOperationId } from "@domain/common/ids.ts";
+import { useOperationId } from "@shared/ui/use-operation-id.ts";
 
 import { RETURN_REASONS } from "@domain/returns/return-rules.ts";
 import { todayUtcDate } from "@shared/dates/dates.ts";
@@ -57,6 +57,9 @@ export function SupplierReturnDialog({
   const [date, setDate] = useState(todayUtcDate());
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
+  // R8 : UUID figé à l'ouverture du dialogue — retry / double-clic = un seul
+  // effet côté main (jamais de doublon d'argent ou de stock).
+  const { operationId } = useOperationId();
 
   async function searchSuppliers(): Promise<void> {
     if (supplierQ.trim().length < 2) {
@@ -157,7 +160,7 @@ export function SupplierReturnDialog({
     setBusy(true);
     try {
       const res = (await api.returnCreate({
-        operationId: newOperationId(),
+        operationId,
         kind: "supplier",
         intakeId,
         items: chosen.map((l) => ({

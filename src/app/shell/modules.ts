@@ -2,7 +2,6 @@
 // Icônes et libellés FR centralisés ; décision réelle côté main (§10).
 import {
   BarChart3,
-  Croissant,
   FileText,
   HandCoins,
   History,
@@ -23,8 +22,8 @@ import {
 import type { ModuleId } from "./shell-types.ts";
 
 /**
- * Module → pages licence requises (§10). Au moins UNE suffit
- * (bread = breadOrders OU pain). "license" toujours accessible.
+ * Module → pages licence requises (§10). Au moins UNE suffit.
+ * "license" toujours accessible.
  * La décision réelle est côté main ; ici : affichage + garde de route.
  */
 export const MODULE_PAGES: Record<ModuleId, readonly string[]> = {
@@ -39,7 +38,6 @@ export const MODULE_PAGES: Record<ModuleId, readonly string[]> = {
   expenses: ["expenses"],
   debts: ["debts"],
   reports: ["reports"],
-  bread: ["breadOrders", "pain"],
   proformas: ["proformas"],
   templates: ["settings", "invoices"],
   zakat: ["zakat"],
@@ -111,13 +109,12 @@ export const MODULES: ModuleDef[] = [
     group: "Marchandise",
   },
   {
-    id: "bread",
-    label: "Pain",
-    hint: "Commandes et retraits",
-    icon: Croissant,
-    group: "Marchandise",
+    id: "customers",
+    label: "Clients",
+    hint: "Dettes et soldes",
+    icon: Users,
+    group: "Tiers",
   },
-  { id: "customers", label: "Clients", hint: "Dettes et soldes", icon: Users, group: "Tiers" },
   { id: "debts", label: "Dettes", hint: "Créances et échéances", icon: HandCoins, group: "Tiers" },
   { id: "returns", label: "Retours", hint: "Clients et fournisseurs", icon: Undo2, group: "Tiers" },
   {

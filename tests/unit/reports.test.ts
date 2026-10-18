@@ -5,10 +5,14 @@ import { reportPayloadSchema, reportSummarySchema } from "../../electron/ipc/val
 import { buildReportHtml, toReportData } from "../../electron/printing/receipt-documents";
 
 describe("Report UI helpers", () => {
-  it("covers the 10 sections plus all (incl. closings Z)", () => {
-    expect(REPORT_SECTIONS.length).toBe(11);
+  it("couvre les rubriques rendues + all (onglets sans carte retirés — audit)", () => {
+    // FIXED racine : profit/expenses/stock/supplierDebt/returns n' avaient
+    // aucune carte — la liste n'expose plus ces « lure tabs ».
+    expect(REPORT_SECTIONS.length).toBe(6);
     expect(REPORT_SECTIONS[0]?.value).toBe("all");
     expect(REPORT_SECTIONS.some((s) => s.value === "closings")).toBe(true);
+    expect(REPORT_SECTIONS.some((s) => s.value === "stock")).toBe(false);
+    expect(REPORT_SECTIONS.some((s) => s.value === "returns")).toBe(false);
     expect(monthStartUtc(new Date("2026-09-16T00:00:00Z"))).toBe("2026-09-01");
   });
 });

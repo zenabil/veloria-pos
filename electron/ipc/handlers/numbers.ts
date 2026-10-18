@@ -1,6 +1,6 @@
 // Veloria PoS — Electron: pure document-number formatting (zero imports).
 // Testable sans Electron (vitest) ; utilisée par les repos d'allocation
-// (ventes, proformas, pain) pour UN format unique : PRÉFIXE-ANNÉE-00001.
+// (ventes, proformas) pour UN format unique : PRÉFIXE-ANNÉE-00001.
 // L'incrémentation du compteur reste DANS la transaction d'allocation.
 
 export function padSequence(nextValue: number): string {
@@ -18,8 +18,4 @@ export function formatInvoiceNumber(prefix: string, year: number, nextValue: num
 export function formatProformaNumber(prefix: string, year: number, nextValue: number): string {
   const clean = prefix.trim() || "PRO";
   return `${clean}-${year}-${padSequence(nextValue)}`;
-}
-
-export function formatBreadOrderNumber(year: number, nextValue: number): string {
-  return `PAIN-${year}-${padSequence(nextValue)}`;
 }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Copy, FileCheck, FileDown, Pencil, Printer, Search, Trash2 } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
+import { DocumentPreviewModal } from "@shared/documents/DocumentPreviewModal.tsx";
 import { useCompany } from "@shared/company/use-company.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { formatDzd, minorToInput } from "@domain/money/money.ts";
@@ -66,12 +67,11 @@ export function ProformaDetailsDrawer({
     text80: string;
     payload: Record<string, unknown>;
   } | null>(null);
-  const [previewFormat, setPreviewFormat] = useState<"A4" | "80mm">("A4");
 
   async function setStatus(to: "sent" | "cancelled"): Promise<void> {
     setBusy(true);
     try {
-      await api.proformaStatus({ id: p.id, to });
+      await api.proformaStatus({ id: p.id, to, operationId: newOperationId() });
       notify(to === "sent" ? "Devis envoyé." : "Devis annulé.", "ok");
       onChanged();
       onClose();
@@ -213,7 +213,10 @@ export function ProformaDetailsDrawer({
             </thead>
             <tbody>
               {data.items.map((l, idx) => (
-                <tr key={idx} className="border-t border-white/[0.06]">
+                <tr
+                  key={`${typeof l.product_id === "number" ? l.product_id : "m"}-${idx}`}
+                  className="border-t border-white/[0.06]"
+                >
                   <td className="py-1 pr-2">{l.product_name_snapshot}</td>
                   <td className="py-1 pr-2 text-right tabular-nums">{Number(l.quantity)}</td>
                   <td className="py-1 pr-2 text-right tabular-nums">
@@ -286,57 +289,27 @@ export function ProformaDetailsDrawer({
       </Drawer>
 
       {preview ? (
-        <Modal
+        <DocumentPreviewModal
           label="Aperçu devis"
           title={`Devis ${p.proforma_number}`}
+          htmlA4={preview.htmlA4}
+          text80={preview.text80}
+          a4TabLabel="Devis A4"
           onClose={() => setPreview(null)}
-          wide
-        >
-          <div className="mb-3 flex gap-1.5" role="tablist" aria-label="Format d'aperçu">
-            {(["A4", "80mm"] as const).map((f) => (
-              <button
-                key={f}
-                type="button"
-                role="tab"
-                aria-selected={previewFormat === f}
-                onClick={() => setPreviewFormat(f)}
-                className={
-                  previewFormat === f
-                    ? "rounded-lg bg-amber-400 px-4 py-1.5 text-xs font-bold text-black"
-                    : "rounded-lg border border-white/10 px-4 py-1.5 text-xs font-bold text-slate-400 hover:text-white"
-                }
-              >
-                {f === "A4" ? "Devis A4" : "Ticket 80mm"}
-              </button>
-            ))}
-          </div>
-          {previewFormat === "A4" ? (
-            <iframe
-              sandbox=""
-              srcDoc={preview.htmlA4}
-              title="Aperçu devis"
-              className="h-[50vh] w-full rounded-xl border border-white/10 bg-white"
-            />
-          ) : (
-            <pre
-              className="h-[50vh] overflow-auto rounded-xl border border-white/10 bg-white p-4 font-mono text-[12px] leading-snug text-black"
-              aria-label="Aperçu devis 80mm"
-            >
-              {preview.text80}
-            </pre>
-          )}
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            <Button variant="secondary" onClick={() => void print80()}>
-              <Printer size={15} aria-hidden="true" /> Imprimer 80mm
-            </Button>
-            <Button onClick={() => void print()}>
-              <Printer size={15} aria-hidden="true" /> Imprimer A4
-            </Button>
-            <Button variant="secondary" onClick={() => void exportPdf()}>
-              <FileDown size={15} aria-hidden="true" /> PDF A4
-            </Button>
-          </div>
-        </Modal>
+          actions={
+            <div className="grid grid-cols-3 gap-2">
+              <Button variant="secondary" onClick={() => void print80()}>
+                <Printer size={15} aria-hidden="true" /> Imprimer 80mm
+              </Button>
+              <Button onClick={() => void print()}>
+                <Printer size={15} aria-hidden="true" /> Imprimer A4
+              </Button>
+              <Button variant="secondary" onClick={() => void exportPdf()}>
+                <FileDown size={15} aria-hidden="true" /> PDF A4
+              </Button>
+            </div>
+          }
+        />
       ) : null}
     </>
   );
@@ -374,6 +347,8 @@ export function ProformaFormDialog({
   const [customerLabel, setCustomerLabel] = useState(source?.proforma.customer_name ?? "");
   const [customerQ, setCustomerQ] = useState("");
   const [customerResults, setCustomerResults] = useState<{ id: number; name: string }[]>([]);
+  // Total serveur : si > 8 affichés, hint « affinez » au lieu de tronquer en silence.
+  const [customerTotal, setCustomerTotal] = useState(0);
   const [dueDate, setDueDate] = useState(
     source?.proforma.due_date ? String(source.proforma.due_date).slice(0, 10) : "",
   );
@@ -410,12 +385,16 @@ export function ProformaFormDialog({
         query: customerQ.trim(),
         page: 1,
         pageSize: 8,
-      })) as { rows: { id: number; first_name: string; last_name: string }[] };
+      })) as { rows: { id: number; first_name: string; last_name: string }[]; total: number };
       setCustomerResults(
         res.rows.map((c) => ({ id: c.id, name: `${c.first_name} ${c.last_name}`.trim() })),
       );
-    } catch {
+      setCustomerTotal(typeof res.total === "number" ? res.total : res.rows.length);
+    } catch (e) {
+      // Journal seul (recherche d'arrière-plan, anti-spam de toasts).
+      console.error("[Veloria] proformas : clients illisibles pour la recherche", e);
       setCustomerResults([]);
+      setCustomerTotal(0);
     }
   }
 
@@ -514,7 +493,7 @@ export function ProformaFormDialog({
         const res = (await api.proformaCreate(payload)) as { number: string; id: number };
         if (send) {
           try {
-            await api.proformaStatus({ id: res.id, to: "sent" });
+            await api.proformaStatus({ id: res.id, to: "sent", operationId: newOperationId() });
           } catch {
             notify(`Devis ${res.number} créé (envoi impossible).`, "err");
             onSaved();
@@ -593,6 +572,7 @@ export function ProformaFormDialog({
                           setCustomerId(c.id);
                           setCustomerLabel(c.name);
                           setCustomerResults([]);
+                          setCustomerTotal(0);
                           setCustomerQ("");
                         }}
                         className="w-full px-3 py-2 text-left text-sm font-semibold transition-colors hover:bg-amber-400/10"
@@ -603,6 +583,12 @@ export function ProformaFormDialog({
                   ))}
                 </ul>
               ) : null}
+              {/* Slot à hauteur constante (pas de saut de mise en page). */}
+              <p className="mt-1 min-h-[1rem] text-xs font-semibold text-slate-500" role="status">
+                {customerTotal > customerResults.length
+                  ? `+${customerTotal - customerResults.length} autre(s) — affinez la recherche.`
+                  : ""}
+              </p>
             </>
           )}
         </Field>

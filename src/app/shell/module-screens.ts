@@ -39,9 +39,6 @@ const ProformasScreen = lazy(() =>
 const ZakatScreen = lazy(() =>
   import("@features/zakat/ZakatScreen.tsx").then((m) => ({ default: m.ZakatScreen })),
 );
-const BreadScreen = lazy(() =>
-  import("@features/bread/BreadScreen.tsx").then((m) => ({ default: m.BreadScreen })),
-);
 const SettingsScreen = lazy(() =>
   import("@features/settings/SettingsScreen.tsx").then((m) => ({ default: m.SettingsScreen })),
 );
@@ -69,7 +66,6 @@ export const LAZY_SCREENS: Record<Exclude<ModuleId, "sell">, NotifyScreen> = {
   expenses: ExpensesScreen,
   debts: DebtsScreen,
   reports: ReportsScreen,
-  bread: BreadScreen,
   proformas: ProformasScreen,
   templates: PrintTemplatesScreen,
   zakat: ZakatScreen,

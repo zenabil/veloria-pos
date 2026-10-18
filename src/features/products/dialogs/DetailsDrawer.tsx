@@ -1,7 +1,6 @@
-// Veloria PoS — Catalogue : tiroir détail + formulaire + ajustement de stock.
+// Veloria PoS — Catalogue : tiroir détail + formulaire (ajustement = dialogue Stock partagé).
 // Branchés sur le bridge window.veloria (jamais de SQLite côté renderer).
 import { useEffect, useState } from "react";
-import { parseQty } from "./common.ts";
 import { Pencil, RotateCcw, Scale, Trash2 } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
@@ -9,16 +8,9 @@ import { formatDzd } from "@domain/money/money.ts";
 import { formatDzdSigned } from "@shared/formatters/format.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 
-import {
-  Badge,
-  Button,
-  Card,
-  Drawer,
-  Field,
-  InfoRow,
-  Modal,
-  TextInput,
-} from "@shared/ui/primitives.tsx";
+import { StockAdjustmentDialog } from "@features/stock/dialogs/AdjustmentDialog.tsx";
+
+import { Badge, Button, Card, Drawer, InfoRow } from "@shared/ui/primitives.tsx";
 import { isArchived, stockLabel, stockTone, unitLabel, type Product } from "../types.ts";
 
 import type { Notify } from "@shared/ui/primitives.tsx";
@@ -239,8 +231,15 @@ export function ProductDetailsDrawer({
         </Card>
       </Drawer>
       {adjustOpen ? (
-        <AdjustStockModal
-          product={product}
+        <StockAdjustmentDialog
+          // Source unique : le dialogue Stock (mêmes règles + sélecteur de
+          // motif). L'ancien AdjustStockModal local (3e implémentation
+          // d'ajustement, audit) est supprimé.
+          product={{
+            ...product,
+            stock_value_minor: 0,
+            last_movement_at: null,
+          }}
           onClose={() => setAdjustOpen(false)}
           onSaved={() => {
             setAdjustOpen(false);
@@ -251,92 +250,5 @@ export function ProductDetailsDrawer({
         />
       ) : null}
     </>
-  );
-}
-// ---------------------------------------------------------------------------
-// Ajustement de stock (quantité + motif, mouvement tracé côté main).
-// ---------------------------------------------------------------------------
-
-function AdjustStockModal({
-  product,
-  onClose,
-  onSaved,
-  notify,
-}: {
-  product: Product;
-  onClose: () => void;
-  onSaved: () => void;
-  notify: Notify;
-}): React.JSX.Element {
-  const [qty, setQty] = useState(String(product.quantity));
-  const [reason, setReason] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  async function save(): Promise<void> {
-    const newQuantity = parseQty(qty.trim() === "" ? "0" : qty);
-    if (newQuantity == null) {
-      notify("Quantité invalide (0 – 1 000 000).", "err");
-      return;
-    }
-    if (reason.trim().length < 2) {
-      notify("Motif requis (2 lettres min.).", "err");
-      return;
-    }
-    setBusy(true);
-    try {
-      await api.stockAdjust({
-        operationId: newOperationId(),
-        productId: product.id,
-        newQuantity,
-        reason: reason.trim(),
-      });
-      notify("Stock ajusté.", "ok");
-      onSaved();
-    } catch (e) {
-      notify(frError(e, "Ajustement impossible."), "err");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <Modal label="Ajuster le stock" title={`Ajuster — ${product.name}`} onClose={onClose}>
-      <form
-        className="space-y-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void save();
-        }}
-      >
-        <p className="text-sm text-slate-400">
-          Stock actuel : <strong className="tabular-nums text-slate-100">{product.quantity}</strong>
-          {" · "}Mouvement tracé avec motif.
-        </p>
-        <Field label="Nouvelle quantité">
-          <TextInput
-            value={qty}
-            onChange={(e) => setQty(e.target.value)}
-            inputMode="decimal"
-            aria-label="Nouvelle quantité"
-          />
-        </Field>
-        <Field label="Motif" hint="Ex. : inventaire, casse, erreur de saisie.">
-          <TextInput
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Motif de l'ajustement…"
-            aria-label="Motif"
-          />
-        </Field>
-        <div className="flex gap-2">
-          <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
-            Annuler
-          </Button>
-          <Button type="submit" disabled={busy} className="flex-[2]">
-            {busy ? "Enregistrement…" : "Ajuster"}
-          </Button>
-        </div>
-      </form>
-    </Modal>
   );
 }

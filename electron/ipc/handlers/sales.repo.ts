@@ -25,12 +25,23 @@ export function listSalesHistory(
   page: number,
   pageSize: number,
   query = "",
+  staffUserId: number | null = null,
 ): { rows: unknown[]; total: number } {
   const db = getDb();
   const q = query.trim();
-  const where = q ? `WHERE s.invoice_number LIKE ? ESCAPE '\\'` : "";
-  const like = `%${q.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
-  const params: unknown[] = q ? [like] : [];
+  // R2 (0046) : périmètre auteur — null = gérant (tout), sinon mes ventes.
+  // Les lignes historiques sans auteur (NULL) sont invisibles aux utilisateurs.
+  const conds: string[] = [];
+  const params: unknown[] = [];
+  if (q) {
+    conds.push(`s.invoice_number LIKE ? ESCAPE '\\'`);
+    params.push(`%${q.replace(/[%_\\]/g, (c) => `\\${c}`)}%`);
+  }
+  if (staffUserId != null) {
+    conds.push(`s.staff_user_id = ?`);
+    params.push(staffUserId);
+  }
+  const where = conds.length > 0 ? `WHERE ${conds.join(" AND ")}` : "";
   const total = (
     db.prepare(`SELECT COUNT(*) AS c FROM sales s ${where}`).get(...params) as { c: number }
   ).c;
@@ -42,14 +53,24 @@ export function listSalesHistory(
   return { rows, total };
 }
 
-export function getSaleDetail(id: number): {
+export function getSaleDetail(
+  id: number,
+  staffUserId: number | null = null,
+): {
   sale: unknown;
   items: unknown[];
   payments: unknown[];
 } {
   const db = getDb();
-  const sale = db.prepare(`SELECT * FROM sales WHERE id = ?`).get(id);
+  const sale = db.prepare(`SELECT * FROM sales WHERE id = ?`).get(id) as
+    | Record<string, unknown>
+    | undefined;
   if (!sale) throw new Error("Vente introuvable.");
+  // R2 (0046) : un utilisateur ne rouvre que ses ventes (le gérant = null = tout).
+  // Les ventes historiques sans auteur (NULL) sont réservées au gérant.
+  if (staffUserId != null && sale["staff_user_id"] !== staffUserId) {
+    throw new Error("Action non autorisée pour cet utilisateur.");
+  }
   const items = db.prepare(`SELECT * FROM sale_items WHERE sale_id = ?`).all(id);
   const payments = db.prepare(`SELECT * FROM sale_payments WHERE sale_id = ?`).all(id);
   return { sale, items, payments };
@@ -122,6 +143,8 @@ export interface CreateSaleInput {
   uuid: string;
   invoiceNumber: string;
   customerId: number | null;
+  /** Dépassement de plafond validé par le vendeur (accord explicite, tracé). Défaut = false. */
+  limitOverrideApproved?: boolean;
   subtotalMinor: number;
   discountType: string;
   discountValueMinor: number;
@@ -137,6 +160,8 @@ export interface CreateSaleInput {
   lineTotals: number[];
   now: string;
   allowNegativeStock: boolean;
+  /** Auteur de la vente (session main, 0046) — NULL = historique pré-0046. */
+  staffUserId?: number | null;
 }
 
 export function allocateInvoiceNumber(prefix: string, now: string): string {
@@ -184,38 +209,62 @@ export function createSaleAtomic(input: CreateSaleInput): {
   const fast = findExisting();
   if (fast) return fast;
 
-  // Vente à crédit réservée aux clients autorisés (règle métier, dans la
-  // transaction : le trigger SQL `trg_sales_credit_allowed` tranche en dernier ressort).
-  if (input.remainingMinor > 0) {
-    const salesCfg = db.prepare(`SELECT value_json FROM app_settings WHERE key = 'sales'`).get() as
-      | { value_json: string }
-      | undefined;
-    let creditOpen = true;
-    try {
-      if (salesCfg) {
-        creditOpen =
-          (JSON.parse(salesCfg.value_json) as { allowCreditSales?: boolean }).allowCreditSales !==
-          false;
-      }
-    } catch {
-      /* défaut : crédit autorisé (drapeau client tranche) */
-    }
-    if (!creditOpen) {
-      throw new Error("Ventes à crédit désactivées dans les paramètres.");
-    }
-    if (input.customerId == null) {
-      throw new Error("Vente à crédit : choisissez un client autorisé au crédit.");
-    }
-    const c = db
-      .prepare(`SELECT credit_allowed FROM customers WHERE id = ?`)
-      .get(input.customerId) as { credit_allowed: number } | undefined;
-    if (!c) throw new Error("Client introuvable.");
-    if (Number(c.credit_allowed) !== 1) {
-      throw new Error("Vente à crédit refusée : ce client n'est pas autorisé au crédit.");
-    }
+  // Vente à crédit : autorisation + plafond DANS la transaction (lecture fraîche,
+  // garde anti-course ; le trigger SQL `trg_sales_credit_allowed` tranche en dernier ressort).
+  if (input.remainingMinor > 0 && input.customerId == null) {
+    throw new Error("Vente à crédit : choisissez un client autorisé au crédit.");
   }
 
   const tx = db.transaction(() => {
+    // PLAFOND-BLOQUANT (règle radicale) : autorisation + plafond relus ICI,
+    // dans la transaction (pas de TOCTOU) — solde + reste > plafond (> 0)
+    // = refus, sauf accord vendeur explicite (limitOverrideApproved, tracé).
+    if (input.remainingMinor > 0) {
+      const salesCfg = db
+        .prepare(`SELECT value_json FROM app_settings WHERE key = 'sales'`)
+        .get() as { value_json: string } | undefined;
+      let creditOpen = true;
+      try {
+        if (salesCfg) {
+          creditOpen =
+            (JSON.parse(salesCfg.value_json) as { allowCreditSales?: boolean }).allowCreditSales !==
+            false;
+        }
+      } catch {
+        /* défaut : crédit autorisé (drapeau client tranche) */
+      }
+      if (!creditOpen) {
+        throw new Error("Ventes à crédit désactivées dans les paramètres.");
+      }
+      if (input.customerId == null) {
+        throw new Error("Vente à crédit : choisissez un client autorisé au crédit.");
+      }
+      const c = db
+        .prepare(
+          `SELECT credit_allowed, credit_limit_minor, outstanding_balance_minor FROM customers WHERE id = ?`,
+        )
+        .get(input.customerId) as
+        | { credit_allowed: number; credit_limit_minor: number; outstanding_balance_minor: number }
+        | undefined;
+      if (!c) throw new Error("Client introuvable.");
+      if (Number(c.credit_allowed) !== 1) {
+        throw new Error("Vente à crédit refusée : ce client n'est pas autorisé au crédit.");
+      }
+      const limit = Number(c.credit_limit_minor);
+      const outstanding = Number(c.outstanding_balance_minor);
+      if (limit > 0 && outstanding + input.remainingMinor > limit && !input.limitOverrideApproved) {
+        throw new Error(
+          "Plafond de crédit dépassé : vente à crédit refusée (solde + reste > plafond). Accord vendeur requis.",
+        );
+      }
+    }
+    // FIX-P1-02 (fail-closed MONEY-ROOT) : seul le type "none" existe — la
+    // remise vit dans les lignes (P0-7). Un "percent" stockerait un taux
+    // flottant (ex. 2.5) dans la colonne INTEGER discount_value_minor :
+    // refus explicite FR avant toute écriture (rollback trivial).
+    if (input.discountType !== "none") {
+      throw new Error("Type de remise non pris en charge (remises par lignes uniquement).");
+    }
     // 1. stock availability check (unless explicitly allowed) — préchargé en
     // UNE requête (WHERE id IN) avant la boucle : verrou d'écriture plus court
     // pour les grands paniers, jamais de SELECT dans le for.
@@ -247,11 +296,11 @@ export function createSaleAtomic(input: CreateSaleInput): {
         .get() as { invoice_prefix: string | null } | undefined;
       invoice = allocateInvoiceNumber(company?.invoice_prefix ?? "", input.now);
     }
-    // 3. insert sale
+    // 3. insert sale (0045 : accord dépassement figé sur la vente)
     const r = db
       .prepare(
-        `INSERT INTO sales (uuid, invoice_number, customer_id, subtotal_minor, discount_type, discount_value_minor, discount_amount_minor, delivery_fee_minor, total_minor, amount_paid_minor, remaining_balance_minor, payment_status, payment_method, due_date, operation_id, is_cancelled, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+        `INSERT INTO sales (uuid, invoice_number, customer_id, subtotal_minor, discount_type, discount_value_minor, discount_amount_minor, delivery_fee_minor, total_minor, amount_paid_minor, remaining_balance_minor, payment_status, payment_method, due_date, operation_id, is_cancelled, credit_limit_override, staff_user_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)`,
       )
       .run(
         input.uuid,
@@ -259,10 +308,9 @@ export function createSaleAtomic(input: CreateSaleInput): {
         input.customerId,
         input.subtotalMinor,
         input.discountType,
-        // DB-10: percent conservé flottant (2.5% ≠ 3%), amount entier.
-        input.discountType === "percent"
-          ? input.discountValueMinor
-          : Math.round(input.discountValueMinor),
+        // MONEY-ROOT (FIX-P1-02) : la garde fail-closed ci-dessus garantit
+        // "none" ici — montant entier arrondi, jamais de taux flottant.
+        Math.round(input.discountValueMinor),
         input.discountAmountMinor,
         input.deliveryFeeMinor,
         input.totalMinor,
@@ -272,6 +320,8 @@ export function createSaleAtomic(input: CreateSaleInput): {
         input.paymentMethod,
         input.dueDate,
         input.operationId,
+        input.limitOverrideApproved ? 1 : 0,
+        input.staffUserId ?? null,
         input.now,
         input.now,
       );
@@ -354,8 +404,8 @@ export function createSaleAtomic(input: CreateSaleInput): {
         ).run(after, after, after, input.now, line.productId);
         qtyById.set(line.productId, after);
         db.prepare(
-          `INSERT INTO stock_movements (uuid, product_id, movement_type, quantity_delta, quantity_after, unit_cost_minor, related_entity_type, related_entity_id, reason, created_at)
-           VALUES (?, ?, 'sale_out', ?, ?, ?, 'sale', ?, 'Vente', ?)`,
+          `INSERT INTO stock_movements (uuid, product_id, movement_type, quantity_delta, quantity_after, unit_cost_minor, related_entity_type, related_entity_id, reason, staff_user_id, created_at)
+           VALUES (?, ?, 'sale_out', ?, ?, ?, 'sale', ?, 'Vente', ?, ?)`,
         ).run(
           randomUUID(),
           line.productId,
@@ -363,6 +413,7 @@ export function createSaleAtomic(input: CreateSaleInput): {
           after,
           avgUnit,
           String(saleId),
+          input.staffUserId ?? null,
           input.now,
         );
       }
@@ -370,7 +421,7 @@ export function createSaleAtomic(input: CreateSaleInput): {
     // 5. payment row (if paid > 0)
     if (input.amountPaidMinor > 0) {
       db.prepare(
-        `INSERT INTO sale_payments (uuid, sale_id, customer_id, amount_minor, method, payment_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO sale_payments (uuid, sale_id, customer_id, amount_minor, method, payment_date, staff_user_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         randomUUID(),
         saleId,
@@ -378,25 +429,37 @@ export function createSaleAtomic(input: CreateSaleInput): {
         input.amountPaidMinor,
         input.paymentMethod ?? "cash",
         input.now,
+        input.staffUserId ?? null,
         input.now,
       );
     }
-    // 6. customer balance (materialized, atomic)
+    // 6. customer balance (materialized, atomic + garde plafond anti-course :
+    // sans accord vendeur, deux ventes concurrentes ne peuvent pas franchir
+    // le plafond ensemble — changes==0 = refus explicite FR).
     if (input.customerId != null && input.remainingMinor !== 0) {
-      db.prepare(
-        `UPDATE customers SET outstanding_balance_minor = outstanding_balance_minor + ?, debt_status = CASE WHEN outstanding_balance_minor + ? <= 0 THEN 'none' WHEN credit_limit_minor > 0 AND outstanding_balance_minor + ? > credit_limit_minor THEN 'over_limit' ELSE 'due' END, is_over_limit = CASE WHEN credit_limit_minor > 0 AND outstanding_balance_minor + ? > credit_limit_minor THEN 1 ELSE 0 END, updated_at = ? WHERE id = ?`,
-      ).run(
-        input.remainingMinor,
-        input.remainingMinor,
-        input.remainingMinor,
-        input.remainingMinor,
-        input.now,
-        input.customerId,
-      );
+      const upd = db
+        .prepare(
+          `UPDATE customers SET outstanding_balance_minor = outstanding_balance_minor + ?, debt_status = CASE WHEN outstanding_balance_minor + ? <= 0 THEN 'none' WHEN credit_limit_minor > 0 AND outstanding_balance_minor + ? > credit_limit_minor THEN 'over_limit' ELSE 'due' END, is_over_limit = CASE WHEN credit_limit_minor > 0 AND outstanding_balance_minor + ? > credit_limit_minor THEN 1 ELSE 0 END, updated_at = ? WHERE id = ? AND (? = 1 OR credit_limit_minor <= 0 OR outstanding_balance_minor + ? <= credit_limit_minor)`,
+        )
+        .run(
+          input.remainingMinor,
+          input.remainingMinor,
+          input.remainingMinor,
+          input.remainingMinor,
+          input.now,
+          input.customerId,
+          input.limitOverrideApproved ? 1 : 0,
+          input.remainingMinor,
+        );
+      if (Number(upd.changes) !== 1) {
+        throw new Error(
+          "Plafond de crédit dépassé : vente à crédit refusée (solde + reste > plafond). Accord vendeur requis.",
+        );
+      }
     }
     // 7. audit (avec lignes sous coût éventuelles — confirmation explicite caisse).
     db.prepare(
-      `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at) VALUES (?, 'sale.created', 'sale', ?, ?, ?, ?)`,
+      `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at, actor_user_id) VALUES (?, 'sale.created', 'sale', ?, ?, ?, ?, ?)`,
     ).run(
       randomUUID(),
       String(saleId),
@@ -407,8 +470,10 @@ export function createSaleAtomic(input: CreateSaleInput): {
         paid: input.amountPaidMinor,
         discount: input.discountAmountMinor,
         belowCostLines,
+        limitOverride: input.limitOverrideApproved ? 1 : 0,
       }),
       input.now,
+      input.staffUserId ?? null,
     );
     return { saleId, invoiceNumber: invoice };
   });

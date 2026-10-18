@@ -4,7 +4,7 @@
 // - idempotency_keys : rejouabilité garantie 90 j (au-delà, les gardes UNIQUE
 //   métier — sales.operation_id, UNIQUE(operation_id) des ventes — tranchent).
 // - RADICAL-FIX: les opérations SANS garde UNIQUE métier (cancel/adjust/returns/
-//   updates optionnels/proformas/bread/closings/settings/company) sont EXCLUES
+//   updates optionnels/proformas/closings/settings/company) sont EXCLUES
 //   de la purge (conservées 365 j comme l'audit) — sinon un replay >90 j
 //   ré-exécuterait une annulation déjà appliquée.
 // - audit_log : traçabilité 365 j (au-delà, sauvegardes .vposdb font foi).
@@ -23,7 +23,6 @@ const CRITICAL_OP_PREFIXES = [
   "stock.inventory",
   "returns.",
   "proformas.",
-  "bread.",
   "closings.",
   "settings.save",
   "company.",

@@ -21,6 +21,7 @@ export const saleItemSchema = z.object({
 export const saleCreateSchema = z.object({
   operationId: z.string().uuid(),
   customerId: z.number().int().nullable().optional(),
+  limitOverrideApproved: z.boolean().default(false),
   lines: z.array(saleItemSchema).min(1).max(200),
   // P0-7 : AUCUN discountType/discountValue au niveau vente (supprimés) �?" la
   // remise vit dans les prix unitaires de lignes. Zod ignore les clés
@@ -54,6 +55,7 @@ export const cartsSaveSchema = z.object({
         customerLabel: z.string().max(100).default("Client de passage"),
         amountPaidMinor: moneyMinor.default(0),
         paymentMethod: z.enum(["cash", "cheque", "transfer"]).nullable().optional(),
+        deliveryFeeMinor: moneyMinor.default(0),
       }),
     )
     .max(20),

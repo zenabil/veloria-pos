@@ -4,10 +4,10 @@
 import { randomUUID } from "node:crypto";
 import { getDb, integrityCheck } from "../../database/sqlite.service";
 import { backupStatus } from "../../backup/backup.service";
-import { getBreadStats } from "./bread.repo";
 import { fifoValuation } from "./fifo";
 import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./idempotency";
 import { assertOrderClause } from "./sql-guard";
+import { percentOfTotal } from "../money-guard";
 
 export type DebtTypeFilter = "all" | "customer" | "supplier";
 export type DebtStatusFilter = "all" | "overdue" | "due";
@@ -241,11 +241,10 @@ export function createDailyClosingAtomic(args: {
     // Formule canonique (miroir de src/domain/closings/closing-rules.ts
     // computeClosingBalance — electron/ ne peut pas importer src/ :
     // garder synchronisé, couvert par tests/unit/documents.test.ts).
-    // L12 — périmètre volontaire (conclusion d'audit) : les encaissements
-    // pain sont portés par bread_orders (pas de ligne sale_payments) donc
-    // absents de `collections` — sauf conversion pain→vente, qui crée une
-    // vente classique comptée dans cashSales. Les décaissements fournisseurs
-    // (colonne informative ci-dessus) n'entrent pas non plus. Identique au
+    // L12 — périmètre volontaire (conclusion d'audit) : le module pain est
+    // supprimé (ADR-109) — `collections` ne compte que sale_payments.
+    // Les décaissements fournisseurs (colonne informative ci-dessus)
+    // n'entrent pas non plus. Identique au
     // domaine, qui ne prend que opening + cashSales + customerCollections −
     // expenses − refunds. Toute évolution se décide dans
     // src/domain/closings/closing-rules.ts.
@@ -398,12 +397,10 @@ export function saveZakatCalculation(args: ZakatCalculationInput): { id: number 
   const zakat =
     net >= args.nisabMinor && args.nisabMinor > 0
       ? (() => {
-          if (!Number.isSafeInteger(net) || net < 0 || net > 100_000_000_000)
-            throw new Error("Assiette nette invalide.");
-          const out = Math.round((net * args.ratePercent) / 100);
-          if (!Number.isSafeInteger(out) || out < 0 || out > 100_000_000_000)
-            throw new Error("Montant de zakat invalide.");
-          return out;
+          // R7 RADICAL : calcul unique via money-guard (plus de duplication
+          // du domaine percentOfMinor ici).
+          if (!Number.isSafeInteger(net) || net < 0) throw new Error("Assiette nette invalide.");
+          return percentOfTotal(net, args.ratePercent);
         })()
       : 0;
   // P8: calcul tracé (reporting financier).
@@ -481,6 +478,8 @@ export interface ReportsSummaryInput {
   customerId: number | null;
   supplierId: number | null;
   categoryId: number | null;
+  /** R2 (0046) : null = gérant (tout), sinon opérations de l'utilisateur. */
+  staffUserId?: number | null;
 }
 
 /**
@@ -511,14 +510,19 @@ export function getReportsSummary(args: ReportsSummaryInput): Record<string, unk
     ? `sales s JOIN sale_items li ON li.sale_id = s.id JOIN products p ON p.id = li.product_id AND p.category_id = ?`
     : `sales s`;
   const saleFromP: unknown[] = saleCat ? [args.categoryId] : [];
+  const staffCond = args.staffUserId != null ? ` AND s.staff_user_id = ?` : "";
+  const staffP: unknown[] = args.staffUserId != null ? [args.staffUserId] : [];
   const salesClean = db
     .prepare(
       `SELECT COUNT(*) AS n, COALESCE(SUM(t.total_minor), 0) AS revenue FROM (
          SELECT DISTINCT s.id AS id, s.total_minor AS total_minor FROM ${saleFrom}
-         WHERE s.is_cancelled = 0 AND substr(s.created_at, 1, 10) BETWEEN ? AND ? ${saleCust}
+         WHERE s.is_cancelled = 0 AND substr(s.created_at, 1, 10) BETWEEN ? AND ? ${saleCust}${staffCond}
        ) t`,
     )
-    .get(...saleFromP, args.from, args.to, ...saleCustP) as { n: number; revenue: number };
+    .get(...saleFromP, args.from, args.to, ...saleCustP, ...staffP) as {
+    n: number;
+    revenue: number;
+  };
   // COGS = somme des coûts FIFO figés à la vente (cogs_minor), jamais le
   // dernier coût d'achat (les achats futurs ne réécrivent pas l'historique).
   const cogs = db
@@ -526,9 +530,9 @@ export function getReportsSummary(args: ReportsSummaryInput): Record<string, unk
       `SELECT COALESCE(SUM(li.cogs_minor), 0) AS cogs
        FROM sale_items li JOIN sales s ON s.id = li.sale_id
        ${saleCat ? "JOIN products p ON p.id = li.product_id AND p.category_id = ?" : ""}
-       WHERE s.is_cancelled = 0 AND substr(s.created_at, 1, 10) BETWEEN ? AND ? ${saleCust}`,
+       WHERE s.is_cancelled = 0 AND substr(s.created_at, 1, 10) BETWEEN ? AND ? ${saleCust}${staffCond}`,
     )
-    .get(...(saleCat ? [args.categoryId] : []), args.from, args.to, ...saleCustP) as {
+    .get(...(saleCat ? [args.categoryId] : []), args.from, args.to, ...saleCustP, ...staffP) as {
     cogs: number;
   };
 
@@ -537,43 +541,57 @@ export function getReportsSummary(args: ReportsSummaryInput): Record<string, unk
     ? `stock_intakes si JOIN stock_intake_items ii ON ii.stock_intake_id = si.id JOIN products p ON p.id = ii.product_id AND p.category_id = ?`
     : `stock_intakes si`;
   const intakeFromP: unknown[] = intakeCat ? [args.categoryId] : [];
+  const intakeStaffCond = args.staffUserId != null ? ` AND si.staff_user_id = ?` : "";
   const purchases = db
     .prepare(
       `SELECT COUNT(*) AS n, COALESCE(SUM(t.total_minor), 0) AS total FROM (
          SELECT DISTINCT si.id AS id, si.total_minor AS total_minor FROM ${intakeFrom}
-         WHERE si.status != 'cancelled' AND substr(si.created_at, 1, 10) BETWEEN ? AND ? ${intakeSup}
+         WHERE si.status != 'cancelled' AND substr(si.created_at, 1, 10) BETWEEN ? AND ? ${intakeSup}${intakeStaffCond}
        ) t`,
     )
-    .get(...intakeFromP, args.from, args.to, ...intakeSupP) as { n: number; total: number };
+    .get(...intakeFromP, args.from, args.to, ...intakeSupP, ...staffP) as {
+    n: number;
+    total: number;
+  };
 
   const expenses = db
     .prepare(
       `SELECT COALESCE(SUM(amount_minor), 0) AS total FROM expenses
-       WHERE substr(expense_date, 1, 10) BETWEEN ? AND ?`,
+       WHERE substr(expense_date, 1, 10) BETWEEN ? AND ?${args.staffUserId != null ? " AND staff_user_id = ?" : ""}`,
     )
-    .get(args.from, args.to) as { total: number };
+    .get(
+      ...(args.staffUserId != null ? [args.from, args.to, args.staffUserId] : [args.from, args.to]),
+    ) as { total: number };
 
   // Séries temporelles (jour/semaine) : union des dates actives, montants par seau.
   const dayOrWeek = (col: string): string =>
     weekly ? `strftime('%Y-S%W', ${col})` : `substr(${col}, 1, 10)`;
+  // R2 (0046) : périmètre auteur appliqué aux seaux ventes/achats/dépenses.
+  const staffS2 = args.staffUserId != null ? ` AND s2.staff_user_id = ?` : "";
+  const staff1T = args.staffUserId != null ? ` AND staff_user_id = ?` : "";
+  const staffBP: unknown[] = args.staffUserId != null ? [args.staffUserId] : [];
   const buckets = db
     .prepare(
       `SELECT d AS date,
-        COALESCE((SELECT SUM(t.total_minor) FROM (SELECT DISTINCT s2.id AS id, s2.total_minor AS total_minor FROM sales s2${saleCat ? " JOIN sale_items li2 ON li2.sale_id = s2.id JOIN products p2 ON p2.id = li2.product_id AND p2.category_id = ?" : ""} WHERE s2.is_cancelled = 0 AND ${weekly ? `strftime('%Y-S%W', s2.created_at)` : `substr(s2.created_at, 1, 10)`} = d ${saleCust.replace(/s\./g, "s2.")}) t), 0) AS sales
-       FROM (SELECT DISTINCT ${dayOrWeek("created_at")} AS d FROM sales WHERE substr(created_at, 1, 10) BETWEEN ? AND ?
-             UNION SELECT DISTINCT ${dayOrWeek("created_at")} FROM stock_intakes WHERE substr(created_at, 1, 10) BETWEEN ? AND ?
-             UNION SELECT DISTINCT ${dayOrWeek("expense_date")} FROM expenses WHERE substr(expense_date, 1, 10) BETWEEN ? AND ?
+        COALESCE((SELECT SUM(t.total_minor) FROM (SELECT DISTINCT s2.id AS id, s2.total_minor AS total_minor FROM sales s2${saleCat ? " JOIN sale_items li2 ON li2.sale_id = s2.id JOIN products p2 ON p2.id = li2.product_id AND p2.category_id = ?" : ""} WHERE s2.is_cancelled = 0 AND ${weekly ? `strftime('%Y-S%W', s2.created_at)` : `substr(s2.created_at, 1, 10)`} = d ${saleCust.replace(/s\./g, "s2.")}${staffS2}) t), 0) AS sales
+       FROM (SELECT DISTINCT ${dayOrWeek("created_at")} AS d FROM sales WHERE substr(created_at, 1, 10) BETWEEN ? AND ?${staff1T}
+             UNION SELECT DISTINCT ${dayOrWeek("created_at")} FROM stock_intakes WHERE substr(created_at, 1, 10) BETWEEN ? AND ?${staff1T}
+             UNION SELECT DISTINCT ${dayOrWeek("expense_date")} FROM expenses WHERE substr(expense_date, 1, 10) BETWEEN ? AND ?${staff1T}
              ORDER BY 1)`,
     )
     .all(
       ...(saleCat ? [args.categoryId] : []),
       ...saleCustP,
+      ...staffBP,
       args.from,
       args.to,
+      ...staffBP,
       args.from,
       args.to,
+      ...staffBP,
       args.from,
       args.to,
+      ...staffBP,
     ) as {
     date: string;
     sales: number;
@@ -591,14 +609,17 @@ export function getReportsSummary(args: ReportsSummaryInput): Record<string, unk
     dateCol: string,
     extra: string,
     extraP: unknown[],
+    staffCol: string | null = null,
   ): Map<string, number> => {
     const expr = weekly ? `strftime('%Y-S%W', ${dateCol})` : `substr(${dateCol}, 1, 10)`;
+    const staffCond = staffCol && args.staffUserId != null ? ` AND ${staffCol} = ?` : "";
+    const staffParam: unknown[] = staffCol && args.staffUserId != null ? [args.staffUserId] : [];
     const rows = db
       .prepare(
         `SELECT ${expr} AS d, COALESCE(SUM(${col}), 0) AS s FROM ${table}
-         WHERE ${dateCol} IS NOT NULL AND substr(${dateCol}, 1, 10) BETWEEN ? AND ? ${extra} GROUP BY 1`,
+         WHERE ${dateCol} IS NOT NULL AND substr(${dateCol}, 1, 10) BETWEEN ? AND ? ${extra}${staffCond} GROUP BY 1`,
       )
-      .all(args.from, args.to, ...extraP) as { d: string; s: number }[];
+      .all(args.from, args.to, ...extraP, ...staffParam) as { d: string; s: number }[];
     return new Map(rows.map((r) => [r.d, r.s]));
   };
   const purchMap = byBucket(
@@ -607,8 +628,9 @@ export function getReportsSummary(args: ReportsSummaryInput): Record<string, unk
     "si.created_at",
     `AND si.status != 'cancelled' ${intakeSup} ${intakeCat ? "AND EXISTS (SELECT 1 FROM stock_intake_items ii JOIN products p ON p.id = ii.product_id AND p.category_id = ? WHERE ii.stock_intake_id = si.id)" : ""}`,
     [...intakeSupP, ...(intakeCat ? [args.categoryId] : [])],
+    "si.staff_user_id",
   );
-  const expMap = byBucket("expenses", "amount_minor", "expense_date", "", []);
+  const expMap = byBucket("expenses", "amount_minor", "expense_date", "", [], "staff_user_id");
   const cogsMap = (() => {
     const expr = weekly ? `strftime('%Y-S%W', s.created_at)` : `substr(s.created_at, 1, 10)`;
     const rows = db
@@ -616,10 +638,10 @@ export function getReportsSummary(args: ReportsSummaryInput): Record<string, unk
         `SELECT ${expr} AS d, COALESCE(SUM(li.cogs_minor), 0) AS s
          FROM sale_items li JOIN sales s ON s.id = li.sale_id
          ${saleCat ? "JOIN products p ON p.id = li.product_id AND p.category_id = ?" : ""}
-         WHERE s.is_cancelled = 0 AND substr(s.created_at, 1, 10) BETWEEN ? AND ? ${saleCust}
+         WHERE s.is_cancelled = 0 AND substr(s.created_at, 1, 10) BETWEEN ? AND ? ${saleCust}${staffCond}
          GROUP BY 1`,
       )
-      .all(...(saleCat ? [args.categoryId] : []), args.from, args.to, ...saleCustP) as {
+      .all(...(saleCat ? [args.categoryId] : []), args.from, args.to, ...saleCustP, ...staffP) as {
       d: string;
       s: number;
     }[];
@@ -629,56 +651,78 @@ export function getReportsSummary(args: ReportsSummaryInput): Record<string, unk
   // une vente ANNULÉE n'est plus de l'argent encaissé (cancelSaleAtomic ne
   // supprime jamais la ligne sale_payments). Les encaissements autonomes
   // (sale_id NULL) restent comptés.
+  const payStaffIn = args.staffUserId != null ? ` AND sp.staff_user_id = ?` : "";
+  const payStaffP: unknown[] = args.staffUserId != null ? [args.staffUserId] : [];
   const payIn = db
     .prepare(
       `SELECT COALESCE(SUM(sp.amount_minor), 0) AS s FROM sale_payments sp
        LEFT JOIN sales sa ON sa.id = sp.sale_id
        WHERE substr(sp.payment_date, 1, 10) BETWEEN ? AND ?
-         AND (sp.sale_id IS NULL OR COALESCE(sa.is_cancelled, 0) = 0)${args.customerId != null ? " AND sp.customer_id = ?" : ""}`,
+         AND (sp.sale_id IS NULL OR COALESCE(sa.is_cancelled, 0) = 0)${args.customerId != null ? " AND sp.customer_id = ?" : ""}${payStaffIn}`,
     )
     .get(
-      ...(args.customerId != null ? [args.from, args.to, args.customerId] : [args.from, args.to]),
+      ...(args.customerId != null
+        ? [args.from, args.to, args.customerId, ...payStaffP]
+        : [args.from, args.to, ...payStaffP]),
     ) as { s: number };
   const payOut = db
     .prepare(
       `SELECT COALESCE(SUM(sp.amount_minor), 0) AS s FROM supplier_payments sp
-       WHERE substr(sp.payment_date, 1, 10) BETWEEN ? AND ?${args.supplierId != null ? " AND sp.supplier_id = ?" : ""}`,
+       WHERE substr(sp.payment_date, 1, 10) BETWEEN ? AND ?${args.supplierId != null ? " AND sp.supplier_id = ?" : ""}${payStaffIn}`,
     )
     .get(
-      ...(args.supplierId != null ? [args.from, args.to, args.supplierId] : [args.from, args.to]),
+      ...(args.supplierId != null
+        ? [args.from, args.to, args.supplierId, ...payStaffP]
+        : [args.from, args.to, ...payStaffP]),
     ) as { s: number };
   const returns = db
     .prepare(
       `SELECT COUNT(*) AS n, COALESCE(SUM(total_return_value_minor), 0) AS s FROM returns
-       WHERE status != 'cancelled' AND substr(created_at, 1, 10) BETWEEN ? AND ?`,
+       WHERE status != 'cancelled' AND substr(created_at, 1, 10) BETWEEN ? AND ?${args.staffUserId != null ? " AND staff_user_id = ?" : ""}`,
     )
-    .get(args.from, args.to) as { n: number; s: number };
+    .get(
+      ...(args.staffUserId != null ? [args.from, args.to, args.staffUserId] : [args.from, args.to]),
+    ) as { n: number; s: number };
   const topCustomers = db
     .prepare(
       `SELECT COALESCE(c.search_name, 'Passage') AS name, COALESCE(SUM(s.total_minor), 0) AS total
        FROM sales s LEFT JOIN customers c ON c.id = s.customer_id
-       WHERE s.is_cancelled = 0 AND substr(s.created_at, 1, 10) BETWEEN ? AND ? ${saleCust}
+       WHERE s.is_cancelled = 0 AND substr(s.created_at, 1, 10) BETWEEN ? AND ? ${saleCust}${args.staffUserId != null ? " AND s.staff_user_id = ?" : ""}
        GROUP BY COALESCE(c.search_name, 'Passage') ORDER BY total DESC LIMIT 5`,
     )
-    .all(args.from, args.to, ...saleCustP);
+    .all(
+      ...(args.staffUserId != null
+        ? [args.from, args.to, ...saleCustP, args.staffUserId]
+        : [args.from, args.to, ...saleCustP]),
+    );
   const topSuppliers = db
     .prepare(
       `SELECT COALESCE(s.name, 'Comptant') AS name, COALESCE(SUM(si.total_minor), 0) AS total
        FROM stock_intakes si LEFT JOIN suppliers s ON s.id = si.supplier_id
-       WHERE si.status != 'cancelled' AND substr(si.created_at, 1, 10) BETWEEN ? AND ? ${intakeSup}
+       WHERE si.status != 'cancelled' AND substr(si.created_at, 1, 10) BETWEEN ? AND ? ${intakeSup}${args.staffUserId != null ? " AND si.staff_user_id = ?" : ""}
        GROUP BY COALESCE(s.name, 'Comptant') ORDER BY total DESC LIMIT 5`,
     )
-    .all(args.from, args.to, ...intakeSupP);
+    .all(
+      ...(args.staffUserId != null
+        ? [args.from, args.to, ...intakeSupP, args.staffUserId]
+        : [args.from, args.to, ...intakeSupP]),
+    );
   const topProducts = db
     .prepare(
       `SELECT li.product_name_snapshot AS name, COALESCE(SUM(li.quantity), 0) AS qty,
         COALESCE(SUM(li.line_total_minor), 0) AS total
        FROM sale_items li JOIN sales s ON s.id = li.sale_id
        ${saleCat ? "JOIN products p ON p.id = li.product_id AND p.category_id = ?" : ""}
-       WHERE s.is_cancelled = 0 AND substr(s.created_at, 1, 10) BETWEEN ? AND ? ${saleCust}
+       WHERE s.is_cancelled = 0 AND substr(s.created_at, 1, 10) BETWEEN ? AND ? ${saleCust}${args.staffUserId != null ? " AND s.staff_user_id = ?" : ""}
        GROUP BY li.product_name_snapshot ORDER BY total DESC LIMIT 5`,
     )
-    .all(...(saleCat ? [args.categoryId] : []), args.from, args.to, ...saleCustP);
+    .all(
+      ...(saleCat ? [args.categoryId] : []),
+      args.from,
+      args.to,
+      ...saleCustP,
+      ...(args.staffUserId != null ? [args.staffUserId] : []),
+    );
   const customerDebt = db
     .prepare(`SELECT COALESCE(SUM(outstanding_balance_minor), 0) AS d FROM customers`)
     .get() as { d: number };
@@ -717,8 +761,15 @@ export function getReportsSummary(args: ReportsSummaryInput): Record<string, unk
  * Tableau de bord (lecture seule, bornée) : KPIs période + instantanés
  * (dettes, stock), séries jour, méthodes, comparaison période précédente,
  * top rotation, alertes, récents, pain. Trésorerie = encaissé − décaissé.
+ * R2 (0046) : staffUserId null = gérant (tout) ; sinon les requêtes sur les
+ * tables attribuées (ventes, paiements, dépenses, achats) sont restreintes à
+ * l'auteur. Instantanés de comptes (dettes, stock) restent globaux.
  */
-export function getDashboardSummary(from: string, to: string): Record<string, unknown> {
+export function getDashboardSummary(
+  from: string,
+  to: string,
+  staffUserId: number | null = null,
+): Record<string, unknown> {
   const db = getDb();
   if (from > to) throw new Error("Période invalide.");
   const spanDays =
@@ -737,34 +788,45 @@ export function getDashboardSummary(from: string, to: string): Record<string, un
   const sales = db
     .prepare(
       `SELECT COUNT(*) AS n, COALESCE(SUM(total_minor), 0) AS t FROM sales
-       WHERE is_cancelled = 0 AND substr(created_at, 1, 10) BETWEEN ? AND ?`,
+       WHERE is_cancelled = 0 AND substr(created_at, 1, 10) BETWEEN ? AND ?${staffUserId != null ? " AND staff_user_id = ?" : ""}`,
     )
-    .get(from, to) as { n: number; t: number };
+    .get(...(staffUserId != null ? [from, to, staffUserId] : [from, to])) as {
+    n: number;
+    t: number;
+  };
   const prevSales = db
     .prepare(
       `SELECT COALESCE(SUM(total_minor), 0) AS t FROM sales
-       WHERE is_cancelled = 0 AND substr(created_at, 1, 10) BETWEEN ? AND ?`,
+       WHERE is_cancelled = 0 AND substr(created_at, 1, 10) BETWEEN ? AND ?${staffUserId != null ? " AND staff_user_id = ?" : ""}`,
     )
-    .get(prevFrom, prevTo) as { t: number };
+    .get(...(staffUserId != null ? [prevFrom, prevTo, staffUserId] : [prevFrom, prevTo])) as {
+    t: number;
+  };
   const cogs = db
     .prepare(
       `SELECT COALESCE(SUM(li.cogs_minor), 0) AS c FROM sale_items li
        JOIN sales s ON s.id = li.sale_id
-       WHERE s.is_cancelled = 0 AND substr(s.created_at, 1, 10) BETWEEN ? AND ?`,
+       WHERE s.is_cancelled = 0 AND substr(s.created_at, 1, 10) BETWEEN ? AND ?${staffUserId != null ? " AND s.staff_user_id = ?" : ""}`,
     )
-    .get(from, to) as { c: number };
+    .get(...(staffUserId != null ? [from, to, staffUserId] : [from, to])) as { c: number };
   const purchases = db
     .prepare(
       `SELECT COUNT(*) AS n, COALESCE(SUM(total_minor), 0) AS t FROM stock_intakes
-       WHERE status != 'cancelled' AND substr(created_at, 1, 10) BETWEEN ? AND ?`,
+       WHERE status != 'cancelled' AND substr(created_at, 1, 10) BETWEEN ? AND ?${staffUserId != null ? " AND staff_user_id = ?" : ""}`,
     )
-    .get(from, to) as { n: number; t: number };
+    .get(...(staffUserId != null ? [from, to, staffUserId] : [from, to])) as {
+    n: number;
+    t: number;
+  };
   const expenses = db
     .prepare(
       `SELECT COUNT(*) AS n, COALESCE(SUM(amount_minor), 0) AS t FROM expenses
-       WHERE substr(expense_date, 1, 10) BETWEEN ? AND ?`,
+       WHERE substr(expense_date, 1, 10) BETWEEN ? AND ?${staffUserId != null ? " AND staff_user_id = ?" : ""}`,
     )
-    .get(from, to) as { n: number; t: number };
+    .get(...(staffUserId != null ? [from, to, staffUserId] : [from, to])) as {
+    n: number;
+    t: number;
+  };
   // L1 : encaissements du tableau de bord — exclusivité des ventes NON
   // annulées (cohérent avec sales/cogs/byDay ci-dessus) ; encaissements
   // autonomes (sale_id NULL) conservés.
@@ -773,15 +835,15 @@ export function getDashboardSummary(from: string, to: string): Record<string, un
       `SELECT COALESCE(SUM(sp.amount_minor), 0) AS s FROM sale_payments sp
        LEFT JOIN sales sa ON sa.id = sp.sale_id
        WHERE substr(sp.payment_date, 1, 10) BETWEEN ? AND ?
-         AND (sp.sale_id IS NULL OR COALESCE(sa.is_cancelled, 0) = 0)`,
+         AND (sp.sale_id IS NULL OR COALESCE(sa.is_cancelled, 0) = 0)${staffUserId != null ? " AND sp.staff_user_id = ?" : ""}`,
     )
-    .get(from, to) as { s: number };
+    .get(...(staffUserId != null ? [from, to, staffUserId] : [from, to])) as { s: number };
   const payOut = db
     .prepare(
       `SELECT COALESCE(SUM(amount_minor), 0) AS s FROM supplier_payments
-       WHERE substr(payment_date, 1, 10) BETWEEN ? AND ?`,
+       WHERE substr(payment_date, 1, 10) BETWEEN ? AND ?${staffUserId != null ? " AND staff_user_id = ?" : ""}`,
     )
-    .get(from, to) as { s: number };
+    .get(...(staffUserId != null ? [from, to, staffUserId] : [from, to])) as { s: number };
   const customerDebt = db
     .prepare(`SELECT COALESCE(SUM(outstanding_balance_minor), 0) AS d FROM customers`)
     .get() as { d: number };
@@ -805,26 +867,26 @@ export function getDashboardSummary(from: string, to: string): Record<string, un
   const byMethod = db
     .prepare(
       `SELECT COALESCE(payment_method, 'none') AS method, COUNT(*) AS n, COALESCE(SUM(total_minor), 0) AS t
-       FROM sales WHERE is_cancelled = 0 AND substr(created_at, 1, 10) BETWEEN ? AND ?
+       FROM sales WHERE is_cancelled = 0 AND substr(created_at, 1, 10) BETWEEN ? AND ?${staffUserId != null ? " AND staff_user_id = ?" : ""}
        GROUP BY COALESCE(payment_method, 'none') ORDER BY t DESC`,
     )
-    .all(from, to);
+    .all(...(staffUserId != null ? [from, to, staffUserId] : [from, to]));
   const byDay = db
     .prepare(
       `SELECT substr(created_at, 1, 10) AS d, COALESCE(SUM(total_minor), 0) AS t, COUNT(*) AS n
-       FROM sales WHERE is_cancelled = 0 AND substr(created_at, 1, 10) BETWEEN ? AND ?
+       FROM sales WHERE is_cancelled = 0 AND substr(created_at, 1, 10) BETWEEN ? AND ?${staffUserId != null ? " AND staff_user_id = ?" : ""}
        GROUP BY 1 ORDER BY 1`,
     )
-    .all(from, to);
+    .all(...(staffUserId != null ? [from, to, staffUserId] : [from, to]));
   const fastMoving = db
     .prepare(
       `SELECT li.product_name_snapshot AS name, COALESCE(SUM(li.quantity), 0) AS qty,
         COALESCE(SUM(li.line_total_minor), 0) AS total
        FROM sale_items li JOIN sales s ON s.id = li.sale_id
-       WHERE s.is_cancelled = 0 AND substr(s.created_at, 1, 10) BETWEEN ? AND ?
+       WHERE s.is_cancelled = 0 AND substr(s.created_at, 1, 10) BETWEEN ? AND ?${staffUserId != null ? " AND s.staff_user_id = ?" : ""}
        GROUP BY li.product_name_snapshot ORDER BY qty DESC LIMIT 5`,
     )
-    .all(from, to);
+    .all(...(staffUserId != null ? [from, to, staffUserId] : [from, to]));
   const overdue = db
     .prepare(
       `SELECT 'customer' AS kind, s.invoice_number AS ref,
@@ -852,11 +914,12 @@ export function getDashboardSummary(from: string, to: string): Record<string, un
       `SELECT s.id, s.invoice_number, s.total_minor, s.created_at,
         COALESCE(c.search_name, 'Passage') AS party
        FROM sales s LEFT JOIN customers c ON c.id = s.customer_id
-       WHERE s.is_cancelled = 0 ORDER BY s.id DESC LIMIT 5`,
+       WHERE s.is_cancelled = 0${staffUserId != null ? " AND s.staff_user_id = ?" : ""} ORDER BY s.id DESC LIMIT 5`,
     )
-    .all();
+    .all(...(staffUserId != null ? [staffUserId] : []));
   // L1 : les encaissements récents excluent ceux des ventes annulées
   // (branche 'in') — les décaissements fournisseurs ne sont pas impactés.
+  // R2 (0046) : périmètre auteur par branche (colonnes staff_user_id).
   const recentPayments = db
     .prepare(
       `SELECT 'in' AS dir, sp.amount_minor, sp.method, sp.payment_date,
@@ -864,22 +927,24 @@ export function getDashboardSummary(from: string, to: string): Record<string, un
        FROM sale_payments sp
        LEFT JOIN sales sa ON sa.id = sp.sale_id
        LEFT JOIN customers c ON c.id = sp.customer_id
-       WHERE sp.sale_id IS NULL OR COALESCE(sa.is_cancelled, 0) = 0
+       WHERE (sp.sale_id IS NULL OR COALESCE(sa.is_cancelled, 0) = 0)${staffUserId != null ? " AND sp.staff_user_id = ?" : ""}
        UNION ALL
        SELECT 'out' AS dir, sp.amount_minor, sp.method, sp.payment_date,
         COALESCE(s.name, 'Fournisseur') AS party
        FROM supplier_payments sp LEFT JOIN suppliers s ON s.id = sp.supplier_id
+       ${staffUserId != null ? "WHERE sp.staff_user_id = ?" : ""}
        ORDER BY payment_date DESC LIMIT 5`,
     )
-    .all();
+    .all(...(staffUserId != null ? [staffUserId, staffUserId] : []));
   const recentPurchases = db
     .prepare(
       `SELECT si.id, COALESCE(si.invoice_number, 'BON-' || printf('%05d', si.id)) AS ref,
         COALESCE(s.name, 'Comptant') AS party, si.total_minor, si.created_at
        FROM stock_intakes si LEFT JOIN suppliers s ON s.id = si.supplier_id
+       ${staffUserId != null ? "WHERE si.staff_user_id = ?" : ""}
        ORDER BY si.id DESC LIMIT 5`,
     )
-    .all();
+    .all(...(staffUserId != null ? [staffUserId] : []));
   const recentReturns = db
     .prepare(
       `SELECT 'client' AS kind, return_number AS ref, total_return_value_minor AS total, created_at
@@ -891,9 +956,10 @@ export function getDashboardSummary(from: string, to: string): Record<string, un
   const recentExpenses = db
     .prepare(
       `SELECT id, description, category, amount_minor, expense_date FROM expenses
+       ${staffUserId != null ? "WHERE staff_user_id = ?" : ""}
        ORDER BY expense_date DESC, id DESC LIMIT 5`,
     )
-    .all();
+    .all(...(staffUserId != null ? [staffUserId] : []));
   let integrity = "unknown";
   try {
     integrity = integrityCheck().integrity;
@@ -939,7 +1005,6 @@ export function getDashboardSummary(from: string, to: string): Record<string, un
       returns: recentReturns,
       expenses: recentExpenses,
     },
-    bread: getBreadStats(),
     alerts: { integrity, lastBackup },
   };
 }

@@ -38,22 +38,10 @@ export type ProductSort =
 
 export const UNIT_OPTIONS: readonly string[] = UNIT_CODES;
 
-const UNIT_LABELS: Record<string, string> = {
-  PIECE: "Pièce",
-  KG: "Kilogramme",
-  G: "Gramme",
-  L: "Litre",
-  ML: "Millilitre",
-  CL: "Centilitre",
-  M: "Mètre",
-  CARTON: "Carton",
-  PAQUET: "Paquet",
-  AUTRE: "Autre",
-};
-
-export function unitLabel(code: string): string {
-  return UNIT_LABELS[code] ?? code;
-}
+// ADR-114 : les libellés FR vivent dans le domaine (source unique, utilisée
+// aussi par le dialogue « quantité vendue » de la Caisse) — ré-exportés ici
+// pour compatibilité des imports existants du Catalogue.
+export { unitLabel } from "@domain/units/units.ts";
 
 export function isArchived(p: Product): boolean {
   return p.is_active !== 1;

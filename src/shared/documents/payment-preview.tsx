@@ -1,5 +1,5 @@
 // Veloria PoS — Shared: modale de reçu de règlement de dette.
-// Après encaissement (client / fournisseur / pain) : aperçu 80mm + A4,
+// Après encaissement (client / fournisseur) : aperçu 80mm + A4,
 // impression 80mm/A4 + export PDF via les canaux dédiés. Rendu main uniquement.
 import { useEffect, useState } from "react";
 import { FileDown, Printer } from "lucide-react";
@@ -10,7 +10,7 @@ import { frError } from "@shared/errors/fr-map.ts";
 import type { Notify } from "@shared/ui/primitives.tsx";
 
 export interface PaymentTicketInput {
-  kind: "customer" | "supplier" | "bread";
+  kind: "customer" | "supplier";
   partyLabel: string;
   reference: string;
   date: string;

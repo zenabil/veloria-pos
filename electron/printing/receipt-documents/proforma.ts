@@ -1,7 +1,8 @@
 // Veloria PoS — Documents purs : devis / proforma (pur).
 
-import { escapeHtml, type ReceiptData, type ReceiptLine, type ThermalWidth } from "./common";
-import { amountInWordsFr, buildQrPayload, tvaBreakdown } from "./amounts";
+import { escapeHtml } from "./html";
+import type { ReceiptData, ReceiptLine, ThermalWidth } from "./common";
+import { amountInWordsFr, buildQrPayload, formatMinorDa, tvaBreakdown } from "./amounts";
 import {
   thermalCols,
   thermalField,
@@ -115,8 +116,7 @@ export function proformaFromReceipt(d: ReceiptData): ProformaData {
 export function buildProformaText(d: ProformaData, width?: ThermalWidth): string {
   const cols = thermalCols(width);
   const sep = thermalSep(cols);
-  const fmt = (m: number): string =>
-    `${new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2 }).format(m / 100)} DA`;
+  const fmt = formatMinorDa;
   const out: string[] = [];
   for (const l of wrapThermal(`*** ${d.company} ***`, cols)) out.push(l);
   out.push(`DEVIS (SANS VALEUR FISCALE)`);

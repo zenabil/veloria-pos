@@ -4,6 +4,7 @@ import { IPC_CHANNELS } from "./channels";
 import * as V from "./validators";
 import * as Customers from "./handlers/customers.repo";
 import * as ClientAccess from "./handlers/client-access.repo";
+import { getCurrentStaffUser } from "./handlers/staff-session";
 import {
   enqueueCustomerRefresh,
   enqueueSaleRefresh,
@@ -23,6 +24,7 @@ export function registerCustomersChannels(): void {
       includeArchived: V.productSearchSchema.shape.includeArchived,
       debtFilter: V.customerDebtFilterSchema.default("all"),
       archivedOnly: V.archivedOnlySchema,
+      sort: V.customerSortSchema,
     }),
     (input) =>
       Customers.searchCustomers(
@@ -32,6 +34,7 @@ export function registerCustomersChannels(): void {
         input.includeArchived,
         input.debtFilter,
         input.archivedOnly,
+        input.sort,
       ),
   );
   handle(IPC_CHANNELS["customers.stats"], V.emptyPayloadSchema, () => Customers.getCustomerStats());
@@ -89,6 +92,8 @@ export function registerCustomersChannels(): void {
       notes: input.notes ?? null,
       paymentDate,
       now,
+      // R2 (0046) : l'encaissement porte son auteur.
+      staffUserId: getCurrentStaffUser(),
     });
     // Miroir APK (best-effort) : file rafraîchie après encaissement.
     if (input.customerId != null) enqueueCustomerRefresh(input.customerId);
@@ -128,12 +133,12 @@ export function registerCustomersChannels(): void {
   // QR d'activation scannable (ADR-054, V2 ADR-068) : lecture seule.
   // V2 universel : l'endpoint du magasin (URL + anon) est embarqué depuis la
   // config sync du POS �?" un seul build APK pour tous les magasins.
-  // Sans endpoint configuré : erreur FR guidant vers Réglages �?' Miroir Android.
+  // Sans endpoint configuré : erreur FR guidant vers Réglages → Miroir Android.
   handle(IPC_CHANNELS["customers.accessQrSvg"], V.clientAccessQrSchema, (input) => {
     const endpoint = getShopEndpoint();
     if (!endpoint) {
       throw new Error(
-        "Miroir non configuré : renseignez l'URL + la clé anon (Réglages �?' Miroir Android).",
+        "Miroir non configuré : renseignez l'URL + la clé anon (Réglages → Miroir Android).",
       );
     }
     const payload = ClientAccess.buildActivationQrPayloadV2(

@@ -12,6 +12,7 @@ import { formatCustomerCode } from "@shared/formatters/format.ts";
 import { api } from "@shared/types/ipc-client.ts";
 import { callChecked, saleResultSchema } from "@shared/types/ipc-contracts.ts";
 import { buildSalePayload } from "@/application/sales/create-sale.ts";
+import type { RefObject } from "react";
 import type { ActiveCart } from "../cart-store.ts";
 import type { Notify } from "@shared/ui/primitives.tsx";
 import type { EnrichedCustomer, StatementSale } from "../../customers/types.ts";
@@ -57,10 +58,21 @@ export interface SellFlowDeps {
   setCustomerBalance: (v: number | null) => void;
   customerCredit: boolean | null;
   setCustomerCredit: (v: boolean | null) => void;
+  customerCreditLimit: number | null;
+  setCustomerCreditLimit: (v: number | null) => void;
+  limitOverride: boolean;
+  setLimitOverride: (v: boolean) => void;
   setCreditUnknown: (v: boolean) => void;
   setCustomerQuery: (v: string) => void;
   setCustomerResults: (v: CustomerRow[]) => void;
-  setPreview: (v: { sale: LastSale; text80: string; htmlA4: string } | null) => void;
+  setCustomerTotal: (v: number) => void;
+  setPreview: (
+    v: { sale: LastSale; saleId: number | null; text80: string; htmlA4: string } | null,
+  ) => void;
+  preview: { sale: LastSale; saleId: number | null; text80: string; htmlA4: string } | null;
+  searchRef: RefObject<HTMLInputElement | null>;
+  cancelBusy: boolean;
+  setCancelBusy: (v: boolean) => void;
   setProformaDoc: (v: ProformaDoc | null) => void;
   setCustomerDrawer: (v: { customer: EnrichedCustomer; sales: StatementSale[] } | null) => void;
   setDrawerBusy: (v: boolean) => void;
@@ -91,6 +103,7 @@ export function openPay(d: SellFlowDeps): void {
   d.setPaidText(minorToInput(d.totals.totalMinor));
   d.setDueDate("");
   d.setPayOperationId(newOperationId());
+  d.setLimitOverride(false);
   d.setPayOpen(true);
 }
 
@@ -107,7 +120,11 @@ export function clearSaleForm(d: SellFlowDeps): void {
   d.setDueDate("");
   d.setCustomerQuery("");
   d.setCustomerResults([]);
+  d.setCustomerTotal(0);
   d.setCustomerCredit(null);
+  d.setCustomerBalance(null);
+  d.setCustomerCreditLimit(null);
+  d.setLimitOverride(false);
 }
 
 export function openNewTab(d: SellFlowDeps): void {
@@ -117,6 +134,7 @@ export function openNewTab(d: SellFlowDeps): void {
   d.cart.setTotals({ paymentMethod: d.defaultMethod });
   d.setCustomerQuery("");
   d.setCustomerResults([]);
+  d.setCustomerTotal(0);
   d.notify("Nouveau panier.", "ok");
 }
 
@@ -169,6 +187,7 @@ export async function finalizeSale(d: SellFlowDeps): Promise<void> {
     // retranche de toute façon (trigger 0007), mais l'UX refuse tôt en FR.
     let prevBalance: number | null = null;
     let freshCredit: boolean | null = null;
+    let freshLimit: number | null = null;
     if (d.cart.customerId != null) {
       try {
         const st = (await api.customerStatement({ id: d.cart.customerId })) as {
@@ -177,6 +196,7 @@ export async function finalizeSale(d: SellFlowDeps): Promise<void> {
             phone: string | null;
             address: string | null;
             credit_allowed: number;
+            credit_limit_minor: number;
           };
         };
         prevBalance = st.customer.outstanding_balance_minor;
@@ -184,8 +204,10 @@ export async function finalizeSale(d: SellFlowDeps): Promise<void> {
         snapshot.customerAddress = st.customer.address ?? "";
         snapshot.customerCode = formatCustomerCode(d.cart.customerId);
         freshCredit = st.customer.credit_allowed === 1;
+        freshLimit = st.customer.credit_limit_minor;
         d.setCustomerCredit(freshCredit);
         d.setCustomerBalance(prevBalance);
+        d.setCustomerCreditLimit(freshLimit);
       } catch {
         /* aperçu sans soldes plutôt que pas de vente */
       }
@@ -197,10 +219,13 @@ export async function finalizeSale(d: SellFlowDeps): Promise<void> {
           buildSalePayload({
             operationId: d.payOperationId,
             lines: d.cart.lines,
-            deliveryFeeMinor: 0,
+            deliveryFeeMinor: d.cart.deliveryFeeMinor,
             amountPaidMinor: d.cart.amountPaidMinor,
             customerId: d.cart.customerId,
             customerCreditAllowed: freshCredit ?? d.customerCredit ?? false,
+            customerOutstandingMinor: prevBalance ?? d.customerBalance ?? null,
+            customerCreditLimitMinor: freshLimit ?? d.customerCreditLimit ?? null,
+            limitOverrideApproved: d.limitOverride,
             dueDate: totals.remainingMinor > 0 && d.dueDate !== "" ? d.dueDate : null,
             paymentMethod: d.cart.paymentMethod ?? d.defaultMethod,
           }),
@@ -224,7 +249,7 @@ export async function finalizeSale(d: SellFlowDeps): Promise<void> {
         text80: string;
         htmlA4: string;
       };
-      d.setPreview({ sale, text80: pv.text80, htmlA4: pv.htmlA4 });
+      d.setPreview({ sale, saleId: res.saleId, text80: pv.text80, htmlA4: pv.htmlA4 });
       if (d.autoPrintInvoice) {
         try {
           if (d.printMode === "A4")
@@ -240,10 +265,40 @@ export async function finalizeSale(d: SellFlowDeps): Promise<void> {
     }
     clearSaleForm(d);
     d.setResults([]);
+    // Vente chaînée : le focus revient en recherche (zéro clic entre deux ventes).
+    d.searchRef.current?.focus();
   } catch (e) {
     d.notify(frError(e, "Échec de la vente."), "err");
   } finally {
     d.finalizeGuard.current = false;
     d.setBusy(false);
+  }
+}
+
+/**
+ * Annule la dernière vente validée (sales.cancel idempotent : stock restauré,
+ * solde client recalculé côté main). Confirm explicite, aperçu effacé.
+ */
+export async function cancelLastSale(d: SellFlowDeps): Promise<void> {
+  const saleId = d.preview?.saleId;
+  if (saleId == null || d.cancelBusy) return;
+  const invoice = d.preview?.sale.invoice ?? "";
+  if (
+    !(await d.confirmAsync(
+      `Annuler la vente ${invoice} ? Le stock sera restauré et l'encaissement annulé.`,
+    ))
+  )
+    return;
+  d.setCancelBusy(true);
+  try {
+    await api.saleCancel({ id: saleId, operationId: newOperationId() });
+    d.setPreview(null);
+    playSound("clear");
+    d.notify(`Vente ${invoice} annulée, stock restauré.`, "ok");
+  } catch (e) {
+    d.notify(frError(e, "Annulation impossible."), "err");
+  } finally {
+    d.setCancelBusy(false);
+    d.searchRef.current?.focus();
   }
 }

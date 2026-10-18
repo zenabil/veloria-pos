@@ -30,7 +30,9 @@ import type { Notify } from "@shared/ui/primitives.tsx";
 import { frError } from "@shared/errors/fr-map.ts";
 import { playSound } from "@shared/sound/sound.ts";
 
-type DialogKind = "in" | "out" | "correction" | "inventory";
+// FIX racine (audit) : le kind « inventory » est retiré — doublon du
+// dialogue Inventaire (comptage complet) ; ici uniquement des mouvements unitaires.
+type DialogKind = "in" | "out" | "correction";
 
 // ---------------------------------------------------------------------------
 // Ajustement de stock (avec sélecteur produit si aucun imposé).
@@ -101,7 +103,7 @@ export function StockAdjustmentDialog({
         quantity: qty,
       });
     } catch (e) {
-      previewErr = frError(e, "");
+      previewErr = frError(e, "Ajustement invalide.");
     }
   }
 
@@ -116,9 +118,7 @@ export function StockAdjustmentDialog({
     }
     // Slice stock : la charge `stock.adjust` est construite par le use-case
     // applicatif (mêmes règles, mêmes messages — aucun changement de comportement).
-    const prefix = adjustmentReasonFr(
-      adjustmentReasonCode(toKind, kind === "inventory" ? "inventory" : "adjust"),
-    );
+    const prefix = adjustmentReasonFr(adjustmentReasonCode(toKind, "adjust"));
     let payload: {
       operationId: string;
       productId: number;
@@ -239,15 +239,12 @@ export function StockAdjustmentDialog({
               <option value="in">Entrée</option>
               <option value="out">Sortie</option>
               <option value="correction">Correction</option>
-              <option value="inventory">Inventaire</option>
             </Select>
           </Field>
           <Field
-            label={kind === "correction" || kind === "inventory" ? "Nouveau stock" : "Quantité"}
+            label={kind === "correction" ? "Nouveau stock" : "Quantité"}
             hint={
-              kind === "correction" || kind === "inventory"
-                ? "Valeur absolue après comptage."
-                : "Strictement positive."
+              kind === "correction" ? "Valeur absolue après comptage." : "Strictement positive."
             }
           >
             <TextInput

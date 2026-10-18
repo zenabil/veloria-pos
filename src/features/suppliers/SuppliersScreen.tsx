@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ClipboardList,
+  Download,
   Eye,
   HandCoins,
   History,
@@ -32,6 +33,7 @@ import {
   cn,
 } from "@shared/ui/primitives.tsx";
 import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
+import { downloadCsv } from "@shared/export/csv.ts";
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
 import { useLoadSeq } from "@shared/ui/use-load-seq.ts";
 import {
@@ -313,6 +315,32 @@ export function SuppliersScreen({ notify }: { notify: Notify }): React.JSX.Eleme
     }
   }
 
+  function exportCsv(): void {
+    if (rows.length === 0) {
+      notify("Rien à exporter.", "err");
+      return;
+    }
+    try {
+      downloadCsv(
+        `fournisseurs-${new Date().toISOString().slice(0, 10)}.csv`,
+        rows.map((s) => ({
+          Code: supplierCode(s),
+          Fournisseur: s.name,
+          Contact: s.contact_person || "",
+          Téléphone: s.phone || "",
+          Adresse: s.address || "",
+          Achats: formatDzd(s.total_purchases_minor),
+          Payé: formatDzd(s.total_paid_minor),
+          Dette: formatDzd(s.outstanding_balance_minor),
+          Statut: supplierStatusLabel(s),
+        })),
+      );
+      notify(`${rows.length} ligne(s) exportée(s).`, "ok");
+    } catch {
+      notify("Export impossible.", "err");
+    }
+  }
+
   const allPageSelected = rows.length > 0 && rows.every((r) => selection.has(r.id));
 
   return (
@@ -342,6 +370,9 @@ export function SuppliersScreen({ notify }: { notify: Notify }): React.JSX.Eleme
             </Button>
             <Button onClick={openCreate} title="Créer un fournisseur">
               <Plus size={16} aria-hidden="true" /> Nouveau Fournisseur
+            </Button>
+            <Button variant="secondary" onClick={exportCsv} title="Exporter la liste (CSV)">
+              <Download size={16} aria-hidden="true" /> CSV
             </Button>
           </>
         }
@@ -575,7 +606,10 @@ export function SuppliersScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                         </RowAction>
                         <RowAction
                           label={`Paiement ${s.name}`}
-                          title="Enregistrer un paiement"
+                          title={
+                            hasSupplierDebt(s) ? "Enregistrer un paiement" : "Aucune dette à régler"
+                          }
+                          disabled={!hasSupplierDebt(s)}
                           onClick={() => setPayFor(s)}
                         >
                           <HandCoins size={15} aria-hidden="true" />

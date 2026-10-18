@@ -1239,6 +1239,137 @@ console.log("OK  0026 credit-revocation policy (refused with debt, allowed when 
   console.log("OK  0040 explicit RESTRICT (rebuild) + parent guards FR (7/7)");
 }
 
+// 0041: rôles internes gérant / utilisateur (tables + gardes FR).
+{
+  const tables = db
+    .prepare(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('staff_users','staff_user_permissions')",
+    )
+    .all()
+    .map((r) => r.name);
+  if (!tables.includes("staff_users") || !tables.includes("staff_user_permissions")) {
+    console.error("FAIL: 0041 staff tables missing");
+    process.exit(1);
+  }
+  const trg41 = db
+    .prepare(
+      "SELECT COUNT(*) AS c FROM sqlite_master WHERE type = 'trigger' AND name IN ('trg_staff_no_delete_last_manager','trg_staff_no_demise_last_manager')",
+    )
+    .get();
+  if (trg41.c !== 2) {
+    console.error(`FAIL: 0041 staff guards missing (found ${trg41.c}/2)`);
+    process.exit(1);
+  }
+  // Garde dernier gérant : suppression refusée en FR.
+  db.prepare(
+    "INSERT INTO staff_users (uuid, username, display_name, role, code_hash, code_salt, code_algo, must_change_code, is_active, failed_attempts, created_at, updated_at) VALUES ('v41','Gérant Unique','Gérant','manager','h','s','pbkdf2-sha256-100k',0,1,0,'2026-01-01','2026-01-01')",
+  ).run();
+  let mgrRefused = false;
+  let mgrMsg = "";
+  try {
+    db.prepare("DELETE FROM staff_users WHERE uuid = 'v41'").run();
+  } catch (e) {
+    mgrRefused = true;
+    mgrMsg = String(e.message);
+  }
+  if (!mgrRefused || !/gérant actif/.test(mgrMsg)) {
+    console.error("FAIL: 0041 last-manager guard missing or not FR");
+    process.exit(1);
+  }
+  console.log("OK  0041 staff_roles (tables + gardes FR 2/2)");
+}
+
+// 0042: code de secours gérant (singleton id=1).
+{
+  const rec = db
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'staff_recovery'")
+    .get();
+  if (!rec || !/CHECK \(id = 1\)/.test(rec.sql)) {
+    console.error("FAIL: 0042 staff_recovery singleton missing");
+    process.exit(1);
+  }
+  db.prepare(
+    "INSERT INTO staff_recovery (id, code_hash, code_salt, code_algo, failed_attempts, created_at, updated_at) VALUES (1,'h','s','pbkdf2-sha256-100k',0,'2026-01-01','2026-01-01')",
+  ).run();
+  let dupRefused = false;
+  try {
+    db.prepare(
+      "INSERT INTO staff_recovery (id, code_hash, code_salt, code_algo, failed_attempts, created_at, updated_at) VALUES (1,'h2','s2','pbkdf2-sha256-100k',0,'2026-01-01','2026-01-01')",
+    ).run();
+  } catch {
+    dupRefused = true;
+  }
+  if (!dupRefused) {
+    console.error("FAIL: 0042 singleton duplicate accepted");
+    process.exit(1);
+  }
+  console.log("OK  0042 staff_recovery (singleton id=1)");
+}
+
+// 0043: garde pin_algo (liste blanche sha256 historique + PBKDF2 canonique).
+{
+  const trg43 = db
+    .prepare(
+      "SELECT COUNT(*) AS c FROM sqlite_master WHERE type = 'trigger' AND name IN ('trg_customer_access_pin_algo_ins','trg_customer_access_pin_algo_upd')",
+    )
+    .get();
+  if (trg43.c !== 2) {
+    console.error(`FAIL: 0043 pin_algo guards missing (found ${trg43.c}/2)`);
+    process.exit(1);
+  }
+  db.prepare(
+    "INSERT INTO customers (uuid, first_name, last_name, search_name, created_at, updated_at) VALUES ('kdf43','Kdf','C43','kdf c43','2026-01-01','2026-01-01')",
+  ).run();
+  const kdf43 = db.prepare("SELECT id FROM customers WHERE uuid = 'kdf43'").get().id;
+  let algoRefused = false;
+  let algoMsg = "";
+  try {
+    db.prepare(
+      "INSERT INTO customer_access (customer_id, phone_hash, pin_hash, pin_algo, created_at, updated_at) VALUES (?, 'h43', 'p43', 'md5', '2026-01-01', '2026-01-01')",
+    ).run(kdf43);
+  } catch (e) {
+    algoRefused = true;
+    algoMsg = String(e.message);
+  }
+  if (!algoRefused || !/algorithme non pris en charge/.test(algoMsg)) {
+    console.error("FAIL: 0043 bad pin_algo accepted or not FR");
+    process.exit(1);
+  }
+  console.log("OK  0043 pin_algo whitelist FR (2/2, rejet md5)");
+}
+
+// 0044: frais de livraison par brouillon (colonne + CHECK + défaut 0).
+{
+  const col44 = db
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'cart_drafts'")
+    .get();
+  if (!col44 || !/delivery_fee_minor INTEGER NOT NULL DEFAULT 0/i.test(col44.sql)) {
+    console.error("FAIL: 0044 cart_drafts.delivery_fee_minor missing");
+    process.exit(1);
+  }
+  let negRefused = false;
+  try {
+    db.prepare(
+      "INSERT INTO cart_drafts (tab_id, name, lines_json, delivery_fee_minor, updated_at) VALUES (1, 'T', '[]', -5, '2026-01-01')",
+    ).run();
+  } catch {
+    negRefused = true;
+  }
+  if (!negRefused) {
+    console.error("FAIL: 0044 negative delivery_fee accepted");
+    process.exit(1);
+  }
+  db.prepare(
+    "INSERT INTO cart_drafts (tab_id, name, lines_json, updated_at) VALUES (2, 'T', '[]', '2026-01-01')",
+  ).run();
+  const dflt = db.prepare("SELECT delivery_fee_minor AS v FROM cart_drafts WHERE tab_id = 2").get();
+  if (dflt.v !== 0) {
+    console.error("FAIL: 0044 delivery_fee default is not 0");
+    process.exit(1);
+  }
+  console.log("OK  0044 cart_drafts.delivery_fee_minor (colonne + CHECK + défaut 0)");
+}
+
 // Integrity
 const ic = db.prepare("PRAGMA integrity_check").get();
 const fk = db.prepare("PRAGMA foreign_key_check").all();

@@ -151,7 +151,10 @@ export function createMainWindow(): BrowserWindow {
   secureWindow(mainWindow);
 
   const devUrl = process.env["VITE_DEV_SERVER_URL"];
-  if (devUrl) {
+  // M1 RADICAL : contenu distant UNIQUEMENT hors packaged. En prod packagée,
+  // une variable d'env résiduelle/malveillante ne doit JAMAIS charger un
+  // contenu attaquant dans la fenêtre privilégiée (bridge window.veloria).
+  if (devUrl && !app.isPackaged) {
     mainWindow.loadURL(devUrl).catch((err: unknown) => {
       console.error("[Veloria][FATAL] mainWindow.loadURL failed", err);
     });

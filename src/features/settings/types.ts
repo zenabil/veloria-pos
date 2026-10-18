@@ -8,6 +8,7 @@ export type SettingsSectionId =
   | "catalogue"
   | "documents"
   | "data"
+  | "team"
   | "system";
 
 export const SETTINGS_SECTIONS: { id: SettingsSectionId; label: string }[] = [
@@ -16,5 +17,6 @@ export const SETTINGS_SECTIONS: { id: SettingsSectionId; label: string }[] = [
   { id: "catalogue", label: "Catalogue (produits, stock)" },
   { id: "documents", label: "Documents (factures, impression, zakat)" },
   { id: "data", label: "Données (sauvegarde, base)" },
+  { id: "team", label: "Équipe (gérant, utilisateurs)" },
   { id: "system", label: "Système (sécurité, à propos)" },
 ];

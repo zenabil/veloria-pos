@@ -50,6 +50,7 @@
     "package:pos": "npm run package:win",
     "package:manager": "npm run license:scan && npm run build:manager-client && npm run build:manager && npm run license:integrity-manager && electron-builder --win -c electron-builder.license-manager.yml",
     "verify:migrations": "node scripts/database/verify-migrations.mjs",
+    "verify:licensing": "electron ./scripts/licensing/verify-licensing.cjs",
     "verify:domain": "node --experimental-strip-types scripts/quality/verify-domain.ts",
     "verify:perf": "node scripts/quality/verify-perf.mjs"
   },

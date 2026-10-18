@@ -206,6 +206,7 @@ export async function issueTestLicense(
 export async function launchActivatedApp(
   dirs?: IsolatedDirs,
   issueOpts?: { dates?: TestLicenseDates; tag?: string; allowExpiredSeed?: boolean },
+  opts?: { autoStaffLogin?: boolean },
 ): Promise<AppContext> {
   skipIfNoVendorKey();
   const d = dirs ?? makeIsolatedDirs();
@@ -215,7 +216,7 @@ export async function launchActivatedApp(
     .waitFor({ timeout: 60_000 });
   await closeApp(boot, true);
   await issueTestLicense(d, issueOpts);
-  return launchIsolatedApp(d);
+  return launchIsolatedApp(d, opts);
 }
 
 /** Démarre l'app réelle et retourne la première fenêtre (sans présumer). */
@@ -235,19 +236,116 @@ export async function bootApp(dirs?: IsolatedDirs): Promise<AppContext> {
   return { ...d, app, page };
 }
 
-/** Démarre l'app réelle sur une base vierge et attend la coquille. */
-export async function launchIsolatedApp(dirs?: IsolatedDirs): Promise<AppContext> {
+/** Démarre l'app réelle sur une base vierge et attend la coquille.
+ * Porte session 0041 : choix d'utilisateur à chaque ouverture — le harnais
+ * se connecte comme l'opérateur (code initial affiché une fois au premier
+ * boot R6, changement forcé vers le code E2E), sauf `autoStaffLogin: false`. */
+export async function launchIsolatedApp(
+  dirs?: IsolatedDirs,
+  opts?: { autoStaffLogin?: boolean },
+): Promise<AppContext> {
   const ctx = await bootApp(dirs);
-  // Écran pont indisponible exclu : la coquille est chargée.
-  await ctx.page
-    .getByRole("navigation", { name: "Navigation principale" })
-    .waitFor({ timeout: 60_000 });
+  const nav = ctx.page.getByRole("navigation", { name: "Navigation principale" });
+  if (opts?.autoStaffLogin !== false) {
+    await staffLoginIfNeeded(ctx.page);
+    // Écran pont indisponible exclu : la coquille est chargée.
+    await nav.waitFor({ timeout: 60_000 });
+    return ctx;
+  }
+  // Sans connexion auto (spec session) : la porte tient lieu de coquille.
+  await expect(
+    ctx.page.getByRole("heading", { name: "Choisir l'utilisateur" }).or(nav),
+  ).toBeVisible({ timeout: 60_000 });
   return ctx;
 }
 
 /** Relance l'app sur les MÊMES dossiers (persistance après restart). */
-export async function relaunchApp(dirs: IsolatedDirs): Promise<AppContext> {
-  return launchIsolatedApp(dirs);
+export async function relaunchApp(
+  dirs: IsolatedDirs,
+  opts?: { autoStaffLogin?: boolean },
+): Promise<AppContext> {
+  return launchIsolatedApp(dirs, opts);
+}
+
+/** Code E2E partagé (6 chiffres, jamais en production : base isolée). */
+export const E2E_STAFF_CODE = "123456";
+
+/**
+ * Porte session 0041 (opérateur réel, sans crochet) : code initial aléatoire
+ * affiché une fois au premier boot (R6, jamais "admin"), puis changement
+ * forcé, code E2E aux ouvertures suivantes. Attentes explicites (jamais de
+ * isVisible() comme branchement) + acquittement des écrans uniques.
+ */
+export async function staffLoginIfNeeded(page: Page): Promise<void> {
+  const nav = page.getByRole("navigation", { name: "Navigation principale" });
+  const gate = page.getByRole("heading", { name: "Choisir l'utilisateur" });
+  await expect(gate.or(nav)).toBeVisible({ timeout: 60_000 });
+  if (await nav.isVisible().catch(() => false)) return;
+  const codeInput = page.getByLabel("Code à 6 chiffres");
+  const openButton = page.getByRole("button", { name: "Ouvrir la session" });
+  // Premier boot : le code initial est affiché sur la porte (R6).
+  const first = await readFirstBootCode(page);
+  await codeInput.fill(first ?? E2E_STAFF_CODE);
+  await openButton.click();
+  // R6 : le code initial s'affiche encore UNE fois en plein écran après le
+  // login (avant le changement forcé) — acquitté, sinon la suite est bloquée.
+  await acknowledgeInitialOnce(page);
+  const forced = page.getByRole("heading", { name: "Changement de code exigé" });
+  try {
+    await expect(forced).toBeVisible({ timeout: 10_000 });
+    if (first) {
+      // L'ancien code = le code initial venant d'être utilisé.
+      await page.getByLabel("Code initial reçu").fill(first);
+    }
+    await page.getByLabel("Nouveau code (6 chiffres)").fill(E2E_STAFF_CODE);
+    await page.getByLabel("Confirmer le nouveau code").fill(E2E_STAFF_CODE);
+    await page.getByRole("button", { name: "Enregistrer le code" }).click();
+    await acknowledgeRecoveryOnce(page);
+  } catch {
+    // Session déjà convertie (reboot sur mêmes dossiers) : le login est passé
+    // directement à la coquille — rien à faire.
+    if (await nav.isVisible().catch(() => false)) return;
+    // Session déjà convertie : le code E2E est refusé si le premier essai a
+    // échoué, la porte reste affichée — on se connecte avec le code E2E.
+    await expect(gate).toBeVisible({ timeout: 10_000 });
+    await codeInput.fill(E2E_STAFF_CODE);
+    await openButton.click();
+  }
+}
+
+/** Code initial du premier boot (R6) : lu sur la porte, null si poste converti. */
+export async function readFirstBootCode(page: Page): Promise<string | null> {
+  const block = page.getByTestId("initial-code-once");
+  try {
+    await expect(block).toBeVisible({ timeout: 10_000 });
+    const digits = ((await block.textContent()) ?? "").replace(/\D/g, "");
+    return /^[0-9]{6}$/.test(digits) ? digits : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Écran unique du code initial (R6, après le login du premier boot) :
+ * acquitte s'il apparaît, sinon no-op (poste déjà converti). */
+export async function acknowledgeInitialOnce(page: Page): Promise<void> {
+  const once = page.getByRole("heading", { name: "Code initial" });
+  try {
+    await expect(once).toBeVisible({ timeout: 10_000 });
+    await page.getByRole("button", { name: "Je l'ai noté" }).click();
+  } catch {
+    /* poste déjà converti : pas d'écran unique */
+  }
+}
+
+/** Écran unique du secours (bootstrap) : acquitte s'il apparaît, sinon no-op. */
+export async function acknowledgeRecoveryOnce(page: Page): Promise<void> {
+  const once = page.getByRole("heading", { name: "Code de secours" });
+  try {
+    await expect(once).toBeVisible({ timeout: 10_000 });
+    await page.getByRole("button", { name: "Je l'ai noté" }).click();
+  } catch {
+    /* poste déjà converti : pas d'écran unique */
+  }
 }
 
 export async function closeApp(ctx: AppContext, keepDirs = false): Promise<void> {

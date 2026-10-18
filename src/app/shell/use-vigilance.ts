@@ -1,5 +1,5 @@
 // Veloria PoS — Vigilance sidebar : compteurs réels (null = inconnu, aucun badge).
-// Ruptures stock, règlements dépassés, commandes pain en cours.
+// Ruptures stock, règlements dépassés.
 import { useEffect, useState } from "react";
 import { api } from "@shared/types/ipc-client.ts";
 import type { ModuleId } from "./shell-types.ts";
@@ -7,7 +7,6 @@ import type { ModuleId } from "./shell-types.ts";
 export interface VigilanceState {
   stockOut: number | null;
   debtsOverdue: number | null;
-  breadPending: number | null;
 }
 
 const num = (v: unknown): number | null =>
@@ -19,13 +18,11 @@ export function useVigilance(): {
   const [vigilance, setVigilance] = useState<VigilanceState>({
     stockOut: null,
     debtsOverdue: null,
-    breadPending: null,
   });
 
   function vigilanceCount(id: ModuleId): number | null {
     if (id === "stock") return vigilance.stockOut;
     if (id === "debts") return vigilance.debtsOverdue;
-    if (id === "bread") return vigilance.breadPending;
     return null;
   }
 
@@ -52,17 +49,6 @@ export function useVigilance(): {
         })
         .catch((err: unknown) => {
           console.error("[Veloria] vigilance : dettes illisibles", err);
-        });
-      api
-        .breadStats()
-        .then((s) => {
-          const b = s as { pending?: unknown; ready?: unknown };
-          const p = num(b.pending) ?? 0;
-          const r = num(b.ready) ?? 0;
-          setVigilance((v) => ({ ...v, breadPending: p + r }));
-        })
-        .catch((err: unknown) => {
-          console.error("[Veloria] vigilance : pain illisible", err);
         });
     };
     fetchVigilance();

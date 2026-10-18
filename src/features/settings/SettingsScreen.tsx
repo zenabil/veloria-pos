@@ -16,23 +16,28 @@ import {
   BackupSection,
   ClientSyncSection,
   DatabaseSection,
+  DisplaySection,
   InvoiceSection,
   PrintingSection,
   SecuritySection,
   ZakatSettingsSection,
 } from "./SettingsSectionsB.tsx";
+import { UsersAdmin } from "@features/staff/UsersAdmin.tsx";
+import { ChangeCodeCard } from "@features/staff/ChangeCodeCard.tsx";
+import { useStaff } from "@features/staff/use-staff.ts";
 
 import type { Notify } from "@shared/ui/primitives.tsx";
 
 export function SettingsScreen({ notify }: { notify: Notify }): React.JSX.Element {
   const [section, setSection] = useState<SettingsSectionId>("company");
+  const { isManager, hasPermission, refresh: refreshStaff } = useStaff(notify);
 
   return (
     <div className="flex h-full flex-col gap-4">
       <PageHeader
         title="Paramètres système et matériel POS"
-        module="MODULE 16 · POSTE DE TRAVAIL & SYSTÈME SÉCURISÉ"
-        period="SQLite WAL Local · Exercice 2025 · ESC/POS, RJ11, RS-232 · Réglages explicites, appliqués immédiatement (base locale)."
+        module="Module 16 · Poste de travail et système"
+        period="Réglages explicites, appliqués immédiatement (base locale)."
       />
       <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[260px_1fr]">
         <Card className="max-h-64 overflow-auto p-2 xl:max-h-none">
@@ -89,8 +94,19 @@ export function SettingsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
               <ClientSyncSection notify={notify} />
             </>
           ) : null}
+          {section === "team" ? (
+            <>
+              <ChangeCodeCard notify={notify} forced={false} onChanged={() => refreshStaff()} />
+              <UsersAdmin
+                notify={notify}
+                isManager={isManager}
+                canManageUsers={isManager || hasPermission("users")}
+              />
+            </>
+          ) : null}
           {section === "system" ? (
             <>
+              <DisplaySection />
               <SecuritySection notify={notify} />
               <AboutSection notify={notify} />
             </>

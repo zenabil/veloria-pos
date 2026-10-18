@@ -10,6 +10,12 @@ import { assertCreditSaleAllowed } from "@domain/customer/debt-rules.ts";
 
 export interface CartLine extends CartLineInput {
   key: string;
+  /**
+   * Caisse : stock disponible au moment de l'ajout (cliché UX, jamais facturé).
+   * `null` = inconnu (article libre, brouillon restauré). Le main retranche
+   * (sales.repo refuse la survente) ; ce champ sert badge + alerte précoce FR.
+   */
+  stockQty?: number | null;
 }
 
 export interface SaleDraft {
@@ -19,6 +25,12 @@ export interface SaleDraft {
   customerId: number | null;
   /** `customers.credit_allowed` du client choisi (false = passage/sans autorisation). */
   customerCreditAllowed?: boolean;
+  /** Solde actuel du client (centimes, relu avant encaissement). */
+  customerOutstandingMinor?: number | null;
+  /** Plafond du client (centimes). 0 = sans plafond. */
+  customerCreditLimitMinor?: number | null;
+  /** Dépassement validé par le vendeur (accord explicite). */
+  limitOverrideApproved?: boolean;
   /** Échéance du crédit (AAAA-MM-JJ) ou null = comptant/sans échéance. */
   dueDate?: string | null;
   paymentMethod: "cash" | "cheque" | "transfer" | null;
@@ -29,6 +41,7 @@ export interface SaleDraft {
 interface SalePayload {
   operationId: string;
   customerId: number | null;
+  limitOverrideApproved: boolean;
   lines: {
     productId: number | null;
     productName: string;
@@ -66,10 +79,14 @@ export function buildSalePayload(draft: SaleDraft): SalePayload {
     customerId: draft.customerId,
     creditAllowed: draft.customerCreditAllowed ?? false,
     remainingMinor: totals.remainingMinor,
+    outstandingMinor: draft.customerOutstandingMinor ?? null,
+    creditLimitMinor: draft.customerCreditLimitMinor ?? null,
+    limitOverrideApproved: draft.limitOverrideApproved ?? false,
   });
   return {
     operationId: draft.operationId,
     customerId: draft.customerId,
+    limitOverrideApproved: draft.limitOverrideApproved ?? false,
     lines: draft.lines.map((l) => ({
       productId: l.productId,
       productName: l.productName,

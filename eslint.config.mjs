@@ -43,6 +43,7 @@ export default tseslint.config(
             "scripts/licensing/import-local-license.cjs",
             "scripts/licensing/issue-local-license.cjs",
             "scripts/licensing/test-only-allow-expired.cjs",
+            "scripts/licensing/verify-licensing.cjs",
             "scripts/quality/verify-perf.mjs",
             "scripts/release/checksums.js",
             "scripts/release/smoke.js",
@@ -57,7 +58,7 @@ export default tseslint.config(
           ],
           // 24+ scripts JS hors tsconfig : le service plafonne à 8 par
           // défaut — rehaussé explicitement (lint plus lent, jamais faux).
-          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 32,
+          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 33,
         },
         tsconfigRootDir: import.meta.dirname,
       },

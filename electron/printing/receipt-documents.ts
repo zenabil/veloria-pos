@@ -1,15 +1,18 @@
 // Veloria PoS — Documents d'impression purs (barrel : decoupage sans changement).
 // Compatibilite totale : re-exporte exactement la surface publique d'origine.
 // Source : electron/printing/receipt-documents/*.ts (deterministes, francais).
+export { code39Svg, sanitizeCode39, CODE39_PATTERNS } from "./receipt-documents/barcode39";
 export {
-  code39Svg,
-  escapeHtml,
-  escapePreText,
+  CODE128_WIDTHS,
+  code128Svg,
+  code128Symbols,
+  sanitizeCode128,
+} from "./receipt-documents/barcode128";
+export { escapeHtml, escapePreText } from "./receipt-documents/html";
+export {
   formatCustomerCode,
   formatProductRef,
   paymentMethodLabel,
-  sanitizeCode39,
-  CODE39_PATTERNS,
 } from "./receipt-documents/common";
 export type { ReceiptData, ReceiptLine, ThermalWidth } from "./receipt-documents/common";
 export {
@@ -53,7 +56,7 @@ export {
 export type { PaymentTicketData, PaymentTicketKind } from "./receipt-documents/payment-ticket";
 export { buildReportHtml, toReportData } from "./receipt-documents/report";
 export type { ReportChart, ReportData, ReportKpi, ReportTable } from "./receipt-documents/report";
-export { buildLabelsHtml } from "./receipt-documents/labels";
+export { buildLabelsHtml, labelPageMicrons } from "./receipt-documents/labels";
 export type { LabelFormat, LabelItem, LabelOptions } from "./receipt-documents/labels";
 export {
   buildDeliveryHtml,

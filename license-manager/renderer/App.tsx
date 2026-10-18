@@ -63,6 +63,7 @@ const PLAN_FR: Record<string, string> = {
 const EDITION_FR: Record<string, string> = {
   basic: "Essentielle",
   standard: "Standard",
+  professional: "Professionnelle",
   pro: "Pro",
   enterprise: "Entreprise",
   custom: "Sur mesure",
@@ -80,6 +81,28 @@ const TYPE_FR: Record<string, string> = {
   lifetime: "À vie",
 };
 
+/** D10 : langage d'état par pastille + compte à rebours (jamais de
+ *  border-left coloré). J-X affiché pour les temporaires expirant sous
+ *  30 j ; dates ISO comparées en UTC (pas de piège fuseau). */
+const STATUS_DOT: Record<string, string> = {
+  active: "bg-[#4edea3]",
+  suspended: "bg-[#fbbf24]",
+  revoked: "bg-[#ffb4ab]",
+  expired: "bg-[#ffb4ab]",
+};
+
+function daysToExpiry(expiresAt: string | null): number | null {
+  if (typeof expiresAt !== "string" || !/^\d{4}-\d{2}-\d{2}/.test(expiresAt)) return null;
+  const parts = expiresAt.slice(0, 10).split("-").map(Number);
+  const y = parts[0];
+  const m = parts[1];
+  const d = parts[2];
+  if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)) return null;
+  const now = new Date();
+  const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  return Math.ceil((Date.UTC(y as number, (m as number) - 1, d as number) - todayUtc) / 86_400_000);
+}
+
 const EVENT_FR: Record<string, string> = {
   created: "Créée",
   renewed: "Renouvelée",
@@ -90,6 +113,8 @@ const EVENT_FR: Record<string, string> = {
   capabilities_updated: "Accès modifiés",
   exported: "Exportée",
   restored: "Restaurée",
+  standing_suspended: "Suspendue",
+  standing_active: "Réactivée",
 };
 
 const DETAIL_KEY_FR: Record<string, string> = {
@@ -111,7 +136,7 @@ const EDITION_FROM_PLAN: Record<string, string> = {
   CUSTOM: "custom",
 };
 
-const PAGES: { id: string; fr: string }[] = [
+export const PAGES: { id: string; fr: string }[] = [
   { id: "dashboard", fr: "Tableau de bord" },
   { id: "sales", fr: "Ventes" },
   { id: "products", fr: "Produits" },
@@ -131,7 +156,7 @@ const PAGES: { id: string; fr: string }[] = [
   { id: "settings", fr: "Paramètres" },
 ];
 
-const FEATURES: { id: string; fr: string }[] = [
+export const FEATURES: { id: string; fr: string }[] = [
   { id: "receipt-80mm", fr: "Ticket 80mm" },
   { id: "invoice-a4", fr: "Facture A4" },
   { id: "automatic-backup", fr: "Sauvegarde auto" },
@@ -149,7 +174,7 @@ const FEATURES: { id: string; fr: string }[] = [
 ];
 
 /** Préréglages locaux (miroir des préréglages main — l'émission signe le choix final). */
-const PRESETS: Record<string, { pages: string[]; features: string[] }> = {
+export const PRESETS: Record<string, { pages: string[]; features: string[] }> = {
   BASIC: {
     pages: ["dashboard", "sales", "products", "stock", "customers", "history", "settings"],
     features: ["receipt-80mm", "automatic-backup"],
@@ -249,6 +274,16 @@ function toggle(list: string[], id: string): string[] {
   return list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
 }
 
+/** Lecture JSON tolérante : ligne corrompue = repli, jamais d'écran blanc. */
+function parseJsonSafe<T>(raw: string | null | undefined, fallback: T): T {
+  if (typeof raw !== "string" || raw.trim() === "") return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
 function eventSummary(e: { event: string; details_json?: unknown }): string {
   const eventFr = EVENT_FR[e.event] ?? e.event;
   if (typeof e.details_json !== "string") return eventFr;
@@ -283,6 +318,7 @@ export function ManagerApp(): React.JSX.Element {
   const [keyOk, setKeyOk] = useState<boolean | null>(null);
   const [rows, setRows] = useState<LicenseRow[]>([]);
   const [total, setTotal] = useState(0);
+  const [listError, setListError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<number | null>(null);
   const [detail, setDetail] = useState<{ license: LicenseRow; events: unknown[] } | null>(null);
@@ -322,8 +358,12 @@ export function ManagerApp(): React.JSX.Element {
         const d = l as { rows: LicenseRow[]; total: number };
         setRows(d.rows ?? []);
         setTotal(typeof d.total === "number" ? d.total : (d.rows ?? []).length);
+        setListError(null);
       })
-      .catch(() => undefined);
+      .catch((e: unknown) => {
+        console.error("[manager]", e);
+        setListError("Liste des licences indisponible.");
+      });
   }, []);
 
   const refresh = useCallback(() => {
@@ -359,8 +399,10 @@ export function ManagerApp(): React.JSX.Element {
     setBusy(true);
     try {
       await mapi.restore({ file });
+      setSelected(null);
       say("Registre restauré.");
       refresh();
+      loadBackups();
     } catch (e) {
       console.error("[manager]", e);
       say(frError(e, "Restauration impossible."));
@@ -404,9 +446,13 @@ export function ManagerApp(): React.JSX.Element {
       .licenseDetail({ id: selected })
       .then((d) => {
         setDetail(d as { license: LicenseRow; events: unknown[] });
+        setDetailError(null);
         setCapsEdit(null);
       })
-      .catch(() => undefined);
+      .catch((e: unknown) => {
+        console.error("[manager]", e);
+        setDetailError(frError(e, "Détail indisponible."));
+      });
   }
 
   function applyPlan(p: string): void {
@@ -433,7 +479,7 @@ export function ManagerApp(): React.JSX.Element {
         setConfirm({
           title: "Remplacer la clé privée ?",
           message:
-            "Une clé vendor existe déjà. La remplacer invalide toute re-signature future avec l'ancienne clé. Continuer ?",
+            "Une clé vendor existe déjà. La remplacer invalide toute re-signature future avec l'ancienne clé. Les nouvelles licences ne seront vérifiées sur le parc POS qu'après diffusion de la nouvelle clé publique (public.key). Continuer ?",
           danger: true,
           inputValue: "",
           input2Value: "",
@@ -488,7 +534,6 @@ export function ManagerApp(): React.JSX.Element {
         edition: EDITION_FROM_PLAN[plan] ?? "pro",
         plan,
         licenseType: isLifetime ? "lifetime" : "term",
-        licenseStatus: "active",
         deviceBinding,
         maxDevices: maxDevicesValue,
         hardwareFingerprint: fp,
@@ -650,7 +695,7 @@ export function ManagerApp(): React.JSX.Element {
   const derivedEdition = EDITION_FROM_PLAN[plan] ?? "pro";
 
   return (
-    <div className="min-h-screen bg-[#0c1220] p-6 text-slate-100">
+    <div className="min-h-screen bg-[var(--fond-nuit)] p-6 text-slate-100">
       <div className="mx-auto max-w-5xl space-y-4">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -690,7 +735,7 @@ export function ManagerApp(): React.JSX.Element {
         {keyOk === false ? (
           <div
             role="alert"
-            className="rounded-xl border border-red-500/30 bg-[#1c1113] px-4 py-3 text-sm text-red-100"
+            className="rounded-xl border border-red-500/30 bg-[var(--fond-alerte)] px-4 py-3 text-sm text-red-100"
           >
             <p className="font-bold">Clé privée éditeur absente.</p>
             <p className="mt-1 text-red-200/80">
@@ -710,7 +755,7 @@ export function ManagerApp(): React.JSX.Element {
         {toast ? (
           <div
             role="status"
-            className="rounded-xl border border-amber-400/30 bg-[#171207] px-4 py-2.5 text-sm text-amber-100"
+            className="rounded-xl border border-amber-400/30 bg-[var(--fond-avertissement)] px-4 py-2.5 text-sm text-amber-100"
           >
             {toast}
           </div>
@@ -724,15 +769,18 @@ export function ManagerApp(): React.JSX.Element {
             aria-describedby="manager-confirm-message"
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
           >
-            <div className="w-full max-w-md space-y-3 rounded-xl border border-white/10 bg-[#0a0f1c] p-5">
+            <div className="w-full max-w-md space-y-3 rounded-xl border border-white/10 bg-[var(--fond-carte)] p-5">
               <h2 className="text-base font-bold">{confirm.title}</h2>
               <p id="manager-confirm-message" className="text-sm text-slate-300">
                 {confirm.message}
               </p>
               {confirm.inputLabel ? (
                 <div>
-                  <span className={label}>{confirm.inputLabel}</span>
+                  <label htmlFor="manager-confirm-entree" className={label}>
+                    {confirm.inputLabel}
+                  </label>
                   <input
+                    id="manager-confirm-entree"
                     className={input + " font-mono"}
                     value={confirm.inputValue}
                     onChange={(e) => setConfirm({ ...confirm, inputValue: e.target.value })}
@@ -742,8 +790,11 @@ export function ManagerApp(): React.JSX.Element {
               ) : null}
               {confirm.input2Label ? (
                 <div>
-                  <span className={label}>{confirm.input2Label}</span>
+                  <label htmlFor="manager-confirm-entree-2" className={label}>
+                    {confirm.input2Label}
+                  </label>
                   <input
+                    id="manager-confirm-entree-2"
                     className={input}
                     value={confirm.input2Value}
                     onChange={(e) => setConfirm({ ...confirm, input2Value: e.target.value })}
@@ -768,7 +819,7 @@ export function ManagerApp(): React.JSX.Element {
                     void (async () => {
                       setBusy(true);
                       try {
-                        c.onConfirm(c.inputValue, c.input2Value);
+                        await c.onConfirm(c.inputValue, c.input2Value);
                       } finally {
                         setBusy(false);
                       }
@@ -786,42 +837,66 @@ export function ManagerApp(): React.JSX.Element {
 
         {tab === "list" ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="rounded-xl border border-white/[0.06] bg-[#0a0f1c] p-4">
+            <div className="rounded-xl border border-white/[0.06] bg-[var(--fond-carte)] p-4">
               <h2 className="mb-2 text-sm font-bold">
                 Licences émises ({rows.length}
                 {total > rows.length ? ` / ${total}` : ""})
               </h2>
+              <label htmlFor="recherche-licence" className="sr-only">
+                Rechercher une licence
+              </label>
               <input
                 className={input}
+                id="recherche-licence"
                 value={query}
                 onChange={(e) => {
                   setQuery(e.target.value);
-                  loadList(e.target.value);
                 }}
                 placeholder="Rechercher (référence, identifiant, magasin)…"
                 aria-label="Rechercher une licence (référence, identifiant, magasin)"
               />
               <ul className="mt-2 max-h-[480px] space-y-1 overflow-y-auto">
-                {rows.map((r) => (
-                  <li key={r.id}>
-                    <button
-                      type="button"
-                      onClick={() => setSelected(r.id)}
-                      className={`w-full rounded-lg px-3 py-2 text-left text-[13px] hover:bg-white/[0.05] ${selected === r.id ? "bg-amber-400/[0.13] font-bold text-amber-100" : "text-slate-300"}`}
-                    >
-                      <span className="font-mono">{r.license_id}</span> — {r.customer_ref} ·{" "}
-                      {planFr(r.plan, r.edition)} · {STATUS_FR[r.status] ?? r.status}
-                    </button>
+                {listError ? (
+                  <li role="alert" className="text-sm text-red-300">
+                    {listError}
                   </li>
-                ))}
-                {rows.length === 0 ? (
+                ) : null}
+                {rows.map((r) => {
+                  const left = r.license_type === "term" ? daysToExpiry(r.expires_at) : null;
+                  return (
+                    <li key={r.id}>
+                      <button
+                        type="button"
+                        onClick={() => setSelected(r.id)}
+                        className={`w-full rounded-lg px-3 py-2 text-left text-[13px] hover:bg-white/[0.05] ${selected === r.id ? "bg-amber-400/[0.13] font-bold text-amber-100" : "text-slate-300"}`}
+                      >
+                        <span
+                          aria-hidden="true"
+                          title={STATUS_FR[r.status] ?? r.status}
+                          className={`mr-1.5 inline-block h-2 w-2 rounded-full ${STATUS_DOT[r.status] ?? "bg-slate-500"}`}
+                        />
+                        <span className="font-mono">{r.license_id}</span> — {r.customer_ref} ·{" "}
+                        {planFr(r.plan, r.edition)} · {STATUS_FR[r.status] ?? r.status}
+                        {left != null && left > 0 && left <= 30 ? (
+                          <span
+                            title={`Expire dans ${left} jour(s)`}
+                            className="ml-1.5 rounded-full border border-amber-400/40 bg-amber-400/10 px-1.5 py-0.5 font-mono text-[10px] font-bold text-amber-200"
+                          >
+                            J-{left}
+                          </span>
+                        ) : null}
+                      </button>
+                    </li>
+                  );
+                })}
+                {!listError && rows.length === 0 ? (
                   <li className="text-sm text-slate-500">
                     {query.trim() === "" ? "Aucune licence." : "Aucun résultat."}
                   </li>
                 ) : null}
               </ul>
             </div>
-            <div className="rounded-xl border border-white/[0.06] bg-[#0a0f1c] p-4 text-sm">
+            <div className="rounded-xl border border-white/[0.06] bg-[var(--fond-carte)] p-4 text-sm">
               {!detail && !detailError ? (
                 <p className="text-slate-500">Sélectionnez une licence.</p>
               ) : detailError && !detail ? (
@@ -863,14 +938,15 @@ export function ManagerApp(): React.JSX.Element {
                     </p>
                   ) : null}
                   <p className="text-xs text-slate-400">
-                    Fonctions : {featuresFr(JSON.parse(detail.license.features_json) as string[])}
+                    Fonctions :{" "}
+                    {featuresFr(parseJsonSafe<string[]>(detail.license.features_json, []))}
                   </p>
                   <p className="text-xs text-slate-400">
                     Pages :{" "}
                     {detail.license.pages_json
                       ? pagesFr(
                           Object.entries(
-                            JSON.parse(detail.license.pages_json) as Record<string, boolean>,
+                            parseJsonSafe<Record<string, boolean>>(detail.license.pages_json, {}),
                           )
                             .filter(([, v]) => v)
                             .map(([k]) => k),
@@ -1018,9 +1094,11 @@ export function ManagerApp(): React.JSX.Element {
                       disabled={busy || revoked}
                       onClick={() => {
                         const lic = detail.license;
-                        const feats = JSON.parse(lic.features_json) as string[];
+                        const feats = parseJsonSafe<string[]>(lic.features_json, []);
                         const pgs = lic.pages_json
-                          ? Object.entries(JSON.parse(lic.pages_json) as Record<string, boolean>)
+                          ? Object.entries(
+                              parseJsonSafe<Record<string, boolean>>(lic.pages_json, {}),
+                            )
                               .filter(([, v]) => v)
                               .map(([k]) => k)
                           : PAGES.map((p) => p.id);
@@ -1069,7 +1147,7 @@ export function ManagerApp(): React.JSX.Element {
             </div>
           </div>
         ) : tab === "backups" ? (
-          <div className="space-y-3 rounded-xl border border-white/[0.06] bg-[#0a0f1c] p-5">
+          <div className="space-y-3 rounded-xl border border-white/[0.06] bg-[var(--fond-carte)] p-5">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold">Sauvegardes du registre</h2>
               <button
@@ -1116,7 +1194,7 @@ export function ManagerApp(): React.JSX.Element {
             </ul>
           </div>
         ) : (
-          <div className="space-y-4 rounded-xl border border-white/[0.06] bg-[#0a0f1c] p-5">
+          <div className="space-y-4 rounded-xl border border-white/[0.06] bg-[var(--fond-carte)] p-5">
             <h2 className="text-sm font-bold">Nouvelle licence</h2>
             <p className="text-xs text-slate-500">* Champs obligatoires</p>
 
@@ -1124,18 +1202,24 @@ export function ManagerApp(): React.JSX.Element {
               <h3 className={sectionTitle}>Informations client</h3>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <span className={label}>Nom du client</span>
+                  <label htmlFor="licence-client-nom" className={label}>
+                    Nom du client
+                  </label>
                   <input
                     className={input}
+                    id="licence-client-nom"
                     value={clientName}
                     onChange={(e) => setClientName(e.target.value)}
                     placeholder="Ex. : Ahmed Benali"
                   />
                 </div>
                 <div>
-                  <span className={label}>Nom du magasin</span>
+                  <label htmlFor="licence-magasin-nom" className={label}>
+                    Nom du magasin
+                  </label>
                   <input
                     className={input}
+                    id="licence-magasin-nom"
                     value={storeName}
                     onChange={(e) => setStoreName(e.target.value)}
                     placeholder="Ex. : Épicerie Ennour — Alger"
@@ -1144,9 +1228,12 @@ export function ManagerApp(): React.JSX.Element {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <span className={label}>Référence client *</span>
+                  <label htmlFor="licence-reference-client" className={label}>
+                    Référence client *
+                  </label>
                   <input
                     className={input}
+                    id="licence-reference-client"
                     value={customerRef}
                     required
                     aria-required="true"
@@ -1155,9 +1242,12 @@ export function ManagerApp(): React.JSX.Element {
                   />
                 </div>
                 <div>
-                  <span className={label}>Identifiant client</span>
+                  <label htmlFor="licence-identifiant-client" className={label}>
+                    Identifiant client
+                  </label>
                   <input
                     className={input}
+                    id="licence-identifiant-client"
                     value={clientId}
                     onChange={(e) => setClientId(e.target.value)}
                     placeholder="Ex. : CLI-0042"
@@ -1170,9 +1260,12 @@ export function ManagerApp(): React.JSX.Element {
               <h3 className={sectionTitle}>Licence</h3>
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <span className={label}>Offre (préréglage modifiable)</span>
+                  <label htmlFor="licence-offre" className={label}>
+                    Offre (préréglage modifiable)
+                  </label>
                   <select
                     className={input}
+                    id="licence-offre"
                     value={plan}
                     onChange={(e) => applyPlan(e.target.value)}
                   >
@@ -1187,9 +1280,12 @@ export function ManagerApp(): React.JSX.Element {
                   </p>
                 </div>
                 <div>
-                  <span className={label}>Durée</span>
+                  <label htmlFor="licence-duree" className={label}>
+                    Durée
+                  </label>
                   <select
                     className={input}
+                    id="licence-duree"
                     value={duration}
                     onChange={(e) => setDuration(e.target.value)}
                   >
@@ -1203,9 +1299,12 @@ export function ManagerApp(): React.JSX.Element {
                   </select>
                 </div>
                 <div>
-                  <span className={label}>Appareils max</span>
+                  <label htmlFor="licence-appareils-max" className={label}>
+                    Appareils max
+                  </label>
                   <input
                     className={input}
+                    id="licence-appareils-max"
                     value={maxDevices}
                     onChange={(e) => setMaxDevices(e.target.value)}
                     placeholder="Ex. : 1 (vide = 1 poste)"
@@ -1216,19 +1315,25 @@ export function ManagerApp(): React.JSX.Element {
               {duration === "custom" ? (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <span className={label}>Début</span>
+                    <label htmlFor="licence-debut" className={label}>
+                      Début
+                    </label>
                     <input
                       type="date"
                       className={input}
+                      id="licence-debut"
                       value={customStart}
                       onChange={(e) => setCustomStart(e.target.value)}
                     />
                   </div>
                   <div>
-                    <span className={label}>Fin</span>
+                    <label htmlFor="licence-fin" className={label}>
+                      Fin
+                    </label>
                     <input
                       type="date"
                       className={input}
+                      id="licence-fin"
                       value={customEnd}
                       onChange={(e) => setCustomEnd(e.target.value)}
                     />
@@ -1236,9 +1341,12 @@ export function ManagerApp(): React.JSX.Element {
                 </div>
               ) : null}
               <div>
-                <span className={label}>Empreinte matérielle (64 caractères hexadécimaux) *</span>
+                <label htmlFor="licence-empreinte" className={label}>
+                  Empreinte matérielle (64 caractères hexadécimaux) *
+                </label>
                 <input
                   className={input + " font-mono"}
+                  id="licence-empreinte"
                   value={fingerprint}
                   required
                   aria-required="true"
@@ -1301,9 +1409,12 @@ export function ManagerApp(): React.JSX.Element {
             </section>
 
             <div>
-              <span className={label}>Notes internes (non exportées)</span>
+              <label htmlFor="licence-notes" className={label}>
+                Notes internes (non exportées)
+              </label>
               <input
                 className={input}
+                id="licence-notes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Facultatif — ex. : client préférentiel"

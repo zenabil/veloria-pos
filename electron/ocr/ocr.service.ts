@@ -24,6 +24,7 @@ import { recognizeImage } from "./ocr-engine";
 import { extractPdfText } from "./ocr-pdf";
 import { requireLicensedMutation } from "../licensing/license-service";
 import { prodLicenseDeps } from "../licensing/prod-deps";
+import { enforceRawChannelGates } from "../ipc/raw-guards";
 
 interface OcrJob {
   terminate: (() => Promise<unknown>) | null;
@@ -109,7 +110,10 @@ export function registerOcrIpc(getMainWindow: () => BrowserWindow | null): void 
       return licenseDenied(err);
     }
     try {
-      ocrSelectFileSchema.parse(raw ?? {});
+      const input = ocrSelectFileSchema.parse(raw ?? {});
+      // R1 RADICAL : import facture = permission stock (comme stock.intake).
+      const staffDenied = enforceRawChannelGates(IPC_CHANNELS["ocr.selectFile"], input);
+      if (staffDenied) return staffDenied;
       const picked = pickInvoiceFile();
       if (picked === null) return { ok: true, data: { cancelled: true as const } };
       const { file, previewDataUrl } = picked;
@@ -155,6 +159,9 @@ export function registerOcrIpc(getMainWindow: () => BrowserWindow | null): void 
       log("ERROR", "ocr", "analyze.invalid", { error: String(err) });
       return failed(err, "Demande d'analyse invalide.");
     }
+    // R1 RADICAL : analyse CPU/WASM = permission stock.
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["ocr.analyze"], input);
+    if (staffDenied) return staffDenied;
     const job: OcrJob = { terminate: null, cancelled: false };
     // Single-flight par document : une seconde analyse concurrente du même
     // fichier écraserait le job (fuite worker) et doublerait le CPU/WASM.
@@ -247,6 +254,10 @@ export function registerOcrIpc(getMainWindow: () => BrowserWindow | null): void 
     }
     try {
       const input = ocrCancelSchema.parse(raw ?? {});
+      // R1 RADICAL : cycle de vie du job = même permission que l'analyse
+      // (un sans-permission ne peut ni lancer ni saboter le job d'autrui).
+      const staffDenied = enforceRawChannelGates(IPC_CHANNELS["ocr.cancel"], input);
+      if (staffDenied) return staffDenied;
       const job = jobs.get(input.fileId);
       if (!job) return { ok: true, data: { cancelled: false } };
       job.cancelled = true;
@@ -266,6 +277,8 @@ export function registerOcrIpc(getMainWindow: () => BrowserWindow | null): void 
     }
     try {
       const input = ocrDisposeSchema.parse(raw ?? {});
+      const staffDenied = enforceRawChannelGates(IPC_CHANNELS["ocr.dispose"], input);
+      if (staffDenied) return staffDenied;
       const job = jobs.get(input.fileId);
       if (job) {
         job.cancelled = true;

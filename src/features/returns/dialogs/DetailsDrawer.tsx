@@ -364,7 +364,10 @@ export function ReturnDetailsDrawer({
             </thead>
             <tbody>
               {data.items.map((l, idx) => (
-                <tr key={idx} className="border-t border-white/[0.06]">
+                <tr
+                  key={`${typeof l.product_id === "number" ? l.product_id : "m"}-${idx}`}
+                  className="border-t border-white/[0.06]"
+                >
                   <td className="py-1 pr-2">
                     {l.product_name_snapshot}
                     <span className="block text-[11px] text-slate-500">

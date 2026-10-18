@@ -5,7 +5,7 @@ import { formatDzd, minorToInput, parseDzdInputStrict } from "@domain/money/mone
 import { frError } from "@shared/errors/fr-map.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { callChecked, paymentAckSchema } from "@shared/types/ipc-contracts.ts";
-import { fetchBalance } from "./sell-search.ts";
+import { fetchCustomerCredit } from "./sell-search.ts";
 import type { SellFlowDeps } from "./sell-finalize.ts";
 
 export function openSettle(d: SellFlowDeps): void {
@@ -60,7 +60,7 @@ export async function settleDebt(d: SellFlowDeps): Promise<void> {
     playSound("cash");
     d.setSettleOpen(false);
     d.setSettleOperationId(newOperationId());
-    d.setCustomerBalance(await fetchBalance(d.cart.customerId));
+    d.setCustomerBalance((await fetchCustomerCredit(d.cart.customerId)).balance);
   } catch (e) {
     d.notify(frError(e, "Règlement impossible."), "err");
   } finally {

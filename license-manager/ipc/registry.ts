@@ -90,10 +90,6 @@ function resolveDates(input: {
 }
 
 export function registerManagerIpc(): void {
-  handle(MANAGER_CHANNELS["manager.appInfo"], null, () => ({
-    version: app.getVersion(),
-    keyConfigured: keyConfigured(),
-  }));
   handle(MANAGER_CHANNELS["manager.keyStatus"], null, () => ({ configured: keyConfigured() }));
   // Import guidé de la clé privée vendor (premier lancement) : dialogue
   // fichier main → validation Ed25519 stricte → copie dans userData/keys
@@ -169,7 +165,7 @@ export function registerManagerIpc(): void {
       edition,
       plan,
       licenseType: input.licenseType,
-      licenseStatus: input.licenseStatus ?? null,
+      licenseStatus: null,
       deviceBinding: input.deviceBinding,
       maxDevices: input.maxDevices ?? null,
       hardwareFingerprint: input.hardwareFingerprint,
@@ -195,7 +191,7 @@ export function registerManagerIpc(): void {
             edition,
             plan,
             licenseType: input.licenseType,
-            licenseStatus: input.licenseStatus ?? "active",
+            licenseStatus: "active",
             deviceBinding: input.deviceBinding,
             maxDevices: input.maxDevices ?? null,
             hardwareFingerprint: input.hardwareFingerprint,
