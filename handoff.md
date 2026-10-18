@@ -4,15 +4,16 @@
 > erreurs (fermées/ouvertes), en-attente, commandes. Sessions 2026-10-07
 > (§9), 2026-10-11 (§1-8) et 2026-10-12 (§10) archivées ci-dessous.
 > §11 = session scan sans Entrée (2026-10-18). §12 = session politique
-> opération→format d'impression (2026-10-18 bis). Répondre à l'utilisateur
-> en arabe.
+> opération→format d'impression (2026-10-18 bis). §13 = lancement POS
+> opérateur (2026-10-18 ter). Répondre à l'utilisateur en arabe.
 
 ## 1) État courant
 
 - Branche : `chore/root-layout` — travail session `860c11a`
   (ADR-117, §12), commit `docs(handoff)` de ce §12 en tête de branche.
   Arbre PROPRE ; restent : revue + tag opérateur, packaging/`release/`
-  (dernière passe verte : 2026-10-12).
+  (dernière passe verte : 2026-10-12). Dernière session : §13 (lancement
+  POS + licence ACTIVE — aucun changement de code).
 - Harness : `.agents`/`.claude` purgés du repo (skills installés côté
   `.opencode/`, git-ignoré) ; `AGENTS.md` = routage 12-13 à jour.
 - Tags locaux (pas de remote) : `v1.0.0-adr075`, `v1.0.0-e2e-green`,
@@ -197,6 +198,10 @@ anon JWT `role:anon` (voir full-loop-client.spec.ts).
 - **NOUVEAU (18 oct)** : `git commit` embarque TOUT l'index — un arbre
   multi-sessions peut avoir des fichiers PRÉ-STAGÉS (`D `/`RM ` dans
   `git status --short`) ; vérifier/stager par chemins avant commit.
+- **NOUVEAU (18 oct ter)** : ne JAMAIS lancer un script GUI
+  `npx electron script.cjs` pendant que le POS tourne (crash renderer de
+  l'instance POS) — requêtes DB dev : `ELECTRON_RUN_AS_NODE=1 npx electron
+script.cjs` (better-sqlite3 = ABI Electron ; `node` système échoue).
 
 ## 9) Archive session 2026-10-07 (topnav + Manager icon, ADR-072/073)
 
@@ -310,3 +315,25 @@ impossible (CLI absent).
 - **Git** : `860c11a` (72 fichiers, ADR-117 + purge A4 + E2E) +
   commit `docs(handoff)` de ce §12. Tag opérateur à proposer :
   `v1.0.0-format-ops` après revue.
+
+## 13) Session 2026-10-18 ter (lancement POS opérateur)
+
+- **Demande opérateur** : « شغل pos و فعله » — lancer le POS et
+  (licence) l'activer. Aucun changement de code.
+- **Actions** : sources plus récentes que `dist-electron` (17 oct) →
+  `npm run build` + `npm run build:electron` (manifest re-signé, 213
+  fichiers, 18 oct 21:0x) ; `npm run verify:licensing` → **ACTIVE**
+  (licence locale déjà importée, clé embarquée vérifiée) ; lancement
+  `npx electron .` : `startup.ready` mode main ≈ 6,6 s, DB
+  `C:\ProgramData\Veloria PoS\Data\Veloria POS DB.sqlite` schema 47,
+  backup auto créé, porte session staff affichée (1 utilisateur :
+  `admin` / « Gérant », role manager, actif).
+- **Piège vécu (nouveau)** : lancer un script GUI `npx electron
+script.cjs` PENDANT que le POS tourne → `renderer.gone reason
+crashed` + crash GPU/service réseau de l'instance POS (2ᵉ lancement
+  propre OK). Pour requêter la DB en dev sans GUI :
+  `$env:ELECTRON_RUN_AS_NODE="1"; npx electron script.cjs` (better-sqlite3
+  est compilé ABI Electron — `node` système échoue en
+  NODE_MODULE_VERSION 136≠127).
+- **Git** : arbre propre avant/après (builds git-ignorés) ; seul ce
+  §13 + §8 commités (`docs(handoff)`).
