@@ -1,29 +1,28 @@
-# Handoff — Veloria POS (état au 2026-10-12)
+# Handoff — Veloria POS (état au 2026-10-18)
 
 > Document de continuité : tout ce qui a été fait, fichiers modifiés,
 > erreurs (fermées/ouvertes), en-attente, commandes. Sessions 2026-10-07
-> (§9) et 2026-10-11 (§1-8) archivées ci-dessous. §10 = session du jour.
-> Répondre à l'utilisateur en arabe.
+> (§9), 2026-10-11 (§1-8) et 2026-10-12 (§10) archivées ci-dessous.
+> §11 = session du jour (2026-10-18). Répondre à l'utilisateur en arabe.
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — HEAD `5920396` — 50 fichiers en portée
-  modifiés NON commités (correctifs + design, §10) ; arbre harness
-  (`.agents/.claude`, `AGENTS.md`, `skills-lock.json`) inchangé, hors périmètre.
+- Branche : `chore/root-layout` — HEAD `fec3acf` (checkpoint 2026-10-18, §11)
+  - `734a69c` (purge harness). Arbre PROPRE ; restent : revue + tag
+    opérateur, suite de validation complète (E2E intégrale, packaging).
+- Harness : `.agents`/`.claude` purgés du repo (skills installés côté
+  `.opencode/`, git-ignoré) ; `AGENTS.md` = routage 12-13 à jour.
 - Tags locaux (pas de remote) : `v1.0.0-adr075`, `v1.0.0-e2e-green`,
   `v1.0.0-revue-client`, `v1.0.0-ui-unif`, `v1.0.0-searchfield`.
-- ADRs : 001→083 + ADR-101/102/103 (ex-`ADR-NEW-*`, réimmatriculés ; nouveaux : 080 correctifs tri-UI,
-  081 design fondations, 082 design surfaces, 083 design profondeur).
-  `docs/INDEX.md` à jour (001→083).
-- Portes vertes : `tsc -b` + `electron` + `manager` + `mobile` = 0 ·
-  `eslint` (repo entier) = 0 · `vitest` **661/661** (659 + 2 parity) ·
-  `verify:migrations` VERIFIED (40/40) · `verify:domain` OK ·
-  `build` + `build:electron` + manifests signés (194 + 20) ·
-  `release:smoke` + `SHA256SUMS.txt` OK · E2E **24 passés / skips
-  documentés / 0 échec** (full-loop-client exige relais :8100,
-  installer exige UAC élevé).
-- `release/` : 4 installeurs frais 1.0.0 (POS Setup+Portable, Manager
-  Setup+Portable) + blockmaps + SHA256SUMS (rebuildés après Phase 3).
+- ADRs : 001→116 (nouveaux depuis 2026-10-12 : 080→116 — design/audits,
+  staff, crédit, étiquettes, ADR-114 vente au poids, ADR-116 scan sans
+  Entrée). `docs/INDEX.md` à jour jusqu'à 103 seulement.
+- Portes vérifiées 2026-10-18 : `tsc -b` 0 · `eslint . --max-warnings 0` 0 ·
+  `vitest` **795/795** (121 fichiers) · `verify:migrations` VERIFIED ·
+  `verify:domain` VERIFIED · `build` + `build:electron` + manifest signé
+  (213 fichiers) · E2E `scan-flow` **6/6** (×2 passes).
+- Non relancés : suite E2E complète, typecheck `manager`/`mobile`,
+  packaging/`release/` (dernière passe verte : 2026-10-12).
 
 ## 2) Objectifs réalisés (11 → 12 oct 2026)
 
@@ -101,8 +100,8 @@ barre crédit continue, `bg-[#171207]`/`[#1c1113]` illisibles en clair.
 
 ## 5) En attente (next actions)
 
-- [ ] **Revue + commit + tag** des 50 fichiers (proposition : tag local
-      `v1.0.0-fixes-design` après revue).
+- [ ] **Revue + tag** de l'arbre checkpointé (HEAD `fec3acf`, §11) —
+      proposition : tag local `v1.0.0-session-1018` après revue.
 - [ ] **Session admin** : `installer.spec` (UAC) — seul gate jamais vert.
 - [ ] **Relais + full-loop-client** : `node scripts/e2e-mirror-relay.mjs`
       puis spec client (PHONE/PIN).
@@ -152,7 +151,8 @@ anon JWT `role:anon` (voir full-loop-client.spec.ts).
 ## 8) Pièges rencontrés (ne pas répéter — ajouts 12 oct)
 
 - `build` renderer seul invalide le manifest → e2e licence `tampered` ;
-  toujours enchaîner `build:electron`.
+  toujours enchaîner `build:electron` (re-confirmé 2026-10-18 : manifest
+  re-signé 213 fichiers, E2E reparti).
 - Toasts empilés (4,5 s) : drainer avant lecture du toast suivant.
 - `getByLabel` matche aussi les `aria-label` des boutons (ex. nav) → préférer
   `title=` ou `data-path` si collision.
@@ -180,6 +180,14 @@ anon JWT `role:anon` (voir full-loop-client.spec.ts).
   donne `number|undefined` (garde explicite exigée).
 - **NOUVEAU** : utilitaires Tailwind vs classes CSS perso en conflit de
   taille → une seule source (ex. `font-mono-currency-*` SANS `text-*`).
+- **NOUVEAU (18 oct)** : `graphify update .` peut sortir code 1 APRÈS un
+  update réussi (tip watch) — vérifier la sortie, pas le code retour.
+- **NOUVEAU (18 oct)** : douchette E2E = rafale ≤ 60 ms → idle 90 ms
+  (ADR-116) ; ne pas remonter `TEXT_IDLE_MS` (220 ms, frappe humaine),
+  les specs « scan sans Entrée » en dépendent.
+- **NOUVEAU (18 oct)** : `git commit` embarque TOUT l'index — un arbre
+  multi-sessions peut avoir des fichiers PRÉ-STAGÉS (`D `/`RM ` dans
+  `git status --short`) ; vérifier/stager par chemins avant commit.
 
 ## 9) Archive session 2026-10-07 (topnav + Manager icon, ADR-072/073)
 
@@ -208,3 +216,30 @@ impossible (CLI absent).
   placeholder beige, `bg-black/40`, `hover:text-white` : tous mappés
   (contrastes AAA) ; preuve par captures E2E (`test-results/light-*`,
   git-ignorées, spec temporaire supprimé).
+
+## 11) Session 2026-10-18 (scan douchette sans Entrée — ADR-116)
+
+- **Demande opérateur** : le scan doit ajouter au panier SANS presser
+  Entrée (et, pour les unités continues KG/G/L/ML/CL/M, ouvrir le dialogue
+  quantité-ou-montant — déjà livré en ADR-114).
+- **Constat** (3 reproductions E2E réelles) : l'ajout sans Entrée existait
+  (debounce 220 ms ; Entrée en fin de rafale = no-op) mais deux failles —
+  latence fixe 220 ms, et deux scans < 220 ms d'écart se CONCATÈNENT
+  (`CODE1CODE2`) → « Code-barres inconnu », zéro ajout.
+- **Fix ADR-116** : cadence machine = frappes ≤ 60 ms
+  (`SCAN_BURST_GAP_MS`, aucun humain) → idle 90 ms (`SCAN_IDLE_MS`) si
+  texte code-barres ; frappe humaine inchangée 220 ms (`TEXT_IDLE_MS`).
+  Refs `lastKeyAtRef`/`scanBurstRef` (`useSellState`), décision pure
+  `searchIdleMs` (sell-search).
+- **Tests** : unit sales 69/69 (4 nouveaux : searchIdleMs, rafale/humain/
+  texte) ; E2E `scan-flow` **6/6** — 3 nouveaux (sans Entrée focus champ ;
+  sans Entrée focus perdu ; 2 scans à 180 ms → 2 lignes), ×2 passes
+  stables ; vitest complet **795/795** ; eslint 0 ; `verify:*` VERIFIED.
+- **Piège re-vécu** : `npm run build` seul → manifest licence « tampered »
+  à l'import E2E ; `build:electron` re-signe (213 fichiers) — séquence
+  obligatoire.
+- **Git** : `734a69c` (purge harness) + `fec3acf` (checkpoint 295 fichiers
+  = backlog ADR-080→115 + cette session ; scratch `check_like.py` /
+  `full-inventory.txt` git-ignorés) + commit `docs(handoff)` de ce §11.
+- **Restes** : revue + tag opérateur ; suite E2E complète, packaging,
+  typecheck manager/mobile non relancés cette session.
