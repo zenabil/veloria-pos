@@ -50,7 +50,6 @@ export function SellOverlays({
   proformaDoc,
   onCloseProforma,
   onPrintProforma,
-  onPrintProforma80,
   onExportProformaPdf,
   customerDrawer,
   onCloseCustomerDrawer,
@@ -106,7 +105,6 @@ export function SellOverlays({
   proformaDoc: ProformaDoc | null;
   onCloseProforma: () => void;
   onPrintProforma: () => void;
-  onPrintProforma80: () => void;
   onExportProformaPdf: () => void;
   customerDrawer: { customer: EnrichedCustomer; sales: StatementSale[] } | null;
   onCloseCustomerDrawer: () => void;
@@ -172,7 +170,7 @@ export function SellOverlays({
         />
       ) : null}
 
-      {/* Aperçu du devis + impression 80mm/A4 + PDF (Entrée = imprimer A4) */}
+      {/* Aperçu du devis A4 + impression/export (Entrée = imprimer A4) */}
       {proformaDoc ? (
         <Modal
           label="Aperçu devis"
@@ -188,14 +186,8 @@ export function SellOverlays({
             }}
           >
             <p className="text-xs text-slate-500">
-              {proformaDoc.date} · Document sans valeur fiscale.
+              {proformaDoc.date} · Document sans valeur fiscale — A4 uniquement.
             </p>
-            <pre
-              className="max-h-[180px] overflow-auto rounded-xl border border-white/10 bg-white p-4 font-mono text-[12px] leading-snug text-black"
-              aria-label={`Aperçu devis 80mm ${proformaDoc.number}`}
-            >
-              {proformaDoc.text80}
-            </pre>
             <iframe
               sandbox=""
               srcDoc={proformaDoc.htmlA4}
@@ -210,14 +202,6 @@ export function SellOverlays({
                 className="flex-1"
               >
                 Fermer
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={onPrintProforma80}
-                className="flex-1"
-              >
-                <Printer size={16} aria-hidden="true" /> 80mm
               </Button>
               <Button
                 type="button"

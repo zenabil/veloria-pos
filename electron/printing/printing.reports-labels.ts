@@ -15,17 +15,18 @@ import {
   buildReportHtml,
   labelPageMicrons,
   toReportData,
+  type LabelFormat,
   type LabelItem,
 } from "./receipt-documents";
 
-// Étiquettes code-barres (formats thermiques + planche A4 : aperçu = impression).
-// BL-24 + §21 LABEL MEMORY LIMIT: refus explicite au-delà de 200 AU TOTAL
-// (somme copies × articles, vérifiée AVANT expansion — pas de fenêtre où
-// 5000 éléments coexisteraient en mémoire). L'opérateur ajuste au lieu de
-// perdre des étiquettes silencieusement.
+// Étiquettes code-barres (gabarits thermiques uniquement — jamais A4 ;
+// aperçu = impression). BL-24 + §21 LABEL MEMORY LIMIT: refus explicite
+// au-delà de 200 AU TOTAL (somme copies × articles, vérifiée AVANT
+// expansion — pas de fenêtre où 5000 éléments coexisteraient en mémoire).
+// L'opérateur ajuste au lieu de perdre des étiquettes silencieusement.
 export function labelsOf(raw: unknown): {
   items: LabelItem[];
-  format: "30x20" | "45x20" | "50x30" | "58x30" | "58x40" | "A4-24" | "custom";
+  format: LabelFormat;
   customWidthMm: number;
   customHeightMm: number;
 } {
@@ -33,7 +34,7 @@ export function labelsOf(raw: unknown): {
   let total = 0;
   for (const it of parsed.items) total += it.copies;
   if (total > 200) {
-    throw new Error("Trop d'étiquettes : 200 maximum par planche.");
+    throw new Error("Trop d'étiquettes : 200 maximum par lot.");
   }
   // C6 : le modèle étiquette peut activer le QR par défaut (payload prioritaire).
   const tplQr = activeTemplateSettings("etiquette").showQr;
@@ -111,7 +112,7 @@ export function registerReportsLabelsIpc(getMainWindow: () => BrowserWindow | nu
       return {
         ok: true,
         data: {
-          htmlA4: buildLabelsHtml(l.items, {
+          html: buildLabelsHtml(l.items, {
             format: l.format,
             customWidthMm: l.customWidthMm,
             customHeightMm: l.customHeightMm,
@@ -142,7 +143,7 @@ export function registerReportsLabelsIpc(getMainWindow: () => BrowserWindow | nu
         customWidthMm: l.customWidthMm,
         customHeightMm: l.customHeightMm,
       };
-      const microns = labelPageMicrons(labelOpts) ?? undefined;
+      const microns = labelPageMicrons(labelOpts);
       await printHtmlPages(
         l.items.map((item) => ({
           html: buildLabelsHtml([item], labelOpts),

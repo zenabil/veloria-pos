@@ -57,16 +57,14 @@ export function ReturnDetailsDrawer({
     kind === "customer"
       ? Number(h["amount_refunded_minor"] ?? 0) + Number(h["credit_to_customer_minor"] ?? 0)
       : Number(h["amount_recovered_minor"] ?? 0);
-  const [ticket, setTicket] = useState<{ htmlA4: string; payload: Record<string, unknown> } | null>(
+  const [ticket, setTicket] = useState<{ text80: string; payload: Record<string, unknown> } | null>(
     null,
   );
-  // Bon de retour dédié (previewReturnSlip/printReturnSlip) : aperçu vivant A4/80mm.
+  // Bon de retour dédié (previewReturnSlip/printReturnSlip) : ticket uniquement.
   const [slip, setSlip] = useState<{
-    htmlA4: string;
     text80: string;
     payload: Record<string, unknown>;
   } | null>(null);
-  const [slipFormat, setSlipFormat] = useState<"80mm" | "A4">("A4");
   const [busy, setBusy] = useState(false);
   // Fiche entreprise : source unique partagée (ticket).
   const { record: companyRecord } = useCompany();
@@ -153,8 +151,8 @@ export function ReturnDetailsDrawer({
             : null,
         ),
       };
-      const pv = (await api.printPreview(payload)) as { htmlA4: string };
-      setTicket({ htmlA4: pv.htmlA4, payload });
+      const pv = (await api.printPreview(payload)) as { text80: string };
+      setTicket({ text80: pv.text80, payload });
     } catch (e) {
       notify(frError(e, "Aperçu indisponible."), "err");
     } finally {
@@ -169,12 +167,12 @@ export function ReturnDetailsDrawer({
     return typeof name === "string" ? name : "—";
   }
 
-  async function printTicket(mode: "80mm" | "A4"): Promise<void> {
+  async function printTicket(): Promise<void> {
     if (!ticket) return;
     try {
-      if (mode === "A4") await api.printA4(ticket.payload);
-      else await api.printReceipt(ticket.payload);
-      notify(mode === "A4" ? "Facture A4 envoyée." : "Ticket envoyé.", "ok");
+      // Retour = ticket uniquement (jamais A4).
+      await api.printReceipt(ticket.payload);
+      notify("Ticket envoyé.", "ok");
     } catch (e) {
       notify(frError(e, "Impression impossible."), "err");
     }
@@ -266,10 +264,8 @@ export function ReturnDetailsDrawer({
       };
       const pv = (await api.returnSlipPreview(payload)) as {
         text80: string;
-        htmlA4: string;
       };
-      setSlip({ htmlA4: pv.htmlA4, text80: pv.text80, payload });
-      setSlipFormat("A4");
+      setSlip({ text80: pv.text80, payload });
     } catch (e) {
       notify(frError(e, "Aperçu indisponible."), "err");
     } finally {
@@ -277,12 +273,12 @@ export function ReturnDetailsDrawer({
     }
   }
 
-  async function printReturnSlip(mode: "80mm" | "A4"): Promise<void> {
+  async function printReturnSlip(): Promise<void> {
     if (!slip || busy) return;
     setBusy(true);
     try {
-      await api.returnSlipPrint(mode === "A4" ? { ...slip.payload, format: "A4" } : slip.payload);
-      notify(mode === "A4" ? "Bon de retour A4 envoyé." : "Bon de retour 80mm envoyé.", "ok");
+      await api.returnSlipPrint(slip.payload);
+      notify("Bon de retour envoyé.", "ok");
     } catch (e) {
       notify(frError(e, "Impression impossible."), "err");
     } finally {
@@ -449,18 +445,15 @@ export function ReturnDetailsDrawer({
 
       {ticket ? (
         <Modal label="Bon de retour" title={`Bon ${num}`} onClose={() => setTicket(null)} wide>
-          <iframe
-            sandbox=""
-            srcDoc={ticket.htmlA4}
-            title="Aperçu bon de retour"
-            className="h-[50vh] w-full rounded-xl border border-white/10 bg-white"
-          />
+          <pre
+            className="h-[50vh] overflow-auto rounded-xl border border-white/10 bg-white p-4 font-mono text-[12px] leading-snug text-black"
+            aria-label={`Aperçu ticket retour ${num}`}
+          >
+            {ticket.text80}
+          </pre>
           <div className="mt-3 flex gap-2">
-            <Button variant="secondary" onClick={() => void printTicket("80mm")} className="flex-1">
-              <Printer size={15} aria-hidden="true" /> Ticket 80mm
-            </Button>
-            <Button variant="secondary" onClick={() => void printTicket("A4")} className="flex-1">
-              <Printer size={15} aria-hidden="true" /> Facture A4
+            <Button variant="secondary" onClick={() => void printTicket()} className="flex-1">
+              <Printer size={15} aria-hidden="true" /> Imprimer le ticket
             </Button>
           </div>
         </Modal>
@@ -473,55 +466,20 @@ export function ReturnDetailsDrawer({
           onClose={() => setSlip(null)}
           wide
         >
-          <div className="mb-3 flex gap-1.5" role="tablist" aria-label="Format d'aperçu">
-            {(["A4", "80mm"] as const).map((f) => (
-              <button
-                key={f}
-                type="button"
-                role="tab"
-                aria-selected={slipFormat === f}
-                onClick={() => setSlipFormat(f)}
-                className={
-                  slipFormat === f
-                    ? "rounded-lg bg-amber-400 px-4 py-1.5 text-xs font-bold text-black"
-                    : "rounded-lg border border-white/10 px-4 py-1.5 text-xs font-bold text-slate-400 hover:text-white"
-                }
-              >
-                {f === "A4" ? "Format A4" : "Ticket 80mm"}
-              </button>
-            ))}
-          </div>
-          {slipFormat === "A4" ? (
-            <iframe
-              sandbox=""
-              srcDoc={slip.htmlA4}
-              title="Aperçu bon de retour"
-              className="h-[50vh] w-full rounded-xl border border-white/10 bg-white"
-            />
-          ) : (
-            <pre
-              className="h-[50vh] overflow-auto rounded-xl border border-white/10 bg-white p-4 font-mono text-[12px] leading-snug text-black"
-              aria-label="Aperçu bon de retour 80mm"
-            >
-              {slip.text80}
-            </pre>
-          )}
+          <pre
+            className="h-[50vh] overflow-auto rounded-xl border border-white/10 bg-white p-4 font-mono text-[12px] leading-snug text-black"
+            aria-label="Aperçu bon de retour 58/80 mm"
+          >
+            {slip.text80}
+          </pre>
           <div className="mt-3 flex gap-2">
             <Button
               variant="secondary"
-              onClick={() => void printReturnSlip("80mm")}
+              onClick={() => void printReturnSlip()}
               disabled={busy}
               className="flex-1"
             >
-              <Printer size={15} aria-hidden="true" /> Imprimer 80mm
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => void printReturnSlip("A4")}
-              disabled={busy}
-              className="flex-1"
-            >
-              <Printer size={15} aria-hidden="true" /> Imprimer A4
+              <Printer size={15} aria-hidden="true" /> Imprimer le bon
             </Button>
           </div>
         </Modal>

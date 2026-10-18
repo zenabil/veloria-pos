@@ -227,10 +227,9 @@ export function ClientDetailsDrawer({
         <SlipPreviewModal
           title={actions.slip.title}
           text80={actions.slip.text80}
-          htmlA4={actions.slip.htmlA4}
           busy={actions.slipBusy}
           onClose={() => actions.setSlip(null)}
-          onPrint={(mode) => void actions.printSlip(mode)}
+          onPrint={() => void actions.printSlip()}
         />
       ) : null}
     </>

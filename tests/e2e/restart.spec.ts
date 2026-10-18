@@ -43,7 +43,7 @@ test("restart : la vente reste enregistrée après redémarrage", async () => {
   await gotoModule(page, "Caisse");
   await page.getByLabel("Recherche produit", { exact: true }).fill(name);
   await page
-    .getByRole("button", { name: new RegExp(name) })
+    .getByRole("option", { name: new RegExp(name) })
     .first()
     .click();
   await page.getByRole("button", { name: "Encaisser", exact: true }).click();
@@ -65,7 +65,9 @@ test("restart : la vente reste enregistrée après redémarrage", async () => {
   // Relance sur les mêmes dossiers : démarrage normal + données conservées.
   ctx = await relaunchApp(ctx);
   await gotoModule(ctx.page, "Historique");
-  await ctx.page.getByPlaceholder("Référence, N° facture, scan code-barres…").fill(invoice);
+  await ctx.page
+    .getByLabel("Rechercher dans l'historique (ticket, client, référence ou code-barres)")
+    .fill(invoice);
   await expect(
     ctx.page
       .getByRole("row", { name: new RegExp(invoice) })

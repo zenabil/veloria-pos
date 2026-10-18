@@ -49,18 +49,11 @@ import { SellShortcutsHelp } from "./sell/SellShortcutsHelp.tsx";
 import { useAppSettings, type SalesSettings } from "@shared/settings/use-app-settings.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { useCompany } from "@shared/company/use-company.ts";
-import type { PrintMode } from "@/app/shell/App.tsx";
 import type { Notify } from "@shared/ui/primitives.tsx";
 import type { Customer } from "../customers/types.ts";
 import type { SearchRow } from "./sell/sell-types.ts";
 
-export function SellScreen({
-  notify,
-  printMode,
-}: {
-  notify: Notify;
-  printMode: PrintMode;
-}): React.JSX.Element {
+export function SellScreen({ notify }: { notify: Notify }): React.JSX.Element {
   const cart = useCart();
   const s = useSellState(cart);
   // Fiche entreprise : source unique partagée (imprimés caisse + devis).
@@ -108,7 +101,6 @@ export function SellScreen({
   const searchDeps = searchDepsFrom(cart, notify, s);
   const flowDeps: SellFlowDeps = flowDepsFrom(cart, notify, company, s, {
     defaultMethod,
-    printMode,
     autoPrintInvoice: salesSettings?.autoPrintInvoice === true,
     confirmAsync,
   });
@@ -127,10 +119,9 @@ export function SellScreen({
     };
   });
 
-  const { print, printProforma, printProforma80, exportProformaPdf } = useSellPrint({
+  const { print, printProforma, exportProformaPdf } = useSellPrint({
     preview: s.preview,
     proformaDoc: s.proformaDoc,
-    printMode,
     company,
     notify,
   });
@@ -240,7 +231,6 @@ export function SellScreen({
           deliveryFeeMinor={cart.deliveryFeeMinor}
           onOpenPay={() => openPay(flowDeps)}
           preview={s.preview}
-          printMode={printMode}
           onPrint={() => void print()}
           onCancelLastSale={s.preview?.saleId != null ? () => void cancelLastSale(flowDeps) : null}
           cancelBusy={s.cancelBusy}
@@ -284,7 +274,6 @@ export function SellScreen({
         proformaDoc={s.proformaDoc}
         onCloseProforma={() => s.setProformaDoc(null)}
         onPrintProforma={() => void printProforma()}
-        onPrintProforma80={() => void printProforma80()}
         onExportProformaPdf={() => void exportProformaPdf()}
         customerDrawer={s.customerDrawer}
         onCloseCustomerDrawer={() => s.setCustomerDrawer(null)}

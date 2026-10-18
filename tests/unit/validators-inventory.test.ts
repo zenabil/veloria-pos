@@ -22,7 +22,9 @@ const MODULES = [
 // periodSchema retirés avec leurs canaux morts ; closingsListSchema inliné).
 // ADR-109 (2026-10-16) : 122 → 115 (7 schémas bread.* supprimés avec le module).
 // ADR-112 (2026-10-17) : 115 → 116 (customerSortSchema : tri serveur customers.search).
-const FROZEN_SCHEMA_COUNT = 116;
+// ADR-117 (2026-10-18) : 116 → 114 (printFormatSchema + alias
+// paymentTicketFormatSchema retirés avec les canaux A4 de vente).
+const FROZEN_SCHEMA_COUNT = 114;
 const FROZEN_MAX_LINES = 300;
 
 describe("Validators inventory (split guard)", () => {

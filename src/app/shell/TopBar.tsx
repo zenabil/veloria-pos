@@ -4,8 +4,6 @@ import { useEffect, useState } from "react";
 import { Bell } from "lucide-react";
 import { LicenseBadge } from "@features/license/LicenseBadge.tsx";
 import type { LicenseStatusView } from "@features/license/use-license.ts";
-import { cn } from "@shared/ui/primitives.tsx";
-import type { PrintMode } from "./shell-types.ts";
 
 function formatHeure(d: Date): string {
   return new Intl.DateTimeFormat("fr-DZ", {
@@ -52,26 +50,22 @@ function Horloge(): React.JSX.Element {
 export interface TopBarProps {
   licenseStatus: LicenseStatusView | null;
   sqliteVersion: string | null;
-  printMode: PrintMode;
   currentLabel: string | undefined;
   currentHint: string | undefined;
   notifCount: number;
   licenseExpired: boolean;
   onOpenNotifications: () => void;
-  onPrintMode: (mode: PrintMode) => void;
   onGoLicense: () => void;
 }
 
 export function TopBar({
   licenseStatus,
   sqliteVersion,
-  printMode,
   currentLabel,
   currentHint,
   notifCount,
   licenseExpired,
   onOpenNotifications,
-  onPrintMode,
   onGoLicense,
 }: TopBarProps): React.JSX.Element {
   return (
@@ -98,36 +92,6 @@ export function TopBar({
           {currentLabel}
         </span>
         <span className="hidden truncate text-[11px] text-[#d3c5ac] 2xl:inline">{currentHint}</span>
-        <div
-          className="flex items-center gap-0.5 rounded-lg border border-white/[0.08] bg-[#0d1c2d] p-0.5"
-          role="radiogroup"
-          aria-label="Format d'impression [F2]"
-          title="Format d'impression après une vente [F2 pour basculer]"
-        >
-          {(
-            [
-              ["80mm", "Ticket 80mm"],
-              ["A4", "Facture A4"],
-            ] as [PrintMode, string][]
-          ).map(([mode, label]) => (
-            <button
-              key={mode}
-              type="button"
-              role="radio"
-              aria-checked={printMode === mode}
-              title={label}
-              onClick={() => onPrintMode(mode)}
-              className={cn(
-                "rounded-md px-2 py-1 text-[11px] font-bold transition-colors duration-100",
-                printMode === mode
-                  ? "bg-[#fbbf24] text-[#402d00]"
-                  : "text-[#d3c5ac] hover:text-[#d4e4fa]",
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
         <div className="ml-auto flex items-center gap-2 font-mono text-[10px] font-semibold text-[#d3c5ac]">
           <Horloge />
           <button

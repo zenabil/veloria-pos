@@ -66,10 +66,8 @@ export interface SellFlowDeps {
   setCustomerQuery: (v: string) => void;
   setCustomerResults: (v: CustomerRow[]) => void;
   setCustomerTotal: (v: number) => void;
-  setPreview: (
-    v: { sale: LastSale; saleId: number | null; text80: string; htmlA4: string } | null,
-  ) => void;
-  preview: { sale: LastSale; saleId: number | null; text80: string; htmlA4: string } | null;
+  setPreview: (v: { sale: LastSale; saleId: number | null; text80: string } | null) => void;
+  preview: { sale: LastSale; saleId: number | null; text80: string } | null;
   searchRef: RefObject<HTMLInputElement | null>;
   cancelBusy: boolean;
   setCancelBusy: (v: boolean) => void;
@@ -78,7 +76,6 @@ export interface SellFlowDeps {
   setDrawerBusy: (v: boolean) => void;
   drawerBusy: boolean;
   defaultMethod: "cash" | "cheque" | "transfer";
-  printMode: "80mm" | "A4";
   autoPrintInvoice: boolean;
   confirmAsync: (message: string) => Promise<boolean>;
   setResults: (v: SearchRow[]) => void;
@@ -90,7 +87,7 @@ export function flowDepsFrom(
   notify: Notify,
   company: CompanyFields,
   s: SellState,
-  extra: Pick<SellFlowDeps, "defaultMethod" | "printMode" | "autoPrintInvoice" | "confirmAsync">,
+  extra: Pick<SellFlowDeps, "defaultMethod" | "autoPrintInvoice" | "confirmAsync">,
 ): SellFlowDeps {
   return { ...s, cart, notify, company, ...extra };
 }
@@ -247,14 +244,12 @@ export async function finalizeSale(d: SellFlowDeps): Promise<void> {
     try {
       const pv = (await api.printPreview(buildPrintPayload(d.company, sale, sale.balances))) as {
         text80: string;
-        htmlA4: string;
       };
-      d.setPreview({ sale, saleId: res.saleId, text80: pv.text80, htmlA4: pv.htmlA4 });
+      d.setPreview({ sale, saleId: res.saleId, text80: pv.text80 });
       if (d.autoPrintInvoice) {
         try {
-          if (d.printMode === "A4")
-            await api.printA4(buildPrintPayload(d.company, sale, sale.balances));
-          else await api.printReceipt(buildPrintPayload(d.company, sale, sale.balances));
+          // Vente = ticket uniquement (jamais A4) — politique opération → format.
+          await api.printReceipt(buildPrintPayload(d.company, sale, sale.balances));
           d.notify("Impression auto envoyée.", "ok");
         } catch {
           d.notify("Impression auto impossible.", "err");

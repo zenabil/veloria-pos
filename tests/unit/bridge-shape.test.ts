@@ -94,8 +94,6 @@ describe("Preload bridge shape", () => {
       "labelFormatSchema",
       "purchaseLineSchema",
       "cartLineSchema",
-      "printFormatSchema",
-      "paymentTicketFormatSchema",
       "templateDocTypeSchema",
       "templatePaperSchema",
     ]);

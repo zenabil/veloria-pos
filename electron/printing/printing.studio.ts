@@ -1,4 +1,4 @@
-// Veloria PoS — Electron: canaux Studio (decoupage printing.service, zero changement).
+// Veloria PoS — Electron: canaux Studio (decoupage printing.service).
 // Apercu d'un modele + impression test sur echantillons demo.
 
 import { ipcMain } from "electron";
@@ -18,7 +18,17 @@ import {
   type TemplateSettings,
 } from "./printing.templates";
 import { renderTemplateSample } from "./printing.samples";
-import { thermalHtml } from "./receipt-documents";
+import {
+  LABEL_FORMATS,
+  labelPageMicrons,
+  thermalHtml,
+  type LabelFormat,
+} from "./receipt-documents";
+
+/** Papier modèle → gabarit étiquette (défaut 58×30 si valeur inattendue). */
+function labelFormatOf(paper: string): LabelFormat {
+  return (LABEL_FORMATS as readonly string[]).includes(paper) ? (paper as LabelFormat) : "58x30";
+}
 
 export function registerStudioIpc(getMainWindow: () => BrowserWindow | null): void {
   ipcMain.handle(IPC_CHANNELS["templates.preview"], (_e, raw: unknown) => {
@@ -28,11 +38,7 @@ export function registerStudioIpc(getMainWindow: () => BrowserWindow | null): vo
       const staffDenied = enforceRawChannelGates(IPC_CHANNELS["templates.preview"], input);
       if (staffDenied) return staffDenied;
       const settings = mergeTemplateMirror(input.docType, input.settings);
-      const html = renderTemplateSample(
-        input.docType,
-        settings,
-        input.format === "80mm" ? "80mm" : undefined,
-      );
+      const html = renderTemplateSample(input.docType, settings);
       return { ok: true, data: html };
     } catch (err) {
       log("ERROR", "printing", "templatePreview.failed", {
@@ -59,7 +65,12 @@ export function registerStudioIpc(getMainWindow: () => BrowserWindow | null): vo
       const s = override ?? activeTemplateSettings(input.docType);
       const html = renderTemplateSample(input.docType, s);
       await assertConfiguredPrinterAvailable(getMainWindow);
-      if (input.docType === "etiquette" || s.paper === "A4" || s.paper === "A5") {
+      if (input.docType === "etiquette") {
+        // Gabarit exact en microns (jamais de planche A4) : 1 étiquette = 1 page.
+        const microns = labelPageMicrons({ format: labelFormatOf(s.paper) });
+        await printHtml(html.htmlA4, 400, { pageSizeMicrons: microns });
+      } else if (s.paper === "A4") {
+        // Seul le devis reste en A4 ; tout le reste est thermique 58/80.
         await printHtml(html.htmlA4, 400);
       } else {
         const { width } = templateRenderOf(input.docType);

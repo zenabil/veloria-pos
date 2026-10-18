@@ -101,15 +101,14 @@ export function SupplierPOsDialog({
   const receiveOp = useOperationId();
   const [recv, setRecv] = useState<Record<number, string>>({});
   const [orderPreview, setOrderPreview] = useState<{
-    htmlA4: string;
     text80: string;
     payload: Record<string, unknown>;
   } | null>(null);
-  const [poFormat, setPoFormat] = useState<"A4" | "80mm">("A4");
 
-  // Bon de commande fournisseur : aperçu + impression A4/80mm via les canaux
-  // dédiés (`printing.previewPO/printPO`). Payload ticket + références PO
-  // (numéro, fournisseur, lignes, totaux cohérents).
+  // Bon de commande fournisseur : aperçu + impression ticket 58/80mm via les
+  // canaux dédiés (`printing.previewPO/printPO`) — jamais A4 (politique
+  // opération → format). Payload ticket + références PO (numéro, fournisseur,
+  // lignes, totaux cohérents).
   function dateFr(raw: string | null): string {
     const d = new Date(raw ?? Date.now());
     if (Number.isNaN(d.getTime())) return (raw ?? "").slice(0, 10);
@@ -204,9 +203,8 @@ export function SupplierPOsDialog({
         supplierAddress,
         validityDays: 30,
       };
-      const pv = (await api.poPreview(payload)) as { text80: string; htmlA4: string };
-      setOrderPreview({ htmlA4: pv.htmlA4, text80: pv.text80, payload });
-      setPoFormat("A4");
+      const pv = (await api.poPreview(payload)) as { text80: string };
+      setOrderPreview({ text80: pv.text80, payload });
     } catch (e) {
       notify(frError(e, "Aperçu indisponible."), "err");
     } finally {
@@ -214,15 +212,12 @@ export function SupplierPOsDialog({
     }
   }
 
-  async function printOrder(mode: "80mm" | "A4"): Promise<void> {
+  async function printOrder(): Promise<void> {
     if (!orderPreview || busy) return;
     setBusy(true);
     try {
-      // A4 par défaut côté main ; 80mm via `format: "80mm"`.
-      await api.poPrint(
-        mode === "80mm" ? { ...orderPreview.payload, format: "80mm" } : orderPreview.payload,
-      );
-      notify(mode === "A4" ? "Bon de commande A4 envoyé." : "Bon de commande 80mm envoyé.", "ok");
+      await api.poPrint(orderPreview.payload);
+      notify("Bon de commande envoyé.", "ok");
     } catch (e) {
       notify(frError(e, "Impression impossible."), "err");
     } finally {
@@ -701,45 +696,15 @@ export function SupplierPOsDialog({
             onClose={() => setOrderPreview(null)}
             wide
           >
-            <div className="mb-3 flex gap-1.5" role="tablist" aria-label="Format d'aperçu">
-              {(["A4", "80mm"] as const).map((f) => (
-                <button
-                  key={f}
-                  type="button"
-                  role="tab"
-                  aria-selected={poFormat === f}
-                  onClick={() => setPoFormat(f)}
-                  className={
-                    poFormat === f
-                      ? "rounded-lg bg-amber-400 px-4 py-1.5 text-xs font-bold text-black"
-                      : "rounded-lg border border-white/10 px-4 py-1.5 text-xs font-bold text-slate-400 hover:text-white"
-                  }
-                >
-                  {f === "A4" ? "Format A4" : "Ticket 80mm"}
-                </button>
-              ))}
-            </div>
-            {poFormat === "A4" ? (
-              <iframe
-                sandbox=""
-                srcDoc={orderPreview.htmlA4}
-                title="Aperçu bon de commande"
-                className="h-[50vh] w-full rounded-xl border border-white/10 bg-white"
-              />
-            ) : (
-              <pre
-                className="h-[50vh] overflow-auto rounded-xl border border-white/10 bg-white p-4 font-mono text-[12px] leading-snug text-black"
-                aria-label="Aperçu bon de commande 80mm"
-              >
-                {orderPreview.text80}
-              </pre>
-            )}
+            <pre
+              className="h-[50vh] overflow-auto rounded-xl border border-white/10 bg-white p-4 font-mono text-[12px] leading-snug text-black"
+              aria-label="Aperçu bon de commande 58/80 mm"
+            >
+              {orderPreview.text80}
+            </pre>
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <Button variant="secondary" disabled={busy} onClick={() => void printOrder("80mm")}>
-                <Printer size={16} aria-hidden="true" /> Imprimer 80mm
-              </Button>
-              <Button disabled={busy} onClick={() => void printOrder("A4")}>
-                <Printer size={16} aria-hidden="true" /> Imprimer A4
+              <Button variant="secondary" disabled={busy} onClick={() => void printOrder()}>
+                <Printer size={16} aria-hidden="true" /> Imprimer le bon
               </Button>
             </div>
           </Modal>

@@ -64,7 +64,6 @@ export function ProformaDetailsDrawer({
   const confirmAsync = useConfirm();
   const [preview, setPreview] = useState<{
     htmlA4: string;
-    text80: string;
     payload: Record<string, unknown>;
   } | null>(null);
 
@@ -131,8 +130,8 @@ export function ProformaDetailsDrawer({
         totalMinor: Number(p.total_minor),
         paidMinor: 0,
       };
-      const pv = (await api.proformaPreview(payload)) as { htmlA4: string; text80: string };
-      setPreview({ htmlA4: pv.htmlA4, text80: pv.text80, payload });
+      const pv = (await api.proformaPreview(payload)) as { htmlA4: string };
+      setPreview({ htmlA4: pv.htmlA4, payload });
     } catch (e) {
       notify(frError(e, "Aperçu indisponible."), "err");
     } finally {
@@ -145,16 +144,6 @@ export function ProformaDetailsDrawer({
     try {
       await api.proformaPrintA4(preview.payload);
       notify("Devis envoyé (A4).", "ok");
-    } catch (e) {
-      notify(frError(e, "Impression impossible."), "err");
-    }
-  }
-
-  async function print80(): Promise<void> {
-    if (!preview) return;
-    try {
-      await api.proformaPrint80mm(preview.payload);
-      notify("Devis envoyé (80mm).", "ok");
     } catch (e) {
       notify(frError(e, "Impression impossible."), "err");
     }
@@ -293,14 +282,9 @@ export function ProformaDetailsDrawer({
           label="Aperçu devis"
           title={`Devis ${p.proforma_number}`}
           htmlA4={preview.htmlA4}
-          text80={preview.text80}
-          a4TabLabel="Devis A4"
           onClose={() => setPreview(null)}
           actions={
-            <div className="grid grid-cols-3 gap-2">
-              <Button variant="secondary" onClick={() => void print80()}>
-                <Printer size={15} aria-hidden="true" /> Imprimer 80mm
-              </Button>
+            <div className="grid grid-cols-2 gap-2">
               <Button onClick={() => void print()}>
                 <Printer size={15} aria-hidden="true" /> Imprimer A4
               </Button>

@@ -11,7 +11,8 @@ import { frError } from "@shared/errors/fr-map.ts";
 import { playSound } from "@shared/sound/sound.ts";
 
 // ---------------------------------------------------------------------------
-// Étiquettes code-barres : aperçu planche A4 + impression.
+// Étiquettes code-barres : aperçu gabarit thermique + impression.
+// L'A4 est banni pour les étiquettes (politique opération → format).
 // ---------------------------------------------------------------------------
 
 export interface LabelTarget {
@@ -19,6 +20,8 @@ export interface LabelTarget {
   priceMinor: number;
   barcode: string;
 }
+
+type LabelFormatUi = "30x20" | "45x20" | "50x30" | "58x30" | "58x40" | "custom";
 
 export function LabelsDialog({
   items,
@@ -31,9 +34,7 @@ export function LabelsDialog({
 }): React.JSX.Element {
   const printable = items.filter((i) => i.barcode.trim() !== "");
   const [copies, setCopies] = useState("1");
-  const [format, setFormat] = useState<
-    "30x20" | "45x20" | "50x30" | "58x30" | "58x40" | "A4-24" | "custom"
-  >("45x20");
+  const [format, setFormat] = useState<LabelFormatUi>("45x20");
   const [customWidth, setCustomWidth] = useState("50");
   const [customHeight, setCustomHeight] = useState("30");
   /** C5 : QR du code-barres sous le Code 39 (opt-in). */
@@ -69,7 +70,7 @@ export function LabelsDialog({
     };
   }
 
-  // BL-24 : 200 étiquettes max par planche (copies × articles).
+  // BL-24 : 200 étiquettes max par lot (copies × articles).
   function overLimit(): boolean {
     return printable.length * n > 200;
   }
@@ -77,13 +78,13 @@ export function LabelsDialog({
   async function preview(): Promise<void> {
     if (busy) return;
     if (overLimit()) {
-      notify("Trop d'étiquettes : 200 maximum par planche.", "err");
+      notify("Trop d'étiquettes : 200 maximum par lot.", "err");
       return;
     }
     setBusy(true);
     try {
-      const res = (await api.labelsPreview(labelPayload())) as { htmlA4: string };
-      setHtml(res.htmlA4);
+      const res = (await api.labelsPreview(labelPayload())) as { html: string };
+      setHtml(res.html);
     } catch (e) {
       notify(frError(e, "Aperçu impossible."), "err");
     } finally {
@@ -94,7 +95,7 @@ export function LabelsDialog({
   async function print(): Promise<void> {
     if (busy) return;
     if (overLimit()) {
-      notify("Trop d'étiquettes : 200 maximum par planche.", "err");
+      notify("Trop d'étiquettes : 200 maximum par lot.", "err");
       return;
     }
     setBusy(true);
@@ -113,7 +114,7 @@ export function LabelsDialog({
   async function exportPdf(): Promise<void> {
     if (busy) return;
     if (overLimit()) {
-      notify("Trop d'étiquettes : 200 maximum par planche.", "err");
+      notify("Trop d'étiquettes : 200 maximum par lot.", "err");
       return;
     }
     setBusy(true);
@@ -156,18 +157,7 @@ export function LabelsDialog({
       <Field label="Format d'étiquette">
         <Select
           value={format}
-          onChange={(e) =>
-            setFormat(
-              e.target.value as
-                | "30x20"
-                | "45x20"
-                | "50x30"
-                | "58x30"
-                | "58x40"
-                | "A4-24"
-                | "custom",
-            )
-          }
+          onChange={(e) => setFormat(e.target.value as LabelFormatUi)}
           aria-label="Format d'étiquette"
         >
           <option value="30x20">Thermique 30 × 20 mm</option>
@@ -175,7 +165,6 @@ export function LabelsDialog({
           <option value="50x30">Thermique 50 × 30 mm</option>
           <option value="58x30">Thermique 58 × 30 mm</option>
           <option value="58x40">Thermique 58 × 40 mm</option>
-          <option value="A4-24">Planche A4 — 24 étiquettes</option>
           <option value="custom">Personnalisé…</option>
         </Select>
       </Field>

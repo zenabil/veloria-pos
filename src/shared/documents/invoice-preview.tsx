@@ -1,8 +1,9 @@
-// Veloria PoS — Shared: modale d'aperçu facture (Ticket 80mm + Facture A4).
+// Veloria PoS — Shared: modale d'aperçu vente (ticket 58/80mm uniquement).
 // Source unique utilisée par l'historique, la fiche client et les dettes :
 // charge la vente (`sales.get`), construit le payload canonique
 // (`buildSaleTicketPayload`), demande l'aperçu main (`printing.preview`),
-// puis imprime (80mm/A4) ou exporte PDF (80mm/A4) via les canaux dédiés.
+// puis imprime ou exporte le PDF ticket via les canaux dédiés.
+// Politique opération → format : une vente ne sort JAMAIS en A4.
 // Renderer = affichage seul ; tout rendu/validation côté main.
 import { useEffect, useState } from "react";
 import { FileDown, Printer } from "lucide-react";
@@ -13,12 +14,9 @@ import { Button, Modal } from "@shared/ui/primitives.tsx";
 import type { Notify } from "@shared/ui/primitives.tsx";
 import { frError } from "@shared/errors/fr-map.ts";
 
-type PreviewFormat = "80mm" | "A4";
-
 interface LoadedPreview {
   payload: Record<string, unknown>;
   text80: string;
-  htmlA4: string;
   invoice: string;
 }
 
@@ -33,7 +31,6 @@ export function InvoicePreviewModal({
   onClose: () => void;
   notify: Notify;
 }): React.JSX.Element {
-  const [format, setFormat] = useState<PreviewFormat>("A4");
   const [doc, setDoc] = useState<LoadedPreview | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -79,12 +76,11 @@ export function InvoicePreviewModal({
           }
         }
         const payload = buildSaleTicketPayload(d, co, customer, customerId);
-        const pv = (await api.printPreview(payload)) as { text80: string; htmlA4: string };
+        const pv = (await api.printPreview(payload)) as { text80: string };
         if (!cancelled) {
           setDoc({
             payload,
             text80: pv.text80,
-            htmlA4: pv.htmlA4,
             invoice: String(d.sale["invoice_number"] ?? ""),
           });
         }
@@ -103,13 +99,12 @@ export function InvoicePreviewModal({
     };
   }, [saleId]);
 
-  async function printDoc(mode: PreviewFormat): Promise<void> {
+  async function printDoc(): Promise<void> {
     if (!doc || busy) return;
     setBusy(true);
     try {
-      if (mode === "A4") await api.printA4(doc.payload);
-      else await api.printReceipt(doc.payload);
-      notify(mode === "A4" ? "Facture A4 envoyée." : "Ticket envoyé.", "ok");
+      await api.printReceipt(doc.payload);
+      notify("Ticket envoyé.", "ok");
     } catch (e) {
       notify(frError(e, "Impression impossible."), "err");
     } finally {
@@ -117,13 +112,11 @@ export function InvoicePreviewModal({
     }
   }
 
-  async function exportPdf(mode: PreviewFormat): Promise<void> {
+  async function exportPdf(): Promise<void> {
     if (!doc || busy) return;
     setBusy(true);
     try {
-      const res = (await (mode === "A4"
-        ? api.exportA4Pdf(doc.payload)
-        : api.exportReceiptPdf(doc.payload))) as { path: string };
+      const res = (await api.exportReceiptPdf(doc.payload)) as { path: string };
       notify(`PDF enregistré : ${res.path}`, "ok");
     } catch (e) {
       notify(frError(e, "Export PDF impossible."), "err");
@@ -134,35 +127,10 @@ export function InvoicePreviewModal({
 
   return (
     <Modal label={title} title={title} onClose={onClose} wide>
-      <div className="mb-3 flex gap-1.5" role="tablist" aria-label="Format d'aperçu">
-        {(["A4", "80mm"] as PreviewFormat[]).map((f) => (
-          <button
-            key={f}
-            type="button"
-            role="tab"
-            aria-selected={format === f}
-            onClick={() => setFormat(f)}
-            className={
-              format === f
-                ? "rounded-lg bg-amber-400 px-4 py-1.5 text-xs font-bold text-black"
-                : "rounded-lg border border-white/10 px-4 py-1.5 text-xs font-bold text-slate-400 hover:text-white"
-            }
-          >
-            {f === "A4" ? "Facture A4" : "Ticket 80mm"}
-          </button>
-        ))}
-      </div>
       {loading || !doc ? (
         <p className="py-10 text-center text-sm text-slate-500" role="status">
           Chargement…
         </p>
-      ) : format === "A4" ? (
-        <iframe
-          sandbox=""
-          srcDoc={doc.htmlA4}
-          title={`Aperçu ${doc.invoice}`}
-          className="h-[50vh] w-full rounded-xl border border-white/10 bg-white"
-        />
       ) : (
         <pre
           className="h-[50vh] overflow-auto rounded-xl border border-white/10 bg-white p-4 font-mono text-[12px] leading-snug text-black"
@@ -173,17 +141,11 @@ export function InvoicePreviewModal({
       )}
       {doc ? (
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <Button variant="secondary" disabled={busy} onClick={() => void printDoc("80mm")}>
-            <Printer size={15} aria-hidden="true" /> Imprimer 80mm
+          <Button variant="secondary" disabled={busy} onClick={() => void printDoc()}>
+            <Printer size={15} aria-hidden="true" /> Imprimer le ticket
           </Button>
-          <Button variant="secondary" disabled={busy} onClick={() => void printDoc("A4")}>
-            <Printer size={15} aria-hidden="true" /> Imprimer A4
-          </Button>
-          <Button variant="secondary" disabled={busy} onClick={() => void exportPdf("80mm")}>
-            <FileDown size={15} aria-hidden="true" /> PDF 80mm
-          </Button>
-          <Button variant="secondary" disabled={busy} onClick={() => void exportPdf("A4")}>
-            <FileDown size={15} aria-hidden="true" /> PDF A4
+          <Button variant="secondary" disabled={busy} onClick={() => void exportPdf()}>
+            <FileDown size={15} aria-hidden="true" /> PDF ticket
           </Button>
         </div>
       ) : null}

@@ -60,7 +60,7 @@ test("vente à crédit : reste impayé avec client autorisé", async () => {
   await expect(page.getByText("Crédit autorisé").first()).toBeVisible();
   await page.getByLabel("Recherche produit", { exact: true }).fill(product);
   await page
-    .getByRole("button", { name: new RegExp(product) })
+    .getByRole("option", { name: new RegExp(product) })
     .first()
     .click();
   await page.getByRole("button", { name: "Encaisser", exact: true }).click();
@@ -78,7 +78,7 @@ test("retour client : remboursement partiel depuis une facture", async () => {
   await gotoModule(page, "Caisse");
   await page.getByLabel("Recherche produit", { exact: true }).fill(product);
   await page
-    .getByRole("button", { name: new RegExp(product) })
+    .getByRole("option", { name: new RegExp(product) })
     .first()
     .click();
   await page.getByRole("button", { name: `Augmenter ${product}` }).click();

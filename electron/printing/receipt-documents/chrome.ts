@@ -112,12 +112,12 @@ export interface PageOpts {
 }
 
 export function pageAtRule(opts?: PageOpts): string {
-  const page = opts?.page === "A5" ? "A5" : "A4";
+  // Politique opération → format : ici uniquement des documents A4 (devis).
   const margin =
     typeof opts?.marginMm === "number" && Number.isFinite(opts.marginMm)
       ? Math.min(25, Math.max(5, Math.round(opts.marginMm)))
       : 15;
-  return `@page{size:${page};margin:${margin}mm}`;
+  return `@page{size:A4;margin:${margin}mm}`;
 }
 
 /** C6 : QR documentaire avec interrupteur Studio (vide = aucun bloc QR). */

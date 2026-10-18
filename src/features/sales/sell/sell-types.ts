@@ -52,7 +52,6 @@ export interface LastSale {
 export interface ProformaDoc {
   number: string;
   date: string;
-  text80: string;
   htmlA4: string;
   payload: Record<string, unknown>;
 }

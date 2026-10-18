@@ -4,8 +4,11 @@
 // Volontairement SANS couleurs ni polices : le N&B strict est un invariant
 // P0 testé (imprimantes thermiques + lisibilité fiscale).
 
+// Politique stricte opération → format (règle métier) :
+//   vente / règlement / retour / livraison / bon de commande → ticket 80 ou 58 ;
+//   devis (proforma) → A4 uniquement ;
+//   étiquettes → gabarits thermiques, jamais A4.
 export const TEMPLATE_DOC_TYPES = [
-  "facture",
   "ticket",
   "proforma",
   "bon_livraison",
@@ -16,7 +19,11 @@ export const TEMPLATE_DOC_TYPES = [
 
 export type TemplateDocType = (typeof TEMPLATE_DOC_TYPES)[number];
 
-export type TemplatePaper = "A4" | "A5" | "80mm" | "58mm";
+/** Gabarits d'étiquettes thermiques (mm) — l'A4 est banni pour les étiquettes. */
+export const LABEL_PAPERS = ["30x20", "45x20", "50x30", "58x30", "58x40"] as const;
+export type LabelPaper = (typeof LABEL_PAPERS)[number];
+
+export type TemplatePaper = "A4" | "80mm" | "58mm" | LabelPaper;
 export type TemplateLogoSize = "S" | "M" | "L";
 
 export interface TemplateSettings {
@@ -62,10 +69,13 @@ export function defaultPaperFor(docType: TemplateDocType): TemplatePaper {
   switch (docType) {
     case "ticket":
     case "recu":
+    case "avoir":
+    case "bon_livraison":
       return "80mm";
     case "etiquette":
-      return "A4";
+      return "58x30";
     default:
+      // proforma : A4 uniquement (jamais de ticket pour un devis).
       return "A4";
   }
 }
@@ -78,19 +88,18 @@ export function factorySettings(docType: TemplateDocType): TemplateSettings {
   return base;
 }
 
-/** Papiers autorisés par type (le thermique ne s'applique qu'aux tickets). */
+/** Papiers autorisés par type (politique stricte opération → format). */
 export function allowedPapers(docType: TemplateDocType): readonly TemplatePaper[] {
   switch (docType) {
     case "ticket":
-    case "proforma":
     case "recu":
     case "avoir":
     case "bon_livraison":
-      return ["80mm", "58mm", "A4"];
-    case "facture":
-      return ["A4", "A5"];
-    case "etiquette":
+      return ["80mm", "58mm"];
+    case "proforma":
       return ["A4"];
+    case "etiquette":
+      return LABEL_PAPERS;
   }
 }
 
@@ -109,10 +118,7 @@ export function mergeTemplateSettings(
   const base = factorySettings(docType);
   const candidate = partial.paper;
   const paper: TemplatePaper =
-    (candidate === "A4" || candidate === "A5" || candidate === "80mm" || candidate === "58mm") &&
-    allowedPapers(docType).includes(candidate)
-      ? candidate
-      : base.paper;
+    candidate != null && allowedPapers(docType).includes(candidate) ? candidate : base.paper;
   const bool = (v: unknown, fallback: boolean): boolean => (typeof v === "boolean" ? v : fallback);
   const text = (v: unknown, max: number): string => (typeof v === "string" ? v.slice(0, max) : "");
   return {

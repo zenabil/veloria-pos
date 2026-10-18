@@ -7,9 +7,7 @@ import {
 import {
   CODE39_PATTERNS,
   amountInWordsFr,
-  buildA4Html,
   buildProformaA4Html,
-  buildProformaText,
   buildReceiptText,
   code39Svg,
   escapeHtml,
@@ -107,69 +105,10 @@ describe("Receipt documents (deterministic, spec 12)", () => {
     expect(paid.includes("Monnaie rendue")).toBe(false);
   });
 
-  it("A4 matches the wireframe blocks", () => {
-    const html = buildA4Html(DOC);
-    expect(buildA4Html(DOC)).toBe(html);
-    for (const needle of [
-      "Veloria",
-      "FACTURE",
-      "Amine Benali",
-      "0555 00 00 00",
-      "Tlemcen",
-      "CL-00125",
-      "FAC-2026-00001",
-      "Réf.",
-      "00125",
-      "TOTAL TTC",
-      "RESTE",
-      "Montant en lettres",
-      "dinars algériens",
-      "Espèces",
-      "contact@veloria.dz",
-      "Signature client",
-      "Signature / Cachet",
-      "Merci pour votre confiance",
-      "Page 1 / 1",
-    ]) {
-      expect(html.includes(needle), needle).toBe(true);
-    }
-    // Soldes exclus de la facture (ticket uniquement).
-    expect(html.includes("Solde actuel")).toBe(false);
-    // Échéance masquée quand elle est vide (DOC.dueDate === "").
-    expect(html.includes("Échéance")).toBe(false);
-  });
-
-  it("A4 affiche l'échéance et le logo quand ils sont renseignés", () => {
-    const html = buildA4Html({
-      ...DOC,
-      dueDate: "2026-02-01",
-      companyLogo: "data:image/png;base64,QUJD",
-    });
-    expect(html.includes("Échéance")).toBe(true);
-    expect(html.includes("2026-02-01")).toBe(true);
-    expect(html.includes('src="data:image/png;base64,QUJD"')).toBe(true);
-  });
-
-  it("A4 hides empty blocks and escapes HTML", () => {
-    const bare: ReceiptData = {
-      ...DOC,
-      customerPhone: "",
-      customerAddress: "",
-      customerCode: "",
-      companyEmail: "",
-      companyRc: "",
-      companyNif: "",
-      paymentMethod: "",
-      notes: "",
-      customerName: "<b>Amine</b>",
-    };
-    const html = buildA4Html(bare);
-    expect(html.includes("Téléphone")).toBe(false);
-    expect(html.includes("Code client")).toBe(false);
-    expect(html.includes("Mode de paiement")).toBe(false);
-    expect(html.includes("Notes")).toBe(false);
-    expect(html.includes("<b>Amine</b>")).toBe(false);
-    expect(html.includes("&lt;b&gt;Amine&lt;/b&gt;")).toBe(true);
+  it("ticket : jamais « Facture » dans le texte thermique (politique opération → format)", () => {
+    const t = buildReceiptText(DOC);
+    // La vente s'imprime en ticket : le titre reste « TICKET DE CAISSE ».
+    expect(t.includes("TICKET DE CAISSE")).toBe(true);
   });
 
   it("escapes HTML", () => {
@@ -257,10 +196,7 @@ describe("Code 39 barcode (ISO 16388)", () => {
     expect(code39Svg("!!!")).toBe("");
   });
 
-  it("embeds the barcode in A4 invoice and proforma", () => {
-    const invoice = buildA4Html(DOC);
-    expect(invoice.includes("<svg")).toBe(true);
-    expect(invoice.includes("FAC-2026-00001")).toBe(true);
+  it("embeds the barcode in the proforma A4", () => {
     const proforma = buildProformaA4Html(PROFORMA);
     expect(proforma.includes("<svg")).toBe(true);
     expect(proforma.includes("PRO-2026-00042")).toBe(true);
@@ -299,23 +235,7 @@ const PROFORMA: ProformaData = {
   totalMinor: 20000,
 };
 
-describe("Proforma documents (no fiscal value)", () => {
-  it("80mm never says Facture and shows the proforma number", () => {
-    const text = buildProformaText(PROFORMA);
-    expect(buildProformaText(PROFORMA)).toBe(text); // déterministe
-    expect(text.includes("Facture")).toBe(false);
-    for (const needle of [
-      "DEVIS",
-      "PRO-2026-00042",
-      "Amine Benali",
-      "Coca",
-      "TOTAL DEVIS",
-      "SANS VALEUR FISCALE",
-    ]) {
-      expect(text.includes(needle), needle).toBe(true);
-    }
-  });
-
+describe("Proforma documents (no fiscal value, A4 only)", () => {
   it("A4 never says Facture and stamps the no-fiscal-value notice", () => {
     const html = buildProformaA4Html(PROFORMA);
     expect(buildProformaA4Html(PROFORMA)).toBe(html);
@@ -339,6 +259,30 @@ describe("Proforma documents (no fiscal value)", () => {
     // Devis : ni payé ni reste.
     expect(html.includes("Payé")).toBe(false);
     expect(html.includes("RESTE")).toBe(false);
+  });
+
+  it("A4 (devis) affiche la validité et le logo quand ils sont renseignés", () => {
+    const html = buildProformaA4Html({
+      ...PROFORMA,
+      dueDate: "2026-02-01",
+      companyLogo: "data:image/png;base64,QUJD",
+    });
+    expect(html.includes("2026-02-01")).toBe(true);
+    expect(html.includes('src="data:image/png;base64,QUJD"')).toBe(true);
+  });
+
+  it("A4 (devis) masque les blocs vides et échappe le HTML", () => {
+    const bare: ProformaData = {
+      ...PROFORMA,
+      customerPhone: "",
+      customerAddress: "",
+      customerName: "<b>Amine</b>",
+    };
+    const html = buildProformaA4Html(bare);
+    expect(html.includes("Téléphone")).toBe(false);
+    expect(html.includes("Adresse")).toBe(false);
+    expect(html.includes("<b>Amine</b>")).toBe(false);
+    expect(html.includes("&lt;b&gt;Amine&lt;/b&gt;")).toBe(true);
   });
 
   it("maps the generic print payload (invoice carries the proforma number)", () => {

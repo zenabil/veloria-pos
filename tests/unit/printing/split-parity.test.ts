@@ -117,7 +117,7 @@ describe("printing.enrich : helpers purs", () => {
 });
 
 describe("printing.templates : parite miroir vs domaine", () => {
-  it("parite exacte sur {} pour les 7 types", () => {
+  it("parite exacte sur {} pour les 6 types", () => {
     for (const docType of TEMPLATE_DOC_TYPES) {
       expect(mergeTemplateMirror(docType, {})).toEqual(mergeTemplateSettings(docType, {}));
     }
@@ -125,12 +125,15 @@ describe("printing.templates : parite miroir vs domaine", () => {
   it("parite exacte sur reglages valides", () => {
     const cases: Array<[string, Record<string, unknown>]> = [
       ["ticket", { paper: "58mm", copies: 2 }],
-      ["facture", { paper: "A5", marginMm: 10, showTva: false }],
+      ["proforma", { paper: "A4", marginMm: 10, showTva: false }],
+      // Un devis ne peut pas deriver vers le ticket : repli A4 des deux cotes.
+      ["proforma", { paper: "58mm" }],
+      ["avoir", { paper: "58mm", copies: 3 }],
+      ["bon_livraison", { paper: "80mm", thermalFontPx: 12 }],
       ["etiquette", { showQr: true }],
       ["etiquette", {}],
       ["recu", { showQr: false, copies: 5, thermalFontPx: 9 }],
-      ["proforma", { paper: "80mm", watermarkText: "BROUILLON", showWatermark: true }],
-      ["facture", { paper: "58mm" }],
+      ["proforma", { watermarkText: "BROUILLON", showWatermark: true }],
     ];
     for (const [docType, raw] of cases) {
       expect(mergeTemplateMirror(docType, raw)).toEqual(
@@ -162,10 +165,14 @@ describe("printing.samples : coherence au centime", () => {
     const r = sampleReceipt();
     expect((r.htMinor ?? 0) + (r.tvaMinor ?? 0)).toBe(r.totalMinor);
   });
-  it("renderTemplateSample ticket porte le ticket de caisse", () => {
+  it("renderTemplateSample : ticket = text80, devis = htmlA4", () => {
     const s = renderTemplateSample("ticket", undefined);
     expect(s.text80).toContain("TICKET DE CAISSE");
-    expect(s.htmlA4).toContain("FACTURE");
+    // Vente = ticket : jamais de HTML A4 pour une vente.
+    expect(s.htmlA4).toBe("");
+    const p = renderTemplateSample("proforma", undefined);
+    expect(p.text80).toBe("");
+    expect(p.htmlA4).toContain("PROFORMA / DEVIS");
   });
 });
 
@@ -180,13 +187,14 @@ describe("printing.reports-labels : limite 200 etiquettes", () => {
   });
   it("refus FR au-dela de 200 au total", () => {
     expect(() => labelsOf({ items: [item(70), item(70), item(70)] })).toThrow(
-      "Trop d'étiquettes : 200 maximum par planche.",
+      "Trop d'étiquettes : 200 maximum par lot.",
     );
   });
   it("200 pile acceptes", () => {
     const l = labelsOf({ items: [item(100), item(100)] });
     expect(l.items).toHaveLength(200);
-    expect(l.format).toBe("A4-24");
+    // Defaut du schema : gabarit thermique 45x20 (l'A4 est banni).
+    expect(l.format).toBe("45x20");
   });
 });
 
@@ -202,26 +210,33 @@ describe("receipt-documents : barrel vs direct", () => {
     for (const name of [
       "buildReceiptText",
       "toReceiptData",
-      "buildA4Html",
-      "buildProformaText",
       "buildProformaA4Html",
       "proformaFromReceipt",
       "buildPaymentText",
-      "buildPaymentTicketA4Html",
       "toPaymentTicketData",
       "buildReportHtml",
       "toReportData",
       "buildLabelsHtml",
-      "buildDeliveryHtml",
+      "LABEL_FORMATS",
+      "labelPageMicrons",
       "buildDeliveryText",
-      "buildReturnSlipHtml",
       "buildReturnSlipText",
-      "buildPurchaseOrderHtml",
       "buildPurchaseOrderText",
       "timbreQuittanceLf2025",
       "paymentMethodLabel",
     ]) {
       expect((barrel as Record<string, unknown>)[name], name).toBeDefined();
+    }
+    // Chemins A4 bannis : plus aucune fabrique de facture/recu A4 dans le barrel.
+    for (const name of [
+      "buildA4Html",
+      "buildProformaText",
+      "buildPaymentTicketA4Html",
+      "buildDeliveryHtml",
+      "buildReturnSlipHtml",
+      "buildPurchaseOrderHtml",
+    ]) {
+      expect((barrel as Record<string, unknown>)[name], name).toBeUndefined();
     }
     expect(typeof svcMerge).toBe("function");
     expect(typeof svcActive).toBe("function");
@@ -231,18 +246,16 @@ describe("receipt-documents : barrel vs direct", () => {
   });
 });
 
-describe("canaux IPC : parite avant/apres decoupe (30 canaux)", () => {
+describe("canaux IPC : parite avant/apres decoupe (27 canaux)", () => {
   const ALL = [
     "printing.listPrinters",
     "printing.printReceipt",
     "printing.preview",
-    "printing.printA4",
     "printer.get",
     "printer.save",
     "printing.testPage",
     "printing.previewProforma",
     "printing.printProformaA4",
-    "printing.printProforma80mm",
     "printing.previewReport",
     "printing.printReport",
     "printing.previewLabels",
@@ -256,7 +269,6 @@ describe("canaux IPC : parite avant/apres decoupe (30 canaux)", () => {
     "printing.previewPO",
     "printing.printPO",
     "printing.exportReceiptPdf",
-    "printing.exportA4Pdf",
     "printing.exportProformaPdf",
     "printing.exportPaymentPdf",
     "printing.exportReportPdf",
@@ -266,29 +278,29 @@ describe("canaux IPC : parite avant/apres decoupe (30 canaux)", () => {
   ];
   it("chaque module enregistre ses canaux", () => {
     registerReceiptIpc(noDb);
-    for (const c of ALL.slice(0, 7)) {
+    for (const c of ALL.slice(0, 6)) {
       expect(handled(), c).toContain(c);
     }
     mocks.handle.mockClear();
     registerProformaIpc(noDb);
-    for (const c of ALL.slice(7, 10)) expect(handled(), c).toContain(c);
+    for (const c of ALL.slice(6, 8)) expect(handled(), c).toContain(c);
     mocks.handle.mockClear();
     registerReportsLabelsIpc(noDb);
-    for (const c of ALL.slice(10, 14)) expect(handled(), c).toContain(c);
+    for (const c of ALL.slice(8, 12)) expect(handled(), c).toContain(c);
     mocks.handle.mockClear();
     registerPaymentIpc(noDb);
-    for (const c of ALL.slice(14, 16)) expect(handled(), c).toContain(c);
+    for (const c of ALL.slice(12, 14)) expect(handled(), c).toContain(c);
     mocks.handle.mockClear();
     registerLogisticsIpc(noDb);
-    for (const c of ALL.slice(16, 22)) expect(handled(), c).toContain(c);
+    for (const c of ALL.slice(14, 20)) expect(handled(), c).toContain(c);
     mocks.handle.mockClear();
     registerPdfExportsIpc(noDb);
-    for (const c of ALL.slice(22, 28)) expect(handled(), c).toContain(c);
+    for (const c of ALL.slice(20, 25)) expect(handled(), c).toContain(c);
     mocks.handle.mockClear();
     registerStudioIpc(noDb);
-    for (const c of ALL.slice(28)) expect(handled(), c).toContain(c);
+    for (const c of ALL.slice(25)) expect(handled(), c).toContain(c);
   });
-  it("composition : les 30 canaux, aucun ajout ni perte", () => {
+  it("composition : les 27 canaux, aucun ajout ni perte", () => {
     registerPrintingIpc(noDb);
     expect(handled().sort()).toEqual([...ALL].sort());
   });

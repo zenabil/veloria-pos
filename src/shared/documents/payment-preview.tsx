@@ -1,6 +1,7 @@
 // Veloria PoS — Shared: modale de reçu de règlement de dette.
-// Après encaissement (client / fournisseur) : aperçu 80mm + A4,
-// impression 80mm/A4 + export PDF via les canaux dédiés. Rendu main uniquement.
+// Après encaissement (client / fournisseur) : aperçu ticket 58/80mm,
+// impression + export PDF via les canaux dédiés. Rendu main uniquement.
+// Politique opération → format : un règlement ne sort JAMAIS en A4.
 import { useEffect, useState } from "react";
 import { FileDown, Printer } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
@@ -24,7 +25,6 @@ export interface PaymentTicketInput {
 interface LoadedTicket {
   payload: Record<string, unknown>;
   text80: string;
-  htmlA4: string;
 }
 
 export function PaymentTicketModal({
@@ -36,7 +36,6 @@ export function PaymentTicketModal({
   onClose: () => void;
   notify: Notify;
 }): React.JSX.Element {
-  const [format, setFormat] = useState<"80mm" | "A4">("80mm");
   const [doc, setDoc] = useState<LoadedTicket | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -73,8 +72,8 @@ export function PaymentTicketModal({
           newBalanceMinor: ticket.newBalanceMinor,
           notes: ticket.notes,
         };
-        const pv = (await api.paymentPreview(payload)) as { text80: string; htmlA4: string };
-        if (!cancelled) setDoc({ payload, text80: pv.text80, htmlA4: pv.htmlA4 });
+        const pv = (await api.paymentPreview(payload)) as { text80: string };
+        if (!cancelled) setDoc({ payload, text80: pv.text80 });
       } catch (e) {
         if (!cancelled) {
           notify(frError(e, "Aperçu du reçu impossible."), "err");
@@ -90,12 +89,12 @@ export function PaymentTicketModal({
     };
   }, [ticket]);
 
-  async function printDoc(mode: "80mm" | "A4"): Promise<void> {
+  async function printDoc(): Promise<void> {
     if (!doc || busy) return;
     setBusy(true);
     try {
-      await api.paymentPrint(mode === "A4" ? { ...doc.payload, format: "A4" } : doc.payload);
-      notify(mode === "A4" ? "Reçu A4 envoyé." : "Ticket envoyé.", "ok");
+      await api.paymentPrint(doc.payload);
+      notify("Ticket envoyé.", "ok");
     } catch (e) {
       notify(frError(e, "Impression impossible."), "err");
     } finally {
@@ -103,13 +102,11 @@ export function PaymentTicketModal({
     }
   }
 
-  async function exportPdf(mode: "80mm" | "A4"): Promise<void> {
+  async function exportPdf(): Promise<void> {
     if (!doc || busy) return;
     setBusy(true);
     try {
-      const res = (await api.paymentExportPdf(
-        mode === "A4" ? { ...doc.payload, format: "A4" } : doc.payload,
-      )) as { path: string };
+      const res = (await api.paymentExportPdf(doc.payload)) as { path: string };
       notify(`PDF enregistré : ${res.path}`, "ok");
     } catch (e) {
       notify(frError(e, "Export PDF impossible."), "err");
@@ -120,35 +117,10 @@ export function PaymentTicketModal({
 
   return (
     <Modal label="Reçu de règlement" title="Reçu de règlement" onClose={onClose} wide>
-      <div className="mb-3 flex gap-1.5" role="tablist" aria-label="Format du reçu">
-        {(["80mm", "A4"] as const).map((f) => (
-          <button
-            key={f}
-            type="button"
-            role="tab"
-            aria-selected={format === f}
-            onClick={() => setFormat(f)}
-            className={
-              format === f
-                ? "rounded-lg bg-amber-400 px-4 py-1.5 text-xs font-bold text-black"
-                : "rounded-lg border border-white/10 px-4 py-1.5 text-xs font-bold text-slate-400 hover:text-white"
-            }
-          >
-            {f === "A4" ? "Reçu A4" : "Ticket 80mm"}
-          </button>
-        ))}
-      </div>
       {loading || !doc ? (
         <p className="py-10 text-center text-sm text-slate-500" role="status">
           Chargement…
         </p>
-      ) : format === "A4" ? (
-        <iframe
-          sandbox=""
-          srcDoc={doc.htmlA4}
-          title={`Reçu ${ticket.reference || ticket.partyLabel}`}
-          className="h-[50vh] w-full rounded-xl border border-white/10 bg-white"
-        />
       ) : (
         <pre
           className="h-[50vh] overflow-auto rounded-xl border border-white/10 bg-white p-4 font-mono text-[12px] leading-snug text-black"
@@ -159,17 +131,11 @@ export function PaymentTicketModal({
       )}
       {doc ? (
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <Button variant="secondary" disabled={busy} onClick={() => void printDoc("80mm")}>
-            <Printer size={15} aria-hidden="true" /> Imprimer 80mm
+          <Button variant="secondary" disabled={busy} onClick={() => void printDoc()}>
+            <Printer size={15} aria-hidden="true" /> Imprimer le ticket
           </Button>
-          <Button variant="secondary" disabled={busy} onClick={() => void printDoc("A4")}>
-            <Printer size={15} aria-hidden="true" /> Imprimer A4
-          </Button>
-          <Button variant="secondary" disabled={busy} onClick={() => void exportPdf("80mm")}>
-            <FileDown size={15} aria-hidden="true" /> PDF 80mm
-          </Button>
-          <Button variant="secondary" disabled={busy} onClick={() => void exportPdf("A4")}>
-            <FileDown size={15} aria-hidden="true" /> PDF A4
+          <Button variant="secondary" disabled={busy} onClick={() => void exportPdf()}>
+            <FileDown size={15} aria-hidden="true" /> PDF ticket
           </Button>
         </div>
       ) : null}

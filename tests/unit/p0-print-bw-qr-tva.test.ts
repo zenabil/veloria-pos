@@ -1,14 +1,12 @@
 // Veloria PoS — Tests P0-1 : N&B strict + TVA + vendeur + QR (centimes, déterminisme).
 import { describe, it, expect } from "vitest";
 import {
-  buildA4Html,
   buildPaymentText,
-  buildPaymentTicketA4Html,
   buildProformaA4Html,
-  buildProformaText,
   buildPurchaseOrderText,
   buildQrPayload,
   buildReceiptText,
+  proformaFromReceipt,
   thermalHtml,
   tvaBreakdown,
   toReceiptData,
@@ -53,18 +51,12 @@ const BASE: ReceiptData = {
 };
 
 describe("P0-1 N&B strict", () => {
-  it("A4 ne contient aucune couleur hors #fff/#000", () => {
-    const html = buildA4Html(BASE);
+  it("A4 (devis, seul A4 restant) ne contient aucune couleur hors #fff/#000", () => {
+    const html = buildProformaA4Html(proformaFromReceipt(BASE));
     const colors = [...html.matchAll(/#[0-9a-fA-F]{3,6}/g)].map((m) => m[0].toLowerCase());
     const allowed = new Set(["#fff", "#ffffff", "#000", "#000000"]);
     for (const c of colors) {
-      const norm =
-        c.length === 4
-          ? `#${c[1]}${c[1]}${c[1]}`.replace(
-              /#(.)(.)(.)/,
-              (_, a, b, d) => `#${a}${a}${b}${b}${d}${d}`,
-            )
-          : c;
+      const norm = c.length === 4 ? `#${c[1]}${c[1]}${c[2]}${c[2]}${c[3]}${c[3]}` : c;
       expect(allowed.has(c) || allowed.has(norm), c).toBe(true);
     }
     expect(html).toContain("background:#fff");
@@ -85,8 +77,10 @@ describe("P0-1 TVA centimes", () => {
     expect(withTva).toContain("Total HT");
     expect(withTva).toContain("TVA (19 %)");
     expect(withTva).toContain("TOTAL TTC");
-    // A4 avec TVA : lignes Total HT / TVA.
-    expect(buildA4Html({ ...BASE, tvaRatePercent: 19 })).toContain("Total HT");
+    // A4 (devis) avec TVA : lignes Total HT / TVA.
+    expect(buildProformaA4Html(proformaFromReceipt({ ...BASE, tvaRatePercent: 19 }))).toContain(
+      "Total HT",
+    );
   });
 });
 
@@ -94,7 +88,9 @@ describe("P0-1 vendeur + QR", () => {
   it("affiche le vendeur quand renseigné, masque sinon", () => {
     expect(buildReceiptText(BASE)).not.toContain("Vendeur");
     expect(buildReceiptText({ ...BASE, seller: "Yacine" })).toContain("Vendeur : Yacine");
-    expect(buildA4Html({ ...BASE, seller: "Yacine" })).toContain("Vendeur : Yacine");
+    expect(buildProformaA4Html(proformaFromReceipt({ ...BASE, seller: "Yacine" }))).toContain(
+      "Vendeur : Yacine",
+    );
   });
   it("QR déterministe et présent (ticket + A4)", () => {
     const p1 = buildQrPayload({
@@ -117,7 +113,9 @@ describe("P0-1 vendeur + QR", () => {
     expect(p1.startsWith("VELORIA|")).toBe(true);
     expect(buildReceiptText(BASE)).toContain("QR :");
     expect(buildReceiptText(BASE)).toContain("VELORIA|FAC-2026-00001|");
-    const html = buildA4Html({ ...BASE, qrSvg: "<svg></svg>", qrPayload: "VELORIA|X" });
+    const html = buildProformaA4Html(
+      proformaFromReceipt({ ...BASE, qrSvg: "<svg></svg>", qrPayload: "VELORIA|X" }),
+    );
     expect(html).toContain("VELORIA|X");
   });
   it("toReceiptData accepte les nouveaux champs optionnels", () => {
@@ -154,12 +152,6 @@ describe("P0-1 vendeur + QR", () => {
       discountMinor: 0,
       totalMinor: 20000,
     };
-    const text = buildProformaText(proforma);
-    expect(text).toContain("Vendeur : Yacine");
-    expect(text).toContain("TVA (19 %)");
-    expect(text).toContain("QR :");
-    expect(text).toContain("VELORIA|PRO-2026-00042|");
-    expect(text.includes("Facture")).toBe(false);
     const html = buildProformaA4Html(proforma);
     expect(html).toContain("Vendeur : Yacine");
     expect(html).toContain("Total HT");
@@ -189,10 +181,8 @@ describe("P0-1 vendeur + QR", () => {
     };
     expect(buildPaymentText(ticket)).toContain("QR :");
     expect(buildPaymentText(ticket)).toContain("VELORIA|PAY-00042|5000|");
-    const html = buildPaymentTicketA4Html(ticket);
-    expect(html).toContain("PAY-00042");
-    expect(html).toContain("<svg");
-    expect(html).not.toMatch(/#111|#555|#999|#eee/i);
+    // 58mm : même QR, largeur réduite — le reçu n'existe qu'en ticket.
+    expect(buildPaymentText(ticket, "58mm")).toContain("PAY-00042");
   });
   it("thermique : chaque document porte Code 39 + QR (58/80mm, N&B)", () => {
     const codes = { barcode: "FAC-2026-00001", qrSvg: "<svg></svg>", qrPayload: "VELORIA|X" };

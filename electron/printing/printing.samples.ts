@@ -9,18 +9,15 @@ import {
 } from "./printing.templates";
 import { qrSvgOf, withQr } from "./printing.enrich";
 import {
-  buildA4Html,
-  buildDeliveryHtml,
   buildDeliveryText,
   buildLabelsHtml,
   buildPaymentText,
-  buildPaymentTicketA4Html,
   buildProformaA4Html,
-  buildProformaText,
   buildReceiptText,
-  buildReturnSlipHtml,
   buildReturnSlipText,
+  LABEL_FORMATS,
   proformaFromReceipt,
+  type LabelFormat,
   type LabelItem,
   type ReceiptData,
   type ThermalWidth,
@@ -112,7 +109,7 @@ export function renderTemplateSample(
 ): { text80: string; htmlA4: string } {
   const s = override ?? activeTemplateSettings(docType);
   const width = forceWidth ?? thermalWidthFor(s.paper);
-  const page = { page: s.paper === "A5" ? "A5" : "A4", marginMm: s.marginMm };
+  const page = { page: "A4", marginMm: s.marginMm };
   if (docType === "etiquette") {
     const items: LabelItem[] = [0, 1].map((i) => ({
       name: i === 0 ? "Sucre 1kg" : "Huile 5L",
@@ -120,9 +117,13 @@ export function renderTemplateSample(
       barcode: i === 0 ? "6191234567890" : "6190987654321",
       qrSvg: s.showQr ? qrSvgOf(i === 0 ? "6191234567890" : "6190987654321", 2) : undefined,
     }));
+    // Gabarit d'étiquette = papier du modèle (jamais A4).
+    const fmt: LabelFormat = (LABEL_FORMATS as readonly string[]).includes(s.paper)
+      ? (s.paper as LabelFormat)
+      : "58x30";
     return {
       text80: "",
-      htmlA4: buildLabelsHtml(items, { format: "A4-24" }),
+      htmlA4: buildLabelsHtml(items, { format: fmt }),
     };
   }
   if (docType === "recu") {
@@ -155,7 +156,7 @@ export function renderTemplateSample(
     const d = { ...base, qrPayload, qrSvg: "" };
     return {
       text80: buildPaymentText(d, width),
-      htmlA4: buildPaymentTicketA4Html(d, page),
+      htmlA4: "",
     };
   }
   const receipt = applySettingsToReceipt(s, withQr(sampleReceipt()));
@@ -165,7 +166,8 @@ export function renderTemplateSample(
       invoice: "PRO-2026-00042",
       date: "03/10/2026, 10:00:00",
     });
-    return { text80: buildProformaText(p, width), htmlA4: buildProformaA4Html(p, page) };
+    // Devis = A4 uniquement (jamais de ticket).
+    return { text80: "", htmlA4: buildProformaA4Html(p, page) };
   }
   if (docType === "bon_livraison") {
     const d = {
@@ -175,7 +177,7 @@ export function renderTemplateSample(
     };
     return {
       text80: buildDeliveryText(d, width),
-      htmlA4: buildDeliveryHtml(d, page),
+      htmlA4: "",
     };
   }
   if (docType === "avoir") {
@@ -188,11 +190,11 @@ export function renderTemplateSample(
     };
     return {
       text80: buildReturnSlipText(d, width),
-      htmlA4: buildReturnSlipHtml(d, page),
+      htmlA4: "",
     };
   }
   return {
     text80: buildReceiptText(receipt, width),
-    htmlA4: buildA4Html(receipt, page),
+    htmlA4: "",
   };
 }

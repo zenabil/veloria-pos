@@ -67,7 +67,6 @@ export function DebtDetailsDrawer({
   // Fiche entreprise : source unique partagée (ticket).
   const { record: companyRecord } = useCompany();
   const [ticket, setTicket] = useState<{
-    htmlA4: string;
     text80: string;
     payload: Record<string, unknown>;
   } | null>(null);
@@ -121,8 +120,8 @@ export function DebtDetailsDrawer({
         customer,
         customerId,
       );
-      const pv = (await api.printPreview(payload)) as { text80: string; htmlA4: string };
-      setTicket({ htmlA4: pv.htmlA4, text80: pv.text80, payload });
+      const pv = (await api.printPreview(payload)) as { text80: string };
+      setTicket({ text80: pv.text80, payload });
     } catch (e) {
       notify(frError(e, "Aperçu indisponible."), "err");
     } finally {
@@ -130,14 +129,14 @@ export function DebtDetailsDrawer({
     }
   }
 
-  async function printTicket(mode: "80mm" | "A4"): Promise<void> {
+  async function printTicket(): Promise<void> {
     if (!ticket) return;
     try {
-      if (mode === "A4") await api.printA4(ticket.payload);
-      else await api.printReceipt(ticket.payload);
+      // Vente = ticket uniquement (jamais A4).
+      await api.printReceipt(ticket.payload);
       // P5 : impression = papier.
       playSound("print");
-      notify(mode === "A4" ? "Facture A4 envoyée." : "Ticket envoyé.", "ok");
+      notify("Ticket envoyé.", "ok");
     } catch (e) {
       notify(frError(e, "Impression impossible."), "err");
     }
@@ -288,21 +287,12 @@ export function DebtDetailsDrawer({
         <DocumentPreviewModal
           label="Ticket de vente"
           title="Ticket de vente"
-          htmlA4={ticket.htmlA4}
           text80={ticket.text80}
-          a4TabLabel="Facture A4"
           onClose={() => setTicket(null)}
           actions={
             <div className="flex gap-2">
-              <Button
-                variant="secondary"
-                onClick={() => void printTicket("80mm")}
-                className="flex-1"
-              >
-                <Printer size={15} aria-hidden="true" /> Ticket 80mm
-              </Button>
-              <Button variant="secondary" onClick={() => void printTicket("A4")} className="flex-1">
-                <Printer size={15} aria-hidden="true" /> Facture A4
+              <Button variant="secondary" onClick={() => void printTicket()} className="flex-1">
+                <Printer size={15} aria-hidden="true" /> Imprimer le ticket
               </Button>
             </div>
           }

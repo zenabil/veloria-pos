@@ -40,30 +40,21 @@ export {
 } from "./receipt-documents/chrome";
 export type { PageOpts } from "./receipt-documents/chrome";
 export { buildReceiptText, toReceiptData } from "./receipt-documents/receipt-text";
-export { buildA4Html } from "./receipt-documents/receipt-a4";
-export {
-  buildProformaA4Html,
-  buildProformaText,
-  proformaFromReceipt,
-} from "./receipt-documents/proforma";
+export { buildProformaA4Html, proformaFromReceipt } from "./receipt-documents/proforma";
 export type { ProformaData } from "./receipt-documents/proforma";
 export {
   buildPaymentText,
-  buildPaymentTicketA4Html,
   paymentTicketKindLabel,
   toPaymentTicketData,
 } from "./receipt-documents/payment-ticket";
 export type { PaymentTicketData, PaymentTicketKind } from "./receipt-documents/payment-ticket";
 export { buildReportHtml, toReportData } from "./receipt-documents/report";
 export type { ReportChart, ReportData, ReportKpi, ReportTable } from "./receipt-documents/report";
-export { buildLabelsHtml, labelPageMicrons } from "./receipt-documents/labels";
+export { buildLabelsHtml, LABEL_FORMATS, labelPageMicrons } from "./receipt-documents/labels";
 export type { LabelFormat, LabelItem, LabelOptions } from "./receipt-documents/labels";
 export {
-  buildDeliveryHtml,
   buildDeliveryText,
-  buildPurchaseOrderHtml,
   buildPurchaseOrderText,
-  buildReturnSlipHtml,
   buildReturnSlipText,
 } from "./receipt-documents/logistics";
 export type { LogisticsDocData } from "./receipt-documents/logistics";

@@ -1,12 +1,9 @@
 // Veloria PoS — Tests P0-3/P0-4/P1-3 : docs logistiques + étiquettes + backup fréquences.
 import { describe, it, expect } from "vitest";
 import {
-  buildDeliveryHtml,
   buildDeliveryText,
   buildLabelsHtml,
-  buildPurchaseOrderHtml,
   buildPurchaseOrderText,
-  buildReturnSlipHtml,
   buildReturnSlipText,
   code128Svg,
   code128Symbols,
@@ -68,44 +65,34 @@ const DOC: LogisticsDocData = {
   validityDays: 30,
 };
 
-describe("P0-3 documents logistiques", () => {
-  it("livraison : A4 N&B + thermique + schémas", () => {
-    const html = buildDeliveryHtml(DOC);
-    expect(html).toContain("BON DE LIVRAISON");
-    expect(html).toContain("Vente d");
-    expect(html).not.toMatch(/#111|#555|#999|#eee/i);
-    expect(buildDeliveryText(DOC)).toContain("BON DE LIVRAISON");
+describe("P0-3 documents logistiques (ticket uniquement, jamais A4)", () => {
+  it("livraison : thermique N&B + schéma", () => {
+    const text = buildDeliveryText(DOC);
+    expect(text).toContain("BON DE LIVRAISON");
+    expect(text).toContain("Vente");
+    expect(text).toContain("FAC-2026-00001");
+    expect(text).not.toMatch(/#111|#555|#999|#eee/i);
     expect(() => deliveryPayloadSchema.parse({ ...DOC, lines: DOC.lines })).not.toThrow();
   });
   it("retour : cause + remboursement", () => {
-    const html = buildReturnSlipHtml(DOC);
-    expect(html).toContain("BON DE RETOUR");
-    expect(html).toContain("Défectueux");
-    expect(html).toContain("Remboursé");
-    expect(buildReturnSlipText(DOC)).toContain("BON DE RETOUR");
+    const text = buildReturnSlipText(DOC);
+    expect(text).toContain("BON DE RETOUR");
+    expect(text).toContain("Défectueux");
+    expect(text).toContain("Remboursé");
     expect(() => returnSlipPayloadSchema.parse({ ...DOC, lines: DOC.lines })).not.toThrow();
   });
   it("commande : fournisseur + validité", () => {
-    const html = buildPurchaseOrderHtml(DOC);
-    expect(html).toContain("BON DE COMMANDE");
-    expect(html).toContain("Fournisseur SARL");
-    expect(buildPurchaseOrderText(DOC)).toContain("BON DE COMMANDE");
+    const text = buildPurchaseOrderText(DOC);
+    expect(text).toContain("BON DE COMMANDE");
+    expect(text).toContain("Fournisseur SARL");
     expect(() => purchaseOrderDocPayloadSchema.parse({ ...DOC, lines: DOC.lines })).not.toThrow();
   });
 });
 
 describe("P0-4 étiquettes multi-formats", () => {
   const items = [{ name: "Coca", priceMinor: 10000, barcode: "FAC-2026-00001" }];
-  it("7 formats N&B déterministes", () => {
-    for (const format of [
-      "30x20",
-      "45x20",
-      "50x30",
-      "58x30",
-      "58x40",
-      "A4-24",
-      "custom",
-    ] as const) {
+  it("6 formats thermiques N&B déterministes (jamais A4)", () => {
+    for (const format of ["30x20", "45x20", "50x30", "58x30", "58x40", "custom"] as const) {
       const opts = { format, customWidthMm: 40, customHeightMm: 25 } as const;
       const html = buildLabelsHtml(items, opts);
       // Étiquette épurée : prix + Code39 seuls (ni nom, ni code répété).
@@ -126,27 +113,15 @@ describe("P0-4 étiquettes multi-formats", () => {
     for (const format of ["30x20", "45x20", "50x30", "58x30", "58x40", "custom"] as const) {
       const html = buildLabelsHtml(items, { format, customWidthMm: 40, customHeightMm: 25 });
       expect(html).toContain("break-after:page");
-      expect(html).toContain("body{margin:0}");
+      expect(html).toContain("color:#000;margin:0}");
       expect(html).not.toContain("margin:5mm");
     }
-    // Planche A4 inchangée (aperçu = impression).
-    const a4 = buildLabelsHtml(items, { format: "A4-24" });
-    expect(a4).toContain("margin:5mm");
-    expect(a4).not.toContain("break-after");
   });
   it("1 article = 1 cellule (jobs unitaires)", () => {
     // printLabels envoie 1 page par étiquette : le HTML unitaire ne doit
     // contenir qu'une seule cellule pour garantir 2 demandées = 2 sorties.
     const one = { name: "Coca", priceMinor: 10000, barcode: "FAC-2026-00001" };
-    for (const format of [
-      "30x20",
-      "45x20",
-      "50x30",
-      "58x30",
-      "58x40",
-      "A4-24",
-      "custom",
-    ] as const) {
+    for (const format of ["30x20", "45x20", "50x30", "58x30", "58x40", "custom"] as const) {
       const html = buildLabelsHtml([one], { format, customWidthMm: 40, customHeightMm: 25 });
       expect(html.match(/class="label"/g)).toHaveLength(1);
     }
@@ -161,10 +136,9 @@ describe("P0-4 étiquettes multi-formats", () => {
       width: 40000,
       height: 25000,
     });
-    expect(labelPageMicrons({ format: "A4-24" })).toBeNull();
-    expect(labelPageMicrons({})).toBeNull();
+    expect(labelPageMicrons({})).toEqual({ width: 45000, height: 20000 });
   });
-  it("schéma labels accepte format + custom", () => {
+  it("schéma labels accepte format + custom, rejette l'ancienne planche A4", () => {
     expect(() =>
       labelsPayloadSchema.parse({ items: [{ name: "C", priceMinor: 1, barcode: "X" }] }),
     ).not.toThrow();
@@ -174,6 +148,13 @@ describe("P0-4 étiquettes multi-formats", () => {
         format: "58x30",
       }),
     ).not.toThrow();
+    // « A4-24 » a disparu : l'A4 est banni pour les étiquettes.
+    expect(() =>
+      labelsPayloadSchema.parse({
+        items: [{ name: "C", priceMinor: 1, barcode: "X" }],
+        format: "A4-24",
+      }),
+    ).toThrow();
   });
 });
 
@@ -218,7 +199,8 @@ describe("Code 128 étiquettes (ISO 15417)", () => {
       format: "45x20",
     });
     expect(thermal).toContain("margin:0 2mm");
-    expect(buildLabelsHtml([{ name: "C", priceMinor: 10000, barcode: "11" }], {})).not.toContain(
+    // Thermique uniquement : même sans format explicite (défaut 45x20).
+    expect(buildLabelsHtml([{ name: "C", priceMinor: 10000, barcode: "11" }], {})).toContain(
       "margin:0 2mm",
     );
   });

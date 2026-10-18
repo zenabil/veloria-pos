@@ -126,15 +126,16 @@ export async function issueTestLicense(
     // (pages absentes) est refusé pour les licences émises après le cutoff :
     // le harnais E2E doit parler le contrat actuel, pas l'ancien.
     pages: Object.fromEntries(LICENSE_PAGES.map((p) => [p, true])),
-    // Features = celles exigées par les flux E2E (vente→preview 80mm/A4,
-    // crédit, retours, backup/restore) — sans elles, les gardes refuseraient
-    // par conception.
+    // Features = celles exigées par les flux E2E (vente→ticket 80/58,
+    // devis A4, crédit, retours, backup/restore) — sans elles, les gardes
+    // refuseraient par conception.
     features: [
       "advanced-reports",
       "multi-printer",
       "ocr",
       "receipt-80mm",
       "invoice-a4",
+      "proformas",
       "pdf-export",
       "debt-management",
       "partial-payments",

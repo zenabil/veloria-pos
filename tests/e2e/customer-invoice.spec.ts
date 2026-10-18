@@ -1,5 +1,6 @@
-// Veloria PoS — E2E : fiche client depuis la caisse + aperçu facture double
-// format (requêtes 1-3). Dossiers isolés.
+// Veloria PoS — E2E : fiche client depuis la caisse + aperçu ticket 58/80
+// (requêtes 1-3). Politique opération → format : une vente s'affiche et
+// s'imprime en ticket uniquement, jamais en A4. Dossiers isolés.
 import { test } from "@playwright/test";
 import {
   closeApp,
@@ -23,7 +24,7 @@ test.afterEach(async () => {
   await closeApp(ctx);
 });
 
-test("fiche client depuis la vente + aperçu facture 80mm/A4", async () => {
+test("fiche client depuis la vente + aperçu ticket 58/80", async () => {
   const { page } = ctx;
   const product = uniqueTag("E2ECli");
   const who = `Cli${uniqueTag("X").slice(-8)} Nom${uniqueTag("Y").slice(-8)}`;
@@ -46,7 +47,7 @@ test("fiche client depuis la vente + aperçu facture 80mm/A4", async () => {
   await gotoModule(page, "Caisse");
   await page.getByLabel("Recherche produit", { exact: true }).fill(product);
   await page
-    .getByRole("button", { name: new RegExp(product) })
+    .getByRole("option", { name: new RegExp(product) })
     .first()
     .click();
   await page.getByLabel("Rechercher un client").fill(who.slice(0, 14));
@@ -77,23 +78,22 @@ test("fiche client depuis la vente + aperçu facture 80mm/A4", async () => {
   await expect(page.getByText("Dette actuelle")).toBeVisible();
   await page.getByRole("tab", { name: "Factures" }).click();
   await expect(page.getByText(invoice, { exact: false }).first()).toBeVisible();
-  // Requête 2 : aperçu facture depuis la fiche, deux formats.
+  // Requête 2 : aperçu facture depuis la fiche — ticket 58/80 uniquement.
   // (nom accessible = aria-label « Ouvrir la facture … », pas le texte
-  // visible « Facture » qu'il remplace — même piège que la fiche).
+  // visible « Facture » qu'il remplace — même piège que la fiche.)
   await page
     .getByRole("button", { name: new RegExp(`Ouvrir la facture ${invoice}`) })
     .first()
     .click();
-  await expect(page.getByRole("tab", { name: "Facture A4" })).toBeVisible();
-  await page.getByRole("tab", { name: "Ticket 80mm" }).click();
   await expect(page.getByLabel(new RegExp(`Aperçu ticket ${invoice}`))).toBeVisible();
-  await page.getByRole("tab", { name: "Facture A4" }).click();
-  await expect(page.locator("iframe").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Imprimer le ticket" })).toBeVisible();
+  // Politique opération → format : plus d'onglet A4 pour une vente.
+  await expect(page.getByRole("tab", { name: "Facture A4" })).toHaveCount(0);
   await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
 });
 
-test("historique : aperçu facture 80mm + A4", async () => {
+test("historique : aperçu ticket 58/80", async () => {
   const { page } = ctx;
   const product = uniqueTag("E2EHist");
   await gotoModule(page, "Catalogue");
@@ -107,7 +107,7 @@ test("historique : aperçu facture 80mm + A4", async () => {
   await gotoModule(page, "Caisse");
   await page.getByLabel("Recherche produit", { exact: true }).fill(product);
   await page
-    .getByRole("button", { name: new RegExp(product) })
+    .getByRole("option", { name: new RegExp(product) })
     .first()
     .click();
   await page.getByRole("button", { name: "Encaisser", exact: true }).click();
@@ -117,7 +117,7 @@ test("historique : aperçu facture 80mm + A4", async () => {
   expect(invoice).toMatch(/FAC-/);
   await page.keyboard.press("Escape");
 
-  // Requête 3 : double format depuis l'historique.
+  // Requête 3 : aperçu ticket depuis l'historique (jamais d'A4 pour une vente).
   await gotoModule(page, "Historique");
   await page
     .getByLabel("Rechercher dans l'historique (ticket, client, référence ou code-barres)")
@@ -134,8 +134,8 @@ test("historique : aperçu facture 80mm + A4", async () => {
   await histRow.evaluate((el) => el.scrollIntoView({ block: "center", inline: "end" }));
   await histRow.getByRole("button", { name: /Voir/ }).click();
   await page.getByRole("button", { name: /Voir le document/ }).click();
-  await expect(page.getByRole("tab", { name: "Facture A4" })).toBeVisible();
-  await expect(page.locator("iframe").first()).toBeVisible();
-  await page.getByRole("tab", { name: "Ticket 80mm" }).click();
-  await expect(page.getByLabel("Aperçu ticket 80mm")).toBeVisible();
+  await expect(page.getByLabel("Aperçu ticket 58/80 mm — Ticket de vente")).toBeVisible();
+  // Aperçu 100% ticket : aucun onglet A4, aucun iframe.
+  await expect(page.getByRole("tab", { name: "Facture A4" })).toHaveCount(0);
+  await expect(page.locator("iframe")).toHaveCount(0);
 });

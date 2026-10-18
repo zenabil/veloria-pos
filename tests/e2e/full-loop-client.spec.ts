@@ -111,7 +111,7 @@ test("boucle locale : client + vente à crédit + miroir poussé", async () => {
   await gotoModule(page, "Caisse");
   await page.getByLabel("Recherche produit", { exact: true }).fill(product);
   await page
-    .getByRole("button", { name: new RegExp(product) })
+    .getByRole("option", { name: new RegExp(product) })
     .first()
     .click();
   await page.getByRole("button", { name: `Augmenter ${product}` }).click();

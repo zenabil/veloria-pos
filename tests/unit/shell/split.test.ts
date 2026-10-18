@@ -4,7 +4,7 @@ import { MODULES } from "@/app/shell/modules.ts";
 import { MODULE_PAGES } from "@/app/shell/modules.ts";
 import { LAZY_SCREENS } from "@/app/shell/module-screens.ts";
 import { FALLBACK_HINTS, FOOTER_HINTS, hintsFor } from "@/app/shell/footer-hints.ts";
-import { initialPrintMode, initialSidebarCollapsed } from "@/app/shell/shell-types.ts";
+import { initialSidebarCollapsed } from "@/app/shell/shell-types.ts";
 import type { ModuleId } from "@/app/shell/shell-types.ts";
 
 const ALL_IDS: ModuleId[] = [
@@ -52,7 +52,6 @@ describe("shell split", () => {
   });
 
   it("initial* : replis sûrs sans localStorage", () => {
-    expect(initialPrintMode()).toBe("80mm");
     expect(initialSidebarCollapsed()).toBe(false);
   });
 });

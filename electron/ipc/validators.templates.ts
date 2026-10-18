@@ -1,18 +1,16 @@
 // Veloria PoS - Zod: modeles print studio (extrait de validators.ts, deplacement pur).
 
 import { z } from "zod";
-import { printFormatSchema } from "./validators.print";
-
-export const paymentTicketFormatSchema = printFormatSchema;
 
 // ---------------------------------------------------------------------------
-// C6 : Print Studio �?" modèles d'impression (migration 0036, SQLite).
+// C6 : Print Studio — modèles d'impression (migration 0036, SQLite).
 // Un modèle par (type, nom), un seul actif par type (UNIQUE partiel).
 // N&B strict conservé (pas de couleurs/polices : invariant P0 testé).
+// Politique opération → format : ticket pour vente/retour/livraison/reçu,
+// A4 pour le devis uniquement, gabarits thermiques pour les étiquettes.
 // ---------------------------------------------------------------------------
 
 export const templateDocTypeSchema = z.enum([
-  "facture",
   "ticket",
   "proforma",
   "bon_livraison",
@@ -21,7 +19,16 @@ export const templateDocTypeSchema = z.enum([
   "etiquette",
 ]);
 
-export const templatePaperSchema = z.enum(["A4", "A5", "80mm", "58mm"]);
+export const templatePaperSchema = z.enum([
+  "A4",
+  "80mm",
+  "58mm",
+  "30x20",
+  "45x20",
+  "50x30",
+  "58x30",
+  "58x40",
+]);
 
 export const templateSettingsSchema = z.object({
   paper: templatePaperSchema.default("A4"),
@@ -72,7 +79,6 @@ export const templateResetSchema = z.object({
 export const templatePreviewSchema = z.object({
   docType: templateDocTypeSchema,
   settings: templateSettingsSchema,
-  format: printFormatSchema,
 });
 
 export const templateTestPrintSchema = z.object({

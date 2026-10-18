@@ -69,13 +69,11 @@ export async function createProforma(d: SellFlowDeps): Promise<void> {
     }
     try {
       const pv = (await api.proformaPreview(payload)) as {
-        text80: string;
         htmlA4: string;
       };
       d.setProformaDoc({
         number: res.number,
         date: payload["date"] as string,
-        text80: pv.text80,
         htmlA4: pv.htmlA4,
         payload,
       });

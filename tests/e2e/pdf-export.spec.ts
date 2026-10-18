@@ -1,6 +1,8 @@
-// Veloria PoS — E2E : export PDF ticket 80mm + facture A4, contenu vérifié.
-// Requête 4 : les deux formats s'exportent en PDF lisibles (en-tête %PDF +
-// nº de facture et article extraits du texte via pdfjs local).
+// Veloria PoS — E2E : export PDF ticket 80mm (vente) + devis A4, contenu
+// vérifié. Politique opération → format : la vente s'exporte en ticket
+// uniquement ; l'A4 est réservé au devis. Requête 4 : les deux formats
+// s'exportent en PDF lisibles (en-tête %PDF + nº de facture et article
+// extraits du texte via pdfjs local).
 // Chemins explicites (pas de dialogue natif en E2E). Dossiers isolés.
 import { test } from "@playwright/test";
 import fs from "node:fs";
@@ -37,7 +39,7 @@ interface Bridge {
     };
     printing: {
       exportReceiptPdf: (p: unknown) => Promise<unknown>;
-      exportA4Pdf: (p: unknown) => Promise<unknown>;
+      exportProformaPdf: (p: unknown) => Promise<unknown>;
     };
   };
 }
@@ -62,7 +64,7 @@ async function pdfText(file: string): Promise<string> {
   return out;
 }
 
-test("export PDF 80mm + A4 d'une vente comptant (contenu vérifié)", async () => {
+test("export PDF ticket 80mm (vente) + devis A4 (contenu vérifié)", async () => {
   const { page } = ctx;
   const name = uniqueTag("E2EPdf");
   await gotoModule(page, "Catalogue");
@@ -76,7 +78,7 @@ test("export PDF 80mm + A4 d'une vente comptant (contenu vérifié)", async () =
   await gotoModule(page, "Caisse");
   await page.getByLabel("Recherche produit", { exact: true }).fill(name);
   await page
-    .getByRole("button", { name: new RegExp(name) })
+    .getByRole("option", { name: new RegExp(name) })
     .first()
     .click();
   await page.getByRole("button", { name: "Encaisser", exact: true }).click();
@@ -88,7 +90,7 @@ test("export PDF 80mm + A4 d'une vente comptant (contenu vérifié)", async () =
   const pdfDir = path.join(dirs.root, "pdf");
   fs.mkdirSync(pdfDir, { recursive: true });
   const file80 = path.join(pdfDir, "ticket-80mm.pdf");
-  const fileA4 = path.join(pdfDir, "facture-A4.pdf");
+  const fileA4 = path.join(pdfDir, "devis-A4.pdf");
 
   // Payload reconstruit côté page depuis la vente stockée (valeurs cohérentes
   // garanties : mêmes totaux que la vente validée côté main à la création).
@@ -159,9 +161,10 @@ test("export PDF 80mm + A4 d'une vente comptant (contenu vérifié)", async () =
   )) as { ok: boolean; data: { saved: boolean; path: string } };
   expect(exp80.ok).toBe(true);
   expect(exp80.data.saved).toBe(true);
+  // A4 (devis) : même payload reçu-projeté — le devis est le SEUL A4.
   const expA4 = (await page.evaluate(
     ([p, f]: unknown[]) =>
-      (window as unknown as Bridge).veloria.printing.exportA4Pdf({
+      (window as unknown as Bridge).veloria.printing.exportProformaPdf({
         ...(p as Record<string, unknown>),
         filePath: f as string,
       }),
@@ -169,6 +172,21 @@ test("export PDF 80mm + A4 d'une vente comptant (contenu vérifié)", async () =
   )) as { ok: boolean; data: { saved: boolean; path: string } };
   expect(expA4.ok).toBe(true);
   expect(expA4.data.saved).toBe(true);
+
+  // Canaux A4 de vente purgés pour de bon (politique opération → format).
+  const purged = await page.evaluate(() => {
+    const w = window as unknown as {
+      veloria: { printing: Record<string, unknown> };
+    };
+    return {
+      exportA4Pdf: typeof w.veloria.printing["exportA4Pdf"],
+      printA4: typeof w.veloria.printing["printA4"],
+      printProforma80mm: typeof w.veloria.printing["printProforma80mm"],
+    };
+  });
+  expect(purged.exportA4Pdf).toBe("undefined");
+  expect(purged.printA4).toBe("undefined");
+  expect(purged.printProforma80mm).toBe("undefined");
 
   const t80 = await pdfText(file80);
   const tA4 = await pdfText(fileA4);

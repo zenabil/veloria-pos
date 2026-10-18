@@ -1,4 +1,4 @@
-// Veloria PoS — Electron: canaux ticket/facture (decoupage printing.service, zero changement).
+// Veloria PoS — Electron: canaux ticket de vente (decoupage printing.service).
 
 import { ipcMain } from "electron";
 import type { BrowserWindow } from "electron";
@@ -18,14 +18,13 @@ import {
 import { enrichReceipt, receiptCodes } from "./printing.enrich";
 import {
   applyTemplateToReceipt,
-  pageOptsOf,
   printCopies,
   printHtml,
   receiptTextOf,
   renderCopies,
   templateRenderOf,
 } from "./printing.templates";
-import { buildA4Html, buildReceiptText, thermalHtml } from "./receipt-documents";
+import { buildReceiptText, thermalHtml } from "./receipt-documents";
 
 export function registerReceiptIpc(getMainWindow: () => BrowserWindow | null): void {
   ipcMain.handle(IPC_CHANNELS["printing.listPrinters"], async (event, raw: unknown) => {
@@ -77,45 +76,20 @@ export function registerReceiptIpc(getMainWindow: () => BrowserWindow | null): v
   });
 
   // Aperçu avant impression (source unique : builders main, pas de doublon renderer).
+  // Ticket uniquement : la vente ne sort jamais en A4 (politique opération → format).
   ipcMain.handle(IPC_CHANNELS["printing.preview"], (_e, raw: unknown) => {
     const denied = guardPrint("receipt-80mm", ["sales"]);
     if (denied) return denied;
     const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.preview"], raw);
     if (staffDenied) return staffDenied;
     try {
-      const e = enrichReceipt(raw);
-      const t = applyTemplateToReceipt("ticket", e);
-      const f = applyTemplateToReceipt("facture", e);
+      const t = applyTemplateToReceipt("ticket", enrichReceipt(raw));
       const { width } = templateRenderOf("ticket");
-      return {
-        ok: true,
-        data: { text80: receiptTextOf(t, width), htmlA4: buildA4Html(f, pageOptsOf("facture")) },
-      };
+      return { ok: true, data: { text80: receiptTextOf(t, width) } };
     } catch (err) {
       log("ERROR", "printing", "preview.failed", { error: String(err) });
       if (isValidationError(err)) return validationError();
       return { ok: false, code: "PREVIEW_FAILED", message: "Aperçu impossible." };
-    }
-  });
-
-  ipcMain.handle(IPC_CHANNELS["printing.printA4"], async (_e, raw: unknown) => {
-    const denied = guardPrint("invoice-a4", ["invoices", "sales"]);
-    if (denied) return denied;
-    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.printA4"], raw);
-    if (staffDenied) return staffDenied;
-    if (!getMainWindow()) return unavailable("Fenêtre d'impression indisponible.");
-    try {
-      await assertConfiguredPrinterAvailable(getMainWindow);
-      const html = buildA4Html(
-        applyTemplateToReceipt("facture", enrichReceipt(raw)),
-        pageOptsOf("facture"),
-      );
-      await printCopies(html, renderCopies("facture"), 400);
-      return { ok: true, data: { printed: true } };
-    } catch (err) {
-      log("ERROR", "printing", "printA4.failed", { error: String(err) });
-      if (isValidationError(err)) return validationError();
-      return unavailable("Échec d'impression A4. Vérifiez l'imprimante.");
     }
   });
 

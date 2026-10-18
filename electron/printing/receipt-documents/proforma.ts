@@ -1,16 +1,8 @@
 // Veloria PoS — Documents purs : devis / proforma (pur).
 
 import { escapeHtml } from "./html";
-import type { ReceiptData, ReceiptLine, ThermalWidth } from "./common";
-import { amountInWordsFr, buildQrPayload, formatMinorDa, tvaBreakdown } from "./amounts";
-import {
-  thermalCols,
-  thermalField,
-  thermalItem,
-  thermalRow,
-  thermalSep,
-  wrapThermal,
-} from "./thermal";
+import type { ReceiptData, ReceiptLine } from "./common";
+import { amountInWordsFr, buildQrPayload, tvaBreakdown } from "./amounts";
 import {
   codeBlocks,
   companyHead,
@@ -110,50 +102,6 @@ export function proformaFromReceipt(d: ReceiptData): ProformaData {
     watermark: d.watermark,
     headerNote: d.headerNote,
   };
-}
-
-/** Devis 80mm (imprimante thermique partagée, même largeur que le ticket). */
-export function buildProformaText(d: ProformaData, width?: ThermalWidth): string {
-  const cols = thermalCols(width);
-  const sep = thermalSep(cols);
-  const fmt = formatMinorDa;
-  const out: string[] = [];
-  for (const l of wrapThermal(`*** ${d.company} ***`, cols)) out.push(l);
-  out.push(`DEVIS (SANS VALEUR FISCALE)`);
-  out.push(...thermalField("N°", d.number, cols));
-  out.push(...thermalField("Date", d.date, cols));
-  if (d.seller) out.push(...thermalField("Vendeur", d.seller, cols));
-  if (d.customerName) out.push(...thermalField("Client", d.customerName, cols));
-  out.push(sep);
-  out.push(`PRODUIT · QTÉ x P.U. = TOTAL`);
-  for (const l of d.lines) {
-    for (const row of thermalItem(
-      `${l.ref && l.ref !== "—" ? `[${l.ref}] ` : ""}${l.name}`,
-      `${l.qty} x ${fmt(l.unitPriceMinor)}`,
-      fmt(l.lineTotalMinor),
-      cols,
-    ))
-      out.push(row);
-  }
-  out.push(sep);
-  for (const row of thermalRow("Sous-total", fmt(d.subtotalMinor), cols)) out.push(row);
-  if (d.discountMinor > 0)
-    for (const row of thermalRow("Remise", fmt(d.discountMinor), cols)) out.push(row);
-  const rate = typeof d.tvaRatePercent === "number" ? d.tvaRatePercent : 0;
-  if (rate > 0) {
-    const ht = typeof d.htMinor === "number" ? d.htMinor : 0;
-    const tv = typeof d.tvaMinor === "number" ? d.tvaMinor : 0;
-    const v = ht > 0 || tv > 0 ? { htMinor: ht, tvaMinor: tv } : tvaBreakdown(d.totalMinor, rate);
-    for (const row of thermalRow("Total HT", fmt(v.htMinor), cols)) out.push(row);
-    for (const row of thermalRow(`TVA (${rate} %)`, fmt(v.tvaMinor), cols)) out.push(row);
-  }
-  out.push(...thermalRow("TOTAL DEVIS", fmt(d.totalMinor), cols));
-  out.push(``);
-  for (const row of thermalField("En lettres", amountInWordsFr(d.totalMinor), cols)) out.push(row);
-  const qr = docQrPayload({ ...d, invoice: d.number });
-  if (qr) out.push(...thermalField("QR", qr, cols));
-  for (const l of wrapThermal(`Devis valable 30 jours.`, cols)) out.push(l);
-  return out.join("\n");
 }
 
 /** Devis A4 (maquette : destinataire, validité, conditions, non comptabilisé). */

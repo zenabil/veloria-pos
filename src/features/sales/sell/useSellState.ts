@@ -64,7 +64,6 @@ export function useSellState(cart: ActiveCart) {
     sale: LastSale;
     saleId: number | null;
     text80: string;
-    htmlA4: string;
   } | null>(null);
   /** Aide raccourcis clavier caisse ([?]) : modale pure, aucun IPC. */
   const [helpOpen, setHelpOpen] = useState(false);

@@ -196,11 +196,9 @@ interface Window {
     printing: {
       listPrinters(): Promise<VeloriaOutcome>;
       printReceipt(p: unknown): Promise<VeloriaOutcome>;
-      printA4(p: unknown): Promise<VeloriaOutcome>;
       preview(p: unknown): Promise<VeloriaOutcome>;
       previewProforma(p: unknown): Promise<VeloriaOutcome>;
       printProformaA4(p: unknown): Promise<VeloriaOutcome>;
-      printProforma80mm(p: unknown): Promise<VeloriaOutcome>;
       exportProformaPdf(p: unknown): Promise<VeloriaOutcome>;
       previewReport(p: unknown): Promise<VeloriaOutcome>;
       printReport(p: unknown): Promise<VeloriaOutcome>;
@@ -212,7 +210,6 @@ interface Window {
       exportPaymentPdf(p: unknown): Promise<VeloriaOutcome>;
       exportReportPdf(p: unknown): Promise<VeloriaOutcome>;
       exportReceiptPdf(p: unknown): Promise<VeloriaOutcome>;
-      exportA4Pdf(p: unknown): Promise<VeloriaOutcome>;
       previewDelivery(p: unknown): Promise<VeloriaOutcome>;
       printDelivery(p: unknown): Promise<VeloriaOutcome>;
       previewReturnSlip(p: unknown): Promise<VeloriaOutcome>;

@@ -19,8 +19,6 @@ export type ModuleId =
   | "settings"
   | "license";
 
-export type PrintMode = "80mm" | "A4";
-
 export type ToastKind = "ok" | "err";
 
 export interface Toast {
@@ -31,7 +29,6 @@ export interface Toast {
 
 export type Notify = (message: string, kind?: ToastKind) => void;
 
-export const PRINT_MODE_KEY = "veloria.printMode";
 export const SIDEBAR_KEY = "veloria.sidebarCollapsed";
 
 // Préférences thème/densité : source unique partagée (les rubriques
@@ -45,18 +42,9 @@ export {
   type Theme,
 } from "@shared/ui/theme-density.ts";
 
-export function initialPrintMode(): PrintMode {
-  // Préférence d'interface uniquement (pas une donnée métier).
-  try {
-    return window.localStorage.getItem(PRINT_MODE_KEY) === "A4" ? "A4" : "80mm";
-  } catch {
-    return "80mm";
-  }
-}
-
 export function initialSidebarCollapsed(): boolean {
-  // Préférence d'interface uniquement (pas une donnée métier) : même
-  // mécanisme local que le mode d'impression, jamais la base SQLite.
+  // Préférence d'interface uniquement (pas une donnée métier) : jamais la
+  // base SQLite.
   try {
     return window.localStorage.getItem(SIDEBAR_KEY) === "1";
   } catch {

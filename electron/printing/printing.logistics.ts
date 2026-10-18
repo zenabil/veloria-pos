@@ -1,4 +1,6 @@
-// Veloria PoS — Electron: canaux logistiques (decoupage printing.service, zero changement).
+// Veloria PoS — Electron: canaux logistiques (decoupage printing.service).
+// Aperçu + impression ticket 58/80mm uniquement (jamais A4) — politique
+// opération → format : livraison / retour / bon de commande.
 
 import { ipcMain } from "electron";
 import type { BrowserWindow } from "electron";
@@ -14,26 +16,22 @@ import { enforceRawChannelGates } from "../ipc/raw-guards";
 import { assertConfiguredPrinterAvailable, getThermalWidth } from "./printing.printer-settings";
 import {
   applyTemplateToReceipt,
-  pageOptsOf,
   printCopies,
   printHtml,
   templateRenderOf,
 } from "./printing.templates";
 import { applyInvoiceSettings, withCompanyIdentity, withLogo, withQr } from "./printing.enrich";
 import {
-  buildDeliveryHtml,
   buildDeliveryText,
-  buildPurchaseOrderHtml,
   buildPurchaseOrderText,
   buildQrPayload,
-  buildReturnSlipHtml,
   buildReturnSlipText,
   thermalHtml,
   toReceiptData,
 } from "./receipt-documents";
 
-// P0-3 : documents logistiques — aperçu + impression A4/thermique.
-// Chaque thermique porte le Code 39 (N° du document) + le QR, comme les A4.
+// P0-3 : documents logistiques — aperçu + impression ticket uniquement.
+// Chaque thermique porte le Code 39 (N° du document) + le QR.
 function logiCodes(
   d: import("./receipt-documents").LogisticsDocData,
   invoice: string,
@@ -101,10 +99,7 @@ export function registerLogisticsIpc(getMainWindow: () => BrowserWindow | null):
       const { width } = templateRenderOf("bon_livraison");
       return {
         ok: true,
-        data: {
-          text80: buildDeliveryText(d, width),
-          htmlA4: buildDeliveryHtml(d, pageOptsOf("bon_livraison")),
-        },
+        data: { text80: buildDeliveryText(d, width) },
       };
     } catch (err) {
       log("ERROR", "printing", "previewDelivery.failed", { error: String(err) });
@@ -126,21 +121,17 @@ export function registerLogisticsIpc(getMainWindow: () => BrowserWindow | null):
     try {
       await assertConfiguredPrinterAvailable(getMainWindow);
       const d = logisticsOf(raw, "delivery");
-      const useA4 = deliveryPayloadSchema.parse(raw).format === "A4";
       const { settings, width } = templateRenderOf("bon_livraison");
-      if (useA4)
-        await printCopies(buildDeliveryHtml(d, pageOptsOf("bon_livraison")), settings.copies, 400);
-      else
-        await printCopies(
-          thermalHtml(
-            buildDeliveryText(d, width),
-            width,
-            logiCodes(d, d.invoice),
-            settings.thermalFontPx,
-          ),
-          settings.copies,
-          300,
-        );
+      await printCopies(
+        thermalHtml(
+          buildDeliveryText(d, width),
+          width,
+          logiCodes(d, d.invoice),
+          settings.thermalFontPx,
+        ),
+        settings.copies,
+        300,
+      );
       return { ok: true, data: { printed: true } };
     } catch (err) {
       log("ERROR", "printing", "printDelivery.failed", { error: String(err) });
@@ -159,10 +150,7 @@ export function registerLogisticsIpc(getMainWindow: () => BrowserWindow | null):
       const { width } = templateRenderOf("avoir");
       return {
         ok: true,
-        data: {
-          text80: buildReturnSlipText(d, width),
-          htmlA4: buildReturnSlipHtml(d, pageOptsOf("avoir")),
-        },
+        data: { text80: buildReturnSlipText(d, width) },
       };
     } catch (err) {
       log("ERROR", "printing", "previewReturn.failed", { error: String(err) });
@@ -180,21 +168,17 @@ export function registerLogisticsIpc(getMainWindow: () => BrowserWindow | null):
     try {
       await assertConfiguredPrinterAvailable(getMainWindow);
       const d = logisticsOf(raw, "return");
-      const useA4 = returnSlipPayloadSchema.parse(raw).format === "A4";
       const { settings, width } = templateRenderOf("avoir");
-      if (useA4)
-        await printCopies(buildReturnSlipHtml(d, pageOptsOf("avoir")), settings.copies, 400);
-      else
-        await printCopies(
-          thermalHtml(
-            buildReturnSlipText(d, width),
-            width,
-            logiCodes(d, d.returnNumber || d.invoice),
-            settings.thermalFontPx,
-          ),
-          settings.copies,
-          300,
-        );
+      await printCopies(
+        thermalHtml(
+          buildReturnSlipText(d, width),
+          width,
+          logiCodes(d, d.returnNumber || d.invoice),
+          settings.thermalFontPx,
+        ),
+        settings.copies,
+        300,
+      );
       return { ok: true, data: { printed: true } };
     } catch (err) {
       log("ERROR", "printing", "printReturn.failed", { error: String(err) });
@@ -212,10 +196,7 @@ export function registerLogisticsIpc(getMainWindow: () => BrowserWindow | null):
       const d = logisticsOf(raw, "po");
       return {
         ok: true,
-        data: {
-          text80: buildPurchaseOrderText(d, getThermalWidth()),
-          htmlA4: buildPurchaseOrderHtml(d),
-        },
+        data: { text80: buildPurchaseOrderText(d, getThermalWidth()) },
       };
     } catch (err) {
       log("ERROR", "printing", "previewPO.failed", { error: String(err) });
@@ -237,18 +218,15 @@ export function registerLogisticsIpc(getMainWindow: () => BrowserWindow | null):
     try {
       await assertConfiguredPrinterAvailable(getMainWindow);
       const d = logisticsOf(raw, "po");
-      const useA4 = purchaseOrderDocPayloadSchema.parse(raw).format !== "80mm";
       const width = getThermalWidth();
-      if (useA4) await printHtml(buildPurchaseOrderHtml(d), 400);
-      else
-        await printHtml(
-          thermalHtml(
-            buildPurchaseOrderText(d, width),
-            width,
-            logiCodes(d, d.orderNumber || d.invoice),
-          ),
-          300,
-        );
+      await printHtml(
+        thermalHtml(
+          buildPurchaseOrderText(d, width),
+          width,
+          logiCodes(d, d.orderNumber || d.invoice),
+        ),
+        300,
+      );
       return { ok: true, data: { printed: true } };
     } catch (err) {
       log("ERROR", "printing", "printPO.failed", { error: String(err) });

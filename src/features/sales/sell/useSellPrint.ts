@@ -1,5 +1,6 @@
-// Veloria PoS — Vente : impression ticket/facture + devis (extrait de SellScreen).
-// Aperçu 80mm/A4, impression auto après vente, boutons devis (A4/80mm/PDF).
+// Veloria PoS — Vente : impression ticket + devis (extrait de SellScreen).
+// Politique opération → format : la vente s'imprime TOUJOURS en ticket 58/80 ;
+// le devis s'imprime/exporte en A4 uniquement (jamais de ticket pour un devis).
 import { playSound } from "@shared/sound/sound.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import { api } from "@shared/types/ipc-client.ts";
@@ -10,29 +11,24 @@ import type { LastSale, ProformaDoc } from "./sell-types.ts";
 export function useSellPrint({
   preview,
   proformaDoc,
-  printMode,
   company,
   notify,
 }: {
-  preview: { sale: LastSale; text80: string; htmlA4: string } | null;
+  preview: { sale: LastSale; text80: string } | null;
   proformaDoc: ProformaDoc | null;
-  printMode: "80mm" | "A4";
   company: CompanyFields;
   notify: Notify;
 }): {
   print: () => Promise<void>;
   printProforma: () => Promise<void>;
-  printProforma80: () => Promise<void>;
   exportProformaPdf: () => Promise<void>;
 } {
   async function print(): Promise<void> {
     if (!preview) return;
     try {
-      if (printMode === "A4")
-        await api.printA4(buildPrintPayload(company, preview.sale, preview.sale.balances));
-      else await api.printReceipt(buildPrintPayload(company, preview.sale, preview.sale.balances));
+      await api.printReceipt(buildPrintPayload(company, preview.sale, preview.sale.balances));
       playSound("print");
-      notify(printMode === "A4" ? "Facture A4 envoyée." : "Ticket envoyé.", "ok");
+      notify("Ticket envoyé.", "ok");
     } catch (e) {
       notify(frError(e, "Impression impossible."), "err");
     }
@@ -48,16 +44,6 @@ export function useSellPrint({
     }
   }
 
-  async function printProforma80(): Promise<void> {
-    if (!proformaDoc) return;
-    try {
-      await api.proformaPrint80mm(proformaDoc.payload);
-      notify(`Devis ${proformaDoc.number} envoyé (80mm).`, "ok");
-    } catch (e) {
-      notify(frError(e, "Impression du devis impossible."), "err");
-    }
-  }
-
   async function exportProformaPdf(): Promise<void> {
     if (!proformaDoc) return;
     try {
@@ -68,5 +54,5 @@ export function useSellPrint({
     }
   }
 
-  return { print, printProforma, printProforma80, exportProformaPdf };
+  return { print, printProforma, exportProformaPdf };
 }

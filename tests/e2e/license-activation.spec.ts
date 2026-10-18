@@ -13,6 +13,7 @@ import {
   launchActivatedApp,
   makeIsolatedDirs,
   skipIfNoVendorKey,
+  staffLoginIfNeeded,
   expect,
   type AppContext,
 } from "./helpers";
@@ -71,6 +72,9 @@ test.describe("Activation obligatoire", () => {
       await issueTestLicense(dirs, { tag: "switch" });
       app = await launch();
       const mainPage = await app.firstWindow({ timeout: 60_000 });
+      // Porte session 0041 : base neuve = bootstrap admin + code initial
+      // affiché une fois — on franchit la porte comme l'opérateur.
+      await staffLoginIfNeeded(mainPage);
       await mainPage
         .getByRole("navigation", { name: "Navigation principale" })
         .waitFor({ timeout: 60_000 });

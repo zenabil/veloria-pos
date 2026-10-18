@@ -1,4 +1,4 @@
-// Veloria PoS — Electron: canaux recus de reglement (decoupage printing.service, zero changement).
+// Veloria PoS — Electron: canaux recus de reglement (decoupage printing.service).
 
 import { ipcMain } from "electron";
 import type { BrowserWindow } from "electron";
@@ -8,31 +8,21 @@ import { paymentTicketSchema } from "../ipc/validators";
 import { guardPrint, isValidationError, unavailable, validationError } from "./printing.guards";
 import { enforceRawChannelGates } from "../ipc/raw-guards";
 import { assertConfiguredPrinterAvailable } from "./printing.printer-settings";
-import {
-  applyTemplateToPayment,
-  pageOptsOf,
-  printCopies,
-  templateRenderOf,
-} from "./printing.templates";
+import { applyTemplateToPayment, printCopies, templateRenderOf } from "./printing.templates";
 import {
   applyPaymentSettings,
   withCompanyIdentityPayment,
   withLogoPayment,
 } from "./printing.enrich";
-import {
-  buildPaymentText,
-  buildPaymentTicketA4Html,
-  thermalHtml,
-  toPaymentTicketData,
-} from "./receipt-documents";
+import { buildPaymentText, thermalHtml, toPaymentTicketData } from "./receipt-documents";
 
 // Reçu de règlement de dette (ticket تسديد الدين) : aperçu + impression
-// 80mm/A4 après encaissement client/fournisseur/pain. Garde : ticket 80mm
-// + au moins une page dettes (clients/fournisseurs/pain) — le renderer ne
-// peut pas imprimer un règlement d'un module non licencié.
+// ticket 58/80mm uniquement (jamais A4) après encaissement client /
+// fournisseur / pain. Garde : ticket 80mm + au moins une page dettes
+// (clients/fournisseurs/pain) — le renderer ne peut pas imprimer un
+// règlement d'un module non licencié.
 export function paymentOf(raw: unknown): {
   text80: string;
-  htmlA4: string;
   codes: { barcode: string; qrSvg: string; qrPayload: string };
 } {
   // Validation Zod d'abord (montants/soldes), normalisation ensuite
@@ -80,7 +70,6 @@ export function paymentOf(raw: unknown): {
   const { width } = templateRenderOf("recu");
   return {
     text80: buildPaymentText(d, width),
-    htmlA4: buildPaymentTicketA4Html(d, pageOptsOf("recu")),
     codes,
   };
 }
@@ -108,20 +97,16 @@ export function registerPaymentIpc(getMainWindow: () => BrowserWindow | null): v
     if (!getMainWindow()) return unavailable("Fenêtre d'impression indisponible.");
     try {
       await assertConfiguredPrinterAvailable(getMainWindow);
-      const { text80, htmlA4, codes } = paymentOf(raw);
-      // RADICAL-FIX: format depuis le payload validé Zod (jamais de cast brut).
-      const useA4 = paymentTicketSchema.parse(raw).format === "A4";
+      const { text80, codes } = paymentOf(raw);
       const { settings, width } = templateRenderOf("recu");
       const visible = settings.showCodes
         ? codes
         : { barcode: "", qrSvg: codes.qrSvg, qrPayload: codes.qrPayload };
-      if (useA4) await printCopies(htmlA4, settings.copies, 400);
-      else
-        await printCopies(
-          thermalHtml(text80, width, visible, settings.thermalFontPx),
-          settings.copies,
-          300,
-        );
+      await printCopies(
+        thermalHtml(text80, width, visible, settings.thermalFontPx),
+        settings.copies,
+        300,
+      );
       return { ok: true, data: { printed: true } };
     } catch (err) {
       log("ERROR", "printing", "printPayment.failed", { error: String(err) });

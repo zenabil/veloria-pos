@@ -65,11 +65,10 @@ export interface ClientHistoryItem {
 
 export type LazyState = "idle" | "loading" | "ready" | "error";
 
-/** Bon de retour d'une ligne retours (aperçu A4/80mm + impression). */
+/** Bon de retour d'une ligne retours (aperçu ticket + impression). */
 export interface SlipState {
   payload: Record<string, unknown>;
   text80: string;
-  htmlA4: string;
   title: string;
 }
 

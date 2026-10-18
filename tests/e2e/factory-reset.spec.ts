@@ -51,11 +51,21 @@ test("factory reset : base vierge après réinitialisation confirmée", async ()
   await expect(page.getByRole("button", { name: "Tout effacer" })).toBeEnabled();
   await page.getByRole("button", { name: "Tout effacer" }).click();
 
-  // Redémarrage réel via app.restart : la page se ferme, on relance proprement.
+  // Redémarrage réel : le main appelle app.relaunch() puis app.exit().
+  // L'instance relancée n'est PAS pilotable par Playwright et, en bootant,
+  // elle consommerait le code initial de la porte session 0041 (affiché UNE
+  // fois, jamais stocké en clair) → perdu pour notre relance.
+  // On frappe donc en boucle dès la confirmation : toute instance
+  // `veloria-e2e-*` qui apparaît est tuée AVANT son bootstrap (~5 s), puis
+  // on relance nous-mêmes : c'est NOTRE instance qui affiche le code et
+  // franchit la porte (auto-login du harnais).
   const child = ctx.app.process();
+  for (let i = 0; i < 8; i++) {
+    await killStaleTestInstances();
+    await new Promise((r) => setTimeout(r, 250));
+  }
   await page.waitForEvent("close", { timeout: 30_000 }).catch(() => undefined);
   await waitForProcessExit(child, 30_000);
-  await killStaleTestInstances();
 
   ctx = await relaunchApp(ctx);
   // Base vierge : produit disparu, caisse prête, schéma courant.

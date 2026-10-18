@@ -39,7 +39,7 @@ export function useClientDrawerActions({
   slipBusyKey: string | null;
   slipBusy: boolean;
   openSlip: (kind: string, entityId: number) => Promise<void>;
-  printSlip: (mode: "80mm" | "A4") => Promise<void>;
+  printSlip: () => Promise<void>;
   busy: boolean;
   remove: () => Promise<void>;
   restore: () => Promise<void>;
@@ -49,7 +49,7 @@ export function useClientDrawerActions({
   // Reçu d'une ligne paiement (soldes reconstitués, jamais inventés).
   const [receiptTicket, setReceiptTicket] = useState<PaymentTicketInput | null>(null);
   const [receiptBusyId, setReceiptBusyId] = useState<number | null>(null);
-  // Bon de retour d'une ligne retours (aperçu A4/80mm + impression).
+  // Bon de retour d'une ligne retours (aperçu + impression ticket uniquement).
   const [slip, setSlip] = useState<SlipState | null>(null);
   const [slipBusyKey, setSlipBusyKey] = useState<string | null>(null);
   const [slipBusy, setSlipBusy] = useState(false);
@@ -206,8 +206,8 @@ export function useClientDrawerActions({
         reason: typeof h["reason"] === "string" ? h["reason"] : "",
         refundMinor: refund,
       };
-      const pv = (await api.returnSlipPreview(payload)) as { text80: string; htmlA4: string };
-      setSlip({ payload, text80: pv.text80, htmlA4: pv.htmlA4, title: `Bon de retour ${num}` });
+      const pv = (await api.returnSlipPreview(payload)) as { text80: string };
+      setSlip({ payload, text80: pv.text80, title: `Bon de retour ${num}` });
     } catch (e) {
       notify(frError(e, "Bon de retour indisponible."), "err");
     } finally {
@@ -215,12 +215,13 @@ export function useClientDrawerActions({
     }
   }
 
-  async function printSlip(mode: "80mm" | "A4"): Promise<void> {
+  async function printSlip(): Promise<void> {
     if (!slip || slipBusy) return;
     setSlipBusy(true);
     try {
-      await api.returnSlipPrint(mode === "A4" ? { ...slip.payload, format: "A4" } : slip.payload);
-      notify(mode === "A4" ? "Bon de retour A4 envoyé." : "Bon de retour envoyé.", "ok");
+      // Retour = ticket uniquement (jamais A4).
+      await api.returnSlipPrint(slip.payload);
+      notify("Bon de retour envoyé.", "ok");
     } catch (e) {
       notify(frError(e, "Impression impossible."), "err");
     } finally {

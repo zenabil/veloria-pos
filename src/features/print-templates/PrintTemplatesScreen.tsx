@@ -28,9 +28,8 @@ import { frError } from "@shared/errors/fr-map.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 
 const DOC_TYPES: { type: TemplateDocType; label: string }[] = [
-  { type: "facture", label: "Facture A4" },
   { type: "ticket", label: "Ticket 58/80" },
-  { type: "proforma", label: "Devis" },
+  { type: "proforma", label: "Devis A4" },
   { type: "bon_livraison", label: "Bon de livraison" },
   { type: "recu", label: "Reçu de règlement" },
   { type: "avoir", label: "Bon de retour" },
@@ -75,13 +74,14 @@ function Toggle({
 export function PrintTemplatesScreen({ notify }: { notify: Notify }): React.JSX.Element {
   const [busy, setBusy] = useState(false);
 
-  const [docType, setDocType] = useState<TemplateDocType>("facture");
+  const [docType, setDocType] = useState<TemplateDocType>("ticket");
   const [templates, setTemplates] = useState<TemplateView[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [draft, setDraft] = useState<TemplateSettings>(() => factorySettings("facture"));
+  const [draft, setDraft] = useState<TemplateSettings>(() => factorySettings("ticket"));
   const [draftName, setDraftName] = useState("Défaut");
+  // Aperçu : UN seul format par document (politique opération → format) —
+  // htmlA4 porte le HTML (devis A4, gabarit étiquette), sinon text80.
   const [preview, setPreview] = useState<{ text80: string; htmlA4: string } | null>(null);
-  const [previewMode, setPreviewMode] = useState<"80mm" | "A4">("A4");
   const [dirty, setDirty] = useState(false);
   const previewTimer = useDebouncedTimer();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -331,7 +331,8 @@ export function PrintTemplatesScreen({ notify }: { notify: Notify }): React.JSX.
   }
 
   const papers = allowedPapers(docType);
-  const isThermalDoc = docType === "ticket" || docType === "recu";
+  // Devis = A4 ; étiquettes = gabarit thermique ; le reste = ticket 58/80.
+  const isThermalDoc = docType !== "proforma" && docType !== "etiquette";
 
   return (
     <div className="space-y-4">
@@ -604,39 +605,23 @@ export function PrintTemplatesScreen({ notify }: { notify: Notify }): React.JSX.
         </Card>
 
         <Card className="space-y-2 p-4">
-          <div className="flex items-center justify-between">
-            <div className="text-[15px] font-bold text-[#ffe1a7]">
-              Aperçu live (données démo, sans valeur fiscale)
-            </div>
-            <div className="flex gap-1">
-              {(["A4", "80mm"] as const).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setPreviewMode(m)}
-                  aria-pressed={previewMode === m}
-                  className={
-                    previewMode === m
-                      ? "rounded-lg border border-amber-400/50 bg-amber-400/10 px-2.5 py-1 text-xs font-bold text-amber-200"
-                      : "rounded-lg border border-white/10 px-2.5 py-1 text-xs font-semibold text-slate-400"
-                  }
-                >
-                  {m}
-                </button>
-              ))}
-            </div>
+          <div className="text-[15px] font-bold text-[#ffe1a7]">
+            Aperçu live (données démo, sans valeur fiscale)
           </div>
-          {previewMode === "A4" ? (
-            preview?.htmlA4 ? (
-              <iframe
-                sandbox=""
-                srcDoc={preview.htmlA4}
-                title="Aperçu modèle A4"
-                className="h-[560px] w-full rounded-xl border border-white/10 bg-white"
-              />
-            ) : (
-              <p className="text-sm text-slate-500">Modifiez un réglage pour lancer l'aperçu…</p>
-            )
+          <p className="text-xs text-slate-500">
+            {docType === "proforma"
+              ? "Devis : A4 uniquement — jamais de ticket."
+              : docType === "etiquette"
+                ? "Étiquettes : gabarit thermique — jamais A4."
+                : "Ticket 58/80 mm uniquement — jamais A4 (choix 58/80 via le papier)."}
+          </p>
+          {preview?.htmlA4 ? (
+            <iframe
+              sandbox=""
+              srcDoc={preview.htmlA4}
+              title="Aperçu modèle"
+              className="h-[560px] w-full rounded-xl border border-white/10 bg-white"
+            />
           ) : preview?.text80 ? (
             <pre className="max-h-[560px] overflow-auto whitespace-pre-wrap rounded-xl bg-black/40 p-4 font-mono text-xs leading-relaxed text-slate-200">
               {preview.text80}

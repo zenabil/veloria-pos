@@ -15,7 +15,6 @@ export function SellTotalsPanel({
   deliveryFeeMinor,
   onOpenPay,
   preview,
-  printMode,
   onPrint,
   onCancelLastSale,
   cancelBusy,
@@ -28,8 +27,7 @@ export function SellTotalsPanel({
   setDeliveryText: (v: string) => void;
   deliveryFeeMinor: number;
   onOpenPay: () => void;
-  preview: { sale: LastSale; text80: string; htmlA4: string } | null;
-  printMode: "80mm" | "A4";
+  preview: { sale: LastSale; text80: string } | null;
   onPrint: () => void;
   /** Annulation de la dernière vente (null = aucune vente annulable). */
   onCancelLastSale: (() => void) | null;
@@ -104,7 +102,7 @@ export function SellTotalsPanel({
         <Card className="space-y-3 p-5">
           <SectionTitle
             title={`Dernière vente validée · ${preview.sale.invoice}`}
-            hint={`${preview.sale.date} · Ticket 80mm / Facture A4 (format [F2])`}
+            hint={`${preview.sale.date} · Ticket 58/80 mm`}
             action={
               <div className="flex gap-2">
                 {onCancelLastSale ? (
@@ -123,18 +121,9 @@ export function SellTotalsPanel({
               </div>
             }
           />
-          {printMode === "A4" ? (
-            <iframe
-              sandbox=""
-              srcDoc={preview.htmlA4}
-              title={`Aperçu facture ${preview.sale.invoice}`}
-              className="h-72 w-full rounded-xl border border-white/10 bg-white"
-            />
-          ) : (
-            <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-xl bg-black/40 p-4 font-mono text-xs leading-relaxed text-slate-200">
-              {preview.text80}
-            </pre>
-          )}
+          <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-xl bg-black/40 p-4 font-mono text-xs leading-relaxed text-slate-200">
+            {preview.text80}
+          </pre>
         </Card>
       ) : null}
     </div>

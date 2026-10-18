@@ -29,16 +29,14 @@ export function HistoryDetailsDrawer({
   notify: Notify;
 }): React.JSX.Element {
   const [ticket, setTicket] = useState<{
-    htmlA4: string;
     text80: string;
     payload: Record<string, unknown>;
   } | null>(null);
-  // Requête 3 : aperçu double format (Ticket 80mm + Facture A4) — le format
-  // vit désormais dans le chrome partagé (DocumentPreviewModal).
+  // Aperçu ticket uniquement (politique opération → format) — le chrome
+  // partagé (DocumentPreviewModal) affiche un seul format.
   const [ticketBusy, setTicketBusy] = useState(false);
-  // Bon de livraison (previewDelivery/printDelivery) : aperçu vivant A4/80mm.
+  // Bon de livraison (previewDelivery/printDelivery) : ticket uniquement.
   const [delivery, setDelivery] = useState<{
-    htmlA4: string;
     text80: string;
     payload: Record<string, unknown>;
   } | null>(null);
@@ -86,8 +84,8 @@ export function HistoryDetailsDrawer({
     setTicketBusy(true);
     try {
       const payload = await loadTicketPayload();
-      const pv = (await api.printPreview(payload)) as { text80: string; htmlA4: string };
-      setTicket({ htmlA4: pv.htmlA4, text80: pv.text80, payload });
+      const pv = (await api.printPreview(payload)) as { text80: string };
+      setTicket({ text80: pv.text80, payload });
     } catch (e) {
       notify(frError(e, "Aperçu indisponible."), "err");
     } finally {
@@ -95,21 +93,21 @@ export function HistoryDetailsDrawer({
     }
   }
 
-  async function printTicket(mode: "80mm" | "A4"): Promise<void> {
+  async function printTicket(): Promise<void> {
     if (!ticket) return;
     try {
-      if (mode === "A4") await api.printA4(ticket.payload);
-      else await api.printReceipt(ticket.payload);
+      // Vente = ticket uniquement (jamais A4).
+      await api.printReceipt(ticket.payload);
       // P5 : impression = papier.
       playSound("print");
-      notify(mode === "A4" ? "Facture A4 envoyée." : "Ticket envoyé.", "ok");
+      notify("Ticket envoyé.", "ok");
     } catch (e) {
       notify(frError(e, "Impression impossible."), "err");
     }
   }
 
-  // Bon de livraison : même payload que le ticket + facture d'origine.
-  // Aperçu vivant A4/80mm, impression A4 ou thermique.
+  // Bon de livraison : même payload que le ticket + vente d'origine.
+  // Aperçu et impression ticket 58/80mm uniquement.
   async function openDelivery(): Promise<void> {
     if (detail.ticketSaleId == null || deliveryBusy) return;
     setDeliveryBusy(true);
@@ -123,8 +121,8 @@ export function HistoryDetailsDrawer({
         ...base,
         originNumber: origin,
       };
-      const pv = (await api.deliveryPreview(payload)) as { text80: string; htmlA4: string };
-      setDelivery({ htmlA4: pv.htmlA4, text80: pv.text80, payload });
+      const pv = (await api.deliveryPreview(payload)) as { text80: string };
+      setDelivery({ text80: pv.text80, payload });
     } catch (e) {
       notify(frError(e, "Aperçu indisponible."), "err");
     } finally {
@@ -132,16 +130,14 @@ export function HistoryDetailsDrawer({
     }
   }
 
-  async function printDelivery(mode: "80mm" | "A4"): Promise<void> {
+  async function printDelivery(): Promise<void> {
     if (!delivery || deliveryBusy) return;
     setDeliveryBusy(true);
     try {
-      await api.deliveryPrint(
-        mode === "A4" ? { ...delivery.payload, format: "A4" } : delivery.payload,
-      );
+      await api.deliveryPrint(delivery.payload);
       // P5 : impression = papier.
       playSound("print");
-      notify(mode === "A4" ? "Bon de livraison A4 envoyé." : "Bon de livraison 80mm envoyé.", "ok");
+      notify("Bon de livraison envoyé.", "ok");
     } catch (e) {
       notify(frError(e, "Impression impossible."), "err");
     } finally {
@@ -270,21 +266,12 @@ export function HistoryDetailsDrawer({
         <DocumentPreviewModal
           label="Ticket de vente"
           title="Ticket de vente"
-          htmlA4={ticket.htmlA4}
           text80={ticket.text80}
-          a4TabLabel="Facture A4"
           onClose={() => setTicket(null)}
           actions={
             <div className="flex gap-2">
-              <Button
-                variant="secondary"
-                onClick={() => void printTicket("80mm")}
-                className="flex-1"
-              >
-                <Printer size={15} aria-hidden="true" /> Ticket 80mm
-              </Button>
-              <Button variant="secondary" onClick={() => void printTicket("A4")} className="flex-1">
-                <Printer size={15} aria-hidden="true" /> Facture A4
+              <Button variant="secondary" onClick={() => void printTicket()} className="flex-1">
+                <Printer size={15} aria-hidden="true" /> Imprimer le ticket
               </Button>
             </div>
           }
@@ -295,27 +282,17 @@ export function HistoryDetailsDrawer({
         <DocumentPreviewModal
           label="Bon de livraison"
           title="Bon de livraison"
-          htmlA4={delivery.htmlA4}
           text80={delivery.text80}
-          a4TabLabel="Format A4"
           onClose={() => setDelivery(null)}
           actions={
             <div className="flex gap-2">
               <Button
                 variant="secondary"
-                onClick={() => void printDelivery("80mm")}
+                onClick={() => void printDelivery()}
                 disabled={deliveryBusy}
                 className="flex-1"
               >
-                <Printer size={15} aria-hidden="true" /> Imprimer 80mm
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => void printDelivery("A4")}
-                disabled={deliveryBusy}
-                className="flex-1"
-              >
-                <Printer size={15} aria-hidden="true" /> Imprimer A4
+                <Printer size={15} aria-hidden="true" /> Imprimer le bon
               </Button>
             </div>
           }

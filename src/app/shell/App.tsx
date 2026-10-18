@@ -3,7 +3,7 @@
 // PERF (requête 5) : caisse (module d'accueil) chargée d'emblée, les 16 autres
 // modules en lazy (chunks séparés, voir module-screens.ts) — premier affichage
 // et mémoire réduits ; la navigation reste instantanée après le 1er chargement.
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { SellScreen } from "@features/sales/SellScreen.tsx";
 import { useLicense } from "@features/license/use-license.ts";
 import { useStaff } from "@features/staff/use-staff.ts";
@@ -20,13 +20,8 @@ import { WindowChrome } from "./WindowChrome.tsx";
 import { MODULES, MODULE_PAGES } from "./modules.ts";
 import { LAZY_SCREENS } from "./module-screens.ts";
 import { hintsFor } from "./footer-hints.ts";
-import {
-  PRINT_MODE_KEY,
-  SIDEBAR_KEY,
-  initialPrintMode,
-  initialSidebarCollapsed,
-} from "./shell-types.ts";
-import type { ModuleId, PrintMode, Toast, ToastKind } from "./shell-types.ts";
+import { SIDEBAR_KEY, initialSidebarCollapsed } from "./shell-types.ts";
+import type { ModuleId, Toast, ToastKind } from "./shell-types.ts";
 import { useVigilance } from "./use-vigilance.ts";
 import { useNotifications } from "./use-notifications.ts";
 import { useDensity, useTheme } from "@shared/ui/theme-density.ts";
@@ -40,8 +35,8 @@ import {
   Toasts,
 } from "./ShellOverlays.tsx";
 
-// Compat : SellScreen importe PrintMode/ModuleId depuis App.tsx.
-export type { ModuleId, PrintMode } from "./shell-types.ts";
+// Compat : SellScreen importe ModuleId depuis App.tsx.
+export type { ModuleId } from "./shell-types.ts";
 
 let toastSeq = 0;
 
@@ -53,7 +48,6 @@ export function App(): React.JSX.Element {
   // R6 : code initial porté par le login quand c'est lui qui a créé le
   // compte (course liste/login au premier démarrage).
   const [initialCode, setInitialCode] = useState<string | null>(null);
-  const [printMode, setPrintModeState] = useState<PrintMode>(initialPrintMode);
   const [collapsed, setCollapsed] = useState<boolean>(initialSidebarCollapsed);
   // Version SQLite réelle (santé main) — jamais codée en dur (ADR-038).
   const [sqliteVersion, setSqliteVersion] = useState<string | null>(null);
@@ -68,11 +62,6 @@ export function App(): React.JSX.Element {
         /* badge en repli sans version */
       });
   }, []);
-  // Miroir synchrone du module actif pour le gestionnaire F2 global.
-  const activeRef = useRef<ModuleId>("sell");
-  useEffect(() => {
-    activeRef.current = active;
-  }, [active]);
   const { vigilanceCount } = useVigilance();
   // Thème/densité appliqués au document ; les boutons vivent en Paramètres
   // (rubrique Système → Affichage), plus dans le bandeau de caisse.
@@ -101,38 +90,6 @@ export function App(): React.JSX.Element {
       }
       return next;
     });
-  }, []);
-  const setPrintMode = useCallback((mode: PrintMode): void => {
-    setPrintModeState(mode);
-    try {
-      window.localStorage.setItem(PRINT_MODE_KEY, mode);
-    } catch {
-      /* préférence non persistée, mode conservé en mémoire */
-    }
-  }, []);
-  // F2 : basculer le format d'impression (Ticket 80mm ↔ Facture A4).
-  // Suspendu quand une modale est ouverte (comme tous les raccourcis caisse).
-  // ADR-038 : l'écran Retours possède son propre F2 (Nouveau Retour) — le
-  // basculeur global s'efface pour ne jamais déclencher deux actions.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === "F2") {
-        if (isAnyModalOpen()) return;
-        if (activeRef.current === "returns") return;
-        e.preventDefault();
-        setPrintModeState((m) => {
-          const next = m === "A4" ? "80mm" : "A4";
-          try {
-            window.localStorage.setItem(PRINT_MODE_KEY, next);
-          } catch {
-            /* préférence non persistée */
-          }
-          return next;
-        });
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
   }, []);
   const notify = useCallback((message: string, kind: ToastKind = "ok"): void => {
     const id = ++toastSeq;
@@ -342,13 +299,11 @@ export function App(): React.JSX.Element {
             <TopBar
               licenseStatus={licenseStatus}
               sqliteVersion={sqliteVersion}
-              printMode={printMode}
               currentLabel={current?.label}
               currentHint={current?.hint}
               notifCount={notifCount}
               licenseExpired={licenseExpired}
               onOpenNotifications={() => void openNotifications()}
-              onPrintMode={setPrintMode}
               onGoLicense={() => setActive("license")}
             />
           </div>
@@ -365,7 +320,7 @@ export function App(): React.JSX.Element {
               >
                 <ErrorBoundary moduleLabel={current?.label ?? "Module"} resetKey={active}>
                   {active === "sell" ? (
-                    <SellScreen notify={notify} printMode={printMode} />
+                    <SellScreen notify={notify} />
                   ) : ActiveScreen ? (
                     <ActiveScreen notify={notify} />
                   ) : null}

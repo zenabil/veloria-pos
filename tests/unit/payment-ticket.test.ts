@@ -3,7 +3,6 @@ import { describe, it, expect } from "vitest";
 import { generateKeyPairSync } from "node:crypto";
 import {
   buildPaymentText,
-  buildPaymentTicketA4Html,
   paymentTicketKindLabel,
   toPaymentTicketData,
   type PaymentTicketData,
@@ -54,12 +53,15 @@ describe("payment ticket builders", () => {
     expect(buildPaymentText({ ...TICKET, paymentMethod: "zzz" })).not.toContain("Mode :");
   });
 
-  it("A4 : cartouche + soldes + signatures, entrées échappées", () => {
-    const h = buildPaymentTicketA4Html({ ...TICKET, partyLabel: "<b>X</b>" });
-    expect(h).toContain("REÇU DE RÈGLEMENT");
-    expect(h).toContain("&lt;b&gt;X&lt;/b&gt;");
-    expect(h).toContain("Signature client");
-    expect(h).toContain("50,00");
+  it("ticket 58mm : mêmes montants, largeur réduite (jamais A4)", () => {
+    const t = buildPaymentText(TICKET, "58mm");
+    expect(t).toContain("REÇU DE RÈGLEMENT");
+    expect(t).toContain("Amine Benali");
+    expect(t).toContain("50,00 DA");
+    expect(t).toContain("150,00 DA");
+    expect(t).toContain("100,00 DA");
+    // Le libellé long est enveloppé, jamais tronqué en silence.
+    expect(t).not.toContain("Amine Benali — CL-00125  ");
   });
 
   it("toPaymentTicketData ne lève jamais (repli sûr)", () => {

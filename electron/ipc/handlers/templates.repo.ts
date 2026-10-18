@@ -6,7 +6,6 @@ import { getDb } from "../../database/sqlite.service";
 import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./idempotency";
 
 export const TEMPLATE_DOC_TYPES = [
-  "facture",
   "ticket",
   "proforma",
   "bon_livraison",

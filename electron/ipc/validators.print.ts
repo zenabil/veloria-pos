@@ -165,22 +165,18 @@ export const printPayloadSchema = z
     }
   });
 
-// Export PDF (ticket/facture) : `filePath` optionnel validé séparément
+// Export PDF (ticket) : `filePath` optionnel validé séparément
 // (printPayloadSchema porte déjà un superRefine : ZodEffects non extensible).
-// Sans `filePath` : dialogue natif d'enregistrement côté main �?" jamais
+// Sans `filePath` : dialogue natif d'enregistrement côté main — jamais
 // d'écriture silencieuse arbitraire. Avec : absolu, extension .pdf, dossier
 // parent validé via assertSafeUserFolder (pas de traversal, pas de système).
 export const pdfFilePathSchema = z.object({
   filePath: z.string().max(2000).nullable().optional(),
 });
 
-// RADICAL-FIX: `format` validé Zod (jamais de lecture brute `raw.format`) �?"
-// l'impression choisit A4 vs thermique depuis le payload validé uniquement.
-export const printFormatSchema = z.enum(["A4", "80mm"]).optional();
-
-// Reçu de règlement de dette (ticket تسد�Sد ا�"د�S�?) : aperçu + impression
-// 80mm/A4 après encaissement (client / fournisseur / pain). Cohérence
-// arithmétique exigée : nouveau solde = ancien − montant (jamais négatif).
+// Reçu de règlement de dette (ticket تسديد الدين) : aperçu + impression
+// ticket 80/58 (jamais A4) après encaissement (client / fournisseur / pain).
+// Cohérence arithmétique exigée : nouveau solde = ancien − montant.
 export const paymentTicketSchema = z
   .object({
     company: z.string().max(200).default("Veloria"),
@@ -204,7 +200,6 @@ export const paymentTicketSchema = z
     notes: z.string().max(500).default(""),
     footerText: z.string().max(500).default(""),
     thankYouMessage: z.string().max(500).default(""),
-    format: printFormatSchema,
   })
   .superRefine((v, ctx) => {
     if (v.newBalanceMinor !== v.prevBalanceMinor - v.amountMinor) {
@@ -223,19 +218,12 @@ export const labelItemSchema = z.object({
   copies: z.number().int().min(1).max(100).default(1),
 });
 
-export const labelFormatSchema = z.enum([
-  "30x20",
-  "45x20",
-  "50x30",
-  "58x30",
-  "58x40",
-  "A4-24",
-  "custom",
-]);
+// Étiquettes code-barres : gabarits thermiques uniquement (jamais A4).
+export const labelFormatSchema = z.enum(["30x20", "45x20", "50x30", "58x30", "58x40", "custom"]);
 
 export const labelsPayloadSchema = z.object({
   items: z.array(labelItemSchema).min(1).max(50),
-  format: labelFormatSchema.default("A4-24"),
+  format: labelFormatSchema.default("45x20"),
   customWidthMm: z.number().min(10).max(210).default(50),
   customHeightMm: z.number().min(10).max(297).default(30),
   /** C5 : QR du code-barres sous le Code 39 (opt-in, étiquettes riches). */
@@ -252,7 +240,6 @@ const printBase = printPayloadSchema.innerType();
 export const deliveryPayloadSchema = printBase.extend({
   originNumber: z.string().max(50).default(""),
   deliverer: z.string().max(100).default(""),
-  format: printFormatSchema,
 });
 
 export const returnSlipPayloadSchema = printBase.extend({
@@ -261,7 +248,6 @@ export const returnSlipPayloadSchema = printBase.extend({
   originNumber: z.string().max(50).default(""),
   reason: z.string().max(300).default(""),
   refundMinor: moneyMinor.default(0),
-  format: printFormatSchema,
 });
 
 export const purchaseOrderDocPayloadSchema = printBase.extend({
@@ -270,7 +256,4 @@ export const purchaseOrderDocPayloadSchema = printBase.extend({
   supplierPhone: z.string().max(30).default(""),
   supplierAddress: z.string().max(300).default(""),
   validityDays: z.number().int().min(1).max(365).default(30),
-  format: printFormatSchema,
 });
-
-// Reçu de règlement : `format` validé (jamais de cast brut `raw.format`).

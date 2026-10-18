@@ -70,12 +70,12 @@ export function mergeTemplateMirror(docType: string, raw: unknown): TemplateRend
   const parsed = templateSettingsSchema.parse(raw ?? {});
   const obj = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {};
   const allowed: readonly string[] =
-    docType === "facture"
-      ? ["A4", "A5"]
-      : docType === "etiquette"
+    docType === "etiquette"
+      ? ["30x20", "45x20", "50x30", "58x30", "58x40"]
+      : docType === "proforma"
         ? ["A4"]
-        : ["80mm", "58mm", "A4"];
-  const fallbackPaper = docType === "ticket" || docType === "recu" ? "80mm" : "A4";
+        : ["80mm", "58mm"];
+  const fallbackPaper = docType === "etiquette" ? "58x30" : docType === "proforma" ? "A4" : "80mm";
   const paper =
     obj["paper"] !== undefined && allowed.includes(parsed.paper) ? parsed.paper : fallbackPaper;
   const showQr =
@@ -98,10 +98,10 @@ export function templateRenderOf(docType: string): {
   return { settings, width: thermalWidthFor(settings.paper) };
 }
 
-/** Options @page (A4/A5 + marges) pour un type. */
+/** Options @page (A4 + marges) pour un type — seul le devis reste A4. */
 export function pageOptsOf(docType: string): { page: string; marginMm: number } {
   const s = activeTemplateSettings(docType);
-  return { page: s.paper === "A5" ? "A5" : "A4", marginMm: s.marginMm };
+  return { page: "A4", marginMm: s.marginMm };
 }
 
 export type TemplateSettings = TemplateRender["settings"];

@@ -4,10 +4,11 @@ import { describe, it, expect } from "vitest";
 import { timbreQuittanceLf2025 } from "@domain/invoice/timbre-rules.ts";
 import {
   amountInWordsFr,
-  buildA4Html,
   buildLabelsHtml,
+  buildProformaA4Html,
   buildQrPayload,
   buildReceiptText,
+  proformaFromReceipt,
   thermalCols,
   thermalField,
   thermalItem,
@@ -151,10 +152,9 @@ describe("C5 thermique sans coupe (58 = 32 cols, 80 = 42 cols)", () => {
         .replace(/\s+/g, " ")
         .trim(),
     );
-    const html = buildA4Html(d);
-    expect(html).toContain("Timbre fiscal");
-    expect(html).toContain("NET À PAYER");
-    expect(html).toContain("NIS :");
+    // Ticket uniquement pour un reçu de caisse ; l'A4 (devis) porte le NIS.
+    const proformaHtml = buildProformaA4Html(proformaFromReceipt(d));
+    expect(proformaHtml).toContain("NIS :");
   });
 });
 
@@ -220,10 +220,10 @@ describe("C5 QR + étiquettes", () => {
 
   it("étiquettes : QR opt-in sous le Code 39, N&B", () => {
     const item = { name: "Sucre", priceMinor: 10_000, barcode: "ABC123" };
-    const without = buildLabelsHtml([item], { format: "A4-24" });
+    const without = buildLabelsHtml([item], { format: "58x30" });
     expect(without).toContain("ABC123");
     expect(without).not.toContain('<div class="lqr">');
-    const withQr = buildLabelsHtml([{ ...item, qrSvg: "<svg></svg>" }], { format: "A4-24" });
+    const withQr = buildLabelsHtml([{ ...item, qrSvg: "<svg></svg>" }], { format: "58x30" });
     expect(withQr).toContain('<div class="lqr">');
     expect(withQr).not.toMatch(/#111|#555|#999|#eee/i);
   });

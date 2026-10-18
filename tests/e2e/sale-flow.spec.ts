@@ -54,7 +54,7 @@ test("panier : ajout, quantité, sous-total et total", async () => {
   await gotoModule(page, "Caisse");
   await page.getByLabel("Recherche produit", { exact: true }).fill(name);
   await page
-    .getByRole("button", { name: new RegExp(name) })
+    .getByRole("option", { name: new RegExp(name) })
     .first()
     .click();
   await expect(page.getByLabel(`Quantité ${name}`, { exact: true })).toHaveValue("1");
@@ -72,7 +72,7 @@ test("vente comptant : historique, stock et aperçu sans imprimante", async () =
   await gotoModule(page, "Caisse");
   await page.getByLabel("Recherche produit", { exact: true }).fill(name);
   await page
-    .getByRole("button", { name: new RegExp(name) })
+    .getByRole("option", { name: new RegExp(name) })
     .first()
     .click();
   await page.getByRole("button", { name: `Augmenter ${name}` }).click();
@@ -83,7 +83,7 @@ test("vente comptant : historique, stock et aperçu sans imprimante", async () =
   expect(invoice).toMatch(/FAC-/);
   // Panier vidé après vente.
   await expect(page.getByText("Caisse prête")).toBeVisible();
-  // Aperçu d'impression (mode 80mm par défaut, sans imprimante).
+  // Aperçu d'impression : ticket 58/80 uniquement (jamais A4), sans imprimante.
   await expect(page.getByRole("heading", { name: new RegExp(invoice) })).toBeVisible();
   await expect(page.locator("pre", { hasText: invoice })).toBeVisible();
   // Historique : la facture est enregistrée.
