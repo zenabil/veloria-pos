@@ -3,26 +3,35 @@
 > Document de continuité : tout ce qui a été fait, fichiers modifiés,
 > erreurs (fermées/ouvertes), en-attente, commandes. Sessions 2026-10-07
 > (§9), 2026-10-11 (§1-8) et 2026-10-12 (§10) archivées ci-dessous.
-> §11 = session du jour (2026-10-18). Répondre à l'utilisateur en arabe.
+> §11 = session scan sans Entrée (2026-10-18). §12 = session politique
+> opération→format d'impression (2026-10-18 bis). Répondre à l'utilisateur
+> en arabe.
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — HEAD `fec3acf` (checkpoint 2026-10-18, §11)
-  - `734a69c` (purge harness). Arbre PROPRE ; restent : revue + tag
-    opérateur, suite de validation complète (E2E intégrale, packaging).
+- Branche : `chore/root-layout` — travail session `860c11a`
+  (ADR-117, §12), commit `docs(handoff)` de ce §12 en tête de branche.
+  Arbre PROPRE ; restent : revue + tag opérateur, packaging/`release/`
+  (dernière passe verte : 2026-10-12).
 - Harness : `.agents`/`.claude` purgés du repo (skills installés côté
   `.opencode/`, git-ignoré) ; `AGENTS.md` = routage 12-13 à jour.
 - Tags locaux (pas de remote) : `v1.0.0-adr075`, `v1.0.0-e2e-green`,
   `v1.0.0-revue-client`, `v1.0.0-ui-unif`, `v1.0.0-searchfield`.
-- ADRs : 001→116 (nouveaux depuis 2026-10-12 : 080→116 — design/audits,
-  staff, crédit, étiquettes, ADR-114 vente au poids, ADR-116 scan sans
-  Entrée). `docs/INDEX.md` à jour jusqu'à 103 seulement.
-- Portes vérifiées 2026-10-18 : `tsc -b` 0 · `eslint . --max-warnings 0` 0 ·
-  `vitest` **795/795** (121 fichiers) · `verify:migrations` VERIFIED ·
-  `verify:domain` VERIFIED · `build` + `build:electron` + manifest signé
-  (213 fichiers) · E2E `scan-flow` **6/6** (×2 passes).
-- Non relancés : suite E2E complète, typecheck `manager`/`mobile`,
-  packaging/`release/` (dernière passe verte : 2026-10-12).
+- ADRs : 001→117 (nouveaux depuis 2026-10-12 : 080→117 — design/audits,
+  staff, crédit, étiquettes, vente au poids (114), scan sans Entrée (116),
+  politique opération→format (117)). `docs/INDEX.md` à jour jusqu'à 103
+  seulement.
+- Portes vérifiées 2026-10-18 (§12) : `tsc -b` 0 (213 fichiers) ·
+  `eslint . --max-warnings 0` 0 · `vitest` **794/794** (121 fichiers) ·
+  `verify:migrations` VERIFIED · `verify:domain` VERIFIED · `build` +
+  `build:electron` + manifest signé (213 fichiers) · `graphify update` OK.
+- E2E suite complète (2026-10-18, §12) : **12/13 specs vertes** —
+  `window-chrome`, `license-activation` 4/4, `factory-reset` ×2,
+  `staff-session`, `scan-flow` 6/6, `customer-invoice` 2/2, `pdf-export`,
+  `sale-flow` 4/4, `credit-return` 2/2, `restart`, `stock-backup` 3/3,
+  `full-loop-client` (relais :8100) ; seul `installer` reste non exécutable
+  hors paquet Win (skip documenté dans le spec).
+- Non relancés : typecheck `manager`/`mobile`, packaging/`release/`.
 
 ## 2) Objectifs réalisés (11 → 12 oct 2026)
 
@@ -243,3 +252,61 @@ impossible (CLI absent).
   `full-inventory.txt` git-ignorés) + commit `docs(handoff)` de ce §11.
 - **Restes** : revue + tag opérateur ; suite E2E complète, packaging,
   typecheck manager/mobile non relancés cette session.
+
+## 12) Session 2026-10-18 bis (politique opération → format d'impression — ADR-117)
+
+- **Demande opérateur** : cantonner le format d'impression par opération —
+  vente / règlement / retour / bon de livraison / bon de commande fournisseur
+  → **ticket 58/80 uniquement** ; devis → **A4 uniquement** ; étiquettes →
+  tous gabarits adhésifs SAUF A4. Le 58 vs 80 reste le réglage
+  imprimante/modèle existant (aucun sélecteur au moment d'imprimer).
+- **Décisions (ADR-117)** : A4 banni de TOUT document de vente (historique,
+  fiche client, dettes, aperçus + exports) ; devis ticket 80 mm supprimé ;
+  canaux IPC `printing.printA4`, `printing.exportA4Pdf`,
+  `printing.printProforma80mm` supprimés (30→27) ; constructeurs A4 de vente
+  purgés (`receipt-a4.ts` supprimé, `buildA4Html`, `buildProformaText`,
+  `buildPaymentTicketA4Html`, …) ; type doc `facture` retiré du Studio/Zod
+  (6 types : ticket, proforma « Devis A4 », bon_livraison, recu, avoir,
+  etiquette) ; papier A5 + gabarit `A4-24` retirés ; `pageAtRule` (chrome)
+  toujours A4 ; Zod 116→114 ; étiquettes : microns non nuls
+  (`labelFormatSchema` défaut `45x20`, limite 200 conservée),
+  `exportLabelsPdf` → « etiquettes.pdf » ; capacités de licence historiques
+  (ex. `invoice-a4`) conservées (concepts de licence) ; `autoPrintInvoice`
+  inchangé (auto-impression = ticket). **Aucune migration** : 0036 immutable
+  (ligne `facture` orpheline inoffensive ; `TEMPLATE_DOC_TYPES` ne la
+  réinitialise plus) ; papier legacy invalide → miroir Zod = défauts
+  complets (accepté).
+- **E2E réparés au passage** (casse PRÉEXISTANTE — refonte recherche
+  liste ADR-114 + porte session 0041 arrivées dans `fec3acf` sans mise à
+  jour des specs) :
+  - 7 specs : sélecteur résultat produit `getByRole("button")` →
+    `getByRole("option")` (`SellSearchPanel`) — customer-invoice ×2,
+    credit-return ×2, sale-flow ×2, pdf-export, restart, full-loop-client.
+  - `restart` : placeholder historique périmé → `getByLabel` (libellé
+    courant « Rechercher dans l'historique … »).
+  - `license-activation` : franchit la porte session (`staffLoginIfNeeded`)
+    après l'import externe + redémarrage — 4/4 vertes.
+  - `factory-reset` : l'instance `app.relaunch()` (non pilotable par
+    Playwright) bootstrappait la porte et consommait le code initial
+    (affiché UNE fois, jamais en clair) → perdu pour la relance du harnais.
+    Fix : boucle de frappe qui la tue AVANT son bootstrap (~5 s), puis
+    relance pilotée — 2/2 stables.
+  - `helpers.ts` : capacité `proformas` ajoutée (exigée par
+    `exportProformaPdf`) ; commentaire `autoStaffLogin` à jour.
+- **Preuves** : vitest **794/794** (121 fichiers ; snapshot IPC 27 canaux) ;
+  `tsc -b` 0 (213 fichiers) ; eslint 0 ; prettier OK ; `build` +
+  `build:electron` + manifest signé (213 fichiers) ;
+  `verify:migrations`/`verify:domain` VERIFIED ; **13 specs E2E : 12/13
+  vertes** (seul `installer` non exécutable — paquet Win requis), dont
+  `pdf-export` réécrit (ticket 80 via `exportReceiptPdf` + devis A4 via
+  `exportProformaPdf` + assertions négatives de purge des canaux) et
+  `full-loop-client` avec relais `:8100`.
+- **Pièges pour la suite** : ne jamais éditer une migration appliquée
+  (0036 garde sa ligne `facture` — CHECK) ; tout nouveau test E2E caisse :
+  résultats produit = `role="option"`, porte session = `staffLoginIfNeeded`
+  (défaut du harnais), restart = relance pilotée après kill des instances
+  auto-relancées ; `dist`/`dist-electron` doivent être rebuildés APRÈS tout
+  changement src (build + `build:electron` re-signe le manifest).
+- **Git** : `860c11a` (72 fichiers, ADR-117 + purge A4 + E2E) +
+  commit `docs(handoff)` de ce §12. Tag opérateur à proposer :
+  `v1.0.0-format-ops` après revue.
