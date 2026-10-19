@@ -421,7 +421,7 @@ Critical/High/Medium/Low + الشروط، + تصنيف الثقة (PROUVÉ/DYNAM
 
 جدول: المُرشّح | سبب الاستبعاد | الدليل | الـ ADR إن وُجد.
 
-## 13. قيود التدقيق والأ confiance المتبقية
+## 13. قيود التدقيق والأ الثقة المتبقية
 ```
 
 ---
@@ -536,6 +536,6 @@ Critical/High/Medium/Low + الشروط، + تصنيف الثقة (PROUVÉ/DYNAM
 | المعمارية     | `docs/STRUCTURE.md` §8, `tests/unit/a3-organisation.test.ts`                                                                                         |
 | حراسات العقود | `tests/unit/{bridge-shape,ipc-channel-inventory,validators-inventory,operation-id-coverage,sql-guard,money-guard-parity,main-domain-parity}.test.ts` |
 | المهاجرات     | `database/migrations/0001…0047` (immutables)                                                                                                         |
-| الكود الميت    | `docs/reports/DEAD_CODE_AUDIT_2026-10-18.md`, `docs/ADR-118*.md`, `docs/ADR-119*.md`                                                                 |
+| الكود الميت   | `docs/reports/DEAD_CODE_AUDIT_2026-10-18.md`, `docs/ADR-118*.md`, `docs/ADR-119*.md`                                                                 |
 | الحالة        | `handoff.md` (§1 + آخر جلسة)                                                                                                                         |
 | الـ ADRs      | `docs/ADR-001…119` + `docs/INDEX.md`                                                                                                                 |
