@@ -77,6 +77,32 @@ définition + handler).
   manque**. Supprimer le canal reviendrait à déclarer la fonctionnalité
   abandonnée — ce n'est pas du code mort, c'est un manque produit. Décision
   reportée à l'opérateur (cf. rapport §2.4 / DT-04).
+
+  **Preuve décisive (2026-10-19) — ce n'est PAS du code mort, c'est une
+  fonctionnalité à moitié livrée dont le client est DÉJÀ en production :**
+
+  1. `saveAnnouncementAtomic` (`client-access.repo.ts:562`) est le **seul
+     écrivain** de la table locale `announcements`
+     (`INSERT INTO announcements` en `:578`) ;
+  2. `buildSnapshotPayload` (`:412-413`) lit cette table et embarque
+     `announcement: announcement?.text ?? null` (`:441`) dans le cliché
+     `customer_snapshot` ;
+  3. `pushNowAtomic` pousse ce cliché vers le miroir Supabase ;
+  4. **l'APK l'affiche déjà** : bandeau mégaphone dans
+     `mobile/src/screens/Home.tsx:339` et `Account.tsx:223`, parsing dans
+     `mobile/src/views.ts:61,154`, libellé FR/AR
+     `mobile/src/i18n.ts:93` (« Aucune annonce du magasin »), couleur
+     `mobile/src/tokens.ts:30`.
+
+  Donc : **le client est intégralement livré et traduit ; seule la saisie
+  commerçante côté POS manque.** Supprimer `announcements.save` rendrait le
+  repli « Aucune annonce du magasin » **définitif** — on casserait une
+  fonctionnalité visible par le client final pour gagner une ligne de
+  handler. **La recommandation n'est donc pas de supprimer, mais de
+  CONSTRUIRE l'UI** (tranche verticale AGENTS.md §7 : UI → use case →
+  domaine → repo → test). _Hors périmètre de cette mission (code mort
+  uniquement) — signalé pour arbitrage produit._
+
 - **`templates.get` — CONSERVÉ (hors périmètre).** Le schéma
   `templateGetSchema` réside dans `electron/ipc/validators.templates.ts`, fichier
   **du chantier impression non commité** : le retirer mélangerait deux

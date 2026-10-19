@@ -4,7 +4,7 @@
 > l avancement en `reports/PHASE_*.md`. Ne jamais ecrire de rapport a la racine.
 > Conventions : `AGENTS.md` + `docs/STRUCTURE.md` (carte maintenance).
 
-## Decisions (ADR-001 a ADR-084 — tous saries, jamais supprimes)
+## Decisions (ADR-001 a ADR-119 — tous saries, jamais supprimes)
 
 - [ADR-001](./ADR-001-vite-renderer.md) Renderer Vite
 - [ADR-002](./ADR-002-native-versions.md) Versions natives
@@ -90,9 +90,41 @@
 - [ADR-082](./ADR-082-design-phase2-surfaces.md) Design Phase 2 surfaces
 - [ADR-083](./ADR-083-design-phase3-depth.md) Design Phase 3 profondeur
 - [ADR-084](./ADR-084-sound-hardening-volume.md) Son : volume + durcissement
+- [ADR-085](./ADR-085-staff-roles.md) Rôles internes gérant / utilisateur (0041)
+- [ADR-086](./ADR-086-staff-enforcement-recovery.md) Autorisations équipe par IPC + code de secours (0042)
+- [ADR-087](./ADR-087-staff-full-matrix.md) Matrice d'autorisation complète
+- [ADR-088](./ADR-088-radical-fixes-r1-r8.md) Correctifs radicaux R1→R8
+- [ADR-089](./ADR-089-pin-algo-guard-verify-41-42.md) Garde pin_algo (0043) + couverture vérificateur
+- [ADR-090](./ADR-090-etiquettes-une-page.md) Étiquettes thermiques : 1 étiquette = 1 page
+- [ADR-091](./ADR-091-etiquettes-job-par-etiquette.md) Étiquettes : 1 job par étiquette + stock piloté
+- [ADR-092](./ADR-092-etiquette-58x30.md) Étiquette : preset 58×30
+- [ADR-093](./ADR-093-etiquette-prix-code39.md) Étiquette : prix + Code39 seuls
+- [ADR-094](./ADR-094-etiquette-45x20.md) Étiquette : preset 45×20
+- [ADR-095](./ADR-095-etiquette-code128.md) Étiquette : Code 128 au lieu de Code 39
+- [ADR-096](./ADR-096-etiquette-zones-silence.md) Étiquette : zones de silence + zone de sécurité
+- [ADR-097](./ADR-097-print-common-split.md) Découpage receipt-documents/common.ts
+- [ADR-098](./ADR-098-p0-pos-ocr-idempotency.md) Idempotence P0 : bons fournisseurs + import OCR
+- [ADR-099](./ADR-099-audit-2026-10-15-no-p0.md) Audit radical 2026-10-15 : aucun P0
+- [ADR-100](./ADR-100-supplier-return-intra-request.md) Retour fournisseur : cumul intra-requête
 - [ADR-101](./ADR-101-app-boundaries.md) Frontieres app
 - [ADR-102](./ADR-102-vertical-slices.md) Tranches
 - [ADR-103](./ADR-103-docs-hygiene.md) Hygiene docs
+- [ADR-104](./ADR-104-audit-p1-fixes.md) Correctifs P1 audit 2026-10-15
+- [ADR-105](./ADR-105-topbar-declutter.md) Allègement du bandeau de caisse
+- [ADR-106](./ADR-106-sidebar-unpin.md) Suppression des épingles de navigation
+- [ADR-107](./ADR-107-sell-delivery-declutter.md) Caisse : allègement + livraison end-to-end
+- [ADR-108](./ADR-108-pages-dedup-completion.md) Pages : déduplication et complétion
+- [ADR-109](./ADR-109-remove-bread-module.md) Suppression du module Pain
+- [ADR-110](./ADR-110-credit-limit-blocking.md) Plafond de crédit bloquant
+- [ADR-111](./ADR-111-staff-attribution-r2.md) Attribution des opérations par utilisateur
+- [ADR-112](./ADR-112-clients-recherche-visible.md) Clients introuvables : visibilité + tri serveur
+- [ADR-113](./ADR-113-radical-fixes-2026-10-17.md) Correctifs radicaux 2026-10-17
+- [ADR-114](./ADR-114-caisse-vente-au-poids-dialogue-quantite.md) Caisse : vente au poids
+- [ADR-115](./ADR-115-rotation-cles-licensing-verify.md) Rotation de clés licensing + garde verify:licensing
+- [ADR-116](./ADR-116-caisse-scan-sans-entree-idle-douchette.md) Caisse : scan douchette sans Entrée
+- [ADR-117](./ADR-117-politique-operation-format-impression.md) Politique opération → format d'impression
+- [ADR-118](./ADR-118-dead-code-lot1.md) Lot 1 nettoyage dead-code (21 symboles morts)
+- [ADR-119](./ADR-119-dead-code-lot2.md) Lot 2 nettoyage dead-code (3 canaux IPC morts)
 
 ## Ou ecrire quoi
 
