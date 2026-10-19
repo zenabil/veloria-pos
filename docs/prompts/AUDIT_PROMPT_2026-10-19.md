@@ -513,7 +513,7 @@ Critical/High/Medium/Low + الشروط، + تصنيف الثقة (PROUVÉ/DYNAM
   `db-guardian` (المهاجرات/المال) · `ui-fr` (الواجهة) · `general` (الأمان/الأداء).
 - **لا** تعطِ أي وكيل صلاحية التعديل في مرحلة التدقيق.
 - عند التجميع: **افحص بنفسك** كل finding حرج (تطبيق قاعدة «الدليل»).
-- رتّبFindings: (1) Money/Atomicity · (2) Security · (3) Data loss/migrations · (4) correctness · (5) dead code · (6) duplication · (7) hygiene/docs.
+- رتّب النتائج: (1) Money/Atomicity · (2) Security · (3) Data loss/migrations · (4) correctness · (5) dead code · (6) duplication · (7) hygiene/docs.
 - إذا ظهر تعارض بين تقرير قديم (`docs/reports/*`) و الكود الحالي → **الكود هو الحقيقة**، واذكر التعارض صراحةً.
 
 ---
@@ -536,6 +536,6 @@ Critical/High/Medium/Low + الشروط، + تصنيف الثقة (PROUVÉ/DYNAM
 | المعمارية     | `docs/STRUCTURE.md` §8, `tests/unit/a3-organisation.test.ts`                                                                                         |
 | حراسات العقود | `tests/unit/{bridge-shape,ipc-channel-inventory,validators-inventory,operation-id-coverage,sql-guard,money-guard-parity,main-domain-parity}.test.ts` |
 | المهاجرات     | `database/migrations/0001…0047` (immutables)                                                                                                         |
-| الديد-code    | `docs/reports/DEAD_CODE_AUDIT_2026-10-18.md`, `docs/ADR-118*.md`, `docs/ADR-119*.md`                                                                 |
+| الكود الميت    | `docs/reports/DEAD_CODE_AUDIT_2026-10-18.md`, `docs/ADR-118*.md`, `docs/ADR-119*.md`                                                                 |
 | الحالة        | `handoff.md` (§1 + آخر جلسة)                                                                                                                         |
 | الـ ADRs      | `docs/ADR-001…119` + `docs/INDEX.md`                                                                                                                 |
