@@ -11,9 +11,6 @@ import { handle } from "./handle";
 export function registerStockChannels(): void {
   // ---- Phase 6 : stock ----
   handle(IPC_CHANNELS["stock.overview"], V.emptyPayloadSchema, () => Inventory.getStockOverview());
-  handle(IPC_CHANNELS["stock.ledger"], V.idSchema, (input) => ({
-    rows: Inventory.getLedger(input.id, 100),
-  }));
   handle(IPC_CHANNELS["stock.adjust"], V.stockAdjustSchema, (input) =>
     Inventory.adjustStockAtomic({
       productId: input.productId,

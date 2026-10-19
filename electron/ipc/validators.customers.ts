@@ -89,10 +89,6 @@ export const syncEnqueueSchema = z.object({
     .optional(),
 });
 
-export const syncPendingSchema = z.object({
-  limit: z.number().int().min(1).max(200).default(50),
-});
-
 export const announcementSaveSchema = z.object({
   operationId: z.string().uuid(),
   text: z.string().min(1).max(120),

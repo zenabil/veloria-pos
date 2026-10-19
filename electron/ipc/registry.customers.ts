@@ -160,16 +160,6 @@ export function registerCustomersChannels(): void {
       now: new Date().toISOString(),
     }),
   );
-  handle(IPC_CHANNELS["sync.markSent"], V.idempotentIdSchema, (input) =>
-    ClientAccess.markOutboxSentAtomic({
-      outboxId: input.id,
-      operationId: input.operationId,
-      now: new Date().toISOString(),
-    }),
-  );
-  handle(IPC_CHANNELS["sync.pending"], V.syncPendingSchema, (input) => ({
-    rows: ClientAccess.listPendingOutbox(input.limit),
-  }));
   handle(IPC_CHANNELS["announcements.save"], V.announcementSaveSchema, (input) =>
     ClientAccess.saveAnnouncementAtomic({
       operationId: input.operationId,

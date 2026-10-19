@@ -24,7 +24,9 @@ const MODULES = [
 // ADR-112 (2026-10-17) : 115 → 116 (customerSortSchema : tri serveur customers.search).
 // ADR-117 (2026-10-18) : 116 → 114 (printFormatSchema + alias
 // paymentTicketFormatSchema retirés avec les canaux A4 de vente).
-const FROZEN_SCHEMA_COUNT = 114;
+// ADR-119 (2026-10-19) : 114 → 113 (syncPendingSchema retiré avec le
+// canal `sync.pending`, supersédé par le SELECT inline de pushNowAtomic).
+const FROZEN_SCHEMA_COUNT = 113;
 const FROZEN_MAX_LINES = 300;
 
 describe("Validators inventory (split guard)", () => {

@@ -559,50 +559,6 @@ export function enqueueSnapshotAtomic(args: {
   }
 }
 
-export function markOutboxSentAtomic(args: {
-  outboxId: number;
-  operationId: string;
-  now: string;
-}): { sent: boolean } {
-  const db = getDb();
-  const replay = peekIdempotency<{ sent: boolean }>(args.operationId, "sync.markSent");
-  if (replay) return replay;
-  const tx = db.transaction(() => {
-    claimIdempotency(args.operationId, "sync.markSent", args.now);
-    db.prepare(`UPDATE sync_outbox SET status = 'sent', sent_at = ? WHERE id = ?`).run(
-      args.now,
-      args.outboxId,
-    );
-    const result = { sent: true };
-    storeIdempotencyResult(args.operationId, result);
-    return result;
-  });
-  try {
-    return (tx as unknown as () => { sent: boolean })();
-  } catch (err) {
-    if (
-      err instanceof Error &&
-      /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
-    ) {
-      const retry = peekIdempotency<{ sent: boolean }>(args.operationId, "sync.markSent");
-      if (retry) return retry;
-    }
-    throw err;
-  }
-}
-
-/** File d'attente (lecture, bornée) pour le futur agent de synchro. */
-export function listPendingOutbox(limit = 50): unknown[] {
-  const db = getDb();
-  const capped = Math.min(Math.max(limit, 1), 200);
-  return db
-    .prepare(
-      `SELECT id, operation_id, customer_id, kind, length(payload_json) AS payload_chars, status, created_at
-       FROM sync_outbox WHERE status = 'pending' ORDER BY id ASC LIMIT ?`,
-    )
-    .all(capped);
-}
-
 export function saveAnnouncementAtomic(args: { operationId: string; text: string; now: string }): {
   announcementId: number;
 } {

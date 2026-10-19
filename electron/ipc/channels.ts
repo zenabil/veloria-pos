@@ -50,8 +50,6 @@ export const IPC_CHANNELS = {
   "customers.accessQrSvg": "customers.accessQrSvg",
   // file de synchro vers le miroir + annonces magasin
   "sync.enqueue": "sync.enqueue",
-  "sync.markSent": "sync.markSent",
-  "sync.pending": "sync.pending",
   "sync.pushNow": "sync.pushNow",
   "sync.getConfig": "sync.getConfig",
   "sync.saveConfig": "sync.saveConfig",
@@ -64,7 +62,6 @@ export const IPC_CHANNELS = {
   "stock.products": "stock.products",
   "stock.movements": "stock.movements",
   "stock.inventory": "stock.inventory",
-  "stock.ledger": "stock.ledger",
   "stock.adjust": "stock.adjust",
   "stock.intake": "stock.intake",
   "stock.intakes": "stock.intakes",

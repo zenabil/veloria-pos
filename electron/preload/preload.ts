@@ -57,8 +57,6 @@ const api = {
   },
   sync: {
     enqueue: (p: unknown) => invoke(IPC_CHANNELS["sync.enqueue"], p),
-    markSent: (p: unknown) => invoke(IPC_CHANNELS["sync.markSent"], p),
-    pending: (p: unknown) => invoke(IPC_CHANNELS["sync.pending"], p),
     pushNow: (p: unknown) => invoke(IPC_CHANNELS["sync.pushNow"], p),
     getConfig: () => invoke(IPC_CHANNELS["sync.getConfig"]),
     saveConfig: (p: unknown) => invoke(IPC_CHANNELS["sync.saveConfig"], p),
@@ -91,7 +89,6 @@ const api = {
     products: (p: unknown) => invoke(IPC_CHANNELS["stock.products"], p),
     movements: (p: unknown) => invoke(IPC_CHANNELS["stock.movements"], p),
     inventory: (p: unknown) => invoke(IPC_CHANNELS["stock.inventory"], p),
-    ledger: (p: unknown) => invoke(IPC_CHANNELS["stock.ledger"], p),
     adjust: (p: unknown) => invoke(IPC_CHANNELS["stock.adjust"], p),
     intake: (p: unknown) => invoke(IPC_CHANNELS["stock.intake"], p),
     intakes: (p: unknown) => invoke(IPC_CHANNELS["stock.intakes"], p),

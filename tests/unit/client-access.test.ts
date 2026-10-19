@@ -34,7 +34,6 @@ import {
   clientAccessActivateSchema,
   clientAccessQrSchema,
   syncEnqueueSchema,
-  syncPendingSchema,
 } from "../../electron/ipc/validators";
 
 const OP = "123e4567-e89b-12d3-a456-426614174000";
@@ -241,7 +240,6 @@ describe("validateurs IPC (frontière Zod)", () => {
     expect(syncEnqueueSchema.safeParse({ ...base, kind: "announcement" }).success).toBe(true);
     expect(syncEnqueueSchema.safeParse({ ...base, kind: "access_revocation" }).success).toBe(true);
     expect(syncEnqueueSchema.safeParse({ ...base, monthKey: "09-2026" }).success).toBe(false);
-    expect(syncPendingSchema.safeParse({ limit: 500 }).success).toBe(false);
   });
   it("annonce : 1..120 caractères", () => {
     expect(announcementSaveSchema.safeParse({ operationId: OP, text: "Fermé" }).success).toBe(true);

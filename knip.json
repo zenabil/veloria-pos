@@ -1,0 +1,23 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": [
+        "electron/preload/preload.ts",
+        "license-manager/main/main.ts",
+        "license-manager/renderer/manager-env.d.ts"
+      ],
+      "project": ["src/**/*.{ts,tsx,css}", "electron/**/*.ts", "tests/**/*.{ts,tsx}"],
+      "ignoreExportsUsedInFile": true,
+      "ignoreBinaries": ["net"],
+      "ignoreDependencies": ["bindings", "@eslint/js", "tailwindcss"]
+    },
+    "mobile": {
+      "entry": ["src/App.tsx"],
+      "project": ["src/**/*.{ts,tsx}"],
+      "ignoreExportsUsedInFile": true,
+      "ignoreBinaries": ["eas"],
+      "ignoreDependencies": ["expo-updates"]
+    }
+  }
+}

@@ -67,7 +67,6 @@ const CRITICAL_OPS = [
   "customers.accessActivate",
   "customers.accessRevoke",
   "sync.enqueue",
-  "sync.markSent",
   "sync.pushNow",
   "sync.saveConfig",
   "announcements.save",

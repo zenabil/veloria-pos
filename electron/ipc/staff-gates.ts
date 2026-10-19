@@ -28,7 +28,6 @@ const STAFF_CHANNEL_PERMISSION: Record<string, string> = {
   [IPC_CHANNELS["stock.products"]]: "stock",
   [IPC_CHANNELS["stock.movements"]]: "stock",
   [IPC_CHANNELS["stock.inventory"]]: "stock",
-  [IPC_CHANNELS["stock.ledger"]]: "stock",
   [IPC_CHANNELS["stock.adjust"]]: "stock",
   [IPC_CHANNELS["stock.intake"]]: "stock",
   [IPC_CHANNELS["stock.intakes"]]: "stock",
@@ -115,7 +114,6 @@ const STAFF_CHANNEL_PERMISSION: Record<string, string> = {
   // R2 RADICAL (P0) : mutations sortantes vers le miroir gardées — un
   // utilisateur sans `settings` ne pilote plus la file de synchro.
   [IPC_CHANNELS["sync.enqueue"]]: "settings",
-  [IPC_CHANNELS["sync.markSent"]]: "settings",
   [IPC_CHANNELS["sync.pushNow"]]: "settings",
   [IPC_CHANNELS["announcements.save"]]: "settings",
   // R2 RADICAL (P0) : paramètres + calculs zakat = mutations gardées.

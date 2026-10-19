@@ -7,29 +7,34 @@
 > opération→format d'impression (2026-10-18 bis). §13 = lancement POS
 > opérateur (2026-10-18 ter). §14 = préparation du prompt d'audit
 > dead-code (2026-10-18 quater). §15 = audit dead-code Phase A + lot 1
-> (2026-10-18 quinquies). Répondre à l'utilisateur en arabe.
+> (2026-10-18 quinquies). §16 = lot 2 (canaux IPC) + `knip.json` (2026-10-19).
+> Répondre à l'utilisateur en arabe.
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête = `refactor(cleanup): dead-code lot 1`
-  (21 fichiers, 148 lignes supprimées, **0 changement de comportement**).
-  **Arbre TOUJOURS NON propre** : chantier impression / `*.capabilities`
-  (20 fichiers M + 3 nouveaux) **intact et non commité** — staffage par
-  chemins explicites uniquement (AGENTS.md §10). Restent : revue + tag
-  opérateur (`v1.0.0-format-ops`), packaging/`release/`, puis **lot 2** de
-  l'audit (6 canaux IPC morts, ADR-119 à écrire).
+- Branche : `chore/root-layout` — tête = `refactor(cleanup): dead-code lot 2`
+  (3 canaux IPC + 3 fonctions repo + `knip.json`). **Arbre TOUJOURS NON
+  propre** : chantier impression / `*.capabilities` (20 fichiers M + 3 nouveaux)
+  **intact et non commité** — staffage par chemins explicites uniquement
+  (AGENTS.md §10). Restent : revue + tag opérateur (`v1.0.0-format-ops`),
+  packaging/`release/`, puis **lot 2 bis** de l'audit (24 réexports morts
+  `receipt-documents*` + `templates.get` + `printer.get`).
 - Harness : `.agents`/`.claude` purgés du repo (skills installés côté
   `.opencode/`, git-ignoré) ; `AGENTS.md` = routage 12-13 à jour.
 - Tags locaux (pas de remote) : `v1.0.0-adr075`, `v1.0.0-e2e-green`,
   `v1.0.0-revue-client`, `v1.0.0-ui-unif`, `v1.0.0-searchfield`.
-- ADRs : 001→**118** (118 = lot 1 du nettoyage dead-code ; rapport
-  `docs/reports/DEAD_CODE_AUDIT_2026-10-18.md`). `docs/INDEX.md` à jour
-  jusqu'à 103 seulement — **reste à étendre**.
-- Portes vérifiées 2026-10-18 (§15, arbre sale) : `tsc -b` 0 (manifeste signé,
-  214 fichiers) · `eslint . --max-warnings 0` 0 · `vitest` **804/804**
-  (121 fichiers) · `verify:migrations` VERIFIED · `verify:domain` VERIFIED ·
-  `build` + `build:electron` verts · `graphify update` OK (6011 nœuds /
-  16430 arêtes).
+- ADRs : 001→**119** (118 = lot 1 du nettoyage dead-code, 119 = lot 2 canaux
+  IPC + `knip.json` ; rapport `docs/reports/DEAD_CODE_AUDIT_2026-10-18.md`).
+  `docs/INDEX.md` à jour jusqu'à 103 seulement — **reste à étendre**.
+- Outillage : `knip.json` ajouté (§16) — candidats bruts **219 → 30**,
+  `Unused files` **32 → 0**.
+- Portes vérifiées 2026-10-19 (§16, arbre sale) : `tsc -b` 0 (manifeste signé,
+  214 fichiers) · `typecheck:electron` ✓ · `typecheck:manager` ✓ ·
+  `eslint . --max-warnings 0` exit 0 · `vitest` **804/804** (121 fichiers) ·
+  `verify:migrations` VERIFIED · `verify:domain` VERIFIED · `build` +
+  `build:electron` verts · `graphify update` OK.
+- **Contrats gelés après lot 2** : canaux IPC **176** servis (+1 push-only) ·
+  `FROZEN_SCHEMA_COUNT` **113** · `operation-id-coverage` (R1) inchangé.
 - E2E suite complète (2026-10-18, §12) : **12/13 specs vertes** —
   `window-chrome`, `license-activation` 4/4, `factory-reset` ×2,
   `staff-session`, `scan-flow` 6/6, `customer-invoice` 2/2, `pdf-export`,
@@ -166,19 +171,20 @@ VERIFIED → **VERIFIED** · `verify:domain` VERIFIED → **VERIFIED** ·
 
 **Différé / à arbitrer** :
 
-- **Lot 2** (ADR-119) : 6 canaux IPC morts (`announcements.save`,
-  `sync.markSent`, `sync.pending`, `stock.ledger`, `templates.get`,
-  `printer.get`) → snapshot 180→174, `FROZEN_SCHEMA_COUNT` 114→111.
-  **Portée RÉVISÉE (§15, rectificatif)** : chaque handler orpheline une fonction
-  repo — `markOutboxSentAtomic`, `listPendingOutbox`, `Inventory.getLedger`.
-  `pushNowAtomic` marque la file `'sent'` lui-même
-  (`sync.service.ts:263-270`) → `sync.markSent`/`sync.pending` sont
-  **supersédés techniquement**, pas « UI manquante » (≠ `announcements.save`,
-  seul cas où domaine+repo existent et où seule l'UI manque → **defer**).
-  La garde `retention` est par **préfixe** `"sync."` → elle reste correcte ;
-  `retention-critical.test.ts:70` devient un vecteur fantôme à retirer.
-  **Bloqué** : `templates.get` (schema dans `validators.templates.ts`, fichier
-  du chantier) et `printer.get` (handler dans `printing.receipt.ts`, idem).
+- **Lot 2 (ADR-119) — EXÉCUTÉ (§16)** : 3 canaux retirés (`sync.markSent`,
+  `sync.pending`, `stock.ledger`) + 3 fonctions repo orphelines
+  (`markOutboxSentAtomic`, `listPendingOutbox`, `Inventory.getLedger`).
+  Snapshot 180 → **176** ; `FROZEN_SCHEMA_COUNT` 114 → **113**.
+  `pushNowAtomic` marque la file `'sent'` lui-même (`sync.service.ts:263-270`)
+  → les 2 canaux `sync.*` sont **supersédés techniquement**, pas « UI
+  manquante ». La garde `retention` protège par **préfixe** `"sync."` → elle
+  reste correcte ; le vecteur fantôme `"sync.markSent"` de
+  `retention-critical.test.ts` a été retiré.
+  **Conservés** : `announcements.save` (domaine+repo+validateur complets,
+  seule l'UI manque → décision **produit**, pas du code mort) ;
+  `templates.get` + `printer.get` (**hors périmètre** : schéma dans
+  `validators.templates.ts`, handler dans `printing.receipt.ts` → fichiers du
+  chantier impression non commité).
 - `printer.get` + 24 réexports morts de `receipt-documents*` : **dans la zone
   du chantier impression non commité**, donc différés.
 - `knip.json` + workspace `mobile` : ~95 % de faux positifs en moins pour un
@@ -191,12 +197,74 @@ VERIFIED → **VERIFIED** · `verify:domain` VERIFIED → **VERIFIED** ·
 **⚠ Dette de couverture** : `mobile/` n'est couvert par **aucun tsconfig**
 (`typecheck` racine et `typecheck:manager` l'ignorent) ; seul `vitest` garde.
 
+## 4ter) Session §16 — lot 2 : canaux IPC morts + `knip.json` (2026-10-19)
+
+Autorisation opérateur : « fais un plan et corrige radicalement » puis
+« tu as les permissions ». **Lot 1 déjà commité** (`20a705b`, ADR-118).
+
+**Lot 2 (ADR-119)** — 3 canaux IPC retirés, sur les 6 candidats du rapport :
+
+| Canal           | Handler                     | Fonction repo orpheline retirée                  |
+| --------------- | --------------------------- | ------------------------------------------------ |
+| `sync.markSent` | `registry.customers.ts:163` | `markOutboxSentAtomic` (`client-access.repo.ts`) |
+| `sync.pending`  | `registry.customers.ts:170` | `listPendingOutbox` (`client-access.repo.ts`)    |
+| `stock.ledger`  | `registry.stock.ts:14`      | `Inventory.getLedger` (`inventory.repo.ts`)      |
+
+**Le fait qui tranche** : `pushNowAtomic` marque la file `'sent'` **lui-même**
+dans sa transaction (`electron/sync/sync.service.ts:263-270`) et lit
+lui-même les lignes `pending` (`:212-216`) → les 2 canaux `sync.*` sont
+**supersédés techniquement**, pas des fonctionnalités à interface manquante.
+`listPendingOutbox` était d'ailleurs explicitement étiqueté « pour le **futur**
+agent de synchro » — un futur agent qui existe déjà (`pushNow`).
+
+**Gardes synchronisées** : snapshot `ipc-channels.json` **180 → 176** ·
+`IPC_CHANNELS` 180 → **177** clés (176 servis + `window.maximizedChanged`
+push-only) · `FROZEN_SCHEMA_COUNT` **114 → 113** (`syncPendingSchema`) ·
+vecteur fantôme `"sync.markSent"` retiré de `retention-critical.test.ts` ·
+import + assertion `syncPendingSchema` retirés de `client-access.test.ts` ·
+commentaire `retention.ts:42` corrigé (la garde protège par **préfixe**
+`"sync."` → elle reste correcte : `sync.enqueue`/`pushNow`/`saveConfig`
+subsistent).
+
+**Conservés, et pourquoi** : `announcements.save` (domaine + repo + validateur
+
+- handler **complets**, seule l'UI manque → décision **produit**) ·
+  `templates.get` et `printer.get` (leurs fichiers sont dans le **chantier
+  impression non commité** → mélanger deux chantiers dans un commit est
+  interdit, AGENTS.md §10).
+
+**Portes avant → après** : `tsc -b` 0 → **0** · `typecheck:electron` ✓ → ✓ ·
+`typecheck:manager` ✓ → ✓ · `eslint --max-warnings 0` → **exit 0** ·
+`vitest` **804 → 804** (121 fichiers) · `build` ✓ → ✓ · `build:electron` ✓ → ✓
+· `verify:migrations` VERIFIED → **VERIFIED** · `verify:domain` VERIFIED →
+**VERIFIED** · `graphify update` ✓.
+**Gardes de contrat rejouées en isolation** : 37 assertions — `bridge-shape`
+3/3 · `ipc-channel-inventory` 2/2 · `validators-inventory` 2/2 ·
+`operation-id-coverage` 2/2 · `channel-alias` 4/4 · `client-access` 24/24.
+
+**`knip.json` ajouté** (zéro changement de code) : candidats bruts
+**219 → 30**, `Unused files` **32 → 0**. La clé décisive est
+`ignoreExportsUsedInFile: true` : le dépôt exporte massivement des règles
+pures consommées **dans leur propre fichier**, usage que knip ne comptait pas.
+Les 27 `unused exports` restants sont **exactement** les findings vérifiés
+manuellement (24 réexports `receipt-documents*` + `buildActivationQrPayload` +
+`clearSecureState`) → **plus aucun faux positif résiduel**.
+
+**Nouvelle trouvaille mobile** : `expo-constants` est déclaré dans
+`mobile/package.json:23` mais **n'est importé nulle part** dans `mobile/src`.
+Non supprimé : la correction exige `mobile/package-lock.json`
+(**lockfiles intouchables**, consigne 3).
+
 ## 5) En attente (next actions)
 
-- [ ] **Lot 2 de l'audit dead-code** : 6 canaux IPC, ADR-119 — **requiert
-      commit du chantier impression d'abord** (zone de chevauchement).
-- [ ] **`knip.json`** : supprimer ~95 % des faux positifs récurrents.
-- [ ] **`docs/INDEX.md`** : étendre au-delà de ADR-103 (118 à ajouter).
+- [ ] **Lot 2 bis** : `templates.get` + `printer.get` + les 24 réexports morts
+      de `receipt-documents*` — **nécessite le commit du chantier impression**
+      d'abord (zone de chevauchement stricte).
+- [ ] **`announcements.save`** : décision produit — construire l'UI des
+      annonces magasin, ou retirer le canal + domaine + repo.
+- [ ] **`expo-constants`** : dépendance `mobile` inutilisée (retrait soumis à
+      mise à jour du lockfile mobile).
+- [ ] **`docs/INDEX.md`** : étendre au-delà de ADR-103 (118 + 119 à ajouter).
 - [ ] **Revue + tag** de l'arbre checkpointé (HEAD `fec3acf`, §11) —
       proposition : tag local `v1.0.0-session-1018` après revue.
 - [ ] **Session admin** : `installer.spec` (UAC) — seul gate jamais vert.

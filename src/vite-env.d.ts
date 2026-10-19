@@ -57,8 +57,6 @@ interface Window {
     };
     sync: {
       enqueue(p: unknown): Promise<VeloriaOutcome>;
-      markSent(p: unknown): Promise<VeloriaOutcome>;
-      pending(p: unknown): Promise<VeloriaOutcome>;
       pushNow(p: unknown): Promise<VeloriaOutcome>;
       getConfig(): Promise<VeloriaOutcome>;
       saveConfig(p: unknown): Promise<VeloriaOutcome>;
@@ -88,7 +86,6 @@ interface Window {
       products(p: unknown): Promise<VeloriaOutcome>;
       movements(p: unknown): Promise<VeloriaOutcome>;
       inventory(p: unknown): Promise<VeloriaOutcome>;
-      ledger(p: unknown): Promise<VeloriaOutcome>;
       adjust(p: unknown): Promise<VeloriaOutcome>;
       intake(p: unknown): Promise<VeloriaOutcome>;
       intakes(p: unknown): Promise<VeloriaOutcome>;

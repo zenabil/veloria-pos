@@ -39,7 +39,8 @@ const CRITICAL_OP_PREFIXES = [
   // d'accès, file de synchro, calcul zakat, réception de commande).
   // Préfixes : "zakat.save" couvre aussi "zakat.saveParams", "purchase." la
   // création/réception de commande, "customers.access" activation/révocation,
-  // "sync." enqueue/markSent/pushNow/saveConfig.
+  // "sync." enqueue/pushNow/saveConfig (markSent retiré ADR-119 : supersédé
+  // par le UPDATE inliné de pushNowAtomic).
   // Vérification faite en complément : `announcements.save` n'a AUCUNE colonne
   // operation_id (table announcements, 0032) → même classe de risque (double
   // annonce après purge à 90 j).

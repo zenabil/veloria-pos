@@ -55,13 +55,6 @@ export function getStockOverview(): {
   };
 }
 
-export function getLedger(productId: number, limit: number): unknown[] {
-  const db = getDb();
-  return db
-    .prepare(`SELECT * FROM stock_movements WHERE product_id = ? ORDER BY id DESC LIMIT ?`)
-    .all(productId, limit);
-}
-
 export function adjustStockAtomic(args: {
   productId: number;
   newQuantity: number;
