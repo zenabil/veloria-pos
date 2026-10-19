@@ -1,0 +1,508 @@
+CHANNELS total = 177
+schema exports (*Schema) = 120
+staff-gated = 115
+registered = 138
+preloaded = 177
+
+channel | staff | validator | registry | preload | renderer | test
+app.restart | - | MISSING | REG | PRE | CALL | TEST
+app.diagnostics | - | MISSING | REG | PRE | CALL | -
+system.openDataFolder | - | MISSING | REG | PRE | CALL | -
+system.selectFolder | - | MISSING | REG | PRE | CALL | -
+system.selectLogo | - | MISSING | REG | PRE | CALL | -
+database.health | - | MISSING | REG | PRE | CALL | -
+database.location | - | MISSING | REG | PRE | CALL | -
+database.relocate | GATE | MISSING | REG | PRE | CALL | -
+database.integrity | - | MISSING | REG | PRE | CALL | -
+database.optimize | - | MISSING | REG | PRE | CALL | -
+database.reset | GATE | MISSING | REG | PRE | CALL | TEST
+products.search | - | MISSING | REG | PRE | CALL | -
+products.getByBarcode | - | MISSING | REG | PRE | CALL | -
+products.matchBatch | - | MISSING | REG | PRE | CALL | -
+products.barcodes | - | MISSING | REG | PRE | CALL | -
+products.create | GATE | MISSING | REG | PRE | CALL | TEST
+products.update | GATE | MISSING | REG | PRE | CALL | -
+products.archive | GATE | MISSING | REG | PRE | CALL | -
+products.restore | GATE | MISSING | REG | PRE | CALL | -
+products.delete | GATE | MISSING | REG | PRE | CALL | -
+products.import | GATE | MISSING | REG | PRE | CALL | TEST
+products.suppliers | - | MISSING | REG | PRE | CALL | -
+products.setSuppliers | GATE | MISSING | REG | PRE | CALL | -
+customers.search | - | MISSING | REG | PRE | CALL | TEST
+customers.create | GATE | MISSING | REG | PRE | CALL | TEST
+customers.update | GATE | MISSING | REG | PRE | CALL | TEST
+customers.archive | GATE | MISSING | REG | PRE | CALL | -
+customers.restore | GATE | MISSING | REG | PRE | CALL | -
+customers.recordPayment | GATE | MISSING | REG | PRE | CALL | TEST
+customers.paymentReceipt | - | MISSING | REG | PRE | CALL | -
+customers.statement | - | MISSING | REG | PRE | CALL | -
+customers.stats | - | MISSING | REG | PRE | CALL | -
+customers.accessActivate | GATE | MISSING | REG | PRE | CALL | TEST
+customers.accessRevoke | GATE | MISSING | REG | PRE | CALL | TEST
+customers.accessStatus | - | MISSING | REG | PRE | CALL | -
+customers.accessQrSvg | - | MISSING | REG | PRE | CALL | -
+sync.enqueue | GATE | MISSING | REG | PRE | CALL | TEST
+sync.pushNow | GATE | MISSING | REG | PRE | CALL | TEST
+sync.getConfig | - | MISSING | REG | PRE | CALL | -
+sync.saveConfig | GATE | MISSING | REG | PRE | CALL | TEST
+announcements.save | GATE | MISSING | REG | PRE | CALL | TEST
+categories.list | - | MISSING | REG | PRE | CALL | -
+categories.create | GATE | MISSING | REG | PRE | CALL | -
+stock.overview | GATE | MISSING | REG | PRE | CALL | -
+stock.products | GATE | MISSING | REG | PRE | CALL | -
+stock.movements | GATE | MISSING | REG | PRE | CALL | -
+stock.inventory | GATE | MISSING | REG | PRE | CALL | -
+stock.adjust | GATE | MISSING | REG | PRE | CALL | TEST
+stock.intake | GATE | MISSING | REG | PRE | CALL | TEST
+stock.intakes | GATE | MISSING | REG | PRE | CALL | TEST
+suppliers.search | - | MISSING | REG | PRE | CALL | -
+suppliers.create | GATE | MISSING | REG | PRE | CALL | -
+suppliers.update | GATE | MISSING | REG | PRE | CALL | -
+suppliers.delete | GATE | MISSING | REG | PRE | CALL | TEST
+suppliers.deleteMany | GATE | MISSING | REG | PRE | - | TEST
+suppliers.pay | GATE | MISSING | REG | PRE | CALL | TEST
+suppliers.statement | - | MISSING | REG | PRE | CALL | -
+suppliers.stats | - | MISSING | REG | PRE | CALL | -
+suppliers.products | - | MISSING | REG | PRE | CALL | -
+purchase.create | GATE | MISSING | REG | PRE | CALL | TEST
+purchase.list | - | MISSING | REG | PRE | CALL | -
+purchase.detail | - | MISSING | REG | PRE | CALL | -
+purchase.order | GATE | MISSING | REG | PRE | CALL | TEST
+purchase.cancel | GATE | MISSING | REG | PRE | CALL | TEST
+purchase.receive | GATE | MISSING | REG | PRE | CALL | TEST
+proformas.create | GATE | MISSING | REG | PRE | CALL | -
+proformas.list | - | MISSING | REG | PRE | CALL | -
+proformas.status | GATE | MISSING | REG | PRE | CALL | -
+proformas.convert | GATE | MISSING | REG | PRE | CALL | TEST
+proformas.update | GATE | MISSING | REG | PRE | CALL | -
+proformas.delete | GATE | MISSING | REG | PRE | CALL | -
+proformas.detail | - | MISSING | REG | PRE | CALL | -
+proformas.stats | - | MISSING | REG | PRE | CALL | -
+debts.list | GATE | MISSING | REG | PRE | CALL | -
+debts.detail | GATE | MISSING | REG | PRE | CALL | -
+debts.stats | GATE | MISSING | REG | PRE | CALL | -
+reports.summary | - | MISSING | REG | PRE | CALL | -
+dashboard.summary | - | MISSING | REG | PRE | CALL | -
+closings.get | GATE | MISSING | REG | PRE | CALL | -
+closings.create | GATE | MISSING | REG | PRE | CALL | TEST
+zakat.sources | - | MISSING | REG | PRE | CALL | -
+zakat.saveParams | GATE | MISSING | REG | PRE | CALL | TEST
+zakat.history | - | MISSING | REG | PRE | CALL | -
+zakat.save | GATE | MISSING | REG | PRE | CALL | TEST
+settings.get | GATE | MISSING | REG | PRE | CALL | -
+settings.save | GATE | MISSING | REG | PRE | CALL | TEST
+sales.create | GATE | MISSING | REG | PRE | CALL | TEST
+sales.get | GATE | MISSING | REG | PRE | CALL | TEST
+sales.history | GATE | MISSING | REG | PRE | CALL | TEST
+sales.cancel | GATE | MISSING | REG | PRE | CALL | TEST
+sales.setDueDate | GATE | MISSING | REG | PRE | CALL | TEST
+carts.save | GATE | MISSING | REG | PRE | CALL | TEST
+carts.load | - | MISSING | REG | PRE | CALL | -
+returns.create | GATE | MISSING | REG | PRE | CALL | TEST
+returns.list | GATE | MISSING | REG | PRE | CALL | -
+returns.detail | GATE | MISSING | REG | PRE | CALL | -
+returns.saleItems | GATE | MISSING | REG | PRE | CALL | -
+returns.intakeItems | GATE | MISSING | REG | PRE | CALL | -
+returns.refund | GATE | MISSING | REG | PRE | CALL | -
+returns.cancel | GATE | MISSING | REG | PRE | CALL | -
+returns.stats | GATE | MISSING | REG | PRE | CALL | -
+expenses.create | GATE | MISSING | REG | PRE | CALL | TEST
+expenses.list | GATE | MISSING | REG | PRE | CALL | -
+expenses.update | GATE | MISSING | REG | PRE | CALL | -
+expenses.delete | GATE | MISSING | REG | PRE | CALL | -
+expenses.stats | GATE | MISSING | REG | PRE | CALL | -
+history.list | - | MISSING | REG | PRE | CALL | -
+history.detail | - | MISSING | REG | PRE | CALL | -
+history.stats | - | MISSING | REG | PRE | CALL | -
+company.get | - | MISSING | REG | PRE | CALL | -
+company.update | GATE | MISSING | REG | PRE | CALL | -
+printing.listPrinters | GATE | MISSING | MISSING | PRE | CALL | TEST
+printing.printReceipt | GATE | MISSING | MISSING | PRE | CALL | TEST
+printing.preview | GATE | MISSING | MISSING | PRE | CALL | TEST
+printing.previewProforma | GATE | MISSING | MISSING | PRE | CALL | TEST
+printing.printProformaA4 | GATE | MISSING | MISSING | PRE | CALL | TEST
+printing.exportProformaPdf | GATE | MISSING | MISSING | PRE | CALL | TEST
+printing.exportPaymentPdf | GATE | MISSING | MISSING | PRE | CALL | TEST
+printing.exportReportPdf | GATE | MISSING | MISSING | PRE | CALL | TEST
+printing.exportLabelsPdf | GATE | MISSING | MISSING | PRE | CALL | TEST
+printing.previewReport | GATE | MISSING | MISSING | PRE | CALL | TEST
+printing.printReport | GATE | MISSING | MISSING | PRE | CALL | TEST
+printing.previewLabels | GATE | MISSING | MISSING | PRE | CALL | TEST
+printing.printLabels | GATE | MISSING | MISSING | PRE | CALL | TEST
+printing.previewPayment | GATE | MISSING | MISSING | PRE | CALL | TEST
+printing.printPayment | GATE | MISSING | MISSING | PRE | CALL | TEST
+printing.previewDelivery | GATE | MISSING | MISSING | PRE | CALL | TEST
+printing.printDelivery | GATE | MISSING | MISSING | PRE | CALL | TEST
+printing.previewReturnSlip | GATE | MISSING | MISSING | PRE | CALL | TEST
+printing.printReturnSlip | GATE | MISSING | MISSING | PRE | CALL | TEST
+printing.previewPO | GATE | MISSING | MISSING | PRE | CALL | TEST
+printing.printPO | GATE | MISSING | MISSING | PRE | CALL | TEST
+printing.exportReceiptPdf | GATE | MISSING | MISSING | PRE | CALL | TEST
+printing.testPage | GATE | MISSING | MISSING | PRE | CALL | TEST
+printer.get | - | MISSING | MISSING | PRE | CALL | TEST
+printer.save | GATE | MISSING | MISSING | PRE | CALL | TEST
+templates.list | GATE | MISSING | REG | PRE | CALL | -
+templates.get | GATE | MISSING | REG | PRE | CALL | -
+templates.save | GATE | MISSING | REG | PRE | CALL | -
+templates.activate | GATE | MISSING | REG | PRE | CALL | -
+templates.remove | GATE | MISSING | REG | PRE | CALL | -
+templates.reset | GATE | MISSING | REG | PRE | CALL | -
+templates.preview | GATE | MISSING | MISSING | PRE | CALL | TEST
+templates.testPrint | GATE | MISSING | MISSING | PRE | CALL | TEST
+staff.list | - | MISSING | REG | PRE | CALL | -
+staff.login | - | MISSING | REG | PRE | CALL | TEST
+staff.logout | - | MISSING | REG | PRE | CALL | -
+staff.session | - | MISSING | REG | PRE | CALL | -
+staff.create | GATE | MISSING | REG | PRE | CALL | TEST
+staff.setPermissions | GATE | MISSING | REG | PRE | CALL | -
+staff.changeCode | - | MISSING | REG | PRE | CALL | -
+staff.setActive | GATE | MISSING | REG | PRE | CALL | -
+staff.recover | - | MISSING | REG | PRE | CALL | TEST
+staff.regenRecovery | GATE | MISSING | REG | PRE | CALL | TEST
+system.openLogsFolder | - | MISSING | REG | PRE | CALL | -
+recovery.retry | - | MISSING | REG | PRE | - | -
+recovery.exit | - | MISSING | REG | PRE | - | -
+window.minimize | - | MISSING | REG | PRE | CALL | -
+window.toggleMaximize | - | MISSING | REG | PRE | CALL | -
+window.close | - | MISSING | REG | PRE | CALL | -
+window.isMaximized | - | MISSING | REG | PRE | CALL | -
+window.maximizedChanged | - | MISSING | MISSING | PRE | - | TEST
+license.getStatus | - | MISSING | REG | PRE | - | -
+license.getHardwareId | - | MISSING | REG | PRE | - | -
+license.importLicense | - | MISSING | REG | PRE | CALL | -
+license.validate | - | MISSING | REG | PRE | CALL | -
+backup.create | GATE | MISSING | MISSING | PRE | CALL | -
+backup.list | - | MISSING | MISSING | PRE | CALL | -
+backup.restore | GATE | MISSING | MISSING | PRE | CALL | TEST
+backup.status | - | MISSING | MISSING | PRE | CALL | -
+backup.export | GATE | MISSING | MISSING | PRE | CALL | -
+backup.autoSave | GATE | MISSING | MISSING | PRE | CALL | TEST
+ocr.selectFile | GATE | MISSING | MISSING | PRE | CALL | TEST
+ocr.analyze | GATE | MISSING | MISSING | PRE | CALL | TEST
+ocr.cancel | GATE | MISSING | MISSING | PRE | CALL | TEST
+ocr.dispose | GATE | MISSING | MISSING | PRE | CALL | TEST
+ocr.progress | - | MISSING | MISSING | PRE | CALL | TEST
+
+=== MISSING registry ===
+printing.listPrinters
+printing.printReceipt
+printing.preview
+printing.previewProforma
+printing.printProformaA4
+printing.exportProformaPdf
+printing.exportPaymentPdf
+printing.exportReportPdf
+printing.exportLabelsPdf
+printing.previewReport
+printing.printReport
+printing.previewLabels
+printing.printLabels
+printing.previewPayment
+printing.printPayment
+printing.previewDelivery
+printing.printDelivery
+printing.previewReturnSlip
+printing.printReturnSlip
+printing.previewPO
+printing.printPO
+printing.exportReceiptPdf
+printing.testPage
+printer.get
+printer.save
+templates.preview
+templates.testPrint
+window.maximizedChanged
+backup.create
+backup.list
+backup.restore
+backup.status
+backup.export
+backup.autoSave
+ocr.selectFile
+ocr.analyze
+ocr.cancel
+ocr.dispose
+ocr.progress
+=== MISSING validator ===
+app.restart
+app.diagnostics
+system.openDataFolder
+system.selectFolder
+system.selectLogo
+database.health
+database.location
+database.relocate
+database.integrity
+database.optimize
+database.reset
+products.search
+products.getByBarcode
+products.matchBatch
+products.barcodes
+products.create
+products.update
+products.archive
+products.restore
+products.delete
+products.import
+products.suppliers
+products.setSuppliers
+customers.search
+customers.create
+customers.update
+customers.archive
+customers.restore
+customers.recordPayment
+customers.paymentReceipt
+customers.statement
+customers.stats
+customers.accessActivate
+customers.accessRevoke
+customers.accessStatus
+customers.accessQrSvg
+sync.enqueue
+sync.pushNow
+sync.getConfig
+sync.saveConfig
+announcements.save
+categories.list
+categories.create
+stock.overview
+stock.products
+stock.movements
+stock.inventory
+stock.adjust
+stock.intake
+stock.intakes
+suppliers.search
+suppliers.create
+suppliers.update
+suppliers.delete
+suppliers.deleteMany
+suppliers.pay
+suppliers.statement
+suppliers.stats
+suppliers.products
+purchase.create
+purchase.list
+purchase.detail
+purchase.order
+purchase.cancel
+purchase.receive
+proformas.create
+proformas.list
+proformas.status
+proformas.convert
+proformas.update
+proformas.delete
+proformas.detail
+proformas.stats
+debts.list
+debts.detail
+debts.stats
+reports.summary
+dashboard.summary
+closings.get
+closings.create
+zakat.sources
+zakat.saveParams
+zakat.history
+zakat.save
+settings.get
+settings.save
+sales.create
+sales.get
+sales.history
+sales.cancel
+sales.setDueDate
+carts.save
+carts.load
+returns.create
+returns.list
+returns.detail
+returns.saleItems
+returns.intakeItems
+returns.refund
+returns.cancel
+returns.stats
+expenses.create
+expenses.list
+expenses.update
+expenses.delete
+expenses.stats
+history.list
+history.detail
+history.stats
+company.get
+company.update
+printing.listPrinters
+printing.printReceipt
+printing.preview
+printing.previewProforma
+printing.printProformaA4
+printing.exportProformaPdf
+printing.exportPaymentPdf
+printing.exportReportPdf
+printing.exportLabelsPdf
+printing.previewReport
+printing.printReport
+printing.previewLabels
+printing.printLabels
+printing.previewPayment
+printing.printPayment
+printing.previewDelivery
+printing.printDelivery
+printing.previewReturnSlip
+printing.printReturnSlip
+printing.previewPO
+printing.printPO
+printing.exportReceiptPdf
+printing.testPage
+printer.get
+printer.save
+templates.list
+templates.get
+templates.save
+templates.activate
+templates.remove
+templates.reset
+templates.preview
+templates.testPrint
+staff.list
+staff.login
+staff.logout
+staff.session
+staff.create
+staff.setPermissions
+staff.changeCode
+staff.setActive
+staff.recover
+staff.regenRecovery
+system.openLogsFolder
+recovery.retry
+recovery.exit
+window.minimize
+window.toggleMaximize
+window.close
+window.isMaximized
+window.maximizedChanged
+license.getStatus
+license.getHardwareId
+license.importLicense
+license.validate
+backup.create
+backup.list
+backup.restore
+backup.status
+backup.export
+backup.autoSave
+ocr.selectFile
+ocr.analyze
+ocr.cancel
+ocr.dispose
+ocr.progress
+=== MISSING preload ===
+=== NOT staff-gated (list) ===
+app.restart
+app.diagnostics
+system.openDataFolder
+system.selectFolder
+system.selectLogo
+database.health
+database.location
+database.integrity
+database.optimize
+products.search
+products.getByBarcode
+products.matchBatch
+products.barcodes
+products.suppliers
+customers.search
+customers.paymentReceipt
+customers.statement
+customers.stats
+customers.accessStatus
+customers.accessQrSvg
+sync.getConfig
+categories.list
+suppliers.search
+suppliers.statement
+suppliers.stats
+suppliers.products
+purchase.list
+purchase.detail
+proformas.list
+proformas.detail
+proformas.stats
+reports.summary
+dashboard.summary
+zakat.sources
+zakat.history
+carts.load
+history.list
+history.detail
+history.stats
+company.get
+printer.get
+staff.list
+staff.login
+staff.logout
+staff.session
+staff.changeCode
+staff.recover
+system.openLogsFolder
+recovery.retry
+recovery.exit
+window.minimize
+window.toggleMaximize
+window.close
+window.isMaximized
+window.maximizedChanged
+license.getStatus
+license.getHardwareId
+license.importLicense
+license.validate
+backup.list
+backup.status
+ocr.progress
+=== registered but NOT in channels.ts ===
+=== channels.ts keys not registered ===
+printing.listPrinters
+printing.printReceipt
+printing.preview
+printing.previewProforma
+printing.printProformaA4
+printing.exportProformaPdf
+printing.exportPaymentPdf
+printing.exportReportPdf
+printing.exportLabelsPdf
+printing.previewReport
+printing.printReport
+printing.previewLabels
+printing.printLabels
+printing.previewPayment
+printing.printPayment
+printing.previewDelivery
+printing.printDelivery
+printing.previewReturnSlip
+printing.printReturnSlip
+printing.previewPO
+printing.printPO
+printing.exportReceiptPdf
+printing.testPage
+printer.get
+printer.save
+templates.preview
+templates.testPrint
+window.maximizedChanged
+backup.create
+backup.list
+backup.restore
+backup.status
+backup.export
+backup.autoSave
+ocr.selectFile
+ocr.analyze
+ocr.cancel
+ocr.dispose
+ocr.progress

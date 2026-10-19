@@ -1,0 +1,305 @@
+﻿
+=== lint (isolated) ===
+
+> veloria-pos@1.0.0 lint
+> node -e "/* NODE_OPTIONS=--max-old-space-size=8192 */ process.env.NODE_OPTIONS='--max-old-space-size=8192'; require('node:child_process').execSync('eslint . --max-warnings 0', {stdio:'inherit',shell:true,env:process.env})"
+
+
+C:\Users\zenagui bilal\Desktop\Veloria POS dev zenagui bilal\docs\reports\maintenance\audit-raw\ipc-matrix.mjs
+  0:0  error  Parsing error: C:\Users\zenagui bilal\Desktop\Veloria POS dev zenagui bilal\docs\reports\maintenance\audit-raw\ipc-matrix.mjs was not found by the project service. Consider either including it in the tsconfig.json or including it in allowDefaultProject
+
+Ô£û 1 problem (1 error, 0 warnings)
+
+node.exe : node:child_process:991
+Au caractère Ligne:1 : 1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (node:child_process:991:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    throw err;
+    ^
+
+Error: Command failed: eslint . --max-warnings 0
+    at genericNodeError (node:internal/errors:983:15)
+    at wrappedFn (node:internal/errors:537:14)
+    at checkExecSyncError (node:child_process:916:11)
+    at Object.execSync (node:child_process:988:15)
+    at [eval]:1:130
+    at runScriptInThisContext (node:internal/vm:209:10)
+    at node:internal/process/execution:446:12
+    at [eval]-wrapper:6:24
+    at runScriptInContext (node:internal/process/execution:444:60)
+    at evalFunction (node:internal/process/execution:279:30) {
+  status: 1,
+  signal: null,
+  output: [ null, null, null ],
+  pid: 7144,
+  stdout: null,
+  stderr: null
+}
+
+Node.js v22.23.3
+EXIT=1
+=== test:db (isolated) ===
+
+> veloria-pos@1.0.0 test:db
+> vitest run tests/database tests/integration
+
+
+[1m[7m[36m RUN [39m[27m[22m [36mv3.1.1 [39m[90mC:/Users/zenagui bilal/Desktop/Veloria POS dev zenagui bilal[39m
+
+node.exe : (node:4752) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+Au caractère Ligne:1 : 1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ((node:4752) Exp...nge at any time:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1732) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:4560) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32mÔ£ô[39m tests/database/migrations.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 18779[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m SQLite migrations + integrity[2m > [22mapplies all migrations in order and enforces foreign keys [33m 1244[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m SQLite migrations + integrity[2m > [22mrejects sales whose totals break the arithmetic invariant [33m 2690[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m SQLite migrations + integrity[2m > [22m0004 allows standalone customer payments and preserves existing rows [33m 2613[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m SQLite migrations + integrity[2m > [22m0005 adds phase 6-9 indexes and seeds the inventory policy [33m 2441[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m SQLite migrations + integrity[2m > [22m0016 upgrades an old database: order_name backfilled, recurring defaults to 0 [33m 2458[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m SQLite migrations + integrity[2m > [22m0031 arms defensive sale-item triggers (discount coherence) [33m 2485[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m SQLite migrations + integrity[2m > [22m0034 enforces client phone uniqueness (access sync) [33m 2400[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m SQLite migrations + integrity[2m > [22m0035 adds company NIS + article_imposition (nullable, factures DZ) [33m 2436[2mms[22m[39m
+ [32mÔ£ô[39m tests/integration/fifo-layers.test.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 31167[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m FIFO cost layers (SQL invariants)[2m > [22mTest 1 : 10├ù20, vente 3├ù25 ÔåÆ COGS 60, revenu 75, profit 15, couche ├á 7 [33m 2643[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m FIFO cost layers (SQL invariants)[2m > [22mTest 2 : 10├ù20 puis 10├ù24, vente 3├ù30 ÔåÆ co├╗t 20 (pas le dernier co├╗t) [33m 2696[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m FIFO cost layers (SQL invariants)[2m > [22mTests 3+14 : 10├ù20 + 10├ù24, vente 15├ù30 ÔåÆ 10├ù20 + 5├ù24 = 320 [33m 2751[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m FIFO cost layers (SQL invariants)[2m > [22mTest 4 : vente 25ÔåÆ30 ne touche pas les couches ; Test 5 : achat 20ÔåÆ24 ne touche pas la vente [33m 2501[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m FIFO cost layers (SQL invariants)[2m > [22mTest 6 : profit historique fig├® apr├¿s nouvel achat [33m 2507[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m FIFO cost layers (SQL invariants)[2m > [22mTest 7 : facture sans prix de vente ÔåÆ prix actuel conserv├® [33m 2501[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m FIFO cost layers (SQL invariants)[2m > [22mTest 8 : retour client ÔåÆ couches d'origine restaur├®es (pas un co├╗t r├®cent) [33m 2441[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m FIFO cost layers (SQL invariants)[2m > [22mTest 9 : retour fournisseur ÔåÆ d├®duit la couche de CETTE facture ; sur-retour refus├® [33m 2364[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m FIFO cost layers (SQL invariants)[2m > [22mTests 10+11 : factures immuables (aucun canal update/delete) + operationId UNIQUE [33m 2339[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m FIFO cost layers (SQL invariants)[2m > [22mTest 12 : survente bloqu├®e (stock insuffisant) ÔÇö couches et stock intacts [33m 2312[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m FIFO cost layers (SQL invariants)[2m > [22mTest 13 : ├®chec en pleine transaction ÔÇö rollback (ni facture, ni couche, ni stock, ni dette) [33m 2423[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m FIFO cost layers (SQL invariants)[2m > [22mValorisation FIFO : 5├ù20 + 10├ù24 = 340 [33m 2499[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m FIFO cost layers (SQL invariants)[2m > [22mMigration 0018 : reprise ÔÇö couche d'ouverture + cogs historique [33m 1181[2mms[22m[39m
+ [32mÔ£ô[39m tests/integration/atomic-slices.test.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 31929[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Atomic slices (SQL invariants)[2m > [22mentr├®e fournisseur : intake + lignes + stock + solde = 1 transaction [33m 2520[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Atomic slices (SQL invariants)[2m > [22mcl├┤ture Z : unicit├® par date + formule [33m 2737[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Atomic slices (SQL invariants)[2m > [22mproforma : statuts + conversion li├®e [33m 2658[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Atomic slices (SQL invariants)[2m > [22mvente ├á cr├®dit : seuls les clients autoris├®s (trigger 0007) [33m 2477[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Atomic slices (SQL invariants)[2m > [22mfournisseurs 0008 : fiche enrichie + code unique + suppression gard├®e [33m 2214[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Atomic slices (SQL invariants)[2m > [22mstock 0009 : plafond + r├®f├®rence mouvement + index [33m 2461[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Atomic slices (SQL invariants)[2m > [22mretours 0010 : num├®ros, statuts, retours fournisseurs [33m 2507[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Atomic slices (SQL invariants)[2m > [22md├®penses 0011 : fiche enrichie + statuts contraints [33m 2355[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Atomic slices (SQL invariants)[2m > [22mdettes : ventes impay├®es + comptes fournisseurs (UNION) [33m 2343[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Atomic slices (SQL invariants)[2m > [22mmigration 0012 : pain enrichi + conditions proforma + zakat [33m 2307[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Atomic slices (SQL invariants)[2m > [22mmigration 0013 : nom commercial soci├®t├® [33m 2400[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Atomic slices (SQL invariants)[2m > [22msoldes clients : recalcul CASE annulation/avoir + index 0014 [33m 2585[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Atomic slices (SQL invariants)[2m > [22mpain : surpaiement rejet├® + statuts contraints [33m 2360[2mms[22m[39m
+(node:4584) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:7144) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:5740) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32mÔ£ô[39m tests/integration/purchase-idempotency.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 12519[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m P0 : bons fournisseurs idempotents par operationId[2m > [22mpurchase.create rejou├® m├¬me operationId = une seule commande [33m 2582[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m P0 : bons fournisseurs idempotents par operationId[2m > [22mpurchase.create avec operationId diff├®rent = nouvelle commande (regen apr├¿s succ├¿s) [33m 2479[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m P0 : bons fournisseurs idempotents par operationId[2m > [22morder/cancel rejou├®s m├¬me operationId = une seule transition chacun [33m 2528[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m P0 : bons fournisseurs idempotents par operationId[2m > [22mpurchase.receive rejou├® m├¬me operationId = un seul intake, stock +1├ù [33m 2491[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m P0 : bons fournisseurs idempotents par operationId[2m > [22mrollback : r├®ception en ├®chec = rien ├®crit, retry m├¬me operationId r├®ussit [33m 2432[2mms[22m[39m
+ [32mÔ£ô[39m tests/integration/intake-selling-price.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 20257[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m R├®ception fournisseur + prix de vente (SQL invariants)[2m > [22mTest 1 : produit existant ÔÇö stock +, co├╗t et vente mis ├á jour (20+10=30, 80ÔåÆ85, 100ÔåÆ110) [33m 2631[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m R├®ception fournisseur + prix de vente (SQL invariants)[2m > [22mTest 2 : produit nouveau ÔÇö cr├®ation + stock initial + co├╗ts (jamais de marge auto) [33m 2780[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m R├®ception fournisseur + prix de vente (SQL invariants)[2m > [22mTest 3 : multi-produits ÔÇö chaque produit garde son prix de vente propre [33m 2877[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m R├®ception fournisseur + prix de vente (SQL invariants)[2m > [22mTest 4 : vente vide ÔÇö le prix actuel est conserv├® (pas d'├®crasement) [33m 2429[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m R├®ception fournisseur + prix de vente (SQL invariants)[2m > [22mTest 5 : facture ├á cr├®dit (avec fournisseur) ÔÇö dette mise ├á jour [33m 2408[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m R├®ception fournisseur + prix de vente (SQL invariants)[2m > [22mTest 6 : facture comptant (sans fournisseur) ÔÇö aucune dette cr├®├®e [33m 2466[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m R├®ception fournisseur + prix de vente (SQL invariants)[2m > [22mTest 7 : ├®chec au milieu ÔÇö rollback complet (ni facture, ni stock, ni dette) [33m 2413[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m R├®ception fournisseur + prix de vente (SQL invariants)[2m > [22mTests 8+9 : pas de modification/suppression de facture ÔÇö rejouer operationId ne duplique rien (UNIQUE) [33m 2245[2mms[22m[39m
+ [32mÔ£ô[39m tests/database/client-access-sync.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 19334[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Migration 0032 client access + sync outbox[2m > [22mcreates the three tables with indexes [33m 3007[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Migration 0032 client access + sync outbox[2m > [22menforces one access row per customer and restrict on delete (0038) [33m 2433[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Migration 0032 client access + sync outbox[2m > [22menforces outbox idempotence and announcement length [33m 2433[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Migration 0032 client access + sync outbox[2m > [22mleaves financial invariants intact [33m 2481[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m activateClientAccessAtomic : num├®ro r├®utilis├® refus├® ├á la source[2m > [22mm├¬me client : remplacement + replay inchang├® ; autre client : erreur FR, rien n'est ├®cras├® [33m 5567[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m activateClientAccessAtomic : num├®ro r├®utilis├® refus├® ├á la source[2m > [22mr├®voqu├® : le num├®ro reste trac├® mais ne bloque plus (politique 0034) [33m 3407[2mms[22m[39m
+(node:1172) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:9256) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2488) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[90mstdout[2m | tests/integration/client-loop.test.ts[2m > [22m[2mEssai APK : boucle locale compl├¿te[2m > [22m[2mt┘üÏ╣┘è┘ä ÔåÆ clich├® ÔåÆ r├®ception ÔåÆ ├®crans (donn├®es affich├®es ci-dessous)
+[22m[39mÔöÇÔöÇÔöÇ ACCUEIL (ar) ÔöÇÔöÇÔöÇ
+Ïº┘äÏ»┘è┘å Ïº┘ä┘àÏ¬Ï¿┘é┘è : 3ÔÇ»750,00 Ï»Ï¼
+achats du mois : 12ÔÇ»500,00 Ï»Ï¼
+points : 12 (┘å┘éÏºÏÀ Ï¬Ï¡┘ü┘èÏ▓┘èÏ® Ï║┘èÏ▒ ┘éÏºÏ¿┘äÏ® ┘ä┘äÏÁÏ▒┘ü Ï¡Ïº┘ä┘èÏº┘ï)
+top produit : Sucre 1kg ├ù50
+ÔöÇÔöÇÔöÇ ACCUEIL (fr) ÔöÇÔöÇÔöÇ
+Dette restante : 3ÔÇ»750,00 DZD
+
+ [32mÔ£ô[39m tests/integration/client-loop.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 3450[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Essai APK : boucle locale compl├¿te[2m > [22mt┘üÏ╣┘è┘ä ÔåÆ clich├® ÔåÆ r├®ception ÔåÆ ├®crans (donn├®es affich├®es ci-dessous) [33m 3441[2mms[22m[39m
+(node:9760) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32mÔ£ô[39m tests/integration/repair-hardening.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 16306[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m M-2 : idempotence suppressions (pattern peek/claim/store/replay)[2m > [22mretry m├¬me operationId rejoue le r├®sultat stock├® (pas d'├®chec 'introuvable') [33m 2528[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m M-2 : idempotence suppressions (pattern peek/claim/store/replay)[2m > [22moperationId diff├®rent + m├¬me ligne d├®j├á supprim├®e => ├®chec explicite (pas de succ├¿s mensonger) [33m 2329[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m M-4 : contournement SQL direct ferm├® (bypass)[2m > [22mINSERT vente total n├®gatif refus├® au niveau DB [33m 2260[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m M-4 : contournement SQL direct ferm├® (bypass)[2m > [22mINSERT vente surpay├®e refus├® au niveau DB [33m 2269[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m M-4 : contournement SQL direct ferm├® (bypass)[2m > [22mreturn_number NULL refus├® INSERT + UPDATE (H-2 sur sch├®ma 0025) [33m 2335[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m M-5/M-6 : r├®vocation cr├®dit + stock (miroirs SQL)[2m > [22mM-5 : r├®vocation avec dette refus├®e, sold├®e autoris├®e [33m 2294[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m M-5/M-6 : r├®vocation cr├®dit + stock (miroirs SQL)[2m > [22mM-6 : vente bloqu├®e sans stock quand allowNegativeStock=false [33m 2283[2mms[22m[39m
+ [32mÔ£ô[39m tests/integration/supplier-return-intra-request.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 4839[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m FIX-P1-01 : retour fournisseur ÔÇö cumul intra-requ├¬te par produit[2m > [22m2 lignes m├¬me produit totalisant plus que l'├®ligible = refus + rollback complet [33m 2374[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m FIX-P1-01 : retour fournisseur ÔÇö cumul intra-requ├¬te par produit[2m > [22m2 lignes m├¬me produit dans la limite = succ├¿s + double-submit m├¬me operationId = effet unique + centimes entiers [33m 2396[2mms[22m[39m
+(node:9560) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32mÔ£ô[39m tests/database/customers-search.test.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 32257[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m customers.search : visibilit├® + normalisation + tri serveur[2m > [22mmigration 0047 : colonne search_norm + backfill normalis├® [33m 3285[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m customers.search : visibilit├® + normalisation + tri serveur[2m > [22minsensible aux accents : ┬½ belaid ┬╗ retrouve ┬½ B├®la├»d Bennai ┬╗ [33m 2928[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m customers.search : visibilit├® + normalisation + tri serveur[2m > [22mt├®l├®phone espac├® retrouv├® avec chiffres seuls [33m 2302[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m customers.search : visibilit├® + normalisation + tri serveur[2m > [22marchiv├® : invisible par d├®faut, visible via filtres [33m 2339[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m customers.search : visibilit├® + normalisation + tri serveur[2m > [22mfiltre dette : le client sold├® quitte ┬½ with_debt ┬╗ sans dispara├«tre [33m 2375[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m customers.search : visibilit├® + normalisation + tri serveur[2m > [22mtri serveur global : debt_desc ordonne toutes les pages [33m 2357[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m customers.search : visibilit├® + normalisation + tri serveur[2m > [22mtri achats : purchases_desc suit les ventes non annul├®es [33m 2312[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m customers.search : visibilit├® + normalisation + tri serveur[2m > [22mpagination : total r├®el + page 2 [33m 2325[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m customers.search : visibilit├® + normalisation + tri serveur[2m > [22mnormCustomerSearch : miroir document├® de la migration 0047 [33m 2270[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m customers.search : visibilit├® + normalisation + tri serveur[2m > [22mLIKE ├®chapp├® : % _ \ trait├®s comme litt├®raux (jamais de wildcard) [33m 2306[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m customers.search : visibilit├® + normalisation + tri serveur[2m > [22mtri hors whitelist : repli s├╗r sur le tri par d├®faut (pas d'erreur SQL) [33m 2205[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m customers.search : visibilit├® + normalisation + tri serveur[2m > [22mbackfill 0047 idempotent : un rejeu ne modifie plus rien [33m 2625[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m customers.search : visibilit├® + normalisation + tri serveur[2m > [22mespaces & ├© : le backfill 0047 produit la m├¬me forme que le repo (NBSP, ├ÿ) [33m 2619[2mms[22m[39m
+(node:5968) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32mÔ£ô[39m tests/database/root-invariants.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 14450[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Invariants racine 0023[2m > [22mDB-05 ÔÇö cr├®dit refus├® sur UPDATE (pas seulement INSERT) [33m 2883[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Invariants racine 0023[2m > [22mDB-06 ÔÇö couche FIFO born├®e des deux c├┤t├®s [33m 2242[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Invariants racine 0023[2m > [22mDB-13 ÔÇö soldes tiers jamais n├®gatifs [33m 2285[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Invariants racine 0023[2m > [22mDB-09 ÔÇö colonne layers_json tra├ºabilit├® retours fournisseurs [33m 2295[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Invariants racine 0023[2m > [22mDB-09b ÔÇö num├®ros futurs obligatoires ├á l'INSERT [33m 2385[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Invariants racine 0023[2m > [22mP0/0024 ÔÇö s├®quences de retours + num├®ros pr├®-allou├®s [33m 2350[2mms[22m[39m
+ [32mÔ£ô[39m tests/integration/sale-credit-limit.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 9322[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Plafond bloquant (main, atomique)[2m > [22mrefuse solde + reste > plafond (rollback complet, z├®ro vente) [33m 2296[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Plafond bloquant (main, atomique)[2m > [22maccord vendeur = vente accept├®e + flag fig├® + audit trac├® [33m 2338[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Plafond bloquant (main, atomique)[2m > [22msous le plafond = vente accept├®e sans accord [33m 2341[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Plafond bloquant (main, atomique)[2m > [22mretry m├¬me operationId = vente unique (idempotence) [33m 2343[2mms[22m[39m
+(node:8824) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:9516) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:9316) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32mÔ£ô[39m tests/integration/lww-idempotency.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 8769[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m P1 : LWW idempotents par operationId (client + ├®ch├®ance)[2m > [22mcustomers.update rejou├® m├¬me operationId = un seul audit, une seule ├®criture [33m 3138[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m P1 : LWW idempotents par operationId (client + ├®ch├®ance)[2m > [22msales.setDueDate rejou├® m├¬me operationId = une seule ├®criture, vente intacte [33m 3228[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m P1 : LWW idempotents par operationId (client + ├®ch├®ance)[2m > [22mrollback : ├®ch├®ance sur vente annul├®e = rien d'├®crit, erreur FR [33m 2398[2mms[22m[39m
+ [32mÔ£ô[39m tests/database/staff-roles.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 13213[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m 0041 staff_roles[2m > [22mtables + index acteur pr├®sents [33m 3297[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m 0041 staff_roles[2m > [22mpermission hors union refus├®e + doublon username refus├® [33m 3244[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m 0041 staff_roles[2m > [22mdernier g├®rant actif conserv├® (FR) [33m 2369[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m 0041 staff_roles[2m > [22midempotence : m├¬me operationId rejou├® = conflit (le repo relit l'existant) [33m 2141[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m 0041 staff_roles[2m > [22mrollback : ├®chec au milieu = aucune ligne partielle [33m 2157[2mms[22m[39m
+(node:5440) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32mÔ£ô[39m tests/integration/client-access-sync.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 7432[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Client access + sync outbox (SQL semantics)[2m > [22mactivation remplace l'ancienne (un seul actif, compteur remis ├á z├®ro) [33m 2729[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Client access + sync outbox (SQL semantics)[2m > [22mr├®vocation idempotente + file UNIQUE + annonce born├®e [33m 2378[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Client access + sync outbox (SQL semantics)[2m > [22mfile attribu├®e au client (0033) : customer_id persist├® + requ├¬table [33m 2320[2mms[22m[39m
+ [32mÔ£ô[39m tests/integration/idempotency-config.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 9701[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m RADICAL-FIX : configurations idempotentes[2m > [22mcarts.save accepte operationId optionnel et rejoue le r├®sultat [33m 2819[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m RADICAL-FIX : configurations idempotentes[2m > [22mcarts.clear repo idempotent par operationId [33m 2344[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m RADICAL-FIX : configurations idempotentes[2m > [22mprinter.save idempotent par operationId [33m 2306[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m RADICAL-FIX : configurations idempotentes[2m > [22mbackup.autoSave idempotent par operationId [33m 2228[2mms[22m[39m
+(node:1448) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32mÔ£ô[39m tests/integration/retention-critical.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 231[2mms[22m[39m
+(node:9128) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6476) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:3832) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32mÔ£ô[39m tests/integration/cart-delivery-fee.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 5586[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Livraison end-to-end : brouillon + vente[2m > [22mbrouillon : frais persist├®s au rechargement, invalide ÔåÆ 0 [33m 3094[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Livraison end-to-end : brouillon + vente[2m > [22mvente : total = lignes + livraison, centimes entiers, double-submit unique [33m 2486[2mms[22m[39m
+ [32mÔ£ô[39m tests/integration/dashboard-cancelled-payments.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 7630[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m L1 : encaissements align├®s sur les ventes non annul├®es[2m > [22mdashboard : cashMinor et encaissements r├®cents excluent la vente annul├®e [33m 2856[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m L1 : encaissements align├®s sur les ventes non annul├®es[2m > [22mrapports : payments.inMinor exclut la vente annul├®e [33m 2412[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m L1 : encaissements align├®s sur les ventes non annul├®es[2m > [22m├®cran Clients : encaissements 7 jours exclusifs des ventes annul├®es [33m 2357[2mms[22m[39m
+(node:8156) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32mÔ£ô[39m tests/integration/quantity-atomic.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 12467[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Quantity atomic guard (0037)[2m > [22mtrigger final : INSERT n├®gatif rejet├® [33m 3177[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Quantity atomic guard (0037)[2m > [22mtrigger final : UPDATE n├®gatif rejet├®, stock inchang├® [33m 2496[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Quantity atomic guard (0037)[2m > [22msurvente : s├®quence vente avort├®e = rollback total (aucune ligne partielle) [33m 2348[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Quantity atomic guard (0037)[2m > [22mvente valide : commit atomique (stock + lignes) [33m 2292[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Quantity atomic guard (0037)[2m > [22majustement valide : ├®criture dans la transaction accept├®e par le trigger [33m 2149[2mms[22m[39m
+(node:7236) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32mÔ£ô[39m tests/integration/history.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 5165[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m History UNION (seeded)[2m > [22mlists every source in reverse chronological order [33m 2716[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m History UNION (seeded)[2m > [22mfilters by operation, date range and search [33m 2445[2mms[22m[39m
+(node:7084) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32mÔ£ô[39m tests/integration/sale-discount-type-guard.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 4665[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m FIX-P1-02 : garde discountType fail-closed[2m > [22mdiscountType 'percent' = refus FR + rollback complet (z├®ro vente) [33m 2347[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m FIX-P1-02 : garde discountType fail-closed[2m > [22mdiscountType 'none' = vente accept├®e, montants entiers [33m 2315[2mms[22m[39m
+(node:8176) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32mÔ£ô[39m tests/integration/factory-reset.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 2792[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m factory reset (protocole miroir)[2m > [22mseed ÔåÆ reset ÔåÆ base vierge au sch├®ma courant, fichier recr├®├® [33m 2031[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m factory reset (protocole miroir)[2m > [22mle sch├®ma database.reset exige la preuve litt├®rale + UUID [33m 730[2mms[22m[39m
+(node:6316) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32mÔ£ô[39m tests/integration/fifo-tx-guard.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 7023[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Garde transaction FIFO (fail-closed)[2m > [22mrestoreToLayers hors transaction ├®choue en FR (fail-closed) [33m 2379[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Garde transaction FIFO (fail-closed)[2m > [22mdeductIntakeLayers hors transaction ├®choue en FR (fail-closed) [33m 2298[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m Garde transaction FIFO (fail-closed)[2m > [22mrestoreToLayers DANS la transaction fonctionne (garde non bloquante l├®gitime) [33m 2341[2mms[22m[39m
+ [32mÔ£ô[39m tests/database/pin-algo-guard.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 6920[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m 0043 pin_algo guard[2m > [22mtriggers pr├®sents (2/2) [33m 2286[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m 0043 pin_algo guard[2m > [22mvaleurs canoniques accept├®es, md5 refus├® en FR [33m 2330[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m 0043 pin_algo guard[2m > [22mdouble-submit m├¬me operationId = effet unique + rollback [33m 2300[2mms[22m[39m
+(node:9856) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32mÔ£ô[39m tests/integration/carts-drafts.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 117[2mms[22m[39m
+(node:7216) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32mÔ£ô[39m tests/integration/payment-receipt.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 13[2mms[22m[39m
+(node:9224) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[90mstderr[2m | tests/integration/restore-rollback.test.ts[2m > [22m[2mP0-2 : reopenWithRetry ├®choue FORT 
+(jamais silencieux)[2m > [22m[2m├®chec persistant = throw (pas de null muet)
+[22m[39m[Veloria][WARN] database-path: config illisible/invalide, repli sur le chemin par d├®faut
+{"timestamp":"2026-10-19T21:20:55.645Z","level":"WARN","component":"database","event":"database.reopen_attempt_failed",
+"label":"test.p0-2","attempt":1,"error":"The module '\\\\?\\C:\\Users\\zenagui bilal\\Desktop\\Veloria POS dev zenagui 
+bilal\\node_modules\\better-sqlite3\\build\\Release\\better_sqlite3.node'\nwas compiled against a different Node.js 
+version using\nNODE_MODULE_VERSION 136. This version of Node.js requires\nNODE_MODULE_VERSION 127. Please try 
+re-compiling or re-installing\nthe module (for instance, using `npm rebuild` or `npm install`)."}
+
+ [32mÔ£ô[39m tests/integration/restore-rollback.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 457[2mms[22m[39m
+   [33m[2mÔ£ô[22m[39m P0-2 : reopenWithRetry ├®choue FORT (jamais silencieux)[2m > [22m├®chec persistant = throw (pas de null muet) [33m 382[2mms[22m[39m
+(node:5236) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:852) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32mÔ£ô[39m tests/integration/retention.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 105[2mms[22m[39m
+ [32mÔ£ô[39m tests/integration/print-templates.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 2332[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m30 passed[39m[22m[90m (30)[39m
+[2m      Tests [22m [1m[32m134 passed[39m[22m[90m (134)[39m
+[2m   Start at [22m 22:18:10
+[2m   Duration [22m 167.96s[2m (transform 28.01s, setup 0ms, collect 38.57s, tests 309.23s, environment 103ms, prepare 55.33s)[22m
+
+EXIT=0
+=== format:check ===
+
+> veloria-pos@1.0.0 format:check
+> prettier --check .
+
+Checking formatting...
+All matched files use Prettier code style!
+EXIT=0
+DONE3

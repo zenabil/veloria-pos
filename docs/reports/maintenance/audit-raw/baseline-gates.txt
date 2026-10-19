@@ -1,0 +1,29 @@
+﻿
+=== typecheck ===
+
+> veloria-pos@1.0.0 typecheck
+> tsc -b
+
+
+> veloria-pos@1.0.0 posttypecheck
+> node scripts/licensing/sign-integrity.mjs --if-key-present
+
+OK  integrity-manifest sign├® (214 fichiers, v1.0.0).
+EXIT=0
+=== typecheck:electron ===
+
+> veloria-pos@1.0.0 typecheck:electron
+> tsc -p tsconfig.electron.json --noEmit
+
+EXIT=0
+=== typecheck:manager ===
+
+> veloria-pos@1.0.0 typecheck:manager
+> tsc -p tsconfig.manager.json --noEmit
+
+EXIT=0
+=== lint ===
+
+> veloria-pos@1.0.0 lint
+> node -e "/* NODE_OPTIONS=--max-old-space-size=8192 */ process.env.NODE_OPTIONS='--max-old-space-size=8192'; require('node:child_process').execSync('eslint . --max-warnings 0', {stdio:'inherit',shell:true,env:process.env})"
+

@@ -125,6 +125,7 @@
 - [ADR-117](./ADR-117-politique-operation-format-impression.md) Politique opération → format d'impression
 - [ADR-118](./ADR-118-dead-code-lot1.md) Lot 1 nettoyage dead-code (21 symboles morts)
 - [ADR-119](./ADR-119-dead-code-lot2.md) Lot 2 nettoyage dead-code (3 canaux IPC morts)
+- [ADR-120](./ADR-120-guardes-de-contrat-auto-derivees.md) Gardes de contrat auto-dérivées (les gardes qui ne peuvent pas échouer ne sont pas des gardes)
 
 ## Ou ecrire quoi
 
@@ -141,6 +142,9 @@
 
 ## Rapports saries
 
+- [FULL_AUDIT_2026-10-19](./reports/FULL_AUDIT_2026-10-19.md) — **Audit intégral 16 axes (228 findings, 0 Critical, 23 High)**
+- [FULL_AUDIT_2026-10-19_PLAN](./reports/FULL_AUDIT_2026-10-19_PLAN.md) — **Plan de remédiation en vagues (W0…W10)**
+- [DEAD_CODE_AUDIT_2026-10-18](./reports/DEAD_CODE_AUDIT_2026-10-18.md) — Audit code mort (219 candidats → 47 findings, lots 1-2 exécutés)
 - [AUDIT_REPORT](./reports/AUDIT_REPORT.md)
 - [FINAL_REPAIR_REPORT](./reports/FINAL_REPAIR_REPORT.md)
 - [FULL_PROJECT_QA_AUDIT](./reports/FULL_PROJECT_QA_AUDIT.md)

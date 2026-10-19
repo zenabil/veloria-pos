@@ -1,0 +1,6 @@
+﻿
+
+> veloria-pos@1.0.0 lint
+> node -e "/* NODE_OPTIONS=--max-old-space-size=8192 */ process.env.NODE_OPTIONS='--max-old-space-size=8192'; require('node:child_process').execSync('eslint . --max-warnings 0', {stdio:'inherit',shell:true,env:process.env})"
+
+EXIT=0

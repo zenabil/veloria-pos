@@ -1,0 +1,1086 @@
+﻿
+=== knip ===
+Unused dependencies (1)
+expo-constants  mobile/package.json:23:6
+Unused exports (18)
+buildActivationQrPayload  ClientAccess  function  electron/ipc/handlers/client-access.repo.ts:94:17   
+RAW_GUARDED_CHANNELS                              electron/ipc/raw-guards.ts:31:14                    
+clearSecureState                        function  electron/licensing/secure-state.ts:184:17           
+escapePreText             barrel                  electron/printing/receipt-documents.ts:11:22        
+thermalCenter             barrel                  electron/printing/receipt-documents.ts:25:3         
+thermalFooterBlock        barrel                  electron/printing/receipt-documents.ts:28:3         
+thermalSep                barrel                  electron/printing/receipt-documents.ts:32:3         
+thermalSigns              barrel                  electron/printing/receipt-documents.ts:33:3         
+thermalWatermark          barrel                  electron/printing/receipt-documents.ts:34:3         
+escapeHtml                                        electron/printing/receipt-documents/common.ts:109:10
+escapePreText                                     electron/printing/receipt-documents/common.ts:109:22
+CODE39_PATTERNS                                   electron/printing/receipt-documents/common.ts:110:10
+code39Svg                                         electron/printing/receipt-documents/common.ts:110:27
+sanitizeCode39                                    electron/printing/receipt-documents/common.ts:110:38
+CODE128_WIDTHS                                    electron/printing/receipt-documents/common.ts:111:10
+code128Svg                                        electron/printing/receipt-documents/common.ts:111:26
+code128Symbols                                    electron/printing/receipt-documents/common.ts:111:38
+sanitizeCode128                                   electron/printing/receipt-documents/common.ts:111:54
+Unused exported types (9)
+ReceiptLine         barrel  type  electron/printing/receipt-documents.ts:17:28
+ThermalFooterInput  barrel  type  electron/printing/receipt-documents.ts:38:15
+PageOpts            barrel  type  electron/printing/receipt-documents.ts:47:15
+PaymentTicketKind   barrel  type  electron/printing/receipt-documents.ts:56:34
+ReportChart         barrel  type  electron/printing/receipt-documents.ts:58:15
+ReportData          barrel  type  electron/printing/receipt-documents.ts:58:28
+ReportKpi           barrel  type  electron/printing/receipt-documents.ts:58:40
+ReportTable         barrel  type  electron/printing/receipt-documents.ts:58:51
+LabelOptions        barrel  type  electron/printing/receipt-documents.ts:60:39
+node.exe : Configuration hints (1)
+Au caractère Ligne:1 : 1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Configuration hints (1):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+tailwindcss    knip.json  Remove from ignoreDependencies
+EXIT=1
+=== knip full ===
+Unused dependencies (1)
+expo-constants  mobile/package.json:23:6
+Unused exports (18)
+buildActivationQrPayload  ClientAccess  function  electron/ipc/handlers/client-access.repo.ts:94:17   
+RAW_GUARDED_CHANNELS                              electron/ipc/raw-guards.ts:31:14                    
+clearSecureState                        function  electron/licensing/secure-state.ts:184:17           
+escapePreText             barrel                  electron/printing/receipt-documents.ts:11:22        
+thermalCenter             barrel                  electron/printing/receipt-documents.ts:25:3         
+thermalFooterBlock        barrel                  electron/printing/receipt-documents.ts:28:3         
+thermalSep                barrel                  electron/printing/receipt-documents.ts:32:3         
+thermalSigns              barrel                  electron/printing/receipt-documents.ts:33:3         
+thermalWatermark          barrel                  electron/printing/receipt-documents.ts:34:3         
+escapeHtml                                        electron/printing/receipt-documents/common.ts:109:10
+escapePreText                                     electron/printing/receipt-documents/common.ts:109:22
+CODE39_PATTERNS                                   electron/printing/receipt-documents/common.ts:110:10
+code39Svg                                         electron/printing/receipt-documents/common.ts:110:27
+sanitizeCode39                                    electron/printing/receipt-documents/common.ts:110:38
+CODE128_WIDTHS                                    electron/printing/receipt-documents/common.ts:111:10
+code128Svg                                        electron/printing/receipt-documents/common.ts:111:26
+code128Symbols                                    electron/printing/receipt-documents/common.ts:111:38
+sanitizeCode128                                   electron/printing/receipt-documents/common.ts:111:54
+Unused exported types (9)
+ReceiptLine         barrel  type  electron/printing/receipt-documents.ts:17:28
+ThermalFooterInput  barrel  type  electron/printing/receipt-documents.ts:38:15
+PageOpts            barrel  type  electron/printing/receipt-documents.ts:47:15
+PaymentTicketKind   barrel  type  electron/printing/receipt-documents.ts:56:34
+ReportChart         barrel  type  electron/printing/receipt-documents.ts:58:15
+ReportData          barrel  type  electron/printing/receipt-documents.ts:58:28
+ReportKpi           barrel  type  electron/printing/receipt-documents.ts:58:40
+ReportTable         barrel  type  electron/printing/receipt-documents.ts:58:51
+LabelOptions        barrel  type  electron/printing/receipt-documents.ts:60:39
+node.exe : Configuration hints (3)
+Au caractère Ligne:1 : 1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Configuration hints (3):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+tailwindcss          knip.json  Remove from ignoreDependencies
+net                  knip.json  Remove from ignoreBinaries    
+eas          mobile  knip.json  Remove from ignoreBinaries    
+EXIT=1
+=== depcheck ===
+{"dependencies":["bindings"],"devDependencies":["@vitest/coverage-v8","tailwindcss"],"missing":{"@eslint/js":["C:\\Users\\zenagui bilal\\Desktop\\Veloria POS dev zenagui bilal\\eslint.config.mjs"],"@shared/formatters":["C:\\Users\\zenagui bilal\\Desktop\\Veloria POS dev zenagui bilal\\tests\\unit\\a2-cleanup.test.ts","C:\\Users\\zenagui bilal\\Desktop\\Veloria POS dev zenagui bilal\\tests\\unit\\f …[TRUNCATED 194347 chars — voir la section correspondante]
+EXIT=-1
+=== ts-prune ===
+\playwright.config.ts:7 - default
+\vite.config.ts:8 - default
+\vite.license-manager.config.ts:7 - default
+\vitest.config.ts:4 - default
+\license-manager\signing.ts:38 - loadVendorPrivateKey
+\license-manager\signing.ts:80 - vendorKeysDir (used in module)
+\license-manager\signing.ts:106 - vendorKeyPaths (used in module)
+\license-manager\signing.ts:111 - vendorKeyExists
+\license-manager\signing.ts:124 - readVendorPrivateKey (used in module)
+\license-manager\signing.ts:161 - writeVendorPrivateKey (used in module)
+\license-manager\signing.ts:199 - buildSignedLicense
+\license-manager\signing.ts:235 - editionFromPlan
+\license-manager\signing.ts:181 - NewLicenseInput (used in module)
+\electron\backup\backup.service.ts:85 - vacuumInto (used in module)
+\electron\backup\backup.service.ts:99 - createBackup (used in module)
+\electron\backup\backup.service.ts:171 - snapshotClosedDbFile (used in module)
+\electron\backup\backup.service.ts:223 - listBackups (used in module)
+\electron\backup\backup.service.ts:264 - frequencyMinutes (used in module)
+\electron\backup\backup.service.ts:277 - getBackupAuto (used in module)
+\electron\backup\backup.service.ts:392 - isAutoBackupDue (used in module)
+\electron\backup\backup.service.ts:404 - startAutoBackupTimer
+\electron\backup\backup.service.ts:423 - stopAutoBackupTimer
+\electron\backup\backup.service.ts:434 - exportBackupToFolder (used in module)
+\electron\backup\backup.service.ts:479 - registerBackupIpc
+\electron\backup\backup.service.ts:246 - BackupFrequency (used in module)
+\electron\backup\backup.service.ts:256 - BackupAutoConfig (used in module)
+\electron\database\database-path.service.ts:27 - defaultDbPath (used in module)
+\electron\database\database-path.service.ts:67 - persistDbPath
+\electron\database\database-path.service.ts:86 - getDataFolder
+\electron\database\database-path.service.ts:11 - LOGICAL_DB_NAME
+\electron\database\database-path.service.ts:12 - PHYSICAL_DB_FILENAME (used in module)
+\electron\database\retention.ts:15 - IDEMPOTENCY_RETENTION_DAYS (used in module)
+\electron\database\retention.ts:16 - IDEMPOTENCY_CRITICAL_RETENTION_DAYS (used in module)
+\electron\database\retention.ts:17 - AUDIT_RETENTION_DAYS (used in module)
+\electron\database\sqlite.service.ts:243 - runMigrations (used in module)
+\electron\database\sqlite.service.ts:377 - factoryResetDatabase
+\electron\database\sqlite.service.ts:448 - optimizeDatabase
+\electron\ipc\ipc-errors.ts:6 - ok (used in module)
+\electron\ipc\ipc-errors.ts:129 - friendlyOsLabel
+\electron\ipc\money-guard.ts:20 - assertUnitPriceMinor (used in module)
+\electron\ipc\money-guard.ts:29 - assertTotalMinor (used in module)
+\electron\ipc\money-guard.ts:35 - assertQuantity (used in module)
+\electron\ipc\money-guard.ts:52 - priceLine
+\electron\ipc\money-guard.ts:14 - MONEY_MAX_SINGLE_MINOR (used in module)
+\electron\ipc\money-guard.ts:16 - MONEY_MAX_TOTAL_MINOR (used in module)
+\electron\ipc\money-guard.ts:18 - QUANTITY_MAX (used in module)
+\electron\ipc\money-guard.ts:41 - PricedLine (used in module)
+\electron\ipc\raw-guards.ts:31 - RAW_GUARDED_CHANNELS
+\electron\licensing\catalog.ts:177 - planPreset
+\electron\licensing\catalog.ts:186 - isLicenseFeature (used in module)
+\electron\licensing\catalog.ts:29 - LicensePageId (used in module)
+\electron\licensing\catalog.ts:32 - LICENSE_FEATURES (used in module)
+\electron\licensing\catalog.ts:49 - LicenseFeatureId (used in module)
+\electron\licensing\catalog.ts:52 - LICENSE_PLANS (used in module)
+\electron\licensing\catalog.ts:54 - LicensePlan (used in module)
+\electron\licensing\catalog.ts:58 - LICENSE_CRITICAL_DAYS
+\electron\licensing\catalog.ts:60 - PlanPreset (used in module)
+\electron\licensing\catalog.ts:80 - PLAN_PRESETS (used in module)
+\electron\licensing\fingerprint.ts:61 - collectHardwareSources (used in module)
+\electron\licensing\fingerprint.ts:104 - fingerprintFromSources (used in module)
+\electron\licensing\fingerprint.ts:11 - FINGERPRINT_MIN_SOURCES (used in module)
+\electron\licensing\fingerprint.ts:127 - FINGERPRINT_MAX_ATTEMPTS (used in module)
+\electron\licensing\fingerprint.ts:128 - FINGERPRINT_FAILURE_TTL_MS (used in module)
+\electron\licensing\integrity.ts:38 - manifestCoversCritical (used in module)
+\electron\licensing\integrity.ts:78 - resolvePackagedAbs (used in module)
+\electron\licensing\integrity.ts:18 - IntegrityManifest (used in module)
+\electron\licensing\integrity.ts:27 - POS_MANIFEST_CRITICAL (used in module)
+\electron\licensing\license-anchor.ts:20 - parseAnchor (used in module)
+\electron\licensing\license-anchor.ts:18 - ANCHOR_SETTINGS_KEY (used in module)
+\electron\licensing\license-service.ts:306 - importLicenseEnvelope
+\electron\licensing\license-service.ts:463 - canOpenShell
+\electron\licensing\license-service.ts:474 - hasPageAccess
+\electron\licensing\license-service.ts:484 - hasFeatureAccess
+\electron\licensing\license-service.ts:26 - LicenseStatus (used in module)
+\electron\licensing\license-service.ts:138 - LICENSE_REQUIRED_MESSAGE (used in module)
+\electron\licensing\license-service.ts:140 - FEATURE_NOT_LICENSED_MESSAGE (used in module)
+\electron\licensing\license-service.ts:141 - PAGE_NOT_LICENSED_MESSAGE (used in module)
+\electron\licensing\protocol.ts:95 - base64UrlEncode (used in module)
+\electron\licensing\protocol.ts:99 - base64UrlDecode (used in module)
+\electron\licensing\protocol.ts:126 - signDetached
+\electron\licensing\protocol.ts:131 - verifyPayloadSignature (used in module)
+\electron\licensing\protocol.ts:167 - assertPayloadShape (used in module)
+\electron\licensing\protocol.ts:77 - EXPIRING_SOON_DAYS (used in module)
+\electron\licensing\protocol.ts:245 - LEGACY_PAGES_CUTOFF_ISO (used in module)
+\electron\licensing\protocol.ts:282 - VerificationInput (used in module)
+\electron\licensing\secure-state.ts:65 - computeStateIntegrityTag (used in module)
+\electron\licensing\secure-state.ts:136 - licenseStatePath (used in module)
+\electron\licensing\secure-state.ts:184 - clearSecureState
+\electron\printing\printing.capabilities.ts:71 - templateSettingsApplicable (used in module)
+\electron\printing\printing.capabilities.ts:16 - TEMPLATE_SETTING_KEYS (used in module)
+\electron\printing\printing.capabilities.ts:37 - TemplateSettingKey (used in module)
+\electron\printing\printing.service.ts:14 - getSelectedPrinterName
+\electron\printing\printing.templates.ts:34 - TemplateRender (used in module)
+\electron\printing\printing.templates.ts:186 - PrintPage (used in module)
+\electron\security\security.ts:16 - isExternalNavigationAllowed
+\electron\security\security.ts:34 - isSafeExternalUrl
+\electron\security\security.ts:14 - ALLOWED_EXTERNAL_PREFIXES (used in module)
+\electron\services\logger.ts:38 - initLogger
+\electron\services\logger.ts:51 - getLogFile
+\electron\services\logger.ts:8 - LogLevel (used in module)
+\electron\services\logo.ts:16 - logoExtensionOf (used in module)
+\electron\services\logo.ts:22 - assertLogoValid (used in module)
+\electron\services\logo.ts:36 - assertLogoMagic (used in module)
+\electron\services\logo.ts:51 - logoDataUrlFor (used in module)
+\electron\services\logo.ts:82 - storeLogoFile
+\electron\services\logo.ts:11 - LOGO_MAX_BYTES (used in module)
+\electron\sync\sync.protocol.ts:6 - SyncConfig (used in module)
+\electron\sync\sync.protocol.ts:16 - SYNC_DEFAULTS
+\electron\sync\sync.protocol.ts:24 - SyncConfigView (used in module)
+\electron\sync\sync.protocol.ts:100 - AccessMirrorRow (used in module)
+\electron\sync\sync.protocol.ts:115 - OutboxMirrorRow (used in module)
+\electron\sync\sync.protocol.ts:123 - MirrorRequest (used in module)
+\mobile\src\api.ts:8 - SyncErrorCode (used in module)
+\mobile\src\api.ts:25 - SyncPayloads (used in module)
+\mobile\src\api.ts:136 - DetailPayloads (used in module)
+\mobile\src\cache.ts:166 - loadSession
+\mobile\src\cache.ts:170 - saveSession
+\mobile\src\cache.ts:174 - clearSession
+\mobile\src\cache.ts:179 - loadLastEndpoint
+\mobile\src\cache.ts:192 - saveLastEndpoint
+\mobile\src\cache.ts:19 - ShopEndpoint (used in module)
+\mobile\src\i18n.ts:152 - StringKey (used in module)
+\mobile\src\qr.ts:9 - ACTIVATION_QR_PREFIX (used in module)
+\mobile\src\qr.ts:10 - ACTIVATION_QR_PREFIX_V2 (used in module)
+\mobile\src\qr.ts:12 - ShopEndpoint (used in module)
+\mobile\src\qr.ts:17 - QrCredentials (used in module)
+\mobile\src\store.ts:5 - Session
+\mobile\src\store.ts:16 - MirrorCache (used in module)
+\mobile\src\tokens.ts:45 - debtTone (used in module)
+\mobile\src\tokens.ts:61 - tint
+\mobile\src\tokens.ts:33 - RADIUS
+\mobile\src\tokens.ts:43 - DebtTone (used in module)
+\mobile\src\tokens.ts:65 - FONTS
+\mobile\src\tokens.ts:81 - TYPE
+\mobile\src\tokens.ts:92 - SPACE
+\mobile\src\tokens.ts:104 - GRADIENTS
+\mobile\src\tokens.ts:112 - SHADOW
+\mobile\src\views.ts:6 - HomeInvoice (used in module)
+\mobile\src\views.ts:17 - HomePayment (used in module)
+\mobile\src\views.ts:26 - DetailItem (used in module)
+\mobile\src\views.ts:33 - DetailSale (used in module)
+\mobile\src\views.ts:44 - InvoiceDetail (used in module)
+\mobile\src\views.ts:90 - MAX_QTY (used in module)
+\mobile\src\views.ts:164 - InvoiceFilter (used in module)
+\tests\e2e\helpers.ts:62 - vendorPrivateKey (used in module)
+\tests\e2e\helpers.ts:85 - isElevated
+\tests\e2e\helpers.ts:224 - bootApp (used in module)
+\tests\e2e\helpers.ts:244 - launchIsolatedApp (used in module)
+\tests\e2e\helpers.ts:264 - relaunchApp
+\tests\e2e\helpers.ts:318 - readFirstBootCode (used in module)
+\tests\e2e\helpers.ts:331 - acknowledgeInitialOnce (used in module)
+\tests\e2e\helpers.ts:342 - acknowledgeRecoveryOnce (used in module)
+\tests\e2e\helpers.ts:388 - waitForProcessExit
+\tests\e2e\helpers.ts:424 - killStaleTestInstances
+\tests\e2e\helpers.ts:433 - uniqueTag
+\tests\e2e\helpers.ts:454 - readSuccessToast
+\tests\e2e\helpers.ts:465 - settlePayment
+\tests\e2e\helpers.ts:41 - IsolatedDirs (used in module)
+\tests\e2e\helpers.ts:93 - TestLicenseDates (used in module)
+\tests\e2e\helpers.ts:272 - E2E_STAFF_CODE (used in module)
+\electron\ipc\handlers\carts.repo.ts:9 - CartDraftLine (used in module)
+\electron\ipc\handlers\carts.repo.ts:20 - CartDraftTab (used in module)
+\electron\ipc\handlers\client-access.repo.ts:64 - newPinSaltHex (used in module)
+\electron\ipc\handlers\client-access.repo.ts:68 - pbkdf2PinHex (used in module)
+\electron\ipc\handlers\client-access.repo.ts:79 - newActivationCode (used in module)
+\electron\ipc\handlers\client-access.repo.ts:94 - buildActivationQrPayload
+\electron\ipc\handlers\client-access.repo.ts:138 - buildActivationQrPayloadV2
+\electron\ipc\handlers\client-access.repo.ts:161 - buildActivationQrSvg
+\electron\ipc\handlers\client-access.repo.ts:306 - revokeClientAccessAtomic
+\electron\ipc\handlers\client-access.repo.ts:342 - getClientAccessStatus
+\electron\ipc\handlers\client-access.repo.ts:386 - buildSnapshotPayload (used in module)
+\electron\ipc\handlers\client-access.repo.ts:517 - enqueueSnapshotAtomic
+\electron\ipc\handlers\client-access.repo.ts:562 - saveAnnouncementAtomic
+\electron\ipc\handlers\client-access.repo.ts:20 - SYNC_KINDS (used in module)
+\electron\ipc\handlers\client-access.repo.ts:28 - SnapshotKind (used in module)
+\electron\ipc\handlers\client-access.repo.ts:59 - PIN_KDF_ALGO (used in module)
+\electron\ipc\handlers\client-access.repo.ts:60 - PIN_KDF_ITERATIONS (used in module)
+\electron\ipc\handlers\client-access.repo.ts:61 - PIN_KDF_KEYLEN_BYTES (used in module)
+\electron\ipc\handlers\client-access.repo.ts:62 - PIN_KDF_SALT_BYTES (used in module)
+\electron\ipc\handlers\client-access.repo.ts:89 - ACTIVATION_QR_PREFIX (used in module)
+\electron\ipc\handlers\client-access.repo.ts:92 - ACTIVATION_QR_PREFIX_V2 (used in module)
+\electron\ipc\handlers\customers.repo.ts:45 - digitsOnly (used in module)
+\electron\ipc\handlers\customers.repo.ts:356 - restoreCustomer
+\electron\ipc\handlers\customers.repo.ts:386 - getCustomerStatement
+\electron\ipc\handlers\customers.repo.ts:408 - getCustomerPaymentReceipt
+\electron\ipc\handlers\customers.repo.ts:511 - recordCustomerPaymentAtomic
+\electron\ipc\handlers\customers.repo.ts:19 - CustomerDebtFilter (used in module)
+\electron\ipc\handlers\customers.repo.ts:22 - CustomerSort (used in module)
+\electron\ipc\handlers\fifo.ts:37 - listLayersAsc (used in module)
+\electron\ipc\handlers\fifo.ts:23 - FifoLayerRow (used in module)
+\electron\ipc\handlers\fifo.ts:29 - FifoConsumption (used in module)
+\electron\ipc\handlers\fifo.ts:57 - LayerReason (used in module)
+\electron\ipc\handlers\finance.repo.ts:40 - listDebtsUnified
+\electron\ipc\handlers\finance.repo.ts:113 - getDebtStats
+\electron\ipc\handlers\finance.repo.ts:161 - getDebtDetail
+\electron\ipc\handlers\finance.repo.ts:191 - listClosings
+\electron\ipc\handlers\finance.repo.ts:201 - createDailyClosingAtomic
+\electron\ipc\handlers\finance.repo.ts:310 - getZakatSources
+\electron\ipc\handlers\finance.repo.ts:370 - saveZakatCalculation
+\electron\ipc\handlers\finance.repo.ts:459 - listZakatCalculations
+\electron\ipc\handlers\finance.repo.ts:12 - DebtTypeFilter (used in module)
+\electron\ipc\handlers\finance.repo.ts:13 - DebtStatusFilter (used in module)
+\electron\ipc\handlers\finance.repo.ts:14 - DebtDueFilter (used in module)
+\electron\ipc\handlers\finance.repo.ts:15 - DebtSettleFilter (used in module)
+\electron\ipc\handlers\finance.repo.ts:16 - DebtSort (used in module)
+\electron\ipc\handlers\finance.repo.ts:18 - DebtListOptions (used in module)
+\electron\ipc\handlers\finance.repo.ts:354 - ZakatCalculationInput (used in module)
+\electron\ipc\handlers\finance.repo.ts:475 - ReportsSummaryInput (used in module)
+\electron\ipc\handlers\inventory.repo.ts:31 - getStockOverview
+\electron\ipc\handlers\inventory.repo.ts:58 - adjustStockAtomic
+\electron\ipc\handlers\inventory.repo.ts:393 - listIntakes
+\electron\ipc\handlers\inventory.repo.ts:430 - listStockProducts
+\electron\ipc\handlers\inventory.repo.ts:499 - listMovements
+\electron\ipc\handlers\inventory.repo.ts:545 - applyInventoryAtomic
+\electron\ipc\handlers\inventory.repo.ts:18 - IntakeLineInput (used in module)
+\electron\ipc\handlers\inventory.repo.ts:404 - StockStatus (used in module)
+\electron\ipc\handlers\inventory.repo.ts:405 - StockMovementKind (used in module)
+\electron\ipc\handlers\inventory.repo.ts:414 - StockSort (used in module)
+\electron\ipc\handlers\inventory.repo.ts:422 - StockProductsOptions (used in module)
+\electron\ipc\handlers\inventory.repo.ts:492 - MovementsOptions (used in module)
+\electron\ipc\handlers\inventory.repo.ts:539 - InventoryLineInput (used in module)
+\electron\ipc\handlers\purchases.repo.ts:158 - listPurchaseOrders
+\electron\ipc\handlers\purchases.repo.ts:191 - getPurchaseOrder
+\electron\ipc\handlers\purchases.repo.ts:13 - PurchaseLineInput (used in module)
+\electron\ipc\handlers\returns.repo.ts:86 - allocateReturnNumber (used in module)
+\electron\ipc\handlers\returns.repo.ts:113 - createReturnAtomic
+\electron\ipc\handlers\returns.repo.ts:677 - listReturnsUnified
+\electron\ipc\handlers\returns.repo.ts:750 - getReturnsStats
+\electron\ipc\handlers\returns.repo.ts:781 - getReturnableSaleItems
+\electron\ipc\handlers\returns.repo.ts:818 - getReturnableIntakeItems
+\electron\ipc\handlers\returns.repo.ts:855 - getReturnDetail
+\electron\ipc\handlers\returns.repo.ts:888 - recordReturnRefundAtomic
+\electron\ipc\handlers\returns.repo.ts:963 - cancelReturnAtomic
+\electron\ipc\handlers\returns.repo.ts:17 - ReturnItemInput (used in module)
+\electron\ipc\handlers\returns.repo.ts:24 - ReturnKind (used in module)
+\electron\ipc\handlers\returns.repo.ts:25 - ReturnStatusFilter (used in module)
+\electron\ipc\handlers\returns.repo.ts:31 - ReturnTypeFilter (used in module)
+\electron\ipc\handlers\returns.repo.ts:32 - ReturnSort (used in module)
+\electron\ipc\handlers\returns.repo.ts:408 - SupplierReturnItemInput (used in module)
+\electron\ipc\handlers\returns.repo.ts:668 - ReturnsListOptions (used in module)
+\electron\ipc\handlers\sales.repo.ts:24 - listSalesHistory
+\electron\ipc\handlers\sales.repo.ts:56 - getSaleDetail
+\electron\ipc\handlers\sales.repo.ts:167 - allocateInvoiceNumber (used in module)
+\electron\ipc\handlers\sales.repo.ts:529 - cancelSaleAtomic
+\electron\ipc\handlers\sales.repo.ts:129 - SaleLineInput (used in module)
+\electron\ipc\handlers\staff-session.ts:12 - setCurrentStaffUser
+\electron\ipc\handlers\staff-session.ts:18 - touchStaffSession
+\electron\ipc\handlers\staff-session.ts:7 - STAFF_SESSION_TIMEOUT_MS (used in module)
+\electron\ipc\handlers\staff.repo.ts:40 - newCodeSaltHex (used in module)
+\electron\ipc\handlers\staff.repo.ts:44 - pbkdf2CodeHex (used in module)
+\electron\ipc\handlers\staff.repo.ts:134 - ensureDefaultManager (used in module)
+\electron\ipc\handlers\staff.repo.ts:210 - listStaffUsers
+\electron\ipc\handlers\staff.repo.ts:276 - getStaffRole (used in module)
+\electron\ipc\handlers\staff.repo.ts:285 - mustChangeCode (used in module)
+\electron\ipc\handlers\staff.repo.ts:310 - authenticateAtomic
+\electron\ipc\handlers\staff.repo.ts:359 - changeCodeAtomic
+\electron\ipc\handlers\staff.repo.ts:419 - createStaffUserAtomic
+\electron\ipc\handlers\staff.repo.ts:498 - setPermissionsAtomic
+\electron\ipc\handlers\staff.repo.ts:558 - setActiveAtomic
+\electron\ipc\handlers\staff.repo.ts:612 - regenRecoveryAtomic
+\electron\ipc\handlers\staff.repo.ts:657 - recoverAccessAtomic
+\electron\ipc\handlers\staff.repo.ts:15 - STAFF_KDF_ALGO (used in module)
+\electron\ipc\handlers\staff.repo.ts:16 - STAFF_KDF_ITERATIONS (used in module)
+\electron\ipc\handlers\staff.repo.ts:17 - STAFF_KDF_KEYLEN_BYTES (used in module)
+\electron\ipc\handlers\staff.repo.ts:18 - STAFF_KDF_SALT_BYTES (used in module)
+\electron\ipc\handlers\staff.repo.ts:19 - STAFF_MAX_FAILED_ATTEMPTS (used in module)
+\electron\ipc\handlers\staff.repo.ts:20 - STAFF_LOCK_MINUTES (used in module)
+\electron\ipc\handlers\staff.repo.ts:22 - STAFF_RECOVERY_LENGTH (used in module)
+\electron\ipc\handlers\staff.repo.ts:23 - STAFF_RECOVERY_MAX_FAILED (used in module)
+\electron\ipc\handlers\staff.repo.ts:24 - STAFF_RECOVERY_LOCK_MINUTES (used in module)
+\electron\ipc\handlers\staff.repo.ts:27 - STAFF_PERMISSIONS (used in module)
+\electron\ipc\handlers\staff.repo.ts:191 - StaffPublic (used in module)
+\electron\ipc\handlers\templates.repo.ts:61 - listTemplates
+\electron\ipc\handlers\templates.repo.ts:87 - saveTemplateAtomic
+\electron\ipc\handlers\templates.repo.ts:161 - activateTemplateAtomic
+\electron\ipc\handlers\templates.repo.ts:195 - deleteTemplateAtomic
+\electron\ipc\handlers\templates.repo.ts:227 - resetFactoryAtomic
+\electron\ipc\handlers\templates.repo.ts:8 - TEMPLATE_DOC_TYPES (used in module)
+\electron\ipc\handlers\templates.repo.ts:17 - TemplateDocType (used in module)
+\electron\ipc\handlers\templates.repo.ts:19 - TemplateRow (used in module)
+\electron\printing\receipt-documents\chrome.ts:8 - safeQrSvg (used in module)
+\electron\printing\receipt-documents\chrome.ts:83 - barcodeBlock (used in module)
+\electron\printing\receipt-documents\common.ts:109 - escapeHtml
+\electron\printing\receipt-documents\common.ts:109 - escapePreText
+\electron\printing\receipt-documents\common.ts:110 - CODE39_PATTERNS
+\electron\printing\receipt-documents\common.ts:110 - code39Svg
+\electron\printing\receipt-documents\common.ts:110 - sanitizeCode39
+\electron\printing\receipt-documents\common.ts:111 - CODE128_WIDTHS
+\electron\printing\receipt-documents\common.ts:111 - code128Svg
+\electron\printing\receipt-documents\common.ts:111 - code128Symbols
+\electron\printing\receipt-documents\common.ts:111 - sanitizeCode128
+\src\app\shell\App.tsx:40 - App
+\src\app\shell\footer-hints.ts:63 - hintsFor
+\src\app\shell\footer-hints.ts:6 - FooterHint (used in module)
+\src\app\shell\footer-hints.ts:11 - FALLBACK_HINTS (used in module)
+\src\app\shell\footer-hints.ts:17 - FOOTER_HINTS (used in module)
+\src\app\shell\module-screens.ts:7 - NotifyScreen (used in module)
+\src\app\shell\module-screens.ts:58 - LAZY_SCREENS
+\src\app\shell\modules.ts:29 - MODULE_PAGES
+\src\app\shell\modules.ts:48 - ModuleDef (used in module)
+\src\app\shell\modules.ts:57 - MODULE_GROUPS
+\src\app\shell\modules.ts:59 - MODULES
+\src\app\shell\shell-types.ts:34 - initialSidebarCollapsed
+\src\app\shell\shell-types.ts:4 - ModuleId
+\src\app\shell\shell-types.ts:22 - ToastKind (used in module)
+\src\app\shell\shell-types.ts:24 - Toast
+\src\app\shell\shell-types.ts:30 - Notify
+\src\app\shell\shell-types.ts:32 - SIDEBAR_KEY (used in module)
+\src\app\shell\ShellOverlays.tsx:9 - NotificationsModal
+\src\app\shell\ShellOverlays.tsx:48 - Toasts
+\src\app\shell\ShellOverlays.tsx:73 - BridgeMissing
+\src\app\shell\ShellOverlays.tsx:96 - LicenseBlockedScreen
+\src\app\shell\ShellOverlays.tsx:108 - RouteBlocked
+\src\app\shell\Sidebar.tsx:23 - Sidebar
+\src\app\shell\Sidebar.tsx:12 - SidebarProps (used in module)
+\src\app\shell\TopBar.tsx:61 - TopBar
+\src\app\shell\TopBar.tsx:50 - TopBarProps (used in module)
+\src\app\shell\use-notifications.ts:13 - useNotifications
+\src\app\shell\use-notifications.ts:8 - NotifItem (used in module)
+\src\app\shell\use-vigilance.ts:15 - useVigilance
+\src\app\shell\use-vigilance.ts:7 - VigilanceState (used in module)
+\src\app\shell\WindowChrome.tsx:139 - WindowChrome
+\src\application\customers\client-access.ts:17 - LOYALTY_MINOR_PER_POINT (used in module)
+\src\application\customers\client-access.ts:25 - ACTIVATION_QR_PREFIX (used in module)
+\src\application\customers\client-access.ts:28 - ACTIVATION_QR_PREFIX_V2 (used in module)
+\src\application\customers\client-access.ts:64 - ActivationDraft (used in module)
+\src\application\customers\client-access.ts:74 - ValidatedActivation (used in module)
+\src\application\customers\client-access.ts:131 - ClientSnapshot (used in module)
+\src\application\customers\client-access.ts:212 - OpenSaleRow (used in module)
+\src\application\sales\create-sale.ts:61 - totalsOf (used in module)
+\src\application\sales\create-sale.ts:72 - buildSalePayload
+\src\application\sales\create-sale.ts:11 - CartLine (used in module)
+\src\application\sales\create-sale.ts:21 - SaleDraft (used in module)
+\src\application\stock\adjust-stock.ts:34 - buildAdjustStockPayload
+\src\application\stock\adjust-stock.ts:11 - AdjustStockDraft (used in module)
+\src\application\stock\adjust-stock.ts:25 - AdjustStockPayload (used in module)
+\src\domain\audit\audit-rules.ts:35 - buildAuditEvent
+\src\domain\audit\audit-rules.ts:8 - AuditEventInput (used in module)
+\src\domain\audit\audit-rules.ts:18 - AuditEventRow (used in module)
+\src\domain\backup\backup-rules.ts:6 - BackupFrequency (used in module)
+\src\domain\backup\backup-rules.ts:16 - BACKUP_FREQUENCY_MINUTES (used in module)
+\src\domain\barcode\barcode-rules.ts:23 - barcodeKind (used in module)
+\src\domain\barcode\barcode-rules.ts:31 - validateBarcode
+\src\domain\barcode\barcode-rules.ts:8 - BarcodeKind (used in module)
+\src\domain\closings\cash-count.ts:29 - countCash
+\src\domain\closings\cash-count.ts:7 - CashCountInput (used in module)
+\src\domain\closings\cash-count.ts:16 - CashCountResult (used in module)
+\src\domain\closings\closing-rules.ts:9 - ClosingInputs (used in module)
+\src\domain\common\dates.ts:5 - isRealCalendarDate
+\src\domain\common\errors.ts:3 - DomainErrorCode (used in module)
+\src\domain\common\errors.ts:23 - DomainError
+\src\domain\common\ids.ts:25 - newOperationId
+\src\domain\common\quantity.ts:8 - assertValidQuantity
+\src\domain\common\quantity.ts:26 - roundQuantity
+\src\domain\common\quantity.ts:6 - MAX_QUANTITY (used in module)
+\src\domain\customer\client-access.ts:8 - CLIENT_QR_VALIDITY_DAYS (used in module)
+\src\domain\customer\client-access.ts:9 - CLIENT_SESSION_VALIDITY_DAYS (used in module)
+\src\domain\customer\client-access.ts:10 - CLIENT_MAX_FAILED_ATTEMPTS (used in module)
+\src\domain\customer\client-access.ts:12 - CLIENT_ANNOUNCEMENT_MAX (used in module)
+\src\domain\customer\credit-policy.ts:9 - agingBucket
+\src\domain\customer\credit-policy.ts:20 - daysOverdue (used in module)
+\src\domain\customer\credit-policy.ts:38 - settlementDueThisMonth
+\src\domain\customer\credit-policy.ts:7 - AgingBucket (used in module)
+\src\domain\customer\debt-rules.ts:18 - computeDebtStatus
+\src\domain\customer\debt-rules.ts:44 - applyPaymentToBalance
+\src\domain\customer\debt-rules.ts:75 - assertCreditSaleAllowed
+\src\domain\customer\debt-rules.ts:110 - assertCreditLimitNotExceeded (used in module)
+\src\domain\customer\debt-rules.ts:7 - DebtStatus (used in module)
+\src\domain\customer\debt-rules.ts:9 - DebtInput (used in module)
+\src\domain\customer\debt-rules.ts:59 - CreditSaleInput (used in module)
+\src\domain\customer\debt-rules.ts:102 - CreditLimitInput (used in module)
+\src\domain\expenses\expense-rules.ts:33 - formatExpenseNumber
+\src\domain\expenses\expense-rules.ts:8 - ExpenseDraft (used in module)
+\src\domain\import\csv-import.ts:42 - parseProductsCsv
+\src\domain\import\csv-import.ts:89 - parseCustomersCsv
+\src\domain\import\csv-import.ts:9 - ProductCsvRow (used in module)
+\src\domain\import\csv-import.ts:18 - CustomerCsvRow (used in module)
+\src\domain\inventory\fifo-rules.ts:43 - allocateFifo
+\src\domain\inventory\fifo-rules.ts:101 - oversellCost
+\src\domain\inventory\fifo-rules.ts:121 - grossProfitOf
+\src\domain\inventory\fifo-rules.ts:10 - FifoLayerInput (used in module)
+\src\domain\inventory\fifo-rules.ts:16 - FifoConsumption (used in module)
+\src\domain\inventory\fifo-rules.ts:24 - FifoAllocation (used in module)
+\src\domain\inventory\fifo-rules.ts:94 - OversellInput (used in module)
+\src\domain\inventory\intake-rules.ts:36 - validateIntakeLine (used in module)
+\src\domain\inventory\intake-rules.ts:58 - resolveIntakeSellingPrice
+\src\domain\inventory\intake-rules.ts:66 - netQuantity (used in module)
+\src\domain\inventory\intake-rules.ts:70 - computeIntakeTotals
+\src\domain\inventory\intake-rules.ts:89 - validateAdjustment
+\src\domain\inventory\intake-rules.ts:15 - IntakeLineDraft (used in module)
+\src\domain\inventory\intake-rules.ts:30 - IntakeTotals (used in module)
+\src\domain\inventory\stock-alerts.ts:13 - lowStockStatus (used in module)
+\src\domain\inventory\stock-alerts.ts:23 - expiryStatus
+\src\domain\inventory\stock-alerts.ts:47 - reorderSuggestion
+\src\domain\inventory\stock-alerts.ts:9 - StockLevel (used in module)
+\src\domain\inventory\stock-alerts.ts:10 - ExpiryState (used in module)
+\src\domain\inventory\stock-rules.ts:16 - computeAdjustmentNewStock
+\src\domain\inventory\stock-rules.ts:40 - adjustmentReasonCode
+\src\domain\inventory\stock-rules.ts:48 - applyStockDelta
+\src\domain\inventory\stock-rules.ts:69 - assertReturnQuantity
+\src\domain\inventory\stock-rules.ts:6 - AdjustmentKind (used in module)
+\src\domain\inventory\stock-rules.ts:8 - AdjustmentInput (used in module)
+\src\domain\inventory\stock-rules.ts:34 - AdjustmentReasonCode (used in module)
+\src\domain\invoice\timbre-rules.ts:33 - timbreQuittanceLf2025
+\src\domain\money\money.ts:29 - assertSafeMinor (used in module)
+\src\domain\money\money.ts:45 - assertSafeTotal (used in module)
+\src\domain\money\money.ts:55 - addSafeMinor
+\src\domain\money\money.ts:66 - sumSafeMinors
+\src\domain\money\money.ts:82 - assertSignedTotal (used in module)
+\src\domain\money\money.ts:97 - sumSignedMinors
+\src\domain\money\money.ts:107 - assertMinorInteger (used in module)
+\src\domain\money\money.ts:112 - fromDzd
+\src\domain\money\money.ts:128 - parseDzdInputStrict
+\src\domain\money\money.ts:147 - formatDzd
+\src\domain\money\money.ts:168 - minorToInput
+\src\domain\money\money.ts:178 - multiplyMinorByQuantity
+\src\domain\money\money.ts:194 - percentOfMinor
+\src\domain\money\money.ts:14 - MINOR_PER_MAJOR (used in module)
+\src\domain\money\money.ts:17 - MAX_MINOR_SINGLE (used in module)
+\src\domain\money\money.ts:19 - MAX_MINOR_TOTAL (used in module)
+\src\domain\money\money.ts:21 - MoneyError (used in module)
+\src\domain\ocr\matcher.ts:13 - normalizeProductName (used in module)
+\src\domain\ocr\matcher.ts:28 - extractBarcodeCandidates
+\src\domain\ocr\matcher.ts:42 - tokenDice (used in module)
+\src\domain\ocr\matcher.ts:67 - bigramDice (used in module)
+\src\domain\ocr\matcher.ts:93 - matchByName
+\src\domain\ocr\matcher.ts:131 - confidenceLabelFr
+\src\domain\ocr\numbers.ts:52 - parseOcrAmountToMinor
+\src\domain\ocr\numbers.ts:71 - parseOcrQuantity
+\src\domain\ocr\numbers.ts:84 - parseOcrDiscountPct
+\src\domain\ocr\parser.ts:261 - parseInvoiceText
+\src\domain\ocr\types.ts:4 - OcrConfidence (used in module)
+\src\domain\ocr\types.ts:6 - OcrInvoiceLine (used in module)
+\src\domain\ocr\types.ts:26 - OcrInvoice
+\src\domain\ocr\types.ts:41 - OcrMatchKind (used in module)
+\src\domain\ocr\types.ts:43 - OcrMatchCandidate (used in module)
+\src\domain\ocr\types.ts:51 - OcrMatch
+\src\domain\pricing\price-rules.ts:16 - evaluateMargin
+\src\domain\pricing\price-rules.ts:8 - MarginReport (used in module)
+\src\domain\print\template-capabilities.ts:81 - applicableSettings
+\src\domain\print\template-capabilities.ts:86 - isTemplateSettingApplicable (used in module)
+\src\domain\print\template-capabilities.ts:125 - applicableSettingValue
+\src\domain\print\template-capabilities.ts:15 - TEMPLATE_SETTING_KEYS (used in module)
+\src\domain\print\template-capabilities.ts:36 - TemplateSettingKey (used in module)
+\src\domain\print\template-capabilities.ts:99 - NEUTRAL_SETTING_VALUES (used in module)
+\src\domain\print\template-rules.ts:81 - defaultPaperFor (used in module)
+\src\domain\print\template-rules.ts:102 - factorySettings (used in module)
+\src\domain\print\template-rules.ts:125 - allowedPapers (used in module)
+\src\domain\print\template-rules.ts:148 - mergeTemplateSettings
+\src\domain\print\template-rules.ts:204 - nextTemplateVersion
+\src\domain\print\template-rules.ts:15 - TEMPLATE_DOC_TYPES (used in module)
+\src\domain\print\template-rules.ts:24 - TemplateDocType (used in module)
+\src\domain\print\template-rules.ts:27 - LABEL_PAPERS (used in module)
+\src\domain\print\template-rules.ts:28 - LabelPaper (used in module)
+\src\domain\print\template-rules.ts:30 - TemplatePaper (used in module)
+\src\domain\print\template-rules.ts:31 - TemplateLogoSize (used in module)
+\src\domain\print\template-rules.ts:33 - TemplateSettings (used in module)
+\src\domain\print\template-rules.ts:57 - TemplateSettingValue
+\src\domain\product\product-rules.ts:25 - normalizeUnitCode
+\src\domain\product\product-rules.ts:34 - validateProductDraft
+\src\domain\product\product-rules.ts:10 - ProductDraft (used in module)
+\src\domain\proforma\proforma-rules.ts:23 - computeProformaTotals
+\src\domain\proforma\proforma-rules.ts:57 - assertProformaTransition
+\src\domain\proforma\proforma-rules.ts:14 - ProformaStatus (used in module)
+\src\domain\proforma\proforma-rules.ts:16 - ProformaLineDraft (used in module)
+\src\domain\returns\return-policy.ts:48 - evaluateReturnPolicy
+\src\domain\returns\return-policy.ts:10 - ReturnDisposition (used in module)
+\src\domain\returns\return-policy.ts:12 - ReturnPolicyInput (used in module)
+\src\domain\returns\return-policy.ts:26 - ReturnPolicyDecision (used in module)
+\src\domain\returns\return-rules.ts:35 - formatReturnNumber
+\src\domain\returns\return-rules.ts:43 - computeReturnStatus
+\src\domain\returns\return-rules.ts:61 - assertAdditionalRefund
+\src\domain\returns\return-rules.ts:94 - computeReturnLineTotal (used in module)
+\src\domain\returns\return-rules.ts:110 - validateReturnLines
+\src\domain\returns\return-rules.ts:137 - assertRefundSplit
+\src\domain\returns\return-rules.ts:22 - ReturnKind (used in module)
+\src\domain\returns\return-rules.ts:23 - ReturnStatus (used in module)
+\src\domain\returns\return-rules.ts:25 - RETURN_REASONS
+\src\domain\returns\return-rules.ts:83 - ReturnLineInput (used in module)
+\src\domain\sales\sale-rules.ts:66 - computeLineTotal (used in module)
+\src\domain\sales\sale-rules.ts:77 - computeLineDiscount (used in module)
+\src\domain\sales\sale-rules.ts:93 - computeSaleTotals
+\src\domain\sales\sale-rules.ts:23 - PaymentStatus (used in module)
+\src\domain\sales\sale-rules.ts:25 - CartLineInput (used in module)
+\src\domain\sales\sale-rules.ts:37 - SaleTotalsInput (used in module)
+\src\domain\sales\sale-rules.ts:43 - LineDiscount (used in module)
+\src\domain\sales\sale-rules.ts:52 - SaleTotals (used in module)
+\src\domain\sales\weight-sale.ts:14 - parseQuantityInput
+\src\domain\sales\weight-sale.ts:36 - quantityForAmountMinor
+\src\domain\staff\staff.ts:14 - STAFF_ROLES (used in module)
+\src\domain\staff\staff.ts:15 - StaffRole (used in module)
+\src\domain\staff\staff.ts:30 - StaffPermission (used in module)
+\src\domain\suppliers\po-rules.ts:25 - assertPoTransition
+\src\domain\suppliers\po-rules.ts:40 - computePoTotals
+\src\domain\suppliers\po-rules.ts:64 - poStatusLabelFr
+\src\domain\suppliers\po-rules.ts:10 - PurchaseOrderStatus (used in module)
+\src\domain\suppliers\po-rules.ts:33 - PoLineInput (used in module)
+\src\domain\suppliers\supplier-rules.ts:20 - formatSupplierCode
+\src\domain\suppliers\supplier-rules.ts:29 - validateSupplierDraft
+\src\domain\suppliers\supplier-rules.ts:59 - applySupplierIntakeBalance
+\src\domain\suppliers\supplier-rules.ts:78 - applySupplierPayment
+\src\domain\suppliers\supplier-rules.ts:7 - SupplierDraft (used in module)
+\src\domain\units\units.ts:31 - isMeasuredUnit
+\src\domain\units\units.ts:54 - unitLabel
+\src\domain\units\units.ts:72 - normalizeUnitCodeStrict (used in module)
+\src\domain\units\units.ts:80 - convertQuantity
+\src\domain\units\units.ts:9 - UNIT_CODES (used in module)
+\src\domain\units\units.ts:21 - UnitCode (used in module)
+\src\domain\units\units.ts:28 - MEASURED_UNIT_CODES (used in module)
+\src\domain\units\units.ts:41 - UNIT_LABELS (used in module)
+\src\domain\zakat\zakat-rules.ts:20 - computeZakat
+\src\domain\zakat\zakat-rules.ts:9 - ZakatForm (used in module)
+\src\features\customers\client-matching.ts:7 - normFr (used in module)
+\src\features\customers\client-matching.ts:18 - asMinor
+\src\features\customers\client-matching.ts:24 - asCreatedAt
+\src\features\customers\client-matching.ts:29 - matchClient (used in module)
+\src\features\customers\client-matching.ts:38 - keepClient
+\src\features\customers\ClientDialogs.tsx:3 - ClientDetailsDrawer
+\src\features\customers\ClientDialogs.tsx:4 - ClientFormDialog
+\src\features\customers\ClientDialogs.tsx:5 - PaymentDialog
+\src\features\customers\ClientsScreen.tsx:67 - ClientsScreen
+\src\features\customers\types.ts:45 - fullName (used in module)
+\src\features\customers\types.ts:49 - isArchived (used in module)
+\src\features\customers\types.ts:53 - hasDebt (used in module)
+\src\features\customers\types.ts:57 - isOverLimit (used in module)
+\src\features\customers\types.ts:61 - debtLabel
+\src\features\customers\types.ts:69 - debtTone
+\src\features\customers\types.ts:77 - splitFullName
+\src\features\customers\types.ts:93 - enrichCustomer
+\src\features\customers\types.ts:112 - sortCustomers
+\src\features\customers\types.ts:4 - Customer (used in module)
+\src\features\customers\types.ts:24 - EnrichedCustomer (used in module)
+\src\features\customers\types.ts:30 - StatementSale (used in module)
+\src\features\customers\types.ts:41 - ArchiveFilter
+\src\features\customers\types.ts:42 - CreditFilter
+\src\features\customers\types.ts:43 - CustomerSort (used in module)
+\src\features\customers\types.ts:86 - CustomerStatement (used in module)
+\src\features\dashboard\DashboardScreen.tsx:84 - DashboardScreen
+\src\features\dashboard\types.ts:3 - DashboardSummary
+\src\features\dashboard\types.ts:64 - paymentMethodLabel
+\src\features\dashboard\widgets.tsx:6 - RecentCard
+\src\features\dashboard\widgets.tsx:21 - RecentRow
+\src\features\dashboard\widgets.tsx:45 - EmptyMini
+\src\features\debts\DebtDialogs.tsx:50 - DebtDetailsDrawer
+\src\features\debts\DebtDialogs.tsx:309 - DebtPaymentDialog
+\src\features\debts\DebtDialogs.tsx:526 - DebtDueDateDialog
+\src\features\debts\DebtsScreen.tsx:69 - DebtsScreen
+\src\features\debts\DebtsScreen.tsx:56 - DebtDetailData (used in module)
+\src\features\debts\types.ts:31 - settleBandLabel
+\src\features\debts\types.ts:38 - settleBandTone
+\src\features\debts\types.ts:44 - debtTypeLabel
+\src\features\debts\types.ts:48 - debtStatusLabel
+\src\features\debts\types.ts:52 - debtStatusTone
+\src\features\debts\types.ts:56 - dueLabel
+\src\features\debts\types.ts:64 - rowKey
+\src\features\debts\types.ts:72 - settleInfo
+\src\features\debts\types.ts:5 - DebtType (used in module)
+\src\features\debts\types.ts:6 - DebtStatus (used in module)
+\src\features\debts\types.ts:7 - DebtTypeFilter
+\src\features\debts\types.ts:8 - DebtStatusFilter
+\src\features\debts\types.ts:9 - DebtDueFilter
+\src\features\debts\types.ts:10 - DebtSettleFilter
+\src\features\debts\types.ts:11 - DebtSettleBand (used in module)
+\src\features\debts\types.ts:12 - DebtSort
+\src\features\debts\types.ts:14 - DebtRow (used in module)
+\src\features\debts\types.ts:95 - PAYMENT_METHOD_LABELS
+\src\features\expenses\ExpenseDialogs.tsx:38 - ExpenseDetailsDrawer
+\src\features\expenses\ExpenseDialogs.tsx:124 - ExpenseFormDialog
+\src\features\expenses\ExpensesScreen.tsx:54 - ExpensesScreen
+\src\features\expenses\types.ts:27 - expenseNumber
+\src\features\expenses\types.ts:31 - expenseStatusLabel
+\src\features\expenses\types.ts:35 - expenseStatusTone
+\src\features\expenses\types.ts:4 - ExpenseStatus (used in module)
+\src\features\expenses\types.ts:5 - ExpenseStatusFilter
+\src\features\expenses\types.ts:6 - ExpenseMethodFilter
+\src\features\expenses\types.ts:7 - ExpenseSort
+\src\features\expenses\types.ts:9 - Expense
+\src\features\expenses\types.ts:39 - paymentMethodLabel
+\src\features\history\HistoryDialogs.tsx:20 - HistoryDetailsDrawer
+\src\features\history\HistoryScreen.tsx:54 - HistoryScreen
+\src\features\history\types.ts:117 - kindTone
+\src\features\history\types.ts:126 - rowKey
+\src\features\history\types.ts:130 - splitDateTime
+\src\features\history\types.ts:5 - HistoryKind (used in module)
+\src\features\history\types.ts:24 - HistoryOpFilter (used in module)
+\src\features\history\types.ts:44 - HistorySort
+\src\features\history\types.ts:46 - HistoryRow (used in module)
+\src\features\history\types.ts:62 - HistoryDetail
+\src\features\history\types.ts:76 - KIND_LABELS
+\src\features\history\types.ts:96 - OP_FILTERS
+\src\features\license\catalog.ts:6 - LICENSE_PAGES
+\src\features\license\catalog.ts:26 - LICENSE_FEATURES
+\src\features\license\catalog.ts:44 - LICENSE_WARNING_DAYS
+\src\features\license\catalog.ts:45 - LICENSE_CRITICAL_DAYS
+\src\features\license\LicenseBadge.tsx:18 - licenseBadgeState (used in module)
+\src\features\license\LicenseBadge.tsx:59 - LicenseBadge
+\src\features\license\LicenseScreen.tsx:37 - LicenseScreen
+\src\features\license\types.ts:60 - licenseStateLabel
+\src\features\license\types.ts:65 - licenseGuidance
+\src\features\license\types.ts:3 - LicenseStateId (used in module)
+\src\features\license\types.ts:17 - LICENSE_STATE_LABELS (used in module)
+\src\features\license\types.ts:32 - LICENSE_STATE_TONES
+\src\features\license\types.ts:48 - LICENSE_BLOCKING_STATES
+\src\features\license\use-license.ts:33 - useLicense
+\src\features\license\use-license.ts:13 - LicenseStatusView (used in module)
+\src\features\print-templates\PrintTemplatesScreen.tsx:51 - PrintTemplatesScreen
+\src\features\print-templates\TemplateSettingsPanel.tsx:68 - TemplateSettingsPanel
+\src\features\products\ProductDialogs.tsx:5 - ProductDetailsDrawer
+\src\features\products\ProductDialogs.tsx:6 - ProductFormDialog
+\src\features\products\ProductDialogs.tsx:7 - LabelsDialog
+\src\features\products\ProductDialogs.tsx:7 - LabelTarget
+\src\features\products\ProductsScreen.tsx:68 - ProductsScreen
+\src\features\products\types.ts:46 - isArchived (used in module)
+\src\features\products\types.ts:50 - stockLabel
+\src\features\products\types.ts:57 - stockTone
+\src\features\products\types.ts:64 - sortProducts
+\src\features\products\types.ts:7 - Product (used in module)
+\src\features\products\types.ts:24 - Category
+\src\features\products\types.ts:29 - StockFilter
+\src\features\products\types.ts:31 - ProductSort (used in module)
+\src\features\products\types.ts:39 - UNIT_OPTIONS
+\src\features\products\types.ts:44 - unitLabel
+\src\features\proformas\ProformaDialogs.tsx:42 - ProformaDetailsDrawer
+\src\features\proformas\ProformaDialogs.tsx:316 - ProformaFormDialog
+\src\features\proformas\ProformaDialogs.tsx:749 - ProformaConversionDialog
+\src\features\proformas\ProformasScreen.tsx:77 - ProformasScreen
+\src\features\proformas\ProformasScreen.tsx:66 - ProformaDetailData (used in module)
+\src\features\proformas\types.ts:28 - proformaStatusLabel
+\src\features\proformas\types.ts:36 - proformaStatusTone
+\src\features\proformas\types.ts:43 - isProformaEditable
+\src\features\proformas\types.ts:47 - isProformaConvertible
+\src\features\proformas\types.ts:4 - ProformaStatus (used in module)
+\src\features\proformas\types.ts:5 - ProformaStatusFilter
+\src\features\proformas\types.ts:6 - ProformaSort
+\src\features\proformas\types.ts:8 - Proforma
+\src\features\reports\ReportDialogs.tsx:15 - ReportExportDialog
+\src\features\reports\ReportsScreen.tsx:45 - ReportsScreen
+\src\features\reports\types.ts:80 - monthStartUtc
+\src\features\reports\types.ts:4 - ReportSection (used in module)
+\src\features\reports\types.ts:17 - ReportBucket (used in module)
+\src\features\reports\types.ts:25 - ReportTop (used in module)
+\src\features\reports\types.ts:31 - ReportSummary
+\src\features\reports\types.ts:60 - REPORT_SECTIONS
+\src\features\reports\types.ts:70 - ClosingRow
+\src\features\reports\widgets.tsx:6 - ReportSectionCard
+\src\features\reports\widgets.tsx:21 - MiniTable
+\src\features\returns\ReturnDialogs.tsx:3 - ReturnDetailsDrawer
+\src\features\returns\ReturnDialogs.tsx:4 - NewReturnDialog
+\src\features\returns\ReturnDialogs.tsx:5 - ReturnRefundDialog
+\src\features\returns\ReturnsScreen.tsx:56 - ReturnsScreen
+\src\features\returns\types.ts:42 - returnKindLabel
+\src\features\returns\types.ts:46 - returnStatusLabel
+\src\features\returns\types.ts:53 - returnStatusTone
+\src\features\returns\types.ts:60 - conditionLabel
+\src\features\returns\types.ts:64 - returnNumber
+\src\features\returns\types.ts:69 - rowKey
+\src\features\returns\types.ts:4 - ReturnKind (used in module)
+\src\features\returns\types.ts:5 - ReturnStatus (used in module)
+\src\features\returns\types.ts:6 - ReturnTypeFilter
+\src\features\returns\types.ts:7 - ReturnStatusFilter
+\src\features\returns\types.ts:8 - ReturnSort
+\src\features\returns\types.ts:9 - ItemCondition (used in module)
+\src\features\returns\types.ts:11 - ReturnRow (used in module)
+\src\features\returns\types.ts:24 - ReturnLine (used in module)
+\src\features\returns\types.ts:36 - ReturnDetailData
+\src\features\sales\cart-store.ts:245 - useCart
+\src\features\sales\cart-store.ts:9 - CartTab (used in module)
+\src\features\sales\cart-store.ts:44 - ActiveCart (used in module)
+\src\features\sales\cart-store.ts:83 - useCartsStore (used in module)
+\src\features\sales\proforma-op.ts:14 - proformaOperationKey
+\src\features\sales\proforma-op.ts:6 - ProformaCartLine (used in module)
+\src\features\sales\SellScreen.tsx:56 - SellScreen
+\src\features\settings\backup-frequency.ts:24 - backupFrequencyFromAuto
+\src\features\settings\backup-frequency.ts:9 - BackupFrequency (used in module)
+\src\features\settings\backup-frequency.ts:10 - backupFrequencyMinutes
+\src\features\settings\backup-frequency.ts:12 - BACKUP_FREQUENCIES (used in module)
+\src\features\settings\bits.tsx:5 - Section
+\src\features\settings\bits.tsx:25 - SwitchRow
+\src\features\settings\bits.tsx:57 - useBusyFlag
+\src\features\settings\bits.tsx:74 - SaveBar
+\src\features\settings\SettingsScreen.tsx:31 - SettingsScreen
+\src\features\settings\SettingsSectionsA.tsx:41 - CompanySection
+\src\features\settings\SettingsSectionsA.tsx:269 - SalesSection
+\src\features\settings\SettingsSectionsA.tsx:334 - SoundSection
+\src\features\settings\SettingsSectionsA.tsx:423 - ProductsSection
+\src\features\settings\SettingsSectionsA.tsx:471 - StockSection
+\src\features\settings\SettingsSectionsA.tsx:532 - CustomersSection
+\src\features\settings\SettingsSectionsA.tsx:597 - SuppliersSection
+\src\features\settings\SettingsSectionsB.tsx:58 - InvoiceSection
+\src\features\settings\SettingsSectionsB.tsx:206 - PrintingSection
+\src\features\settings\SettingsSectionsB.tsx:234 - BackupSection
+\src\features\settings\SettingsSectionsB.tsx:632 - ClientSyncSection
+\src\features\settings\SettingsSectionsB.tsx:804 - DatabaseSection
+\src\features\settings\SettingsSectionsB.tsx:1004 - SecuritySection
+\src\features\settings\SettingsSectionsB.tsx:1053 - ZakatSettingsSection
+\src\features\settings\SettingsSectionsB.tsx:1153 - DisplaySection
+\src\features\settings\SettingsSectionsB.tsx:1180 - AboutSection
+\src\features\settings\types.ts:5 - SettingsSectionId (used in module)
+\src\features\settings\types.ts:14 - SETTINGS_SECTIONS
+\src\features\staff\ChangeCodeCard.tsx:16 - ChangeCodeCard
+\src\features\staff\InitialCodeOnce.tsx:8 - InitialCodeOnce
+\src\features\staff\RecoveryCodeOnce.tsx:6 - RecoveryCodeOnce
+\src\features\staff\StaffGate.tsx:17 - StaffGate
+\src\features\staff\StaffRecover.tsx:15 - StaffRecover
+\src\features\staff\use-staff.ts:24 - useStaff
+\src\features\staff\use-staff.ts:9 - StaffUserView (used in module)
+\src\features\staff\UsersAdmin.tsx:29 - UsersAdmin
+\src\features\stock\OcrImportDialog.tsx:110 - OcrImportDialog
+\src\features\stock\StockDialogs.tsx:3 - StockDetailsDrawer
+\src\features\stock\StockDialogs.tsx:4 - StockAdjustmentDialog
+\src\features\stock\StockDialogs.tsx:5 - StockMovementHistoryDrawer
+\src\features\stock\StockDialogs.tsx:6 - InventoryDialog
+\src\features\stock\StockDialogs.tsx:7 - StockIntakeDialog
+\src\features\stock\StockDialogs.tsx:8 - StockIntakesDrawer
+\src\features\stock\StockScreen.tsx:79 - StockScreen
+\src\features\stock\StockScreen.tsx:72 - InventoryPreset (used in module)
+\src\features\stock\types.ts:55 - stockStatusLabel
+\src\features\stock\types.ts:61 - stockStatusTone
+\src\features\stock\types.ts:67 - maxStockLabel
+\src\features\stock\types.ts:72 - parseQtyInput
+\src\features\stock\types.ts:84 - suggestIntakeInvoiceNumber
+\src\features\stock\types.ts:4 - StockRow
+\src\features\stock\types.ts:22 - StockMovement
+\src\features\stock\types.ts:37 - StockStatusFilter
+\src\features\stock\types.ts:38 - StockMovementFilter
+\src\features\stock\types.ts:47 - StockSort
+\src\features\suppliers\SupplierDialogs.tsx:3 - SupplierDetailsDrawer
+\src\features\suppliers\SupplierDialogs.tsx:4 - SupplierFormDialog
+\src\features\suppliers\SupplierDialogs.tsx:5 - SupplierPaymentDialog
+\src\features\suppliers\SupplierDialogs.tsx:6 - SupplierHistoryDrawer
+\src\features\suppliers\SupplierPOsDialog.tsx:71 - SupplierPOsDialog
+\src\features\suppliers\SuppliersScreen.tsx:80 - SuppliersScreen
+\src\features\suppliers\SuppliersScreen.tsx:73 - SupplierStatement (used in module)
+\src\features\suppliers\types.ts:74 - isSupplierActive (used in module)
+\src\features\suppliers\types.ts:78 - hasSupplierDebt (used in module)
+\src\features\suppliers\types.ts:82 - supplierCode
+\src\features\suppliers\types.ts:86 - supplierStatusLabel
+\src\features\suppliers\types.ts:92 - supplierStatusTone
+\src\features\suppliers\types.ts:100 - intakeStatusLabel
+\src\features\suppliers\types.ts:107 - intakeStatusTone
+\src\features\suppliers\types.ts:113 - intakeNumber
+\src\features\suppliers\types.ts:4 - Supplier (used in module)
+\src\features\suppliers\types.ts:25 - EnrichedSupplier
+\src\features\suppliers\types.ts:32 - StatementIntake (used in module)
+\src\features\suppliers\types.ts:45 - StatementIntakeItem
+\src\features\suppliers\types.ts:55 - StatementPayment
+\src\features\suppliers\types.ts:65 - SupplierStatusFilter
+\src\features\suppliers\types.ts:66 - SupplierPaymentFilter
+\src\features\suppliers\types.ts:67 - SupplierSort
+\src\features\suppliers\types.ts:98 - PAYMENT_METHOD_LABELS
+\src\features\zakat\types.ts:53 - nisabMethodLabel
+\src\features\zakat\types.ts:6 - ZakatSources
+\src\features\zakat\types.ts:19 - ZakatCalculation
+\src\features\zakat\types.ts:38 - HIJRI_YEARS
+\src\features\zakat\ZakatDialogs.tsx:23 - ZakatCalculationDialog
+\src\features\zakat\ZakatScreen.tsx:35 - ZakatScreen
+\src\shared\charts\BarChart.tsx:10 - BarChart
+\src\shared\company\use-company.ts:34 - useCompany
+\src\shared\dates\dates.ts:6 - todayUtcDate
+\src\shared\documents\DocumentPreviewModal.tsx:8 - DocumentPreviewModal
+\src\shared\documents\invoice-preview.tsx:23 - InvoicePreviewModal
+\src\shared\documents\payment-preview.tsx:30 - PaymentTicketModal
+\src\shared\documents\payment-preview.tsx:13 - PaymentTicketInput (used in module)
+\src\shared\documents\sale-ticket.ts:56 - buildSaleTicketPayload
+\src\shared\documents\sale-ticket.ts:101 - buildCompanyHead (used in module)
+\src\shared\errors\fr-map.ts:10 - isTechnicalMessage (used in module)
+\src\shared\export\csv.ts:4 - toCsv (used in module)
+\src\shared\export\csv.ts:22 - downloadCsv
+\src\shared\formatters\files.ts:5 - formatBytes
+\src\shared\formatters\format.ts:11 - formatDzdSafe
+\src\shared\formatters\format.ts:26 - formatDzdSigned
+\src\shared\formatters\format.ts:46 - formatDateTimeFr
+\src\shared\formatters\format.ts:62 - movementTypeFr
+\src\shared\formatters\format.ts:81 - paymentMethodLabel
+\src\shared\formatters\format.ts:87 - formatCustomerCode
+\src\shared\formatters\format.ts:96 - adjustmentReasonFr
+\src\shared\formatters\format.ts:115 - formatDateFr
+\src\shared\formatters\format.ts:126 - editionLabel
+\src\shared\formatters\format.ts:74 - PAYMENT_METHOD_LABELS (used in module)
+\src\shared\money\parse.ts:8 - strictOrNeg
+\src\shared\printer\PrinterCard.tsx:18 - PrinterCard
+\src\shared\printer\PrinterCard.tsx:12 - PrinterSettingsView (used in module)
+\src\shared\settings\use-app-settings.ts:33 - useAppSettings (used in module)
+\src\shared\settings\use-app-settings.ts:57 - saveAppSettings
+\src\shared\settings\use-app-settings.ts:67 - useDefaultMethod
+\src\shared\settings\use-app-settings.ts:8 - SalesSettings
+\src\shared\settings\use-app-settings.ts:61 - PaymentMethod (used in module)
+\src\shared\sound\sound.ts:32 - clampVolume (used in module)
+\src\shared\sound\sound.ts:37 - setSoundVolume (used in module)
+\src\shared\sound\sound.ts:41 - getSoundVolume (used in module)
+\src\shared\sound\sound.ts:46 - scaledPeak (used in module)
+\src\shared\sound\sound.ts:54 - minGapFor (used in module)
+\src\shared\sound\sound.ts:65 - setSoundEnabled (used in module)
+\src\shared\sound\sound.ts:69 - isSoundEnabled
+\src\shared\sound\sound.ts:74 - unlockSound
+\src\shared\sound\sound.ts:188 - playSound
+\src\shared\sound\sound.ts:197 - loadSoundEnabled
+\src\shared\sound\sound.ts:216 - persistSoundEnabled
+\src\shared\sound\sound.ts:11 - SoundName (used in module)
+\src\shared\sound\sound.ts:22 - DEFAULT_VOLUME (used in module)
+\src\shared\types\ipc-client.ts:9 - call (used in module)
+\src\shared\types\ipc-client.ts:198 - ocrOnProgress
+\src\shared\types\ipc-client.ts:21 - api (used in module)
+\src\shared\types\ipc-contracts.ts:10 - callChecked
+\src\shared\types\ipc-contracts.ts:46 - enrichedCustomerSearchSchema
+\src\shared\types\ipc-contracts.ts:51 - EnrichedCustomerRow
+\src\shared\types\ipc-contracts.ts:67 - saleResultSchema
+\src\shared\types\ipc-contracts.ts:75 - productsMatchBatchSchema
+\src\shared\types\ipc-contracts.ts:85 - paymentAckSchema
+\src\shared\types\ipc-contracts.ts:102 - closingsListSchema
+\src\shared\types\ipc-contracts.ts:105 - accessActivateResultSchema
+\src\shared\types\ipc-contracts.ts:110 - accessQrSvgResultSchema
+\src\shared\types\ipc-contracts.ts:115 - accessStatusResultSchema
+\src\shared\types\ipc-contracts.ts:129 - syncEnqueueResultSchema
+\src\shared\types\ipc-contracts.ts:134 - syncPushResultSchema
+\src\shared\types\ipc-contracts.ts:139 - syncConfigViewSchema
+\src\shared\ui\confirm-dialog.tsx:17 - useConfirm
+\src\shared\ui\confirm-dialog.tsx:27 - ConfirmProvider
+\src\shared\ui\confirm.ts:8 - confirmDeletesEnabled
+\src\shared\ui\confirm.ts:16 - setConfirmDeletesEnabled
+\src\shared\ui\error-boundary.tsx:16 - ErrorBoundary
+\src\shared\ui\primitives.tsx:23 - cn (used in module)
+\src\shared\ui\primitives.tsx:29 - Button (used in module)
+\src\shared\ui\primitives.tsx:57 - Kbd
+\src\shared\ui\primitives.tsx:66 - PageHeader
+\src\shared\ui\primitives.tsx:104 - Card (used in module)
+\src\shared\ui\primitives.tsx:126 - Switch
+\src\shared\ui\primitives.tsx:161 - SectionTitle
+\src\shared\ui\primitives.tsx:184 - SearchField
+\src\shared\ui\primitives.tsx:226 - Field
+\src\shared\ui\primitives.tsx:271 - TextInput (used in module)
+\src\shared\ui\primitives.tsx:278 - Select
+\src\shared\ui\primitives.tsx:294 - TextArea
+\src\shared\ui\primitives.tsx:300 - Modal
+\src\shared\ui\primitives.tsx:403 - Pager
+\src\shared\ui\primitives.tsx:485 - EmptyState
+\src\shared\ui\primitives.tsx:507 - Kpi
+\src\shared\ui\primitives.tsx:545 - Badge
+\src\shared\ui\primitives.tsx:565 - RowAction
+\src\shared\ui\primitives.tsx:601 - InfoRow
+\src\shared\ui\primitives.tsx:635 - Drawer
+\src\shared\ui\primitives.tsx:21 - Notify
+\src\shared\ui\theme-density.ts:12 - initialDensity (used in module)
+\src\shared\ui\theme-density.ts:23 - initialTheme (used in module)
+\src\shared\ui\theme-density.ts:38 - useTheme
+\src\shared\ui\theme-density.ts:61 - useDensity
+\src\shared\ui\theme-density.ts:7 - THEME_KEY (used in module)
+\src\shared\ui\theme-density.ts:8 - DENSITY_KEY (used in module)
+\src\shared\ui\theme-density.ts:10 - Density (used in module)
+\src\shared\ui\theme-density.ts:21 - Theme (used in module)
+\src\shared\ui\use-busy.ts:5 - isAnyModalOpen
+\src\shared\ui\use-count-up.ts:6 - useCountUp
+\src\shared\ui\use-debounced-timer.ts:16 - useDebouncedTimer
+\src\shared\ui\use-debounced-timer.ts:9 - DebouncedTimer (used in module)
+\src\shared\ui\use-load-seq.ts:7 - useLoadSeq
+\src\shared\ui\use-operation-id.ts:14 - useOperationId
+\src\features\customers\dialogs\ClientDetailsDrawer.tsx:34 - ClientDetailsDrawer
+\src\features\customers\dialogs\ClientDrawerDebts.tsx:21 - ClientDrawerDebts
+\src\features\customers\dialogs\ClientDrawerHeader.tsx:10 - ClientDrawerBadges
+\src\features\customers\dialogs\ClientDrawerHeader.tsx:24 - ClientDrawerHeader
+\src\features\customers\dialogs\ClientDrawerHeader.tsx:84 - ClientDrawerFooter
+\src\features\customers\dialogs\ClientDrawerTabs.tsx:10 - ClientDrawerTabs
+\src\features\customers\dialogs\ClientFormDialog.tsx:14 - ClientFormDialog
+\src\features\customers\dialogs\ClientMobileAccess.tsx:32 - ClientMobileAccess
+\src\features\customers\dialogs\PaymentDialog.tsx:17 - PaymentDialog
+\src\features\customers\dialogs\SlipPreviewModal.tsx:8 - SlipPreviewModal
+\src\features\customers\dialogs\types.ts:75 - historyKindOf
+\src\features\customers\dialogs\types.ts:91 - clientTabLabel
+\src\features\customers\dialogs\types.ts:10 - ClientTabId (used in module)
+\src\features\customers\dialogs\types.ts:12 - CLIENT_TABS (used in module)
+\src\features\customers\dialogs\types.ts:20 - StatementPayment
+\src\features\customers\dialogs\types.ts:30 - ClientReturnItem
+\src\features\customers\dialogs\types.ts:42 - ClientDebtItem
+\src\features\customers\dialogs\types.ts:55 - ClientHistoryItem
+\src\features\customers\dialogs\types.ts:66 - LazyState
+\src\features\customers\dialogs\types.ts:69 - SlipState
+\src\features\customers\dialogs\types.ts:80 - ClientTabCounts (used in module)
+\src\features\customers\dialogs\types.ts:101 - ClientDetailsDrawerProps
+\src\features\customers\dialogs\types.ts:110 - ClientFormDialogProps
+\src\features\customers\dialogs\types.ts:117 - PaymentDialogProps
+\src\features\customers\dialogs\useClientDrawerActions.ts:18 - useClientDrawerActions
+\src\features\customers\dialogs\useClientDrawerData.ts:19 - useClientDrawerData
+\src\features\products\dialogs\common.ts:5 - parseQty
+\src\features\products\dialogs\common.ts:11 - parseMoney
+\src\features\products\dialogs\DetailsDrawer.tsx:23 - ProductDetailsDrawer
+\src\features\products\dialogs\FormDialog.tsx:24 - ProductFormDialog
+\src\features\products\dialogs\LabelsDialog.tsx:26 - LabelsDialog
+\src\features\products\dialogs\LabelsDialog.tsx:18 - LabelTarget (used in module)
+\src\features\returns\dialogs\DetailsDrawer.tsx:34 - ReturnDetailsDrawer
+\src\features\returns\dialogs\NewCustomerReturnDialog.tsx:42 - CustomerReturnDialog
+\src\features\returns\dialogs\NewReturnDialog.tsx:17 - NewReturnDialog
+\src\features\returns\dialogs\NewSupplierReturnDialog.tsx:33 - SupplierReturnDialog
+\src\features\returns\dialogs\RefundDialog.tsx:22 - ReturnRefundDialog
+\src\features\sales\sell\AmountMethodFields.tsx:8 - AmountMethodFields
+\src\features\sales\sell\AmountMethodFields.tsx:6 - PaymentMethod (used in module)
+\src\features\sales\sell\cart-drafts.ts:31 - toCartDraftTabs
+\src\features\sales\sell\cart-drafts.ts:8 - CartDraftLinePayload (used in module)
+\src\features\sales\sell\cart-drafts.ts:19 - CartDraftTabPayload (used in module)
+\src\features\sales\sell\CartPanel.tsx:18 - CartPanel
+\src\features\sales\sell\CustomItemDialog.tsx:11 - CustomItemDialog
+\src\features\sales\sell\CustomItemDialog.tsx:5 - CustomForm (used in module)
+\src\features\sales\sell\PayDialog.tsx:20 - PayDialog
+\src\features\sales\sell\PayDialog.tsx:15 - PayTotals (used in module)
+\src\features\sales\sell\PriceDialog.tsx:14 - PriceDialog
+\src\features\sales\sell\PriceDialog.tsx:6 - PriceTarget (used in module)
+\src\features\sales\sell\QuantityDialog.tsx:19 - QuantityDialog
+\src\features\sales\sell\sell-finalize.ts:85 - flowDepsFrom
+\src\features\sales\sell\sell-finalize.ts:95 - openPay
+\src\features\sales\sell\sell-finalize.ts:107 - bumpLastQty
+\src\features\sales\sell\sell-finalize.ts:113 - clearSaleForm (used in module)
+\src\features\sales\sell\sell-finalize.ts:127 - openNewTab
+\src\features\sales\sell\sell-finalize.ts:139 - clearActiveCart
+\src\features\sales\sell\sell-finalize.ts:154 - closeTab (used in module)
+\src\features\sales\sell\sell-finalize.ts:168 - finalizeSale
+\src\features\sales\sell\sell-finalize.ts:277 - cancelLastSale
+\src\features\sales\sell\sell-finalize.ts:28 - SellFlowDeps (used in module)
+\src\features\sales\sell\sell-proforma.ts:14 - createProforma
+\src\features\sales\sell\sell-proforma.ts:99 - openCustomerDetails
+\src\features\sales\sell\sell-proforma.ts:112 - refreshCustomerDrawer
+\src\features\sales\sell\sell-search.ts:21 - isBarcodeLike (used in module)
+\src\features\sales\sell\sell-search.ts:29 - isLikelyScan (used in module)
+\src\features\sales\sell\sell-search.ts:52 - searchIdleMs (used in module)
+\src\features\sales\sell\sell-search.ts:57 - isCustomerQueryReady (used in module)
+\src\features\sales\sell\sell-search.ts:72 - parseQtyPrefix (used in module)
+\src\features\sales\sell\sell-search.ts:92 - stockGuardMessage (used in module)
+\src\features\sales\sell\sell-search.ts:117 - parseCustomItemInput (used in module)
+\src\features\sales\sell\sell-search.ts:151 - fetchCustomerCredit
+\src\features\sales\sell\sell-search.ts:206 - onQueryChange
+\src\features\sales\sell\sell-search.ts:234 - runSearch (used in module)
+\src\features\sales\sell\sell-search.ts:274 - addProduct (used in module)
+\src\features\sales\sell\sell-search.ts:314 - addProductOrAskQuantity (used in module)
+\src\features\sales\sell\sell-search.ts:333 - confirmWeightedAdd
+\src\features\sales\sell\sell-search.ts:352 - addCustomProduct
+\src\features\sales\sell\sell-search.ts:379 - searchCustomers
+\src\features\sales\sell\sell-search.ts:392 - runCustomerSearch (used in module)
+\src\features\sales\sell\sell-search.ts:411 - selectCustomer
+\src\features\sales\sell\sell-search.ts:452 - searchDepsFrom
+\src\features\sales\sell\sell-search.ts:37 - SCAN_BURST_GAP_MS (used in module)
+\src\features\sales\sell\sell-search.ts:40 - SCAN_IDLE_MS (used in module)
+\src\features\sales\sell\sell-search.ts:43 - TEXT_IDLE_MS (used in module)
+\src\features\sales\sell\sell-search.ts:62 - QtyPrefix (used in module)
+\src\features\sales\sell\sell-search.ts:106 - ParsedCustomItem (used in module)
+\src\features\sales\sell\sell-search.ts:174 - SellSearchDeps (used in module)
+\src\features\sales\sell\sell-settle.ts:11 - openSettle
+\src\features\sales\sell\sell-settle.ts:22 - settleDebt
+\src\features\sales\sell\sell-totals.ts:24 - isValidDueDate
+\src\features\sales\sell\sell-totals.ts:32 - computeChangeMinor
+\src\features\sales\sell\sell-totals.ts:49 - creditBlockState
+\src\features\sales\sell\sell-totals.ts:108 - tabTotalOf
+\src\features\sales\sell\sell-totals.ts:122 - buildSaleSnapshot
+\src\features\sales\sell\sell-totals.ts:151 - buildPrintPayload
+\src\features\sales\sell\sell-totals.ts:188 - buildProformaLines
+\src\features\sales\sell\sell-totals.ts:11 - CompanyFields (used in module)
+\src\features\sales\sell\sell-types.ts:4 - SearchRow
+\src\features\sales\sell\sell-types.ts:14 - CustomerRow
+\src\features\sales\sell\sell-types.ts:24 - PreviewLine (used in module)
+\src\features\sales\sell\sell-types.ts:33 - LastSale
+\src\features\sales\sell\sell-types.ts:52 - ProformaDoc
+\src\features\sales\sell\sell-weight.ts:14 - needsQuantityDialog
+\src\features\sales\sell\sell-weight.ts:19 - quantityNoun
+\src\features\sales\sell\sell-weight.ts:39 - isFeminineQuantityUnit
+\src\features\sales\sell\sell-weight.ts:44 - formatQtyFr
+\src\features\sales\sell\sell-weight.ts:62 - weightDialogPreview
+\src\features\sales\sell\sell-weight.ts:48 - WeightMode (used in module)
+\src\features\sales\sell\sell-weight.ts:50 - WeightPreview (used in module)
+\src\features\sales\sell\SellCustomerPanel.tsx:15 - SellCustomerPanel
+\src\features\sales\sell\SellOverlays.tsx:16 - SellOverlays
+\src\features\sales\sell\SellSearchPanel.tsx:10 - SellSearchPanel
+\src\features\sales\sell\SellShortcutsHelp.tsx:14 - SellShortcutsHelp
+\src\features\sales\sell\SellTabsBar.tsx:8 - SellTabsBar
+\src\features\sales\sell\SellTotalsPanel.tsx:8 - SellTotalsPanel
+\src\features\sales\sell\SettleDialog.tsx:6 - SettleDialog
+\src\features\sales\sell\useSellPrint.ts:11 - useSellPrint
+\src\features\sales\sell\useSellShortcuts.ts:36 - shouldRefocusSearch (used in module)
+\src\features\sales\sell\useSellShortcuts.ts:48 - useSellShortcuts
+\src\features\sales\sell\useSellShortcuts.ts:7 - SellKeyActions (used in module)
+\src\features\sales\sell\useSellShortcuts.ts:19 - ScanKey (used in module)
+\src\features\sales\sell\useSellState.ts:29 - useSellState (used in module)
+\src\features\sales\sell\useSellState.ts:18 - SellTotals (used in module)
+\src\features\sales\sell\useSellState.ts:26 - SellState
+\src\features\stock\dialogs\AdjustmentDialog.tsx:48 - StockAdjustmentDialog
+\src\features\stock\dialogs\DetailsDrawer.tsx:23 - StockDetailsDrawer
+\src\features\stock\dialogs\HistoryDrawer.tsx:18 - StockMovementHistoryDrawer
+\src\features\stock\dialogs\IntakeDialog.tsx:58 - StockIntakeDialog
+\src\features\stock\dialogs\IntakesDrawer.tsx:21 - StockIntakesDrawer
+\src\features\stock\dialogs\InventoryDialog.tsx:24 - InventoryDialog
+\src\features\suppliers\dialogs\common.ts:5 - totalPurchases
+\src\features\suppliers\dialogs\common.ts:9 - totalPaid
+\src\features\suppliers\dialogs\DetailsDrawer.tsx:31 - SupplierDetailsDrawer
+\src\features\suppliers\dialogs\FormDialog.tsx:30 - SupplierFormDialog (used in module)
+\src\features\suppliers\dialogs\FormDialog.tsx:247 - SupplierQuickCreateDialog
+\src\features\suppliers\dialogs\FormDialog.tsx:24 - CreatedSupplier (used in module)
+\src\features\suppliers\dialogs\HistoryDrawer.tsx:36 - SupplierHistoryDrawer
+\src\features\suppliers\dialogs\PaymentDialog.tsx:25 - SupplierPaymentDialog
+\src\features\suppliers\dialogs\ProductsBlock.tsx:25 - SupplierProductsBlock
+EXIT=0
+DONE-STATIC1

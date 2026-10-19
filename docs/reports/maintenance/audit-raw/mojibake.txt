@@ -1,0 +1,21 @@
+﻿FILES with U+FFFD: 20 TOTAL replacement chars: 113
+  18 electron\ipc\validators.print.ts
+  11 electron\ipc\validators.common.ts
+  10 electron\ipc\ipc-errors.ts
+   8 electron\ipc\registry.core.ts
+   8 electron\ipc\registry.recovery.ts
+   8 electron\ipc\validators.sales.ts
+   7 electron\ipc\credit-gates.ts
+   6 electron\ipc\license-gates.ts
+   6 electron\ipc\registry.sales.ts
+   6 electron\ipc\validators.finance.ts
+   6 electron\ipc\validators.stock.ts
+   3 electron\ipc\registry.system.ts
+   3 electron\ipc\validators.catalog.ts
+   3 electron\ipc\validators.customers.ts
+   2 electron\ipc\handle.ts
+   2 electron\ipc\registry.customers.ts
+   2 electron\ipc\registry.finance.ts
+   2 electron\ipc\validators.settings.ts
+   1 electron\ipc\registry.documents.ts
+   1 electron\ipc\validators.documents.ts

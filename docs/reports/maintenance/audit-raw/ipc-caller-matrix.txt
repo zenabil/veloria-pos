@@ -1,0 +1,187 @@
+channels.ts = 177 | preload bridge = 175 canaux | wrappers api = 168
+app.restart | bridge=app.restart | wrapper=appRestart | CALL api.appRestart | -
+app.diagnostics | bridge=app.diagnostics | wrapper=appDiagnostics | CALL api.appDiagnostics | -
+system.openDataFolder | bridge=system.openDataFolder | wrapper=systemOpenDataFolder | CALL api.systemOpenDataFolder | -
+system.selectFolder | bridge=system.selectFolder | wrapper=systemSelectFolder | CALL api.systemSelectFolder | -
+system.selectLogo | bridge=system.selectLogo | wrapper=systemSelectLogo | CALL api.systemSelectLogo | -
+database.health | bridge=database.health | wrapper=dbHealth | CALL api.dbHealth | -
+database.location | bridge=database.location | wrapper=dbLocation | CALL api.dbLocation | -
+database.relocate | bridge=database.relocate | wrapper=dbRelocate | CALL api.dbRelocate | -
+database.integrity | bridge=database.integrity | wrapper=dbIntegrity | CALL api.dbIntegrity | -
+database.optimize | bridge=database.optimize | wrapper=dbOptimize | CALL api.dbOptimize | -
+database.reset | bridge=database.reset | wrapper=dbReset | CALL api.dbReset | TEST
+products.search | bridge=products.search | wrapper=productSearch | CALL api.productSearch | -
+products.getByBarcode | bridge=products.getByBarcode | wrapper=productByBarcode | CALL api.productByBarcode | -
+products.matchBatch | bridge=products.matchBatch | wrapper=- | CALL a.products.matchBatch | -
+products.barcodes | bridge=products.barcodes | wrapper=productBarcodes | CALL api.productBarcodes | -
+products.create | bridge=products.create | wrapper=productCreate | CALL api.productCreate | TEST
+products.update | bridge=products.update | wrapper=productUpdate | CALL api.productUpdate | -
+products.archive | bridge=products.archive | wrapper=productArchive | CALL api.productArchive | -
+products.restore | bridge=products.restore | wrapper=productRestore | CALL api.productRestore | -
+products.delete | bridge=products.remove | wrapper=productDelete | CALL api.productDelete | -
+products.import | bridge=productsExtra.import | wrapper=productsImport | CALL api.productsImport | TEST
+products.suppliers | bridge=products.suppliers | wrapper=productSuppliers | CALL api.productSuppliers | -
+products.setSuppliers | bridge=products.setSuppliers | wrapper=productSetSuppliers | CALL api.productSetSuppliers | -
+customers.search | bridge=customers.search | wrapper=customerSearch | CALL api.customerSearch+a.customers.search | -
+customers.create | bridge=customers.create | wrapper=customerCreate | CALL api.customerCreate | TEST
+customers.update | bridge=customers.update | wrapper=customerUpdate | CALL api.customerUpdate | -
+customers.archive | bridge=customers.archive | wrapper=customerArchive | CALL api.customerArchive | -
+customers.restore | bridge=customers.restore | wrapper=customerRestore | CALL api.customerRestore | -
+customers.recordPayment | bridge=customers.recordPayment | wrapper=- | CALL a.customers.recordPayment | TEST
+customers.paymentReceipt | bridge=customers.paymentReceipt | wrapper=customerPaymentReceipt | CALL api.customerPaymentReceipt | -
+customers.statement | bridge=customers.statement | wrapper=customerStatement | CALL api.customerStatement | -
+customers.stats | bridge=customers.stats | wrapper=customerStats | CALL api.customerStats | -
+customers.accessActivate | bridge=customers.accessActivate | wrapper=customerAccessActivate | CALL a.customers.accessActivate | TEST
+customers.accessRevoke | bridge=customers.accessRevoke | wrapper=customerAccessRevoke | CALL api.customerAccessRevoke | TEST
+customers.accessStatus | bridge=customers.accessStatus | wrapper=customerAccessStatus | CALL a.customers.accessStatus | -
+customers.accessQrSvg | bridge=customers.accessQrSvg | wrapper=customerAccessQrSvg | CALL a.customers.accessQrSvg | -
+sync.enqueue | bridge=sync.enqueue | wrapper=syncEnqueue | CALL a.sync.enqueue | TEST
+sync.pushNow | bridge=sync.pushNow | wrapper=syncPushNow | CALL a.sync.pushNow | TEST
+sync.getConfig | bridge=sync.getConfig | wrapper=syncGetConfig | CALL api.syncGetConfig+a.sync.getConfig | -
+sync.saveConfig | bridge=sync.saveConfig | wrapper=syncSaveConfig | CALL api.syncSaveConfig | TEST
+announcements.save | bridge=announcements.save | wrapper=announcementSave | - | TEST
+categories.list | bridge=categories.list | wrapper=categoriesList | CALL api.categoriesList | -
+categories.create | bridge=categories.create | wrapper=categoryCreate | CALL api.categoryCreate | -
+stock.overview | bridge=stock.overview | wrapper=stockOverview | CALL api.stockOverview | -
+stock.products | bridge=stock.products | wrapper=stockProducts | CALL api.stockProducts | -
+stock.movements | bridge=stock.movements | wrapper=stockMovements | CALL api.stockMovements | -
+stock.inventory | bridge=stock.inventory | wrapper=stockInventory | CALL api.stockInventory | -
+stock.adjust | bridge=stock.adjust | wrapper=stockAdjust | CALL api.stockAdjust | TEST
+stock.intake | bridge=stock.intake | wrapper=stockIntake | CALL api.stockIntake | TEST
+stock.intakes | bridge=stock.intakes | wrapper=stockIntakes | CALL api.stockIntakes | TEST
+suppliers.search | bridge=suppliers.search | wrapper=supplierSearch | CALL api.supplierSearch | -
+suppliers.create | bridge=suppliers.create | wrapper=supplierCreate | CALL api.supplierCreate | -
+suppliers.update | bridge=suppliers.update | wrapper=supplierUpdate | CALL api.supplierUpdate | -
+suppliers.delete | bridge=suppliers.remove | wrapper=supplierDelete | CALL api.supplierDelete | TEST
+suppliers.deleteMany | bridge=suppliers.removeMany | wrapper=suppliersDeleteMany | CALL api.suppliersDeleteMany | -
+suppliers.pay | bridge=suppliers.pay | wrapper=- | CALL a.suppliers.pay | TEST
+suppliers.statement | bridge=suppliers.statement | wrapper=supplierStatement | CALL api.supplierStatement | -
+suppliers.stats | bridge=suppliers.stats | wrapper=supplierStats | CALL api.supplierStats | -
+suppliers.products | bridge=suppliers.products | wrapper=supplierProducts | CALL api.supplierProducts | -
+purchase.create | bridge=purchase.create | wrapper=purchaseCreate | CALL api.purchaseCreate | TEST
+purchase.list | bridge=purchase.list | wrapper=purchaseList | CALL api.purchaseList | -
+purchase.detail | bridge=purchase.detail | wrapper=purchaseDetail | CALL api.purchaseDetail | -
+purchase.order | bridge=purchase.order | wrapper=purchaseOrder | CALL api.purchaseOrder | -
+purchase.cancel | bridge=purchase.cancel | wrapper=purchaseCancel | CALL api.purchaseCancel | -
+purchase.receive | bridge=purchase.receive | wrapper=purchaseReceive | CALL api.purchaseReceive | TEST
+proformas.create | bridge=proformas.create | wrapper=proformaCreate | CALL api.proformaCreate | -
+proformas.list | bridge=proformas.list | wrapper=proformasList | CALL api.proformasList | -
+proformas.status | bridge=proformas.status | wrapper=proformaStatus | CALL api.proformaStatus | -
+proformas.convert | bridge=proformas.convert | wrapper=proformaConvert | CALL api.proformaConvert | TEST
+proformas.update | bridge=proformas.update | wrapper=proformaUpdate | CALL api.proformaUpdate | -
+proformas.delete | bridge=proformas.remove | wrapper=proformaDelete | CALL api.proformaDelete | -
+proformas.detail | bridge=proformas.detail | wrapper=proformaDetail | CALL api.proformaDetail | -
+proformas.stats | bridge=proformas.stats | wrapper=proformaStats | CALL api.proformaStats | -
+debts.list | bridge=debts.list | wrapper=debtsList | CALL api.debtsList | -
+debts.detail | bridge=debts.detail | wrapper=debtDetail | CALL api.debtDetail | -
+debts.stats | bridge=debts.stats | wrapper=debtsStats | CALL api.debtsStats | -
+reports.summary | bridge=reports.summary | wrapper=reportSummary | CALL api.reportSummary | -
+dashboard.summary | bridge=dashboard.summary | wrapper=dashboardSummary | CALL api.dashboardSummary | -
+closings.get | bridge=closings.get | wrapper=- | CALL a.closings.get | -
+closings.create | bridge=closings.create | wrapper=closingCreate | CALL api.closingCreate | TEST
+zakat.sources | bridge=zakat.sources | wrapper=zakatSources | CALL api.zakatSources | -
+zakat.saveParams | bridge=zakat.saveParams | wrapper=zakatSave | CALL api.zakatSave | TEST
+zakat.history | bridge=zakat.history | wrapper=zakatHistory | CALL api.zakatHistory | -
+zakat.save | bridge=zakat.save | wrapper=zakatSaveCalc | CALL api.zakatSaveCalc | TEST
+settings.get | bridge=settings.get | wrapper=settingsGet | CALL api.settingsGet | -
+settings.save | bridge=settings.save | wrapper=settingsSave | CALL api.settingsSave | TEST
+sales.create | bridge=sales.create | wrapper=- | CALL a.sales.create | TEST
+sales.get | bridge=sales.get | wrapper=saleGet | CALL api.saleGet | -
+sales.history | bridge=sales.history | wrapper=salesHistory | CALL api.salesHistory | -
+sales.cancel | bridge=sales.cancel | wrapper=saleCancel | CALL api.saleCancel | TEST
+sales.setDueDate | bridge=sales.setDueDate | wrapper=saleSetDueDate | CALL api.saleSetDueDate | -
+carts.save | bridge=carts.save | wrapper=cartsSave | CALL api.cartsSave | -
+carts.load | bridge=carts.load | wrapper=cartsLoad | CALL api.cartsLoad | -
+returns.create | bridge=returns.create | wrapper=returnCreate | CALL api.returnCreate | TEST
+returns.list | bridge=returns.list | wrapper=returnsList | CALL api.returnsList | -
+returns.detail | bridge=returns.detail | wrapper=returnDetail | CALL api.returnDetail | -
+returns.saleItems | bridge=returns.saleItems | wrapper=returnSaleItems | CALL api.returnSaleItems | -
+returns.intakeItems | bridge=returns.intakeItems | wrapper=returnIntakeItems | CALL api.returnIntakeItems | -
+returns.refund | bridge=returns.refund | wrapper=returnRefund | CALL api.returnRefund | -
+returns.cancel | bridge=returns.cancel | wrapper=returnCancel | CALL api.returnCancel | -
+returns.stats | bridge=returns.stats | wrapper=returnStats | CALL api.returnStats | -
+expenses.create | bridge=expenses.create | wrapper=expenseCreate | CALL api.expenseCreate | TEST
+expenses.list | bridge=expenses.list | wrapper=expensesList | CALL api.expensesList | -
+expenses.update | bridge=expenses.update | wrapper=expenseUpdate | CALL api.expenseUpdate | -
+expenses.delete | bridge=expenses.remove | wrapper=expenseDelete | CALL api.expenseDelete | -
+expenses.stats | bridge=expenses.stats | wrapper=expenseStats | CALL api.expenseStats | -
+history.list | bridge=history.list | wrapper=historyList | CALL api.historyList | -
+history.detail | bridge=history.detail | wrapper=historyDetail | CALL api.historyDetail | -
+history.stats | bridge=history.stats | wrapper=historyStats | CALL api.historyStats | -
+company.get | bridge=company.get | wrapper=companyGet | CALL api.companyGet | -
+company.update | bridge=company.update | wrapper=companyUpdate | CALL api.companyUpdate | -
+printing.listPrinters | bridge=printing.listPrinters | wrapper=printersList | CALL api.printersList | TEST
+printing.printReceipt | bridge=printing.printReceipt | wrapper=printReceipt | CALL api.printReceipt | TEST
+printing.preview | bridge=printing.preview | wrapper=printPreview | CALL api.printPreview | TEST
+printing.previewProforma | bridge=printing.previewProforma | wrapper=proformaPreview | CALL api.proformaPreview | TEST
+printing.printProformaA4 | bridge=printing.printProformaA4 | wrapper=proformaPrintA4 | CALL api.proformaPrintA4 | TEST
+printing.exportProformaPdf | bridge=printing.exportProformaPdf | wrapper=proformaExportPdf | CALL api.proformaExportPdf | TEST
+printing.exportPaymentPdf | bridge=printing.exportPaymentPdf | wrapper=paymentExportPdf | CALL api.paymentExportPdf | TEST
+printing.exportReportPdf | bridge=printing.exportReportPdf | wrapper=reportExportPdf | CALL api.reportExportPdf | TEST
+printing.exportLabelsPdf | bridge=printing.exportLabelsPdf | wrapper=labelsExportPdf | CALL api.labelsExportPdf | TEST
+printing.previewReport | bridge=printing.previewReport | wrapper=reportPreview | CALL api.reportPreview | TEST
+printing.printReport | bridge=printing.printReport | wrapper=reportPrint | CALL api.reportPrint | TEST
+printing.previewLabels | bridge=printing.previewLabels | wrapper=labelsPreview | CALL api.labelsPreview | TEST
+printing.printLabels | bridge=printing.printLabels | wrapper=labelsPrint | CALL api.labelsPrint | TEST
+printing.previewPayment | bridge=printing.previewPayment | wrapper=paymentPreview | CALL api.paymentPreview | TEST
+printing.printPayment | bridge=printing.printPayment | wrapper=paymentPrint | CALL api.paymentPrint | TEST
+printing.previewDelivery | bridge=printing.previewDelivery | wrapper=deliveryPreview | CALL api.deliveryPreview | TEST
+printing.printDelivery | bridge=printing.printDelivery | wrapper=deliveryPrint | CALL api.deliveryPrint | TEST
+printing.previewReturnSlip | bridge=printing.previewReturnSlip | wrapper=returnSlipPreview | CALL api.returnSlipPreview | TEST
+printing.printReturnSlip | bridge=printing.printReturnSlip | wrapper=returnSlipPrint | CALL api.returnSlipPrint | TEST
+printing.previewPO | bridge=printing.previewPO | wrapper=poPreview | CALL api.poPreview | TEST
+printing.printPO | bridge=printing.printPO | wrapper=poPrint | CALL api.poPrint | TEST
+printing.exportReceiptPdf | bridge=printing.exportReceiptPdf | wrapper=exportReceiptPdf | CALL api.exportReceiptPdf | TEST
+printing.testPage | bridge=printer.test | wrapper=printerTest | CALL api.printerTest | TEST
+printer.get | bridge=printer.get | wrapper=printerGet | - | TEST
+printer.save | bridge=printer.save | wrapper=printerSave | CALL api.printerSave | TEST
+templates.list | bridge=templates.list | wrapper=templatesList | CALL api.templatesList | -
+templates.get | bridge=templates.get | wrapper=templateGet | - | -
+templates.save | bridge=templates.save | wrapper=templateSave | CALL api.templateSave | -
+templates.activate | bridge=templates.activate | wrapper=templateActivate | CALL api.templateActivate | -
+templates.remove | bridge=templates.remove | wrapper=templateRemove | CALL api.templateRemove | -
+templates.reset | bridge=templates.reset | wrapper=templateReset | CALL api.templateReset | -
+templates.preview | bridge=templates.preview | wrapper=templatePreview | CALL api.templatePreview | TEST
+templates.testPrint | bridge=templates.testPrint | wrapper=templateTestPrint | CALL api.templateTestPrint | TEST
+staff.list | bridge=staff.list | wrapper=staffList | CALL api.staffList | -
+staff.login | bridge=staff.login | wrapper=staffLogin | CALL api.staffLogin | TEST
+staff.logout | bridge=staff.logout | wrapper=staffLogout | CALL api.staffLogout | -
+staff.session | bridge=staff.session | wrapper=staffSession | CALL api.staffSession | -
+staff.create | bridge=staff.create | wrapper=staffCreate | CALL api.staffCreate | TEST
+staff.setPermissions | bridge=staff.setPermissions | wrapper=staffSetPermissions | CALL api.staffSetPermissions | -
+staff.changeCode | bridge=staff.changeCode | wrapper=staffChangeCode | CALL api.staffChangeCode | -
+staff.setActive | bridge=staff.setActive | wrapper=staffSetActive | CALL api.staffSetActive | -
+staff.recover | bridge=staff.recover | wrapper=staffRecover | CALL api.staffRecover | TEST
+staff.regenRecovery | bridge=staff.regenRecovery | wrapper=staffRegenRecovery | CALL api.staffRegenRecovery | TEST
+system.openLogsFolder | bridge=system.openLogsFolder | wrapper=systemOpenLogsFolder | CALL api.systemOpenLogsFolder | -
+recovery.retry | bridge=recovery.retry | wrapper=- | - | -
+recovery.exit | bridge=recovery.exit | wrapper=- | - | -
+window.minimize | bridge=window.minimize | wrapper=windowMinimize | CALL api.windowMinimize | -
+window.toggleMaximize | bridge=window.toggleMaximize | wrapper=windowToggleMaximize | CALL api.windowToggleMaximize | -
+window.close | bridge=window.close | wrapper=windowClose | CALL api.windowClose | -
+window.isMaximized | bridge=window.isMaximized | wrapper=windowIsMaximized | CALL api.windowIsMaximized | -
+window.maximizedChanged | bridge=- | wrapper=- | - | TEST
+license.getStatus | bridge=license.status | wrapper=licenseStatus | CALL api.licenseStatus | -
+license.getHardwareId | bridge=license.hardwareId | wrapper=licenseHardwareId | CALL api.licenseHardwareId | -
+license.importLicense | bridge=license.importLicense | wrapper=licenseImport | CALL api.licenseImport | -
+license.validate | bridge=license.validate | wrapper=licenseValidate | CALL api.licenseValidate | -
+backup.create | bridge=backup.create | wrapper=backupCreate | CALL api.backupCreate | -
+backup.list | bridge=backup.list | wrapper=backupList | CALL api.backupList | -
+backup.restore | bridge=backup.restore | wrapper=backupRestore | CALL api.backupRestore | TEST
+backup.status | bridge=backup.status | wrapper=backupStatus | CALL api.backupStatus | -
+backup.export | bridge=backup.export | wrapper=backupExport | CALL api.backupExport | -
+backup.autoSave | bridge=backup.autoSave | wrapper=backupAutoSave | CALL api.backupAutoSave | -
+ocr.selectFile | bridge=ocr.selectFile | wrapper=ocrSelectFile | CALL api.ocrSelectFile | TEST
+ocr.analyze | bridge=ocr.analyze | wrapper=ocrAnalyze | CALL api.ocrAnalyze | TEST
+ocr.cancel | bridge=ocr.cancel | wrapper=ocrCancel | CALL api.ocrCancel | TEST
+ocr.dispose | bridge=ocr.dispose | wrapper=ocrDispose | CALL api.ocrDispose | TEST
+ocr.progress | bridge=- | wrapper=- | - | TEST
+
+=== SANS appel renderer (7) ===
+  announcements.save  bridge=announcements.save  wrapper=announcementSave  test=Y
+  printer.get  bridge=printer.get  wrapper=printerGet  test=Y
+  templates.get  bridge=templates.get  wrapper=templateGet  test=N
+  recovery.retry  bridge=recovery.retry  wrapper=-  test=N
+  recovery.exit  bridge=recovery.exit  wrapper=-  test=N
+  window.maximizedChanged  bridge=-  wrapper=-  test=Y
+  ocr.progress  bridge=-  wrapper=-  test=Y
