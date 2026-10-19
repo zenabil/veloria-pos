@@ -128,15 +128,16 @@
 
 ## Ou ecrire quoi
 
-| Dossier                         | Contenu                                                                            |
-| ------------------------------- | ---------------------------------------------------------------------------------- |
-| `docs/ADR-*.md`                 | Decisions (ce fichier pointe, ne duplique pas)                                     |
-| `docs/reports/PHASE_*.md`       | Avancement canonique                                                               |
-| `docs/reports/maintenance/*.md` | Maintenance poste (scripts et logs en `scripts/maintenance/`)                      |
-| `docs/licensing/`               | Detail licences (17 docs)                                                          |
-| `docs/specs-archive/`           | Spec figee (manifeste local : `specs-archive/INDEX.md`)                            |
-| `docs/archive/`                 | Lecture seule : `root-legacy/` + `stitch/` (manifeste local : `archive/README.md`) |
-| `docs/STRUCTURE.md`             | Carte maintenance (complete cet index, ne le remplace pas)                         |
+| Dossier                          | Contenu                                                                            |
+| -------------------------------- | ---------------------------------------------------------------------------------- |
+| `docs/ADR-*.md`                  | Decisions (ce fichier pointe, ne duplique pas)                                     |
+| `docs/reports/PHASE_*.md`        | Avancement canonique                                                               |
+| `docs/reports/maintenance/*.md`  | Maintenance poste (scripts et logs en `scripts/maintenance/`)                      |
+| `docs/licensing/`                | Detail licences (17 docs)                                                          |
+| `docs/specs-archive/`            | Spec figee (manifeste local : `specs-archive/INDEX.md`)                            |
+| `docs/archive/`                  | Lecture seule : `root-legacy/` + `stitch/` (manifeste local : `archive/README.md`) |
+| `docs/STRUCTURE.md`              | Carte maintenance (complete cet index, ne le remplace pas)                         |
+| `docs/prompts/AUDIT_PROMPT_*.md` | Prompt d'audit complet reutilisable (audit-first, aucune suppression automatique)  |
 
 ## Rapports saries
 
