@@ -4,6 +4,14 @@
 > والصقه في جلسة جديدة (OpenCode / Claude Code / أي agent coded) كرسالة واحدة.
 > المرجع الوحيد للحقيقة هو المستودع نفسه — كل رقم في هذا البرومبت **يُعاد التحقق منه
 > في بداية الجلسة**، وأي انحراف يُوثَّق في التقرير.
+>
+> **بنية البرومبت**: §1 سياق إلزامي · §2 المخرجات · §3 قواعد سلوك صارمة ·
+> §4 منهجية (8 مراحل) · §5 محاور A→P + **19 لوحة مجال (P1→P19)** + مصفوفة تغطية
+> القطع + سياسة الدليل · §6 أدوات + ركن أوامر + قواعد الأدوات · §7 قالب التقرير ·
+> §8 قالب الخطة (موجات) · §9 المخرجات النهائية · §10 معيار الاكتمال ·
+> §11 أسلوب التنفيذ · §12 سلّم الخطورة واحتساب المخاطر · §13 سيناريو التنفيذ ·
+> §14 أسئلة لأصحاب المنتج · §15 قوالب (ADR/commit/handoff/PR) ·
+> §16 فكّ قفل العقود المجمّدة · §17 نماذج العمق (S/M/L).
 
 ---
 
@@ -342,6 +350,300 @@ npm run format:check
 
 ---
 
+### 5.2 لوحات التدقيق حسب المجال (Domain Playbooks) — طبّقها كما هي
+
+> كل لوحة = قائمة أسئلة محددة قابلة للإجابة بنعم/لا + دليل. لا تتجاوز أي لوحة.
+
+#### P1 — Caisse / Vente (POS)
+
+- هل كل شاشة بيع تلتزم تسلسلًا واحدًا: `scan → quantité → prix → ligne → total → encaissement`؟
+- هل كل إضافة سطر تمرّ بـ `operationId` واحد مع حجب الإرسال المزدوج (double-submit)؟
+- هل الباركود المتكرر يُنشئ سطرًا جديدًا أم يدمج في السطر الحالي؟ وما المصدر الوحيد للحقيقة؟
+- هل الوحدات المستمرة (KG/G/L/ML/CL/M) تفتح حوار «كمية أم مبلغ» (ADR-114)؟
+- هل حوار الكمية يمنع القيم السالبة/غير المنتهية/`NaN`؟ (انظر `noUncheckedIndexedAccess`)
+- هل المقاسات (S/M/L/XL) لا تُعامل ككمية عددية؟
+- هل الخصم (remise) يُطبَّق على السطر قبل TVA؟ وفي أي مستوى: سطر/سلة/فاتورة؟
+- هل حدّ TVA (0/9/19) محسوب من قاعدة معرَّفة في `src/domain` ومُعادة في `electron` (parity)؟
+- هل الدفع المتعدد (نقد + بطاقة + ائتمان) يجمع دون تجاوز الإجمالي؟
+- هل حساب «Monnaie à rendre» يحترم الفئات المتوفرة في الخزنة؟
+- هل «Imprimer le ticket» يستعمل `operationId` (يمنع طباعة مكرّرة عند إعادة النقر)؟
+- هل السلة المحفوظة (cart drafts) تُستأنف دون فقدان تغييرات؟
+- هل الجلسة تُغلق عند الإقلاع (panier) بشكل صحيح؟
+
+#### P2 — Paiements & Règlements
+
+- هل `payments.operation_id` (0020) و`idempotency_keys` (0021) مطبَّقان على **كل** قناة دفعة؟
+- هل إعادة إرسال نفس `operationId` تُنتج **لا شيء** (no-op) لا تعديلًا ثانيًا؟
+- هل قيد `UNIQUE` على `operation_id` موجود فعلًا في المخطط (وليس في الكود فقط)؟
+- هل الدفع الجزئي (partiel) يدعم حالات «مدفوع/متبقٍ» بشكل متسق عبر البيع/الدين/الاسترجاع؟
+- هل `NULL` مسموح على أعمدة الدفع (0004) مغطّى بحارس؟ وما السلوك عند `NULL`؟
+- هل الإرجاع/الأوفر (avoir) مرتبط ببيع أصلي عبر `sale_id` + رقم تسلسلي (0024/0025)؟
+- هل «annuler un paiement» عملية ذرّية عكسها بالكامل؟
+
+#### P3 — Stock, FIFO, Coûts
+
+- هل كل حركة مخزون تمرّ بـ `stock_movements` مع سبب (reason) و`operation_id`؟
+- هل الكميات **لا تنزل تحت الصفر** (0037)؟ وماذا يحدث عند `UPDATE stock SET qty = qty - ?` المتزامن؟
+- هل طبقات التكلفة FIFO (0018 / ADR-021) تُستهلك بالترتيب الصحيح مع قفل الطبقة؟
+- هل الإرجاع من العميل يعيد الطبعة (remise en stock) بقيمة التكلفة الصحيحة؟
+- هل التالف/الفاقد (perte) له مسار تحقّق (garde)؟
+- هل `stock` و`products` متزامنان (مصدر حقيقة واحد)؟
+- هل الاستيراد الجماعي (OCR/CSV) ذرّي أم جزئي؟ (أجب: ماذا يحدث لو فشل السطر 50 من 100؟)
+
+#### P4 — Clients & Dettes
+
+- هل التطبيع (0047 `customer_search_norm`) مطابق لتطبيع البحث في `src` و`electron` و`mobile`؟
+- هل uniquité téléphone (0034) مطبَّقة على كل المسارات (تعديل/استيراد/OCR)؟
+- هل حدّ ائتماني (ADR-110) يُطبَّق على: بيع نقدي، بيع آجل، بيع بالبطاقة، مرتجع، تسديد دين؟
+- هل سقف الاعتماد محسوب من الرصيد الحقيقي (مشغول) لا من الحدّ الإجمالي؟
+- هل الديون تحترم شرائح التقادم (aging) والـ zatk في كل الواجهات (POS/Mobile/Manager)؟
+- هل `client-access` (0032/0033) متسق مع `outbox` — هل كل تعديل عميل يولّد صف outbox؟
+- هل البيانات الشخصية (الهاتف/العنوان) لا تُطبع في السجلات ولا في التقارير غير المصرّح بها؟
+
+#### P5 — Fournisseurs & Achats
+
+- هل دورة «bon de commande fournisseur» كاملة (مسودة → مُعتمد → مُستلم → مفوتر)؟
+- هل المرتجعات الداخلية للمورّد (ADR-100) تعمل مع FIFO de coût؟
+- هل حركات المورّد لا تلوّث مخزون العميل (فصل المخزونين)؟
+
+#### P6 — Retours & Avoirs
+
+- هل الترقيم (0024/0025) بلا فجوات ولا تكرار، ومولَّد داخل transaction؟
+- هل أثر المرتجع (مخزون + FIFO + دين + TVA) مطابق تمامًا للأثر الأصلي؟
+- هل المرتجع على بيع آجل يعيد الدين للعميل لا نقدًا؟
+- هل نوع «avoir» (0025 `not_null`) مطبَّق على مستوى قاعدة البيانات لا فقط في الكود؟
+
+#### P7 — Dépenses & Charges
+
+- هل كل مصروف له فئة + سند + تاريخ + طريقة دفع؟
+- هل المصاريف تؤثر على النتيجة/TVA/الزكاة بما يطابق التقارير؟
+
+#### P8 — Zakat & Clôtures
+
+- هل حساب الزكاة (مجمّع/شهري) معرَّف في `src/domain/zakat` ومُعاد في SQL؟
+- هل الإغلاق (closings) يقفل الفترة (locked period) ويمنع التعديل اللاحق؟
+- هل مخزون الإغلاق = مخزون فعلي متحقَّق منه، وكيف يُوثَّق الفارق؟
+
+#### P9 — Rapports & Statistiques
+
+- هل كل رقم في تقرير له مصدر واحد معروف (لا تجميع «مكرر»)؟
+- هل المجاميع = المصدر (قابل لإعادة الحساب على عيّنة)؟
+- هل التقارير علىVolumes كبيرة تستخدم فهارس مناسبة + pagination (لا `LIMIT/OFFSET` ضخم)؟
+
+#### P10 — Impression, PDF, Tickets
+
+- هل سياسة operation→format (ADR-117) مطبَّقة على **كل** المستندات (historique, fiche client, dettes, aperçus, exports)؟
+- هل صيغ الورق (58/80/A4) مشتقّة من إعداد فعلي لا من ثوابت مضمّنة؟
+- هل الخطوط (fonts) مضمّنة (embedded) في PDF ولا تعتمد على خطوط النظام؟
+- هل محتوى QR/TVA (ADR-045) صحيح حسابيًا ومغطّى باختبار؟
+- هل مولّدات PDF (electron/printing) لا تُسقط الحروف العربية أو النبرات (encoding)؟
+- هل `pdfjs-dist` و`qrcode` محمَّلان كسولًا (lazy)؟
+
+#### P11 — OCR & Import
+
+- هل التكرارية (ADR-098) مطبَّقة (إعادة تشغيل نفس المستند = لا استيراد مزدوج)؟
+- هل تحليل الأرقام (`domain/ocr/numbers`) يعالج صيغ DZ (مسافة، فاصلة)؟
+- هل المستند الأصلي محفوظ (تتبّع) وغير مخزَّن بنص صريح إن كان يحتوي بيانات شخصية؟
+- هل انقطاع دفعة يترك حالة قابلة للاستئناف (reprise)؟
+
+#### P12 — Licences & Anti-tamper
+
+- هل توقيع Ed25519 والمفتاح العام المضمَّن (fail-closed) مربوطان فعلًا؟
+- هل تدوير المفاتيح (ADR-115) وبصمة الجهاز يعملان بعد التدوير؟
+- هل `capabilities` (ADR-026) تُتحقَّق **جانب main** لا جانب renderer فقط؟
+- هل المانيفست الموقَّع يغطي **كل** ملفات التطبيق (214/213 ملفًا حسب البناء)؟
+- هل العبث بملف يُكتشف فعلًا في البناء؟ (اختبار عدم رجوع يجب الحفاظ عليه)
+
+#### P13 — Synchronisation & Cloud
+
+- هل الطابور (outbox) يُكتب داخل نفس transaction التي تكتب العمل؟
+- هل إعادة المحاولة (retry) تكرارية-آمنة (idempotente) ومحدودة (backoff)؟
+- هل حل التعارض موثّق (last-write-wins؟ دمج؟)؟
+- هل المرآة `cloud/supabase/functions/client-sync` مطابقة تمامًا للخدمة المحلية (`sync.service.ts`)؟
+- هل الأسرار (anon key, service key) خارج الحزمة وقابلة للتدوير؟
+
+#### P14 — Sauvegarde, Restauration, Migrations
+
+- هل النسخة الاحتياطية مُختبَرة (استعادة مجرَّبة) لا «ملف أُنشئ» فقط؟
+- هل الاستعادة تحفظ السلامة المرجعية ومفاتيح التكرارية؟
+- هل كل هجرة لها اختبار إعادة على قاعدة نظيفة (`tests/database`)؟
+- هل المهاجرات تضافية (لا إعادة كتابة مدمّرة)؟
+
+#### P15 — Sécurité Staff, PIN, RBAC
+
+- هل PIN مُجزَّأ بـ KDF بملح وكلفة صحيحة (pin-kdf-parity)؟
+- هل حارس الآلة (0043) مطبَّق فعلًا في كل المسارات بما فيها Electron؟
+- هل مصفوفة الأدوار × القنوات مكتملة (هذه المصفوفة **مخرَج**)?
+- هل مسار الاستعادة (recovery) يمكنه تجاوز دور؟ (اختبره صراحةً)
+- هل الرموز الأولية تُعرض مرة واحدة ولا تُطبع في السجلات؟
+
+#### P16 — Mobile APK & API Miroir
+
+- هل `mobile/` خارج `tsc` فعلًا؟ (تحقّق) — وماذا يحدث عند تغيير API؟
+- هل التكرار mobile/electron مغطّى باختبار تكافؤ (`mobile-foundation` / `mobile-payload`)؟
+- هل API المرآة قراءة فقط (ADR-053) — لا كتابة أعمال خارج SQLite؟
+
+#### P17 — License Manager (outil vendor)
+
+- هل يمكن إصدار رخصة غير صالحة (مفتاح، توقيع، صلاحيات، انتهاء)؟
+- هل تدوير المفاتيح يؤثّر في الرخص الصادرة مسبقًا؟
+- هل الرخص مشفّرة-at-rest في `manager-db`؟
+- هل توقيع المدير (`sign-manager-integrity`) يغطي النطاق الصحيح؟
+
+#### P18 — Scripts & Outillage
+
+- هل كل سكربت npm في `package.json` نُفِّذ مرة واحدة على الأقل (dry-run)؟
+- هل سكربتات `scripts/maintenance/elevated-step*.ps1` تكرارية-آمنة وقابلة للتراجع؟
+- هل `secret-scan.mjs` يغطي أيضًا `mobile/` و`cloud/` و`private/`؟
+- هل `verify-perf.mjs` يقيس شيئًا ذا معنى (وإلا فهو ضجيج)؟
+
+#### P19 — Build, Packaging, Signature, Release
+
+- هل `electron-builder*.yml` فيه `signAndEditExecutable: true` فعلًا (ADR-070)؟
+- هل مانيفست الترخيص يُعاد توقيعه بعد **كل** بناء renderer؟
+- هل `release/` (exe + blockmaps + SHA256SUMS) قابل لإعادة الإنتاج والتحقق؟
+- هل هدف Electron 37 + ABI better-sqlite3 مُختبَر وقت التشغيل المحزَّم (القاعدة 9)؟
+
+### 5.3 مصفوفة تغطية القطع — كل نوع ملف له فحص
+
+| نوع القطعة                                      | الفحص الإلزامي                                     | الأداة / الطريقة                    | الدليل المطلوب   |
+| ----------------------------------------------- | -------------------------------------------------- | ----------------------------------- | ---------------- |
+| `src/**/*.ts(x)`                                | استيراد ممنوع · hooks · تصديرات ميتة · نصوص فرنسية | eslint + knip + rg                  | قائمة + عدّاد    |
+| `src/domain/**`                                 | بلا framework · مال int · دوال خالصة               | eslint + unit tests                 | اختبار لكل قاعدة |
+| `src/application/**`                            | `operationId` إلزامي · بلا SQL                     | rg + `a1-p0-boundary`               | جدول حالات       |
+| `src/features/**`                               | حالات فارغة/تحميل/خطأ · FR · a11y                  | ui-fr + مراجعة                      | لقطات عند الحاجة |
+| `src/shared/**`                                 | استعمال وحيد · بلا تكرار                           | knip + rg                           | عدد الظهور       |
+| `electron/ipc/channels.ts`                      | 8 مستويات لكل قناة                                 | سكربت + جدول                        | جدول القنوات     |
+| `electron/ipc/validators*.ts`                   | تغطية كاملة · تسمية `*Schema`                      | validators-inventory                | diff             |
+| `electron/ipc/registry*.ts`                     | معالج واحد لكل قناة + الحواجز                      | registry + rg                       | جدول             |
+| `electron/ipc/handlers/*.repo.ts`               | prepared statements · transaction · opId           | sql-guard + مراجعة                  | عدد tx لكل معالج |
+| `electron/printing/**`                          | صيغ ADR-117 · PDF سليم · الخطوط                    | tests + فتح PDF                     | تقرير            |
+| `electron/licensing/**`                         | fail-closed · توقيع                                | license-tamper                      | اختبارات         |
+| `electron/database/**`                          | `foreign_keys=ON` · WAL · busy_timeout             | مراجعة + query                      | مخرجات PRAGMA    |
+| `electron/preload/preload.ts`                   | سطح معروض أدنى · بلا تسريب                         | مراجعة + bridge-shape               | قائمة            |
+| `database/migrations/*.sql`                     | الثبات · التكرارية · إعادة التشغيل                 | verify-migrations + tests/database  | VERIFIED         |
+| `tests/unit/**`                                 | assertion غير فارغ · حراسة حقيقية                  | مراجعة + mutation testing (اختياري) | نسبة             |
+| `tests/integration/**`                          | DB حقيقي · rollback · تكرارية                      | vitest                              | سجلات            |
+| `tests/database/**`                             | إعادة تشغيل المهاجرات                              | vitest                              | VERIFIED         |
+| `tests/e2e/**`                                  | سيناريو أعمال كامل · غير متذبذب                    | Playwright                          | تقرير            |
+| `scripts/**`                                    | تنفيذ حقيقي · exit code                            | تشغيل                               | stdout           |
+| `mobile/**`                                     | تغطية tsc · تكافؤ API                              | tsc مخصص                            | log              |
+| `license-manager/**`                            | tsc manager · توقيع                                | tsc + smoke                         | log              |
+| `cloud/**`                                      | تكافؤ مع الخدمة المحلية · قراءة فقط                | مراجعة + test                       | جدول             |
+| `docs/**`                                       | الفهرس محدَّث · ADR بلا أثر                        | مراجعة                              | diff             |
+| `package.json`                                  | سكربتات ميتة · اعتماديات غير مستعملة               | depcheck + knip                     | قائمة            |
+| `*.config.*` (tsconfig/vite/vitest/eslint/knip) | تناسق · تغطية                                      | مراجعة                              | ملاحظات          |
+| ملفات الجذر                                     | scratch / logs / أسرار                             | rg + gitignore                      | قائمة            |
+| `dist*` و`release/`                             | غير مودَعة · قابلة لإعادة الإنتاج                  | git status                          | الحالة           |
+| `.github/` و`.opencode/`                        | مسارات صحيحة · أسرار                               | مراجعة                              | ملاحظات          |
+
+### 5.4 سياسة الدليل وأخذ العينات (Evidence & Sampling)
+
+- **حدود الأداة**: أي أداة تُنتج «مرشّحًا» فقط. لا يُعتمد مرشّح قبل **بحث نصّي كامل** في كل
+  المجلدات (بما فيها `tests/` و`scripts/` و`mobile/` و`license-manager/` و`cloud/` و`resources/`
+  و`public/` و`docs/` و`private/`) **و** فحص القنوات على 3 مستويات.
+- **أنواع الأدلة المقبولة**: (أ) `file:line` + مقتطف · (ب) نتيجة أمر قابل لإعادة التشغيل ·
+  (ج) نتيجة اختبار يفشل قبل الإصلاح ويمرّ بعده · (د) مقارنة بمخطط/عقد/ADR.
+- **أنواع الأدلة المرفوضة**: «يبدو غير مستخدم» · «knip قال» · «منطقيًا ميت» ·
+  «مذكور في issue» · «رأي شخصي».
+- **تصنيف الثقة** يُسجَّل مع كل finding:
+  `PROUVÉ` (بحث شامل + نتيجة سلبية) · `DYNAMIC-RISK` (استهلاك ديناميكي/سلسلة) ·
+  `TEST-ONLY` (مستهلك من الاختبارات فقط — القرار: يُبقى إن كان غطاءً أعمال حقيقيًا) ·
+  `DUPLICATE` · `DELIBERATE-KEEP` (ADR) · `REFUTED` (مُستبعد + السبب + الدليل).
+- **العينات**: إن تجاوز الحجم ما يُدقَّق يدويًا، افحص **100%** للطبقات الحسّاسة
+  (المال/الذرّية/الأمن/المهاجرات/IPC) و**عيّنة ممثِّلة موثّقة** لبقية الطبقات
+  (مع تبرير حجم العيّنة ونسبة التغطية المغطّاة).
+- **قابلية إعادة الإنتاج**: كل أمر أو استعلام في التقرير يجب أن يُنسخ ويعمل كما هو.
+- **عدم اليقين**: أي نقطة لم تُحسم تُنقل إلى قسم «غير محسوم» مع «ما ينقص لإثباتها» —
+  ممنوع ملء الفراغ بالتخمين.
+
+### 6.1 أدوات إضافية (طبّق ما يناسب، واذكر ما تعذّر)
+
+| الأداة                                                    | الغرض                              | ملاحظة الاستخدام                   |
+| --------------------------------------------------------- | ---------------------------------- | ---------------------------------- |
+| `npx --yes semgrep --config auto`                         | أنماط خطرة (SQLi, secrets, unsafe) | مُعامل كمرشّح لا كحُكم             |
+| `npx --yes gitleaks detect`                               | أسرار في التاريخ                   | لا تلتقط secrets في `private/`     |
+| `npx --yes osv-scanner`                                   | ثغرات الاعتماديات                  | افصل runtime عن devDependencies    |
+| `npx --yes license-checker`                               | تراخيص الاعتماديات + توافق         | راجع مع صاحب المنتج                |
+| `npx --yes depcruise --config .dependency-cruiser.js`     | قواعد التبعيات (معماري)            | مفيد للم.imshow قديم               |
+| `npx --yes ast-grep --pattern`                            | بحث بنيوي (لا نصي)                 | لكشف أنماط لا يراها rg             |
+| `npx --yes betterer`                                      | تدرّج الديون (baseline)            | يمنع انحدار الجودة                 |
+| `npx --yes lizard`                                        | تعقيد الدوال (CC)                  | تفسير فقط، لا حكم                  |
+| `npx --yes scc` / `cloc`                                  | قياس الحجم                         | مرجعي                              |
+| `npm audit --omit=dev`                                    | ثغرات runtime                      | context: exploitabilité            |
+| `npx --yes vitest run --coverage --reporter=json-summary` | التغطية كـ JSON                    | لجدول DoD                          |
+| `npx --yes playwright test --reporter=list`               | E2E                                | 1 worker, ~35-40 s/spec            |
+| `ELECTRON_RUN_AS_NODE=1 npx electron script.cjs`          | استعلام DB dev                     | ABI صحيح                           |
+| `npx --yes ts-prune`                                      | تقاطع knip                         | يقلّل الفو>false positives         |
+| `git log --oneline --since=...`                           | تاريخ التغييرات hot-spots          | تركيز على الملفات المتكررة التعديل |
+| `git log -S "<symbole>"`                                  | متى ظهر/اختفى رمز                  | إثبات تاريخي                       |
+
+### 6.2 ركن الأوامر (Cheatsheet)
+
+```powershell
+# --- Baseline
+git status --short
+git log --oneline -20
+git branch --show-current
+npm run typecheck; npm run typecheck:electron; npm run typecheck:manager
+npm run lint
+npm test
+npm run test:db
+npm run verify:migrations; npm run verify:domain; npm run verify:perf
+npm run license:scan
+npm run build; npm run build:electron     # إلزامي معًا
+npm run format:check
+
+# --- Dead code / deps
+npx --yes knip
+npx --yes knip --include exports,types,files,duplicates,dependencies,unlisted
+npx --yes depcheck
+npx --yes ts-prune
+npx --yes madge --circular src electron
+npx --yes dpdm --no-warning --exit-code circular:1 src
+
+# --- Qualité statique
+npx --yes eslint . --max-warnings 0
+npx --yes eslint . --rule '{"@typescript-eslint/no-unnecessary-condition":"error"}' --rule '{"@typescript-eslint/no-unnecessary-type-assertion":"error"}'
+npx --yes semgrep --config auto --error
+npx --yes gitleaks detect --no-banner
+
+# --- Duplication / complexité
+npx --yes jscpd --min-lines 8 --min-tokens 60 src electron mobile license-manager
+
+# --- Couverture
+npx --yes vitest run --coverage --reporter=json-summary
+npx --yes vitest run tests/unit --coverage --coverage.include='src/domain/**'
+
+# --- Base de données (ABI Electron)
+$env:ELECTRON_RUN_AS_NODE="1"
+npx electron scripts/db-probe.cjs          # PRAGMA foreign_keys / journal_mode / integrity_check
+npx electron scripts/explain.cjs "SELECT ..." # EXPLAIN QUERY PLAN
+
+# --- Graphe
+graphify query "sale payment flow"
+graphify path "src/features/sales" "electron/ipc/handlers/sales.repo.ts"
+graphify explain "operationId"
+graphify update .
+
+# --- E2E ciblé (rapide)
+npx playwright test tests/e2e/sale-flow.spec.ts
+npx playwright test tests/e2e/scan-flow.spec.ts
+```
+
+### 6.3 قواعد التعامل مع الأدوات (ضروري لتفادي الـ false positives)
+
+1. **لا تُعدّ نتيجة أداة «finding»** — بل «مرشّحًا» (candidat) حتى يمرّ البحث اليدوي.
+2. **سجّل الأرقام قبل/بعد** لكل أداة (219 → 30 في `knip` هو مثال تاريخي).
+3. **إن اختلفت نتيجة الأداة عن `handoff.md`** → أعد القياس ووثّق الانحراف.
+4. **`knip`**: راجع `ignoreExportsUsedInFile` — المستودع يصدّر قواعد تُستهلك داخل الملف نفسه
+   (نمط مشروع). لا تعبّ على إزالتها.
+5. **`tsc`**: `noUnusedLocals` مفعّل — أخطاء الاستيراد تظهر كـ«unused import» لا كـ«missing export».
+6. **`eslint`**: `strictTypeChecked` مُفعّل — لا تُطفئ قاعدة لتفادي خطأ.
+7. **لا تُضِف أي dependency** إلا إذا كانت في `package.json` أصلًا أو بقرار موثّق (§3.6).
+
+---
+
 ## 6) أدوات مقترحة (استعملها، أو بديلها إن تعذّر)
 
 | الأداة                                                        | الغرض                                          |
@@ -515,6 +817,250 @@ Critical/High/Medium/Low + الشروط، + تصنيف الثقة (PROUVÉ/DYNAM
 - عند التجميع: **افحص بنفسك** كل finding حرج (تطبيق قاعدة «الدليل»).
 - رتّب النتائج: (1) Money/Atomicity · (2) Security · (3) Data loss/migrations · (4) correctness · (5) dead code · (6) duplication · (7) hygiene/docs.
 - إذا ظهر تعارض بين تقرير قديم (`docs/reports/*`) و الكود الحالي → **الكود هو الحقيقة**، واذكر التعارض صراحةً.
+
+---
+
+## 12) سلّم الخطورة واحتساب المخاطر
+
+### 12.1 خطورة الأثر (Impact)
+
+| المستوى      | المعيار                                                                          | أمثلة Veloria                                                                                 |
+| ------------ | -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| **Critical** | فقدان مال أو بيانات، خرق أمن، تلف قاعدة، معاملة غير ذرّية تبتلع أو تُضاعف مبلغًا | `db.transaction` ناقصة · `parseFloat` في حساب · قناة IPC بلا Zod · `PRAGMA foreign_keys` مطفأ |
+| **High**     | خلل في مسار عمل ظاهر للمستخدم، تبعية بلا تغطية، كود ميت داخل مسار نقدي           | قناة بلا UI · `announcements.save` · `mobile` خارج `tsc`                                      |
+| **Medium**   | ازدواجية، تغطية ناقصة، أداة ميتة، انحراف توثيقي                                  | 24 إعادة-تصدير ميتة · `docs/INDEX.md` متوقف                                                   |
+| **Low**      | نظافة، تعليقات كاذبة، تسمية، تنسيق                                               | `console.log` · TODO منسي                                                                     |
+
+### 12.2 احتمال الوقوع (Likelihood)
+
+`Certain` (يحدث في كل تنفيذ) · `Probable` (مسار شائع) · `Possible` (نادر/حالة حدّية) ·
+`Rare` (نظري، يتطلب شرطًا خاصًا).
+
+### 12.3 التحويل إلى أولوية (Risk = Impact × Likelihood)
+
+|              | Certain | Probable | Possible | Rare |
+| ------------ | ------- | -------- | -------- | ---- |
+| **Critical** | P0      | P0       | P1       | P2   |
+| **High**     | P0      | P1       | P2       | P3   |
+| **Medium**   | P1      | P2       | P3       | P3   |
+| **Low**      | P2      | P3       | P3       | P3   |
+
+- **P0** = يُصلَح في الموجة الأولى (أو يُحظر الإصدار).
+- **P1** = موجة مبكرة. **P2** = موجة متوسطة. **P3** = دفتر عمل/تحسين.
+- كل finding يحمل **P# + Impact + Likelihood + الثقة** في التقرير.
+
+### 12.4 تصنيف «P0» الخاص بـ Veloria (ممنوع التأجيل)
+
+- أي مسار كتابة مال بلا transaction واحدة أو بلا `operationId`.
+- أي float في حساب مبلغ.
+- أي قناة IPC حسّاسة بلا Zod أو بلا بوابة (license/staff/credit).
+- أي تعديل على migration مطبَّقة (خرق القاعدة 12) أو اختلاف checksum.
+- أي تسريب `contextIsolation = false` أو `nodeIntegration = true` في بناء الإنتاج.
+- أي `dangerouslySetInnerHTML` بمحتوى غير مموَّه.
+- أي كود ميت في مسار نقدي يُترك بلا قرار.
+
+---
+
+## 13) سيناريو التنفيذ (Cinématique) — كيف تتقدّم الجلسة فعليًا
+
+### 13.1 اليوم 0 — التحضير (ساعة واحدة)
+
+1. قراءة `AGENTS.md` + `handoff.md` + `docs/INDEX.md` + `docs/STRUCTURE.md`.
+2. `git status --short` → **إن كانت الشجرة غير نظيفة: توقّف واذكر الحاجز** (لا تدمج ورشتين).
+3. قياس الـ baseline لكل البوابات (§1.3) — سجّل النتيجة في جدول.
+4. توليد قائمة القنوات (سكربت) + قائمة التصديرات المستهلكة (knip) + خريطة graphify.
+5. **حاجز مراجعة**: اعرض الـ baseline على المالك قبل المتابعة.
+
+### 13.2 المرحلة A — المسح الشامل (نصف يوم)
+
+- تشغيل كل الأدوات (§6) وحفظ المخرجات الخام في `docs/reports/maintenance/audit-raw/`.
+- تقسيم المحاور على وكلاء قراءة فقط (§11).
+- تجميع المرشّحين في جدول واحد: `id | محور | ملف:سطر | وصف | أداة | حالة التحقق`.
+
+### 13.3 المرحلة B — التحقق والدرس (يوم)
+
+- لكل مرشّح: بحث يدوي كامل + تصنيف ثقة.
+- **قاعدة الجودة**: من كل 10 مرشّحات، توقّع ~9 مُستبعدة (استنادًا إلى النسبة التاريخية
+  212/219) — هذه ليست مبالغة، بل سلوك الأدوات في هذا المستودع.
+- فحص المال والذرّية (كل مسار mutation) — **يدوي بالكامل**.
+- فحص مصفوفة RBAC (قنوات × أدوار) — **يدوي بالكامل**.
+- فحص المهاجرات (47 ملفًا) — **يدوي بالكامل**.
+
+### 13.4 المرحلة C — التقرير والخطة (نصف يوم)
+
+- كتابة `FULL_AUDIT_2026-10-19.md` (المحاور A→P + جدول الكود الميت + قسم «مُستبعد»).
+- كتابة `FULL_AUDIT_2026-10-19_PLAN.md` (الموجات W0..Wn).
+- مراجعة ذاتية: هل كل finding يحمل دليلًا؟ هل كل محور مغطّى أو مُستبعَد بسبب موثّق؟
+
+### 13.5 المرحلة D — التنفيذ اللاحق (جلسات منفصلة)
+
+- كل موجة = **commit مستقل** + بوابات خضراء + ADR عند الحاجة + تحديث `handoff.md`.
+- **لا** تُحذف أي شيء في نفس الـ commit الذي يكتشف الـ finding.
+- ترتيب التنفيذ:
+  1. **W0** تحضير (تنظيف الشجرة، تحديث `docs/INDEX.md`).
+  2. **W1** المال/الذرّية/التكرارية (P0).
+  3. **W2** الأمن/RBAC وعقود IPC (P0/P1).
+  4. **W3** سلامة قاعدة البيانات والنسخ الاحتياطي/الاستعادة (P1).
+  5. **W4** الكود الميت (لوت 2 bis وما جدّ) (P2).
+  6. **W5** فجوات الاختبارات والتغطية (P1/P2).
+  7. **W6** التكرار والمعمارية (P2/P3).
+  8. **W7** الأداء وفهارس N+1 (P2/P3).
+  9. **W8** التوثيق/الفهرس/الـ ADRs (P3).
+  10. **W9** UX_FR/a11y/الحالات الفارغة (P2/P3).
+
+### 13.6 قاعدة الإيقاف (Stop-the-line)
+
+توقّف فورًا واذكر ذلك في التقرير إذا:
+
+- كانت بوابة خضراء في الـ baseline قد أصبحت حمراء أثناء التدقيق (بلا تغيير منك)؛
+- اكتشفت فقدان بيانات أو مبلغ في **قاعدة التطوير** (لا تحذف ولا تُصلح — احفظ الدليل)؛
+- اكتشفت ثغرة قابلة للاستغلال فورًا (لا تنشر تفاصيلها خارج تقرير محلي)؛
+- ظهر تغيير في `git status` من عملية أخرى (تعارض ورشتين).
+
+---
+
+## 14) أسئلة لأصحاب المنتج (تُجمَّع وتُطرح دفعة واحدة)
+
+| #   | السؤال                                                           | الخيارات                                                     | الأثر                           | الافتراضي المقترح           |
+| --- | ---------------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------- | --------------------------- |
+| Q1  | `announcements.save` (دومين + repo + validator كاملان، UI ناقصة) | (a) بناء UI · (b) حذف القناة والدومين والـ repo · (c) تأجيل  | عقد IPC + المخطط                | (a) إن كانت مطلوبة قريبًا   |
+| Q2  | `mobile/` خارج كل `tsconfig`                                     | (a) إضافة `tsconfig.mobile.json` + سكربت typecheck · (b) ترك | صفر اختبارات typesafety للـ APK | (a)                         |
+| Q3  | `expo-constants` غير مستخدم                                      | (a) إزالة + تحديث lockfile · (b) ترك                         | اعتماديات                       | (a)                         |
+| Q4  | `docs/INDEX.md` متوقف عند ADR-103                                | (a) استكمال 104→119 · (b) إعادة توليد                        | سهولة التصفح                    | (a)                         |
+| Q5  | `installer.spec` يتطلب UAC ولا يُنفَّذ                           | (a) spec إداري منفصل · (b) تجاهله                            | بوابة لا تُخضر أبدًا            | (b) مع توثيق صريح           |
+| Q6  | لا remote ولا CI فعّال                                           | (a) `git bundle` عبر USB · (b) remote + CI                   | إمكانية الاسترجاع               | (a) فوريًا                  |
+| Q7  | حِزَم APK تجريبية (EAS placeholders)                             | (a) حساب EAS · (b) تجميد الـ APK                             | ميزة                            | قرار المالك                 |
+| Q8  | ~84 قيمة hex في `src/`                                           | (a) تطبيع إلى tokens · (b) ترك موثّقًا                       | اتساق الواجهة                   | (b) مع ADR (كما في ADR-080) |
+| Q9  | `RAW_GUARDED_CHANNELS` غير مطبَّق                                | (a) تطبيق · (b) حذف التعريف                                  | أمان                            | (a)                         |
+| Q10 | `bridge-shape` يغطي `*Schema` فقط                                | (a) توسيع النمط · (b) توسيع يدوي                             | حراسة العقد                     | (a)                         |
+
+> **لا تتّخذ هذه القرارات بنفسك** — سجّلها في §4 من الخطة تحت «بنود مؤجَّلة بقرار» مع
+> الافتراضي المقترح، وانتظر تعليم المالك.
+
+---
+
+## 15) مرفقات جاهزة (Templates)
+
+### 15.1 قالب ADR (بالفرنسية تماشيًا مع ADR-001..119)
+
+```markdown
+# ADR-120 — <Titre court>
+
+- **Statut** : Proposé / Accepté
+- **Date** : 2026-10-19
+- **Décideur** : <propriétaire>
+
+## Contexte
+
+<Problème factuel + contraintes (règles AGENTS, invariants money, contrats gelés)>
+
+## Décision
+
+<Ce qui est décidé, en une phrase>
+
+## Alternatives considérées
+
+| Option | Pour | Contre | Verdict |
+
+## Conséquences
+
+- Positives :
+- Négatives / risques :
+- Contrats touchés (IPC / schéma / snapshots) :
+
+## Vérification
+
+- [ ] `npm run typecheck` (0)
+- [ ] `npm run lint` (0)
+- [ ] `npm test` (N/N)
+- [ ] `npm run verify:migrations` (VERIFIED)
+- [ ] `npm run verify:domain` (VERIFIED)
+- [ ] `npm run build && npm run build:electron`
+
+## Références
+
+- ADR-xxx · tests/unit/xxx.test.ts · docs/reports/xxx.md
+```
+
+### 15.2 رسائل commit المعتمدة
+
+```
+fix(money): <verbe + périmètre> — <symptôme corrigé>
+fix(security): <verbe> — <surface>
+fix(ipc): <verbe> — <canaux>
+refactor(cleanup): dead-code lot N — <n> symboles morts, aucun contrat touché
+test(<scope>): <couverture ajoutée>
+docs(audit): <prompt/rapport/plan>
+docs(handoff): session <date> — <résumé>
+```
+
+> **قاعدة AGENTS §10**: يبقى `docs(handoff): …` commitًا مستقلًا إذا كانت الشجرة نظيفة،
+> وإلا فـ commit نقطة تحقّق صريح بمسارات محدّدة.
+
+### 15.3 قالب إدخال `handoff.md`
+
+```markdown
+## N) Session <date> (<titre court>)
+
+- **Demande opérateur** : <النص الأصلي>
+- **Livrable** : <ملفات/تغييرات>
+- **Chiffres** : <قبل → بعد>
+- **Portes** : <tsc/eslint/vitest/verify/build> + النتيجة
+- **Contrats gelés** : inchangés / modifiés (<السبب>)
+- **État arbre** : propre / sale (<القائمة، أيها لم يُمَس>)
+- **En attente** : <قائمة>
+- **Pièges** : <جديد>
+- **Git** : <commits>
+```
+
+### 15.4 Checklist PR (تُستخدم في كل موجة)
+
+```markdown
+- [ ] المشكلة: <سطر واحد — ما الذي كان معطوبًا>
+- [ ] النطاق: <قائمة مسارات صريحة>
+- [ ] المال: لا تغيير في حساب مبلغ إلا مع اختبار
+- [ ] الذرّية: كل mutation في transaction واحدة + operationId
+- [ ] IPC: تعريف + validator + handler + preload + typing + UI + test (8 مستويات)
+- [ ] Migration: لا تعديل على migration مطبَّقة (ملف جديد مرقّم فقط)
+- [ ] UI: فرنسي 100% + لا exception brute + حالات (فارغة/تحميل/خطأ)
+- [ ] Tests: اختبار جديد لكل finding + اختبار انحدار أخضر
+- [ ] Gates: typecheck ✅ eslint ✅ vitest ✅ verify:migrations ✅ verify:domain ✅ build ✅
+- [ ] ADR: (مطلوب؟ لماذا)
+- [ ] handoff.md: §1 محدَّث + قسم جلسة
+- [ ] Rollback: `git revert <sha>` + أي ملف يحتاج استعادة يدوية
+```
+
+---
+
+## 16) قائمة فكّ القفل للعقود المجمّدة (لا تُكسر في صمت)
+
+> بعض الأرقام **مجمّدة** داخل الاختبارات. أي تغيير يفرض تحديثًا متعمّدًا في نفس الـ commit.
+
+| العقد               | القيد                                         | مكان التحقق                                | عند التغيير                                  |
+| ------------------- | --------------------------------------------- | ------------------------------------------ | -------------------------------------------- |
+| عدد قنوات IPC       | snapshot `ipc-channels.json` + `IPC_CHANNELS` | `tests/unit/ipc-channel-inventory.test.ts` | حدّث الـ snapshot + العدّاد + `docs/reports` |
+| عدد مخططات Zod      | `FROZEN_SCHEMA_COUNT = 113`                   | `tests/unit/validators-inventory.test.ts`  | حدّث الرقم **و** أضف سطرًا في ADR            |
+| تغطية `operationId` | حراسة R1                                      | `tests/unit/operation-id-coverage.test.ts` | كل قناة mutation جديدة يجب أن تدخل           |
+| شكل الجسر           | `bridge-shape`                                | `tests/unit/bridge-shape.test.ts`          | حدّث الـ snapshot                            |
+| المانيفست           | توقيع على كل ملفات التطبيق                    | `scripts/licensing/sign-integrity.mjs`     | `npm run build:electron` إلزامي بعد أي build |
+| المهاجرات           | checksum                                      | `npm run verify:migrations`                | ملف جديد مرقّم فقط                           |
+| التكرارية           | `operationId` + `idempotency_keys`            | `tests/integration/*`                      | كل مسار mutation جديد يُغطّى                 |
+
+> **قاعدة**: أي تغيير في هذه الأرقام = **ADR** + **سطر في `handoff.md`** + **تحديث التقرير**.
+> لا تُعدِّل الاختبار لإخفاء فجوة — عالج الفجوة.
+
+---
+
+## 17) نماذج العمق (اختر واحدًا صراحةً واذكره في التقرير)
+
+| النموذج            | المدة    | يشمل                                                                             | لا يشمل                        |
+| ------------------ | -------- | -------------------------------------------------------------------------------- | ------------------------------ |
+| **S — Sentinelle** | ~2 س     | baseline + محاور A/B/C + knip + تقرير مختصر                                      | الأمن، E2E، الأداء، التكافؤ    |
+| **M — Standard**   | ~1 يوم   | كل المحاور A→P، كل البوابات، كل القنوات، المال يدويًا                            | E2E كامل، أدوات ثقيلة اختيارية |
+| **L — Exhaustive** | 2–3 أيام | M + E2E كامل + packaging + تحليل تاريخ git + mutation testing + خطة تنفيذ مفصّلة | —                              |
+
+> **الافتراضي = M**. إذا خفّضت إلى S أو رفعت إلى L، اذكر السبب في §1 من التقرير.
+> إذا تغيّر النطاق أثناء التنفيذ، سجّل «النطاق النهائي» في التقرير — لا تُقدّمه كأنه كان من البداية.
 
 ---
 

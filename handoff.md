@@ -541,21 +541,32 @@ crashed` + crash GPU/service réseau de l'instance POS (2ᵉ lancement
   `src/` `electron/` `tests/` `scripts/` `docs/` `license-manager/` `mobile/`
   `cloud/` `database/`, `tests/unit/` (85 fichiers de garde), `electron/ipc/`
   (24 canaux + 47 validateurs + 20 repos).
-- **Livrable** : `docs/prompts/AUDIT_PROMPT_2026-10-19.md` (≈ 540 lignes).
-  Contenu : contexte projet chiffré (213 fichiers TS/TSX, 176 canaux IPC,
-  `FROZEN_SCHEMA_COUNT=113`, 47 migrations, 804 tests) · 14 règles
-  contributors reprises · 10 règles de comportement strict (audit-first,
-  preuve obligatoire, classification de confiance `PROUVÉ/DYNAMIC-RISK/
-TEST-ONLY/DUPLICATE/DELIBERATE-KEEP/REFUTED`, interdiction lockfiles et
-  migrations) · 8 phases de méthode (baseline → carte → statique →
-  dynamique → parité → sécurité → produit → synthèse) · **16 axes**
-  (A bugs · B dead code en 7 classes · C incomplet · D duplication &
-  over-engineering · E money/atomicité · F DB/migrations · G contrats IPC ·
-  H architecture · I tests · J perf · K sécurité/RBAC · L UX FR · M
-  outillage · N docs · O hygiène · P risques) · outils (knip, depcheck,
-  ts-prune, madge, dpdm, jscpd, vitest--coverage, graphify) · **gabarits
-  Moleculars** du rapport et du plan en vagues (cible, périmètre, étapes,
-  risques, gates, rollback, dépendances, DoD) · critères de complétude.
+- **Livrable** : `docs/prompts/AUDIT_PROMPT_2026-10-19.md` (1080 lignes / 83 Ko).
+  Structure : §1 contexte obligatoire (identite projet + 14 regles + gates +
+  etat courant + pieges) · §2 livrables (3 fichiers) · §3 **10 regles de
+  comportement strict** (audit-first, preuve obligatoire, classification de
+  confiance, interdiction lockfiles/migrations, interdiction `--fix` pendant
+  l'audit) · §4 **8 phases** (baseline → carte graphify → statique →
+  dynamique → parite → securite → produit → synthese) · §5 **16 axes**
+  (A→P) + **19 playbooks de domaine** (P1→P19 : caisse, paiements,
+  stock/FIFO, clients/dettes, fournisseurs, retours, depenses, zakat/
+  clotures, rapports, impression/PDF, OCR, licences, sync/cloud, backup/
+  migrations, staff/PIN/RBAC, mobile, manager, scripts, packaging) +
+  **matrice de couverture des artefacts** (type de fichier → controle →
+  outil → preuve) + **politique de preuve et d'echantillonnage** ·
+  §6 outils (knip, depcheck, ts-prune, madge, dpdm, jscpd, semgrep,
+  gitleaks, osv-scanner, ast-grep, betterer, lizard, scc, npm audit) +
+  cheatsheet de commandes + regles anti-false-positives · §7 **gabarit de
+  rapport** (13 sections) · §8 **gabarit de plan** (vagues W0→W9) ·
+  §9 livrables finaux · §10 **DoD** (14 points) · §11 style d'execution
+  (explore/db-guardian/ui-fr/general) · §12 **echelle de severite +
+  calcul de risque** (Impact × Likelihood → P0..P3) + definition P0
+  Veloria · §13 **scenario d'execution** (5 phases + ordre des vagues +
+  regle d'arret) · §14 **10 questions proprietaire** (Q1→Q10 avec defaut
+  propose) · §15 **gabarits pret-a-l'emploi** (ADR en francais + messages
+  de commit + entree handoff + checklist PR) · §16 **liste de deverrouillage
+  des contrats figes** (snapshot IPC, FROZEN_SCHEMA_COUNT, operation-id
+  coverage, manifeste, migrations) · §17 **profondeurs S/M/L**.
 - **Chiffres re-vérifiés avant écriture** (écarts vs skills/docs signalés
   dans le prompt lui-même) : migrations = **47** (`0047_customer_search_norm.sql`)
   et non 0036 comme l'affirme le skill `veloria-db` ; `knip` 219→30 avec
