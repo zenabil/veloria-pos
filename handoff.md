@@ -1,4 +1,4 @@
-# Handoff — Veloria POS (état au 2026-10-18)
+# Handoff — Veloria POS (état au 2026-10-19)
 
 > Document de continuité : tout ce qui a été fait, fichiers modifiés,
 > erreurs (fermées/ouvertes), en-attente, commandes. Sessions 2026-10-07
@@ -9,44 +9,68 @@
 > dead-code (2026-10-18 quater). §15 = audit dead-code Phase A + lot 1
 > (2026-10-18 quinquies). §16 = lot 2 (canaux IPC) + `knip.json` (2026-10-19).
 > §17 = prompt d'audit intégral (2026-10-19 quinquies) — audit-first, 16 axes.
+> §18 = **audit intégral EXÉCUTÉ** (2026-10-19 sexies) — 228 findings, 0
+> correction de code, 3 livrables + ADR-120 proposé.
 > Répondre à l'utilisateur en arabe.
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête = `refactor(cleanup): dead-code lot 2`
-  (3 canaux IPC + 3 fonctions repo + `knip.json`). **Arbre TOUJOURS NON
-  propre** : chantier impression / `*.capabilities` (20 fichiers M + 3 nouveaux)
-  **intact et non commité** — staffage par chemins explicites uniquement
-  (AGENTS.md §10). Restent : revue + tag opérateur (`v1.0.0-format-ops`),
-  packaging/`release/`, puis **lot 2 bis** de l'audit (24 réexports morts
-  `receipt-documents*` + `templates.get` + `printer.get`).
-- **Prompt d'audit intégral livré (§17)** : `docs/prompts/AUDIT_PROMPT_2026-10-19.md`
-  — audit-first, 16 axes (A→P), 8 niveaux de couverture IPC, 3 niveaux de
-  preuve par finding, gates avant/après, 3 livrables (rapport + plan en
-  vagues + ADR optionnel). **Zéro changement de code** dans cette session.
-- Harness : `.agents`/`.claude` purgés du repo (skills installés côté
-  `.opencode/`, git-ignoré) ; `AGENTS.md` = routage 12-13 à jour.
-- Tags locaux (pas de remote) : `v1.0.0-adr075`, `v1.0.0-e2e-green`,
-  `v1.0.0-revue-client`, `v1.0.0-ui-unif`, `v1.0.0-searchfield`.
-- ADRs : 001→**119** (118 = lot 1 du nettoyage dead-code, 119 = lot 2 canaux
-  IPC + `knip.json` ; rapport `docs/reports/DEAD_CODE_AUDIT_2026-10-18.md`).
-  `docs/INDEX.md` à jour jusqu'à 103 seulement — **reste à étendre**.
-- Outillage : `knip.json` ajouté (§16) — candidats bruts **219 → 30**,
-  `Unused files` **32 → 0**.
-- Portes vérifiées 2026-10-19 (§16, arbre sale) : `tsc -b` 0 (manifeste signé,
-  214 fichiers) · `typecheck:electron` ✓ · `typecheck:manager` ✓ ·
-  `eslint . --max-warnings 0` exit 0 · `vitest` **804/804** (121 fichiers) ·
-  `verify:migrations` VERIFIED · `verify:domain` VERIFIED · `build` +
-  `build:electron` verts · `graphify update` OK.
-- **Contrats gelés après lot 2** : canaux IPC **176** servis (+1 push-only) ·
+- Branche : `chore/root-layout` — tête = `docs(audit): prompt etendu - 19
+playbooks domaine…` (`94a64de`). **Arbre TOUJOURS NON propre** : chantier
+  impression / `*.capabilities` (20 fichiers M + 3 nouveaux) **intact et non
+  commité** — staffage par chemins explicites uniquement (AGENTS.md §10).
+  **Décision M5 (Q5) : commit ou stash du chantier impression — À DÉCIDER PAR
+  LE PROPRIÉTAIRE avant la vague W1.**
+- **Audit intégral EXÉCUTÉ (§18, 2026-10-19)** : 3 livrables —
+  `docs/reports/FULL_AUDIT_2026-10-19.md` (rapport, 16 axes A→P, **228
+  findings** : 0 Critical · 23 High · 95 Medium · 110 Low) ·
+  `docs/reports/FULL_AUDIT_2026-10-19_PLAN.md` (plan en **11 vagues
+  W0→W10**, ~11-13 j, 20 décisions owner) · `docs/ADR-120-*.md` (**proposé**,
+  en attente d'approbation). Preuves brutes :
+  `docs/reports/maintenance/audit-raw/`. **ZÉRO changement de code métier.**
+- **Baseline gelé 2026-10-19 (mesuré, arbre sale)** : `tsc -b` **0** ·
+  `typecheck:electron` **0** · `typecheck:manager` **0** ·
+  `eslint . --max-warnings 0` **exit 0** · `vitest` **121 fichiers / 804 tests**
+  **0** · `test:db` **0** (isolé) · `verify:migrations` **VERIFIED** ·
+  `verify:domain` **VERIFIED** · `verify:perf` **VERIFIED** ·
+  `license:scan` **0** · `format:check` **0** · `build` ✓ (40.6 s) ·
+  `build:electron` ✓ (manifeste signé **214 fichiers**) ·
+  **`test:coverage` = EXIT 1 (ROUGE — 18 dépassements de seuil sur 5 fichiers
+  domain ; absent du CI)**.
+- **Nouveaux constats P1 (non corrigés, voir plan)** : `formatDzd()` **throw**
+  pendant le rendu React (268 sites `.tsx` vs 16 `formatDzdSafe`) ·
+  `useBusyFlag` ne bloque pas le double-submit (13 sections réglages, dont
+  `database.reset`) · `customers.accessQrSvg` **sans staff-gate** (fuit le PIN
+  client en clair) · `staffScope()` ⇒ «no session = gérant» ·
+  `database.optimize` sans aucune gate · conversion Proforma→vente **échoue
+  toujours** si remise · clôture Z **ne verrouille pas** la période et compte
+  chèque/transfert comme du cash · `RAW_GUARDED_CHANNELS` lu par **rien** ·
+  `FROZEN_SCHEMA_COUNT` 113 vs **120** réels · garde ESLint «pas d'arabe dans
+  src/» **inerte** (prouvé par exécution) · `verify:licensing` hors CI.
+- ADRs : 001→**119** + **ADR-120 proposé** (non commité comme décision, mais
+  le fichier est là). `docs/INDEX.md` **à jour jusqu'à 119** (le §1 précédent
+  disait « jusqu'à 103 seulement » — **c'était faux**, corrigé).
+- Outillage : `knip.json` (§16) — candidats bruts **219 → 30**,
+  `Unused files` **32 → 0**. Re-mesuré 2026-10-19 : `Unused files` 0,
+  `Unused exports` 18 + `Unused exported types` 9 + 1 dependency
+  (`expo-constants`) + 1 config hint (`tailwindcss`).
+- **Contrats gelés (inchangés par l'audit)** : canaux IPC **177** clés
+  (175 servis + 2 push-only) · snapshot `ipc-channels.json` **176** ·
   `FROZEN_SCHEMA_COUNT` **113** · `operation-id-coverage` (R1) inchangé.
-- E2E suite complète (2026-10-18, §12) : **12/13 specs vertes** —
-  `window-chrome`, `license-activation` 4/4, `factory-reset` ×2,
-  `staff-session`, `scan-flow` 6/6, `customer-invoice` 2/2, `pdf-export`,
-  `sale-flow` 4/4, `credit-return` 2/2, `restart`, `stock-backup` 3/3,
-  `full-loop-client` (relais :8100) ; seul `installer` reste non exécutable
-  hors paquet Win (skip documenté dans le spec).
-- Non relancés : typecheck `manager`/`mobile`, packaging/`release/`.
+- E2E (non relancé le 2026-10-19) : suite 2026-10-18 — **12/13 specs vertes**,
+  **37** blocs `test()` (pas 24) ; `full-loop-client` exige le relais `:8100`
+  (hard-fail, pas skip) ; `installer` non exécutable hors paquet Win + UAC.
+- Non relancés : E2E, `verify:licensing`, packaging/`release/`,
+  `npm audit` réseau (offline ⇒ non probant).
+- **Pièges découverts pendant l'audit** : (1) `npm run lint` passe sur
+  `docs/**` ⇒ **tout `.mjs` déposé sous `docs/` casse la porte** (allowlist
+  `allowDefaultProject` = 24 chemins, `eslint.config.mjs:31-58`) ; (2)
+  `test:db` échoue (12 `Hook timed out`) si lancé **en parallèle** d'autres
+  outils lourds — `hookTimeout` non configuré (10 s par défaut) alors que
+  chaque `beforeEach` rejoue **47 migrations** ; (3) `format:check` échoue sur
+  tout `.md` écrit à la main ⇒ **toujours** passer Prettier sur les livrables
+  ; (4) `npm run build` seul invalide le manifeste licence ⇒ toujours
+  enchaîner `build:electron`.
 
 ## 2) Objectifs réalisés (11 → 12 oct 2026)
 
@@ -262,14 +286,23 @@ Non supprimé : la correction exige `mobile/package-lock.json`
 
 ## 5) En attente (next actions)
 
+> **Priorité 2026-10-19 (§18)** : le plan de remédiation
+> `docs/reports/FULL_AUDIT_2026-10-19_PLAN.md` (11 vagues W0→W10) prime sur
+> les items ci-dessous, qui y sont repris (Q1→Q20). **Prochaine action
+> attendue : approbation du propriétaire sur (a) ADR-120, (b) Q5 (chantier
+> impression : commit ou stash), (c) la vague W1 (logique financière).**
+
 - [ ] **Lot 2 bis** : `templates.get` + `printer.get` + les 24 réexports morts
       de `receipt-documents*` — **nécessite le commit du chantier impression**
-      d'abord (zone de chevauchement stricte).
+      d'abord (zone de chevauchement stricte). _(→ vague W6 du plan)_
 - [ ] **`announcements.save`** : décision produit — construire l'UI des
-      annonces magasin, ou retirer le canal + domaine + repo.
+      annonces magasin, ou retirer le canal + domaine + repo. _(→ Q1)_
 - [ ] **`expo-constants`** : dépendance `mobile` inutilisée (retrait soumis à
-      mise à jour du lockfile mobile).
-- [ ] **`docs/INDEX.md`** : étendre au-delà de ADR-103 (118 + 119 à ajouter).
+      mise à jour du lockfile mobile). _(→ Q3)_
+- [x] ~~**`docs/INDEX.md`** : étendre au-delà de ADR-103 (118 + 119 à ajouter)~~
+      — **fait le 2026-10-19** : l'index était déjà complet jusqu'à ADR-119
+      (l'affirmation « jusqu'à 103 » de l'ancien §1 était fausse) ; ADR-120
+      et les 2 rapports d'audit y ont été ajoutés.
 - [ ] **Revue + tag** de l'arbre checkpointé (HEAD `fec3acf`, §11) —
       proposition : tag local `v1.0.0-session-1018` après revue.
 - [ ] **Session admin** : `installer.spec` (UAC) — seul gate jamais vert.
@@ -592,3 +625,61 @@ crashed` + crash GPU/service réseau de l'instance POS (2ᵉ lancement
   sur `docs/prompts/AUDIT_PROMPT_2026-10-19.md` + `docs/INDEX.md`, puis
   commit `docs(handoff)` séparé sur `handoff.md` (arbre sale → pas de
   commit handoff « arbre propre », commit explicite par chemins).
+
+## 18) Session 2026-10-19 sexies — audit intégral EXÉCUTÉ (0 correction de code)
+
+- **Demande opérateur** : « أنت مهندس جودة وأرشيف (code archaeologist) بمستوى
+  staff+، ومكلَّف بإجراء تدقيق forensic شامل ونهائي لمشروع Veloria PoS، ثم إنتاج
+  تقرير مفصّل و خطة إصلاح جذرية مرتّبة على موجات (waves) قابلة للتنفيذ. لا تُصلح
+  شيئًا في هذه المرحلة. مخرجك الأساسي هو معرفة مُثبَتة + خطة. » ⇒ **3 livrables
+  obligatoires** : rapport (M1) + plan en vagues (M2) + ADR optionnel (M3).
+- **Livrable** :
+  - `docs/reports/FULL_AUDIT_2026-10-19.md` — rapport intégral, 16 axes A→P,
+    **228 findings** classifiés, chaque finding avec `file:line` + extrait +
+    commande de reproduction + étiquette de confiance (PROUVÉ / DYNAMIC-RISK /
+    TEST-ONLY / DUPLICATE / DELIBERATE-KEEP / REFUTED) + §12 «مُستبعد»
+    (21 réfutations prouvées).
+  - `docs/reports/FULL_AUDIT_2026-10-19_PLAN.md` — **11 vagues W0→W10** avec
+    chemins explicites, pas, gates, rollback, dépendances, timeline, DoD,
+    registre de déverrouillage des contrats gelés, et **20 décisions owner**
+    en attente (§4, Q1→Q20).
+  - `docs/ADR-120-guardes-de-contrat-auto-derivees.md` — **proposé** (en attente
+    d'approbation) : « les gardes qui ne peuvent pas échouer ne sont pas des
+    gardes ».
+  - Preuves brutes : `docs/reports/maintenance/audit-raw/` (12 fichiers, 340 Ko).
+- **Chiffres (avant → après)** : findings **0 → 228** (0 Critical · 23 High ·
+  95 Medium · 110 Low) · canaux IPC **177** (mesure exacte) · schémas Zod réels
+  **120** vs `FROZEN_SCHEMA_COUNT` **113** · `formatDzd` en render **268** sites
+  vs `formatDzdSafe` **16** · `mobile/src` non typechecké **13/22** ·
+  `test:coverage` **EXIT=1** (18 dépassements) · U+FFFD **113** caractères dans
+  **20** fichiers `electron/ipc/*` · canaux IPC morts **6 → 3**.
+- **Portes** (baseline mesuré, arbre sale) : `tsc -b` 0 · `typecheck:electron` 0
+  · `typecheck:manager` 0 · `lint` exit 0 · `vitest` 121 fichiers / 804 tests
+  0 · `test:db` 0 (isolé) · `verify:migrations` VERIFIED · `verify:domain`
+  VERIFIED · `verify:perf` VERIFIED · `license:scan` 0 · `format:check` 0 ·
+  `build` ✓ · `build:electron` ✓ (manifeste 214 fichiers) ·
+  **`test:coverage` EXIT=1 — porte rouge, NON corrigée (audit-first)**.
+- **Contrats gelés** : **inchangés** (aucun canal, aucun compteur, aucun
+  snapshot modifié). Le passage `FROZEN_SCHEMA_COUNT` 113→120 est **proposé**
+  en W4 (pas exécuté).
+- **État arbre** : chantier impression (20 M + 3 N) **laissé intact** ; seuls
+  `docs/reports/FULL_AUDIT_2026-10-19*.md`, `docs/ADR-120-*.md`,
+  `docs/reports/maintenance/audit-raw/`, `docs/INDEX.md` et `handoff.md` sont
+  commités (staging par chemins explicites, AGENTS.md §10).
+- **En attente** : 20 décisions owner (Q1→Q20 du plan) — notamment **Q5**
+  (commit/stash du chantier impression), **Q7** (source de vérité de la
+  dette), **Q9** (`RAW_GUARDED_CHANNELS` : test ou suppression), **Q11**
+  (seuil de couverture de `src/features`), **Q12** (majeur Electron) —
+  plus l'approbation d'**ADR-120**.
+- **Pièges** : (1) `npm run lint` scanne `docs/**` ⇒ un `.mjs` déposé sous
+  `docs/` casse la porte (`allowDefaultProject` = liste de 24 chemins) ; (2)
+  `test:db` échoue si lancé en parallèle d'outils lourds (`hookTimeout` 10 s
+  par défaut vs 47 migrations rejouées par `beforeEach`) ; (3) `format:check`
+  échoue sur tout `.md` non passé par Prettier ⇒ passer Prettier sur les
+  livrables ; (4) `npm run build` seul invalide le manifeste licence.
+- **Git** : commit `docs(audit): audit integral 16 axes - 228 findings, 0
+correction` sur `docs/reports/FULL_AUDIT_2026-10-19.md` +
+  `docs/reports/FULL_AUDIT_2026-10-19_PLAN.md` + `docs/ADR-120-*.md` +
+  `docs/reports/maintenance/audit-raw/` + `docs/INDEX.md`, puis commit
+  `docs(handoff): session 2026-10-19 sexies - audit integral execute (baseline
+gele)` sur `handoff.md` seul.
