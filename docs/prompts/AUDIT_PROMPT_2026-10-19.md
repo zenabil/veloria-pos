@@ -237,7 +237,7 @@ npm run format:check
 ### C. الأكواد غير المكتملة (Incomplete / stub / TODO)
 
 - `TODO|FIXME|HACK` · دوال ترجع `null`/وهمية · `throw new Error("not implemented")` ·
-  فروع ميتة بنيويًا (dead code paths) · features announced-but-not-wired (UI sans backend أو العكس) ·
+  فروع ميتة بنيويًا (dead code paths) · features معلنة وغير موصولة (UI بلا backend أو العكس) ·
   handlers مربوطة بقنوات لا UI · Zod بلا `operationId` لـ mutations ·
   migrations مطبَّقة لكن غير مُستعملة في الكود · colonnes بلا استخدام.
 
@@ -310,7 +310,7 @@ npm run format:check
   حالات فارغة/تحميل/خطأ لكل شاشة · تسميات aria · تباين (contrast) في الوضع الفاتح والداكن ·
   سرعة الكاشيير (مسح بدون Enter — ADR-116) · باركود/quantity/amount flows · focus/keyboard navigation ·
   impr écran · reçus (ADR-117) · لا `border-left` ملوّن ولا حلقات زخرفية (craft-floor) · « Monnaie » بارزة.
-- هل هناك هل هناك شاشات موحّدة المصدر تختلف بين POS/Mobile/Manager؟
+- هل هناك شاشات موحّدة المصدر تختلف بين POS/Mobile/Manager؟
 
 ### M. الأدوات والتشغيل
 
