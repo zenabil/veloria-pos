@@ -202,6 +202,3 @@ export function clearCartDraftsAtomic(operationId?: string | null): { cleared: b
     throw err;
   }
 }
-
-// Alias historique conservé (même atomicité, nom explicite).
-export const clearCartDrafts = clearCartDraftsAtomic;

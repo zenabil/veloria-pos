@@ -61,21 +61,6 @@ export function computePoTotals(lines: PoLineInput[]): {
   return { subtotalMinor: subtotal, totalMinor: subtotal };
 }
 
-/** Quantité recevable sur une ligne (jamais au-delà du commandé). */
-export function assertReceivableQuantity(
-  ordered: number,
-  alreadyReceived: number,
-  requested: number,
-): void {
-  assertValidQuantity(requested);
-  if (!(ordered > 0) || !(alreadyReceived >= 0)) {
-    throw new DomainError("SUPPLIER_ERROR", "Ligne de commande incohérente.");
-  }
-  if (requested + alreadyReceived > ordered + 1e-9) {
-    throw new DomainError("SUPPLIER_ERROR", "Quantité reçue supérieure à la commandée.");
-  }
-}
-
 export function poStatusLabelFr(s: string): string {
   if (s === "draft") return "Brouillon";
   if (s === "ordered") return "Commandée";

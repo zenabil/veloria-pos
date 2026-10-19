@@ -31,17 +31,6 @@ export type Notify = (message: string, kind?: ToastKind) => void;
 
 export const SIDEBAR_KEY = "veloria.sidebarCollapsed";
 
-// Préférences thème/densité : source unique partagée (les rubriques
-// Paramètres y accèdent sans inverser le sens shell→features).
-export {
-  DENSITY_KEY,
-  THEME_KEY,
-  initialDensity,
-  initialTheme,
-  type Density,
-  type Theme,
-} from "@shared/ui/theme-density.ts";
-
 export function initialSidebarCollapsed(): boolean {
   // Préférence d'interface uniquement (pas une donnée métier) : jamais la
   // base SQLite.

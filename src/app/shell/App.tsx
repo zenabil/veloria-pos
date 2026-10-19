@@ -35,9 +35,6 @@ import {
   Toasts,
 } from "./ShellOverlays.tsx";
 
-// Compat : SellScreen importe ModuleId depuis App.tsx.
-export type { ModuleId } from "./shell-types.ts";
-
 let toastSeq = 0;
 
 export function App(): React.JSX.Element {

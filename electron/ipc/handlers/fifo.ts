@@ -43,17 +43,6 @@ export function listLayersAsc(productId: number): FifoLayerRow[] {
     .all(productId) as FifoLayerRow[];
 }
 
-/** Total units left across layers (thousandths-safe comparison by caller). */
-export function sumRemaining(productId: number): number {
-  const db = getDb();
-  const row = db
-    .prepare(
-      `SELECT COALESCE(SUM(remaining_quantity), 0) AS q FROM inventory_layers WHERE product_id = ?`,
-    )
-    .get(productId) as { q: number };
-  return Number(row.q);
-}
-
 /** Most recent layer unit cost (oversell fallback), null when no layer exists. */
 export function latestUnitCost(productId: number): number | null {
   const db = getDb();

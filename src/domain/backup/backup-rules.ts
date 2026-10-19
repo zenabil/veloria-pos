@@ -31,9 +31,3 @@ export function backupFrequencyMinutes(frequency: BackupFrequency, customMinutes
   }
   return BACKUP_FREQUENCY_MINUTES[frequency];
 }
-
-export function clampRetentionCount(n: number): number {
-  const v = Math.floor(n);
-  if (!Number.isFinite(v)) return 30;
-  return Math.min(100, Math.max(1, v));
-}

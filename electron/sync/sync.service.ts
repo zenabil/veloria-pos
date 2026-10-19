@@ -35,12 +35,8 @@ import {
 
 const SETTINGS_KEY = "client_sync";
 
-/** Backend de chiffrement (DPAPI en prod, injectable en test). */
+/** Backend de chiffrement (DPAPI en prod). */
 let secretBackend: SecretBackend | null = null;
-/** Tests uniquement : substitue le backend DPAPI (jamais en production). */
-export function setSecretBackendForTests(backend: SecretBackend | null): void {
-  secretBackend = backend;
-}
 function secrets(): SecretBackend {
   if (!secretBackend) secretBackend = safeStorageSecretBackend();
   return secretBackend;

@@ -457,12 +457,6 @@ export async function readSuccessToast(page: Page, pattern: RegExp): Promise<str
   return ((await toast.first().textContent()) ?? "").trim();
 }
 
-export function acceptNextConfirm(page: Page): void {
-  page.once("dialog", (dialog) => {
-    void dialog.accept();
-  });
-}
-
 /**
  * Encaissement en UNE SEULE ÉTAPE (PayDialog) : saisit le montant, renseigne
  * l'échéance si crédit, puis « Valider · ». `expectCreditStep` attend le champ

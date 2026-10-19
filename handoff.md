@@ -6,29 +6,30 @@
 > §11 = session scan sans Entrée (2026-10-18). §12 = session politique
 > opération→format d'impression (2026-10-18 bis). §13 = lancement POS
 > opérateur (2026-10-18 ter). §14 = préparation du prompt d'audit
-> dead-code (2026-10-18 quater). Répondre à l'utilisateur en arabe.
+> dead-code (2026-10-18 quater). §15 = audit dead-code Phase A + lot 1
+> (2026-10-18 quinquies). Répondre à l'utilisateur en arabe.
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête = `docs(handoff)` §13 puis §14
-  (aucun commit de code). **Arbre NON propre** : chantier impression /
-  `*.capabilities` en cours non commité (11 fichiers M + 2 nouveaux,
-  voir §14) — ne pas l'emballer dans un commit `docs(handoff)`.
-  Restent : revue + tag opérateur (`v1.0.0-format-ops`), packaging/
-  `release/` (dernière passe verte : 2026-10-12). Dernière session : §14
-  (prompt audit dead-code — aucun changement de code).
+- Branche : `chore/root-layout` — tête = `refactor(cleanup): dead-code lot 1`
+  (21 fichiers, 148 lignes supprimées, **0 changement de comportement**).
+  **Arbre TOUJOURS NON propre** : chantier impression / `*.capabilities`
+  (20 fichiers M + 3 nouveaux) **intact et non commité** — staffage par
+  chemins explicites uniquement (AGENTS.md §10). Restent : revue + tag
+  opérateur (`v1.0.0-format-ops`), packaging/`release/`, puis **lot 2** de
+  l'audit (6 canaux IPC morts, ADR-119 à écrire).
 - Harness : `.agents`/`.claude` purgés du repo (skills installés côté
   `.opencode/`, git-ignoré) ; `AGENTS.md` = routage 12-13 à jour.
 - Tags locaux (pas de remote) : `v1.0.0-adr075`, `v1.0.0-e2e-green`,
   `v1.0.0-revue-client`, `v1.0.0-ui-unif`, `v1.0.0-searchfield`.
-- ADRs : 001→117 (nouveaux depuis 2026-10-12 : 080→117 — design/audits,
-  staff, crédit, étiquettes, vente au poids (114), scan sans Entrée (116),
-  politique opération→format (117)). `docs/INDEX.md` à jour jusqu'à 103
-  seulement.
-- Portes vérifiées 2026-10-18 (§12) : `tsc -b` 0 (213 fichiers) ·
-  `eslint . --max-warnings 0` 0 · `vitest` **794/794** (121 fichiers) ·
-  `verify:migrations` VERIFIED · `verify:domain` VERIFIED · `build` +
-  `build:electron` + manifest signé (213 fichiers) · `graphify update` OK.
+- ADRs : 001→**118** (118 = lot 1 du nettoyage dead-code ; rapport
+  `docs/reports/DEAD_CODE_AUDIT_2026-10-18.md`). `docs/INDEX.md` à jour
+  jusqu'à 103 seulement — **reste à étendre**.
+- Portes vérifiées 2026-10-18 (§15, arbre sale) : `tsc -b` 0 (manifeste signé,
+  214 fichiers) · `eslint . --max-warnings 0` 0 · `vitest` **804/804**
+  (121 fichiers) · `verify:migrations` VERIFIED · `verify:domain` VERIFIED ·
+  `build` + `build:electron` verts · `graphify update` OK (6011 nœuds /
+  16430 arêtes).
 - E2E suite complète (2026-10-18, §12) : **12/13 specs vertes** —
   `window-chrome`, `license-activation` 4/4, `factory-reset` ×2,
   `staff-session`, `scan-flow` 6/6, `customer-invoice` 2/2, `pdf-export`,
@@ -111,8 +112,91 @@ barre crédit continue, `bg-[#171207]`/`[#1c1113]` illisibles en clair.
    (11 specs), dû mobile soldé sauf Kit/annonces, harness hors périmètre.
 8. **50 fichiers non commités** : en attente de revue + tag opérateur.
 
+## 4bis) Session §15 — audit dead-code Phase A + lot 1 (2026-10-18)
+
+**Livrable** : `docs/reports/DEAD_CODE_AUDIT_2026-10-18.md` (Phase A, rapport
+seul, zéro suppression) puis **lot 1 exécuté** sur autorisation opérateur
+(« fais un plan et corrige radicalement »).
+
+**Méthode** : `npx --yes knip` (219 candidats) + `npx --yes depcheck` +
+`graphify` (6011 nœuds) ; chaque candidat revérifié par recherche exhaustive
+avant toute suppression. 4 sous-agents `explore` en lecture seule ont couvert
+`src/`, `electron/`, `tests/+scripts/+racine+dépendances`,
+`license-manager/+mobile` ; la couche IPC à 3 niveaux (définition → preload →
+appel renderer) a été vérifiée directement (les deux voies : wrapper
+`api.*` **et** appel direct `call((a) => a.<ns>.<méthode>())`).
+
+**Bilan** : 219 bruts → **212 faux positifs réfutés**, **47 findings réels**
+(6 critiques · 31 sûrs · 6 « décision » · 2 hygiène).
+
+**Supprimé (lot 1 — ADR-118)** : 21 fichiers, **148 lignes supprimées /
+3 ajoutées** (commentaires devenus faux). `electron/` : alias
+`clearCartDrafts`, `sumRemaining`, `expirationDate`, `LICENSE_SIGNATURE_ALG`,
+`EXPIRING_CRITICAL_DAYS`, `sha256Hex`, `clearIntegrityCache`,
+`clearFingerprintCache`, `setSecretBackendForTests`, réexport `TemplateRender`.
+`src/` : 15 exports morts (thème/densité, `ModuleId`, `clampRetentionCount`,
+`CLIENT_PIN_LENGTH`, `DebtAgingInput`, `agingBucketLabelFr`, `OcrDocumentKind`,
+5× staff, `assertReceivableQuantity`, `ItemCondition`, 2× licence,
+`CustomerDrawerState`). Tests : `acceptNextConfirm`, entrée dupliquée du
+guard IPC. Dossiers : `src/shared/validation/`, `electron/database/migrations/`.
+
+**Import orphelins retirés** (sinon `tsc -b` échoue, `noUnusedLocals`) :
+`createHash` + `LICENSE_CRITICAL_DAYS` (`licensing/protocol.ts`).
+
+**Portes avant → après** : `tsc -b` 0 → **0** · `eslint --max-warnings 0` 0 →
+**0** · `vitest` **804 → 804** (121 fichiers, aucune perte) · `build` ✓ → ✓ ·
+`build:electron` ✓ → ✓ (manifeste signé 214 fichiers) · `verify:migrations`
+VERIFIED → **VERIFIED** · `verify:domain` VERIFIED → **VERIFIED** ·
+`graphify update` OK (6011 nœuds / 16430 arêtes).
+
+**Contrats gelés INTACTS** : `IPC_CHANNELS` (180), snapshot `ipc-channels.json`
+(180), `FROZEN_SCHEMA_COUNT` (114), `operation-id-coverage` (R1). Les gardes
+`bridge-shape` / `ipc-channel-inventory` / `validators-inventory` n'ont pas
+été modifiées.
+
+**Pièges écartés (ne pas « nettoyer »)** :
+
+- `recovery.retry`/`recovery.exit` : appelés depuis le HTML **main**
+  (`recovery-view.ts:95,100`, `license-view.ts:95`) — faussement morts.
+- `bindings` : arête runtime transitive exigée par `better-sqlite3` (ADR-005).
+- `mobile/**` + `license-manager/**` : points d'entrée Expo/electron-builder.
+- `clearCartDraftsAtomic`, `CODE39/128*`, `STAFF_KDF_*`, `PIN_KDF_*`,
+  `license/catalog.ts` : **test-only mais gardés** (couverture métier réelle,
+  ADR-075 déjà tranché).
+
+**Différé / à arbitrer** :
+
+- **Lot 2** (ADR-119) : 6 canaux IPC morts (`announcements.save`,
+  `sync.markSent`, `sync.pending`, `stock.ledger`, `templates.get`,
+  `printer.get`) → snapshot 180→174, `FROZEN_SCHEMA_COUNT` 114→111.
+  **Portée RÉVISÉE (§15, rectificatif)** : chaque handler orpheline une fonction
+  repo — `markOutboxSentAtomic`, `listPendingOutbox`, `Inventory.getLedger`.
+  `pushNowAtomic` marque la file `'sent'` lui-même
+  (`sync.service.ts:263-270`) → `sync.markSent`/`sync.pending` sont
+  **supersédés techniquement**, pas « UI manquante » (≠ `announcements.save`,
+  seul cas où domaine+repo existent et où seule l'UI manque → **defer**).
+  La garde `retention` est par **préfixe** `"sync."` → elle reste correcte ;
+  `retention-critical.test.ts:70` devient un vecteur fantôme à retirer.
+  **Bloqué** : `templates.get` (schema dans `validators.templates.ts`, fichier
+  du chantier) et `printer.get` (handler dans `printing.receipt.ts`, idem).
+- `printer.get` + 24 réexports morts de `receipt-documents*` : **dans la zone
+  du chantier impression non commité**, donc différés.
+- `knip.json` + workspace `mobile` : ~95 % de faux positifs en moins pour un
+  fichier de config, zéro changement de code.
+- `RAW_GUARDED_CHANNELS` non appliqué (`ipc/raw-guards.ts:31`) ; garde
+  `bridge-shape` ne couvrant que les noms `*Schema` (d'où la survie de
+  `expirationDate`) ; `DT-03` : le validateur `expirationDate` **câblé** est
+  le plus laxiste des deux.
+
+**⚠ Dette de couverture** : `mobile/` n'est couvert par **aucun tsconfig**
+(`typecheck` racine et `typecheck:manager` l'ignorent) ; seul `vitest` garde.
+
 ## 5) En attente (next actions)
 
+- [ ] **Lot 2 de l'audit dead-code** : 6 canaux IPC, ADR-119 — **requiert
+      commit du chantier impression d'abord** (zone de chevauchement).
+- [ ] **`knip.json`** : supprimer ~95 % des faux positifs récurrents.
+- [ ] **`docs/INDEX.md`** : étendre au-delà de ADR-103 (118 à ajouter).
 - [ ] **Revue + tag** de l'arbre checkpointé (HEAD `fec3acf`, §11) —
       proposition : tag local `v1.0.0-session-1018` après revue.
 - [ ] **Session admin** : `installer.spec` (UAC) — seul gate jamais vert.

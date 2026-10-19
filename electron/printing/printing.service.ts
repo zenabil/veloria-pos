@@ -21,7 +21,6 @@ export {
   pageOptsOf,
   templateRenderOf,
 } from "./printing.templates";
-export type { TemplateRender } from "./printing.templates";
 
 /** Enregistre tous les canaux d'impression (memes canaux qu'avant decoupe). */
 export function registerPrintingIpc(getMainWindow: () => BrowserWindow | null): void {

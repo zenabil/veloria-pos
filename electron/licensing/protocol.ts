@@ -6,18 +6,11 @@
 // signature = Ed25519(canonicalJSON(payload)) — toute mutation d'un champ
 // signé (dates, hardware, edition, features...) invalide la signature.
 
-import { createHash, createPublicKey, sign, verify } from "node:crypto";
-import {
-  LICENSE_CRITICAL_DAYS,
-  LICENSE_PAGES,
-  LICENSE_WARNING_DAYS,
-  isLicensePage,
-  normalizeFeatures,
-} from "./catalog";
+import { createPublicKey, sign, verify } from "node:crypto";
+import { LICENSE_PAGES, LICENSE_WARNING_DAYS, isLicensePage, normalizeFeatures } from "./catalog";
 
 export const LICENSE_SCHEMA_VERSION = 1;
 export const LICENSE_PRODUCT_ID = "veloria-pos";
-export const LICENSE_SIGNATURE_ALG = "Ed25519";
 
 export type LicenseType = "term" | "lifetime";
 export type LicenseEdition =
@@ -82,7 +75,6 @@ export type LicenseState =
   | "CORRUPTED_STATE";
 
 export const EXPIRING_SOON_DAYS = LICENSE_WARNING_DAYS;
-export const EXPIRING_CRITICAL_DAYS = LICENSE_CRITICAL_DAYS;
 export const CLOCK_SKEW_TOLERANCE_MS = 5 * 60 * 1000;
 
 /** Sérialisation canonique : clés triées récursivement, sans espaces. */
@@ -98,10 +90,6 @@ export function canonicalJson(value: unknown): string {
     .filter(([, v]) => v !== undefined)
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
   return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonicalJson(v)}`).join(",")}}`;
-}
-
-export function sha256Hex(data: string): string {
-  return createHash("sha256").update(data, "utf8").digest("hex");
 }
 
 export function base64UrlEncode(buf: Uint8Array | Buffer): string {

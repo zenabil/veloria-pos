@@ -58,10 +58,6 @@ function manifestCandidates(appRoot: string): string[] {
 const OK_TTL_MS = 60_000;
 let okCache: { key: string; atMs: number } | null = null;
 
-export function clearIntegrityCache(): void {
-  okCache = null;
-}
-
 function appRoot(): string {
   try {
     return app.getAppPath();

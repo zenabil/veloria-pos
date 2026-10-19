@@ -21,7 +21,6 @@ function asReturnError(fn: () => void, fallback: string): void {
 
 export type ReturnKind = "customer" | "supplier";
 export type ReturnStatus = "validated" | "partially_refunded" | "refunded" | "cancelled";
-export type ItemCondition = "good" | "defective";
 
 export const RETURN_REASONS = [
   "Défectueux",

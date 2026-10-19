@@ -55,17 +55,6 @@ export const quantityNonNegative = z
   .refine((q) => Number.isFinite(q) && Math.abs(q - Math.round(q * 1000) / 1000) <= 1e-9, {
     message: "Quantité invalide (3 décimales maximum).",
   });
-// A1-P0 : date d'expiration calendrier réel (vide/null = sans péremption).
-// Exporté pour réutilisation future (non câblé : productCreate garde la
-// sémantique HEAD `z.string().nullable().optional()`).
-export const expirationDate = z
-  .string()
-  .max(10)
-  .nullable()
-  .optional()
-  .refine((v) => v == null || v === "" || isRealCalendarDate(v), {
-    message: "Date d'expiration invalide.",
-  });
 
 // RADICAL-FIX P0: charge vide explicite pour les lectures �?" jamais de `null`
 // (contrat Zod uniforme, AGENTS.md §3 : toute commande passe par un schéma).

@@ -5,7 +5,6 @@
 
 import { DomainError } from "../common/errors.ts";
 
-export const CLIENT_PIN_LENGTH = 6;
 export const CLIENT_QR_VALIDITY_DAYS = 7;
 export const CLIENT_SESSION_VALIDITY_DAYS = 90;
 export const CLIENT_MAX_FAILED_ATTEMPTS = 5;

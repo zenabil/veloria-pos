@@ -23,8 +23,6 @@ export const LICENSE_PAGES = [
   "settings",
 ] as const;
 
-export type LicensePageId = (typeof LICENSE_PAGES)[number];
-
 export const LICENSE_FEATURES = [
   "receipt-80mm",
   "invoice-a4",
@@ -41,8 +39,6 @@ export const LICENSE_FEATURES = [
   "advanced-reports",
   "multi-printer",
 ] as const;
-
-export type LicenseFeatureId = (typeof LICENSE_FEATURES)[number];
 
 /** Seuils d'expiration (jours) — source centrale, jamais hardcodés dans l'UI. */
 export const LICENSE_WARNING_DAYS = 30;

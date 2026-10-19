@@ -6,11 +6,6 @@ import { DomainError } from "../common/errors.ts";
 
 export type AgingBucket = "current" | "d30" | "d60" | "d90";
 
-export interface DebtAgingInput {
-  /** Jours de retard (0 = à jour). */
-  daysOverdue: number;
-}
-
 export function agingBucket(daysOverdue: number): AgingBucket {
   if (!Number.isInteger(daysOverdue) || daysOverdue < 0) {
     throw new DomainError("CUSTOMER_ERROR", "Ancienneté de dette invalide.");
@@ -19,13 +14,6 @@ export function agingBucket(daysOverdue: number): AgingBucket {
   if (daysOverdue <= 30) return "d30";
   if (daysOverdue <= 60) return "d60";
   return "d90";
-}
-
-export function agingBucketLabelFr(bucket: AgingBucket): string {
-  if (bucket === "current") return "À jour";
-  if (bucket === "d30") return "0–30 j";
-  if (bucket === "d60") return "31–60 j";
-  return "+60 j";
 }
 
 /** Jours calendaires entre deux dates AAAA-MM-JJ (échéance → aujourd'hui). */

@@ -5,14 +5,11 @@
 
 import { DomainError } from "../common/errors.ts";
 
-export const STAFF_CODE_LENGTH = 6;
 export const STAFF_MAX_FAILED_ATTEMPTS = 5;
 export const STAFF_LOCK_MINUTES = 5;
 
 /** Code de secours (0042) : 8 chiffres, 5 échecs → 15 minutes. */
 export const STAFF_RECOVERY_LENGTH = 8;
-export const STAFF_RECOVERY_MAX_FAILED = 5;
-export const STAFF_RECOVERY_LOCK_MINUTES = 15;
 
 export const STAFF_ROLES = ["manager", "user"] as const;
 export type StaffRole = (typeof STAFF_ROLES)[number];
@@ -32,19 +29,6 @@ export const STAFF_PERMISSIONS = [
 ] as const;
 export type StaffPermission = (typeof STAFF_PERMISSIONS)[number];
 
-export const STAFF_PERMISSION_LABELS: Record<StaffPermission, string> = {
-  sales: "Ventes",
-  stock: "Stock",
-  debts: "Dettes",
-  expenses: "Dépenses",
-  returns: "Retours",
-  closings: "Clôture",
-  settings: "Paramètres",
-  users: "Utilisateurs",
-  discount: "Remise",
-  cancel: "Annulation",
-};
-
 /** Nom d'utilisateur : 3 à 32 caractères, sans | ni espaces de bord. */
 export function assertValidUsername(username: string): string {
   const u = username.trim().toLowerCase();
@@ -55,15 +39,6 @@ export function assertValidUsername(username: string): string {
     );
   }
   return u;
-}
-
-/** Nom affiché : 1 à 64 caractères. */
-export function assertValidDisplayName(name: string): string {
-  const n = name.trim();
-  if (n.length < 1 || n.length > 64) {
-    throw new DomainError("STAFF_ERROR", "Nom affiché invalide (1 à 64 caractères).");
-  }
-  return n;
 }
 
 /** Code : exactement 6 chiffres ASCII. */

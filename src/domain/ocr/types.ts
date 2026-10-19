@@ -3,8 +3,6 @@
 
 export type OcrConfidence = "high" | "medium" | "low";
 
-export type OcrDocumentKind = "image" | "pdf";
-
 export interface OcrInvoiceLine {
   /** Position 1-based dans le texte analysé (traçabilité). */
   index: number;

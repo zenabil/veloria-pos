@@ -15,7 +15,6 @@ const SCANNED = [
   "electron/ipc/registry.ts",
   "electron/ipc/registry.core.ts",
   "electron/ipc/registry.recovery.ts",
-  "electron/ipc/registry.core.ts",
   "electron/ipc/registry.catalog.ts",
   "electron/ipc/registry.sales.ts",
   "electron/ipc/registry.customers.ts",

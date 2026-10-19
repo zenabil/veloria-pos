@@ -55,8 +55,3 @@ export interface ProformaDoc {
   htmlA4: string;
   payload: Record<string, unknown>;
 }
-
-export interface CustomerDrawerState {
-  customer: import("../../customers/types.ts").EnrichedCustomer;
-  sales: import("../../customers/types.ts").StatementSale[];
-}

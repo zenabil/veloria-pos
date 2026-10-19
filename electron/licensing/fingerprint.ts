@@ -117,7 +117,7 @@ export function fingerprintFromSources(sources: { name: string; value: string }[
  * fonctionnalité optionnelle), alors que la Charte exige recherche <500ms et
  * barcode <50ms. L'identité matérielle ne change jamais pendant la vie d'un
  * processus (un changement de disque/CM exige reboot/réinstall → nouveau
- * processus qui relit) : mémoïsation sûre, `clearFingerprintCache` pour tests.
+ * processus qui relit) : mémoïsation sûre, cohérente pour toute la vie du processus.
  *
  * P0-3 : l'ÉCHEC n'est plus jamais mémorisé définitivement (un raté transitoire
  * reg/wmic bloquait toute la session). 3 tentatives avec backoff, puis échec
@@ -129,11 +129,6 @@ export const FINGERPRINT_FAILURE_TTL_MS = 30_000;
 
 let cachedFingerprint: { fingerprint: string; sources: number } | null = null;
 let cachedFailure: { message: string; atMs: number } | null = null;
-
-export function clearFingerprintCache(): void {
-  cachedFingerprint = null;
-  cachedFailure = null;
-}
 
 /** Pause synchrone courte (chemin d'échec uniquement — jamais sur succès). */
 function sleepSync(ms: number): void {
