@@ -8,6 +8,7 @@
 > opérateur (2026-10-18 ter). §14 = préparation du prompt d'audit
 > dead-code (2026-10-18 quater). §15 = audit dead-code Phase A + lot 1
 > (2026-10-18 quinquies). §16 = lot 2 (canaux IPC) + `knip.json` (2026-10-19).
+> §17 = prompt d'audit intégral (2026-10-19 quinquies) — audit-first, 16 axes.
 > Répondre à l'utilisateur en arabe.
 
 ## 1) État courant
@@ -19,6 +20,10 @@
   (AGENTS.md §10). Restent : revue + tag opérateur (`v1.0.0-format-ops`),
   packaging/`release/`, puis **lot 2 bis** de l'audit (24 réexports morts
   `receipt-documents*` + `templates.get` + `printer.get`).
+- **Prompt d'audit intégral livré (§17)** : `docs/prompts/AUDIT_PROMPT_2026-10-19.md`
+  — audit-first, 16 axes (A→P), 8 niveaux de couverture IPC, 3 niveaux de
+  preuve par finding, gates avant/après, 3 livrables (rapport + plan en
+  vagues + ADR optionnel). **Zéro changement de code** dans cette session.
 - Harness : `.agents`/`.claude` purgés du repo (skills installés côté
   `.opencode/`, git-ignoré) ; `AGENTS.md` = routage 12-13 à jour.
 - Tags locaux (pas de remote) : `v1.0.0-adr075`, `v1.0.0-e2e-green`,
@@ -521,3 +526,58 @@ crashed` + crash GPU/service réseau de l'instance POS (2ᵉ lancement
 - **Git** : commits `docs(handoff)` explicites sur `handoff.md` uniquement
   (les fichiers du chantier impression restent dans l'arbre, non
   touchés).
+
+## 17) Session 2026-10-19 quinquies (prompt d'audit intégral — 16 axes)
+
+- **Demande opérateur** : « درس المشروع واكتبلي برومبت احترافي وصارم يقوم
+  بفحص المشروع من كل أنواع المشاكل والأخطاء والأكواد الميتتة وغير المكتملة
+  والزائدة وكل شيء، يعطيني تقرير شامل ومفصل وخطة إصلاحية جذرية » →
+  livrable = **un prompt** à coller dans une session neuve. **Aucun changement
+  de code métier** dans cette session.
+- **Étude préalable du dépôt** (avant rédaction) : `AGENTS.md`, `handoff.md`
+  (§1→§16), `package.json` (24 scripts), `eslint.config.mjs`,
+  `knip.json`, `docs/STRUCTURE.md`, `docs/INDEX.md`, `docs/ADR-001..119`,
+  `docs/reports/DEAD_CODE_AUDIT_2026-10-18.md` (ADRs 075/118/119), arborescence
+  `src/` `electron/` `tests/` `scripts/` `docs/` `license-manager/` `mobile/`
+  `cloud/` `database/`, `tests/unit/` (85 fichiers de garde), `electron/ipc/`
+  (24 canaux + 47 validateurs + 20 repos).
+- **Livrable** : `docs/prompts/AUDIT_PROMPT_2026-10-19.md` (≈ 540 lignes).
+  Contenu : contexte projet chiffré (213 fichiers TS/TSX, 176 canaux IPC,
+  `FROZEN_SCHEMA_COUNT=113`, 47 migrations, 804 tests) · 14 règles
+  contributors reprises · 10 règles de comportement strict (audit-first,
+  preuve obligatoire, classification de confiance `PROUVÉ/DYNAMIC-RISK/
+TEST-ONLY/DUPLICATE/DELIBERATE-KEEP/REFUTED`, interdiction lockfiles et
+  migrations) · 8 phases de méthode (baseline → carte → statique →
+  dynamique → parité → sécurité → produit → synthèse) · **16 axes**
+  (A bugs · B dead code en 7 classes · C incomplet · D duplication &
+  over-engineering · E money/atomicité · F DB/migrations · G contrats IPC ·
+  H architecture · I tests · J perf · K sécurité/RBAC · L UX FR · M
+  outillage · N docs · O hygiène · P risques) · outils (knip, depcheck,
+  ts-prune, madge, dpdm, jscpd, vitest--coverage, graphify) · **gabarits
+  Moleculars** du rapport et du plan en vagues (cible, périmètre, étapes,
+  risques, gates, rollback, dépendances, DoD) · critères de complétude.
+- **Chiffres re-vérifiés avant écriture** (écarts vs skills/docs signalés
+  dans le prompt lui-même) : migrations = **47** (`0047_customer_search_norm.sql`)
+  et non 0036 comme l'affirme le skill `veloria-db` ; `knip` 219→30 avec
+  `Unused files`=0 ; 20 M + 3 nouveaux non commités (chantier impression) ;
+  `RAW_GUARDED_CHANNELS` non appliqué (`electron/ipc/raw-guards.ts:31`) ;
+  `bridge-shape` ne couvre que `*Schema` ; `docs/INDEX.md` s'arrête à ADR-103
+  alors que 118/119 existent.
+- **Pièges consignés dans le prompt** : `rg` absent du PATH · PowerShell 5.1 ·
+  `Set-Content` mojibake · `git commit` balaie l'index (staging par chemins) ·
+  `build` seul invalide le manifeste licence · ABI `better-sqlite3` =
+  `ELECTRON_RUN_AS_NODE=1 npx electron script.cjs` · `graphify update` peut
+  sortir code 1 après succès · `noUncheckedIndexedAccess` +
+  `exactOptionalPropertyTypes`.
+- **État arbre** : chantier impression (20 M + 3 N) **laissé intact** ; seul
+  `docs/prompts/AUDIT_PROMPT_2026-10-19.md` + `handoff.md` + `docs/INDEX.md`
+  sont commités (staging par chemins explicites, AGENTS.md §10).
+- **Prochaine étape proposée** : coller le prompt dans une session neuve →
+  Phase 0 (baseline + mesure des gates) → Phase 1 (carte graphify) →
+  rapport `docs/reports/FULL_AUDIT_2026-10-19.md` + plan
+  `..._PLAN.md` → puis exécution des vagues **avec approbation par vague**
+  (ADR-075 : jamais de suppression automatique).
+- **Git** : commit `docs(audit): prompt d'audit integral 16 axes (audit-first)`
+  sur `docs/prompts/AUDIT_PROMPT_2026-10-19.md` + `docs/INDEX.md`, puis
+  commit `docs(handoff)` séparé sur `handoff.md` (arbre sale → pas de
+  commit handoff « arbre propre », commit explicite par chemins).
