@@ -73,6 +73,9 @@ export const LICENSE_PROTECTED_CHANNELS: ReadonlySet<string> = new Set([
   IPC_CHANNELS["templates.testPrint"],
   // EL-04+: réinitialisation d'usine = mutation destructive (base vierge).
   IPC_CHANNELS["database.reset"],
+  // K-05 : optimisation de la base (VACUUM + ANALYZE + checkpoint sur le
+  // fichier VIF) = mutation lourde et bloquante : même exigence de licence.
+  IPC_CHANNELS["database.optimize"],
 ]);
 
 /**
@@ -183,6 +186,8 @@ export const PAGE_GATED_CHANNELS: Readonly<Record<string, readonly string[]>> = 
   [IPC_CHANNELS["app.diagnostics"]]: ["settings"],
   // Zone dangereuse (réinitialisation d'usine) : page settings uniquement.
   [IPC_CHANNELS["database.reset"]]: ["settings"],
+  // K-05 : `database.optimize` (page « settings », comme la réinitialisation).
+  [IPC_CHANNELS["database.optimize"]]: ["settings"],
   // M1 : NE JAMAIS lister `printing.*` / `backup.*` / `ocr.*` ici �?" ils ne
   // transitent JAMAIS par handle() (enregistrement brut ipcMain.handle dans
   // leurs modules) : l'entrée serait morte et trompeuse. Garde réelle :

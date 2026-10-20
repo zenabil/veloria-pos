@@ -248,5 +248,9 @@ export const expenseUpdateSchema = expenseCreateSchema
 // (double-clic/retry) ; sans operationId, comportement historique.
 export const expenseDeleteSchema = z.object({
   id: z.number().int().positive(),
-  operationId: z.string().uuid().nullable().optional(),
+  // A-10 (P1) : `operationId` EXIGÉ — la suppression d'une dépense est un
+  // acte financier ; sans clé de rejouabilité, un retry n'est pas
+  // identifiable (le repo tombait sur un UUID aléatoire pour l'audit).
+  // L'UI envoie déjà un operationId sur ses 3 appels.
+  operationId: z.string().uuid(),
 });

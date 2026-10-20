@@ -28,8 +28,11 @@ jobs:
       - run: npm run typecheck
       - run: npm run typecheck:electron
       - run: npm run typecheck:manager
+      - run: npm run typecheck:mobile
       - run: npm run license:scan
+      - run: npm run verify:fr
       - run: npm test
+      - run: npm run test:coverage
       - run: npm run verify:migrations
       - run: npm run verify:domain
       - run: npm run verify:perf

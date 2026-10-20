@@ -11,6 +11,7 @@ import * as Finance from "../../electron/ipc/validators.finance";
 import * as Catalog from "../../electron/ipc/validators.catalog";
 import * as Settings from "../../electron/ipc/validators.settings";
 import * as Documents from "../../electron/ipc/validators.documents";
+import * as Print from "../../electron/ipc/validators.print";
 
 // Mutations monétaires/stock : operationId REQUIS (exactement-une-fois).
 const REQUIRED = [
@@ -34,6 +35,12 @@ const REQUIRED = [
   ["documents", Documents.returnRefundSchema],
   ["documents", Documents.proformaCreateSchema],
   ["documents", Documents.proformaConvertSchema],
+  // W2 / A-10 : suppression de dépense — acte financier, désormais rejouable.
+  ["finance", Finance.expenseDeleteSchema],
+  // W2 / A-13 : relocalisation du fichier de base VIF.
+  ["settings", Settings.relocateSchema],
+  // W2 / A-11 : restauration d'une sauvegarde (opération la plus destructive).
+  ["print", Print.backupRestoreSchema],
 ] as const;
 
 // Exception LWW documentée (ADR-074) : mises à jour/brouillons/réglages,

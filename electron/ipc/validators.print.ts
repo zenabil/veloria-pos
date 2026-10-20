@@ -37,8 +37,12 @@ export const backupExportSchema = z.object({
 
 // Restauration : fichier candidat explicite (suffixe + existence + santé
 // vérifiés côté service avant tout swap, avec snapshot + rollback).
+// A-11 (P1) : `operationId` EXIGÉ — une restauration est l'opération la plus
+// destructive du produit ; sans clé de rejouabilité, un retry après incident
+// rejoue tout le séquence snapshot→vérif→copie→réouverture.
 export const backupRestoreSchema = z.object({
   file: z.string().min(1).max(2000),
+  operationId: z.string().uuid(),
 });
 
 // Récupération au démarrage (base non prête) : actions sans charge utile,
@@ -174,7 +178,7 @@ export const pdfFilePathSchema = z.object({
   filePath: z.string().max(2000).nullable().optional(),
 });
 
-// Reçu de règlement de dette (ticket تسديد الدين) : aperçu + impression
+// Reçu de règlement de dette : aperçu + impression
 // ticket 80/58 (jamais A4) après encaissement (client / fournisseur / pain).
 // Cohérence arithmétique exigée : nouveau solde = ancien − montant.
 export const paymentTicketSchema = z

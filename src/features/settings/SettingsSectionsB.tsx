@@ -467,7 +467,7 @@ export function BackupSection({ notify }: { notify: Notify }): React.JSX.Element
         return;
       void run(async () => {
         try {
-          await api.backupRestore({ file });
+          await api.backupRestore({ file, operationId: newOperationId() });
           notify("Base restaurée.", "ok");
           refresh(false);
         } catch (e) {

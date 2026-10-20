@@ -98,6 +98,11 @@ const STAFF_CHANNEL_PERMISSION: Record<string, string> = {
   [IPC_CHANNELS["customers.restore"]]: "debts",
   [IPC_CHANNELS["customers.accessActivate"]]: "debts",
   [IPC_CHANNELS["customers.accessRevoke"]]: "debts",
+  // K-01 (P1) : le QR d'activation APK embarque le PIN du client EN CLAIR
+  // (`buildActivationQrPayloadV2` → PIN + code + anon key). Sans porte
+  // staff, n'importe quel code renderer pouvait l'imprimer. Même permission
+  // que les autres écritures d'accès client.
+  [IPC_CHANNELS["customers.accessQrSvg"]]: "debts",
   [IPC_CHANNELS["proformas.create"]]: "sales",
   [IPC_CHANNELS["proformas.update"]]: "sales",
   [IPC_CHANNELS["proformas.delete"]]: "sales",
@@ -110,6 +115,11 @@ const STAFF_CHANNEL_PERMISSION: Record<string, string> = {
   [IPC_CHANNELS["backup.autoSave"]]: "settings",
   [IPC_CHANNELS["database.reset"]]: "settings",
   [IPC_CHANNELS["database.relocate"]]: "settings",
+  // K-05 (P1) : `database.optimize` exécute VACUUM + ANALYZE + checkpoint sur
+  // la base VIVANTE (réécriture complète du fichier, verrou exclusif). Elle
+  // était sans AUCUNE porte : ni session, ni permission, ni licence — alors
+  // que sa sœur `database.reset` est protégée par les trois. Alignée ici.
+  [IPC_CHANNELS["database.optimize"]]: "settings",
   [IPC_CHANNELS["sync.saveConfig"]]: "settings",
   // R2 RADICAL (P0) : mutations sortantes vers le miroir gardées — un
   // utilisateur sans `settings` ne pilote plus la file de synchro.
@@ -157,6 +167,35 @@ const STAFF_CHANNEL_PERMISSION: Record<string, string> = {
   [IPC_CHANNELS["ocr.dispose"]]: "stock",
 };
 
+/**
+ * K-04 (P1) : canaux de LECTURE sensibles — une SESSION est EXIGÉE, mais
+ * aucune permission particulière n'est demandée.
+ *
+ * Pourquoi : `staffScope()` (registry.finance.ts / registry.sales.ts) renvoie
+ * `null` = « périmètre gérant (tout) » — et `null` était aussi la valeur
+ * renvoyée quand AUCUNE session n'était ouverte (session expirée après
+ * 30 min d'inactivité, ou poste jamais connecté). Un appelant non authentifié
+ * obtenait donc la vue complète : historique, ventes, dettes, dashboard,
+ * rapports. Ces lectures sont désormais refusées sans session (fail-closed).
+ *
+ * L'UX ne change pas : le poste exige déjà une session pour entrer (porte
+ * équipe, ADR-085/086) ; seul l'accès direct IPC non authentifié est fermé.
+ */
+const SESSION_REQUIRED_CHANNELS: ReadonlySet<string> = new Set([
+  IPC_CHANNELS["history.list"],
+  IPC_CHANNELS["history.detail"],
+  IPC_CHANNELS["history.stats"],
+  IPC_CHANNELS["sales.history"],
+  IPC_CHANNELS["sales.get"],
+  IPC_CHANNELS["dashboard.summary"],
+  IPC_CHANNELS["reports.summary"],
+  IPC_CHANNELS["debts.list"],
+  IPC_CHANNELS["debts.detail"],
+  IPC_CHANNELS["debts.stats"],
+  IPC_CHANNELS["zakat.sources"],
+  IPC_CHANNELS["zakat.history"],
+]);
+
 /** Remise : toute ligne à prix réduit exige la permission `discount`. */
 function saleHasDiscount(input: unknown): boolean {
   const sale = input as {
@@ -179,7 +218,7 @@ export function enforceStaffGates(channel: string, input: unknown): void {
   if (channel === IPC_CHANNELS["sales.create"] && saleHasDiscount(input)) {
     required.push("discount");
   }
-  if (required.length === 0) return;
+  if (required.length === 0 && !SESSION_REQUIRED_CHANNELS.has(channel)) return;
   const session = getCurrentStaffUser();
   if (session == null) throw new Error("Session requise : choisissez un utilisateur.");
   for (const key of required) {

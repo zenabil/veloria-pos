@@ -95,7 +95,9 @@ export function registerFinanceChannels(): void {
     return { updated: true };
   });
   handle(IPC_CHANNELS["expenses.delete"], V.expenseDeleteSchema, (input) => {
-    Expenses.deleteExpenseAtomic(input.id, new Date().toISOString(), input.operationId ?? null);
+    // A-10 : `operationId` désormais EXIGÉ par le schéma (suppression
+    // financière rejouable) — plus de repli sur un UUID aléatoire.
+    Expenses.deleteExpenseAtomic(input.id, new Date().toISOString(), input.operationId);
     return { deleted: true };
   });
   handle(IPC_CHANNELS["expenses.stats"], V.emptyPayloadSchema, () => Expenses.getExpenseStats());

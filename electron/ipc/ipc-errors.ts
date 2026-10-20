@@ -116,6 +116,26 @@ export function toUserMessage(err: unknown): { code: string; message: string } {
   ) {
     return { code: "UNKNOWN_ERROR", message: "Une erreur inattendue est survenue. Réessayez." };
   }
+  // A-04 (P1) : une erreur MOTEUR non reconnue ne doit JAMAIS atteindre
+  // l'opérateur en clair (AGENTS §6). Deux signaux fiables :
+  //  (a) le `code` d'erreur système (SQLITE_*, ERR_*, ECONN*, ENOENT…) ;
+  //  (b) un message technique anglais de moteur qui n'était pas listé
+  //      (« database is locked », « not a database », « disk I/O error »…).
+  // Les messages MÉTIER (rédigés en français par le code) restent transmis
+  // tels quels : ils passent tous les filtres ci-dessus.
+  if (
+    typeof errCode === "string" &&
+    /^(SQLITE_|ERR_|E[A-Z]{2,}|MODULE_NOT_FOUND|ECONN|ETIMEDOUT|EPIPE)/.test(errCode)
+  ) {
+    return { code: "UNKNOWN_ERROR", message: "Une erreur inattendue est survenue. Réessayez." };
+  }
+  if (
+    /\b(database is locked|not a database|disk I\/O error|readonly database|out of memory|segmentation fault|terminating|connection (refused|reset|closed)|socket hang up|timed? ?out|broken pipe|too many open files|protocol error|bad (file )?descriptor|cannot allocate|address already in use|invalid argument)\b/i.test(
+      msg,
+    )
+  ) {
+    return { code: "UNKNOWN_ERROR", message: "Une erreur inattendue est survenue. Réessayez." };
+  }
   // Tous les messages métier du code sont déjà rédigés en français :
   // on les transmet tels quels (pas d'exception brute exposée).
   return { code: "VALIDATION_ERROR", message: msg };

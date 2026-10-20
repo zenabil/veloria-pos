@@ -27,10 +27,19 @@ describe("P1-6 : couche centrale operationId", () => {
   it("laisse passer lectures, compat optionnelle et updates par valeur", () => {
     expect(schemaRequiresOperationId(idSchema)).toBe(false);
     expect(schemaRequiresOperationId(paginationSchema)).toBe(false);
-    expect(schemaRequiresOperationId(expenseDeleteSchema)).toBe(false);
     expect(schemaRequiresOperationId(productUpdateSchema)).toBe(false);
     expect(schemaRequiresOperationId(null)).toBe(false);
     expect(schemaRequiresOperationId({})).toBe(false);
+  });
+  // A-10 (P1) : la suppression d'une DÉPENSE est désormais idempotente
+  // (operationId EXIGÉ) — la suppression financière n'est plus « au
+  // hasard » (UUID aléatoire pour l'audit). Contrat modifié = gel modifié.
+  it("A-10 : la suppression d'une dépense exige un operationId", () => {
+    expect(schemaRequiresOperationId(expenseDeleteSchema)).toBe(true);
+    expect(() => expenseDeleteSchema.parse({ id: 1 })).toThrow();
+    expect(
+      expenseDeleteSchema.parse({ id: 1, operationId: "11111111-1111-4111-8111-111111111111" }).id,
+    ).toBe(1);
   });
   it("zakat.save refuse sans operationId (Zod, avant même le repo)", () => {
     expect(() =>

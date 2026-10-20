@@ -1,5 +1,6 @@
 // Veloria License Manager — Validateurs Zod (frontière renderer Mutual).
 import { z } from "zod";
+import { isRealCalendarDate } from "../../src/shared/dates/dates.ts";
 
 const fingerprint = z
   .string()
@@ -56,7 +57,14 @@ const PAGE_IDS = [
 
 const pages = z.record(z.enum(PAGE_IDS), z.boolean()).optional();
 
-const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date AAAA-MM-JJ attendue.");
+// G-15 (P1) : le FORMAT seul ne suffit pas — une date calendaire
+// impossible (2026-02-30) produisait une licence SIGNÉE que le POS rejetait
+// ensuite (`CORRUPTED_STATE`). Même règle que le domaine et le main
+// (parité : tests/unit/main-domain-parity.test.ts).
+const dateStr = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Date AAAA-MM-JJ attendue.")
+  .refine((v) => isRealCalendarDate(v), "Date calendaire invalide.");
 
 export const licenseCreateSchema = z
   .object({

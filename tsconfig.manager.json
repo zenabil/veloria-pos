@@ -34,6 +34,7 @@
     "license-manager/renderer/**/*.tsx",
     "license-manager/renderer/**/*.ts",
     "src/shared/errors/fr-map.ts",
+    "src/shared/dates/dates.ts",
     "electron/licensing/protocol.ts",
     "electron/licensing/catalog.ts",
     "electron/licensing/fingerprint.ts",

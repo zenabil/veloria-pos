@@ -5,6 +5,7 @@
 import { describe, it, expect } from "vitest";
 import { isRealCalendarDate as mainIsRealCalendarDate } from "../../electron/ipc/validators.ts";
 import { isRealCalendarDate as domainIsRealCalendarDate } from "@/domain/common/dates.ts";
+import { isRealCalendarDate as sharedIsRealCalendarDate } from "@/shared/dates/dates.ts";
 import { assertValidQuantity } from "@/domain/common/quantity.ts";
 import { saleItemSchema, closingCreateSchema } from "../../electron/ipc/validators.ts";
 
@@ -29,6 +30,15 @@ describe("P2 : parité calendaire main/domaine", () => {
   it("mêmes verdicts sur tous les vecteurs", () => {
     for (const d of DATES) {
       expect(mainIsRealCalendarDate(d), `main:${d}`).toBe(domainIsRealCalendarDate(d));
+    }
+  });
+  // G-15 (P1) : la troisième copie (partagée avec le License Manager) doit
+  // rendre exactement le même verdict — sinon le Manager émet une licence
+  // que le POS rejette (CORRUPTED_STATE).
+  it("parité avec la copie partagée (Manager) sur les mêmes vecteurs", () => {
+    for (const d of DATES) {
+      expect(sharedIsRealCalendarDate(d), `shared:${d}`).toBe(domainIsRealCalendarDate(d));
+      expect(sharedIsRealCalendarDate(d), `shared:${d}`).toBe(mainIsRealCalendarDate(d));
     }
   });
   it("businessDate rejette les impossibles", () => {

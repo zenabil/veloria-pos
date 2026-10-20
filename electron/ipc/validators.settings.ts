@@ -127,7 +127,10 @@ export const settingsSaveSchema = z.discriminatedUnion("key", [
 
 export const relocateSchema = z.object({
   folder: z.string().min(1).max(500),
-  operationId: optionalOperationId,
+  // A-13 (P1) : `operationId` EXIGÉ — la relocalisation déplace le fichier
+  // de base VIF ; sans clé, une réémission (double-clic, retry réseau local)
+  // déclenche une seconde copie. L'UI envoie déjà un operationId.
+  operationId: z.string().uuid(),
 });
 
 // Réinitialisation d'usine (zone dangereuse) : preuve de confirmation

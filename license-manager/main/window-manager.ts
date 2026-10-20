@@ -60,7 +60,12 @@ export function createManagerWindow(): BrowserWindow {
     },
   });
   const devUrl = process.env["VITE_MANAGER_URL"];
-  if (devUrl) {
+  // K-02 (P1) : l'URL de dev n'est chargée que HORS paquetage. Sans ce
+  // garde, une variable d'environnement résiduelle ou malveillante chargeait
+  // une origine distante dans une fenêtre PRIVILÉGIÉE (jonction preload
+  // complète) — le POS protège déjà son propre cas
+  // (electron/main/window-manager.ts : `if (devUrl && !app.isPackaged)`).
+  if (devUrl && !app.isPackaged) {
     void mainWindow.loadURL(devUrl);
   } else {
     void mainWindow.loadFile(
@@ -68,6 +73,10 @@ export function createManagerWindow(): BrowserWindow {
     );
   }
   mainWindow.webContents.on("will-navigate", (event) => event.preventDefault());
+  // K-03 : `will-redirect` (redirection serveur) et `will-attach-webview`
+  // (webview) bloqués comme dans le POS.
+  mainWindow.webContents.on("will-redirect", (event) => event.preventDefault());
+  mainWindow.webContents.on("will-attach-webview", (event) => event.preventDefault());
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith("https://")) void shell.openExternal(url);
     return { action: "deny" };

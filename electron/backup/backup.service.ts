@@ -582,6 +582,23 @@ export function registerBackupIpc(): void {
       if (!isAllowedDatabaseFile(file)) {
         return { ok: false, code: "VALIDATION_ERROR", message: "Fichier de sauvegarde invalide." };
       }
+      // A-11 (P1) : clé de rejouabilité EXIGÉE — une restauration est
+      // l'opération la plus destructive du produit (swap du fichier de base
+      // VIF). La clé est réclamée AVANT le swap : une réémission (double-clic
+      // sur « Restaurer ») est refusée par la contrainte UNIQUE
+      // idempotency_keys.operation_id au lieu de rejouer snapshot→copie→swap.
+      try {
+        claimOptional(input.operationId, "backup.restore", new Date().toISOString());
+      } catch (claimErr) {
+        log("WARN", "backup", "restore.duplicate_claim", {
+          error: claimErr instanceof Error ? claimErr.message : String(claimErr),
+        });
+        return {
+          ok: false,
+          code: "CONFLICTING_OPERATION",
+          message: "Restauration déjà en cours. Patientez quelques secondes.",
+        };
+      }
       // R4 RADICAL : confinement du dossier source (anti USB piégée hors
       // backupDir : refuse racines, système, UNC — message FR, jamais de chemin brut).
       try {

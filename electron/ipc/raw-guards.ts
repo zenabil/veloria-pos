@@ -11,12 +11,33 @@
 
 import { IPC_CHANNELS } from "./channels";
 import { enforceStaffGates } from "./staff-gates";
+import { getCurrentStaffUser } from "./handlers/staff-session";
+import { mustChangeCode } from "./handlers/staff.repo";
 
 type RawDenied = { ok: false; code: string; message: string };
+
+/**
+ * A-09 (P1) : le verrou « changement de code obligatoire » (0041
+ * `must_change_code`) n'était appliqué que dans `handle()` — les 32 canaux
+ * bruts (backup restore, 25 impressions, 4 OCR) le contournaient. Le
+ * verrou est ici appliqué sur le MÊME modèle (allowlist des canaux de sortie
+ * de session), pour que la contrainte annoncée — « verrou main, pas seulement
+ * visuel » (handle.ts) — soit réelle.
+ */
+const MUST_CHANGE_ALLOWLIST: ReadonlySet<string> = new Set([
+  IPC_CHANNELS["staff.changeCode"],
+  IPC_CHANNELS["staff.session"],
+  IPC_CHANNELS["staff.logout"],
+]);
 
 export function enforceRawChannelGates(channel: string, input: unknown): RawDenied | null {
   try {
     enforceStaffGates(channel, input);
+    // Verrou de changement de code (même règle que handle.ts:100-102).
+    const session = getCurrentStaffUser();
+    if (session != null && !MUST_CHANGE_ALLOWLIST.has(channel) && mustChangeCode(session)) {
+      throw new Error("Veuillez d'abord changer votre code d'accès.");
+    }
     return null;
   } catch (err) {
     const message =

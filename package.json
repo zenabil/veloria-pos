@@ -42,6 +42,7 @@
     "license:integrity": "node scripts/licensing/sign-integrity.mjs",
     "license:integrity-manager": "node scripts/licensing/sign-manager-integrity.mjs",
     "typecheck:manager": "tsc -p tsconfig.manager.json --noEmit",
+    "typecheck:mobile": "npm --prefix mobile run typecheck",
     "build:manager-client": "vite build --config vite.license-manager.config.ts",
     "build:manager": "tsc -p tsconfig.manager.json && node --input-type=commonjs -e \"require('fs').rmSync('dist-license-manager/license-manager/renderer',{recursive:true,force:true})\" && npx esbuild license-manager/preload/preload.ts --bundle --platform=node --packages=external --external:electron --format=cjs --outfile=dist-license-manager/license-manager/preload/preload.js --log-level=warning && node scripts/release/stamp-electron-pkg.js",
     "build:pos": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.electron.json && vite build",
@@ -52,6 +53,7 @@
     "verify:migrations": "node scripts/database/verify-migrations.mjs",
     "verify:licensing": "electron ./scripts/licensing/verify-licensing.cjs",
     "verify:domain": "node --experimental-strip-types scripts/quality/verify-domain.ts",
+    "verify:fr": "node scripts/quality/verify-fr-only.mjs",
     "verify:perf": "node scripts/quality/verify-perf.mjs"
   },
   "dependencies": {

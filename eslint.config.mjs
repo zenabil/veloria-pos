@@ -45,6 +45,7 @@ export default tseslint.config(
             "scripts/licensing/test-only-allow-expired.cjs",
             "scripts/licensing/verify-licensing.cjs",
             "scripts/quality/verify-perf.mjs",
+            "scripts/quality/verify-fr-only.mjs",
             "scripts/release/checksums.js",
             "scripts/release/smoke.js",
             "scripts/release/stamp-electron-pkg.js",
