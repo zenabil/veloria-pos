@@ -47,7 +47,13 @@ export const templateSettingsSchema = z.object({
   watermarkText: z.string().max(60).default(""),
   headerText: z.string().max(200).default(""),
   footerText: z.string().max(300).default(""),
+  // C6-bis : capacités propres aux étiquettes et au bon de livraison.
+  showProductName: z.boolean().default(false),
+  showPrice: z.boolean().default(true),
 });
+
+/** Réglages fusionnés côté main (capacités du type appliquées). */
+export type ParsedTemplateSettings = z.infer<typeof templateSettingsSchema>;
 
 export const templateGetSchema = z.object({
   docType: templateDocTypeSchema,

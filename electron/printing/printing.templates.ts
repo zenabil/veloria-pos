@@ -1,13 +1,16 @@
 // Veloria PoS — Electron: modeles Print Studio + primitifs (decoupage printing.service, zero changement).
 
+import { z } from "zod";
 import { log } from "../services/logger";
 import { getActiveTemplate } from "../ipc/handlers/templates.repo";
-import { templateSettingsSchema } from "../ipc/validators";
+import { templateSettingsSchema, type ParsedTemplateSettings } from "../ipc/validators";
 import { getThermalWidth, printOptions } from "./printing.printer-settings";
+import { factorySettingsMirror, neutralizeForDocType } from "./printing.capabilities";
 import { enrichReceipt } from "./printing.enrich";
 import {
   buildReceiptText,
   proformaFromReceipt,
+  thermalHtml,
   type PaymentTicketData,
   type ProformaData,
   type ReceiptData,
@@ -29,28 +32,11 @@ export function renderCopies(docType: string): number {
 // ---------------------------------------------------------------------------
 
 export interface TemplateRender {
-  settings: {
-    paper: string;
-    copies: number;
-    marginMm: number;
-    thermalFontPx: number;
-    logoSize: string;
-    showLogo: boolean;
-    showIdentity: boolean;
-    showTva: boolean;
-    showDiscountZero: boolean;
-    showQr: boolean;
-    showCodes: boolean;
-    showSignatures: boolean;
-    showWatermark: boolean;
-    watermarkText: string;
-    headerText: string;
-    footerText: string;
-  };
+  settings: TemplateSettings;
 }
 
 /** Réglages du modèle actif (défauts d'usine si absent/illisible). */
-export function activeTemplateSettings(docType: string): TemplateRender["settings"] {
+export function activeTemplateSettings(docType: string): TemplateSettings {
   try {
     const row = getActiveTemplate(docType);
     return mergeTemplateMirror(docType, row ? row.settings : {});
@@ -64,9 +50,11 @@ export function activeTemplateSettings(docType: string): TemplateRender["setting
  * C6 : fusion main des réglages — MIROIR de
  * `src/domain/print/template-rules.ts#mergeTemplateSettings`
  * (electron ne peut pas importer src/). Toute modification ici doit être
- * répercutée là-bas (parité testée).
+ * répercutée là-bas (parité testée). C6-bis : la matrice de capacités du type
+ * (`printing.capabilities.ts`) neutralise les réglages hors sujet et porte les
+ * défauts d'usine (opt-in des capacités thermiques).
  */
-export function mergeTemplateMirror(docType: string, raw: unknown): TemplateRender["settings"] {
+export function mergeTemplateMirror(docType: string, raw: unknown): TemplateSettings {
   const parsed = templateSettingsSchema.parse(raw ?? {});
   const obj = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {};
   const allowed: readonly string[] =
@@ -78,9 +66,13 @@ export function mergeTemplateMirror(docType: string, raw: unknown): TemplateRend
   const fallbackPaper = docType === "etiquette" ? "58x30" : docType === "proforma" ? "A4" : "80mm";
   const paper =
     obj["paper"] !== undefined && allowed.includes(parsed.paper) ? parsed.paper : fallbackPaper;
-  const showQr =
-    docType === "etiquette" ? (obj["showQr"] !== undefined ? parsed.showQr : false) : parsed.showQr;
-  return { ...(parsed as TemplateRender["settings"]), paper, showQr };
+  // Défauts d'usine du type pour les clés ABSENTES du JSON (Zod applique les
+  // défauts globaux) — miroir exact de factorySettings côté domaine.
+  const merged: Record<string, unknown> = { ...parsed, paper };
+  for (const [key, value] of Object.entries(factorySettingsMirror(docType))) {
+    if (obj[key] === undefined) merged[key] = value;
+  }
+  return neutralizeForDocType(docType, merged as ParsedTemplateSettings);
 }
 
 /** Papier effectif : modèle Studio, sinon largeur thermique configurée. */
@@ -104,7 +96,25 @@ export function pageOptsOf(docType: string): { page: string; marginMm: number } 
   return { page: "A4", marginMm: s.marginMm };
 }
 
-export type TemplateSettings = TemplateRender["settings"];
+export type TemplateSettings = z.infer<typeof templateSettingsSchema>;
+
+/**
+ * C6-bis : HTML thermique d'un document à partir des réglages du modèle —
+ * point unique (impression, PDF, aperçu Studio) pour que l'aperçu, le papier
+ * et le PDF sortent identiques (logo de l'entreprise compris).
+ */
+export function thermalDocumentHtml(args: {
+  settings: TemplateSettings;
+  width: ThermalWidth;
+  text: string;
+  codes: { barcode: string; qrSvg: string; qrPayload: string };
+  logo?: string | undefined;
+}): string {
+  return thermalHtml(args.text, args.width, args.codes, args.settings.thermalFontPx, {
+    logo: args.settings.showLogo ? (args.logo ?? "") : "",
+    logoSize: args.settings.logoSize,
+  });
+}
 
 export function applySettingsToReceipt(s: TemplateSettings, d: ReceiptData): ReceiptData {
   return {
@@ -122,11 +132,15 @@ export function applySettingsToReceipt(s: TemplateSettings, d: ReceiptData): Rec
     qrOff: !s.showQr,
     codesOff: !s.showCodes,
     footerText: s.footerText !== "" ? s.footerText : d.footerText,
+    // Pied du MODÈLE (thermique) : jamais le pied des paramètres, pour qu'un
+    // ticket muet avant C6-bis le reste tant que le modèle ne dit rien.
+    footerNote: s.footerText !== "" ? s.footerText : undefined,
     headerNote: s.headerText !== "" ? s.headerText : undefined,
     watermark: s.showWatermark ? s.watermarkText : undefined,
     logoSize: s.logoSize,
     hideSigns: !s.showSignatures,
     hideZeroRows: !s.showDiscountZero,
+    hidePrices: !s.showPrice,
   };
 }
 
@@ -157,6 +171,7 @@ export function applySettingsToPayment(
     codesOff: !s.showCodes,
     watermark: s.showWatermark ? s.watermarkText : undefined,
     headerNote: s.headerText !== "" ? s.headerText : undefined,
+    footerNote: s.footerText !== "" ? s.footerText : undefined,
   };
 }
 

@@ -21,16 +21,16 @@ import {
   proformaWithSettings,
   receiptTextOf,
   templateRenderOf,
+  thermalDocumentHtml,
 } from "./printing.templates";
-import { enrichReceipt, receiptCodes } from "./printing.enrich";
+import { companyLogoDataUrl, enrichReceipt, receiptCodes } from "./printing.enrich";
 import { paymentOf } from "./printing.payment";
-import { labelsOf } from "./printing.reports-labels";
+import { labelOptsOf, labelsOf } from "./printing.reports-labels";
 import {
   buildLabelsHtml,
   buildProformaA4Html,
   buildReportHtml,
   labelPageMicrons,
-  thermalHtml,
   toReportData,
 } from "./receipt-documents";
 
@@ -48,7 +48,13 @@ export function registerPdfExportsIpc(getMainWindow: () => BrowserWindow | null)
       const d = applyTemplateToReceipt("ticket", enrichReceipt(input));
       const { settings, width } = templateRenderOf("ticket");
       const res = await exportDocumentPdf(getMainWindow, {
-        html: thermalHtml(receiptTextOf(d, width), width, receiptCodes(d), settings.thermalFontPx),
+        html: thermalDocumentHtml({
+          settings,
+          width,
+          text: receiptTextOf(d, width),
+          codes: receiptCodes(d),
+          logo: d.companyLogo,
+        }),
         waitMs: 300,
         defaultName: safeInvoiceFileName(String(input.invoice || "ticket"), "ticket-80mm"),
         explicitPath: filePath ?? null,
@@ -104,7 +110,13 @@ export function registerPdfExportsIpc(getMainWindow: () => BrowserWindow | null)
       const parsed = paymentTicketSchema.parse(raw);
       const { settings, width } = templateRenderOf("recu");
       const res = await exportDocumentPdf(getMainWindow, {
-        html: thermalHtml(text80, width, codes, settings.thermalFontPx),
+        html: thermalDocumentHtml({
+          settings,
+          width,
+          text: text80,
+          codes,
+          logo: companyLogoDataUrl(),
+        }),
         waitMs: 300,
         defaultName: safeInvoiceFileName(String(parsed.reference || "recu"), "recu"),
         explicitPath: filePath ?? null,
@@ -155,11 +167,7 @@ export function registerPdfExportsIpc(getMainWindow: () => BrowserWindow | null)
         customHeightMm: l.customHeightMm,
       });
       const res = await exportDocumentPdf(getMainWindow, {
-        html: buildLabelsHtml(l.items, {
-          format: l.format,
-          customWidthMm: l.customWidthMm,
-          customHeightMm: l.customHeightMm,
-        }),
+        html: buildLabelsHtml(l.items, labelOptsOf(l)),
         waitMs: 400,
         defaultName: "etiquettes.pdf",
         explicitPath: filePath ?? null,

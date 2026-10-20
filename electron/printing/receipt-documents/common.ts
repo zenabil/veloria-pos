@@ -75,6 +75,10 @@ export interface ReceiptData {
   hideZeroRows?: boolean | undefined;
   watermark?: string | undefined;
   headerNote?: string | undefined;
+  /** Pied du MODÈLE (thermique) : imprimé seulement si le modèle le définit. */
+  footerNote?: string | undefined;
+  /** Bon de livraison : prix masqués (quantités seules). */
+  hidePrices?: boolean | undefined;
 }
 
 /** « CL-00125 » (dérivé de l'id : aucun code stocké en base). */

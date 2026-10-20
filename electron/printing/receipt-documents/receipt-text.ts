@@ -8,8 +8,10 @@ import {
 } from "./common";
 import { amountInWordsFr, formatMinorDa, tvaBreakdown } from "./amounts";
 import {
+  thermalCenter,
   thermalCols,
   thermalField,
+  thermalFooterBlock,
   thermalItem,
   thermalRow,
   thermalSep,
@@ -157,6 +159,8 @@ export function buildReceiptText(d: ReceiptData, width?: ThermalWidth): string {
   }
   if (d.companyPhone) out.push(...thermalField("Tél", d.companyPhone, cols));
   for (const l of identityThermalLines(d)) for (const w of wrapThermal(l, cols)) out.push(w);
+  // C6-bis : note d'en-tête du modèle (sous le cartouche, centrée).
+  if (d.headerNote) out.push(...thermalCenter(d.headerNote, cols));
   out.push(sep);
   out.push(`TICKET DE CAISSE`);
   out.push(sep);
@@ -221,12 +225,8 @@ export function buildReceiptText(d: ReceiptData, width?: ThermalWidth): string {
   const qr = docQrPayload(d);
   if (qr) for (const row of thermalField("QR", qr, cols)) out.push(row);
   out.push(sep);
-  if (d.thankYouMessage) {
-    for (const l of wrapThermal(d.thankYouMessage, cols)) out.push(l);
-  } else {
-    out.push(`Merci pour votre achat`);
-    out.push(`À bientôt !`);
-  }
+  // C6-bis : pied complet — remerciement, pied du modèle, filigrane, signatures.
+  out.push(...thermalFooterBlock(d, cols, ["Merci pour votre achat", "À bientôt !"]));
   out.push(sep);
   out.push(`Veloria POS`);
   return out.join("\n");

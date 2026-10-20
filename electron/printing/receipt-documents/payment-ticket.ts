@@ -2,7 +2,16 @@
 
 import { paymentMethodLabel, type ThermalWidth } from "./common";
 import { amountInWordsFr, formatMinorDa } from "./amounts";
-import { thermalCols, thermalField, thermalRow, thermalSep, wrapThermal } from "./thermal";
+import {
+  thermalCenter,
+  thermalCols,
+  thermalField,
+  thermalFooterBlock,
+  thermalRow,
+  thermalSep,
+  wrapThermal,
+} from "./thermal";
+import { identityThermalLines } from "./chrome";
 
 // ---------------------------------------------------------------------------
 // Reçu de règlement de dette (ticket تسديد الدين) : reçu client/fournisseur/
@@ -47,6 +56,8 @@ export interface PaymentTicketData {
   codesOff?: boolean | undefined;
   watermark?: string | undefined;
   headerNote?: string | undefined;
+  /** C6-bis : pied du modèle (imprimé seulement si le modèle le définit). */
+  footerNote?: string | undefined;
 }
 
 export function paymentTicketKindLabel(kind: PaymentTicketKind): string {
@@ -61,6 +72,9 @@ export function buildPaymentText(d: PaymentTicketData, width?: ThermalWidth): st
   const fmt = formatMinorDa;
   const out: string[] = [];
   for (const l of wrapThermal(`*** ${d.company} ***`, cols)) out.push(l);
+  // C6-bis : identité légale + note d'en-tête du modèle (comme le ticket).
+  for (const l of identityThermalLines(d)) for (const w of wrapThermal(l, cols)) out.push(w);
+  if (d.headerNote) out.push(...thermalCenter(d.headerNote, cols));
   out.push(paymentTicketKindLabel(d.kind));
   if (d.reference) out.push(...thermalField("Réf", d.reference, cols));
   out.push(...thermalField("Date", d.date, cols));
@@ -79,12 +93,15 @@ export function buildPaymentText(d: PaymentTicketData, width?: ThermalWidth): st
       : d.qrPayload || `VELORIA|${d.reference || ""}|${d.amountMinor}|${d.date}`;
   if (pqr) out.push(...thermalField("QR", pqr, cols));
   out.push(sep);
-  if (d.thankYouMessage) {
-    for (const l of wrapThermal(d.thankYouMessage, cols)) out.push(l);
-  } else {
-    out.push(`Merci pour votre règlement`);
-    out.push(`À bientôt !`);
-  }
+  // C6-bis : pied complet — remerciement, pied du modèle, filigrane, signatures.
+  out.push(
+    ...thermalFooterBlock(
+      d,
+      cols,
+      ["Merci pour votre règlement", "À bientôt !"],
+      ["Signature", "Cachet / Signature"],
+    ),
+  );
   out.push(sep);
   out.push(`Veloria POS`);
   return out.join("\n");

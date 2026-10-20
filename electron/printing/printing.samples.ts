@@ -7,7 +7,7 @@ import {
   thermalWidthFor,
   type TemplateSettings,
 } from "./printing.templates";
-import { qrSvgOf, withQr } from "./printing.enrich";
+import { companyLogoDataUrl, qrSvgOf, withQr } from "./printing.enrich";
 import {
   buildDeliveryText,
   buildLabelsHtml,
@@ -110,6 +110,9 @@ export function renderTemplateSample(
   const s = override ?? activeTemplateSettings(docType);
   const width = forceWidth ?? thermalWidthFor(s.paper);
   const page = { page: "A4", marginMm: s.marginMm };
+  // Logo réel de l'entreprise (meilleur effort) injecté dans l'échantillon :
+  // l'aperçu A4 et l'impression test montrent le placement exact du logo.
+  const logo = companyLogoDataUrl();
   if (docType === "etiquette") {
     const items: LabelItem[] = [0, 1].map((i) => ({
       name: i === 0 ? "Sucre 1kg" : "Huile 5L",
@@ -123,7 +126,11 @@ export function renderTemplateSample(
       : "58x30";
     return {
       text80: "",
-      htmlA4: buildLabelsHtml(items, { format: fmt }),
+      htmlA4: buildLabelsHtml(items, {
+        format: fmt,
+        showName: s.showProductName,
+        showPrice: s.showPrice,
+      }),
     };
   }
   if (docType === "recu") {
@@ -159,7 +166,7 @@ export function renderTemplateSample(
       htmlA4: "",
     };
   }
-  const receipt = applySettingsToReceipt(s, withQr(sampleReceipt()));
+  const receipt = applySettingsToReceipt(s, withQr({ ...sampleReceipt(), companyLogo: logo }));
   if (docType === "proforma") {
     const p = proformaFromReceipt({
       ...receipt,

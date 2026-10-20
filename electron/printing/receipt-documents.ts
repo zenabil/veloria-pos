@@ -22,14 +22,20 @@ export {
   tvaBreakdown,
 } from "./receipt-documents/amounts";
 export {
+  thermalCenter,
   thermalCols,
   thermalField,
-  thermalHtml,
+  thermalFooterBlock,
   thermalItem,
+  thermalLogo,
   thermalRow,
   thermalSep,
+  thermalSigns,
+  thermalWatermark,
+  thermalHtml,
   wrapThermal,
 } from "./receipt-documents/thermal";
+export type { ThermalFooterInput } from "./receipt-documents/thermal";
 export {
   docQrPayload,
   headerNoteHtml,

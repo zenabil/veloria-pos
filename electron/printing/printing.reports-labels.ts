@@ -29,6 +29,10 @@ export function labelsOf(raw: unknown): {
   format: LabelFormat;
   customWidthMm: number;
   customHeightMm: number;
+  /** C6-bis : nom du produit affiché (réglage du modèle étiquettes). */
+  showName: boolean;
+  /** C6-bis : prix affiché (réglage du modèle étiquettes). */
+  showPrice: boolean;
 } {
   const parsed = labelsPayloadSchema.parse(raw);
   let total = 0;
@@ -36,9 +40,10 @@ export function labelsOf(raw: unknown): {
   if (total > 200) {
     throw new Error("Trop d'étiquettes : 200 maximum par lot.");
   }
-  // C6 : le modèle étiquette peut activer le QR par défaut (payload prioritaire).
-  const tplQr = activeTemplateSettings("etiquette").showQr;
-  const wantQr = parsed.qr || tplQr;
+  // C6 : le modèle étiquette pilote le QR par défaut (payload prioritaire)
+  // et l'affichage nom/prix de la planche.
+  const tpl = activeTemplateSettings("etiquette");
+  const wantQr = parsed.qr || tpl.showQr;
   // C5 : QR opt-in — un SVG par code-barres distinct (cache local).
   const qrCache = new Map<string, string>();
   const qrOf = (barcode: string): string => {
@@ -64,6 +69,25 @@ export function labelsOf(raw: unknown): {
     format: parsed.format,
     customWidthMm: parsed.customWidthMm,
     customHeightMm: parsed.customHeightMm,
+    showName: tpl.showProductName,
+    showPrice: tpl.showPrice,
+  };
+}
+
+/** Options de planche étiquettes (gabarit + réglages du modèle) — point unique. */
+export function labelOptsOf(l: ReturnType<typeof labelsOf>): {
+  format: LabelFormat;
+  customWidthMm: number;
+  customHeightMm: number;
+  showName: boolean;
+  showPrice: boolean;
+} {
+  return {
+    format: l.format,
+    customWidthMm: l.customWidthMm,
+    customHeightMm: l.customHeightMm,
+    showName: l.showName,
+    showPrice: l.showPrice,
   };
 }
 
@@ -112,11 +136,7 @@ export function registerReportsLabelsIpc(getMainWindow: () => BrowserWindow | nu
       return {
         ok: true,
         data: {
-          html: buildLabelsHtml(l.items, {
-            format: l.format,
-            customWidthMm: l.customWidthMm,
-            customHeightMm: l.customHeightMm,
-          }),
+          html: buildLabelsHtml(l.items, labelOptsOf(l)),
         },
       };
     } catch (err) {
@@ -138,11 +158,7 @@ export function registerReportsLabelsIpc(getMainWindow: () => BrowserWindow | nu
       // 1 étiquette = 1 job = 1 avance papier (même fenêtre cachée).
       // Plusieurs étiquettes sur une seule page Chromium se retrouvaient
       // sur une page pilote trop grande → 2 demandées = 1 sortie.
-      const labelOpts = {
-        format: l.format,
-        customWidthMm: l.customWidthMm,
-        customHeightMm: l.customHeightMm,
-      };
+      const labelOpts = labelOptsOf(l);
       const microns = labelPageMicrons(labelOpts);
       await printHtmlPages(
         l.items.map((item) => ({

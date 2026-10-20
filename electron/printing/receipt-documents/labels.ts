@@ -2,6 +2,7 @@
 
 import { code128Svg, sanitizeCode128 } from "./barcode128";
 import { fmtDzd } from "./chrome";
+import { escapeHtml } from "./html";
 
 // ---------------------------------------------------------------------------
 // Étiquettes code-barres : gabarits thermiques uniquement — l'A4 est banni
@@ -26,6 +27,10 @@ export interface LabelOptions {
   format?: LabelFormat | undefined;
   customWidthMm?: number | undefined;
   customHeightMm?: number | undefined;
+  /** C6-bis : nom du produit (opt-in — petits gabarits sans place). */
+  showName?: boolean | undefined;
+  /** C6-bis : prix (défaut : affiché, rendu historique). */
+  showPrice?: boolean | undefined;
 }
 
 /** Dimensions réelles du format (mm) — source unique CSS + microns. */
@@ -76,6 +81,8 @@ function labelPageStyle(opts: LabelOptions): {
 
 export function buildLabelsHtml(items: LabelItem[], opts?: LabelOptions): string {
   const st = labelPageStyle(opts ?? {});
+  const withName = opts?.showName === true;
+  const withPrice = opts?.showPrice !== false;
   // Thermique rouleau : 1 étiquette = 1 page physique (pas de marge CSS —
   // le format exact est imposé via pageSize microns côté main). Sans
   // `break-after`, Chromium faisait déborder le contenu (marges 5mm +
@@ -88,7 +95,11 @@ export function buildLabelsHtml(items: LabelItem[], opts?: LabelOptions): string
         typeof it.qrSvg === "string" && it.qrSvg.startsWith("<svg")
           ? `<div class="lqr">${it.qrSvg}</div>`
           : "";
-      return `<div class="label"><div class="lprice" style="font-size:${st.pricePx}px">${fmtDzd(it.priceMinor)}</div>${svg}${qr}</div>`;
+      const name = withName ? `<div class="lname">${escapeHtml(it.name)}</div>` : "";
+      const price = withPrice
+        ? `<div class="lprice" style="font-size:${st.pricePx}px">${fmtDzd(it.priceMinor)}</div>`
+        : "";
+      return `<div class="label">${name}${price}${svg}${qr}</div>`;
     })
     .join("");
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8">
@@ -98,6 +109,7 @@ export function buildLabelsHtml(items: LabelItem[], opts?: LabelOptions): string
 .sheet{display:grid;grid-template-columns:1fr;gap:6px}
 .label{padding:8px 12px;margin:0 2mm;border:1px solid #000;border-radius:4px;text-align:center;overflow:hidden;page-break-inside:avoid;background:#fff;color:#000}
 .label img{filter:grayscale(1) contrast(1.15)}
+.lname{font-size:10px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#000;margin-bottom:1px}
 .lprice{font-weight:bold;margin:2px 0;color:#000}
 .label svg{max-width:100%;height:auto}
 .lqr svg{width:64px;height:64px}</style>

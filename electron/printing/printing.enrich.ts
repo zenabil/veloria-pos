@@ -149,18 +149,23 @@ export function qrSvgOf(text: string, cell: number): string {
   return svg;
 }
 
-/** Logo entreprise en data URL (meilleur effort, aperçu + impression). */
-export function withLogo(d: ReceiptData): ReceiptData {
+/** Logo entreprise en data URL ("" si absent/illisible) — meilleur effort. */
+export function companyLogoDataUrl(): string {
   try {
     const row = getDb().prepare(`SELECT logo_path FROM company_profile WHERE id = 1`).get() as
       | { logo_path: string | null }
       | undefined;
-    const dataUrl = readLogoDataUrlFromFile(row?.logo_path);
-    return dataUrl ? { ...d, companyLogo: dataUrl } : d;
+    return readLogoDataUrlFromFile(row?.logo_path) ?? "";
   } catch (err) {
     log("WARN", "printing", "logo.unreadable", { error: String(err) });
-    return d;
+    return "";
   }
+}
+
+/** Logo entreprise en data URL (meilleur effort, aperçu + impression). */
+export function withLogo(d: ReceiptData): ReceiptData {
+  const dataUrl = companyLogoDataUrl();
+  return dataUrl ? { ...d, companyLogo: dataUrl } : d;
 }
 
 /**
@@ -206,16 +211,8 @@ export function enrichReceipt(raw: unknown): ReceiptData {
 
 /** Reçu de règlement : même pipeline logo+identité+réglages que les factures. */
 export function withLogoPayment<T extends { companyLogo: string }>(d: T): T {
-  try {
-    const row = getDb().prepare(`SELECT logo_path FROM company_profile WHERE id = 1`).get() as
-      | { logo_path: string | null }
-      | undefined;
-    const dataUrl = readLogoDataUrlFromFile(row?.logo_path);
-    return dataUrl ? { ...d, companyLogo: dataUrl } : d;
-  } catch (err) {
-    log("WARN", "printing", "logo.unreadable", { error: String(err) });
-    return d;
-  }
+  const dataUrl = companyLogoDataUrl();
+  return dataUrl ? { ...d, companyLogo: dataUrl } : d;
 }
 
 export function withCompanyIdentityPayment<
@@ -282,6 +279,9 @@ export function receiptCodes(d: ReceiptData): {
   qrSvg: string;
   qrPayload: string;
 } {
-  if (d.qrOff === true) return { barcode: d.invoice, qrSvg: "", qrPayload: "" };
-  return { barcode: d.invoice, qrSvg: d.qrSvg ?? "", qrPayload: d.qrPayload || buildQrPayload(d) };
+  // Interrupteur Studio « Code-barres » (C6) : le Code 39 disparaît, le QR
+  // reste piloté par son propre interrupteur (qrOff).
+  const barcode = d.codesOff === true ? "" : d.invoice;
+  if (d.qrOff === true) return { barcode, qrSvg: "", qrPayload: "" };
+  return { barcode, qrSvg: d.qrSvg ?? "", qrPayload: d.qrPayload || buildQrPayload(d) };
 }

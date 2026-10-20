@@ -8,13 +8,19 @@ import { paymentTicketSchema } from "../ipc/validators";
 import { guardPrint, isValidationError, unavailable, validationError } from "./printing.guards";
 import { enforceRawChannelGates } from "../ipc/raw-guards";
 import { assertConfiguredPrinterAvailable } from "./printing.printer-settings";
-import { applyTemplateToPayment, printCopies, templateRenderOf } from "./printing.templates";
+import {
+  applyTemplateToPayment,
+  printCopies,
+  templateRenderOf,
+  thermalDocumentHtml,
+} from "./printing.templates";
 import {
   applyPaymentSettings,
+  companyLogoDataUrl,
   withCompanyIdentityPayment,
   withLogoPayment,
 } from "./printing.enrich";
-import { buildPaymentText, thermalHtml, toPaymentTicketData } from "./receipt-documents";
+import { buildPaymentText, toPaymentTicketData } from "./receipt-documents";
 
 // Reçu de règlement de dette (ticket تسديد الدين) : aperçu + impression
 // ticket 58/80mm uniquement (jamais A4) après encaissement client /
@@ -103,7 +109,13 @@ export function registerPaymentIpc(getMainWindow: () => BrowserWindow | null): v
         ? codes
         : { barcode: "", qrSvg: codes.qrSvg, qrPayload: codes.qrPayload };
       await printCopies(
-        thermalHtml(text80, width, visible, settings.thermalFontPx),
+        thermalDocumentHtml({
+          settings,
+          width,
+          text: text80,
+          codes: visible,
+          logo: companyLogoDataUrl(),
+        }),
         settings.copies,
         300,
       );

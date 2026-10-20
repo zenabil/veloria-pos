@@ -19,6 +19,7 @@ import {
   printCopies,
   printHtml,
   templateRenderOf,
+  thermalDocumentHtml,
 } from "./printing.templates";
 import { applyInvoiceSettings, withCompanyIdentity, withLogo, withQr } from "./printing.enrich";
 import {
@@ -123,12 +124,13 @@ export function registerLogisticsIpc(getMainWindow: () => BrowserWindow | null):
       const d = logisticsOf(raw, "delivery");
       const { settings, width } = templateRenderOf("bon_livraison");
       await printCopies(
-        thermalHtml(
-          buildDeliveryText(d, width),
+        thermalDocumentHtml({
+          settings,
           width,
-          logiCodes(d, d.invoice),
-          settings.thermalFontPx,
-        ),
+          text: buildDeliveryText(d, width),
+          codes: logiCodes(d, d.invoice),
+          logo: d.companyLogo,
+        }),
         settings.copies,
         300,
       );
@@ -170,12 +172,13 @@ export function registerLogisticsIpc(getMainWindow: () => BrowserWindow | null):
       const d = logisticsOf(raw, "return");
       const { settings, width } = templateRenderOf("avoir");
       await printCopies(
-        thermalHtml(
-          buildReturnSlipText(d, width),
+        thermalDocumentHtml({
+          settings,
           width,
-          logiCodes(d, d.returnNumber || d.invoice),
-          settings.thermalFontPx,
-        ),
+          text: buildReturnSlipText(d, width),
+          codes: logiCodes(d, d.returnNumber || d.invoice),
+          logo: d.companyLogo,
+        }),
         settings.copies,
         300,
       );

@@ -21,8 +21,8 @@ import {
   printCopies,
   printHtml,
   receiptTextOf,
-  renderCopies,
   templateRenderOf,
+  thermalDocumentHtml,
 } from "./printing.templates";
 import { buildReceiptText, thermalHtml } from "./receipt-documents";
 
@@ -61,10 +61,16 @@ export function registerReceiptIpc(getMainWindow: () => BrowserWindow | null): v
     try {
       await assertConfiguredPrinterAvailable(getMainWindow);
       const d = applyTemplateToReceipt("ticket", enrichReceipt(raw));
-      const { width } = templateRenderOf("ticket");
+      const { settings, width } = templateRenderOf("ticket");
       await printCopies(
-        thermalHtml(receiptTextOf(d, width), width, receiptCodes(d)),
-        renderCopies("ticket"),
+        thermalDocumentHtml({
+          settings,
+          width,
+          text: receiptTextOf(d, width),
+          codes: receiptCodes(d),
+          logo: d.companyLogo,
+        }),
+        settings.copies,
         300,
       );
       return { ok: true, data: { printed: true } };

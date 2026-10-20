@@ -7,12 +7,12 @@ import { Copy, FileDown, FileUp, Printer, RotateCcw, Trash2 } from "lucide-react
 import { api } from "@shared/types/ipc-client.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import {
-  allowedPapers,
   factorySettings,
   mergeTemplateSettings,
   type TemplateDocType,
   type TemplateSettings,
 } from "@domain/print/template-rules.ts";
+import { TemplateSettingsPanel } from "./TemplateSettingsPanel.tsx";
 import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
 import { PrinterCard } from "@shared/printer/PrinterCard.tsx";
 import {
@@ -46,29 +46,6 @@ interface TemplateView {
   is_factory: number;
   is_active: number;
   updated_at: string;
-}
-
-function Toggle({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: boolean;
-  onChange: (v: boolean) => void;
-}): React.JSX.Element {
-  return (
-    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm">
-      <span className="font-semibold text-slate-200">{label}</span>
-      <input
-        type="checkbox"
-        checked={value}
-        onChange={(e) => onChange(e.target.checked)}
-        aria-label={label}
-        className="h-4 w-4 accent-amber-400"
-      />
-    </label>
-  );
 }
 
 export function PrintTemplatesScreen({ notify }: { notify: Notify }): React.JSX.Element {
@@ -330,10 +307,6 @@ export function PrintTemplatesScreen({ notify }: { notify: Notify }): React.JSX.
     }
   }
 
-  const papers = allowedPapers(docType);
-  // Devis = A4 ; étiquettes = gabarit thermique ; le reste = ticket 58/80.
-  const isThermalDoc = docType !== "proforma" && docType !== "etiquette";
-
   return (
     <div className="space-y-4">
       <PageHeader
@@ -471,138 +444,7 @@ export function PrintTemplatesScreen({ notify }: { notify: Notify }): React.JSX.
       </div>
 
       <div className="grid gap-3 xl:grid-cols-[1fr_1.2fr]">
-        <Card className="space-y-3 p-4">
-          <div className="text-[15px] font-bold text-[#ffe1a7]">Réglages du modèle</div>
-          <Field label="Papier / format">
-            <Select
-              value={draft.paper}
-              onChange={(e) => edit({ paper: e.target.value as TemplateSettings["paper"] })}
-              aria-label="Papier"
-            >
-              {papers.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <div className="grid grid-cols-3 gap-2">
-            <Field label="Exemplaires">
-              <Select
-                value={draft.copies}
-                onChange={(e) => edit({ copies: Number(e.target.value) })}
-                aria-label="Exemplaires"
-              >
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="Marges (mm)">
-              <Select
-                value={draft.marginMm}
-                onChange={(e) => edit({ marginMm: Number(e.target.value) })}
-                aria-label="Marges"
-              >
-                {[5, 10, 15, 20, 25].map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="Logo">
-              <Select
-                value={draft.logoSize}
-                onChange={(e) => edit({ logoSize: e.target.value as TemplateSettings["logoSize"] })}
-                aria-label="Taille du logo"
-              >
-                <option value="S">Petit</option>
-                <option value="M">Moyen</option>
-                <option value="L">Grand</option>
-              </Select>
-            </Field>
-          </div>
-          {isThermalDoc ? (
-            <Field label="Police thermique (px)">
-              <Select
-                value={draft.thermalFontPx}
-                onChange={(e) => edit({ thermalFontPx: Number(e.target.value) })}
-                aria-label="Police thermique"
-              >
-                {[9, 10, 11, 12, 13, 14].map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-          ) : null}
-          <div className="grid gap-2 sm:grid-cols-2">
-            <Toggle label="Logo" value={draft.showLogo} onChange={(v) => edit({ showLogo: v })} />
-            <Toggle
-              label="RC / NIF / NIS"
-              value={draft.showIdentity}
-              onChange={(v) => edit({ showIdentity: v })}
-            />
-            <Toggle label="TVA" value={draft.showTva} onChange={(v) => edit({ showTva: v })} />
-            <Toggle
-              label="Lignes à zéro"
-              value={draft.showDiscountZero}
-              onChange={(v) => edit({ showDiscountZero: v })}
-            />
-            <Toggle label="QR" value={draft.showQr} onChange={(v) => edit({ showQr: v })} />
-            <Toggle
-              label="Code-barres"
-              value={draft.showCodes}
-              onChange={(v) => edit({ showCodes: v })}
-            />
-            <Toggle
-              label="Signatures"
-              value={draft.showSignatures}
-              onChange={(v) => edit({ showSignatures: v })}
-            />
-            <Toggle
-              label="Filigrane"
-              value={draft.showWatermark}
-              onChange={(v) => edit({ showWatermark: v })}
-            />
-          </div>
-          {draft.showWatermark ? (
-            <Field label="Texte du filigrane">
-              <TextInput
-                value={draft.watermarkText}
-                onChange={(e) => edit({ watermarkText: e.target.value })}
-                aria-label="Filigrane"
-                maxLength={60}
-                placeholder="Ex. DUPLICATA"
-              />
-            </Field>
-          ) : null}
-          <Field label="Note d'en-tête" hint="Sous le cartouche, centrée.">
-            <TextInput
-              value={draft.headerText}
-              onChange={(e) => edit({ headerText: e.target.value })}
-              aria-label="Note d'en-tête"
-              maxLength={200}
-              placeholder="Ex. PROMO — paiement espèces uniquement"
-            />
-          </Field>
-          <Field label="Pied de page du modèle" hint="Vide = pied des paramètres.">
-            <TextInput
-              value={draft.footerText}
-              onChange={(e) => edit({ footerText: e.target.value })}
-              aria-label="Pied de page"
-              maxLength={300}
-            />
-          </Field>
-          <p className="text-xs text-slate-500">
-            N&B strict (imprimantes thermiques). Couleurs et polices verrouillées par conception —
-            lisibilité fiscale garantie.
-          </p>
-        </Card>
+        <TemplateSettingsPanel docType={docType} draft={draft} onEdit={edit} />
 
         <Card className="space-y-2 p-4">
           <div className="text-[15px] font-bold text-[#ffe1a7]">
@@ -614,6 +456,9 @@ export function PrintTemplatesScreen({ notify }: { notify: Notify }): React.JSX.
               : docType === "etiquette"
                 ? "Étiquettes : gabarit thermique — jamais A4."
                 : "Ticket 58/80 mm uniquement — jamais A4 (choix 58/80 via le papier)."}
+            {docType !== "proforma" && docType !== "etiquette"
+              ? " Le logo et le filigrane (si activés) sortent à l'impression — l'aperçu texte ne les montre pas."
+              : ""}
           </p>
           {preview?.htmlA4 ? (
             <iframe

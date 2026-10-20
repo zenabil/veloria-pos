@@ -12,13 +12,22 @@ import {
   TEMPLATE_DOC_TYPES,
 } from "@domain/print/template-rules.ts";
 import {
+  applicableSettings,
+  isTemplateSettingApplicable,
+  NEUTRAL_SETTING_VALUES,
+} from "@domain/print/template-capabilities.ts";
+import {
+  buildDeliveryText,
   buildLabelsHtml,
+  buildPaymentText,
   buildProformaA4Html,
+  buildReceiptText,
   docQrPayload,
   logoMaxHeight,
   pageAtRule,
   proformaFromReceipt,
   signsHtml,
+  thermalLogo,
   watermarkHtml,
   headerNoteHtml,
   type ReceiptData,
@@ -177,5 +186,193 @@ describe("C6 builders : options Studio explicites", () => {
     const item = { name: "Sucre", priceMinor: 10_000, barcode: "ABC" };
     expect(buildLabelsHtml([item], { format: "58x30" })).not.toContain('class="lqr"');
     expect(buildLabelsHtml([{ ...item, qrSvg: "<svg></svg>" }], {})).toContain("lqr");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// C6-bis : chaque type de document n'expose que les réglages qui le concernent
+// (matrice de capacités) — et ceux qui restent prennent effet sur le papier.
+// ---------------------------------------------------------------------------
+
+describe("C6-bis capacités : seuls les réglages utiles au document", () => {
+  it("la TVA n'existe ni sur un reçu de règlement ni sur une étiquette", () => {
+    expect(isTemplateSettingApplicable("recu", "showTva")).toBe(false);
+    expect(isTemplateSettingApplicable("etiquette", "showTva")).toBe(false);
+    expect(isTemplateSettingApplicable("bon_livraison", "showTva")).toBe(false);
+    expect(isTemplateSettingApplicable("ticket", "showTva")).toBe(true);
+    expect(isTemplateSettingApplicable("avoir", "showTva")).toBe(true);
+    expect(isTemplateSettingApplicable("proforma", "showTva")).toBe(true);
+    // Remise nulle : un réglage de devis, pas de reçu.
+    expect(isTemplateSettingApplicable("proforma", "showDiscountZero")).toBe(true);
+    expect(isTemplateSettingApplicable("recu", "showDiscountZero")).toBe(false);
+  });
+
+  it("nom du produit = étiquette ; prix = étiquettes + livraison", () => {
+    expect(isTemplateSettingApplicable("etiquette", "showProductName")).toBe(true);
+    expect(isTemplateSettingApplicable("ticket", "showProductName")).toBe(false);
+    expect(isTemplateSettingApplicable("etiquette", "showPrice")).toBe(true);
+    expect(isTemplateSettingApplicable("bon_livraison", "showPrice")).toBe(true);
+    expect(isTemplateSettingApplicable("avoir", "showPrice")).toBe(false);
+    expect(isTemplateSettingApplicable("proforma", "showPrice")).toBe(false);
+  });
+
+  it("logo, identité, en-tête, signatures : jamais sur une étiquette", () => {
+    for (const key of [
+      "showLogo",
+      "showIdentity",
+      "headerText",
+      "footerText",
+      "showSignatures",
+      "watermarkText",
+    ] as const) {
+      expect(applicableSettings("etiquette"), key).not.toContain(key);
+    }
+    for (const key of ["showLogo", "showIdentity", "headerText", "footerText"] as const) {
+      expect(applicableSettings("ticket"), key).toContain(key);
+      expect(applicableSettings("recu"), key).toContain(key);
+      expect(applicableSettings("avoir"), key).toContain(key);
+      expect(applicableSettings("bon_livraison"), key).toContain(key);
+    }
+  });
+
+  it("fusion : un réglage hors sujet retombe sur sa valeur neutre (jamais de résidu)", () => {
+    const recu = mergeTemplateSettings("recu", {
+      showTva: true,
+      showDiscountZero: false,
+      showProductName: true,
+      thermalFontPx: 13,
+    });
+    expect(recu.showTva).toBe(NEUTRAL_SETTING_VALUES.showTva);
+    expect(recu.showDiscountZero).toBe(NEUTRAL_SETTING_VALUES.showDiscountZero);
+    expect(recu.showProductName).toBe(NEUTRAL_SETTING_VALUES.showProductName);
+    // Restés dans leur domaine : conservés.
+    expect(recu.thermalFontPx).toBe(13);
+    const etq = mergeTemplateSettings("etiquette", {
+      showLogo: true,
+      showIdentity: true,
+      headerText: "PROMO",
+      showSignatures: true,
+      watermarkText: "COPIE",
+    });
+    expect(etq.showLogo).toBe(false);
+    expect(etq.showIdentity).toBe(false);
+    expect(etq.headerText).toBe("");
+    expect(etq.showSignatures).toBe(false);
+    expect(etq.watermarkText).toBe("");
+    expect(mergeTemplateSettings("etiquette", { showProductName: true }).showProductName).toBe(
+      true,
+    );
+  });
+
+  it("défauts d'usine : capacités thermiques opt-in, rendu existant préservé", () => {
+    for (const t of ["ticket", "recu", "avoir", "bon_livraison"] as const) {
+      expect(factorySettings(t).showLogo, t).toBe(false);
+      expect(factorySettings(t).showSignatures, t).toBe(false);
+      expect(factorySettings(t).showWatermark, t).toBe(false);
+    }
+    // L'identité était déjà imprimée sur la vente → défaut conservé ; elle est
+    // nouvelle sur règlement / retour / livraison → opt-in.
+    expect(factorySettings("ticket").showIdentity).toBe(true);
+    expect(factorySettings("recu").showIdentity).toBe(false);
+    expect(factorySettings("avoir").showIdentity).toBe(false);
+    expect(factorySettings("bon_livraison").showIdentity).toBe(false);
+    // Étiquettes : nom opt-in, prix affiché par défaut.
+    expect(factorySettings("etiquette").showProductName).toBe(false);
+    expect(factorySettings("etiquette").showPrice).toBe(true);
+    // Devis A4 : rendu historique (logo + signatures déjà imprimés).
+    expect(factorySettings("proforma").showLogo).toBe(true);
+    expect(factorySettings("proforma").showSignatures).toBe(true);
+  });
+});
+
+describe("C6-bis builders : les réglages retenus prennent effet", () => {
+  it("livraison sans prix : quantités seules + total quantité", () => {
+    const doc = { ...BASE, originNumber: "FAC-2026-00001" };
+    const priced = buildDeliveryText(doc);
+    expect(priced).toContain("PRODUIT · QTÉ x P.U. = TOTAL");
+    expect(priced).toContain("100,00 DA");
+    const qty = buildDeliveryText({ ...doc, hidePrices: true });
+    expect(qty).toContain("PRODUIT · QTÉ");
+    expect(qty).not.toContain("P.U.");
+    expect(qty).not.toContain("100,00 DA");
+    expect(qty).toContain("TOTAL QUANTITÉ");
+  });
+
+  it("ticket : pied du modèle, filigrane en bandeau, signatures opt-in", () => {
+    const bare = buildReceiptText({ ...BASE, hideSigns: true });
+    expect(bare).not.toContain("Signature client");
+    const full = buildReceiptText({
+      ...BASE,
+      footerNote: "Pied du modèle",
+      watermark: "DUPLICATA",
+      hideSigns: false,
+    });
+    expect(full).toContain("Pied du modèle");
+    expect(full).toContain("*** DUPLICATA ***");
+    expect(full).toContain("Signature client");
+    expect(full).toContain("Cachet / Signature");
+    // En-tête du modèle sous le cartouche.
+    expect(buildReceiptText({ ...BASE, headerNote: "PROMO" })).toContain("PROMO");
+  });
+
+  it("reçu de règlement : pied du modèle + signatures masquées par défaut", () => {
+    const ticket = {
+      company: "Veloria",
+      companyPhone: "",
+      companyAddress: "",
+      companyCity: "",
+      companyEmail: "",
+      companyRc: "",
+      companyNif: "",
+      companyLogo: "",
+      partyLabel: "Amine — CL-00001",
+      kind: "customer" as const,
+      reference: "PAY-00042",
+      date: "03/10/2026",
+      amountMinor: 5000,
+      paymentMethod: "cash" as const,
+      prevBalanceMinor: 15_000,
+      newBalanceMinor: 10_000,
+      notes: "",
+      footerText: "",
+      thankYouMessage: "",
+    };
+    const plain = buildPaymentText({ ...ticket, hideSigns: true });
+    expect(plain).toContain("Merci pour votre règlement");
+    expect(plain).not.toContain("Signature");
+    const full = buildPaymentText({
+      ...ticket,
+      footerNote: "Reçu du modèle",
+      watermark: "DUPLICATA",
+      hideSigns: false,
+    });
+    expect(full).toContain("Reçu du modèle");
+    expect(full).toContain("*** DUPLICATA ***");
+    expect(full).toContain("Cachet / Signature");
+  });
+
+  it("logo thermique : data URL N&B seulement, taille S/M/L", () => {
+    expect(thermalLogo("data:image/png;base64,QUJD", "L", 280)).toContain("max-height:96px");
+    expect(thermalLogo("data:image/png;base64,QUJD", "S", 200)).toContain("max-height:48px");
+    expect(thermalLogo("data:image/png;base64,QUJD", "M", 280)).toContain("max-height:64px");
+    // Injection : jamais de HTML/URL arbitraire (même garde que le A4).
+    expect(thermalLogo("javascript:alert(1)", "M", 280)).toBe("");
+    expect(thermalLogo('<img src=x onerror="x">', "M", 280)).toBe("");
+    expect(thermalLogo(undefined, "M", 280)).toBe("");
+  });
+
+  it("étiquettes : nom échappé opt-in, prix masquable", () => {
+    const item = { name: "<b>Sucre</b>", priceMinor: 10_000, barcode: "ABC" };
+    const withName = buildLabelsHtml([item], {
+      format: "58x30",
+      showName: true,
+      showPrice: false,
+    });
+    expect(withName).toContain("&lt;b&gt;Sucre&lt;/b&gt;");
+    expect(withName).not.toContain("100,00");
+    // Rendu historique sans option : prix seul, jamais le nom.
+    const bare = buildLabelsHtml([item], { format: "58x30" });
+    expect(bare).not.toContain("Sucre");
+    expect(bare).toContain("100,00");
   });
 });

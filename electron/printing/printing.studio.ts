@@ -14,16 +14,13 @@ import {
   activeTemplateSettings,
   mergeTemplateMirror,
   printHtml,
-  templateRenderOf,
+  thermalDocumentHtml,
+  thermalWidthFor,
   type TemplateSettings,
 } from "./printing.templates";
+import { companyLogoDataUrl } from "./printing.enrich";
 import { renderTemplateSample } from "./printing.samples";
-import {
-  LABEL_FORMATS,
-  labelPageMicrons,
-  thermalHtml,
-  type LabelFormat,
-} from "./receipt-documents";
+import { LABEL_FORMATS, labelPageMicrons, type LabelFormat } from "./receipt-documents";
 
 /** Papier modèle → gabarit étiquette (défaut 58×30 si valeur inattendue). */
 function labelFormatOf(paper: string): LabelFormat {
@@ -73,14 +70,17 @@ export function registerStudioIpc(getMainWindow: () => BrowserWindow | null): vo
         // Seul le devis reste en A4 ; tout le reste est thermique 58/80.
         await printHtml(html.htmlA4, 400);
       } else {
-        const { width } = templateRenderOf(input.docType);
+        // Papier du modèle (58/80) : même enveloppe que l'impression réelle —
+        // logo de l'entreprise compris s'il est activé (opt-in thermique).
+        const width = thermalWidthFor(s.paper);
         await printHtml(
-          thermalHtml(
-            html.text80,
+          thermalDocumentHtml({
+            settings: s,
             width,
-            { barcode: "TEST", qrSvg: "", qrPayload: "" },
-            s.thermalFontPx,
-          ),
+            text: html.text80,
+            codes: { barcode: "TEST", qrSvg: "", qrPayload: "" },
+            logo: companyLogoDataUrl(),
+          }),
           300,
         );
       }

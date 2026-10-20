@@ -79,6 +79,81 @@ export function thermalSep(cols: number): string {
   return "-".repeat(cols);
 }
 
+/** Ligne(s) centrée(s) : note d'en-tête Studio (jamais tronquée). */
+export function thermalCenter(text: string, cols: number): string[] {
+  return wrapThermal(text, cols).map((l) =>
+    l.length >= cols ? l : `${" ".repeat(Math.floor((cols - l.length) / 2))}${l}`,
+  );
+}
+
+/**
+ * Filigrane thermique : la transparence n'existe pas sur un rouleau — le
+ * filigrane sort en bandeau encadré (« DUPLICATA »). Vide = aucune ligne.
+ */
+export function thermalWatermark(text: string | undefined, cols: number): string[] {
+  const t = typeof text === "string" ? text.trim().slice(0, 60) : "";
+  if (!t) return [];
+  return [thermalSep(cols), ...thermalCenter(`*** ${t} ***`, cols), thermalSep(cols)];
+}
+
+/** Signatures masquables : deux lignes pointillées (jamais coupées). */
+export function thermalSigns(cols: number, left: string, right: string, hide?: boolean): string[] {
+  if (hide === true) return [];
+  const line = (label: string): string[] => {
+    const dots = ".".repeat(Math.max(4, cols - label.length - 3));
+    return thermalField(label, dots, cols);
+  };
+  return [...line(left), ...line(right)];
+}
+
+/** Pied thermique Studio : remerciement, pied du modèle, filigrane, signatures. */
+export interface ThermalFooterInput {
+  thankYouMessage?: string | undefined;
+  footerNote?: string | undefined;
+  watermark?: string | undefined;
+  hideSigns?: boolean | undefined;
+  /** Remerciement : hors sujet pour un document logistique (false = muet). */
+  withThanks?: boolean | undefined;
+}
+
+export function thermalFooterBlock(
+  d: ThermalFooterInput,
+  cols: number,
+  fallbackThanks: readonly string[],
+  signs: readonly [string, string] = ["Signature client", "Cachet / Signature"],
+): string[] {
+  const out: string[] = [];
+  if (d.withThanks !== false) {
+    const thanks =
+      typeof d.thankYouMessage === "string" && d.thankYouMessage.trim() !== ""
+        ? d.thankYouMessage
+        : "";
+    if (thanks) out.push(...wrapThermal(thanks, cols));
+    else out.push(...fallbackThanks);
+  }
+  const note = typeof d.footerNote === "string" ? d.footerNote.trim() : "";
+  if (note) out.push(...wrapThermal(note, cols));
+  const wm = thermalWatermark(d.watermark, cols);
+  if (wm.length > 0) out.push(...wm);
+  out.push(...thermalSigns(cols, signs[0], signs[1], d.hideSigns));
+  return out;
+}
+
+/**
+ * Logo thermique : uniquement un data URL PNG/JPEG (même garde que le A4),
+ * N&B forcé (grayscale + contraste) — jamais de contenu arbitraire injecté.
+ */
+export function thermalLogo(
+  logo: string | undefined,
+  logoSize: string | undefined,
+  maxWidthPx: number,
+): string {
+  if (typeof logo !== "string") return "";
+  if (!/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(logo)) return "";
+  const maxH = logoSize === "S" ? 48 : logoSize === "L" ? 96 : 64;
+  return `<div style="text-align:center"><img src="${logo}" alt="Logo" style="max-height:${maxH}px;max-width:${maxWidthPx}px;object-fit:contain;filter:grayscale(1) contrast(1.15)" /></div>`;
+}
+
 /**
  * Ticket thermique HTML (N&B strict) : texte monospace + codes scannables.
  * Chaque document thermique porte son Code 39 (N° du document) + son QR —
@@ -94,6 +169,8 @@ export function thermalHtml(
   },
   /** C6 : taille de police thermique Studio (9–14px, défaut 12/11). */
   fontPx?: number,
+  /** C6-bis : logo Studio (opt-in) — au-dessus du texte, comme à l'impression. */
+  chrome?: { logo?: string | undefined; logoSize?: string | undefined },
 ): string {
   const w: ThermalWidth = width === "58mm" ? "58mm" : "80mm";
   const px =
@@ -109,6 +186,8 @@ export function thermalHtml(
   const bar = codes?.barcode ? code39Svg(codes.barcode, 40) : "";
   const qr = codes?.qrSvg && codes.qrSvg.startsWith("<svg") ? codes.qrSvg : "";
   const payload = codes?.qrPayload ?? "";
+  const maxW = w === "58mm" ? 200 : 280;
+  const logo = thermalLogo(chrome?.logo, chrome?.logoSize, maxW);
   const blocks =
     bar || qr
       ? `<div style="text-align:center;background:#fff;max-width:${w === "58mm" ? "200px" : "280px"}">` +
@@ -119,5 +198,5 @@ export function thermalHtml(
           : "") +
         `</div>`
       : "";
-  return `<div style="background:#fff;color:#000"><pre style="${style}">${escapePreText(text)}</pre>${blocks}</div>`;
+  return `<div style="background:#fff;color:#000">${logo}<pre style="${style}">${escapePreText(text)}</pre>${blocks}</div>`;
 }
