@@ -48,7 +48,20 @@ export function enforceRawChannelGates(channel: string, input: unknown): RawDeni
   }
 }
 
-/** Canaux bruts couverts (garde-fou de revue : tout nouveau handler brut doit s'y ajouter). */
+/**
+ * Canaux bruts COUVERTS par la garde `enforceRawChannelGates`.
+ *
+ * G-01 / B-01 / G-12 (audit 2026-10-19) : cette liste n'était lue par AUCUN
+ * code (constante décorative). Elle est désormais APPLIQUÉE par le test
+ * `tests/unit/raw-guarded-channels.test.ts`, qui :
+ *   1. scanne TOUS les fichiers `electron/` et en extrait les
+ *      `ipcMain.handle(IPC_CHANNELS["x"])` (les canaux BRUTS) ;
+ *   2. exige que cette liste soit EXACTEMENT l'ensemble des canaux bruts qui
+ *      appellent `enforceRawChannelGates` (ni plus, ni moins) ;
+ *   3. exige que tout canal brut non gardé figure dans
+ *      `RAW_UNGUARDED_CHANNELS` avec une justification écrite.
+ * ⇒ un nouveau handler brut sans porte fait désormais ÉCHOUER la suite.
+ */
 export const RAW_GUARDED_CHANNELS: readonly string[] = [
   IPC_CHANNELS["backup.create"],
   IPC_CHANNELS["backup.export"],
@@ -85,3 +98,20 @@ export const RAW_GUARDED_CHANNELS: readonly string[] = [
   IPC_CHANNELS["ocr.cancel"],
   IPC_CHANNELS["ocr.dispose"],
 ];
+
+/**
+ * Canaux bruts DÉLIBÉRÉMENT non gardés — chacun avec sa raison (G-12).
+ * Toute ligne ajoutée ici est un choix explicite, revu à chaque vague.
+ */
+export const RAW_UNGUARDED_CHANNELS: Readonly<Record<string, string>> = {
+  [IPC_CHANNELS["backup.list"]]:
+    "Lecture non sensible : nom de fichier de sauvegarde + taille + horodatage (aucun chemin, aucun contenu). Volumétrie d'un seul dossier.",
+  [IPC_CHANNELS["backup.status"]]:
+    "Lecture non sensible (compteur + dernier nom de fichier + horodatage). Lue par le bandeau global de notifications, y compris AVANT session : la garder fermée perdrait l'alerte « sauvegarde en retard ».",
+  [IPC_CHANNELS["printer.get"]]:
+    "Lecture non sensible : nom de l'imprimante sélectionnée (aucun chemin, aucune adresse IP). Le pairs 'printer.save' (écriture) est gardé 'settings'.",
+  [IPC_CHANNELS["recovery.retry"]]:
+    "Chemin de reprise APRÈS CRASH : s'exécute avant toute session (base half-migrated, utilisateur incapable de se connecter). Une porte staff rendrait la reprise impossible.",
+  [IPC_CHANNELS["recovery.exit"]]:
+    "Chemin de reprise APRÈS CRASH : sortie de l'application vers l'assistant de reprise. Aucune donnée lue, aucune écriture.",
+};

@@ -78,4 +78,44 @@ describe("OCR parser", () => {
     const inv = parseInvoiceText("Produit Cher 1000000 10000000.00");
     expect(inv.lines).toHaveLength(0);
   });
+  // ---- W4 : branches non couvertes (barcode en tête de ligne, unité connue,
+  // remise en %, total « Montant » inconnu, remise globale).
+  it("code-barres en tête de ligne : extrait, le nom reste lisible", () => {
+    const inv = parseInvoiceText("6111250223456 Lait Candia 20 95.00");
+    expect(inv.lines).toHaveLength(1);
+    expect(inv.lines[0]?.barcode).toBe("6111250223456");
+    expect(inv.lines[0]?.name).toContain("Candia");
+    expect(inv.lines[0]?.quantity).toBe(20);
+  });
+  it("code-barres seul dans le nom : conservé tel quel, jamais de code orphelin", () => {
+    const inv = parseInvoiceText("6111250223456 A 20 95.00");
+    expect(inv.lines).toHaveLength(1);
+    expect(inv.lines[0]?.barcode).toBeNull();
+    expect(inv.lines[0]?.name).toBe("6111250223456 A");
+  });
+  it("unité connue extraite du nom (KG), U normalisée en PIECE", () => {
+    const kg = parseInvoiceText("Farine KG 10 500.00");
+    expect(kg.lines[0]?.unit).toBe("KG");
+    expect(kg.lines[0]?.name).toBe("Farine");
+    const u = parseInvoiceText("Farine U 10 500.00");
+    expect(u.lines[0]?.unit).toBe("PIECE");
+  });
+  it("remise en pourcentage lue sur la ligne", () => {
+    const inv = parseInvoiceText("Sucre 5 90.00 10%");
+    expect(inv.lines).toHaveLength(1);
+    expect(inv.lines[0]?.discountPct).toBe(10);
+    expect(inv.lines[0]?.quantity).toBe(5);
+    expect(inv.lines[0]?.unitPriceMinor).toBe(9000);
+  });
+  it("total au libellé inconnu (« Montant ») : ni total ni ligne", () => {
+    const inv = parseInvoiceText("Montant 1000.00");
+    expect(inv.lines).toHaveLength(0);
+    expect(inv.totalHtMinor).toBeNull();
+    expect(inv.totalTtcMinor).toBeNull();
+  });
+  it("remise globale lue comme remise (pas comme un total)", () => {
+    const inv = parseInvoiceText("FACTURE\nRemise globale 100.00\nTOTAL TTC 900.00");
+    expect(inv.remiseMinor).toBe(10000);
+    expect(inv.totalTtcMinor).toBe(90000);
+  });
 });

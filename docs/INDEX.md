@@ -128,6 +128,7 @@
 - [ADR-120](./ADR-120-guardes-de-contrat-auto-derivees.md) Gardes de contrat auto-dérivées (les gardes qui ne peuvent pas échouer ne sont pas des gardes)
 - [ADR-121](./ADR-121-remise-globale-devis-repartition-lignes.md) Remise globale de devis : répartition exacte sur les lignes (P0-7)
 - [ADR-122](./ADR-122-verrou-periode-close-unique-telephone-gardes-e36.md) Verrou de période close (Z), unicité du téléphone client, gardes E-36
+- [ADR-123](./ADR-123-couverture-verte-gardes-auto-derivees-tests-miroir.md) Couverture verte, gardes auto-dérivées, tests miroir convertis (W4)
 
 ## Ou ecrire quoi
 

@@ -9,7 +9,12 @@ import path from "node:path";
 import { IPC_CHANNELS } from "../../electron/ipc/channels.ts";
 
 // Push-only events (main -> renderer, webContents.send, never handle()).
-const PUSH_ONLY = new Set(["window.maximizedChanged"]);
+// G-08 : `ocr.progress` est un événement push (electron/ocr/ocr.service.ts :
+// `win.webContents.send(IPC_CHANNELS["ocr.progress"], …)`) — il était absent
+// d'ici, et le test passait pour la MAUVAISE raison (la chaîne
+// `IPC_CHANNELS["ocr.progress"]` apparaissait dans le source, donc le canal
+// comptait comme « servi »). La liste est donc vérifiée explicitement.
+const PUSH_ONLY = new Set(["window.maximizedChanged", "ocr.progress"]);
 
 const SCANNED = [
   "electron/ipc/registry.ts",
@@ -63,6 +68,43 @@ describe("IPC channel inventory (split guard)", () => {
     const handled = new Set(handledChannels(root));
     for (const key of Object.keys(IPC_CHANNELS)) {
       expect(handled.has(key) || PUSH_ONLY.has(key)).toBe(true);
+    }
+  });
+
+  it("G-08 : les canaux push-only sont bien des ÉVÉNEMENTS (jamais handle())", () => {
+    const root = path.resolve(__dirname, "../..");
+    const pushOnly = [...PUSH_ONLY];
+    expect(pushOnly.length).toBeGreaterThan(0);
+    for (const channel of pushOnly) {
+      // 1. Jamais enregistrés comme handler (ni `handle(...)` central, ni
+      //    `ipcMain.handle(...)` brut) : un canal push n'est pas invoquable.
+      for (const rel of SCANNED) {
+        const abs = path.join(root, rel);
+        if (!fs.existsSync(abs)) continue;
+        const text = fs.readFileSync(abs, "utf8");
+        const served = new RegExp(
+          `(?:handle|ipcMain\\.handle)\\(\\s*IPC_CHANNELS\\["${channel.replace(".", "\\.")}"\\]`,
+        ).test(text);
+        expect(served, `${channel} est push-only mais enregistré comme handler (${rel})`).toBe(
+          false,
+        );
+      }
+      // 2. Émis vers le renderer via webContents.send (l'événement existe).
+      const sources = [
+        "electron/ocr/ocr.service.ts",
+        "electron/main.ts",
+        "electron/main/window-manager.ts",
+        "electron/window-manager.ts",
+        "electron/window/window-manager.ts",
+      ];
+      const sent = sources.some((rel) => {
+        const abs = path.join(root, rel);
+        if (!fs.existsSync(abs)) return false;
+        return new RegExp(
+          `webContents\\.send\\(\\s*IPC_CHANNELS\\["${channel.replace(".", "\\.")}"\\]`,
+        ).test(fs.readFileSync(abs, "utf8"));
+      });
+      expect(sent, `${channel} : push-only sans webContents.send`).toBe(true);
     }
   });
 });

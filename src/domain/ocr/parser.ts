@@ -83,7 +83,12 @@ function cleanName(raw: string): string {
 }
 
 function extractBarcode(name: string): { name: string; barcode: string | null } {
-  const m = /(?:^|\s)(\d{8}|\d{12,13,14})(?:\s|$)/.exec(` ${name} `);
+  // W4 : le quantificateur `{12,13,14}` est INVALIDE en JavaScript (3
+  // valeurs ⇒ motif littéral) ⇒ les codes de 12 à 14 chiffres (EAN-13/UPC-A,
+  // le cas réel des factures) n'étaient JAMAIS extraits : seul un code à
+  // 8 chiffres passait. Corrigé en `{12,14}` (12, 13 ou 14 chiffres),
+  // cohérent avec `extractBarcodeCandidates` (matcher.ts, 8→14 chiffres).
+  const m = /(?:^|\s)(\d{8}|\d{12,14})(?:\s|$)/.exec(` ${name} `);
   if (!m) return { name, barcode: null };
   const code = m[1] ?? "";
   const rest = cleanName(name.replace(code, " "));

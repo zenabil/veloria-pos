@@ -16,6 +16,11 @@ const MODULES = [
   "validators.settings.ts",
   "validators.print.ts",
   "validators.templates.ts",
+  // G-03 (P1, audit 2026-10-19) : `validators.staff.ts` était EXCLU de
+  // l'inventaire ⇒ ajouter/supprimer un schéma de l'équipe ne faisait pas
+  // échouer le test (113 gelés pour 121 réels). Le comptage est désormais
+  // exhaustif : tout schéma Zod du main est dans le périmètre.
+  "validators.staff.ts",
 ];
 
 // ADR-075 (2026-10-09) : 125 → 122 (cartsClearSchema, customersImportSchema,
@@ -28,7 +33,9 @@ const MODULES = [
 // canal `sync.pending`, supersédé par le SELECT inline de pushNowAtomic).
 // ADR-121 (2026-10-20) : 113 → 114 (closingReopenSchema ajouté avec le
 // canal `closings.reopen` — réouverture d'une journée close, E-21).
-const FROZEN_SCHEMA_COUNT = 114;
+// ADR-123 (2026-10-20, W4/G-03) : 114 → 121 (`validators.staff.ts` entre
+// dans l'inventaire : les 7 schémas de l'équipe étaient hors comptage).
+const FROZEN_SCHEMA_COUNT = 121;
 const FROZEN_MAX_LINES = 300;
 
 describe("Validators inventory (split guard)", () => {

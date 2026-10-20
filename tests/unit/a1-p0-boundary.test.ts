@@ -148,21 +148,28 @@ describe("A1-P0 frontière Zod : argent borné", () => {
     ).toThrow();
   });
 
-  it("rejette une date d'expiration calendaire impossible", () => {
-    expect(() =>
-      stockIntakeSchema.parse({
-        operationId: "11111111-1111-4111-8111-111111111111",
-        invoiceDate: "2026-10-03",
-        lines: [
-          {
-            productId: 1,
-            productName: "Sucre",
-            quantityReceived: 1,
-            purchasePriceMinor: 100,
-          },
-        ],
-      }),
-    ).not.toThrow();
+  it("rejette une date calendaire impossible (C-05 : le test était creux)", () => {
+    // C-05 (audit 2026-10-19) : le titre annonçait un REJET de date
+    // impossible, mais le corps affirmait `.not.toThrow()` sur une date
+    // VALIDE ⇒ le test passait sans rien prouver. Les deux cas sont
+    // désormais vérifiés : date réelle acceptée, date impossible refusée.
+    const base = {
+      operationId: "11111111-1111-4111-8111-111111111111",
+      invoiceNumber: "F-2026-0001",
+      shippingMinor: 0,
+      lines: [
+        {
+          productId: 1,
+          productName: "Sucre",
+          quantityReceived: 1,
+          quantityDamaged: 0,
+          purchasePriceMinor: 100,
+        },
+      ],
+    };
+    expect(() => stockIntakeSchema.parse({ ...base, invoiceDate: "2026-10-03" })).not.toThrow();
+    expect(() => stockIntakeSchema.parse({ ...base, invoiceDate: "2026-02-30" })).toThrow();
+    expect(() => stockIntakeSchema.parse({ ...base, invoiceDate: "2026-13-01" })).toThrow();
   });
 
   it("borne les totaux d'impression (payload forgé)", () => {

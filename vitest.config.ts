@@ -25,6 +25,12 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "html"],
       include: ["src/domain/**/*.ts", "src/application/**/*.ts"],
+      // I-01 (W4, audit 2026-10-19) : les fichiers de TYPES purs ne
+      // contiennent aucune instruction exécutable ⇒ 0 % de couverture par
+      // construction, et le seuil par fichier les faisait échouer (faux
+      // positif). Ils sont exclus du calcul (pas une baisse de seuil : les
+      // seuils restent 80/75/88/80 par fichier).
+      exclude: ["src/domain/**/types.ts", "src/domain/**/*.types.ts"],
       // P3 : seuils bloquants — toute baisse sous ces planchers fait échouer
       // `test:coverage` (jamais de métrique vanité toujours verte).
       thresholds: {
@@ -37,6 +43,15 @@ export default defineConfig({
         perFile: true,
       },
     },
-    testTimeout: 15000,
+    // I-05 (W4) : 15 s suffisaient sans instrumentation, mais la porte
+    // `test:coverage` instrumente TOUT le code (v8) ⇒ les tests
+    // d'intégration lourds (client-loop, repair-hardening) dépassent 15 s et
+    // échouaient en faux négatif. 60 s : la porte coverage est déterministe.
+    testTimeout: 60000,
+    // I-05 (W4) : `hookTimeout` par défaut (10 s) était trop court : chaque
+    // `beforeEach` de tests/database|integration rejoue TOUTES les migrations
+    // (49 fichiers SQL) ⇒ 12 « Hook timed out » quand la suite tournait en
+    // parallèle d'autres outils lourds. 60 s : la porte devient déterministe.
+    hookTimeout: 60000,
   },
 });
