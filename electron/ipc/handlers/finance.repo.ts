@@ -213,9 +213,17 @@ export function createDailyClosingAtomic(args: {
       .prepare(`SELECT id FROM daily_closings WHERE business_date = ?`)
       .get(args.businessDate);
     if (exists) throw new Error("Clôture déjà effectuée pour cette date.");
+    // Z : le sous-total « ventes_espèces » = les ventes ENCAISSÉES EN ESPÈCES
+    // (le CHECK du domaine s'appelle cashSalesMinor — « ventes_espèces »).
+    // Un encaissement par chèque ou par virement ne remplit PAS le tiroir :
+    // il est exclu. payment_method NULL = vente sans moyen de paiement
+    // (amount_paid = 0 ⇒ contribution nulle) : traité comme espèces, sans
+    // effet sur le total.
     const cash = db
       .prepare(
-        `SELECT COALESCE(SUM(amount_paid_minor),0) AS p FROM sales WHERE substr(created_at,1,10) = ? AND is_cancelled = 0`,
+        `SELECT COALESCE(SUM(amount_paid_minor),0) AS p FROM sales
+         WHERE substr(created_at,1,10) = ? AND is_cancelled = 0
+           AND COALESCE(payment_method, 'cash') = 'cash'`,
       )
       .get(args.businessDate) as { p: number };
     const collections = db
@@ -223,12 +231,18 @@ export function createDailyClosingAtomic(args: {
         `SELECT COALESCE(SUM(amount_minor),0) AS c FROM sale_payments WHERE substr(payment_date,1,10) = ? AND sale_id IS NULL`,
       )
       .get(args.businessDate) as { c: number };
+    // Dépenses : seules les dépenses DÉCAISSÉES ('paid') diminuent le tiroir ;
+    // une dépense 'pending' (non payée) ne sort pas d'argent de la caisse.
     const expenses = db
-      .prepare(`SELECT COALESCE(SUM(amount_minor),0) AS e FROM expenses WHERE expense_date = ?`)
+      .prepare(
+        `SELECT COALESCE(SUM(amount_minor),0) AS e FROM expenses WHERE expense_date = ? AND status = 'paid'`,
+      )
       .get(args.businessDate) as { e: number };
+    // Remboursements : un retour ANNULÉ ne sort pas d'argent de la caisse.
     const refunds = db
       .prepare(
-        `SELECT COALESCE(SUM(amount_refunded_minor),0) AS r FROM returns WHERE substr(created_at,1,10) = ?`,
+        `SELECT COALESCE(SUM(amount_refunded_minor),0) AS r FROM returns
+         WHERE substr(created_at,1,10) = ? AND status != 'cancelled'`,
       )
       .get(args.businessDate) as { r: number };
     // Paiements fournisseurs du jour (informatif : la formule de clôture du

@@ -126,6 +126,7 @@
 - [ADR-118](./ADR-118-dead-code-lot1.md) Lot 1 nettoyage dead-code (21 symboles morts)
 - [ADR-119](./ADR-119-dead-code-lot2.md) Lot 2 nettoyage dead-code (3 canaux IPC morts)
 - [ADR-120](./ADR-120-guardes-de-contrat-auto-derivees.md) Gardes de contrat auto-dérivées (les gardes qui ne peuvent pas échouer ne sont pas des gardes)
+- [ADR-121](./ADR-121-remise-globale-devis-repartition-lignes.md) Remise globale de devis : répartition exacte sur les lignes (P0-7)
 
 ## Ou ecrire quoi
 

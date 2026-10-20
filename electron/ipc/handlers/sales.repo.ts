@@ -158,6 +158,14 @@ export interface CreateSaleInput {
   dueDate: string | null;
   lines: SaleLineInput[];
   lineTotals: number[];
+  /**
+   * Répartition de la remise sur les lignes (centimes, entiers ≥ 0).
+   * Optionnel : par défaut la remise de ligne = (original − facturé) × qté.
+   * FOURNI par la conversion d'un DEVIS, dont la remise est GLOBALE : la
+   * répartition est alors exacte (Σ = discountAmountMinor) et le prix unitaire
+   * reste le prix du devis (le ticket affiche une ligne « Remise »).
+   */
+  lineDiscounts?: number[];
   now: string;
   allowNegativeStock: boolean;
   /** Auteur de la vente (session main, 0046) — NULL = historique pré-0046. */
@@ -258,12 +266,32 @@ export function createSaleAtomic(input: CreateSaleInput): {
         );
       }
     }
-    // FIX-P1-02 (fail-closed MONEY-ROOT) : seul le type "none" existe — la
-    // remise vit dans les lignes (P0-7). Un "percent" stockerait un taux
-    // flottant (ex. 2.5) dans la colonne INTEGER discount_value_minor :
-    // refus explicite FR avant toute écriture (rollback trivial).
+    // FIX-P1-02 (fail-closed MONEY-ROOT) : seul le type "none" est accepté —
+    // la remise vit dans les LIGNES (P0-7) et le schéma 0001:153 impose
+    // `total = subtotal − discount_amount_minor + delivery`. Un "percent"
+    // stockerait un taux flottant (ex. 2.5) dans la colonne INTEGER
+    // discount_value_minor : refus explicite FR avant toute écriture
+    // (rollback trivial). Une remise GLOBALE (devis) est répartie sur les
+    // lignes par l'appelant (lineDiscounts) : Σ lignes = discount_amount_minor
+    // ⇒ le CHECK tient et le ticket affiche une ligne « Remise » (forme (b) du
+    // validateur d'impression, déjà supportée).
     if (input.discountType !== "none") {
       throw new Error("Type de remise non pris en charge (remises par lignes uniquement).");
+    }
+    // Total recalculé ICI (fail-closed) : le total stocké ne peut pas diverger
+    // du sous-total, des remises et de la livraison (miroir du CHECK 0001:153).
+    const expectedTotal = input.subtotalMinor - input.discountAmountMinor + input.deliveryFeeMinor;
+    if (input.totalMinor !== expectedTotal) {
+      throw new Error("Total de vente incohérent.");
+    }
+    // Répartition de remise : Σ lignes = discount_amount_minor (invariant de
+    // traçabilité P0-7). Fail-closed : une répartition incohérente ne doit
+    // jamais écrire une vente dont le total ne se recompose pas.
+    if (input.lineDiscounts) {
+      const sumLineDiscounts = input.lineDiscounts.reduce((a, d) => a + d, 0);
+      if (sumLineDiscounts !== input.discountAmountMinor) {
+        throw new Error("Répartition de la remise incohérente.");
+      }
     }
     // 1. stock availability check (unless explicitly allowed) — préchargé en
     // UNE requête (WHERE id IN) avant la boucle : verrou d'écriture plus court
@@ -308,9 +336,11 @@ export function createSaleAtomic(input: CreateSaleInput): {
         input.customerId,
         input.subtotalMinor,
         input.discountType,
-        // MONEY-ROOT (FIX-P1-02) : la garde fail-closed ci-dessus garantit
-        // "none" ici — montant entier arrondi, jamais de taux flottant.
+        // MONEY-ROOT (FIX-P1-02) : la garde ci-dessus garantit "none" ici —
+        // montant entier arrondi, jamais de taux flottant.
         Math.round(input.discountValueMinor),
+        // Σ remises de LIGNES : la remise globale d'un devis est répartie par
+        // l'appelant (lineDiscounts) et son Σ est reporté ici (CHECK 0001:153).
         input.discountAmountMinor,
         input.deliveryFeeMinor,
         input.totalMinor,
@@ -344,7 +374,17 @@ export function createSaleAtomic(input: CreateSaleInput): {
       }
       const charged = input.lineTotals[i] ?? 0;
       const originalTotal = Math.round(line.originalUnitPriceMinor * line.quantity);
-      const lineDiscount = originalTotal - charged;
+      // Remise de ligne : (original − facturé) × qté par défaut ; sinon la
+      // répartition fournie par l'appelant (remise globale d'un devis).
+      const lineDiscount = input.lineDiscounts
+        ? (input.lineDiscounts[i] ?? 0)
+        : originalTotal - charged;
+      if (!Number.isInteger(lineDiscount) || lineDiscount < 0) {
+        throw new Error(`Remise de ligne invalide pour « ${line.productName} ».`);
+      }
+      if (lineDiscount > originalTotal) {
+        throw new Error(`Remise de ligne supérieure au total pour « ${line.productName} ».`);
+      }
       if (line.purchasePriceMinor > 0 && line.unitPriceMinor < line.purchasePriceMinor) {
         belowCostLines.push({
           productId: line.productId,
@@ -621,9 +661,20 @@ export function cancelSaleAtomic(saleId: number, now: string, operationId: strin
           updated_at = ? WHERE id = ?`,
       ).run(remaining, remaining, remaining, remaining, now, customerId);
     }
+    // ENCAISSEMENT ANNULÉ (E-25) : la promesse UI est « le stock sera restauré
+    // ET l'encaissement annulé ». Les lignes de paiement de la vente sont donc
+    // supprimées (l'encaissement n'a jamais eu lieu) et la vente est remise à
+    // zéro encaissé / reste = total. Le solde client ci-dessus n'est PAS
+    // touché par ce mouvement : le paiement avait déjà réduit le solde de
+    // `amount_paid`, et le reliquat non encaissé (remaining) est restitué ici.
+    const paidMinor = Number(sale["amount_paid_minor"] ?? 0);
+    if (paidMinor > 0) {
+      db.prepare(`DELETE FROM sale_payments WHERE sale_id = ?`).run(saleId);
+    }
+    const totalMinor = Number(sale["total_minor"] ?? 0);
     db.prepare(
-      `UPDATE sales SET is_cancelled = 1, cancelled_at = ?, updated_at = ? WHERE id = ?`,
-    ).run(now, now, saleId);
+      `UPDATE sales SET is_cancelled = 1, cancelled_at = ?, amount_paid_minor = 0, remaining_balance_minor = ?, payment_status = 'unpaid', updated_at = ? WHERE id = ?`,
+    ).run(now, totalMinor, now, saleId);
     db.prepare(
       `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at) VALUES (?, 'sale.cancelled', 'sale', ?, ?, ?, ?)`,
     ).run(

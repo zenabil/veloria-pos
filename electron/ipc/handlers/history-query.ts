@@ -88,6 +88,10 @@ function purchaseBranch(): string {
 }
 
 function paymentInBranch(): string {
+  // E-33 : un encaissement rattaché à une vente ANNULÉE n'est jamais un
+  // encaissement (l'annulation le supprime désormais — `cancelSaleAtomic`) :
+  // le filtre `is_cancelled` reste nevertheless en défense en profondeur pour
+  // les lignes historiques (ventes annulées avant le correctif).
   return `SELECT 'payment_in' AS kind, sp.id AS entity_id,
     COALESCE(s.invoice_number, 'Encaissement') AS ref,
     'Paiement ' || COALESCE(c.search_name, 'client') || COALESCE(' (' || s.invoice_number || ')', '') AS label,
@@ -96,7 +100,8 @@ function paymentInBranch(): string {
     sp.created_at AS created_at,
     NULL AS stock_before, NULL AS stock_delta, NULL AS stock_after, NULL AS details_json,
     sp.staff_user_id AS actor_id
-  FROM sale_payments sp LEFT JOIN sales s ON s.id = sp.sale_id LEFT JOIN customers c ON c.id = sp.customer_id`;
+  FROM sale_payments sp LEFT JOIN sales s ON s.id = sp.sale_id LEFT JOIN customers c ON c.id = sp.customer_id
+  WHERE sp.sale_id IS NULL OR COALESCE(s.is_cancelled, 0) = 0`;
 }
 
 function paymentOutBranch(): string {

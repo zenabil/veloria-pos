@@ -8,6 +8,7 @@ import { getDb } from "../../database/sqlite.service";
 import { consumeLayers, createLayer, fifoValuation } from "./fifo";
 import { assertOrderClause } from "./sql-guard";
 import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./idempotency";
+import { allocateAmountByWeights } from "./amount-allocation";
 
 // ADR-075 : fragment CASE unique du statut stock (3 sites : adjust/intake/
 // inventory) — texte SQL identique, mêmes positions de `?` (quantité ×2),
@@ -195,6 +196,10 @@ export function receiveStockAtomic(args: {
       cost: number;
       selling: number | null;
       lineTotal: number;
+      /** Part du fret imputée à la ligne (centimes) — E-27. */
+      shippingShare: number;
+      /** Coût rendu unitaire (achat + fret) — E-27. */
+      landingUnit: number;
     }[] = [];
     for (const l of args.lines) {
       if (l.productName.trim().length === 0) throw new Error("Ligne sans nom de produit.");
@@ -223,9 +228,28 @@ export function receiveStockAtomic(args: {
         cost: l.purchasePriceMinor,
         selling: l.sellingPriceMinor,
         lineTotal,
+        shippingShare: 0,
+        landingUnit: l.purchasePriceMinor,
       });
     }
     const total = subtotal + args.shippingMinor;
+    // E-27 — CAPITALISATION DU FRET : les frais de livraison sont une part du
+    // coût d'achat. Ils étaient exclus de la valeur des couches FIFO (donc de
+    // la valeur du stock et de la source « Stock » de la Zakat) alors que le
+    // renderer calculait (pour l'affichage seule) un « coût rendu ». Répartition
+    // proportionnelle au total de chaque ligne (plus grand reste, Σ exact).
+    const shippingShares = allocateAmountByWeights(
+      prepared.map((p) => p.lineTotal),
+      args.shippingMinor,
+    );
+    prepared.forEach((p, i) => {
+      p.shippingShare = shippingShares[i] ?? 0;
+      // Coût rendu unitaire (arrondi au centime) : la valeur du stock porte
+      // désormais le fret. L'écart d'arrondi (< 1 centime par ligne) ne touche
+      // QUE la valorisation — ni la dette fournisseur, ni le total de la
+      // réception (inchangés).
+      p.landingUnit = p.net > 0 ? Math.round((p.lineTotal + p.shippingShare) / p.net) : p.cost;
+    });
     const r = db
       .prepare(
         `INSERT INTO stock_intakes (uuid, supplier_id, invoice_number, invoice_date, subtotal_minor, shipping_cost_minor, total_minor, status, notes, operation_id, staff_user_id, created_at, updated_at)
@@ -290,16 +314,18 @@ export function receiveStockAtomic(args: {
           `INSERT INTO stock_intake_items (stock_intake_id, product_id, product_name_snapshot, quantity_received, quantity_damaged, purchase_price_minor, landing_cost_minor)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
         )
-        .run(intakeId, pid, p.name, p.received, p.damaged, p.cost, p.cost);
+        .run(intakeId, pid, p.name, p.received, p.damaged, p.cost, p.landingUnit);
       const intakeItemId = Number(itemIns.lastInsertRowid);
       if (p.net > 0) {
         // FIFO : chaque apport net crée sa propre couche (jamais de fusion).
+        // Coût unitaire = COÛT RENDU (achat + fret réparti) : la valorisation
+        // du stock est complète (E-27).
         createLayer({
           productId: pid,
           intakeId,
           intakeItemId,
           qty: p.net,
-          unitCostMinor: p.cost,
+          unitCostMinor: p.landingUnit,
           purchaseDate: args.invoiceDate,
           reason: "intake",
           now: args.now,

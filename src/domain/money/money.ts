@@ -115,7 +115,9 @@ export function fromDzd(major: number): number {
   if (Math.abs(major) > MAX_MINOR_SINGLE / MINOR_PER_MAJOR) {
     throw new MoneyError("Montant invalide : hors bornes.");
   }
-  const out = Math.round(major * MINOR_PER_MAJOR);
+  // E-34 : même arrondi « half away from zero » exact que
+  // `parseDzdInputStrict` (10.005 → 1001, pas 1000).
+  const out = decimalToMinorStrict(major);
   assertSafeMinor(out);
   return out;
 }
@@ -134,9 +136,33 @@ export function parseDzdInputStrict(raw: string, label = "Montant invalide"): nu
   if (n * MINOR_PER_MAJOR > MAX_MINOR_SINGLE + 50) {
     throw new MoneyError(`${label} : montant trop élevé.`);
   }
-  const out = Math.round(n * MINOR_PER_MAJOR);
+  // E-34 : arrondi AU CENTIÈME SUPÉRIEUR (half away from zero) sans passer
+  // par un float. `n * 100` sur un flottant perd le centime à mi-chemin
+  // (10.005 → 1000.4999999999999 → 1000 : un centime perdu). On travaille
+  // donc sur la chaîne décimale : partie entière × 100 + centimes arrondis.
+  const out = decimalToMinorStrict(n);
   assertSafeMinor(out, { label });
   return out;
+}
+
+/**
+ * Conversion exacte d'un nombre décimal en centimes, arrondie AU DESSUS à
+ * mi-chemin (convention DZD) et sans erreur de représentation binaire.
+ * `12.5` → 1250 · `10.005` → 1001 (et non 1000).
+ */
+function decimalToMinorStrict(value: number): number {
+  // Représentation décimale canonique (6 décimales), reconstruite depuis la
+  // chaîne pour éviter l'erreur de représentation binaire.
+  const s = value.toFixed(6);
+  const m = /^(-?)(\d+)(?:\.(\d*))?$/.exec(s);
+  if (!m) return Math.round(value * MINOR_PER_MAJOR);
+  const sign = m[1] === "-" ? -1 : 1;
+  const intPart = m[2] ?? "0";
+  const frac = (m[3] ?? "").padEnd(6, "0");
+  // Centimes = 2 décimales ; la 3ᵉ décide de l'arrondi (≥ 5 ⇒ +1 centime).
+  const cents = Number(intPart) * MINOR_PER_MAJOR + Number(frac.slice(0, 2));
+  const roundUp = Number(frac[2] ?? "0") >= 5;
+  return sign * (cents + (roundUp ? 1 : 0));
 }
 
 /** Format minor units for French UI: "1 250,00 DZD" — SANS FLOAT.

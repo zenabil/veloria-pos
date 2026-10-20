@@ -10,10 +10,11 @@ import {
 } from "../../src/domain/money/money.ts";
 import { computeSaleTotals } from "../../src/domain/sales/sale-rules.ts";
 import { computeDebtStatus, applyPaymentToBalance } from "../../src/domain/customer/debt-rules.ts";
-// Note: no `src/domain/finance/zakat.ts` — the live zakat path is
-// `src/features/zakat/types.ts:computeZakatLocal` (reporting only), verified
-// below through the same money boundary (alias imports are forbidden here:
-// this script runs under node type-stripping with relative imports only).
+// Zakat : le calcul vit dans le DOMAINE (`src/domain/zakat/zakat-rules.ts`,
+// `computeZakat`) — on l'appelle au lieu de le recalculer ici, pour que
+// toute divergence entre le domaine et le miroir main soit détectée par cette
+// porte. (E-36 — l'ancien commentaire citait un chemin inexistant.)
+import { computeZakat } from "../../src/domain/zakat/zakat-rules.ts";
 import { validateReturnLines } from "../../src/domain/returns/return-rules.ts";
 import { computeIntakeTotals } from "../../src/domain/inventory/intake-rules.ts";
 import { computeProformaTotals } from "../../src/domain/proforma/proforma-rules.ts";
@@ -83,9 +84,19 @@ assert(applyPaymentToBalance(10000, 4000) === 6000, "payment reduces balance");
 
 const zakBase = 100000 + 200000 + 50000 - 20000;
 assertSafeTotal(zakBase, "Zakat base");
-const zakDue = Math.round((zakBase * 2.5) / 100);
-assertSafeTotal(zakDue, "Zakat due");
-assert(zakBase === 330000 && zakDue === 8250, "zakat 2.5% of 330000 = 8250");
+// Zakat via la FONCTION DU DOMAINE (parité domain ↔ main garantie par l'appel).
+const zak = computeZakat({
+  cashMinor: 100000,
+  bankMinor: 200000,
+  stockMinor: 50000,
+  receivablesMinor: 0,
+  otherMinor: 0,
+  liabilitiesMinor: 20000,
+  nisabMinor: 100000,
+  ratePercent: 2.5,
+});
+assert(zak.net === zakBase && zak.zakat === 8250, "zakat 2.5% of 330000 = 8250");
+assert(zak.above, "zakat au-dessus du nisab");
 assert(parseDzdInputStrict("12,5") === 1250, "strict FR input 12,5=1250");
 
 const rt = validateReturnLines([

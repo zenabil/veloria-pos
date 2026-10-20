@@ -1,0 +1,210 @@
+﻿
+=== typecheck:manager ===
+
+> veloria-pos@1.0.0 typecheck:manager
+> tsc -p tsconfig.manager.json --noEmit
+
+EXIT=0
+=== verify:domain ===
+
+> veloria-pos@1.0.0 verify:domain
+> node --experimental-strip-types scripts/quality/verify-domain.ts
+
+OK  100 DZD = 10000 centimes
+OK  19.99 DZD = 1999 (no float error)
+OK  line total 1999x3=5997
+OK  percent rounds to minor
+OK  format FR DZD
+OK  sale totals 20000-2000+500=18500 (remise par prix unitaire)
+OK  partial payment state
+OK  empty cart rejected
+OK  over-limit detected
+OK  payment reduces balance
+OK  zakat 2.5% of 330000 = 8250
+OK  zakat au-dessus du nisab
+OK  strict FR input 12,5=1250
+OK  return total 3x10000=30000
+OK  intake 8x5000+1000=41000
+OK  proforma 20000-1000+500=19500
+OK  closing 10000+50000+5000-8000-2000=55000
+OK  csv import parses 1 row
+OK  virgule FR accept├®e en saisie
+OK  saisie non num├®rique rejet├®e (erreur FR, jamais NaN)
+OK  supplier code FOU-00001
+OK  supplier payment bounded by debt
+OK  supplier draft rejects bad email
+OK  adjustment 10-4=6
+OK  adjustment never goes negative
+OK  supplier return number
+OK  return status derived
+OK  expense number DEP-00007
+DOMAIN VERIFIED
+EXIT=0
+=== verify:migrations ===
+
+> veloria-pos@1.0.0 verify:migrations
+> node scripts/database/verify-migrations.mjs
+
+OK  migration 1 0001_initial_schema.sql
+OK  migration 2 0002_catalog_indexes.sql
+OK  migration 3 0003_financial_constraints.sql
+OK  migration 4 0004_sale_payments_nullable.sql
+OK  migration 5 0005_phase6_9_indexes.sql
+OK  migration 6 0006_client_notes.sql
+OK  migration 7 0007_credit_allowed.sql
+OK  migration 8 0008_suppliers_enrichment.sql
+OK  migration 9 0009_stock_page.sql
+OK  migration 10 0010_supplier_returns.sql
+OK  migration 11 0011_expenses_enrichment.sql
+OK  migration 12 0012_bread_proforma_zakat.sql
+OK  migration 13 0013_company_commercial_name.sql
+OK  migration 14 0014_return_items_indexes.sql
+OK  migration 15 0015_product_suppliers.sql
+OK  migration 16 0016_bread_recurring.sql
+OK  migration 17 0017_stock_intake_operation.sql
+OK  migration 18 0018_fifo_cost_layers.sql
+OK  migration 19 0019_lookup_indexes.sql
+OK  migration 20 0020_payment_operation_ids.sql
+OK  migration 21 0021_idempotency_keys.sql
+OK  migration 22 0022_create_operation_ids.sql
+OK  migration 23 0023_root_invariants.sql
+OK  migration 24 0024_return_number_sequences.sql
+OK  migration 25 0025_return_numbers_not_null.sql
+OK  migration 26 0026_defensive_invariants.sql
+OK  migration 27 0027_sale_item_line_prices.sql
+OK  migration 28 0028_restore_returns_sale_index.sql
+OK  migration 29 0029_purchase_orders.sql
+OK  migration 30 0030_cart_drafts.sql
+OK  migration 31 0031_defensive_sale_item_discount.sql
+OK  migration 32 0032_client_access_sync.sql
+OK  migration 33 0033_sync_outbox_customer.sql
+OK  migration 34 0034_client_access_phone_unique.sql
+OK  migration 35 0035_company_identity_nis.sql
+OK  migration 36 0036_print_templates.sql
+OK  migration 37 0037_products_quantity_nonneg.sql
+OK  migration 38 0038_outbox_access_restrict.sql
+OK  migration 39 0039_access_pin_kdf.sql
+OK  migration 40 0040_explicit_restrict.sql
+OK  migration 41 0041_staff_roles.sql
+OK  migration 42 0042_staff_recovery.sql
+OK  migration 43 0043_pin_algo_guard.sql
+OK  migration 44 0044_cart_drafts_delivery.sql
+OK  migration 45 0045_sale_credit_override.sql
+OK  migration 46 0046_staff_attribution.sql
+OK  migration 47 0047_customer_search_norm.sql
+OK  CHECK constraint rejects overpayment
+OK  UNIQUE barcode enforced
+OK  standalone customer payment (sale_id NULL) accepted
+OK  dangling sale_payments.sale_id rejected by FK
+OK  0005 phase 6-9 indexes present
+OK  inventory default setting seeded
+OK  0006 customers.notes column present
+OK  0007 credit_allowed + trigger present
+OK  0008 supplier file columns present
+OK  0008 stored code + active default
+OK  duplicate supplier code rejected
+OK  0009 max stock + movement reference + indexes
+OK  0010 supplier returns tables + return columns
+OK  return status CHECK enforced
+OK  0011 expense file columns present
+OK  expense status CHECK enforced
+OK  0012 bread order columns present
+OK  0012 proforma terms + zakat history
+OK  0013 company commercial name
+OK  0014 return items indexes
+OK  0015 product_suppliers + index
+OK  0016 bread recurring + order_name
+OK  0017 intake operation_id + unique index
+OK  0018 FIFO tables + sale_items.cogs_minor
+OK  0018 layer arithmetic + CHECK enforced
+OK  0019 lookup indexes
+OK  0021 idempotency_keys
+OK  0020 payment operation_id + unique index + NULL legacy
+OK  0022 create operation_id + unique index + NULL legacy
+OK  0023 root triggers kept (6/8, 2 dropped by 0024)
+OK  0023 supplier_returns.layers_json
+OK  0024 return sequences seeded
+OK  0024 impossible BEFORE INSERT triggers dropped
+OK  0024 pre-allocated return_number accepted
+OK  0025 return_number NOT NULL (both tables)
+OK  0025 NULL-rejection triggers present (4/4)
+OK  0025 NULL return_number rejected (INSERT + UPDATE)
+OK  0025 duplicate return_number rejected (UNIQUE preserved)
+OK  0025 data preserved + sequences intact
+OK  0026 defensive triggers present (4/4)
+OK  0026 negative-total INSERT rejected
+OK  0026 negative-outstanding INSERT rejected
+OK  0026 credit-revocation policy (refused with debt, allowed when settled)
+OK  0027 sale item line prices (original + discount)
+OK  0028 restored returns sale index
+OK  0029 purchase orders + CMD sequence
+OK  0030 cart drafts table
+OK  0031 discount defensive triggers (6/6)
+OK  0031 discount bounds enforced (negative/over rejected, sane accepted)
+OK  0032 customer_access + sync_outbox + announcements (CHECKs enforced)
+OK  0033 sync_outbox.customer_id + customer/status index
+OK  0034 active phone_hash unique (revoked keeps tracing, no block)
+OK  0035 company_profile.nis + article_imposition (nullable)
+OK  0036 print_templates (seed 7 usines actives, unicit├®s)
+OK  0037 products.quantity triggers FR (2/2, rejet n├®gatif)
+OK  0038 customer_access + sync_outbox RESTRICT (rebuild, refus suppression)
+OK  0039 customer_access.pin_salt + pin_algo (legacy + KDF rows)
+OK  0040 explicit RESTRICT (rebuild) + parent guards FR (7/7)
+OK  0041 staff_roles (tables + gardes FR 2/2)
+OK  0042 staff_recovery (singleton id=1)
+OK  0043 pin_algo whitelist FR (2/2, rejet md5)
+OK  0044 cart_drafts.delivery_fee_minor (colonne + CHECK + d├®faut 0)
+OK  integrity_check=ok foreign_key_violations=0
+MIGRATIONS VERIFIED
+node.exe : (node:6436) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+Au caractère Ligne:1 : 1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ((node:6436) Exp...nge at any time:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+(Use `node --trace-warnings ...` to show where the warning was created)
+EXIT=0
+=== verify:perf ===
+
+> veloria-pos@1.0.0 verify:perf
+> node scripts/quality/verify-perf.mjs
+
+OK  seed (10k produits, 5k clients, 10k ventes, 30k lignes) en 9579 ms
+OK  recherche nom en 0 ms
+OK  lecture code-barres en 1 ms
+OK  commit vente (1 tx, 3 lignes) en 8 ms
+OK  pagination historique en 4 ms
+OK  agr├®gat dashboard en 2 ms
+OK  rapport p├®riode (top 10) en 30 ms
+OK  backup VACUUM INTO en 201 ms
+OK  taille backup 8548 Ko
+PERF VERIFIED
+EXIT=0
+=== license:scan ===
+
+> veloria-pos@1.0.0 license:scan
+> node scripts/licensing/secret-scan.mjs
+
+OK  secret-scan (1335 fichiers analys├®s, aucun secret/bypass/map).
+EXIT=0
+=== format:check ===
+
+> veloria-pos@1.0.0 format:check
+> prettier --check .
+
+Checking formatting...
+node.exe : [warn] electron/ipc/handlers/finance.repo.ts
+Au caractère Ligne:1 : 1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([warn] electron...finance.repo.ts:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[warn] electron/ipc/handlers/inventory.repo.ts
+[warn] electron/ipc/handlers/products.repo.ts
+[warn] electron/ipc/handlers/proformas.repo.ts
+[warn] electron/ipc/handlers/returns.repo.ts
+[warn] electron/ipc/handlers/sales.repo.ts
+[warn] Code style issues found in 6 files. Run Prettier with --write to fix.
+EXIT=1

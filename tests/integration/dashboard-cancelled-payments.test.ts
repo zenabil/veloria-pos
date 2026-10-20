@@ -1,8 +1,9 @@
 // Veloria PoS — Tests L1 : encaissements des KPIs ≠ paiements de ventes annulées.
 // Repo RÉEL testé sur base migrée temporaire (node:sqlite) : `cancelSaleAtomic`
-// ne supprime jamais la ligne `sale_payments`, donc tout KPI qui somme
-// `sale_payments` DOIT filtrer `sales.is_cancelled` pour rester aligné avec
-// les KPIs ventes (déjà filtrés).
+// SUPPRIME désormais les lignes `sale_payments` de la vente annulée (E-25 :
+// l'encaissement n'a jamais eu lieu) — mais tout KPI qui somme `sale_payments`
+// DOIT quand même filtrer `sales.is_cancelled` : (a) défense en profondeur,
+// (b) lignes historiques créées avant le correctif.
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";

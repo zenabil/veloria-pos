@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
 import { assertOrderClause } from "./sql-guard";
 import { createSaleAtomic } from "./sales.repo";
+import { allocateAmountByWeights } from "./amount-allocation";
 import { formatProformaNumber } from "./numbers";
 import {
   auditOperationId,
@@ -497,8 +498,12 @@ export function convertProformaToSaleAtomic(args: {
       customerId: (pro["customer_id"] as number | null) ?? null,
       limitOverrideApproved: false,
       subtotalMinor: subtotal,
-      discountType: discount > 0 ? "amount" : "none",
-      discountValueMinor: discount,
+      // P0-7 : la remise d'un devis est GLOBALE — elle est RÉPARTIE sur les
+      // lignes (lineDiscounts) pour que Σ lignes = discount_amount_minor
+      // (CHECK 0001:153). Le prix unitaire affiché reste celui du devis et le
+      // ticket affiche une ligne « Remise » (forme (b) du validateur).
+      discountType: "none",
+      discountValueMinor: 0,
       discountAmountMinor: discount,
       deliveryFeeMinor: delivery,
       totalMinor: total,
@@ -507,6 +512,10 @@ export function convertProformaToSaleAtomic(args: {
       paymentStatus: status,
       paymentMethod: args.paymentMethod,
       dueDate: typeof pro["due_date"] === "string" ? pro["due_date"] : null,
+      lineDiscounts: allocateAmountByWeights(
+        items.map((it) => Number(it.line_total_minor)),
+        discount,
+      ),
       lines: items.map((it) => ({
         productId: it.product_id,
         productName: it.product_name_snapshot,

@@ -110,6 +110,24 @@ function bumpReturnSequence(kind: ReturnKind, now: string): void {
   }
 }
 
+export interface CustomerReturnResult {
+  id: number;
+  number: string;
+  totalReturnMinor: number;
+  /**
+   * Excédent d'avoir : l'avoir demandé dépasse le solde dû par le client
+   * (trigger 0023 : le solde ne peut pas devenir négatif) ⇒ ce reliquat est
+   * un CRÉDIT CLIENT en cours, porté par le retour (credit_to_customer_minor).
+   */
+  creditExcessMinor: number;
+}
+
+export interface ReturnResult {
+  id: number;
+  number: string;
+  totalReturnMinor: number;
+}
+
 export function createReturnAtomic(args: {
   operationId: string;
   originalSaleId: number;
@@ -123,12 +141,9 @@ export function createReturnAtomic(args: {
   now: string;
   /** Auteur du retour (session main, 0046). */
   staffUserId?: number | null;
-}): { id: number; number: string; totalReturnMinor: number } {
+}): CustomerReturnResult {
   const db = getDb();
-  const fast = peekIdempotency<{ id: number; number: string; totalReturnMinor: number }>(
-    args.operationId,
-    "returns.create",
-  );
+  const fast = peekIdempotency<CustomerReturnResult>(args.operationId, "returns.create");
   if (fast) return fast;
   const tx = db.transaction(() => {
     claimIdempotency(args.operationId, "returns.create", args.now);
@@ -136,6 +151,9 @@ export function createReturnAtomic(args: {
       | {
           invoice_number: string;
           customer_id: number | null;
+          total_minor: number;
+          amount_paid_minor: number;
+          remaining_balance_minor: number;
         }
       | undefined;
     if (!sale) throw new Error("Vente d'origine introuvable.");
@@ -333,22 +351,47 @@ export function createReturnAtomic(args: {
         p.lineTotal,
       );
     }
-    // Soustraction exacte + recalcul du statut (même règle que les paiements :
-    // un avoir supérieur au solde devient un avoir explicite, jamais effacé).
+    // AVOIR : le solde du client ne peut pas devenir négatif (trigger 0023
+    // `trg_customers_outstanding_nonneg` → ABORT + message technique brut).
+    // L'avoir demandé est plafonné au solde réellement dû ; lExcédent reste un
+    // CRÉDIT CLIENT (avoir en cours) porté par le retour lui-même
+    // (`returns.credit_to_customer_minor`), tracé dans l'audit.
+    // SOURCE DE VÉRITÉ (E-24) : le retour réduit AUSSI le sien de vente
+    // (`sales.remaining_balance_minor`) ⇒ le solde du compte et le reste des
+    // documents ne peuvent plus diverger (UI : « Dette actuelle » vs
+    // « Reste des documents »).
+    let creditExcessMinor = 0;
     if (args.creditMinor > 0 && sale.customer_id != null) {
-      db.prepare(
-        `UPDATE customers SET outstanding_balance_minor = outstanding_balance_minor - ?,
-          debt_status = CASE WHEN outstanding_balance_minor - ? <= 0 THEN 'none' WHEN credit_limit_minor > 0 AND outstanding_balance_minor - ? > credit_limit_minor THEN 'over_limit' ELSE 'due' END,
-          is_over_limit = CASE WHEN credit_limit_minor > 0 AND outstanding_balance_minor - ? > credit_limit_minor THEN 1 ELSE 0 END,
-          updated_at = ? WHERE id = ?`,
-      ).run(
-        args.creditMinor,
-        args.creditMinor,
-        args.creditMinor,
-        args.creditMinor,
-        args.now,
-        sale.customer_id,
-      );
+      const cust = db
+        .prepare(`SELECT outstanding_balance_minor FROM customers WHERE id = ?`)
+        .get(sale.customer_id) as { outstanding_balance_minor: number } | undefined;
+      const outstanding = Number(cust?.outstanding_balance_minor ?? 0);
+      const applied = Math.min(args.creditMinor, Math.max(0, outstanding));
+      creditExcessMinor = args.creditMinor - applied;
+      if (applied > 0) {
+        db.prepare(
+          `UPDATE customers SET outstanding_balance_minor = outstanding_balance_minor - ?,
+            debt_status = CASE WHEN outstanding_balance_minor - ? <= 0 THEN 'none' WHEN credit_limit_minor > 0 AND outstanding_balance_minor - ? > credit_limit_minor THEN 'over_limit' ELSE 'due' END,
+            is_over_limit = CASE WHEN credit_limit_minor > 0 AND outstanding_balance_minor - ? > credit_limit_minor THEN 1 ELSE 0 END,
+            updated_at = ? WHERE id = ?`,
+        ).run(applied, applied, applied, applied, args.now, sale.customer_id);
+      }
+      // Le sien de vente porte le reste à payer APRÈS avoir : même source de
+      // vérité que le compte client (sinon deux chiffres pour un même client).
+      // L'avoir vaut encaissement pour le sien : `amount_paid_minor` augmente,
+      // `remaining_balance_minor` baisse (CHECK 0001:152 respecté).
+      const saleRest = Number(sale.remaining_balance_minor);
+      if (saleRest > 0) {
+        const appliedOnSale = Math.min(applied, saleRest);
+        const paid = Number(sale.amount_paid_minor);
+        const total = Number(sale.total_minor);
+        const newPaid = paid + appliedOnSale;
+        const newRest = total - newPaid;
+        const newStatus = newRest <= 0 ? "paid" : newPaid > 0 ? "partial" : "unpaid";
+        db.prepare(
+          `UPDATE sales SET amount_paid_minor = ?, remaining_balance_minor = ?, payment_status = ?, updated_at = ? WHERE id = ?`,
+        ).run(newPaid, newRest, newStatus, args.now, args.originalSaleId);
+      }
     }
     db.prepare(
       `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at, actor_user_id) VALUES (?, 'return.created', 'return', ?, ?, ?, ?, ?)`,
@@ -356,25 +399,36 @@ export function createReturnAtomic(args: {
       randomUUID(),
       String(returnId),
       args.operationId,
-      JSON.stringify({ sale: args.originalSaleId, total: totalReturn }),
+      JSON.stringify({
+        sale: args.originalSaleId,
+        total: totalReturn,
+        refunded: args.refundMinor,
+        credit: args.creditMinor,
+        // Excédent d'avoir : crédit client en cours (le solde ne peut pas
+        // devenir négatif — trigger 0023).
+        creditExcess: creditExcessMinor,
+      }),
       args.now,
       args.staffUserId ?? null,
     );
-    const result = { id: returnId, number, totalReturnMinor: totalReturn };
+    const result = {
+      id: returnId,
+      number,
+      totalReturnMinor: totalReturn,
+      // > 0 : l'avoir dépasse le solde du client ⇒ crédit restant à imputer.
+      creditExcessMinor,
+    };
     storeIdempotencyResult(args.operationId, result);
     return result;
   });
   try {
-    return (tx as unknown as () => { id: number; number: string; totalReturnMinor: number })();
+    return (tx as unknown as () => CustomerReturnResult)();
   } catch (err) {
     if (
       err instanceof Error &&
       /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
     ) {
-      const retry = peekIdempotency<{ id: number; number: string; totalReturnMinor: number }>(
-        args.operationId,
-        "returns.create",
-      );
+      const retry = peekIdempotency<CustomerReturnResult>(args.operationId, "returns.create");
       if (retry) return retry;
     }
     // Course sur le numéro (deux retours concurrents) : la séquence a été
@@ -386,16 +440,13 @@ export function createReturnAtomic(args: {
     ) {
       bumpReturnSequence("customer", args.now);
       try {
-        return (tx as unknown as () => { id: number; number: string; totalReturnMinor: number })();
+        return (tx as unknown as () => CustomerReturnResult)();
       } catch (retryErr) {
         if (
           retryErr instanceof Error &&
           /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(retryErr.message)
         ) {
-          const retry = peekIdempotency<{ id: number; number: string; totalReturnMinor: number }>(
-            args.operationId,
-            "returns.create",
-          );
+          const retry = peekIdempotency<CustomerReturnResult>(args.operationId, "returns.create");
           if (retry) return retry;
         }
         throw retryErr;
@@ -421,12 +472,9 @@ export function createSupplierReturnAtomic(args: {
   notes: string | null;
   createdAt: string;
   now: string;
-}): { id: number; number: string; totalReturnMinor: number } {
+}): ReturnResult {
   const db = getDb();
-  const fast = peekIdempotency<{ id: number; number: string; totalReturnMinor: number }>(
-    args.operationId,
-    "returns.create_supplier",
-  );
+  const fast = peekIdempotency<ReturnResult>(args.operationId, "returns.create_supplier");
   if (fast) return fast;
   const tx = db.transaction(() => {
     claimIdempotency(args.operationId, "returns.create_supplier", args.now);
@@ -627,16 +675,13 @@ export function createSupplierReturnAtomic(args: {
     return result;
   });
   try {
-    return (tx as unknown as () => { id: number; number: string; totalReturnMinor: number })();
+    return (tx as unknown as () => ReturnResult)();
   } catch (err) {
     if (
       err instanceof Error &&
       /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
     ) {
-      const retry = peekIdempotency<{ id: number; number: string; totalReturnMinor: number }>(
-        args.operationId,
-        "returns.create_supplier",
-      );
+      const retry = peekIdempotency<ReturnResult>(args.operationId, "returns.create_supplier");
       if (retry) return retry;
     }
     // Course sur le numéro (miroir des retours clients / factures).
@@ -646,16 +691,13 @@ export function createSupplierReturnAtomic(args: {
     ) {
       bumpReturnSequence("supplier", args.now);
       try {
-        return (tx as unknown as () => { id: number; number: string; totalReturnMinor: number })();
+        return (tx as unknown as () => ReturnResult)();
       } catch (retryErr) {
         if (
           retryErr instanceof Error &&
           /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(retryErr.message)
         ) {
-          const retry = peekIdempotency<{ id: number; number: string; totalReturnMinor: number }>(
-            args.operationId,
-            "returns.create_supplier",
-          );
+          const retry = peekIdempotency<ReturnResult>(args.operationId, "returns.create_supplier");
           if (retry) return retry;
         }
         throw retryErr;

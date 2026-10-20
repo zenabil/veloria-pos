@@ -268,6 +268,8 @@ export function updateProduct(input: {
   barcodes: string[];
   now: string;
   operationId?: string | null;
+  /** Auteur de la correction (session main, 0046). */
+  staffUserId?: number | null;
 }): void {
   const db = getDb();
   // RADICAL: retry avec même operationId = no-op (pas de 2e audit/couche FIFO).
@@ -335,6 +337,27 @@ export function updateProduct(input: {
         oversell: false,
         fallbackUnitCostMinor: 0,
       });
+    }
+    // E-26 : la MOUVEMENT DE STOCK est journalisé comme les 11 autres chemins
+    // de variation de quantité — sans cela, `SUM(stock_movements.quantity_delta)`
+    // ne se réconciliait plus avec `products.quantity` et l'historique des
+    // mouvements était vide pour une correction faite depuis la fiche produit.
+    if (qtyDelta !== 0) {
+      db.prepare(
+        `INSERT INTO stock_movements (uuid, product_id, movement_type, quantity_delta, quantity_after, unit_cost_minor, related_entity_type, related_entity_id, reason, reference, staff_user_id, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'product', ?, 'Correction manuelle quantité', ?, ?, ?)`,
+      ).run(
+        randomUUID(),
+        input.id,
+        qtyDelta > 0 ? "adjust_in" : "adjust_out",
+        qtyDelta,
+        input.quantity,
+        Math.max(0, Math.round(input.purchasePriceMinor)),
+        String(input.id),
+        input.name.trim(),
+        input.staffUserId ?? null,
+        input.now,
+      );
     }
     db.prepare(
       `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at) VALUES (?, 'product.updated', 'product', ?, ?, ?, ?)`,

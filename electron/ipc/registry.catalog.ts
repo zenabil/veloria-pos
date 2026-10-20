@@ -4,6 +4,7 @@ import { IPC_CHANNELS } from "./channels";
 import * as V from "./validators";
 import { randomUUID } from "node:crypto";
 import * as Products from "./handlers/products.repo";
+import { getCurrentStaffUser } from "./handlers/staff-session";
 import { handle } from "./handle";
 
 export function registerCatalogChannels(): void {
@@ -69,6 +70,7 @@ export function registerCatalogChannels(): void {
       barcodes: input.barcodes,
       now: new Date().toISOString(),
       operationId: input.operationId ?? null,
+      staffUserId: getCurrentStaffUser(),
     });
     return { updated: true };
   });
