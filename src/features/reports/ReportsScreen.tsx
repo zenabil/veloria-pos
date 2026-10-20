@@ -12,6 +12,8 @@ import { newOperationId } from "@domain/common/ids.ts";
 import { todayUtcDate } from "@shared/dates/dates.ts";
 import { useLoadSeq } from "@shared/ui/use-load-seq.ts";
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
+import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
+import { useStaff } from "@features/staff/use-staff.ts";
 import { BarChart } from "@shared/charts/BarChart.tsx";
 import { MiniTable, ReportSectionCard } from "./widgets.tsx";
 import {
@@ -71,6 +73,11 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
   const [closingDate, setClosingDate] = useState(todayUtcDate());
   const [openingText, setOpeningText] = useState("0,00");
   const [closingBusy, setClosingBusy] = useState(false);
+  const [reopenBusy, setReopenBusy] = useState(false);
+  // E-21 : la réouverture d'une journée close est réservée au gérant
+  // (l'affichage filtre, le main décide — R2 RADICAL).
+  const { isManager } = useStaff();
+  const confirmAsync = useConfirm();
   const fromRef = useRef<HTMLInputElement>(null);
   // P1-1/P1-2 : séquence anti-course (même hook que les autres écrans).
   const { next: nextSeq, isCurrent: isSeqCurrent } = useLoadSeq();
@@ -194,6 +201,32 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
       notify(frError(e, "Clôture impossible."), "err");
     } finally {
       setClosingBusy(false);
+    }
+  }
+
+  /**
+   * E-21 : réouverture d'une journée close (le verrou de période — migration
+   * 0048 — rend la journée immuable ; le gérant peut la rouvrir pour
+   * corriger, puis la re-clôturer). Confirmation explicite obligatoire.
+   */
+  async function reopenClosing(): Promise<void> {
+    if (closingDate === "" || reopenBusy) return;
+    const ok = await confirmAsync(
+      `Rouvrir la journée du ${formatDateFr(closingDate)} ? Les écritures de cette journée redeviendront possibles et la clôture devra être refaite.`,
+    );
+    if (!ok) return;
+    setReopenBusy(true);
+    try {
+      await api.closingReopen({
+        operationId: newOperationId(),
+        businessDate: closingDate,
+      });
+      notify(`Journée du ${formatDateFr(closingDate)} rouverte.`, "ok");
+      await loadClosings();
+    } catch (e) {
+      notify(frError(e, "Réouverture impossible."), "err");
+    } finally {
+      setReopenBusy(false);
     }
   }
 
@@ -740,6 +773,16 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
                 <Button onClick={() => void createClosing()} disabled={closingBusy}>
                   {closingBusy ? "Clôture…" : "Clôturer la journée"}
                 </Button>
+                {/* E-21 : réouverture (gérant uniquement — le main refuse aussi). */}
+                {isManager ? (
+                  <Button
+                    variant="secondary"
+                    onClick={() => void reopenClosing()}
+                    disabled={reopenBusy || closingBusy || closingDate === ""}
+                  >
+                    {reopenBusy ? "Réouverture…" : "Rouvrir la journée"}
+                  </Button>
+                ) : null}
               </div>
               <MiniTable
                 headers={[
@@ -764,7 +807,8 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
               />
               <p className="px-4 pb-3 text-xs text-slate-500">
                 Formule : ouverture + ventes espèces + encaissements − dépenses − remboursements.
-                Une journée clôturée ne peut pas être rejouée.
+                Une journée clôturée est verrouillée (les écritures de ce jour sont refusées) ; le
+                gérant peut la rouvrir pour la corriger, puis la re-clôturer.
               </p>
             </ReportSectionCard>
           ) : null}

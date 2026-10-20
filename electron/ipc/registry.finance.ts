@@ -178,6 +178,17 @@ export function registerFinanceChannels(): void {
       now: new Date().toISOString(),
     }),
   );
+  // E-21 (P1) : réouverture d'une journée close (le verrou 0048 rend la
+  // journée immuable ; le gérant peut la rouvrir explicitement pour corriger
+  // puis re-clôturer). `reopenDailyClosingAtomic` refuse sans session gérant.
+  handle(IPC_CHANNELS["closings.reopen"], V.closingReopenSchema, (input) =>
+    Finance.reopenDailyClosingAtomic({
+      businessDate: input.businessDate,
+      operationId: input.operationId,
+      now: new Date().toISOString(),
+      actorUserId: getCurrentStaffUser(),
+    }),
+  );
   handle(IPC_CHANNELS["zakat.sources"], V.emptyPayloadSchema, () => Finance.getZakatSources());
   handle(IPC_CHANNELS["zakat.saveParams"], V.zakatParamsSchema, (input) => {
     Settings.saveZakatParams(

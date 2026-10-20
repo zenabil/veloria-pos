@@ -127,6 +127,8 @@ interface Window {
     closings: {
       get(p: unknown): Promise<VeloriaOutcome>;
       create(p: unknown): Promise<VeloriaOutcome>;
+      /** E-21 : réouverture d'une journée close (gérant). */
+      reopen(p: unknown): Promise<VeloriaOutcome>;
     };
     zakat: {
       sources(): Promise<VeloriaOutcome>;

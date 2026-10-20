@@ -50,6 +50,39 @@ export function digitsOnly(value: string): string {
 // digitsOnly) : espaces, tirets, points, slash, parenthèses, indicatif +.
 const PHONE_DIGITS_EXPR = `REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone,' ',''),'-',''),'.',''),'/',''),'(',''),')',''),'+',''),char(160),'')`;
 
+/**
+ * E-28 : normalisation du téléphone PARFAITEMENT PARELLELE à
+ * `PHONE_DIGITS_EXPR` (migration 0049) — on retire exactement les 8
+ * séparateurs normalisés (espace, tiret, point, slash, parenthèses, `+`,
+ * insécable), rien d'autre. Toute évolution doit changer la migration 0049
+ * ET cette fonction dans le même commit (parité base ↔ application).
+ */
+export function phoneDigitsParity(phone: string): string {
+  return phone.replace(/[ \-.()/+\u00A0]/g, "");
+}
+
+/**
+ * E-28 : unicité du téléphone client.
+ * La base (migration 0049) est l'autorité FINALE (trigger, fail-closed) ;
+ * ce contrôle applicatif donne un message FR clair AVANT l'écriture et
+ * évite un rollback pour un doublon saisissable.
+ * Les clients ARCHIVÉS (`deleted_at IS NOT NULL`) sont hors périmètre : un
+ * numéro « occupé » par un client archivé ne bloque pas un nouveau client.
+ */
+function assertPhoneAvailable(phone: string | null, excludeCustomerId: number | null): void {
+  if (phone == null || phone.trim() === "") return;
+  const db = getDb();
+  const digits = phoneDigitsParity(phone);
+  const row = db
+    .prepare(
+      `SELECT id FROM customers WHERE deleted_at IS NULL AND id <> ? AND ${PHONE_DIGITS_EXPR} = ? LIMIT 1`,
+    )
+    .get(excludeCustomerId ?? -1, digits);
+  if (row) {
+    throw new Error("Ce numéro de téléphone est déjà utilisé par un autre client.");
+  }
+}
+
 export function searchCustomers(
   query: string,
   page: number,
@@ -161,6 +194,9 @@ export function createCustomer(args: {
   // calculé (même règle que les ventes, jamais de clamp silencieux).
   // AUDIT-ROOT: création tracée comme updateCustomer (history aveugle sinon).
   const tx = db.transaction(() => {
+    // E-28 : unicité du téléphone (message FR avant l'écriture ; la base
+    // reste l'autorité finale).
+    assertPhoneAvailable(args.phone, null);
     const r = db
       .prepare(
         `INSERT INTO customers (uuid, operation_id, first_name, last_name, search_name, search_norm, phone, address, credit_limit_minor, initial_balance_minor, outstanding_balance_minor, debt_status, is_over_limit, settlement_day, is_bread_client, credit_allowed, notes, created_at, updated_at)
@@ -239,6 +275,8 @@ export function updateCustomer(args: {
       | { id: number }
       | undefined;
     if (!exists) throw new Error("Client introuvable.");
+    // E-28 : unicité du téléphone (le client lui-même est exclu).
+    assertPhoneAvailable(args.phone, args.id);
     db.prepare(
       // Plafond modifié → statut recalculé (même règle qu'à la création :
       // 'none' si solde ≤ 0, 'over_limit' si plafond > 0 dépassé, sinon 'due').

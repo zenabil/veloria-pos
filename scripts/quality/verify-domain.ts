@@ -1,5 +1,7 @@
 // Veloria PoS — scripts/quality/verify-domain.ts
 // Runs with system node type-stripping (no npm deps): node scripts/quality/verify-domain.ts
+import fs from "node:fs";
+import path from "node:path";
 import {
   fromDzd,
   formatDzd,
@@ -186,5 +188,121 @@ assert(
   "return status derived",
 );
 assert(formatExpenseNumber(7) === "DEP-00007", "expense number DEP-00007");
+
+// ---------------------------------------------------------------------------
+// E-36 (P1) : gardes de CODE — atomicité des mutations + couverture
+// `operationId`. Avant, rien ne vérifiait ces deux invariants : une régression
+// (mutation hors transaction, mutation non rejouable) passait toutes les
+// portes. Ces deux gardes les rendent ÉCHECABLES (ADR-120 : « une garde qui
+// ne peut pas échouer n'est pas une garde »).
+//
+// Méthode : lecture statique des registres IPC (`registry*.ts`) → alias de
+// repo → fonctions réellement appelées → pour chaque fonction qui ÉCRIT :
+//   (a) elle doit envelopper ses écritures dans `db.transaction(...)` ;
+//   (b) elle doit accepter un `operationId` (rejouabilité / idempotence).
+// Le nombre de fonctions contrôlées est lui-même vérifié : une garde
+// vacuous (0 fonction analysée) est un ÉCHEC, pas un succès.
+// ---------------------------------------------------------------------------
+const repoRoot = process.cwd();
+const ipcDir = path.join(repoRoot, "electron", "ipc");
+const handlersDir = path.join(ipcDir, "handlers");
+
+// Découpe le fichier en fonctions de premier niveau (déclarations `function`
+// ET arrow functions const) : une fonction NESTÉE ou voisine ne doit pas
+// être analysée comme si elle appartenait à la précédente (faux positif).
+function topLevelFunctions(text: string): Array<{ name: string; exported: boolean; body: string }> {
+  const re =
+    /^(?:export\s+)?(?:async\s+)?function\s+([A-Za-z0-9_]+)\(|^(?:export\s+)?const\s+([A-Za-z0-9_]+)\s*=\s*(?:async\s*)?\(/gm;
+  const matches = [...text.matchAll(re)];
+  const out: Array<{ name: string; exported: boolean; body: string }> = [];
+  for (let i = 0; i < matches.length; i += 1) {
+    const current = matches[i];
+    if (!current) continue;
+    const start = current.index;
+    const next = matches[i + 1];
+    const end = next ? next.index : text.length;
+    const chunk = text.slice(start, end);
+    const lastBrace = chunk.lastIndexOf("\n}");
+    out.push({
+      name: current[1] ?? current[2] ?? "",
+      exported: current[0].startsWith("export"),
+      body: lastBrace > 0 ? chunk.slice(0, lastBrace) : chunk,
+    });
+  }
+  return out;
+}
+
+const registryFiles = fs
+  .readdirSync(ipcDir)
+  .filter((f) => f.startsWith("registry") && f.endsWith(".ts"))
+  .sort();
+
+const aliasToRepo = new Map<string, string>();
+for (const rf of registryFiles) {
+  const text = fs.readFileSync(path.join(ipcDir, rf), "utf8");
+  for (const m of text.matchAll(/import \* as (\w+) from "\.\/handlers\/([^"]+)"/g)) {
+    const raw = m[2] ?? "";
+    const rel = raw.endsWith(".ts") ? raw : `${raw}.ts`;
+    aliasToRepo.set(m[1] ?? "", path.join(handlersDir, rel));
+  }
+}
+
+const repoCache = new Map<string, Map<string, string>>();
+function repoBody(repo: string, name: string): string | undefined {
+  let map = repoCache.get(repo);
+  if (!map) {
+    map = new Map(
+      topLevelFunctions(fs.readFileSync(repo, "utf8"))
+        .filter((f) => f.exported)
+        .map((f) => [f.name, f.body]),
+    );
+    repoCache.set(repo, map);
+  }
+  return map.get(name);
+}
+
+// Écriture = SQL d'écriture réellement préparé (`.prepare(\`INSERT …\`)`) :
+// une fonction de LECTURE qui contient le mot « UPDATE » dans un commentaire
+// ou dans une fonction voisine n'est pas une mutation.
+const WRITE_RE = /\.prepare\(\s*[`"'][^`"']*\b(INSERT\s+INTO|UPDATE\s+\w+\s+SET|DELETE\s+FROM)\b/i;
+// Exception documentée : `staff.login` n'est pas une « mutation métier » mais
+// une tentative d'authentification. Chaque branche écrit UNE instruction SQL
+// atomique (compteur anti-brute-force / remise à zéro), donc :
+//   - pas de transaction multi-écriture à protéger ;
+//   - pas d'operationId (ce n'est pas une opération rejouable : rejouer une
+//     authentification n'a aucun sens, et le compteur d'échecs DOIT parfois
+//     s'incrémenter).
+const ATOMIC_SINGLE_WRITE_EXCEPTIONS = new Set(["staff.repo.ts::authenticateAtomic"]);
+const missingTx: string[] = [];
+const missingOperationId: string[] = [];
+const checked = new Set<string>();
+for (const rf of registryFiles) {
+  const text = fs.readFileSync(path.join(ipcDir, rf), "utf8");
+  for (const m of text.matchAll(/\b(\w+)\.(\w+)\(/g)) {
+    const repo = aliasToRepo.get(m[1] ?? "");
+    if (!repo) continue;
+    const fn = m[2] ?? "";
+    const body = repoBody(repo, fn);
+    if (body === undefined) continue;
+    if (!WRITE_RE.test(body)) continue;
+    const key = `${path.basename(repo)}::${fn}`;
+    if (checked.has(key)) continue;
+    checked.add(key);
+    if (ATOMIC_SINGLE_WRITE_EXCEPTIONS.has(key)) continue;
+    if (!/\.transaction\s*\(/.test(body)) missingTx.push(key);
+    // Signature (400 premiers caractères) : le paramètre `operationId` doit
+    // exister — sinon la mutation n'est pas rejouable.
+    if (!/operationId/.test(body.slice(0, 400))) missingOperationId.push(key);
+  }
+}
+assert(checked.size >= 40, `E-36 : garde non vacuous (${checked.size} mutations IPC analysées)`);
+assert(
+  missingTx.length === 0,
+  `E-36 : toute mutation IPC est dans une transaction (${missingTx.join(", ") || "ok"})`,
+);
+assert(
+  missingOperationId.length === 0,
+  `E-36 : toute mutation IPC reçoit un operationId (${missingOperationId.join(", ") || "ok"})`,
+);
 
 console.log("DOMAIN VERIFIED");

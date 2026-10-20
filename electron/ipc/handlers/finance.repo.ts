@@ -6,6 +6,7 @@ import { getDb, integrityCheck } from "../../database/sqlite.service";
 import { backupStatus } from "../../backup/backup.service";
 import { fifoValuation } from "./fifo";
 import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./idempotency";
+import { getStaffRole } from "./staff.repo";
 import { assertOrderClause } from "./sql-guard";
 import { percentOfTotal } from "../money-guard";
 
@@ -303,6 +304,76 @@ export function createDailyClosingAtomic(args: {
       expensesMinor: expenses.e,
       refundsMinor: refunds.r,
       closingMinor: closing,
+    };
+    storeIdempotencyResult(args.operationId, result);
+    return result;
+  });
+  try {
+    return (tx as unknown as () => Record<string, unknown>)();
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
+    ) {
+      const retry = peekIdempotency<Record<string, unknown>>(args.operationId);
+      if (retry && Object.keys(retry).length > 0) return retry;
+    }
+    throw err;
+  }
+}
+
+/**
+ * E-21 (P1) : RÉOUVERTURE d'une journée clôturée.
+ *
+ * La migration 0048 verrouille une journée close (fail-closed : plus aucune
+ * écriture sur cette date). Sans issue, une erreur de saisie du jour devenait
+ * IRRÉVERSIBLE. Cette fonction est l'issue EXPLICITE, TRACÉE et RAREMENT
+ * UTILISABLE :
+ *   - réservé au GÉRANT (session obligatoire, fail-closed sans session) ;
+ *   - idempotent (même `operationId` = effet unique, rejouable) ;
+ *   - la ligne de clôture est SUPPRIMÉE (les montants d'origine sont
+ *     conservés dans `audit_log` ⇒ l'historique reste lisible) ;
+ *   - la journée redevient modifiable, puis peut être re-clôturée (la clôture
+ *     recalcule les compteurs à la nouvelle).
+ */
+export function reopenDailyClosingAtomic(args: {
+  businessDate: string;
+  operationId: string;
+  now: string;
+  actorUserId: number | null;
+}): Record<string, unknown> {
+  const db = getDb();
+  // Gérant uniquement : sans session active, la réouverture est refusée.
+  if (args.actorUserId == null) {
+    throw new Error("Session requise : reconnectez-vous pour rouvrir une journée.");
+  }
+  if (getStaffRole(args.actorUserId) !== "manager") {
+    throw new Error("Action réservée au gérant.");
+  }
+  const fast = peekIdempotency<Record<string, unknown>>(args.operationId, "closings.reopen");
+  if (fast && Object.keys(fast).length > 0) return fast;
+  const tx = db.transaction(() => {
+    claimIdempotency(args.operationId, "closings.reopen", args.now);
+    const closing = db
+      .prepare(`SELECT * FROM daily_closings WHERE business_date = ?`)
+      .get(args.businessDate) as Record<string, unknown> | undefined;
+    if (!closing) {
+      throw new Error("Aucune clôture à rouvrir pour cette date.");
+    }
+    db.prepare(`DELETE FROM daily_closings WHERE business_date = ?`).run(args.businessDate);
+    db.prepare(
+      `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at) VALUES (?, 'closing.reopened', 'closing', ?, ?, ?, ?)`,
+    ).run(
+      randomUUID(),
+      args.businessDate,
+      args.operationId,
+      JSON.stringify({ closing, reopenedAt: args.now, actorUserId: args.actorUserId }),
+      args.now,
+    );
+    const result = {
+      reopened: true,
+      businessDate: args.businessDate,
+      previousClosing: closing,
     };
     storeIdempotencyResult(args.operationId, result);
     return result;

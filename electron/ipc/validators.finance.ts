@@ -216,6 +216,16 @@ export const closingsListSchema = z.object({
   to: businessDate,
 });
 
+/**
+ * E-21 (P1) : réouverture d'une journée clôturée (migration 0048 verrouille
+ * la période close). Opération EXCEPTIONNELLE, réservée au gérant, tracée et
+ * rejouable (operationId REQUIRED comme toute opération financière).
+ */
+export const closingReopenSchema = z.object({
+  operationId: z.string().uuid(),
+  businessDate,
+});
+
 // Import CSV (lignes déjà validées côté renderer, re-validées côté main)
 
 export const companyUpdateSchema = z.object({

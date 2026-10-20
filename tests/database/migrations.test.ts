@@ -28,10 +28,10 @@ describe("SQLite migrations + integrity", () => {
       .readdirSync(migDir)
       .filter((f) => f.endsWith(".sql"))
       .sort();
-    // RADICAL-FIX: contiguïté exacte 0001→0047 (tout trou = drift refusé par verify-migrations).
-    expect(files.length).toBe(47);
+    // RADICAL-FIX: contiguïté exacte 0001→0049 (tout trou = drift refusé par verify-migrations).
+    expect(files.length).toBe(49);
     expect(files[0]).toMatch(/^0001_/);
-    expect(files[files.length - 1]).toMatch(/^0047_/);
+    expect(files[files.length - 1]).toMatch(/^0049_/);
     db.exec(
       "CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL, checksum TEXT NOT NULL);",
     );
@@ -90,7 +90,7 @@ describe("SQLite migrations + integrity", () => {
       .readdirSync(migDir)
       .filter((x) => x.endsWith(".sql"))
       .sort();
-    expect(files.length).toBe(47);
+    expect(files.length).toBe(49);
     const read = (f: string): string => fs.readFileSync(path.join(migDir, f), "utf-8");
     for (const f of files.filter((f) => !f.startsWith("0004"))) db.exec(read(f));
     // Seed: one credit-authorized customer + one sale + one sale-linked payment.

@@ -130,6 +130,8 @@ const api = {
   closings: {
     get: (p: unknown) => invoke(IPC_CHANNELS["closings.get"], p),
     create: (p: unknown) => invoke(IPC_CHANNELS["closings.create"], p),
+    // E-21 : réouverture d'une journée close (gérant).
+    reopen: (p: unknown) => invoke(IPC_CHANNELS["closings.reopen"], p),
   },
   zakat: {
     sources: () => invoke(IPC_CHANNELS["zakat.sources"]),

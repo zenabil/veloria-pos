@@ -172,6 +172,8 @@ export const api = {
   historyDetail: (p: unknown) => call((a) => a.history.detail(p)),
   historyStats: (p?: unknown) => call((a) => a.history.stats(p)),
   closingCreate: (p: unknown) => call((a) => a.closings.create(p)),
+  /** E-21 : réouverture d'une journée close (gérant, tracé). */
+  closingReopen: (p: unknown) => call((a) => a.closings.reopen(p)),
   zakatSources: () => call((a) => a.zakat.sources()),
   zakatSave: (p: unknown) => call((a) => a.zakat.saveParams(p)),
   zakatHistory: (p: unknown) => call((a) => a.zakat.history(p)),

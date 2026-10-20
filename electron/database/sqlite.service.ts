@@ -313,6 +313,28 @@ export function removeWalCompanions(dbFile: string): void {
 }
 
 /**
+ * F-08 : pragmas de la connexion SECONDAIRE (lecture seule).
+ * La sonde de vérification d'une copie de base (`verifyDbFileCopy`) ouvrait
+ * SQLite sans AUCUN pragma : pas de `busy_timeout` (un fichier en cours de
+ * copie ⇒ `database is locked` aléatoire), pas de `foreign_keys` (le
+ * `foreign_key_check` perdait son cadre), pas de garde en lecture seule
+ * (`query_only`).
+ * `journal_mode`/`synchronous` ne sont PAS ré-appliqués ici : en lecture
+ * seule, les écrire échoue (le fichier ne doit jamais être modifié par une
+ * sonde).
+ */
+function applyReadonlyPragmas(database: BetterSqlite3DB): void {
+  database.pragma("busy_timeout = 10000");
+  database.pragma("foreign_keys = ON");
+  database.pragma("query_only = ON");
+  try {
+    database.pragma("trusted_schema = OFF");
+  } catch {
+    /* noop */
+  }
+}
+
+/**
  * Vérifie un FICHIER SQLite candidat via une connexion secondaire en lecture
  * seule (jamais la connexion principale) : en-tête, intégrité, FK, migrations.
  * Utilisé par relocation et restauration avant tout swap. Lève un message FR.
@@ -326,6 +348,7 @@ export function verifyDbFileCopy(filePath: string): { schemaVersion: number } {
   let probe: BetterSqlite3DB | null = null;
   try {
     probe = new Database(filePath, { readonly: true, fileMustExist: true });
+    applyReadonlyPragmas(probe);
     const rows = probe.prepare(`PRAGMA integrity_check`).all() as {
       integrity_check: string;
     }[];

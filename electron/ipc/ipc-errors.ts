@@ -70,6 +70,23 @@ export function toUserMessage(err: unknown): { code: string; message: string } {
       message: msg,
     };
   }
+  // E-21 / E-28 (P1) : messages des triggers de la base (RAISE ABORT).
+  // SQLite renvoie ces messages avec un `code` technique (SQLITE_CONSTRAINT_*)
+  // : sans ce mapping, l'opérateur verrait « Une erreur inattendue est
+  // survenue » au lieu de la cause réelle. Les messages des triggers sont
+  // déjà rédigés en français ⇒ on les transmet tels quels.
+  if (/Journée déjà clôturée/i.test(msg)) {
+    return {
+      code: "CLOSING_ERROR",
+      message: "Journée déjà clôturée : réouverture requise pour la corriger.",
+    };
+  }
+  if (/numéro de téléphone est déjà utilisé/i.test(msg)) {
+    return {
+      code: "VALIDATION_ERROR",
+      message: "Ce numéro de téléphone est déjà utilisé par un autre client.",
+    };
+  }
   // Erreurs SQLite internes (jamais exposées telles quelles).
   if (/SQLITE_|constraint failed|no such (table|column)|syntax error|RAISE|ABORT/i.test(msg)) {
     return { code: "UNKNOWN_ERROR", message: "Une erreur inattendue est survenue. Réessayez." };

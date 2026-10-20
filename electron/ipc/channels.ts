@@ -99,6 +99,9 @@ export const IPC_CHANNELS = {
   "dashboard.summary": "dashboard.summary",
   "closings.get": "closings.get",
   "closings.create": "closings.create",
+  // E-21 (P1) : réouverture d'une journée close (issue explicite du verrou
+  // de période — migration 0048). Gérant uniquement, tracée, rejouable.
+  "closings.reopen": "closings.reopen",
   "zakat.sources": "zakat.sources",
   "zakat.saveParams": "zakat.saveParams",
   "zakat.history": "zakat.history",

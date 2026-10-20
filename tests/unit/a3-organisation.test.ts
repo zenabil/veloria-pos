@@ -52,6 +52,11 @@ const ALLOWED: ReadonlySet<string> = new Set([
   "sales>customers",
   "settings>license",
   "settings>staff",
+  // reports>staff (ADR-121) : l'écran Rapports affiche le bouton « Rouvrir la
+  // journée » (E-21) aux seuls gérants ⇒ il lit la session interne.
+  // `staff` est une FEUILLE (n'importe aucune autre feature) ⇒ arête
+  // unidirectionnelle, zéro cycle possible.
+  "reports>staff",
   "stock>suppliers",
 ]);
 

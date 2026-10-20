@@ -54,6 +54,10 @@ const STAFF_CHANNEL_PERMISSION: Record<string, string> = {
   // Clôture
   [IPC_CHANNELS["closings.get"]]: "closings",
   [IPC_CHANNELS["closings.create"]]: "closings",
+  // E-21 (P1) : la réouverture d'une journée close défait le verrou de
+  // période (migration 0048) ⇒ permission `closings` exigée, et le repo
+  // refuse en plus tout utilisateur qui n'est pas gérant.
+  [IPC_CHANNELS["closings.reopen"]]: "closings",
   // Paramètres et matériel
   [IPC_CHANNELS["settings.get"]]: "settings",
   [IPC_CHANNELS["settings.save"]]: "settings",

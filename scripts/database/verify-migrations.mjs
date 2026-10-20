@@ -1370,6 +1370,226 @@ console.log("OK  0026 credit-revocation policy (refused with debt, allowed when 
   console.log("OK  0044 cart_drafts.delivery_fee_minor (colonne + CHECK + défaut 0)");
 }
 
+// E-36 (P1) : 0045 / 0046 / 0047 n'étaient ASSUMÉS par aucune porte.
+// Elles sont désormais vérifiées comme les 0042→0044.
+{
+  // 0045 : dépassement de plafond tracé sur la vente.
+  const col45 = db
+    .prepare("PRAGMA table_info(sales)")
+    .all()
+    .filter((c) => c.name === "credit_limit_override");
+  if (col45.length !== 1 || String(col45[0].type).toUpperCase() !== "INTEGER") {
+    console.error("FAIL: 0045 sales.credit_limit_override missing");
+    process.exit(1);
+  }
+  const dflt45 = db
+    .prepare("PRAGMA table_info(sales)")
+    .all()
+    .find((c) => c.name === "credit_limit_override");
+  if (Number(dflt45.dflt_value) !== 0) {
+    console.error("FAIL: 0045 credit_limit_override default is not 0");
+    process.exit(1);
+  }
+  let ov45 = false;
+  try {
+    db.prepare(
+      "INSERT INTO sales (uuid, invoice_number, customer_id, subtotal_minor, total_minor, amount_paid_minor, remaining_balance_minor, payment_status, credit_limit_override, created_at, updated_at) VALUES ('u45','FAC-2026-00045',1,1000,1000,0,1000,'unpaid',2,'2026-01-01','2026-01-01')",
+    ).run();
+  } catch {
+    ov45 = true;
+  }
+  if (!ov45) {
+    console.error("FAIL: 0045 credit_limit_override CHECK not enforced");
+    process.exit(1);
+  }
+  console.log("OK  0045 sales.credit_limit_override (colonne + CHECK + défaut 0)");
+}
+
+{
+  // 0046 : attribution des opérations à l'utilisateur interne (7 tables).
+  const tables46 = [
+    "sales",
+    "sale_payments",
+    "supplier_payments",
+    "expenses",
+    "returns",
+    "stock_intakes",
+    "stock_movements",
+  ];
+  const missing46 = [];
+  for (const t of tables46) {
+    const cols = db.prepare(`PRAGMA table_info(${t})`).all();
+    if (!cols.some((c) => c.name === "staff_user_id")) missing46.push(t);
+  }
+  if (missing46.length > 0) {
+    console.error(`FAIL: 0046 staff_user_id missing on ${missing46.join(",")}`);
+    process.exit(1);
+  }
+  // La FK doit être ON DELETE SET NULL (supprimer un utilisateur n'efface
+  // jamais l'historique métier).
+  const fk46 = db.prepare("PRAGMA foreign_key_list(sales)").all();
+  const staffFk = fk46.find((f) => f.table === "staff_users");
+  if (!staffFk || String(staffFk.on_delete).toUpperCase() !== "SET NULL") {
+    console.error("FAIL: 0046 sales.staff_user_id FK is not ON DELETE SET NULL");
+    process.exit(1);
+  }
+  console.log(`OK  0046 staff_user_id (${tables46.length}/7 tables + FK SET NULL)`);
+}
+
+{
+  // 0047 : recherche client insensible aux accents (colonne + index + backfill).
+  const cols47 = db.prepare("PRAGMA table_info(customers)").all();
+  if (!cols47.some((c) => c.name === "search_norm")) {
+    console.error("FAIL: 0047 customers.search_norm missing");
+    process.exit(1);
+  }
+  const idx47 = db
+    .prepare(
+      "SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_customers_search_norm'",
+    )
+    .get();
+  if (!idx47) {
+    console.error("FAIL: 0047 idx_customers_search_norm missing");
+    process.exit(1);
+  }
+  db.prepare(
+    "INSERT INTO customers (uuid, first_name, last_name, search_name, phone, created_at, updated_at) VALUES ('c47','Bélaïd','Belkacem','bélaïd belkacem','0550000047','2026-01-01','2026-01-01')",
+  ).run();
+  // Backfill historique : les lignes antérieures à 0047 ont search_norm NULL ;
+  // rejouer les UPDATE de la migration les normalise (idem migration).
+  const sql47 = fs.readFileSync(path.join(migDir, "0047_customer_search_norm.sql"), "utf-8");
+  for (const stmt of sql47.split(";")) {
+    if (/UPDATE\s+customers\s+SET/i.test(stmt)) db.exec(stmt);
+  }
+  const row47 = db.prepare("SELECT search_norm FROM customers WHERE uuid = 'c47'").get();
+  if (!row47 || row47.search_norm !== "belaid belkacem") {
+    console.error(`FAIL: 0047 backfill search_norm wrong (got ${row47 && row47.search_norm})`);
+    process.exit(1);
+  }
+  console.log("OK  0047 customers.search_norm (colonne + index + backfill normalisé)");
+}
+
+{
+  // 0048 : verrou de PÉRIODE CLÔTURÉE (fail-closed sur journée close).
+  const trg48 = db
+    .prepare(
+      "SELECT COUNT(*) AS c FROM sqlite_master WHERE type = 'trigger' AND name LIKE '%\\_closed\\_day\\_%' ESCAPE '\\'",
+    )
+    .get();
+  if (trg48.c !== 15) {
+    console.error(`FAIL: 0048 closed-day guards missing (found ${trg48.c}/15)`);
+    process.exit(1);
+  }
+  db.prepare(
+    "INSERT INTO daily_closings (uuid, business_date, cash_sales_minor, cash_payments_minor, customer_collections_minor, expenses_minor, refunds_minor, closing_balance_minor, closed_at) VALUES ('cl48','2026-03-01',0,0,0,0,0,0,'2026-03-01T23:59:00.000Z')",
+  ).run();
+  let saleRefused = false;
+  let saleMsg = "";
+  try {
+    db.prepare(
+      "INSERT INTO sales (uuid, invoice_number, customer_id, subtotal_minor, total_minor, amount_paid_minor, remaining_balance_minor, payment_status, created_at, updated_at) VALUES ('u48','FAC-2026-00048',1,1000,1000,1000,0,'paid','2026-03-01T10:00:00.000Z','2026-03-01T10:00:00.000Z')",
+    ).run();
+  } catch (e) {
+    saleRefused = true;
+    saleMsg = String(e.message);
+  }
+  if (!saleRefused || !/clôturée/i.test(saleMsg)) {
+    console.error(`FAIL: 0048 sale on a closed day accepted (${saleMsg})`);
+    process.exit(1);
+  }
+  let expenseRefused = false;
+  try {
+    db.prepare(
+      "INSERT INTO expenses (uuid, description, category, amount_minor, expense_date, created_at, updated_at) VALUES ('e48','Achat','divers',500,'2026-03-01','2026-03-01','2026-03-01')",
+    ).run();
+  } catch {
+    expenseRefused = true;
+  }
+  if (!expenseRefused) {
+    console.error("FAIL: 0048 expense on a closed day accepted");
+    process.exit(1);
+  }
+  let paymentRefused = false;
+  try {
+    db.prepare(
+      "INSERT INTO sale_payments (uuid, sale_id, customer_id, amount_minor, method, payment_date, created_at) VALUES ('pay48', NULL, 1, 200, 'cash', '2026-03-01', '2026-03-01')",
+    ).run();
+  } catch {
+    paymentRefused = true;
+  }
+  if (!paymentRefused) {
+    console.error("FAIL: 0048 payment on a closed day accepted");
+    process.exit(1);
+  }
+  // Une autre journée reste ouverte.
+  db.prepare(
+    "INSERT INTO sales (uuid, invoice_number, customer_id, subtotal_minor, total_minor, amount_paid_minor, remaining_balance_minor, payment_status, created_at, updated_at) VALUES ('u48b','FAC-2026-00049',1,1000,1000,1000,0,'paid','2026-03-02T10:00:00.000Z','2026-03-02T10:00:00.000Z')",
+  ).run();
+  console.log("OK  0048 verrou de période close (15 triggers, fail-closed FR)");
+}
+
+{
+  // 0049 : unicité du téléphone client (comparaison sur les chiffres).
+  const trg49 = db
+    .prepare(
+      "SELECT COUNT(*) AS c FROM sqlite_master WHERE type = 'trigger' AND name IN ('trg_customers_phone_unique_ins','trg_customers_phone_unique_upd')",
+    )
+    .get();
+  if (trg49.c !== 2) {
+    console.error(`FAIL: 0049 phone uniqueness guards missing (found ${trg49.c}/2)`);
+    process.exit(1);
+  }
+  db.prepare(
+    "INSERT INTO customers (uuid, first_name, last_name, search_name, phone, created_at, updated_at) VALUES ('c49a','Yacine','Meri','yacine meri','0550 12 34 56','2026-01-01','2026-01-01')",
+  ).run();
+  let dupRefused = false;
+  let dupMsg = "";
+  try {
+    db.prepare(
+      "INSERT INTO customers (uuid, first_name, last_name, search_name, phone, created_at, updated_at) VALUES ('c49b','Yacine','Meri','yacine meri','0550123456','2026-01-01','2026-01-01')",
+    ).run();
+  } catch (e) {
+    dupRefused = true;
+    dupMsg = String(e.message);
+  }
+  if (!dupRefused || !/téléphone/i.test(dupMsg)) {
+    console.error(`FAIL: 0049 duplicate phone accepted (${dupMsg})`);
+    process.exit(1);
+  }
+  // Un client SANS téléphone reste possible (colonnes NULLables).
+  db.prepare(
+    "INSERT INTO customers (uuid, first_name, last_name, search_name, phone, created_at, updated_at) VALUES ('c49c','Nora','Slim','nora slim',NULL,'2026-01-01','2026-01-01')",
+  ).run();
+  // Un numéro ARCHIVÉ ne bloque pas un nouveau client.
+  db.prepare("UPDATE customers SET deleted_at = '2026-02-01' WHERE uuid = 'c49a'").run();
+  db.prepare(
+    "INSERT INTO customers (uuid, first_name, last_name, search_name, phone, created_at, updated_at) VALUES ('c49d','Karim','Amrani','karim amrani','0550123456','2026-01-01','2026-01-01')",
+  ).run();
+  console.log("OK  0049 unicité du téléphone client (2 triggers, NULL et archivé tolérés)");
+}
+
+// E-36 (P1) : pureté de l'argent — toute colonne « *_minor » est un INTEGER
+// (jamais REAL/NUMERIC/TEXT : pas de float en base, règle AGENTS §4).
+{
+  const tables = db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
+    .all();
+  const offenders = [];
+  for (const t of tables) {
+    const cols = db.prepare(`PRAGMA table_info("${t.name}")`).all();
+    for (const c of cols) {
+      if (!/_minor$/i.test(String(c.name))) continue;
+      const type = String(c.type || "").toUpperCase();
+      if (type !== "INTEGER") offenders.push(`${t.name}.${c.name} (${type})`);
+    }
+  }
+  if (offenders.length > 0) {
+    console.error(`FAIL: money columns are not INTEGER: ${offenders.join(", ")}`);
+    process.exit(1);
+  }
+  console.log(`OK  pureté de l'argent (toutes les colonnes *_minor sont INTEGER)`);
+}
+
 // Integrity
 const ic = db.prepare("PRAGMA integrity_check").get();
 const fk = db.prepare("PRAGMA foreign_key_check").all();

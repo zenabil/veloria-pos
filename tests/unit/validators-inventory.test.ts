@@ -26,7 +26,9 @@ const MODULES = [
 // paymentTicketFormatSchema retirés avec les canaux A4 de vente).
 // ADR-119 (2026-10-19) : 114 → 113 (syncPendingSchema retiré avec le
 // canal `sync.pending`, supersédé par le SELECT inline de pushNowAtomic).
-const FROZEN_SCHEMA_COUNT = 113;
+// ADR-121 (2026-10-20) : 113 → 114 (closingReopenSchema ajouté avec le
+// canal `closings.reopen` — réouverture d'une journée close, E-21).
+const FROZEN_SCHEMA_COUNT = 114;
 const FROZEN_MAX_LINES = 300;
 
 describe("Validators inventory (split guard)", () => {

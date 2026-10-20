@@ -60,8 +60,13 @@ export const quantityNonNegative = z
 // (contrat Zod uniforme, AGENTS.md §3 : toute commande passe par un schéma).
 export const emptyPayloadSchema = z.object({}).strict();
 
+// E-31 (P2) : `page` était SANS borne ⇒ `OFFSET = (page-1) * pageSize`
+// devenait illimité (scan complet de la table, y compris sur le branche
+// UNION à 17 tables de `history.list`). Plafond dur : 10 000 pages
+// (10 000 × 200 = 2 000 000 lignes au maximum) — au-delà, l'appelant doit
+// filtrer (bornes de dates) ou utiliser une recherche ciblée.
 export const paginationSchema = z.object({
-  page: z.number().int().min(1).default(1),
+  page: z.number().int().min(1).max(10_000).default(1),
   pageSize: z.number().int().min(1).max(200).default(50),
 });
 
