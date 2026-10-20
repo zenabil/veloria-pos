@@ -1,4 +1,4 @@
-# Handoff — Veloria POS (état au 2026-10-19)
+# Handoff — Veloria POS (état au 2026-10-20)
 
 > Document de continuité : tout ce qui a été fait, fichiers modifiés,
 > erreurs (fermées/ouvertes), en-attente, commandes. Sessions 2026-10-07
@@ -15,62 +15,18 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête = `docs(audit): prompt etendu - 19
-playbooks domaine…` (`94a64de`). **Arbre TOUJOURS NON propre** : chantier
-  impression / `*.capabilities` (20 fichiers M + 3 nouveaux) **intact et non
-  commité** — staffage par chemins explicites uniquement (AGENTS.md §10).
-  **Décision M5 (Q5) : commit ou stash du chantier impression — À DÉCIDER PAR
-  LE PROPRIÉTAIRE avant la vague W1.**
-- **Audit intégral EXÉCUTÉ (§18, 2026-10-19)** : 3 livrables —
-  `docs/reports/FULL_AUDIT_2026-10-19.md` (rapport, 16 axes A→P, **228
-  findings** : 0 Critical · 23 High · 95 Medium · 110 Low) ·
-  `docs/reports/FULL_AUDIT_2026-10-19_PLAN.md` (plan en **11 vagues
-  W0→W10**, ~11-13 j, 20 décisions owner) · `docs/ADR-120-*.md` (**proposé**,
-  en attente d'approbation). Preuves brutes :
-  `docs/reports/maintenance/audit-raw/`. **ZÉRO changement de code métier.**
-- **Baseline gelé 2026-10-19 (mesuré, arbre sale)** : `tsc -b` **0** ·
-  `typecheck:electron` **0** · `typecheck:manager` **0** ·
-  `eslint . --max-warnings 0` **exit 0** · `vitest` **121 fichiers / 804 tests**
-  **0** · `test:db` **0** (isolé) · `verify:migrations` **VERIFIED** ·
-  `verify:domain` **VERIFIED** · `verify:perf` **VERIFIED** ·
-  `license:scan` **0** · `format:check` **0** · `build` ✓ (40.6 s) ·
-  `build:electron` ✓ (manifeste signé **214 fichiers**) ·
-  **`test:coverage` = EXIT 1 (ROUGE — 18 dépassements de seuil sur 5 fichiers
-  domain ; absent du CI)**.
-- **Nouveaux constats P1 (non corrigés, voir plan)** : `formatDzd()` **throw**
-  pendant le rendu React (268 sites `.tsx` vs 16 `formatDzdSafe`) ·
-  `useBusyFlag` ne bloque pas le double-submit (13 sections réglages, dont
-  `database.reset`) · `customers.accessQrSvg` **sans staff-gate** (fuit le PIN
-  client en clair) · `staffScope()` ⇒ «no session = gérant» ·
-  `database.optimize` sans aucune gate · conversion Proforma→vente **échoue
-  toujours** si remise · clôture Z **ne verrouille pas** la période et compte
-  chèque/transfert comme du cash · `RAW_GUARDED_CHANNELS` lu par **rien** ·
-  `FROZEN_SCHEMA_COUNT` 113 vs **120** réels · garde ESLint «pas d'arabe dans
-  src/» **inerte** (prouvé par exécution) · `verify:licensing` hors CI.
-- ADRs : 001→**119** + **ADR-120 proposé** (non commité comme décision, mais
-  le fichier est là). `docs/INDEX.md` **à jour jusqu'à 119** (le §1 précédent
-  disait « jusqu'à 103 seulement » — **c'était faux**, corrigé).
-- Outillage : `knip.json` (§16) — candidats bruts **219 → 30**,
-  `Unused files` **32 → 0**. Re-mesuré 2026-10-19 : `Unused files` 0,
-  `Unused exports` 18 + `Unused exported types` 9 + 1 dependency
-  (`expo-constants`) + 1 config hint (`tailwindcss`).
-- **Contrats gelés (inchangés par l'audit)** : canaux IPC **177** clés
-  (175 servis + 2 push-only) · snapshot `ipc-channels.json` **176** ·
-  `FROZEN_SCHEMA_COUNT` **113** · `operation-id-coverage` (R1) inchangé.
-- E2E (non relancé le 2026-10-19) : suite 2026-10-18 — **12/13 specs vertes**,
-  **37** blocs `test()` (pas 24) ; `full-loop-client` exige le relais `:8100`
-  (hard-fail, pas skip) ; `installer` non exécutable hors paquet Win + UAC.
-- Non relancés : E2E, `verify:licensing`, packaging/`release/`,
-  `npm audit` réseau (offline ⇒ non probant).
-- **Pièges découverts pendant l'audit** : (1) `npm run lint` passe sur
-  `docs/**` ⇒ **tout `.mjs` déposé sous `docs/` casse la porte** (allowlist
-  `allowDefaultProject` = 24 chemins, `eslint.config.mjs:31-58`) ; (2)
-  `test:db` échoue (12 `Hook timed out`) si lancé **en parallèle** d'autres
-  outils lourds — `hookTimeout` non configuré (10 s par défaut) alors que
-  chaque `beforeEach` rejoue **47 migrations** ; (3) `format:check` échoue sur
-  tout `.md` écrit à la main ⇒ **toujours** passer Prettier sur les livrables
-  ; (4) `npm run build` seul invalide le manifeste licence ⇒ toujours
-  enchaîner `build:electron`.
+- Branche : `chore/root-layout` — tête = `fix(db): W3 - verrou de periode close, unicite telephone, gardes E-36 (audit 2026-10-19)` (`833cea1`). **Arbre TOUJOURS NON propre** : chantier impression / `*.capabilities` (20 fichiers M + 3 nouveaux) **intact et non commité** — staffage par chemins explicites uniquement (AGENTS.md §10). **Décision M5 (Q5) : commit ou stash du chantier impression — À DÉCIDER PAR LE PROPRIÉTAIRE** (les vagues W1→W3 ont été commitées sans y toucher).
+- **Audit intégral EXÉCUTÉ (§18, 2026-10-19)** : 3 livrables — `docs/reports/FULL_AUDIT_2026-10-19.md` (rapport, 16 axes A→P, **228 findings** : 0 Critical · 23 High · 95 Medium · 110 Low) · `docs/reports/FULL_AUDIT_2026-10-19_PLAN.md` (plan en **11 vagues W0→W10**, ~11-13 j, 20 décisions owner) · `docs/ADR-120-*.md` (**proposé**, en attente d'approbation). Preuves brutes : `docs/reports/maintenance/audit-raw/`.
+- **Remédiation : vagues W1 → W3 EXÉCUTÉES et commitées** : `0e900f1` **W1** (logique financière : 7 High + 3 Low — E-20/22/23/24/25/26/27/33/34/36 + ADR-121) · `cd43aa2` **W2** (sécurité : K-01/04/05, A-04/05/09/10/11/13/17, K-02/03, G-13/15/21) · `833cea1` **W3** (base : E-21/28/31/36 + F-08 + ADR-122). **Prochaine vague : W4** (couverture : `test:coverage` EXIT 0 + gardes auto-dérivées + `FROZEN_SCHEMA_COUNT` 114 → 121).
+- **Baseline gelé 2026-10-20 (mesuré, arbre sale)** : `tsc -b` **0** · `typecheck:electron` **0** · `typecheck:manager` **0** · `eslint . --max-warnings 0` **exit 0** · `vitest` **130 fichiers / 857 tests** **0** · `test:db` **36 fichiers / 162 tests** **0** (isolé) · `verify:migrations` **VERIFIED** (blocs 0045→0049 + pureté de l'argent) · `verify:domain` **VERIFIED** (3 gardes E-36 non vacuous) · `verify:perf` **VERIFIED** · `license:scan` **0** (1343 fichiers) · `format:check` **0** · `build` ✓ (30.3 s) · `build:electron` ✓ (manifeste signé **217 fichiers**) · **`test:coverage` = EXIT 1 (ROUGE — 18 dépassements de seuil ; absent du CI)**.
+- **Nouveaux constats P1 (non corrigés, voir plan)** : `formatDzd()` **throw** pendant le rendu React (268 sites `.tsx` vs 16 `formatDzdSafe`) · `useBusyFlag` ne bloque pas le double-submit (13 sections réglages, dont `database.reset`) · `RAW_GUARDED_CHANNELS` lu par **rien** · `verify:licensing` hors CI · jour métier en UTC au lieu de `Africa/Algiers` (E-35) · `formatDzd`/`parseDzdInputStrict` : arbitrage produit encore ouvert (throw vs valeur).
+- **Corrigé en W1→W3 (à ne plus re-signaler)** : `customers.accessQrSvg` sans staff-gate (fuite du PIN client en clair) · `staffScope()` ⇒ «no session = gérant» · `database.optimize` sans gate · conversion Proforma→vente cassée si remise · clôture Z : chèque/transfert comptés en espèces, dépenses `pending` décomptées, retours annulés remboursés · **clôture Z ne verrouillait pas la période** (corrigé en W3) · `customers.phone` sans unicité (corrigé en W3) · `paginationSchema.page` sans borne (corrigé en W3) · `better-sqlite3` sans pragma sur la sonde de copie (corrigé en W3).
+- ADRs : 001→**122**. `docs/INDEX.md` **à jour jusqu'à 122**.
+- Outillage : `knip.json` (§16) — candidats bruts **219 → 30**, `Unused files` **32 → 0**. Re-mesuré 2026-10-19 : `Unused files` 0, `Unused exports` 18 + `Unused exported types` 9 + 1 dependency (`expo-constants`) + 1 config hint (`tailwindcss`).
+- **Contrats gelés (état après W3)** : snapshot `ipc-channels.json` **177** (176 avant W3 : + `closings.reopen`) · `FROZEN_SCHEMA_COUNT` **114** (113 avant W3 ; total réel **121**) · `operation-id-coverage` (R1) étendu en W2 (`expenses.delete`, `backup.restore`, `database.relocate`) · migrations **49** (47 avant W3).
+- E2E (non relancés depuis le 2026-10-18) : suite 2026-10-18 — **12/13 specs vertes**, **37** blocs `test()` (pas 24) ; `full-loop-client` exige le relais `:8100` (hard-fail, pas skip) ; `installer` non exécutable hors paquet Win + UAC. **W2 touche `staffScope()` (K-04) et W3 ajoute un canal ⇒ les specs `staff-session` et `full-loop-client` sont à rejouer avant le tag.**
+- Non relancés : E2E, `verify:licensing`, packaging/`release/`, `npm audit` réseau (offline ⇒ non probant).
+- **Pièges découverts pendant l'audit** : (1) `npm run lint` passe sur `docs/**` ⇒ **tout `.mjs` déposé sous `docs/` casse la porte** (allowlist `allowDefaultProject` = 24 chemins, `eslint.config.mjs:31-58`) ; (2) `test:db` échoue (12 `Hook timed out`) si lancé **en parallèle** d'autres outils lourds — `hookTimeout` non configuré (10 s par défaut) alors que chaque `beforeEach` rejoue **49 migrations** ; (3) `format:check` échoue sur tout `.md` écrit à la main ⇒ **toujours** passer Prettier sur les livrables ; (4) `npm run build` seul invalide le manifeste licence ⇒ toujours enchaîner `build:electron` ; (5) `better-sqlite3` est compilé pour l'ABI Electron (136) : pour interroger la base hors GUI, passer par `ELECTRON_RUN_AS_NODE=1 npx electron script.cjs` ; (6) toute arête inter-features nouvelle fait **échouer** le test A3 ⇒ liste blanche `tests/unit/a3-organisation.test.ts` à mettre à jour dans le même commit.
 
 ## 2) Objectifs réalisés (11 → 12 oct 2026)
 
@@ -683,3 +639,133 @@ correction` sur `docs/reports/FULL_AUDIT_2026-10-19.md` +
   `docs/reports/maintenance/audit-raw/` + `docs/INDEX.md`, puis commit
   `docs(handoff): session 2026-10-19 sexies - audit integral execute (baseline
 gele)` sur `handoff.md` seul.
+
+## 19) Session 2026-10-19 septies → 2026-10-20 (remédiation : vagues W1, W2, W3)
+
+- **Demande propriétaire** : « قم بالاصلاحات الجذرية اللازمة » (faire les
+  corrections radicales nécessaires) — exécution du plan d'audit vague par
+  vague, avec approbation implicitement donnée pour les vagues déjà
+  listées dans `docs/reports/FULL_AUDIT_2026-10-19_PLAN.md`.
+- **Reprise de session** : la session « تدقيق Veloria PoS وخطة الإصلاح الجذري »
+  (ouverte le 19/10 à 21:50) s'était interrompue au milieu de la vague **W3**
+  (le commit W2 était posé, la migration 0048 était écrite mais jamais
+  appliquée). W3 a été reprise depuis zéro : migrations, code main, UI,
+  tests, portes, ADR.
+
+### Vague W1 — logique financière (`0e900f1`)
+
+- 7 High + 3 Low corrigés **sans migration** : E-20 (conversion devis remisé
+  → vente : la remise globale est répartie sur les lignes, somme EXACTE au
+  centime, `discount_type` reste `none` — ADR-121) · E-22 (clôture Z : espèces
+  seules, dépenses `paid` seules, retours non annulés seuls) · E-23 (avoir >
+  solde : plus d'ABORT technique, excédent reporté) · E-24 (source de vérité
+  unique de la dette) · E-25 (annuler une vente encaissée supprime
+  l'encaissement et remet le solde) · E-26 (correction de quantité journalisée
+  en mouvement de stock) · E-27 (frais de livraison capitalisés dans le coût
+  FIFO) · E-33 (historique : pas d'encaissements de ventes annulées) ·
+  E-34 (arrondi monétaire « half away from zero » exact) · E-36 (zakat : la
+  VRAIE fonction du domaine est appelée).
+- Preuves : `docs/reports/maintenance/audit-raw/w1-gates.txt`.
+
+### Vague W2 — sécurité, RBAC, contrats (`cd43aa2`)
+
+- K-01 (`customers.accessQrSvg` exige `debts` : fuite du PIN client fermée) ·
+  K-04 (`staffScope()` fail-closed : sans session, les lectures sensibles
+  sont refusées) · K-05 (`database.optimize` protégé comme `database.reset`) ·
+  A-09 (verrou « code à changer » appliqué aux 32 canaux bruts) ·
+  A-04/A-05 (plus aucune erreur moteur brute vers l'opérateur) ·
+  A-10/A-11/A-13 (`operationId` exigé sur `expenses.delete`,
+  `backup.restore`, `database.relocate`) · A-17 **réfuté** (le confinement de
+  `logo_path` existait déjà) · K-02/K-03 (License Manager packagé : pas de
+  VITE_MANAGER_URL, `will-redirect`/`will-attach-webview` bloqués) ·
+  G-15 (date calendaire impossible refusée par le Manager) · G-13 (la garde
+  ESLint « pas d'arabe dans src/ » était **inerte** ⇒ remplacée par une porte
+  réelle `verify:fr`, fail-closed) · G-21 (`typecheck:mobile`, `verify:fr`,
+  `test:coverage` branchés dans le CI).
+
+### Vague W3 — base de données et migrations (`833cea1`)
+
+- **E-21 — verrou de période close** : migration `0048` (15 triggers
+  `RAISE(ABORT)`) : une journée close devient **immuable** (ventes,
+  encaissements, dépenses, retours, paiements fournisseurs). La seule issue
+  est explicite : `closings.reopen` (nouveau canal, **gérant** uniquement,
+  tracé en `audit_log` avec les montants d'origine, idempotent par
+  `operationId`) + bouton « Rouvrir la journée » dans l'écran Rapports
+  (gérants uniquement, confirmation explicite). Les messages des triggers
+  sont mappés en FR dans `ipc-errors.ts` (sans quoi l'opérateur aurait vu
+  « Une erreur inattendue est survenue »).
+- **E-28 — unicité du téléphone client** : migration `0049` (2 triggers,
+  comparaison sur les chiffres, miroir de `PHONE_DIGITS_EXPR`) + contrôle
+  applicatif `assertPhoneAvailable` (création ET modification). Trigger et
+  non index UNIQUE : un index UNIQUE échouerait sur l'historique (migration
+  non applicable sur une base réelle) et interdirait la réutilisation d'un
+  numéro porté par un client archivé.
+- **E-31** : `paginationSchema.page` borné à 10 000 (`OFFSET` illimité
+  interdit).
+- **E-36** : les gardes deviennent **échecables** — `verify:migrations`
+  assume 0045/0046/0047 (elles ne l'étaient pas) et ajoute les blocs
+  0048/0049 + la **pureté de l'argent** (toute colonne `*_minor` est
+  `INTEGER`) ; `verify:domain` vérifie que toute mutation IPC appelée
+  depuis un registre est **dans une transaction** et **accepte un
+  `operationId`** (59 mutations analysées, seuil de non-vacuitité = 40).
+- **F-08** : la sonde de vérification d'une copie de base a des pragmas
+  (`busy_timeout`, `foreign_keys`, `query_only`, `trusted_schema`).
+- **Contrats modifiés** (ADR-122) : canaux IPC servis 176 → **177**
+  (snapshot mis à jour) · `FROZEN_SCHEMA_COUNT` 113 → **114** (total réel
+  120 → **121**) · migrations 47 → **49** (`0001..0047` IMMUABLES, 0048/0049
+  **nouveaux**) · arête inter-features `reports>staff` ajoutée à la liste
+  blanche du test A3 (`staff` est une feuille ⇒ zéro cycle).
+
+### Portes (mesurées sur l'arbre sale, chantier impression non commité)
+
+`format:check` 0 · `tsc -b` 0 · `typecheck:electron` 0 · `typecheck:manager`
+0 · `eslint --max-warnings 0` exit 0 · **vitest 130 fichiers / 857 tests 0** ·
+**test:db 36 fichiers / 162 tests 0** (isolé, sinon `Hook timed out`) ·
+`verify:migrations` VERIFIED · `verify:domain` VERIFIED · `verify:perf`
+VERIFIED · `license:scan` 0 · `build` ✓ (30.3 s) · `build:electron` ✓
+(manifeste signé 217 fichiers). **`test:coverage` reste ROUGE (EXIT 1, 18
+dépassements) — c'est l'objet de la vague W4.**
+
+### Nouveaux tests (17 cas)
+
+`tests/database/closing-period-lock.test.ts` (6) ·
+`tests/database/customers-phone-unique.test.ts` (6) ·
+`tests/integration/closing-reopen.test.ts` (5).
+
+### En attente / à faire
+
+1. **W4** (prochaine vague) : `test:coverage` EXIT 0 + gardes auto-dérivées
+   (`validators.staff.ts` ⇒ `FROZEN_SCHEMA_COUNT` 114 → 121) + test
+   d'énumération de `RAW_GUARDED_CHANNELS`.
+2. **Q5 non tranché** : le chantier impression (20 M + 3 nouveaux) reste
+   **intact et non commité** — commit ou stash ? (décision propriétaire).
+3. **20 décisions owner** du plan (§4) encore ouvertes (Q1→Q20), dont Q6
+   (avoir en cours), Q7 (source de vérité de la dette), Q17 (jour métier
+   `Africa/Algiers`), Q19 (APK/EAS).
+4. **ADR-120** (gardes de contrat auto-dérivées) toujours **proposé**, non
+   approuvé.
+5. **E2E à rejouer** avant tout tag : `staff-session` et `full-loop-client`
+   (touchés par K-04 en W2) + le nouveau canal `closings.reopen`.
+6. `verify:licensing`, packaging `release/` et `npm audit` (réseau) non
+   relancés.
+
+### Pièges de cette session
+
+- `better-sqlite3` est compilé pour l'**ABI Electron** (136) : tout script
+  Node qui l'importe échoue (`NODE_MODULE_VERSION 127`). Contournement :
+  `ELECTRON_RUN_AS_NODE=1 npx electron script.cjs` — c'est aussi le moyen de
+  lire la base `opencode.db` pour retrouver l'historique d'une session.
+- Le console PowerShell affiche le UTF-8 en mojibake : ne jamais écrire un
+  `.md` via `Set-Content` (le fichier serait corrompu). Écrire via l'outil
+  d'édition ou un script Node en UTF-8, puis passer Prettier.
+- Une arête inter-features nouvelle ⇒ **le test A3 échoue** : penser à mettre à
+  jour `tests/unit/a3-organisation.test.ts` dans le même commit.
+- `eslint` casse sur tout `.cjs`/`.mjs` déposé à la racine du dépôt (hors
+  `allowDefaultProject`) : les scripts d'analyse temporaires doivent être
+  supprimés avant de commiter.
+
+### Git
+
+`0e900f1` (W1) · `cd43aa2` (W2) · `833cea1` (W3) — 3 commits, staffage par
+chemins explicites (le chantier impression n'a jamais été balayé). Le commit
+`docs(handoff)` de cette section est séparé, conformément à AGENTS.md §10.
