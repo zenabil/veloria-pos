@@ -49,6 +49,7 @@ import { StockMovementHistoryDrawer } from "@features/stock/dialogs/HistoryDrawe
 import {
   isArchived,
   sortProducts,
+  productCsvRows,
   stockLabel,
   stockTone,
   type Category,
@@ -371,20 +372,7 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
       for (const r of pages) {
         if (r) all.push(...r);
       }
-      downloadCsv(
-        `catalogue-${new Date().toISOString().slice(0, 10)}.csv`,
-        all.map((p) => ({
-          Nom: p.name,
-          Catégorie: p.category_name ?? "",
-          Unité: p.unit_code,
-          "Prix d'achat": formatDzd(p.purchase_price_minor),
-          "Prix de vente": formatDzd(p.selling_price_minor),
-          Quantité: p.quantity,
-          "Stock mini": p.min_stock_level,
-          "Code-barres": p.primary_barcode ?? "",
-          Statut: stockLabel(p),
-        })),
-      );
+      downloadCsv(`catalogue-${new Date().toISOString().slice(0, 10)}.csv`, productCsvRows(all));
       notify(`${all.length} produit(s) exporté(s).`, "ok");
     } catch (e) {
       console.error("[Veloria] catalogue : export CSV impossible", e);

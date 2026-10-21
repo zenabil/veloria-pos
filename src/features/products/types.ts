@@ -3,6 +3,7 @@
 // P3 : les unités viennent du domaine (source unique @domain/units/units.ts).
 
 import { UNIT_CODES } from "@domain/units/units.ts";
+import { formatDzd } from "@domain/money/money.ts";
 
 export interface Product {
   id: number;
@@ -42,6 +43,25 @@ export const UNIT_OPTIONS: readonly string[] = UNIT_CODES;
 // aussi par le dialogue « quantité vendue » de la Caisse) — ré-exportés ici
 // pour compatibilité des imports existants du Catalogue.
 export { unitLabel } from "@domain/units/units.ts";
+
+/**
+ * Lignes CSV du catalogue (export) — fonction PURE (testable hors UI) :
+ * les montants sont formatés en DZD (jamais des centimes bruts), le
+ * code-barres et le statut sont inclus.
+ */
+export function productCsvRows(rows: Product[]): Record<string, unknown>[] {
+  return rows.map((p) => ({
+    Nom: p.name,
+    Catégorie: p.category_name ?? "",
+    Unité: p.unit_code,
+    "Prix d'achat": formatDzd(p.purchase_price_minor),
+    "Prix de vente": formatDzd(p.selling_price_minor),
+    Quantité: p.quantity,
+    "Stock mini": p.min_stock_level,
+    "Code-barres": p.primary_barcode ?? "",
+    Statut: stockLabel(p),
+  }));
+}
 
 export function isArchived(p: Product): boolean {
   return p.is_active !== 1;

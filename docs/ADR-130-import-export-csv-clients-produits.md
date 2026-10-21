@@ -91,7 +91,17 @@ octet).
   statique du câblage renderer (bouton, parseur, appel IPC, export,
   parcours des pages) + interdiction d'importer SQLite/Node dans l'UI ;
 - `parseCustomersCsv` était déjà couvert (`phase6-9-rules`,
-  `domain-rules-coverage`).
+  `domain-rules-coverage`) ;
+- `tests/e2e/csv-import-export.spec.ts` (**nouveau**, 3 cas) — vérification
+  RÉELLE dans l'application (base vierge, licence réelle) : le fichier CSV est
+  importé par le main et la fiche apparaît dans le tableau avec son
+  téléphone ; un fichier invalide est refusé **sans écrire de fiche** ; les
+  deux exports parcourent le filtre et rapportent le compte de lignes.
+
+> Note E2E : l'événement `download` de Playwright n'est **pas** émis par
+> Electron (le téléchargement est géré par la session Chromium) ⇒ l'export
+> est vérifié par son **effet** (toast FR « N … exporté(s) ») et son contenu
+> par le test unitaire `productCsvRows`.
 
 ## Portes
 

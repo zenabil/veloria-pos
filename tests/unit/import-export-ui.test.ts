@@ -9,6 +9,8 @@
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
+import { productCsvRows, type Product } from "@/features/products/types.ts";
+import { toCsv } from "@shared/export/csv.ts";
 
 const ROOT = process.cwd();
 const read = (rel: string): string => fs.readFileSync(path.join(ROOT, rel), "utf8");
@@ -49,6 +51,44 @@ describe("W10/ADR-130 : import & export CSV (Clients, Produits)", () => {
     expect(src, "parcours des pages").toContain("Math.ceil(total / PAGE_SIZE)");
     // Les montants exportés sont formatés (jamais des centimes bruts).
     expect(src, "montants formatés").toContain("formatDzd(p.selling_price_minor)");
+  });
+
+  it("export catalogue : lignes CSV (montants DZD, code-barres, statut)", () => {
+    const rows: Product[] = [
+      {
+        id: 1,
+        name: "Farine",
+        category_id: 2,
+        category_name: "Épicerie",
+        unit_code: "KG",
+        purchase_price_minor: 4000,
+        selling_price_minor: 5000,
+        quantity: 12.5,
+        min_stock_level: 2,
+        max_stock_level: 0,
+        expiration_date: null,
+        stock_status: "in_stock",
+        is_active: 1,
+        primary_barcode: "1234567890123",
+      },
+    ];
+    const csv = productCsvRows(rows);
+    expect(csv).toHaveLength(1);
+    expect(csv[0]).toMatchObject({
+      Nom: "Farine",
+      Catégorie: "Épicerie",
+      Unité: "KG",
+      "Prix d'achat": "40,00 DZD",
+      "Prix de vente": "50,00 DZD",
+      Quantité: 12.5,
+      "Stock mini": 2,
+      "Code-barres": "1234567890123",
+      Statut: "En stock",
+    });
+    // Le CSV produit est bien formé (séparateur « ; », en-têtes).
+    const text = toCsv(csv);
+    expect(text.split("\n")[0]).toContain("Nom;Catégorie");
+    expect(text).toContain("Farine");
   });
 
   it("le renderer n'importe jamais SQLite/Node (règle 2)", () => {

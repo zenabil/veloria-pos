@@ -1116,8 +1116,15 @@ VERIFIED · `verify:fr` 0 (322 fichiers) · `verify:encoding` 0 (864 fichiers) �
   `FROZEN_SCHEMA_COUNT` 121 → **122** · `FROZEN_EXPORT_COUNT` 127 → **128** ·
   `FROZEN_SCHEMA_TOTAL` 121 → **122** · `operationId` REQUIRED 43 → **44**.
 - **Tests** : `tests/integration/customers-import.test.ts` (6 cas) +
-  `tests/unit/import-export-ui.test.ts` (5 cas : garde statique du câblage
-  renderer + interdiction SQLite/Node dans l'UI).
+  `tests/unit/import-export-ui.test.ts` (6 cas : garde statique du câblage
+  renderer + lignes CSV de l'export + interdiction SQLite/Node dans l'UI) +
+  `tests/e2e/csv-import-export.spec.ts` (**3 cas, E2E RÉEL** : le fichier CSV
+  est importé par le main et la fiche apparaît dans le tableau avec son
+  téléphone ; un fichier invalide est refusé **sans écrire de fiche** ; les
+  deux exports parcourent le filtre et rapportent le compte de lignes).
+  Note : l'événement `download` de Playwright n'est pas émis par Electron
+  (téléchargement géré par la session Chromium) ⇒ l'export est vérifié par
+  son **effet** (toast FR) et son contenu par le test unitaire.
 
 ### Formats (rappel)
 
