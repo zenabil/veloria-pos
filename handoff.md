@@ -18,12 +18,12 @@
 - Branche : `chore/root-layout` — tête = `feat(ui): W10 - etat d'erreur persistant par ecran, coordonnees non codees en dur (audit 2026-10-19)`. **Arbre PROPRE** : le chantier impression (`*.capabilities`) a été **commité** en W5/W8/W9 (décision M5/Q5 résolue de fait) ⇒ plus de fichier non commité à stash.
 - **Audit intégral EXÉCUTÉ (§18, 2026-10-19)** : 3 livrables — `docs/reports/FULL_AUDIT_2026-10-19.md` (rapport, 16 axes A→P, **228 findings** : 0 Critical · 23 High · 95 Medium · 110 Low) · `docs/reports/FULL_AUDIT_2026-10-19_PLAN.md` (plan en **11 vagues W0→W10**, ~11-13 j, 20 décisions owner) · `docs/ADR-120-*.md` (**proposé**, en attente d'approbation). Preuves brutes : `docs/reports/maintenance/audit-raw/`.
 - **Remédiation : vagues W1 → W10 EXÉCUTÉES et commitées** : `0e900f1` **W1** (logique financière) · `cd43aa2` **W2** (sécurité) · `833cea1` **W3** (base) · **W4** (couverture verte + gardes auto-dérivées) · `1e56547` **W5** (rendu/UI caissier + atelier impression) · **W6** (code mort trié — ADR-127) · `4a96938` **W9** (encodage + chiffres à jour) · `7086954` **W8** (chemins chauds indexés, N+1, bundle) · **W7** (règles uniques — ADR-128) · **W10** (état d'erreur persistant — ADR-129). **Plan d'audit : TERMINÉ** (les 11 vagues sont exécutées).
-- **Baseline gelé 2026-10-21 (mesuré, arbre propre)** : `tsc -b` **0** · `typecheck:electron` **0** · `eslint . --max-warnings 0` **exit 0** · `vitest` **140 fichiers / 964 tests** **0** · `test:db` **38 fichiers / 177 tests** **0** (isolé) · **`test:coverage` = EXIT 0 (VERT — 95,83 % lignes · 87,19 % branches · 100 % fonctions, seuils 80/75/88/80 par fichier ; aucun seuil abaissé)** · `knip` **0** (0 fichier, 0 export, 0 type, 0 dépendance) · `verify:migrations` **VERIFIED** · `verify:domain` **VERIFIED** · `verify:perf` **VERIFIED** · `verify:fr` **0** (322 fichiers, **plus de liste d'attente**) · `verify:encoding` **0** (864 fichiers) · `license:scan` **0** (1367 fichiers) · `format:check` **0** · `build` ✓ (12,1 s) · `build:electron` ✓ (manifeste signé **216 fichiers**).
+- **Baseline gelé 2026-10-21 (mesuré, arbre propre)** : `tsc -b` **0** · `typecheck:electron` **0** · `eslint . --max-warnings 0` **exit 0** · `vitest` **142 fichiers / 976 tests** **0** · `test:db` **39 fichiers / 183 tests** **0** (isolé) · **`test:coverage` = EXIT 0 (VERT — 95,83 % lignes · 87,19 % branches · 100 % fonctions, seuils 80/75/88/80 par fichier ; aucun seuil abaissé)** · `knip` **0** (0 fichier, 0 export, 0 type, 0 dépendance) · `verify:migrations` **VERIFIED** · `verify:domain` **VERIFIED** · `verify:perf` **VERIFIED** · `verify:fr` **0** (322 fichiers, **plus de liste d'attente**) · `verify:encoding` **0** (868 fichiers) · `license:scan` **0** (1420 fichiers) · `format:check` **0** · `build` ✓ (12,1 s) · `build:electron` ✓ (manifeste signé **216 fichiers**).
 - **Nouveaux constats P1 (non corrigés, voir plan)** : jour métier en UTC au lieu de `Africa/Algiers` (E-35) · `verify:licensing` hors CI (bloqué : l'état local du Manager n'existe pas sur un runner) · **E2E non rejoués** depuis le 2026-10-18.
 - **Corrigé en W1→W10 (à ne plus re-signaler)** : `customers.accessQrSvg` sans staff-gate · `staffScope()` ⇒ «no session = gérant» · `database.optimize` sans gate · conversion Proforma→vente cassée si remise · clôture Z (chèque/transfert/dépenses/retours) · verrou de période close (W3) · unicité téléphone + `paginationSchema.page` borné (W3) · `test:coverage` rouge (W4) · `FROZEN_SCHEMA_COUNT` (W4) · extraction EAN-13/14 (W4) · `formatDzd` qui throw au rendu + double-submit + focus + lots bornés (W5) · atelier impression (W5) · code mort trié, `knip` à 0, `expo-constants` retirée, garde FR sans liste d'attente (W6) · chemins chauds indexés (migration 0050) + N+1 supprimés + bundle découpé (W8) · encodage réparé (W9) · **règles uniques (quantité/montant/date/normalisation) + état « en retard » produit (W7)** · **état d'erreur persistant dans 12 écrans (W10)**.
-- ADRs : 001→**129**. `docs/INDEX.md` **à jour jusqu'à 129**.
+- ADRs : 001→**130**. `docs/INDEX.md` **à jour jusqu'à 130**.
 - Outillage : `knip.json` (§16) — `Unused files` **32 → 0** ; re-mesuré 2026-10-21 : **0 fichier · 0 export · 0 type · 0 dépendance** (la couverture `knip` s'étend désormais à `license-manager/**` et `cloud/**` — J-11).
-- **Contrats gelés (état après W10)** : snapshot `ipc-channels.json` **177** · `FROZEN_SCHEMA_COUNT` **121** · `FROZEN_EXPORT_COUNT = 127` · `operation-id-coverage` : 43 REQUIRED + classification complète (121 schémas) · migrations **50** (migration 0050 = index de performance, non destructive).
+- **Contrats gelés (état après ADR-130)** : snapshot `ipc-channels.json` **178** (+`customers.import`) · `FROZEN_SCHEMA_COUNT` **122** · `FROZEN_EXPORT_COUNT = 128` · `FROZEN_SCHEMA_TOTAL` (op-id) **122** · `operation-id-coverage` : **44** REQUIRED + classification complète (122 schémas) · migrations **50** (migration 0050 = index de performance, non destructive).
 - E2E (non relancés depuis le 2026-10-18) : suite 2026-10-18 — **12/13 specs vertes**, **37** blocs `test()` (pas 24) ; `full-loop-client` exige le relais `:8100` (hard-fail, pas skip) ; `installer` non exécutable hors paquet Win + UAC. **W2 touche `staffScope()` (K-04) et W3 ajoute un canal ⇒ les specs `staff-session` et `full-loop-client` sont à rejouer avant le tag.**
 - **Packaging REFAIT 2026-10-21** (§21) : `release/` reconstruit **de zéro** (ADR-023 : jamais de réutilisation) — `Veloria-PoS-Setup-1.0.0.exe` (NSIS, machine, FR) + `.blockmap` · `Veloria-PoS-Portable-1.0.0.exe` · `Veloria-License-Manager-Setup-1.0.0.exe` + `.blockmap` · `Veloria-License-Manager-Portable-1.0.0.exe` · `SHA256SUMS.txt` · `release/win-unpacked/` (= POS). `release:smoke` **0** · `better-sqlite3` **chargé dans le runtime packagé** (Electron 37.2.0, ABI 136, SQLite 3.50.2 — règle AGENTS.md §9).
 - Non relancés : E2E, `verify:licensing`, `npm audit` réseau (offline ⇒ non probant). **APK mobile impossible ici** : ni EAS CLI/jeton, ni JDK/Android SDK, ni `EXPO_PUBLIC_*` réel (placeholders dans `mobile/eas.json`).
@@ -857,6 +857,91 @@ complétée (23 → **43**). La cible de W4 prévue au plan (120) devient **121*
    (§4 du plan), **ADR-120** toujours proposé non approuvé.
 5. **E2E à rejouer** avant tout tag : `staff-session`, `full-loop-client`.
 
+## 22) Session 2026-10-21 (bis) — diagnostic des 3 bugs caisse (propriétaire)
+
+**Demande** : « عند إضافة منتج حر إلى السلة… الاسم يكتب عادي لكن السعر يرجع
+لخانة الاسم » · « منتج بالوزن 700 دج/كغ، بيع 50 دج ⇒ السلة تكتب 49,7 دج »
+· « السلة مختلطة (حر + وزن + قائمة + خصة) ⇒ البيع لا يمر ويظهر خطأ ».
+
+**Méthode** : lecture du code + **preuve par les données réelles** —
+journal main `%APPDATA%\Veloria PoS\logs\veloria-2026-10-21.log` + base
+`%PROGRAMDATA%\Veloria PoS\Data\Veloria POS DB.sqlite` (6 ventes, 10 lignes) +
+reproduction sur base migrée temporaire (repos réels `createSaleAtomic`).
+
+### B1 — focus qui revient au champ « Nom » (article libre)
+
+`useDialogFocus` (`src/shared/ui/primitives.tsx:313-355`) : `useEffect` avec
+dépendances `[boxRef, onClose, extraKey]`. `onClose` arrive du parent sous
+forme de flécheta **inline** (`SellScreen.tsx:297` `onCloseCustom={() =>
+s.setCustomOpen(false)}`) ⇒ **identité nouvelle à chaque rendu** ⇒ l'effet
+rejoue à chaque frappe : le cleanup rend le focus à l'ouvrant puis l'effet
+refocus **le PREMIER `input` du dialogue** = « Nom du produit » (le prix est le
+2ᵉ). Symptôme exact : 1 chiffre saisi puis retour au nom.
+**Portée : tous les modales/tiroirs** dont `onClose` est inline (visible
+seulement là où le champ|Lu n'est pas le premier).
+Correctif : `onClose`/`extraKey` dans une ref, dépendances `[boxRef]` seul.
+
+### B2 — montant saisi au poids ≠ montant facturé (49,70 au lieu de 50,00)
+
+`weightDialogPreview` (`src/features/sales/sell/sell-weight.ts:64-84`) : mode
+« Montant » → `qty = round(montant/prix, 3 déc.)` puis
+`total = prix × qty` (`computeLineTotal`). 50,00 DZD à 700,00 DZD/kg ⇒
+`qty = 0,071 kg` ⇒ total = **49,70 DZD** (100,00 DZD ⇒ 0,143 kg ⇒ **100,10**).
+Le montant exact est **perdu** : `onConfirm(preview.qty)` ne transmet que la
+quantité. **Preuve base réelle** : vente `FAC-2026-00006`, ligne « bil »
+⇒ `quantity 0.071`, `line_total_minor 4970`.
+Comportement « par design » (ADR-114 : facturer le poids arrondi), mais le
+caissier **perd de la argent** ⇒ écart métier à trancher (voir §22 « à
+trancher »).
+
+### B3 — vente du panier mixte refusée (cause PROUVE)
+
+Journal main, 7 fois le 2026-10-21 (20:27→20:32 UTC), canal `sales.create` :
+`CHECK constraint failed: discount_amount_minor >= 0`.
+Mécanique : un prix de ligne **supérieur** au prix d'origine (majoration)
+⇒ remise de ligne **négative** (`origin − facturé < 0`) ⇒ le domaine
+l'accepte (remise signée, « majoration admise ») mais la base l'interdit
+(`sales.discount_amount_minor >= 0` — migration 0001 immuable + trigger
+`trg_sale_items_discount_nonneg_ins` — migration 0031) ⇒ rollback total ⇒ le
+caissier voit « Une erreur inattendue est survenue. Réessayez. »
+**Lien B1 → B3** : le focus B1 tronque la saisie du prix de l'article libre
+(ex. « 5 » au lieu de « 500 ») ⇒ le caissier corrige via le P.U. du panier
+(prix **supérieur**) ⇒ la vente est refusée.
+**Aggravant** : la garde main « Remise de ligne invalide pour « X » » est
+exécutée **APRÈS** l'INSERT de la vente (boucle des lignes) ⇒ l'erreur SQL
+brute gagne ⇒ message technique au lieu du FR (violation AGENTS §6).
+Reproduction (repos réels, base migrée) : `discountAmount = -49500` ⇒
+`CHECK constraint failed: discount_amount_minor >= 0`, **0 vente créée**.
+
+### Constat secondaire (à vérifier)
+
+Ventes `FAC-2026-00001/3/4/6` enregistrées avec `amount_paid_minor = 0` ⇒
+**ventes à crédit** (reste = total) au lieu d'encaissement comptant ; la
+vente 6 a `credit_limit_override = 1` (le caissier a coché le dépassement).
+Piste : l'effet de synchro `paidText → cart.amountPaidMinor`
+(`useSellState.ts:190-195`) borne à `totalMinor`, qui vaut **0** quand
+`computeSaleTotals` lève (« Le montant payé doit être entre 0 et le total »,
+soit un panier qui rétrécit après un montant saisi) ⇒ montant payé → 0.
+
+### À trancher par le propriétaire
+
+1. **B2** : (a) facturer le poids arrondi (ADR-114) mais l'annoncer
+   explicitement (« 50,00 DZD ⇒ 71 g ⇒ 49,70 DZD facturés ») ; (b) facturer
+   le montant saisi **exact** ⇒ la ligne porte un montant facturé propre ⇒
+   la remise peut devenir négative ⇒ **reconstruction de la table `sales`**
+   (SQLite ne sait pas supprimer un CHECK) + trigger 0031 + domaine + rapports
+   ⇒ **nouvelle migration + ADR** ; (c) compromis : facturer le montant
+   exact en portant un prix unitaire effectif (perte du prix catalogue sur le
+   ticket).
+2. **B3** : (a) interdire la majoration (message FR : « le prix ne peut pas
+   dépasser le prix catalogue ») — simple, invariant DB respecté ; (b)
+   autoriser la majoration de bout en bout (remise signée) ⇒ même migration
+   que B2(b) ⇒ **une seule migration** pour les deux.
+3. **B1** : correctif obvious (ref dans `useDialogFocus`) + test de non-régression.
+
+**Aucun code modifié dans cette session** (diagnostic seul ; le fichier de
+reproduction temporaire a été supprimé).
+
 ## 21) Session 2026-10-21 — remédiation : fin du plan d'audit (W6, W7, W10)
 
 - **Demande propriétaire** : « اكمل الجلسة المسماة "تدقيق Veloria PoS وخطة
@@ -999,3 +1084,54 @@ VERIFIED · `verify:fr` 0 (322 fichiers) · `verify:encoding` 0 (864 fichiers) �
   (`resources/app.asar/node_modules/better-sqlite3`), pas du chemin
   `app.asar.unpacked` (le `bindings` n'y est pas) —
   `ELECTRON_RUN_AS_NODE=1 "release\win-unpacked\Veloria PoS.exe" script.js`.
+
+## 22) Session 2026-10-21 (bis) — import/export CSV (Clients, Produits) + re-emballage
+
+- **Demande propriétaire** : « اضف خاصية الاستراد و التصدير في صفحتي
+  العملاء و المنتجات و تحقق منهما » — l'import clients et l'export produits
+  manquaient (les deux écrans étaient asymétriques).
+- **État hérité** : W1→W10 commitées, `release/` reconstruit (§21), arbre
+  propre. Une **session concurrente** travaille sur un bug « panier mixte »
+  (fichier `tests/integration/_repro-mixed-cart.test.ts`, TEMP) : ce fichier
+  n'a **pas** été touché ni commité (staffage par chemins explicites).
+
+### Ce qui a été fait (ADR-130, commit `8b55f3c`)
+
+- **Import clients** (slice verticale complète) : le parseur de domaine
+  existait déjà (`parseCustomersCsv`) mais **personne ne l'utilisait** ⇒
+  chemin d'écriture complet :
+  `importCustomersAtomic` (main, UNE transaction, tout-ou-rien) · canal
+  `customers.import` + `customersImportSchema` (Zod) · preload ·
+  `api.customerImport` · portes staff (`debts`) et licence (`customers`) ·
+  bouton « Import CSV » + champ fichier masqué + confirmation FR.
+  Garanties : unicité du téléphone **E-28** vérifiée AVANT l'écriture (message
+  FR, pas de rollback du trigger 0049) · doublon dans le même fichier refusé ·
+  **idempotence de lot** par `operationId` · `search_norm` recalculé (0047) ·
+  aucune dette/plafond créés (l'import ne fait que des fiches).
+- **Export produits** (renderer) : **toutes** les pages du filtre courant
+  (parcours borné en concurrence + progression), montants DZD formatés,
+  code-barres et statut inclus.
+- **Contrats gelés** (documentés dans l'ADR) : canaux 177 → **178** ·
+  `FROZEN_SCHEMA_COUNT` 121 → **122** · `FROZEN_EXPORT_COUNT` 127 → **128** ·
+  `FROZEN_SCHEMA_TOTAL` 121 → **122** · `operationId` REQUIRED 43 → **44**.
+- **Tests** : `tests/integration/customers-import.test.ts` (6 cas) +
+  `tests/unit/import-export-ui.test.ts` (5 cas : garde statique du câblage
+  renderer + interdiction SQLite/Node dans l'UI).
+
+### Formats (rappel)
+
+- **export = RAPPORT** (lisible dans Excel) ;
+- **import = flux de DONNÉES** : clients `prénom;nom[téléphone]`, produits
+  `nom;vente;achat;quantité[;code-barres]` (en-tête optionnel) ;
+- un export ré-importé n'est pas un aller-retour : il échoue proprement
+  (format / téléphone déjà utilisé ⇒ message FR, **rien n'est écrit**) plutôt
+  que de créer des doublons.
+
+### Portes
+
+`format:check` 0 · `tsc -b` 0 · `typecheck:electron` 0 · `eslint
+--max-warnings 0` 0 · `knip` 0 · `vitest` **142 fichiers / 976 tests** 0 ·
+`test:db` **39 fichiers / 183 tests** 0 · `verify:migrations/domain/perf`
+VERIFIED · `verify:fr` 0 (322 fichiers) · `verify:encoding` 0 (868 fichiers) ·
+`license:scan` 0 (1420 fichiers) · `test:coverage` **EXIT 0** (95,83 % lignes) ·
+`build` + `build:electron` ✓ (manifeste signé 216 fichiers).
