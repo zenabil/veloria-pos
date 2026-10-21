@@ -20,6 +20,7 @@ import {
   latestUnitCost,
   restoreToLayers,
 } from "./fifo";
+import { log } from "../../services/logger";
 
 export function listSalesHistory(
   page: number,
@@ -526,7 +527,7 @@ export function createSaleAtomic(input: CreateSaleInput): {
       /UNIQUE constraint failed: sales\.operation_id/i.test(err.message)
     ) {
       // #36 : doublon concurrent — relecture tracée, pas d'avalage.
-      console.warn("[Veloria][WARN] sales.operation_race_replayed", {
+      log("WARN", "sales", "operation_race_replayed", {
         operationId: input.operationId,
       });
       const retry = findExisting();
@@ -539,7 +540,7 @@ export function createSaleAtomic(input: CreateSaleInput): {
       err instanceof Error &&
       /UNIQUE constraint failed: sales\.invoice_number/i.test(err.message)
     ) {
-      console.warn("[Veloria][WARN] sales.invoice_race_retry", {
+      log("WARN", "sales", "invoice_race_retry", {
         operationId: input.operationId,
       });
       try {

@@ -42,7 +42,7 @@ export const customerSortSchema = z
 // P1-3 : filtre serveur « archivés seuls » (total réel côté main).
 export const archivedOnlySchema = z.boolean().default(false);
 
-// Liaison produits �?" fournisseurs (jonction 0015).
+// Liaison produits — fournisseurs (jonction 0015).
 
 export const clientAccessActivateSchema = z.object({
   operationId: z.string().uuid(),
@@ -68,7 +68,7 @@ export const clientAccessQrSchema = z.object({
 export const syncEnqueueSchema = z.object({
   operationId: z.string().uuid(),
   customerId: z.number().int().positive(),
-  // Union EXACTE du CHECK `sync_outbox.kind` �?" SOURCE AUTORITAIRE :
+  // Union EXACTE du CHECK `sync_outbox.kind` — SOURCE AUTORITAIRE :
   // database/migrations/0032_client_access_sync.sql (immuable). Miroiée par
   // `SYNC_KINDS` (electron/ipc/handlers/client-access.repo.ts) et par le CHECK
   // de cloud/supabase/schema.sql : un kind valide en base doit toujours
@@ -96,7 +96,7 @@ export const announcementSaveSchema = z.object({
 
 // Synchro miroir (V1) : configuration merchant + poussée manuelle.
 // La clé service ne transite que sur ce pont local (jamais vers le renderer
-// en lecture : getConfig la masque �?" voir maskConfig côté service).
+// en lecture : getConfig la masque — voir maskConfig côté service).
 export const syncConfigSchema = z.object({
   operationId: z.string().uuid(),
   enabled: z.boolean(),

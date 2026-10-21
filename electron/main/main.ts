@@ -59,7 +59,7 @@ if (!gotLock) {
       /* logger indisponible */
     }
     try {
-      console.error("[Veloria][FATAL] startup rejected", err);
+      log("FATAL", "main", "startup.rejected", { error: String(err) });
     } catch {
       /* ignore */
     }
@@ -73,7 +73,7 @@ if (!gotLock) {
       /* logger indisponible */
     }
     try {
-      console.error("[Veloria][FATAL] unhandledRejection", reason);
+      log("FATAL", "main", "unhandled_rejection", { reason: String(reason) });
     } catch {
       /* ignore */
     }

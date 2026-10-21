@@ -10,8 +10,8 @@ export const saleItemSchema = z.object({
   productId: z.number().int().nullable(),
   productName: z.string().min(1).max(200),
   unitCode: z.string().max(20).default("PIECE"),
-  // P0-7 : prix d'origine (référence remise) + prix facturé. original �?� 0,
-  // final �?� 0 ; la remise = (original �^' final) �- qty, calculée côté main.
+  // P0-7 : prix d'origine (référence remise) + prix facturé. original ≥ 0,
+  // final ≥ 0 ; la remise = (original − final) × qty, calculée côté main.
   originalUnitPriceMinor: moneyMinor,
   unitPriceMinor: moneyMinor,
   purchasePriceMinor: moneyMinor.default(0),
@@ -23,7 +23,7 @@ export const saleCreateSchema = z.object({
   customerId: z.number().int().nullable().optional(),
   limitOverrideApproved: z.boolean().default(false),
   lines: z.array(saleItemSchema).min(1).max(200),
-  // P0-7 : AUCUN discountType/discountValue au niveau vente (supprimés) �?" la
+  // P0-7 : AUCUN discountType/discountValue au niveau vente (supprimés) — la
   // remise vit dans les prix unitaires de lignes. Zod ignore les clés
   // inconnues : les anciens appelants restent compatibles.
   deliveryFeeMinor: moneyMinor.default(0),
@@ -60,4 +60,4 @@ export const cartsSaveSchema = z.object({
     )
     .max(20),
 });
-// Phase 9 �?" pain (simplifié : nom commande + client + quantité, récurrence quotidienne).
+// Phase 9 — pain (simplifié : nom commande + client + quantité, récurrence quotidienne).

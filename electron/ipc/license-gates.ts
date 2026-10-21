@@ -7,7 +7,7 @@ import { IPC_CHANNELS } from "./channels";
  * Canaux protégés par la licence (écritures métier). Lecture seule, réglages,
  * entreprise, sauvegardes et licence elle-même restent ouverts : un poste
  * expiré consulte ses données et peut toujours se réactiver/sauvegarder.
- * Appliqué dans le main (jamais le renderer) �?" voir license-service.
+ * Appliqué dans le main (jamais le renderer) — voir license-service.
  */
 export const LICENSE_PROTECTED_CHANNELS: ReadonlySet<string> = new Set([
   IPC_CHANNELS["products.create"],
@@ -60,7 +60,7 @@ export const LICENSE_PROTECTED_CHANNELS: ReadonlySet<string> = new Set([
   IPC_CHANNELS["closings.create"],
   IPC_CHANNELS["zakat.saveParams"],
   IPC_CHANNELS["zakat.save"],
-  // EL-04: écritures de configuration �?" un poste non activé/expiré/révoqué
+  // EL-04: écritures de configuration — un poste non activé/expiré/révoqué
   // ne doit pas persister réglages, fiche entreprise ou imprimante (influence
   // ventes/impressions). Lectures (get/list) restent ouvertes (consultation +
   // réactivation). Root: mutations gardées côté main, jamais renderer.
@@ -82,7 +82,7 @@ export const LICENSE_PROTECTED_CHANNELS: ReadonlySet<string> = new Set([
  * Capabilities exigées par canal (Authorization Layer, §2/§10/§11).
  * PAGE_GATED : au moins UNE des pages listées doit être autorisée
  * (ex. templates = settings OU invoices). FEATURE_GATED : feature requise.
- * Vérifié dans le main sur le payload SIGN�? �?" jamais depuis le renderer.
+ * Vérifié dans le main sur le payload SIGNÉ — jamais depuis le renderer.
  * Les canaux absents des deux tables restent soumis à la seule garde
  * d'état (LICENSE_PROTECTED_CHANNELS) ou ouverts (lectures, réglages).
  */
@@ -188,12 +188,12 @@ export const PAGE_GATED_CHANNELS: Readonly<Record<string, readonly string[]>> = 
   [IPC_CHANNELS["database.reset"]]: ["settings"],
   // K-05 : `database.optimize` (page « settings », comme la réinitialisation).
   [IPC_CHANNELS["database.optimize"]]: ["settings"],
-  // M1 : NE JAMAIS lister `printing.*` / `backup.*` / `ocr.*` ici �?" ils ne
+  // M1 : NE JAMAIS lister `printing.*` / `backup.*` / `ocr.*` ici — ils ne
   // transitent JAMAIS par handle() (enregistrement brut ipcMain.handle dans
   // leurs modules) : l'entrée serait morte et trompeuse. Garde réelle :
   // guardPrint / guardPdfExport (printing.service.ts), guardBackup
   // (backup.service.ts), requireLicensedMutation(deps, "ocr")
-  // (ocr.service.ts) �?" qui appliquent les mêmes pages/features que ce tableau.
+  // (ocr.service.ts) — qui appliquent les mêmes pages/features que ce tableau.
 };
 
 /**

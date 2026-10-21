@@ -13,7 +13,7 @@ export function toUserMessage(err: unknown): { code: string; message: string } {
     return { code: "VALIDATION_ERROR", message: "Données invalides. Vérifiez le formulaire." };
   }
   // P1-7 : erreurs métier du domaine (miroir des codes
-  // src/domain/common/errors.ts) �?" message FR transmis tel quel AVEC son code.
+  // src/domain/common/errors.ts) — message FR transmis tel quel AVEC son code.
   const DOMAIN_CODES: ReadonlySet<string> = new Set([
     "VALIDATION_ERROR",
     "MONEY_ERROR",
@@ -98,7 +98,7 @@ export function toUserMessage(err: unknown): { code: string; message: string } {
       message: "Opération fichier impossible. Vérifiez les droits et l'espace disque.",
     };
   }
-  // Licence hors-ligne : messages FR du LicenseService �?' code dédié
+  // Licence hors-ligne : messages FR du LicenseService → code dédié
   // (l'UI distingue l'activation requise des erreurs de formulaire).
   if (
     /licence|activation|réactiv|fonction protégée|n'est pas incluse|non disponible dans votre licence|révoquée|suspendue/i.test(
@@ -112,7 +112,7 @@ export function toUserMessage(err: unknown): { code: string; message: string } {
         : "LICENSE_REQUIRED";
     return { code, message: msg };
   }
-  // P1-7 : exceptions JS brutes (bugs : TypeError, chemins, stack) �?" jamais
+  // P1-7 : exceptions JS brutes (bugs : TypeError, chemins, stack) — jamais
   // de technique brut à l'utilisateur, repli FR générique + détail en log.
   if (
     err instanceof TypeError ||
@@ -122,8 +122,8 @@ export function toUserMessage(err: unknown): { code: string; message: string } {
   ) {
     return { code: "UNKNOWN_ERROR", message: "Une erreur inattendue est survenue. Réessayez." };
   }
-  // M2 : garde de langue �?" tout message technique anglais (erreurs Node/
-  // Electron : « Attempted to register a second handler », « fetch failed »�?�)
+  // M2 : garde de langue — tout message technique anglais (erreurs Node/
+  // Electron : « Attempted to register a second handler », « fetch failed »)
   // ne doit JAMAIS atteindre l'opérateur (AGENTS §6). Les vrais messages
   // métier sont rédigés en français (accents/vocabulaire) et passent ci-dessous.
   if (
@@ -159,7 +159,7 @@ export function toUserMessage(err: unknown): { code: string; message: string } {
 }
 
 /**
- * Libellé système convivial pour l'écran �? propos (au lieu du brut
+ * Libellé système convivial pour l'écran É propos (au lieu du brut
  * `win32 10.0.26200`) : nom commercial + architecture. Le détail brut reste
  * disponible dans `osDetail` pour le support. Jamais d'exception vers l'UI.
  */
@@ -167,8 +167,8 @@ export function friendlyOsLabel(): string {
   const arch = os.arch();
   try {
     if (os.platform() === "win32") {
-      // �?dition précise quand disponible (ex. « Windows 11 Pro »), sinon
-      // correspondance du noyau : build �?� 22000 = Windows 11.
+      // Édition précise quand disponible (ex. « Windows 11 Pro »), sinon
+      // correspondance du noyau : build ≥ 22000 = Windows 11.
       const detailed =
         typeof (os as { version?: unknown }).version === "function"
           ? String((os as unknown as { version(): string }).version())

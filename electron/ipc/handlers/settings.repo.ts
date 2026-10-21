@@ -4,6 +4,7 @@
 import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
 import { auditOperationId, claimOptional, peekOptional, storeOptional } from "./idempotency";
+import { log } from "../../services/logger";
 
 export interface InventorySettings {
   allowNegativeStock: boolean;
@@ -56,7 +57,7 @@ function readKey<T>(key: string, fallback: T): T {
   } catch {
     // #36 : réglage corrompu — repli sur les défauts, mais JAMAIS silencieux
     // (un défaut invisible peut changer la politique caisse/stock).
-    console.warn("[Veloria][WARN] settings.corrupted_row", { key });
+    log("WARN", "settings", "row.corrupted", { key });
     return fallback;
   }
 }

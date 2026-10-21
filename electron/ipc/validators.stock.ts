@@ -34,7 +34,7 @@ export const stockProductsSchema = z.object({
     .enum(["name_asc", "name_desc", "qty_asc", "qty_desc", "value_desc", "recent_desc"])
     .default("name_asc"),
   page: z.number().int().min(1).default(1),
-  // P30: pagination unifiée (200 max partout �?" l'UI demande 20 ; 500
+  // P30: pagination unifiée (200 max partout — l'UI demande 20 ; 500
   // permettait un scrape mémoire via IPC forgé).
   pageSize: z.number().int().min(1).max(200).default(50),
 });
@@ -77,7 +77,7 @@ export const inventoryApplySchema = z.object({
 });
 
 // Historique unifié (lecture seule).
-// P06: pageSize aligné sur les autres listes (200 max) �?" 1000 contournait le Pager.
+// P06: pageSize aligné sur les autres listes (200 max) — 1000 contournait le Pager.
 
 export const stockIntakeSchema = z.object({
   operationId: z.string().uuid(),
@@ -153,7 +153,7 @@ export const supplierPaySchema = z.object({
   paymentDate: businessDate,
 });
 
-// Phase 7 �?" proformas
+// Phase 7 — proformas
 
 export const purchaseLineSchema = z.object({
   productId: z.number().int().nullable(),
@@ -193,8 +193,8 @@ export const purchaseReceiveSchema = z
       .min(1)
       .max(200),
   })
-  // M3 : lignes uniques �?" `quantity_received += ?` par ligne + contrôle sur
-  // snapshot figé (avant UPDATE) permettait de recevoir 2�- la même ligne et
+  // M3 : lignes uniques — `quantity_received += ?` par ligne + contrôle sur
+  // snapshot figé (avant UPDATE) permettait de recevoir 2× la même ligne et
   // de dépasser `quantity_ordered` (contournement du garde-fou monétaire).
   .superRefine((v, ctx) => {
     const seen = new Set<number>();
@@ -212,7 +212,7 @@ export const purchaseReceiveSchema = z
       seen.add(id);
     }
   });
-// P4 : brouillons paniers (persistance onglets, SQLite �?" jamais de LocalStorage).
+// P4 : brouillons paniers (persistance onglets, SQLite — jamais de LocalStorage).
 
 export const ocrSelectFileSchema = z.object({});
 

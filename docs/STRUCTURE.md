@@ -29,7 +29,7 @@ src/application/        Use-cases fins (sales/create-sale, customers/client-acce
 electron/               main/, ipc/{channels,validators,registry + handlers/*.repo.ts},
                         database/, preload/ (seul pont window.veloria),
                         licensing/, printing/, ocr/, backup/, sync/, security/
-database/migrations/    0001..0036 IMMUABLES — tout changement = NOUVELLE migration
+database/migrations/    0001..0049 IMMUABLES — tout changement = NOUVELLE migration
                         + `npm run verify:migrations` vert
 ```
 
@@ -57,7 +57,7 @@ Règles dures (voir `AGENTS.md`) :
 
 | Dossier                   | Quoi                                                                             |
 | ------------------------- | -------------------------------------------------------------------------------- |
-| `docs/ADR-*.md`           | Décisions d'ingénierie (001→058, séquentiel, jamais réécrit)                     |
+| `docs/ADR-*.md`           | Décisions d'ingénierie (001→125, séquentiel, jamais réécrit)                     |
 | `docs/reports/PHASE_*.md` | Avancement par phase (canonique — la racine n'en contient plus)                  |
 | `docs/archive/`           | `root-legacy/` (anciens rapports racine) + `stitch/` (maquettes) — lecture seule |
 | `docs/licensing/`         | `CAPABILITIES.md`, `ACTIVATION.md`, … (détail licences)                          |
@@ -69,13 +69,14 @@ Règles dures (voir `AGENTS.md`) :
 ```
 tests/unit/         Règles domaine pures + contrats IPC + bridge-shape
 tests/integration/  Tranches atomiques SQLite réel (ventes, FIFO, carts, sync…)
-tests/database/     Migrations + invariants racine (0001..0034 rejouées)
+tests/database/     Migrations + invariants racine (0001..0049 rejouées)
 tests/e2e/          Playwright + Electron réel, base vierge par test (1 worker)
 ```
 
 Commandes : `test`, `test:db`, `test:e2e`, `test:coverage` (seuils 80/75/88/80
-sur `src/domain` + `src/application`), `verify:migrations`, `verify:domain`,
-`verify:perf`, `license:scan`.
+sur `src/domain` + `src/application`), `test:coverage:features` (cran
+interface), `verify:migrations`, `verify:domain`, `verify:perf`,
+`verify:fr`, `verify:encoding`, `license:scan`.
 
 ## 6. Ajouter une fonctionnalité (checklist)
 
@@ -117,7 +118,7 @@ src/domain/               pur, framework-free (jamais react/electron/sqlite)
 src/shared/               ui/, formatters/, money/parse, errors/fr-map, …
 electron/                 main/, ipc/channels+validators+registry+handlers,
                           database/, preload/ (seul pont window.veloria)
-database/migrations/      0001..0034+ IMMUABLES (+ verify-migrations vert)
+database/migrations/      0001..0049 IMMUABLES (+ verify-migrations vert)
 mobile/src + cloud/       satellites isolés (aucun import vers src/electron)
 ```
 

@@ -31,6 +31,7 @@ jobs:
       - run: npm run typecheck:mobile
       - run: npm run license:scan
       - run: npm run verify:fr
+      - run: npm run verify:encoding
       - run: npm test
       - run: npm run test:coverage
       - run: npm run test:coverage:features

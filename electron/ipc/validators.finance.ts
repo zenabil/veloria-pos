@@ -52,7 +52,7 @@ export const expenseListSchema = z.object({
   pageSize: z.number().int().min(1).max(100).default(50),
 });
 
-// Phase 6 �?" stock / fournisseurs
+// Phase 6 — stock / fournisseurs
 
 export const historyListSchema = z.object({
   query: z.string().max(200).default(""),
@@ -209,7 +209,7 @@ export const zakatCalculationSchema = z.object({
   notes: z.string().max(500).nullable().optional(),
 });
 
-// P3 : bons de commande fournisseurs (cycle draft �?' ordered �?' �?� �?' received).
+// P3 : bons de commande fournisseurs (cycle draft → ordered → partially_received → received).
 
 export const closingsListSchema = z.object({
   from: businessDate,

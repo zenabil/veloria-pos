@@ -27,12 +27,12 @@ import { handle } from "./handle";
 
 /**
  * Noyau IPC enregistrable SANS base ouverte (mode récupération) : lecture du
- * chemin, redémarrage, déplacement vérifié, dossiers �?" jamais de requêtes
+ * chemin, redémarrage, déplacement vérifié, dossiers — jamais de requêtes
  * métier. Le mode nominal appelle registerIpc() qui inclut ce noyau.
  *
  * IDEMPOTENT (H1) : `ipcMain.handle` lève « second handler » sur un doublon.
  * Le mode récupération enregistre ce noyau, puis la Réessayer réussie appelle
- * registerIpc() �?' registerCoreIpc() une 2e fois : l'exception s'échappait par
+ * registerIpc() → registerCoreIpc() une 2e fois : l'exception s'échappait par
  * recovery.retry (sans try/catch) et renvoyait l'utilisateur à l'écran de
  * récupération à vie. La garde vit ICI (et plus seulement dans main.ts) pour
  * protéger tous les chemins d'appel.
@@ -67,9 +67,9 @@ export function registerCoreIpc(): void {
   handle(IPC_CHANNELS["system.selectFolder"], V.emptyPayloadSchema, () => ({
     folder: pickFolder(),
   }));
-  // Déplacement vérifié (copie �?' contrôle �?' bascule) : utilisable en récupération
+  // Déplacement vérifié (copie → contrôle → bascule) : utilisable en récupération
   // pour pointer vers un dossier sain sans toucher au schéma ni aux données.
-  // RADICAL-FIX: idempotent par operationId optionnel �?" retry même UUID = résultat
+  // RADICAL-FIX: idempotent par operationId optionnel — retry même UUID = résultat
   // rejoué sans 2e copie (double-clic sûr).
   handle(IPC_CHANNELS["database.relocate"], V.relocateSchema, (input) => {
     const opId =
@@ -107,7 +107,7 @@ export function registerCoreIpc(): void {
     if (path.normalize(target).toLowerCase() === path.normalize(current).toLowerCase()) {
       return { moved: true, path: current };
     }
-    // �?craser silencieusement une base existante = perte de données : refus.
+    // Écraser silencieusement une base existante = perte de données : refus.
     if (fs.existsSync(target)) {
       throw new Error("La destination contient déjà une base. Choisissez un dossier vide.");
     }
@@ -137,7 +137,7 @@ export function registerCoreIpc(): void {
     }
     verifyDbFileCopy(target);
     checkpointAndClose();
-    // Config persistée APR�^S reopen réussi : en cas d'échec, on restaure
+    // Config persistée APRÈS reopen réussi : en cas d'échec, on restaure
     // l'ancien chemin et on rouvre l'ancienne base (jamais d'état cassé).
     const previous = current;
     persistDbPath(target);
@@ -162,7 +162,7 @@ export function registerCoreIpc(): void {
     } catch (err) {
       log("ERROR", "database", "database.relocate_reopen_failed", { error: String(err) });
       persistDbPath(previous);
-      // P0-2 : l'ancienne base doit rouvrir �?" réessais, puis échec FORT (jamais
+      // P0-2 : l'ancienne base doit rouvrir — réessais, puis échec FORT (jamais
       // de db=null silencieux) avec message FR orientant vers la récupération.
       try {
         reopenWithRetry("database.relocate_rollback");

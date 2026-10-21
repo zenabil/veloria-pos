@@ -12,7 +12,7 @@ export function enforceCreditGates(
   deps: LicenseServiceDeps,
 ): void {
   // Vente à crédit / partielle : capabilities dédiées (§5).
-  // Crédit (reste > 0) �?' debt-management ; partiel (0 < payé < total) �?'
+  // Crédit (reste > 0) → debt-management ; partiel (0 < payé < total) →
   // partial-payments. Comptant intégral : aucune feature requise.
   // EL-24: mêmes gates pour les workflows qui créent du crédit sans
   // passer par sales.create (returns crédit, conversions).
@@ -22,7 +22,7 @@ export function enforceCreditGates(
       requireLicensedFeature(deps, "debt-management");
     }
   }
-  // Conversions : le total vient de la DB (devis/commande) �?" on le charge
+  // Conversions : le total vient de la DB (devis/commande) — on le charge
   // ici (lecture synchrone) pour gater avant toute mutation.
   if (channel === IPC_CHANNELS["proformas.convert"]) {
     const cc = input as { proformaId?: unknown; amountPaidMinor?: unknown };
@@ -45,8 +45,8 @@ export function enforceCreditGates(
     }
   }
   if (channel === IPC_CHANNELS["sales.create"]) {
-    // P0-7 : la remise vit dans les lignes (original �^' final) �- qty �?"
-    // le total de gate se recalcule aux prix FACTUR�?S (jamais aux originaux).
+    // P0-7 : la remise vit dans les lignes (original − final) × qty —
+    // le total de gate se recalcule aux prix FACTURÉS (jamais aux originaux).
     const sale = input as {
       amountPaidMinor?: unknown;
       totalMinor?: unknown;

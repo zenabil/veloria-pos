@@ -80,7 +80,7 @@ export function registerCustomersChannels(): void {
   });
   handle(IPC_CHANNELS["customers.recordPayment"], V.recordPaymentSchema, (input) => {
     const now = new Date().toISOString();
-    // P08: paymentDate est une businessDate YYYY-MM-DD �?" jamais un ISO datetime.
+    // P08: paymentDate est une businessDate YYYY-MM-DD — jamais un ISO datetime.
     const paymentDate = input.paymentDate ?? now.slice(0, 10);
     const { paymentId } = Customers.recordCustomerPaymentAtomic({
       operationId: input.operationId,
@@ -132,7 +132,7 @@ export function registerCustomersChannels(): void {
   }));
   // QR d'activation scannable (ADR-054, V2 ADR-068) : lecture seule.
   // V2 universel : l'endpoint du magasin (URL + anon) est embarqué depuis la
-  // config sync du POS �?" un seul build APK pour tous les magasins.
+  // config sync du POS — un seul build APK pour tous les magasins.
   // Sans endpoint configuré : erreur FR guidant vers Réglages → Miroir Android.
   handle(IPC_CHANNELS["customers.accessQrSvg"], V.clientAccessQrSchema, (input) => {
     const endpoint = getShopEndpoint();

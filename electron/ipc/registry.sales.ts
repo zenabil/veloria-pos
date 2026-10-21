@@ -24,8 +24,8 @@ export function registerSalesChannels(): void {
   handle(IPC_CHANNELS["sales.create"], V.saleCreateSchema, (input) => {
     // Totaux recalculés côté main en arithmétique entière (défense en profondeur ;
     // le renderer valide déjà via le domaine, les CHECK SQL tranchent).
-    // P0-7 : la remise vit dans les lignes �?" subtotal aux prix d'ORIGINE,
-    // remise = Σ(original �^' final) �- qty (même règle que sale-rules).
+    // P0-7 : la remise vit dans les lignes — subtotal aux prix d'ORIGINE,
+    // remise = Σ(original − final) × qty (même règle que sale-rules).
     const now = new Date().toISOString();
     // R7 RADICAL : arithmétique entière via money-guard (source unique main,
     // parité prouvée avec le domaine — plus de littéraux 1e9/1e11 ici).
@@ -69,7 +69,7 @@ export function registerSalesChannels(): void {
       customerId: input.customerId ?? null,
       limitOverrideApproved: input.limitOverrideApproved,
       subtotalMinor: subtotal,
-      // P0-7 : vente sans remise globale �?" la remise est portée par les lignes
+      // P0-7 : vente sans remise globale — la remise est portée par les lignes
       // (discount_amount_minor = Σ remises de lignes, colonnes conservées).
       discountType: "none",
       discountValueMinor: 0,
@@ -97,7 +97,7 @@ export function registerSalesChannels(): void {
       staffUserId: getCurrentStaffUser(),
     });
     // Miroir APK (best-effort) : la vente réussie rafraîchit la file du client
-    // (jamais d'exception vers la caisse �?" loggé et ignoré dans le service).
+    // (jamais d'exception vers la caisse — loggé et ignoré dans le service).
     if (input.customerId != null) enqueueCustomerRefresh(input.customerId);
     return result;
   });
@@ -123,7 +123,7 @@ export function registerSalesChannels(): void {
     return { updated: true };
   });
 
-  // P4 : brouillons paniers �?" lectures/écritures TOUJOURS ouvertes (brouillons
+  // P4 : brouillons paniers — lectures/écritures TOUJOURS ouvertes (brouillons
   // éphémères : un poste expiré restaure son travail et peut se réactiver ;
   // la VENTE elle-même reste gardée par sales.create).
   // RADICAL-FIX: operationId optionnel honoré (retry = no-op, pas de double DELETE+INSERT).

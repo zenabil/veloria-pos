@@ -130,6 +130,7 @@
 - [ADR-122](./ADR-122-verrou-periode-close-unique-telephone-gardes-e36.md) Verrou de période close (Z), unicité du téléphone client, gardes E-36
 - [ADR-123](./ADR-123-couverture-verte-gardes-auto-derivees-tests-miroir.md) Couverture verte, gardes auto-dérivées, tests miroir convertis (W4)
 - [ADR-124](./ADR-124-rendu-sur-guardes-focus-lots-annonce-magasin.md) Rendu sûr, gardes synchrones, focus, lots bornés, tranche « annonce magasin » (W5)
+- [ADR-125](./ADR-125-encodage-repare-journal-centralise-chiffres-a-jour.md) Encodage réparé (U+FFFD), porte d'encodage, journal centralisé, chiffres à jour (W9)
 
 ## Ou ecrire quoi
 

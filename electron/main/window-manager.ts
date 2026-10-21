@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { IPC_CHANNELS } from "../ipc/channels";
 import { isExternalNavigationAllowed, isSafeExternalUrl } from "../security/security";
+import { log } from "../services/logger";
 
 let mainWindow: BrowserWindow | null = null;
 let recoveryWindow: BrowserWindow | null = null;
@@ -156,11 +157,11 @@ export function createMainWindow(): BrowserWindow {
   // contenu attaquant dans la fenêtre privilégiée (bridge window.veloria).
   if (devUrl && !app.isPackaged) {
     mainWindow.loadURL(devUrl).catch((err: unknown) => {
-      console.error("[Veloria][FATAL] mainWindow.loadURL failed", err);
+      log("FATAL", "window", "main.loadURL_failed", { error: String(err) });
     });
   } else {
     mainWindow.loadFile(path.join(__dirname, "../../dist/index.html")).catch((err: unknown) => {
-      console.error("[Veloria][FATAL] mainWindow.loadFile failed", err);
+      log("FATAL", "window", "main.loadFile_failed", { error: String(err) });
     });
   }
 
@@ -180,7 +181,7 @@ export function showRecoveryWindow(html: string): BrowserWindow {
     recoveryWindow
       .loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
       .catch((err: unknown) => {
-        console.error("[Veloria][FATAL] recoveryWindow.loadURL failed", err);
+        log("FATAL", "window", "recovery.loadURL_failed", { error: String(err) });
       });
     recoveryWindow.focus();
     return recoveryWindow;
@@ -199,7 +200,7 @@ export function showRecoveryWindow(html: string): BrowserWindow {
   recoveryWindow
     .loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
     .catch((err: unknown) => {
-      console.error("[Veloria][FATAL] recoveryWindow.loadURL failed", err);
+      log("FATAL", "window", "recovery.loadURL_failed", { error: String(err) });
     });
   // P1: même politique que la fenêtre principale.
   secureWindow(recoveryWindow);
@@ -225,7 +226,7 @@ export function showLicenseWindow(html: string): BrowserWindow {
     licenseWindow
       .loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
       .catch((err: unknown) => {
-        console.error("[Veloria][FATAL] licenseWindow.loadURL failed", err);
+        log("FATAL", "window", "license.loadURL_failed", { error: String(err) });
       });
     licenseWindow.focus();
     return licenseWindow;
@@ -244,7 +245,7 @@ export function showLicenseWindow(html: string): BrowserWindow {
   licenseWindow
     .loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
     .catch((err: unknown) => {
-      console.error("[Veloria][FATAL] licenseWindow.loadURL failed", err);
+      log("FATAL", "window", "license.loadURL_failed", { error: String(err) });
     });
   // P1: même politique que la fenêtre principale.
   secureWindow(licenseWindow);

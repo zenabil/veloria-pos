@@ -22,9 +22,9 @@ function staffScope(): number | null {
 export function registerFinanceChannels(): void {
   // reports/dashboard (repository : handlers/finance.repo.ts).
   // NOTE : l'ancien canal `reports.period` (non validé, redondant avec
-  // `reports.full`) a été supprimé �?" aucun appelant.
+  // `reports.full`) a été supprimé — aucun appelant.
   // NOTE : `reports.dashboard` (doublon de `dashboard.summary`, aucun appelant)
-  // a été supprimé �?" `dashboard.summary` est l'unique synthèse.
+  // a été supprimé — `dashboard.summary` est l'unique synthèse.
 
   // historique unifié (lecture seule, UNION multi-tables).
   // R2 (0046) : filtré par auteur — le gérant (scope null) voit tout.

@@ -5,6 +5,7 @@
 
 import { getDb } from "../../database/sqlite.service";
 import { createHash } from "node:crypto";
+import { log } from "../../services/logger";
 
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- T est le contrat typé des 20+ appelants (chaque opération relit son résultat) ; sans générique, chaque site devrait caster unknown (pire).
 export function peekIdempotency<T>(operationId: string, expectedOpType?: string): T | undefined {
@@ -25,7 +26,7 @@ export function peekIdempotency<T>(operationId: string, expectedOpType?: string)
     } catch {
       // #36 : résultat stocké illisible (corruption) — rejeu propre, mais
       // JAMAIS silencieux : anomalie de données à tracer.
-      console.warn("[Veloria][WARN] idempotency.corrupted_result", {
+      log("WARN", "idempotency", "result.corrupted", {
         operationId,
         opType: row.op_type,
       });
@@ -34,7 +35,7 @@ export function peekIdempotency<T>(operationId: string, expectedOpType?: string)
   } catch {
     // #36 : lecture impossible (base verrouillée…) — le claim dans la
     // transaction tranchera ; on trace au lieu d'avaler.
-    console.warn("[Veloria][WARN] idempotency.peek_failed", { operationId });
+    log("WARN", "idempotency", "peek.failed", { operationId });
     return undefined;
   }
 }

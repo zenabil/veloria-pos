@@ -46,6 +46,9 @@ export default tseslint.config(
             "scripts/licensing/verify-licensing.cjs",
             "scripts/quality/verify-perf.mjs",
             "scripts/quality/verify-fr-only.mjs",
+            // W9 : porte d'encodage (U+FFFD) + config de couverture interface.
+            "scripts/quality/verify-encoding.mjs",
+            "vitest.features.config.ts",
             "scripts/release/checksums.js",
             "scripts/release/smoke.js",
             "scripts/release/stamp-electron-pkg.js",
@@ -59,7 +62,7 @@ export default tseslint.config(
           ],
           // 24+ scripts JS hors tsconfig : le service plafonne à 8 par
           // défaut — rehaussé explicitement (lint plus lent, jamais faux).
-          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 33,
+          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 35,
         },
         tsconfigRootDir: import.meta.dirname,
       },

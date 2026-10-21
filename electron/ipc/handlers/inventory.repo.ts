@@ -9,6 +9,7 @@ import { consumeLayers, createLayer, fifoValuation } from "./fifo";
 import { assertOrderClause } from "./sql-guard";
 import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./idempotency";
 import { allocateAmountByWeights } from "./amount-allocation";
+import { log } from "../../services/logger";
 
 // ADR-075 : fragment CASE unique du statut stock (3 sites : adjust/intake/
 // inventory) — texte SQL identique, mêmes positions de `?` (quantité ×2),
@@ -176,7 +177,7 @@ export function receiveStockAtomic(args: {
     } catch {
       // #36 : fast-path illisible — la transaction (claim UNIQUE) tranche ;
       // on trace au lieu d'avaler.
-      console.warn("[Veloria][WARN] intake.fast_lookup_failed", {
+      log("WARN", "intake", "fast_lookup_failed", {
         operationId: args.operationId,
       });
       return undefined;

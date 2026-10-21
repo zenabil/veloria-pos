@@ -8,7 +8,7 @@ import { getCurrentStaffUser } from "./handlers/staff-session";
 import { handle } from "./handle";
 
 export function registerDocumentsChannels(): void {
-  // returns (repository : handlers/returns.repo.ts �?" 1 tx atomique)
+  // returns (repository : handlers/returns.repo.ts — 1 tx atomique)
   handle(IPC_CHANNELS["returns.create"], V.returnCreateSchema, (input) => {
     const now = new Date().toISOString();
     const createdAt = input.returnDate ? `${input.returnDate}T00:00:00.000Z` : now;

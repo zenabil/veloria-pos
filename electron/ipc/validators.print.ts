@@ -50,7 +50,7 @@ export const backupRestoreSchema = z.object({
 export const recoveryActionSchema = z.object({});
 
 // Licence hors-ligne : import via dialogue fichier côté main (aucune charge
-// utile depuis le renderer �?" jamais de contenu .vlic via IPC).
+// utile depuis le renderer — jamais de contenu .vlic via IPC).
 export const licenseActionSchema = z.object({});
 
 // Chrome frameless : actions fenêtre sans charge utile (pas de remote).
@@ -89,13 +89,13 @@ export const printPayloadSchema = z
     deliveryMinor: moneyMinor.default(0),
     totalMinor: moneyMinor.default(0),
     paidMinor: moneyMinor.default(0),
-    /** C5 : timbre LF 2025 documentaire (espèces, 0 sinon) �?" net = total + timbre. */
+    /** C5 : timbre LF 2025 documentaire (espèces, 0 sinon) — net = total + timbre. */
     stampMinor: moneyMinor.default(0),
     prevBalanceMinor: moneyMinor.nullable().optional(),
     currentBalanceMinor: moneyMinor.nullable().optional(),
   })
-  // P04: cohérence arithmétique du ticket �?" un payload incohérent (total �?
-  // subtotal-remise+livraison, sous-total �?� Σ lignes, ligne �?� prix�-qté) est
+  // P04: cohérence arithmétique du ticket — un payload incohérent (total ≠
+  // subtotal-remise+livraison, sous-total ≤ Σ lignes, ligne ≤ prix×qté) est
   // rejeté au lieu d'imprimer des montants faux (renderer compromis).
   .superRefine((v, ctx) => {
     for (let i = 0; i < v.lines.length; i++) {
@@ -112,11 +112,11 @@ export const printPayloadSchema = z
       }
     }
     const sum = v.lines.reduce((a, l) => a + l.lineTotalMinor, 0);
-    // P04-fix: deux sémantiques de remise coexistent dans le domaine �?"
+    // P04-fix: deux sémantiques de remise coexistent dans le domaine —
     // (a) VENTES : sous-total = Σ prix d'ORIGINE, remise portée par les lignes
-    //     (prix facturés) �?' c'est (sous-total �^' remise) qui égale Σ lignes ;
+    //     (prix facturés) → c'est (sous-total − remise) qui égale Σ lignes ;
     // (b) DEVIS : sous-total = Σ lignes (prix pleins), remise GLOBALE en sus
-    //     �?' c'est le sous-total seul qui égale Σ lignes.
+    //     → c'est le sous-total seul qui égale Σ lignes.
     // L'ancienne forme (a seule) rejetait les devis remisés, et avant elle la
     // forme (b seule) rejetait les ventes remisées (« Document d'impression
     // invalide. » sur l'aperçu). Les deux formes cohérentes sont acceptées ;
@@ -144,7 +144,7 @@ export const printPayloadSchema = z
         path: ["totalMinor"],
       });
     }
-    // P0-1 : ventilation TVA optionnelle �?" quand taux > 0 et montants fournis,
+    // P0-1 : ventilation TVA optionnelle — quand taux > 0 et montants fournis,
     // ht + tva doit égaler le TTC (centimes, sans float).
     const rate = typeof v.tvaRatePercent === "number" ? v.tvaRatePercent : 0;
     if (rate > 0 && (v.htMinor > 0 || v.tvaMinor > 0) && v.htMinor + v.tvaMinor !== v.totalMinor) {
@@ -154,10 +154,10 @@ export const printPayloadSchema = z
         path: ["htMinor"],
       });
     }
-    // P05: paidMinor affiché peut dépasser le total (espèces rendues) �?" la
-    // règle paid �?� total reste côté vente (sale-rules), le ticket affiche
+    // P05: paidMinor affiché peut dépasser le total (espèces rendues) — la
+    // règle paid ≥ total reste côté vente (sale-rules), le ticket affiche
     // Monnaie rendue via buildReceiptText:311 sans la stocker.
-    // C5 : timbre documentaire LF 2025 �?" calculé sur l'encaissé espèces
+    // C5 : timbre documentaire LF 2025 — calculé sur l'encaissé espèces
     // (quittance), 0 sinon ; forger un timbre faux rejette le document.
     const stampExpected = timbreQuittanceLf2025(v.paidMinor, v.paymentMethod ?? null);
     if (v.stampMinor !== stampExpected) {

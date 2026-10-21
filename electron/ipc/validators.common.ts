@@ -3,8 +3,8 @@
 import { z } from "zod";
 
 // Duplique `isRealCalendarDate` du domaine (frontière main/domaine : pas
-// d'import src/ ici pour préserver rootDir) �?" même règle calendaire.
-// P02: parité volontaire (bissextile incluse) �?" toute modification doit être
+// d'import src/ ici pour préserver rootDir) — même règle calendaire.
+// P02: parité volontaire (bissextile incluse) — toute modification doit être
 // répercutée dans src/domain/common/dates.ts et ici (même algorithme).
 // Exporté pour le test de parité P2 (tests/unit/main-domain-parity.test.ts).
 export function isRealCalendarDate(value: string): boolean {
@@ -24,7 +24,7 @@ export const businessDate = z
   .regex(/^\d{4}-\d{2}-\d{2}$/)
   .refine((v) => isRealCalendarDate(v), { message: "Date calendaire invalide." });
 
-// DB-14: quantités centralisées �?" finies, > 0, �?� 1M, 3 décimales max (kg/L).
+// DB-14: quantités centralisées — finies, > 0, ≤ 1M, 3 décimales max (kg/L).
 // Même règle que domain/common/quantity (assertValidQuantity) : la frontière
 // IPC rejette tôt au lieu de laisser FIFO arrondir silencieusement.
 // ADR-114 : ce refine DOIT rester identique à assertValidQuantity (round-trip
@@ -40,14 +40,14 @@ export const quantity = z
   });
 
 // MONEY-ROOT: montants en centimes bornés (anti-overflow Number.MAX_SAFE_INTEGER
-// sur prix�-qté : 1e9 centimes = 10M DZD, largement au-delà du commerce de détail).
+// sur prix×qté : 1e9 centimes = 10M DZD, largement au-delà du commerce de détail).
 export const moneyMinor = z.number().int().min(0).max(1_000_000_000);
 // A1-P0 : montants strictement positifs bornés (paiements, remboursements).
 export const moneyMinorPositive = z.number().int().min(1).max(1_000_000_000);
 
 export const optionalOperationId = z.string().uuid().nullable().optional();
-// A1-P0 : quantités �?� 0 avec 3 décimales max (même règle que `quantity`, zéro inclus
-// pour stocks/dégâts/imports �?" rejette 1.23456 au lieu d'arrondir silencieusement).
+// A1-P0 : quantités ≥ 0 avec 3 décimales max (même règle que `quantity`, zéro inclus
+// pour stocks/dégâts/imports — rejette 1.23456 au lieu d'arrondir silencieusement).
 export const quantityNonNegative = z
   .number()
   .min(0)
@@ -56,7 +56,7 @@ export const quantityNonNegative = z
     message: "Quantité invalide (3 décimales maximum).",
   });
 
-// RADICAL-FIX P0: charge vide explicite pour les lectures �?" jamais de `null`
+// RADICAL-FIX P0: charge vide explicite pour les lectures — jamais de `null`
 // (contrat Zod uniforme, AGENTS.md §3 : toute commande passe par un schéma).
 export const emptyPayloadSchema = z.object({}).strict();
 
@@ -78,7 +78,7 @@ export const idempotentIdSchema = z.object({
 });
 
 // P1-6 : couche centrale anti-sans-operationId. Tout schéma ZodObject dont le
-// champ `operationId` est REQUIS (ZodString nu �?" ni optional, ni nullable, ni
+// champ `operationId` est REQUIS (ZodString nu — ni optional, ni nullable, ni
 // défaut) impose un UUID d'appelant ; `handle()` refuse sans (jamais de
 // génération silencieuse côté main). Les schémas optionnels/compat (ex.
 // expenses.delete nullable) restent hors périmètre volontairement.

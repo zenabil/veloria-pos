@@ -43,7 +43,7 @@ export function handle<TInput>(
 ): void {
   ipcMain.handle(channel, async (_event, raw: unknown) => {
     // M-2 CLARITY: this is a LOG-CORRELATION id per IPC request, never a
-    // business operationId �?" business idempotency always uses the
+    // business operationId — business idempotency always uses the
     // caller-owned `input.operationId` (see handlers). Named distinctly so no
     // future handler mistakes it for retry identity.
     const requestId = randomUUID();
@@ -83,7 +83,7 @@ export function handle<TInput>(
         requireLicensedFeature(deps, "debt-management");
       }
       const input = schema ? schema.parse(raw ?? {}) : (raw as TInput);
-      // P1-6 : couche centrale �?" tout schéma qui EXIGE operationId le reçoit
+      // P1-6 : couche centrale — tout schéma qui EXIGE operationId le reçoit
       // du client, sinon refus FR explicite (jamais de génération main).
       if (V.schemaRequiresOperationId(schema)) {
         const op = (input as { operationId?: unknown }).operationId;

@@ -71,7 +71,7 @@ export const productSuppliersSchema = z.object({
   operationId: optionalOperationId,
 });
 
-// Appariement OCR par lot : UNE traversée IPC pour �?� 150 lignes (au lieu de
+// Appariement OCR par lot : UNE traversée IPC pour ≤ 150 lignes (au lieu de
 // ~300 allers-retours barcode + recherche). Le main boucle en local, le
 // renderer applique la logique floue sur les candidats retournés.
 export const productsMatchBatchSchema = z.object({
@@ -86,4 +86,4 @@ export const productsMatchBatchSchema = z.object({
     .max(150),
 });
 
-// �?tiquettes code-barres (formats thermiques + planche A4, rendu main déterministe).
+// étiquettes code-barres (formats thermiques + planche A4, rendu main déterministe).

@@ -92,7 +92,7 @@ export const proformaConvertSchema = z.object({
   paymentMethod: z.enum(["cash", "cheque", "transfer"]).nullable().optional(),
 });
 
-// Phase 8 �?" finance
+// Phase 8 — finance
 
 export const proformaListSchema = paginationSchema.extend({
   status: z.enum(["draft", "sent", "converted", "cancelled"]).nullable().optional(),

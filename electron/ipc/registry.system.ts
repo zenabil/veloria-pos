@@ -30,7 +30,7 @@ export function registerSystemChannels(): void {
   handle(IPC_CHANNELS["database.health"], V.emptyPayloadSchema, () => {
     const db = openDatabase();
     const check = integrityCheck();
-    // Version moteur réelle (le renderer l'affiche dans la barre d'état �?"
+    // Version moteur réelle (le renderer l'affiche dans la barre d'état —
     // jamais de version codée en dur côté UI, cf. ADR-038).
     let sqliteVersion: string | null = null;
     try {
@@ -49,7 +49,7 @@ export function registerSystemChannels(): void {
     };
   });
   handle(IPC_CHANNELS["system.selectLogo"], V.emptyPayloadSchema, () => {
-    // P2: effet de bord (copie fichier vers userData/logos) �?' mutation gardée.
+    // P2: effet de bord (copie fichier vers userData/logos) → mutation gardée.
     requireLicensedMutation(prodLicenseDeps());
     return pickLogo();
   });
@@ -153,7 +153,7 @@ export function registerSystemChannels(): void {
     factoryResetDatabase(input.operationId),
   );
 
-  // app diagnostics (Settings > Diagnostics �?" spec 23 : version, OS, base,
+  // app diagnostics (Settings > Diagnostics — spec 23 : version, OS, base,
   // taille, schéma, santé, sauvegardes, imprimante, journaux ; jamais de secret)
   handle(IPC_CHANNELS["app.diagnostics"], V.emptyPayloadSchema, () => {
     let check: { integrity: string; foreignKeys: unknown[] };

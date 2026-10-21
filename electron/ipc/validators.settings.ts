@@ -37,7 +37,7 @@ export const invoiceSettingsSchema = z
     thankYouMessage: z.string().max(200).default(""),
     tvaRatePercent: z.number().min(0).max(100).default(0),
     sellerDefault: z.string().max(100).default(""),
-    // Aliases historiques renderer (vatRate/defaultSeller) �?" normalisés côté
+    // Aliases historiques renderer (vatRate/defaultSeller) — normalisés côté
     // repo/service vers les clés canoniques ci-dessus (compat anciennes bases).
     vatRate: z.number().min(0).max(100).nullable().optional(),
     defaultSeller: z.string().max(100).nullable().optional(),
@@ -134,7 +134,7 @@ export const relocateSchema = z.object({
 });
 
 // Réinitialisation d'usine (zone dangereuse) : preuve de confirmation
-// LITT�?RALE tapée par l'opérateur + operationId d'appelant (rejouabilité
+// LITTÉRALE tapée par l'opérateur + operationId d'appelant (rejouabilité
 // sûre : un second appel retrouve la base déjà vide sans tout casser).
 // L'UI exige en plus une confirmation tapée identique côté renderer.
 export const databaseResetSchema = z.object({

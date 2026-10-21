@@ -1,5 +1,11 @@
 # FULL PROJECT QA AUDIT — Veloria POS1 (2026-09-18)
 
+> **Chiffres historiques** : ce rapport est l'instantané de l'audit du
+> 2026-09-18 (21 migrations, 160 canaux IPC, 25 tables). L'état courant est
+> dans `handoff.md` §1 (migrations, ADR, contrats gelés) et
+> `docs/STRUCTURE.md` (carte de maintenance). Rien n'est réécrit ici : un
+> rapport daté reste la trace de ce qu'il a mesuré.
+
 > Audit-only phase. **No fixes applied.** Discovery + testing + documentation.
 > Workspace: `C:\Users\Admin\Desktop\Veloria POS1` · Commit context: `.git` present, no commits inspected (audit scope = working tree).
 > Method: static inventory (Grep/Read over 100% of `src/`, `electron/`, `license-manager/`, `database/`, `scripts/`, `tests/`)

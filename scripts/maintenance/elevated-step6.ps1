@@ -1,4 +1,4 @@
-﻿$log = 'C:\Users\zenagui bilal\Desktop\Veloria POS dev zenagui bilal\docs\reports\maintenance\elevated-step6.log'
+﻿$log = Join-Path (Split-Path -Parent $PSScriptRoot) '..\docs\reports\maintenance\elevated-step6.log'
 function L($m){ $t = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'; "$t $m" | Tee-Object -FilePath $log -Append }
 L '=== STEP 6 start (Python clean install, explicit features) ==='
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12

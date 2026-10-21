@@ -25,7 +25,7 @@ export function registerRecoveryIpc(callbacks: {
     try {
       V.recoveryActionSchema.parse(raw ?? {});
     } catch (err) {
-      // L10 : payload invalide �?' mapping FR + journalisation technique (log),
+      // L10 : payload invalide → mapping FR + journalisation technique (log),
       // comme le fait handle() pour tous les autres canaux.
       log("WARN", "recovery", "retry.invalid_payload", {
         error: err instanceof Error ? err.message : String(err),
@@ -33,10 +33,10 @@ export function registerRecoveryIpc(callbacks: {
       const user = toUserMessage(err);
       return { ok: false, ...user };
     }
-    // �?chec persistant : message FR déjà prêt en base (jamais de stack vers l'UI ;
+    // échec persistant : message FR déjà prêt en base (jamais de stack vers l'UI ;
     // le détail technique a été journalisé en FATAL par la tentative elle-même).
     // L10 : toute exception imprévue ici (registration, bascule de mode) doit
-    // rester FR + journalisée �?" sinon message brut Electron vers l'opérateur.
+    // rester FR + journalisée — sinon message brut Electron vers l'opérateur.
     let res: { switched: boolean; userMessage: string };
     try {
       res = callbacks.onRetry();
@@ -57,7 +57,7 @@ export function registerRecoveryIpc(callbacks: {
     try {
       V.recoveryActionSchema.parse(raw ?? {});
     } catch (err) {
-      // L10 : payload invalide �?' mapping FR + journalisation technique.
+      // L10 : payload invalide → mapping FR + journalisation technique.
       log("WARN", "recovery", "exit.invalid_payload", {
         error: err instanceof Error ? err.message : String(err),
       });
@@ -72,7 +72,7 @@ export function registerRecoveryIpc(callbacks: {
       });
     }
     // L10 : onExit() (app.quit) ne doit jamais propager une exception brute
-    // vers le renderer �?" log technique + réponse FR.
+    // vers le renderer — log technique + réponse FR.
     try {
       callbacks.onExit();
     } catch (err) {
@@ -93,7 +93,7 @@ export function registerRecoveryIpc(callbacks: {
  * Canaux licence (surface minimale, sans base requise) : statut, identifiant
  * matériel d'affichage, import .vlic via dialogue fichier main, re-vérif.
  * Enregistrable en mode activation (fenêtre dédiée) comme en mode nominal.
- * Aucune signature/clé privée ici �?" vérification seule.
+ * Aucune signature/clé privée ici — vérification seule.
  */
 export function registerLicenseIpc(callbacks?: { onActivated?: () => void }): void {
   const deps = prodLicenseDeps();
@@ -136,6 +136,6 @@ export function registerLicenseIpc(callbacks?: { onActivated?: () => void }): vo
     return status;
   });
   // Capabilities en lecture seule (§23) : pages + features issues du payload
-  // SIGN�? vérifié. Aucune écriture, aucun paramètre �?" le renderer ne peut pas
+  // SIGNÉ vérifié. Aucune écriture, aucun paramètre — le renderer ne peut pas
   // s'octroyer de permissions (pas de setLicensePermissions).
 }

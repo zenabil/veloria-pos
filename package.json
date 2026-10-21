@@ -55,6 +55,7 @@
     "verify:licensing": "electron ./scripts/licensing/verify-licensing.cjs",
     "verify:domain": "node --experimental-strip-types scripts/quality/verify-domain.ts",
     "verify:fr": "node scripts/quality/verify-fr-only.mjs",
+    "verify:encoding": "node scripts/quality/verify-encoding.mjs",
     "verify:perf": "node scripts/quality/verify-perf.mjs"
   },
   "dependencies": {

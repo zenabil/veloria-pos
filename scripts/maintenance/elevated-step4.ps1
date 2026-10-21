@@ -1,6 +1,6 @@
 #Requires -RunAsAdministrator
 $ErrorActionPreference = 'Continue'
-$log = 'C:\Users\zenagui bilal\Desktop\Veloria POS dev zenagui bilal\docs\reports\maintenance\elevated-step4.log'
+$log = Join-Path (Split-Path -Parent $PSScriptRoot) '..\docs\reports\maintenance\elevated-step4.log'
 function L($m){ $t = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'; "$t $m" | Tee-Object -FilePath $log -Append }
 L '=== STEP 4 start (IDM shell ext + official Python installer) ==='
 

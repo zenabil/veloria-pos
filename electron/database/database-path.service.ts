@@ -7,6 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { app } from "electron";
 import { assertSafeUserFolder, isAllowedDatabaseFile } from "../security/security";
+import { log } from "../services/logger";
 
 export const LOGICAL_DB_NAME = "veloria POS DB";
 export const PHYSICAL_DB_FILENAME = "Veloria POS DB.sqlite";
@@ -53,9 +54,9 @@ export function getConfiguredDbPath(): string {
     // RADICAL (#28) : repli silencieux interdit — un chemin configuré
     // invalide DOIT être visible (sinon base par défaut + VERIFIED menteur).
     try {
-      console.warn(
-        "[Veloria][WARN] database-path: config illisible/invalide, repli sur le chemin par défaut",
-      );
+      log("WARN", "database", "path.config_unreadable", {
+        fallback: "default_path",
+      });
     } catch {
       /* journal best effort */
     }
