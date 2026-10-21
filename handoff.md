@@ -22,6 +22,7 @@
 - **Nouveaux constats P1 (non corrigés, voir plan)** : jour métier en UTC au lieu de `Africa/Algiers` (E-35) · `verify:licensing` hors CI (bloqué : l'état local du Manager n'existe pas sur un runner) · **E2E non rejoués** depuis le 2026-10-18.
 - **Corrigé en W1→W10 (à ne plus re-signaler)** : `customers.accessQrSvg` sans staff-gate · `staffScope()` ⇒ «no session = gérant» · `database.optimize` sans gate · conversion Proforma→vente cassée si remise · clôture Z (chèque/transfert/dépenses/retours) · verrou de période close (W3) · unicité téléphone + `paginationSchema.page` borné (W3) · `test:coverage` rouge (W4) · `FROZEN_SCHEMA_COUNT` (W4) · extraction EAN-13/14 (W4) · `formatDzd` qui throw au rendu + double-submit + focus + lots bornés (W5) · atelier impression (W5) · code mort trié, `knip` à 0, `expo-constants` retirée, garde FR sans liste d'attente (W6) · chemins chauds indexés (migration 0050) + N+1 supprimés + bundle découpé (W8) · encodage réparé (W9) · **règles uniques (quantité/montant/date/normalisation) + état « en retard » produit (W7)** · **état d'erreur persistant dans 12 écrans (W10)**.
 - ADRs : 001→**130**. `docs/INDEX.md` **à jour jusqu'à 130**.
+- **3 bugs caisse signalés par le propriétaire (2026-10-21) — DIAGNOSTIC PROUVÉ (§23), CORRECTION EN ATTENTE** : (B1) focus qui revient au champ « Nom » de l'article libre — `useDialogFocus` rejoue son effet à chaque rendu (`onClose` inline = identité nouvelle) ⇒ refocus du 1ᵉʳ champ ; (B2) vente au poids en mode « Montant » : 50,00 DZD saisis mais **49,70 facturés** (poids arrondi à 3 déc. × prix ; le montant exact est perdu — ADR-114) ; (B3) panier mixte : `CHECK constraint failed: discount_amount_minor >= 0` (7× dans le journal du 2026-10-21) — une **majoration** (prix de ligne > prix d'origine) produit une remise négative, acceptée par le domaine mais **interdite par la base** ⇒ rollback + message générique ; **lien B1 → B3** (la saisie tronquée du prix force une correction par majoration). Décisions owner en attente (B2 : facturation exacte ou arrondie ; B3 : interdire ou autoriser la majoration).
 - Outillage : `knip.json` (§16) — `Unused files` **32 → 0** ; re-mesuré 2026-10-21 : **0 fichier · 0 export · 0 type · 0 dépendance** (la couverture `knip` s'étend désormais à `license-manager/**` et `cloud/**` — J-11).
 - **Contrats gelés (état après ADR-130)** : snapshot `ipc-channels.json` **178** (+`customers.import`) · `FROZEN_SCHEMA_COUNT` **122** · `FROZEN_EXPORT_COUNT = 128` · `FROZEN_SCHEMA_TOTAL` (op-id) **122** · `operation-id-coverage` : **44** REQUIRED + classification complète (122 schémas) · migrations **50** (migration 0050 = index de performance, non destructive).
 - E2E (non relancés depuis le 2026-10-18) : suite 2026-10-18 — **12/13 specs vertes**, **37** blocs `test()` (pas 24) ; `full-loop-client` exige le relais `:8100` (hard-fail, pas skip) ; `installer` non exécutable hors paquet Win + UAC. **W2 touche `staffScope()` (K-04) et W3 ajoute un canal ⇒ les specs `staff-session` et `full-loop-client` sont à rejouer avant le tag.**
@@ -857,7 +858,7 @@ complétée (23 → **43**). La cible de W4 prévue au plan (120) devient **121*
    (§4 du plan), **ADR-120** toujours proposé non approuvé.
 5. **E2E à rejouer** avant tout tag : `staff-session`, `full-loop-client`.
 
-## 22) Session 2026-10-21 (bis) — diagnostic des 3 bugs caisse (propriétaire)
+## 23) Session 2026-10-21 (bis) - diagnostic des 3 bugs caisse (propriétaire)
 
 **Demande** : « عند إضافة منتج حر إلى السلة… الاسم يكتب عادي لكن السعر يرجع
 لخانة الاسم » · « منتج بالوزن 700 دج/كغ، بيع 50 دج ⇒ السلة تكتب 49,7 دج »
@@ -891,7 +892,7 @@ Le montant exact est **perdu** : `onConfirm(preview.qty)` ne transmet que la
 quantité. **Preuve base réelle** : vente `FAC-2026-00006`, ligne « bil »
 ⇒ `quantity 0.071`, `line_total_minor 4970`.
 Comportement « par design » (ADR-114 : facturer le poids arrondi), mais le
-caissier **perd de la argent** ⇒ écart métier à trancher (voir §22 « à
+caissier **perd de la argent** ⇒ écart métier à trancher (voir §23 « à
 trancher »).
 
 ### B3 — vente du panier mixte refusée (cause PROUVE)
