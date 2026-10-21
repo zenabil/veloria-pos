@@ -1126,6 +1126,18 @@ VERIFIED · `verify:fr` 0 (322 fichiers) · `verify:encoding` 0 (864 fichiers) �
   (téléchargement géré par la session Chromium) ⇒ l'export est vérifié par
   son **effet** (toast FR) et son contenu par le test unitaire.
 
+### Packaging refait avec la feature (release/)
+
+`release/` reconstruit **après** l'import/export (ADR-023 : jamais de
+réutilisation) : `Veloria-PoS-Setup-1.0.0.exe` + `.blockmap` ·
+`Veloria-PoS-Portable-1.0.0.exe` · `Veloria-License-Manager-Setup-1.0.0.exe`
+
+- `.blockmap` · `Veloria-License-Manager-Portable-1.0.0.exe` ·
+  `SHA256SUMS.txt` · `win-unpacked/` (= POS).
+
+`release:smoke` **EXIT 0** · `better-sqlite3` **chargé dans le runtime
+packagé** (Electron 37.2.0, ABI 136, SQLite 3.50.2 — règle AGENTS.md §9).
+
 ### Formats (rappel)
 
 - **export = RAPPORT** (lisible dans Excel) ;
