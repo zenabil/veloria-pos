@@ -22,7 +22,7 @@ import {
 } from "./printing.enrich";
 import { buildPaymentText, toPaymentTicketData } from "./receipt-documents";
 
-// Reçu de règlement de dette (ticket تسديد الدين) : aperçu + impression
+// Reçu de règlement de dette (ticket de règlement) : aperçu + impression
 // ticket 58/80mm uniquement (jamais A4) après encaissement client /
 // fournisseur / pain. Garde : ticket 80mm + au moins une page dettes
 // (clients/fournisseurs/pain) — le renderer ne peut pas imprimer un

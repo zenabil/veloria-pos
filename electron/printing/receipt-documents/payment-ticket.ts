@@ -14,7 +14,7 @@ import {
 import { identityThermalLines } from "./chrome";
 
 // ---------------------------------------------------------------------------
-// Reçu de règlement de dette (ticket تسديد الدين) : reçu client/fournisseur/
+// Reçu de règlement de dette (ticket de règlement) : reçu client/fournisseur/
 // pain après encaissement d'un paiement (comptant partiel ou total).
 // Ticket uniquement (jamais A4) — politique opération → format.
 // Pur et déterministe comme les autres builders (zéro import).

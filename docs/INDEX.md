@@ -132,6 +132,7 @@
 - [ADR-124](./ADR-124-rendu-sur-guardes-focus-lots-annonce-magasin.md) Rendu sûr, gardes synchrones, focus, lots bornés, tranche « annonce magasin » (W5)
 - [ADR-125](./ADR-125-encodage-repare-journal-centralise-chiffres-a-jour.md) Encodage réparé (U+FFFD), porte d'encodage, journal centralisé, chiffres à jour (W9)
 - [ADR-126](./ADR-126-chemins-chauds-indexes-n-plus-1-bundle.md) Chemins chauds indexés (migration 0050), N+1 supprimés, bundle découpé (W8)
+- [ADR-127](./ADR-127-code-mort-trie-vague-w6.md) Code mort trié : barrel d'impression trié, miroirs morts, dépendance fantôme retirée (W6)
 
 ## Ou ecrire quoi
 

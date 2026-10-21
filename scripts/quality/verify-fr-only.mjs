@@ -21,14 +21,10 @@ const SCAN_DIRS = ["src", "electron"];
 const EXTS = new Set([".ts", ".tsx", ".js", ".mjs", ".cjs", ".html", ".css"]);
 // Exclusion unique et documentée (le recognizer OCR doit filtrer « دج »).
 const ALLOW = new Set(["src/domain/ocr/numbers.ts"]);
-// ATTENTE — fichiers modifiés par une AUTRE workshop (impression, non
-// commitée) : à corriger dans le commit de CETTE workshop, puis à retirer
-// d'ici. Chaque entrée est un fichier À CORRIGER, pas une dérogation
-// permanente — la liste est donc signalée dans la sortie de la porte.
-const PENDING_WORKSHOP = new Set([
-  "electron/printing/printing.payment.ts",
-  "electron/printing/receipt-documents/payment-ticket.ts",
-]);
+// W6 : la workshop impression est ENTRÉE (ADR-097 + commit `ae4e410`) ⇒ les
+// deux fichiers qui étaient en attente (« ticket de règlement ») sont
+// corrigés et la dérogation temporaire est retirée : plus aucune liste
+// d'attente, la garde FR redevient pleine.
 // Arabe (blocs + supplément + formes de présentation) et « € ».
 // Testé par CODEPOINT (et non par une classe de caractères littérale) : les
 // caractères arabes littéraux seraient des espaces « irréguliers » pour la
@@ -74,7 +70,6 @@ for (const dir of SCAN_DIRS) {
   for (const fp of walk(abs)) {
     const rel = path.relative(ROOT, fp).replace(/\\/g, "/");
     if (ALLOW.has(rel)) continue;
-    if (PENDING_WORKSHOP.has(rel)) continue;
     scanned += 1;
     const text = fs.readFileSync(fp, "utf8");
     text.split("\n").forEach((line, i) => {
@@ -94,8 +89,3 @@ console.log(
   `OK  garde FR : ${scanned} fichiers scannés (src/ + electron/), 0 littéral arabe ni « € ».`,
 );
 console.log(`    exception documentée : ${[...ALLOW].join(", ")} (module OCR).`);
-if (PENDING_WORKSHOP.size > 0) {
-  console.log(
-    `    ATTENTE (workshop impression non commitée) : ${[...PENDING_WORKSHOP].join(", ")} — à corriger puis à retirer de cette liste.`,
-  );
-}

@@ -35,6 +35,7 @@ import {
   clientAccessQrSchema,
   syncEnqueueSchema,
 } from "../../electron/ipc/validators";
+import * as ClientAccess from "../../electron/ipc/handlers/client-access.repo";
 
 const OP = "123e4567-e89b-12d3-a456-426614174000";
 const QR = "AbcDefGh12345678";
@@ -67,18 +68,21 @@ describe("PIN / activation", () => {
   });
 });
 
-describe("charge QR d'activation (ADR-054)", () => {
-  it("construit VELORIA1|phone|pin|code", () => {
+describe("charge QR d'activation (ADR-054 / ADR-068)", () => {
+  it("le format V1 reste décrit par le use-case (l'APK le lit encore)", () => {
     expect(buildActivationQrPayload("0550123456", "482916", QR)).toBe(
       `VELORIA1|0550123456|482916|${QR}`,
     );
     expect(buildActivationQrPayload("  0550  ", "123456", QR)).toBe(`VELORIA1|0550|123456|${QR}`);
-  });
-  it("rejette téléphone/PIN/code invalides", () => {
     expect(() => buildActivationQrPayload("", "123456", QR)).toThrow();
     expect(() => buildActivationQrPayload("05|50", "123456", QR)).toThrow();
     expect(() => buildActivationQrPayload("0550", "12345", QR)).toThrow();
     expect(() => buildActivationQrPayload("0550", "123456", "court")).toThrow();
+  });
+  it("W6 (B-03) : le MIROIR main du constructeur V1 a disparu (le POS n'émet plus que la V2)", () => {
+    expect(
+      (ClientAccess as unknown as Record<string, unknown>)["buildActivationQrPayload"],
+    ).toBeUndefined();
   });
   it("schéma IPC miroir des mêmes bornes", () => {
     const base = { phone: "0550", pin: "123456", code: QR };

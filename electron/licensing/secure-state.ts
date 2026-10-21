@@ -181,10 +181,8 @@ export function saveSecureState(backend: SecureStoreBackend, state: PersistedLic
   fs.writeFileSync(licenseStatePath(), backend.encryptString(JSON.stringify(state)));
 }
 
-export function clearSecureState(): void {
-  try {
-    fs.unlinkSync(licenseStatePath());
-  } catch {
-    /* absent : nominal */
-  }
-}
+// W6 (audit B-02) : `clearSecureState()` supprimé — aucun flux ne l'appelait
+// (l'import d'une licence ÉCRASE l'état par `saveSecureState` ; il n'existe
+// pas de « forgetting » de licence dans le POS). Une fonction de suppression
+// jamais appelée est un faux sentiment de sécurité : le code qui compte est
+// celui qui est branché.

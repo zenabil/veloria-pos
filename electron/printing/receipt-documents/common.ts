@@ -104,8 +104,3 @@ export function paymentMethodLabel(method: string): string {
 
 /** Largeur thermique supportée (58/80mm, sans coupe). */
 export type ThermalWidth = "58mm" | "80mm";
-
-// Compat : ré-exports (surface publique inchangée, sources découpées).
-export { escapeHtml, escapePreText } from "./html";
-export { CODE39_PATTERNS, code39Svg, sanitizeCode39 } from "./barcode39";
-export { CODE128_WIDTHS, code128Svg, code128Symbols, sanitizeCode128 } from "./barcode128";

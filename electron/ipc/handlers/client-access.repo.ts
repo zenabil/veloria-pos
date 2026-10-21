@@ -86,20 +86,15 @@ export function newActivationCode(): string {
  * `src/`, voir tsconfig.electron `rootDir`). Toute évolution du format doit
  * changer les deux + leurs tests + le parseur APK (`mobile/src/qr.ts`).
  */
-export const ACTIVATION_QR_PREFIX = "VELORIA1";
-
-/** Préfixe V2 (ADR-068) — miroir du use-case applicatif (même format, mêmes bornes). */
+/** Préfixe V2 (ADR-068) — miroir du use-case applicatif (même format, mêmes bornes).
+ *  W6 (B-03) : le préfixe V1 n'est plus produit par le main (le format V1
+ *  reste lu par l'APK pour les anciens QR — voir `mobile/src/qr.ts`). */
 export const ACTIVATION_QR_PREFIX_V2 = "VELORIA2";
 
-export function buildActivationQrPayload(phone: string, pin: string, code: string): string {
-  const p = phone.trim();
-  if (p.length < 1 || p.length > 30 || p.includes("|")) {
-    throw new Error("Téléphone invalide pour le QR (1 à 30 caractères, sans |).");
-  }
-  if (!/^[0-9]{6}$/.test(pin)) throw new Error("Code PIN invalide (6 chiffres).");
-  if (!/^[A-Za-z0-9_-]{16,128}$/.test(code)) throw new Error("Code d'activation invalide.");
-  return `${ACTIVATION_QR_PREFIX}|${p}|${pin}|${code}`;
-}
+// W6 (audit B-03) : le constructeur V1 (`buildActivationQrPayload`) est
+// supprimé — le POS n'émet plus que la V2 (ADR-068) et le LECTEUR de l'APK
+// (`mobile/src/qr.ts`) conserve le format V1 pour les anciens QR. Le format
+// V1 reste donc LISIBLE, il n'est plus produit.
 
 function jwtRoleOf(key: string): string | null {
   const parts = key.split(".");

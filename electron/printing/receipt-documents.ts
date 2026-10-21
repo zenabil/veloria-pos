@@ -1,20 +1,24 @@
-// Veloria PoS — Documents d'impression purs (barrel : decoupage sans changement).
-// Compatibilite totale : re-exporte exactement la surface publique d'origine.
-// Source : electron/printing/receipt-documents/*.ts (deterministes, francais).
-export { code39Svg, sanitizeCode39, CODE39_PATTERNS } from "./receipt-documents/barcode39";
+// Veloria PoS — Documents d'impression purs (barrel : découpage sans changement).
+// Source : electron/printing/receipt-documents/*.ts (déterministes, français).
+// W6 (audit B-05..B-28) : la surface publique a été TRIÉE — les ré-exports que
+// personne ne consomme (blocs thermiques morts, types de rapport non repris)
+// ont été retirés ; en revanche ceux que la suite de tests consomme
+// (échappement HTML, code-barres 39/128) sont CONSERVés — le `knip` doit
+// rester à 0 ET `npm run typecheck` doit rester vert.
+export {
+  formatCustomerCode,
+  formatProductRef,
+  paymentMethodLabel,
+} from "./receipt-documents/common";
+export type { ReceiptData, ThermalWidth } from "./receipt-documents/common";
+export { escapeHtml } from "./receipt-documents/html";
+export { CODE39_PATTERNS, code39Svg, sanitizeCode39 } from "./receipt-documents/barcode39";
 export {
   CODE128_WIDTHS,
   code128Svg,
   code128Symbols,
   sanitizeCode128,
 } from "./receipt-documents/barcode128";
-export { escapeHtml, escapePreText } from "./receipt-documents/html";
-export {
-  formatCustomerCode,
-  formatProductRef,
-  paymentMethodLabel,
-} from "./receipt-documents/common";
-export type { ReceiptData, ReceiptLine, ThermalWidth } from "./receipt-documents/common";
 export {
   amountInWordsFr,
   buildQrPayload,
@@ -22,20 +26,14 @@ export {
   tvaBreakdown,
 } from "./receipt-documents/amounts";
 export {
-  thermalCenter,
   thermalCols,
   thermalField,
-  thermalFooterBlock,
   thermalItem,
   thermalLogo,
   thermalRow,
-  thermalSep,
-  thermalSigns,
-  thermalWatermark,
   thermalHtml,
   wrapThermal,
 } from "./receipt-documents/thermal";
-export type { ThermalFooterInput } from "./receipt-documents/thermal";
 export {
   docQrPayload,
   headerNoteHtml,
@@ -44,7 +42,6 @@ export {
   signsHtml,
   watermarkHtml,
 } from "./receipt-documents/chrome";
-export type { PageOpts } from "./receipt-documents/chrome";
 export { buildReceiptText, toReceiptData } from "./receipt-documents/receipt-text";
 export { buildProformaA4Html, proformaFromReceipt } from "./receipt-documents/proforma";
 export type { ProformaData } from "./receipt-documents/proforma";
@@ -53,11 +50,10 @@ export {
   paymentTicketKindLabel,
   toPaymentTicketData,
 } from "./receipt-documents/payment-ticket";
-export type { PaymentTicketData, PaymentTicketKind } from "./receipt-documents/payment-ticket";
+export type { PaymentTicketData } from "./receipt-documents/payment-ticket";
 export { buildReportHtml, toReportData } from "./receipt-documents/report";
-export type { ReportChart, ReportData, ReportKpi, ReportTable } from "./receipt-documents/report";
 export { buildLabelsHtml, LABEL_FORMATS, labelPageMicrons } from "./receipt-documents/labels";
-export type { LabelFormat, LabelItem, LabelOptions } from "./receipt-documents/labels";
+export type { LabelFormat, LabelItem } from "./receipt-documents/labels";
 export {
   buildDeliveryText,
   buildPurchaseOrderText,

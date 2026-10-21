@@ -10,7 +10,7 @@
       "project": ["src/**/*.{ts,tsx,css}", "electron/**/*.ts", "tests/**/*.{ts,tsx}"],
       "ignoreExportsUsedInFile": true,
       "ignoreBinaries": ["net"],
-      "ignoreDependencies": ["bindings", "@eslint/js", "tailwindcss"]
+      "ignoreDependencies": ["bindings", "@eslint/js"]
     },
     "mobile": {
       "entry": ["src/App.tsx"],
