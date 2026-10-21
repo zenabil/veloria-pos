@@ -48,7 +48,11 @@ export function digitsOnly(value: string): string {
 
 // Séparateurs téléphone courants retirés de la colonne (côté requête :
 // digitsOnly) : espaces, tirets, points, slash, parenthèses, indicatif +.
-const PHONE_DIGITS_EXPR = `REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone,' ',''),'-',''),'.',''),'/',''),'(',''),')',''),'+',''),char(160),'')`;
+// W8 (F-06) : la normalisation est désormais une COLONNE GÉNÉRÉE
+// (`customers.phone_digits`, migration 0050) + index ⇒ les 8 `REPLACE()`
+// ne sont plus refaits à chaque lecture (et la recherche par téléphone
+// devient une recherche indexée au lieu d'un parcours de table).
+const PHONE_DIGITS_EXPR = `phone_digits`;
 
 /**
  * E-28 : normalisation du téléphone PARFAITEMENT PARELLELE à

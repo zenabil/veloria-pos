@@ -131,6 +131,7 @@
 - [ADR-123](./ADR-123-couverture-verte-gardes-auto-derivees-tests-miroir.md) Couverture verte, gardes auto-dérivées, tests miroir convertis (W4)
 - [ADR-124](./ADR-124-rendu-sur-guardes-focus-lots-annonce-magasin.md) Rendu sûr, gardes synchrones, focus, lots bornés, tranche « annonce magasin » (W5)
 - [ADR-125](./ADR-125-encodage-repare-journal-centralise-chiffres-a-jour.md) Encodage réparé (U+FFFD), porte d'encodage, journal centralisé, chiffres à jour (W9)
+- [ADR-126](./ADR-126-chemins-chauds-indexes-n-plus-1-bundle.md) Chemins chauds indexés (migration 0050), N+1 supprimés, bundle découpé (W8)
 
 ## Ou ecrire quoi
 

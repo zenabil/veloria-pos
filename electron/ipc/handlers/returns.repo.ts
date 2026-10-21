@@ -278,6 +278,10 @@ export function createReturnAtomic(args: {
         args.now,
       );
     const returnId = Number(r.lastInsertRowid);
+    // W8 (J-01/N14) : les consommations FIFO de la vente d'origine sont
+    // lues UNE SEULE FOIS (avant la boucle) — la lecture était dans la
+    // boucle ⇒ une requête par ligne de retour (N+1).
+    const saleConsumptions = consumptionsOfSale(args.originalSaleId);
     for (const p of prepared) {
       let before: number | null = null;
       let after: number | null = null;
@@ -294,7 +298,7 @@ export function createReturnAtomic(args: {
           `UPDATE products SET quantity = ?, stock_status = CASE WHEN ? <= 0 THEN 'out_of_stock' WHEN ? <= min_stock_level THEN 'low_stock' ELSE 'in_stock' END, updated_at = ? WHERE id = ?`,
         ).run(after, after, after, args.now, p.productId);
         const plan = planRestore(
-          consumptionsOfSale(args.originalSaleId).filter((c) => c.productId === p.productId),
+          saleConsumptions.filter((c) => c.productId === p.productId),
           p.qty,
           plannedRestoreByProduct.get(keyOf(p.productId)) ?? 0,
         );

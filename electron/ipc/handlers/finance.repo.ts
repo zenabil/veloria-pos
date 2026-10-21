@@ -136,7 +136,7 @@ export function getDebtStats(): {
     .prepare(
       `SELECT COUNT(*) AS c FROM sales
        WHERE is_cancelled = 0 AND remaining_balance_minor > 0
-       AND due_date IS NOT NULL AND substr(due_date, 1, 10) = date('now')`,
+       AND due_date IS NOT NULL AND due_date >= date('now') AND due_date < date('now','+1 day')`,
     )
     .get() as { c: number };
   // Clients au jour de règlement mensuel dépassé / proche (solde restant).

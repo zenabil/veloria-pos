@@ -19,7 +19,21 @@ export default defineConfig({
   build: {
     outDir: "dist",
     emptyOutDir: true,
-    chunkSizeWarningLimit: 1200,
+    // W8 (J-04/J-05) : le bundle renderer dépassait le seuil d'alerte
+    // (un seul chunk de 485 Ko) et le seuil masquait la dérive. Découpage
+    // explicite des grossiers (vendor) + seuil de 600 Ko : une régression de
+    // taille devient visible dans le build.
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Dépendance réellement utilisées par le renderer (une entrée
+          // inexistante fait ÉCHOUER le build : pas de package fantôme).
+          react: ["react", "react-dom"],
+          vendor: ["zustand", "zod", "clsx", "tailwind-merge", "lucide-react"],
+        },
+      },
+    },
     sourcemap: false,
   },
   server: {

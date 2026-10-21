@@ -111,10 +111,27 @@ describe("History query builder", () => {
       page: 2,
       pageSize: 20,
     });
-    expect(q.params.slice(0, 5)).toEqual(["2026-09-01", "2026-09-30", "%FAC%", "%FAC%", "%FAC%"]);
+    // W8 (F-06) : les bornes de date sont désormais des TIMESTAMPS
+    // comparés directement à `created_at` (indexable) au lieu de
+    // `substr(created_at,1,10)` (non indexable). La borne haute est
+    // EXCLUSIVE : le jour `to` (2026-09-30) reste entièrement inclus.
+    expect(q.params.slice(0, 5)).toEqual([
+      "2026-09-01T00:00:00.000Z",
+      "2026-10-01T00:00:00.000Z",
+      "%FAC%",
+      "%FAC%",
+      "%FAC%",
+    ]);
     expect(q.params.slice(-2)).toEqual([20, 20]);
-    expect(q.countParams).toEqual(["2026-09-01", "2026-09-30", "%FAC%", "%FAC%", "%FAC%"]);
+    expect(q.countParams).toEqual([
+      "2026-09-01T00:00:00.000Z",
+      "2026-10-01T00:00:00.000Z",
+      "%FAC%",
+      "%FAC%",
+      "%FAC%",
+    ]);
     expect(q.sql.includes("amount_minor DESC")).toBe(true);
+    expect(q.sql.includes("substr(")).toBe(false);
   });
 });
 

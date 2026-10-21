@@ -32,6 +32,9 @@ export function importProductsAtomic(
   const tx = db.transaction(() => {
     claimIdempotency(operationId, "products.import", now);
     const seen = new Set<string>();
+    // W8 : statements préparés UNE SEULE FOIS (hors boucle) — la
+    // compilation du SQL était refaite pour chaque ligne importée.
+    const barcodeExistsStmt = db.prepare(`SELECT id FROM product_barcodes WHERE barcode = ?`);
     for (const [i, r] of rows.entries()) {
       const line = i + 1;
       if (r.name.trim().length < 2) throw new Error(`Ligne ${line} : nom requis.`);
@@ -49,36 +52,37 @@ export function importProductsAtomic(
       if (code) {
         if (seen.has(code)) throw new Error(`Ligne ${line} : code-barres dupliqué.`);
         seen.add(code);
-        const exists = db.prepare(`SELECT id FROM product_barcodes WHERE barcode = ?`).get(code);
+        const exists = barcodeExistsStmt.get(code);
         if (exists) throw new Error(`Ligne ${line} : code-barres déjà utilisé.`);
       }
     }
     let imported = 0;
+    // W8 : statements d'insertion préparés une fois (hors boucle).
+    const insertProductStmt = db.prepare(
+      `INSERT INTO products (uuid, name, unit_code, purchase_price_minor, selling_price_minor, quantity, min_stock_level, stock_status, is_active, created_at, updated_at)
+       VALUES (?, ?, 'PIECE', ?, ?, ?, 0, ?, 1, ?, ?)`,
+    );
+    const insertBarcodeStmt = db.prepare(
+      `INSERT INTO product_barcodes (product_id, barcode, is_primary, created_at) VALUES (?, ?, 1, ?)`,
+    );
     for (const r of rows) {
       // Statut initial : min_stock_level = 0 à l'import, donc quantité > 0
       // implique toujours 'in_stock' (pas de seuil 'low_stock' ici).
       const status = r.quantity <= 0 ? "out_of_stock" : "in_stock";
-      const ins = db
-        .prepare(
-          `INSERT INTO products (uuid, name, unit_code, purchase_price_minor, selling_price_minor, quantity, min_stock_level, stock_status, is_active, created_at, updated_at)
-           VALUES (?, ?, 'PIECE', ?, ?, ?, 0, ?, 1, ?, ?)`,
-        )
-        .run(
-          randomUUID(),
-          r.name.trim(),
-          r.purchasePriceMinor,
-          r.sellingPriceMinor,
-          r.quantity,
-          status,
-          now,
-          now,
-        );
+      const ins = insertProductStmt.run(
+        randomUUID(),
+        r.name.trim(),
+        r.purchasePriceMinor,
+        r.sellingPriceMinor,
+        r.quantity,
+        status,
+        now,
+        now,
+      );
       const pid = Number(ins.lastInsertRowid);
       const codeIns = r.barcode.trim();
       if (codeIns) {
-        db.prepare(
-          `INSERT INTO product_barcodes (product_id, barcode, is_primary, created_at) VALUES (?, ?, 1, ?)`,
-        ).run(pid, codeIns, now);
+        insertBarcodeStmt.run(pid, codeIns, now);
       }
       // FIFO : le stock initial importé devient une couche d'ouverture.
       if (r.quantity > 0) {
