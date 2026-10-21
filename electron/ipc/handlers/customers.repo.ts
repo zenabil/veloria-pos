@@ -73,8 +73,10 @@ export function phoneDigitsParity(phone: string): string {
  * évite un rollback pour un doublon saisissable.
  * Les clients ARCHIVÉS (`deleted_at IS NOT NULL`) sont hors périmètre : un
  * numéro « occupé » par un client archivé ne bloque pas un nouveau client.
+ * Exporté : l'import CSV clients appelle le MÊME contrôle (une seule règle
+ * d'unicité, pas deux implémentations qui divergent).
  */
-function assertPhoneAvailable(phone: string | null, excludeCustomerId: number | null): void {
+export function assertPhoneAvailable(phone: string | null, excludeCustomerId: number | null): void {
   if (phone == null || phone.trim() === "") return;
   const db = getDb();
   const digits = phoneDigitsParity(phone);

@@ -32,6 +32,7 @@ export const api = {
   productsImport: (p: unknown) => call((a) => a.productsExtra.import(p)),
   customerSearch: (p: unknown) => call((a) => a.customers.search(p)),
   customerCreate: (p: unknown) => call((a) => a.customers.create(p)),
+  customerImport: (p: unknown) => call((a) => a.customers.import(p)),
   customerUpdate: (p: unknown) => call((a) => a.customers.update(p)),
   customerStatement: (p: unknown) => call((a) => a.customers.statement(p)),
   customerPaymentReceipt: (p: unknown) => call((a) => a.customers.paymentReceipt(p)),

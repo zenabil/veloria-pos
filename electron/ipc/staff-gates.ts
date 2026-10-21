@@ -97,6 +97,7 @@ const STAFF_CHANNEL_PERMISSION: Record<string, string> = {
   [IPC_CHANNELS["purchase.receive"]]: "stock",
   // Clients et devis (mutations ; relevés et QR ouverts)
   [IPC_CHANNELS["customers.create"]]: "debts",
+  [IPC_CHANNELS["customers.import"]]: "debts",
   [IPC_CHANNELS["customers.update"]]: "debts",
   [IPC_CHANNELS["customers.archive"]]: "debts",
   [IPC_CHANNELS["customers.restore"]]: "debts",

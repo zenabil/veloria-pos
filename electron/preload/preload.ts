@@ -43,6 +43,7 @@ const api = {
   customers: {
     search: (p: unknown) => invoke(IPC_CHANNELS["customers.search"], p),
     create: (p: unknown) => invoke(IPC_CHANNELS["customers.create"], p),
+    import: (p: unknown) => invoke(IPC_CHANNELS["customers.import"], p),
     update: (p: unknown) => invoke(IPC_CHANNELS["customers.update"], p),
     archive: (p: unknown) => invoke(IPC_CHANNELS["customers.archive"], p),
     restore: (p: unknown) => invoke(IPC_CHANNELS["customers.restore"], p),

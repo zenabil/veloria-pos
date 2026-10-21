@@ -135,6 +135,7 @@
 - [ADR-127](./ADR-127-code-mort-trie-vague-w6.md) Code mort trié : barrel d'impression trié, miroirs morts, dépendance fantôme retirée (W6)
 - [ADR-128](./ADR-128-regles-uniques-vague-w7.md) Règles uniques : quantités, montants, dates, normalisation, statut « en retard » (W7)
 - [ADR-129](./ADR-129-etat-erreur-persistant-ecrans-vague-w10.md) État d'erreur persistant dans chaque écran + coordonnées non codées en dur (W10)
+- [ADR-130](./ADR-130-import-export-csv-clients-produits.md) Import & export CSV sur les écrans Clients et Produits (canal `customers.import`)
 
 ## Ou ecrire quoi
 

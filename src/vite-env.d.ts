@@ -43,6 +43,7 @@ interface Window {
     customers: {
       search(p: unknown): Promise<VeloriaOutcome>;
       create(p: unknown): Promise<VeloriaOutcome>;
+      import(p: unknown): Promise<VeloriaOutcome>;
       update(p: unknown): Promise<VeloriaOutcome>;
       archive(p: unknown): Promise<VeloriaOutcome>;
       restore(p: unknown): Promise<VeloriaOutcome>;

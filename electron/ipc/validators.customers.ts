@@ -33,6 +33,26 @@ export const customerUpdateSchema = z.object({
 
 export const customerDebtFilterSchema = z.enum(["all", "with_debt", "no_debt", "over_limit"]);
 
+/**
+ * Import CSV clients (lot) — `prénom;nom;téléphone` (en-tête optionnel).
+ * `operationId` REQUIS (idem de lot) : le même fichier rejoué rejoue le
+ * compte stocké, aucune fiche en double (même règle que
+ * `productsImportSchema`).
+ */
+export const customersImportSchema = z.object({
+  operationId: z.string().uuid(),
+  rows: z
+    .array(
+      z.object({
+        firstName: z.string().min(1).max(100),
+        lastName: z.string().min(1).max(100),
+        phone: z.string().max(30).default(""),
+      }),
+    )
+    .min(1)
+    .max(5000),
+});
+
 // Tri serveur (miroir du type `CustomerSort` main + `CustomerSort` renderer) :
 // whitelist fermée, jamais d'interpolation SQL brute.
 export const customerSortSchema = z

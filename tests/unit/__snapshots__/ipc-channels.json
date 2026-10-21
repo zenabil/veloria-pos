@@ -24,6 +24,7 @@
   "customers.accessStatus",
   "customers.archive",
   "customers.create",
+  "customers.import",
   "customers.paymentReceipt",
   "customers.recordPayment",
   "customers.restore",

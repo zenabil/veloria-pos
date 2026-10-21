@@ -6,6 +6,7 @@ import {
   Activity,
   Archive,
   Barcode,
+  Download,
   Eye,
   Pencil,
   Plus,
@@ -36,6 +37,7 @@ import {
   cn,
 } from "@shared/ui/primitives.tsx";
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
+import { downloadCsv } from "@shared/export/csv.ts";
 import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
 import {
   ProductDetailsDrawer,
@@ -331,6 +333,65 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
     setLabelsFor(items);
   }
 
+  /**
+   * Export CSV du catalogue filtré (TOUTES les pages du filtre courant :
+   * n'exporter que la page affichée serait une troncature silencieuse).
+   * Concurrence bornée + progression (A-15), comme l'export clients.
+   */
+  async function exportCsv(): Promise<void> {
+    if (total === 0) {
+      notify("Rien à exporter.", "err");
+      return;
+    }
+    try {
+      const all: Product[] = [];
+      const pageCount = Math.ceil(total / PAGE_SIZE);
+      setBulkBusy(true);
+      const pages: (Product[] | undefined)[] = [];
+      await runBulk(
+        Array.from({ length: pageCount }, (_, i) => i + 1),
+        async (p) => {
+          const res = (await api.productSearch({
+            query: query.trim(),
+            categoryId: categoryId === "" ? null : Number(categoryId),
+            stockFilter: status,
+            includeArchived,
+            page: p,
+            pageSize: PAGE_SIZE,
+          })) as { rows: Product[]; total: number };
+          pages[p - 1] = res.rows;
+        },
+        {
+          onProgress: (processed, totalPages) =>
+            setBulkLabel(`Export ${processed}/${totalPages} page(s)…`),
+        },
+      );
+      setBulkBusy(false);
+      setBulkLabel("");
+      for (const r of pages) {
+        if (r) all.push(...r);
+      }
+      downloadCsv(
+        `catalogue-${new Date().toISOString().slice(0, 10)}.csv`,
+        all.map((p) => ({
+          Nom: p.name,
+          Catégorie: p.category_name ?? "",
+          Unité: p.unit_code,
+          "Prix d'achat": formatDzd(p.purchase_price_minor),
+          "Prix de vente": formatDzd(p.selling_price_minor),
+          Quantité: p.quantity,
+          "Stock mini": p.min_stock_level,
+          "Code-barres": p.primary_barcode ?? "",
+          Statut: stockLabel(p),
+        })),
+      );
+      notify(`${all.length} produit(s) exporté(s).`, "ok");
+    } catch (e) {
+      console.error("[Veloria] catalogue : export CSV impossible", e);
+      notify("Export impossible.", "err");
+    }
+  }
+
   const visible = sortProducts(rows, sort);
   const allPageSelected = rows.length > 0 && rows.every((r) => selection.has(r.id));
 
@@ -361,6 +422,15 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
             </Button>
             <Button onClick={openCreate} title="Créer un produit">
               <Plus size={16} aria-hidden="true" /> Nouveau produit
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => void exportCsv()}
+              disabled={bulkBusy}
+              title="Exporter tout le filtre (CSV)"
+            >
+              <Download size={16} aria-hidden="true" />
+              {bulkBusy && bulkLabel.startsWith("Export") ? bulkLabel : "CSV"}
             </Button>
             <Button
               variant="secondary"

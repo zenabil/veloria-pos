@@ -3,6 +3,7 @@
 import { IPC_CHANNELS } from "./channels";
 import * as V from "./validators";
 import * as Customers from "./handlers/customers.repo";
+import { importCustomersAtomic } from "./handlers/import.repo";
 import * as ClientAccess from "./handlers/client-access.repo";
 import { getCurrentStaffUser } from "./handlers/staff-session";
 import {
@@ -58,6 +59,19 @@ export function registerCustomersChannels(): void {
       now: new Date().toISOString(),
     }),
   }));
+  // Import CSV clients (lot) : validation totale puis UNE transaction
+  // (tout-ou-rien) — même règle que l'import produits.
+  handle(IPC_CHANNELS["customers.import"], V.customersImportSchema, (input) =>
+    importCustomersAtomic(
+      input.rows.map((r) => ({
+        firstName: r.firstName,
+        lastName: r.lastName,
+        phone: r.phone,
+      })),
+      new Date().toISOString(),
+      input.operationId,
+    ),
+  );
   handle(IPC_CHANNELS["customers.update"], V.customerUpdateSchema, (input) => {
     Customers.updateCustomer({
       id: input.id,

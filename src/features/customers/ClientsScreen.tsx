@@ -2,7 +2,17 @@
 // En-tête + 4 cartes stats + barre d'outils + table enrichie (relevés) +
 // pagination + tiroir détail + formulaire + règlement.
 import { useEffect, useRef, useState } from "react";
-import { Download, Eye, Pencil, Plus, RotateCcw, SlidersHorizontal, Trash2, X } from "lucide-react";
+import {
+  Download,
+  Eye,
+  Pencil,
+  Plus,
+  RotateCcw,
+  SlidersHorizontal,
+  Trash2,
+  Upload,
+  X,
+} from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import {
   callChecked,
@@ -31,6 +41,7 @@ import {
 } from "@shared/ui/primitives.tsx";
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
 import { downloadCsv } from "@shared/export/csv.ts";
+import { parseCustomersCsv } from "@domain/import/csv-import.ts";
 import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
 import { ClientDetailsDrawer, ClientFormDialog } from "./ClientDialogs.tsx";
 import {
@@ -391,6 +402,40 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
     }
   }
 
+  const csvInputRef = useRef<HTMLInputElement | null>(null);
+
+  /**
+   * Import CSV clients (format `prenom;nom[telephone]`, en-tete optionnel).
+   * Validation TOTALE cote domaine (une seule ligne invalide => rien n'est
+   * ecrit), puis commit atomique dans le main (une transaction).
+   */
+  async function importCsvFile(file: File): Promise<void> {
+    let rows: ReturnType<typeof parseCustomersCsv>;
+    try {
+      rows = parseCustomersCsv(await file.text());
+    } catch (e) {
+      notify(frError(e, "Fichier CSV invalide."), "err");
+      return;
+    }
+    if (!(await confirmAsync(`Importer ${rows.length} client(s) depuis « ${file.name} » ?`))) {
+      return;
+    }
+    try {
+      const res = (await api.customerImport({
+        operationId: newOperationId(),
+        rows: rows.map((r) => ({
+          firstName: r.firstName,
+          lastName: r.lastName,
+          phone: r.phone,
+        })),
+      })) as { imported: number; skipped: number };
+      notify(`${res.imported} client(s) importé(s).`, "ok");
+      refresh();
+    } catch (e) {
+      notify(frError(e, "Import impossible."), "err");
+    }
+  }
+
   const visible = rows;
   const allPageSelected = rows.length > 0 && rows.every((r) => selection.has(r.id));
   // Le compteur reflète la recherche + les filtres (pas le registre entier).
@@ -433,6 +478,25 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
               <Download size={16} aria-hidden="true" />
               {bulkBusy && bulkLabel.startsWith("Export") ? bulkLabel : "CSV"}
             </Button>
+            <Button
+              variant="secondary"
+              onClick={() => csvInputRef.current?.click()}
+              title="Importer un fichier CSV (prénom;nom;téléphone)"
+            >
+              <Upload size={16} aria-hidden="true" /> Import CSV
+            </Button>
+            <input
+              ref={csvInputRef}
+              type="file"
+              accept=".csv,.txt"
+              className="hidden"
+              aria-label="Fichier CSV de clients à importer"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = "";
+                if (f) void importCsvFile(f);
+              }}
+            />
           </>
         }
       />

@@ -35,7 +35,9 @@ const MODULES = [
 // canal `closings.reopen` — réouverture d'une journée close, E-21).
 // ADR-123 (2026-10-20, W4/G-03) : 114 → 121 (`validators.staff.ts` entre
 // dans l'inventaire : les 7 schémas de l'équipe étaient hors comptage).
-const FROZEN_SCHEMA_COUNT = 121;
+// ADR-130 (2026-10-21) : 121 → 122 (customersImportSchema ajouté avec le
+// canal `customers.import` — import CSV clients).
+const FROZEN_SCHEMA_COUNT = 122;
 const FROZEN_MAX_LINES = 300;
 
 describe("Validators inventory (split guard)", () => {

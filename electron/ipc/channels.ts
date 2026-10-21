@@ -36,6 +36,7 @@ export const IPC_CHANNELS = {
   // customers
   "customers.search": "customers.search",
   "customers.create": "customers.create",
+  "customers.import": "customers.import",
   "customers.update": "customers.update",
   "customers.archive": "customers.archive",
   "customers.restore": "customers.restore",
