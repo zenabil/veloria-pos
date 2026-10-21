@@ -25,7 +25,8 @@
 - Outillage : `knip.json` (§16) — `Unused files` **32 → 0** ; re-mesuré 2026-10-21 : **0 fichier · 0 export · 0 type · 0 dépendance** (la couverture `knip` s'étend désormais à `license-manager/**` et `cloud/**` — J-11).
 - **Contrats gelés (état après W10)** : snapshot `ipc-channels.json` **177** · `FROZEN_SCHEMA_COUNT` **121** · `FROZEN_EXPORT_COUNT = 127` · `operation-id-coverage` : 43 REQUIRED + classification complète (121 schémas) · migrations **50** (migration 0050 = index de performance, non destructive).
 - E2E (non relancés depuis le 2026-10-18) : suite 2026-10-18 — **12/13 specs vertes**, **37** blocs `test()` (pas 24) ; `full-loop-client` exige le relais `:8100` (hard-fail, pas skip) ; `installer` non exécutable hors paquet Win + UAC. **W2 touche `staffScope()` (K-04) et W3 ajoute un canal ⇒ les specs `staff-session` et `full-loop-client` sont à rejouer avant le tag.**
-- Non relancés : E2E, `verify:licensing`, packaging/`release/`, `npm audit` réseau (offline ⇒ non probant).
+- **Packaging REFAIT 2026-10-21** (§21) : `release/` reconstruit **de zéro** (ADR-023 : jamais de réutilisation) — `Veloria-PoS-Setup-1.0.0.exe` (NSIS, machine, FR) + `.blockmap` · `Veloria-PoS-Portable-1.0.0.exe` · `Veloria-License-Manager-Setup-1.0.0.exe` + `.blockmap` · `Veloria-License-Manager-Portable-1.0.0.exe` · `SHA256SUMS.txt` · `release/win-unpacked/` (= POS). `release:smoke` **0** · `better-sqlite3` **chargé dans le runtime packagé** (Electron 37.2.0, ABI 136, SQLite 3.50.2 — règle AGENTS.md §9).
+- Non relancés : E2E, `verify:licensing`, `npm audit` réseau (offline ⇒ non probant). **APK mobile impossible ici** : ni EAS CLI/jeton, ni JDK/Android SDK, ni `EXPO_PUBLIC_*` réel (placeholders dans `mobile/eas.json`).
 - **Pièges découverts pendant l'audit** : (1) `npm run lint` passe sur `docs/**` ⇒ **tout `.mjs` déposé sous `docs/` casse la porte** (allowlist `allowDefaultProject` = 24 chemins, `eslint.config.mjs:31-58`) ; (2) `test:db` échoue (12 `Hook timed out`) si lancé **en parallèle** d'autres outils lourds ⇒ **`hookTimeout` passé à 60 s (W4)** ; (3) `format:check` échoue sur tout `.md` écrit à la main ⇒ **toujours** passer Prettier sur les livrables ; (4) `npm run build` seul invalide le manifeste licence ⇒ toujours enchaîner `build:electron` ; (5) `better-sqlite3` est compilé pour l'ABI Electron (136) : pour interroger la base hors GUI, passer par `ELECTRON_RUN_AS_NODE=1 npx electron script.cjs` ; (6) toute arête inter-features nouvelle fait **échouer** le test A3 ⇒ liste blanche `tests/unit/a3-organisation.test.ts` à mettre à jour dans le même commit ; (7) **`test:coverage` instrumentant tout le code, les tests d'intégration lourds dépassaient `testTimeout` (15 s) ⇒ passé à 60 s (W4)** ; (8) **écrire un fichier via `Set-Content` (PowerShell) corrompt l'UTF-8** (double encodage) ⇒ toujours écrire via l'outil d'édition ou un script Node.
 
 ## 2) Objectifs réalisés (11 → 12 oct 2026)
@@ -943,6 +944,24 @@ VERIFIED · `verify:fr` 0 (322 fichiers) · `verify:encoding` 0 (864 fichiers) �
 `license:scan` 0 (1367 fichiers) · `build` ✓ (12,1 s) · `build:electron` ✓
 (manifeste signé 216 fichiers).
 
+### Packaging (2026-10-21, après les vagues)
+
+`release/` **reconstruit de zéro** (ADR-023 : jamais de réutilisation) :
+
+| Artefact                                        | Taille   | SHA-256 (début)                                                    |
+| ----------------------------------------------- | -------- | ------------------------------------------------------------------ |
+| `Veloria-PoS-Setup-1.0.0.exe` (NSIS machine FR) | 129,4 Mo | `3fa6b662b3c963f14cbb4a20040cde7693e54650adff9194b8660634f63f868f` |
+| `Veloria-PoS-Portable-1.0.0.exe`                | 128,9 Mo | `60742079adbb07637f3d92a1222d46305a6127d34f3c5ebd095ae7ec87a530e5` |
+| `Veloria-License-Manager-Setup-1.0.0.exe`       | 111,5 Mo | `021da8b4684bf3da87dc1ca0d1340914533ee9acd1af5325f9c05973a99a3331` |
+| `Veloria-License-Manager-Portable-1.0.0.exe`    | 111,1 Mo | `55f7e68535afea531274aed7b69ceec11b419f05fd7c624cd1cb84e1c3ffeec7` |
+
+- 2 `.blockmap` + `SHA256SUMS.txt` + `release/win-unpacked/` (= POS).
+  `release:smoke` **EXIT 0** (dist, preload sandbox-safe, stamps CommonJS,
+  manifeste manager) · `better-sqlite3` **chargé dans le runtime packagé**
+  (Electron 37.2.0, ABI 136, SQLite 3.50.2 — règle AGENTS.md §9).
+  **APK mobile non construit** : ni EAS CLI/jeton, ni JDK/Android SDK, ni
+  `EXPO_PUBLIC_*` réel (placeholders) ⇒ action propriétaire.
+
 ### En attente / à faire
 
 1. **E2E à rejouer** avant tout tag : `staff-session` et `full-loop-client`
@@ -959,12 +978,24 @@ VERIFIED · `verify:fr` 0 (322 fichiers) · `verify:encoding` 0 (864 fichiers) �
 
 - **`knip` ne voit pas l'usage d'un export par les tests** ⇒ ne jamais
   supprimer sur la foi du rapport : recherche exhaustive + `tsc -b` + suite.
-- **`npm run test:coverage 2>&1 | Select-Object -First N`** : le `-First`
-  ferme le pipeline et **tue** le run (sortie tronquée) ⇒ écrire dans un
-  fichier (`> file 2>&1`) puis lire le fichier.
+- **Packaging** : `package:win` / `package:manager` exigent le privilège
+  symlink (`signAndEditExecutable: true`, ADR-070) ⇒ **Developer Mode**
+  (`AllowDevelopmentWithoutDevLicense=1`) pour construire **sans admin**.
+  Les deux configs partagent `directories.output: release` ⇒ le second
+  build **écrase `release/win-unpacked`** : construire le POS **en dernier**
+  pour que `win-unpacked` contienne le POS (c'est lui qu'on teste au
+  runtime). Le cache electron-builder est vide ⇒ premier build télécharge
+  Electron (123 Mo) + winCodeSign + NSIS (~6 min).
+- `npm run test:coverage 2>&1 | Select-Object -First N` : le `-First` ferme
+  le pipeline et **tue** le run (sortie tronquée) ⇒ écrire dans un fichier
+  (`> file 2>&1`) puis lire le fichier.
 - `opencode.db` (historique des sessions) s'ouvre avec
   `node --experimental-sqlite` : `better-sqlite3` du projet est compilé pour
   l'ABI Electron (136) et refuse de charger sous Node 22 (ABI 127).
 - Un `while` de recherche qui ne fait pas progresser l'index boucle à
   l'infini : écrire les scripts Node hors du dépôt (dossier TEMP) et les
   supprimer après usage (un `.cjs` à la racine casse `eslint`).
+- **Vérifier le module natif packagé** : `require` du chemin **asar**
+  (`resources/app.asar/node_modules/better-sqlite3`), pas du chemin
+  `app.asar.unpacked` (le `bindings` n'y est pas) —
+  `ELECTRON_RUN_AS_NODE=1 "release\win-unpacked\Veloria PoS.exe" script.js`.
