@@ -24,6 +24,7 @@
 - ADRs : 001→**130**. `docs/INDEX.md` **à jour jusqu'à 130**.
 - **3 bugs caisse signalés par le propriétaire (2026-10-21) — DIAGNOSTIC PROUVÉ (§23), CORRECTION EN ATTENTE** : (B1) focus qui revient au champ « Nom » de l'article libre — `useDialogFocus` rejoue son effet à chaque rendu (`onClose` inline = identité nouvelle) ⇒ refocus du 1ᵉʳ champ ; (B2) vente au poids en mode « Montant » : 50,00 DZD saisis mais **49,70 facturés** (poids arrondi à 3 déc. × prix ; le montant exact est perdu — ADR-114) ; (B3) panier mixte : `CHECK constraint failed: discount_amount_minor >= 0` (7× dans le journal du 2026-10-21) — une **majoration** (prix de ligne > prix d'origine) produit une remise négative, acceptée par le domaine mais **interdite par la base** ⇒ rollback + message générique ; **lien B1 → B3** (la saisie tronquée du prix force une correction par majoration). Décisions owner en attente (B2 : facturation exacte ou arrondie ; B3 : interdire ou autoriser la majoration).
 - Outillage : `knip.json` (§16) — `Unused files` **32 → 0** ; re-mesuré 2026-10-21 : **0 fichier · 0 export · 0 type · 0 dépendance** (la couverture `knip` s'étend désormais à `license-manager/**` et `cloud/**` — J-11).
+- **« Grand blanc après le code-barres » sur la facture de vente imprimée — DIAGNOSTIC PROUVÉ (§24), CORRECTION EN ATTENTE** : (a) le ticket **n'impose pas de format de page** (`printOptions()` sans `pageSize` ⇒ format par défaut du pilote, souvent A4/297 mm) et son contenu **se termine par le bloc codes** ⇒ le blanc de page arrive juste après le code-barres (l'export PDF a le même défaut : `pageSize {80000×297000}`) ; (b) le **Code 39 n'est jamais mis à l'échelle** sur le thermique (largeur intrinsèque 462 px dans une colonne de 280/200 px + `overflow:hidden`) ⇒ barre coupée à 61 %/43 % et numéro lisible absent sur 58 mm (l'A4 et les étiquettes, eux, appliquent `max-width`/`height:auto`).
 - **Contrats gelés (état après ADR-130)** : snapshot `ipc-channels.json` **178** (+`customers.import`) · `FROZEN_SCHEMA_COUNT` **122** · `FROZEN_EXPORT_COUNT = 128` · `FROZEN_SCHEMA_TOTAL` (op-id) **122** · `operation-id-coverage` : **44** REQUIRED + classification complète (122 schémas) · migrations **50** (migration 0050 = index de performance, non destructive).
 - E2E (non relancés depuis le 2026-10-18) : suite 2026-10-18 — **12/13 specs vertes**, **37** blocs `test()` (pas 24) ; `full-loop-client` exige le relais `:8100` (hard-fail, pas skip) ; `installer` non exécutable hors paquet Win + UAC. **W2 touche `staffScope()` (K-04) et W3 ajoute un canal ⇒ les specs `staff-session` et `full-loop-client` sont à rejouer avant le tag.**
 - **Packaging REFAIT 2026-10-21** (§21) : `release/` reconstruit **de zéro** (ADR-023 : jamais de réutilisation) — `Veloria-PoS-Setup-1.0.0.exe` (NSIS, machine, FR) + `.blockmap` · `Veloria-PoS-Portable-1.0.0.exe` · `Veloria-License-Manager-Setup-1.0.0.exe` + `.blockmap` · `Veloria-License-Manager-Portable-1.0.0.exe` · `SHA256SUMS.txt` · `release/win-unpacked/` (= POS). `release:smoke` **0** · `better-sqlite3` **chargé dans le runtime packagé** (Electron 37.2.0, ABI 136, SQLite 3.50.2 — règle AGENTS.md §9).
@@ -1155,3 +1156,72 @@ packagé** (Electron 37.2.0, ABI 136, SQLite 3.50.2 — règle AGENTS.md §9).
 VERIFIED · `verify:fr` 0 (322 fichiers) · `verify:encoding` 0 (868 fichiers) ·
 `license:scan` 0 (1420 fichiers) · `test:coverage` **EXIT 0** (95,83 % lignes) ·
 `build` + `build:electron` ✓ (manifeste signé 216 fichiers).
+
+## 24) Session 2026-10-22 — diagnostic « grand blanc après le code-barres » (facture de vente imprimée)
+
+**Demande propriétaire** : « فاتورة البيع عندما تطبع هناك فراغ كبير بعد الكودبار »
+= le ticket de vente imprimé laisse un grand blanc après le code-barres.
+
+**Périmètre** : une vente ne sort **qu'en ticket thermique 58/80** (ADR-117 :
+jamais d'A4 pour une vente) ⇒ le document visé est `thermalHtml()`
+(`electron/printing/receipt-documents/thermal.ts`), alimenté par
+`receiptCodes()` (`printing.enrich.ts:277`) — code-barres = **N° de facture**.
+
+**Preuve** : HTML du ticket reconstruit hors application (esbuild + Chromium
+headless, mise en page papier 80 mm = 302 px CSS) puis mesures DOM
+(`getBoundingClientRect` / `scrollWidth`).
+
+### Cause 1 — le ticket n'impose PAS le format de page ⇒ le blanc final
+
+`printOptions()` (`printing.printer-settings.ts:55-67`) ne renvoie que
+`{ silent, deviceName }` : **aucun `pageSize`** ⇒ Chromium prend le format
+**par défaut du pilote** (A4 / 297 mm sur la plupart des pilotes thermiques) et
+pose le ticket (colonne de 74 mm) dans le coin d'une page de 210×297 mm.
+Le contenu du ticket **se termine par le bloc codes** (code-barres + QR +
+payload — `thermal.ts:191-200`, dernier enfant du `<div>` racine) ⇒ **le grand
+blanc arrive immédiatement après le code-barres**. Même défaut côté export PDF :
+`pageSize: { width: 80000, height: 297000 }` (`printing.pdf-exports.ts:62` et
+`:123`) ⇒ page de 297 mm pour ~185 mm de contenu.
+Le seul chemin qui impose un format exact est celui des **étiquettes**
+(`printHtmlPages` → `pageSizeMicrons`, `printing.templates.ts:246-248`).
+
+### Cause 2 — le Code 39 n'est jamais mis à l'échelle ⇒ code-barres TRONQUÉ
+
+`code39Svg()` (`receipt-documents/barcode39.ts:73-95`) renvoie un SVG à
+**largeur intrinsèque** = 16 glyphes (14 car. + `*` début/fin) × 27 px + 15
+écarts × 2 px = **462 px** (module étroit 2 px, large 5 px).
+Le bloc thermique l'insère dans une colonne de **280 px** (80 mm) / **200 px**
+(58 mm) avec `overflow:hidden` (`thermal.ts:193-194`) ⇒ la barre est **coupée à
+61 % (80 mm) / 43 % (58 mm)** ⇒ code-barres illisible au scan.
+Le `<text>` du SVG est centré sur la largeur **intrinsèque** (x = 231) ⇒ à
+80 mm il est calé à droite (x 185→278), à **58 mm il disparaît totalement**
+(x 185→278 vs fenêtre 0→200) ⇒ plus aucun numéro lisible sous la barre.
+Les deux autres rendus d'objets KNOW, eux, mettent le code-barres à
+l'échelle : A4 `.barcode svg{max-width:230px;height:auto}`
+(`receipt-documents/proforma.ts:143`) et étiquettes
+`.label svg{max-width:100%;height:auto}` (`receipt-documents/labels.ts:114`) —
+**seul le thermique a été oublié** (le conteneur a été ajouté en `6ee2862`,
+ADR-050/057).
+Correctif vérifié en navigateur : `svg{max-width:100%;height:auto}` ⇒ 462→280 px,
+hauteur 34 px, `<text>` recentré (x 112), `scrollWidth` 280 (plus de
+débordement).
+
+### Constat secondaire
+
+Le payload QR s'affiche **deux fois** sur le ticket : ligne texte `QR : …`
+(`receipt-text.ts:225-226`) + bloc 9 px sous le QR (`thermal.ts:196-198`).
+
+### Correctifs proposés (NON appliqués — diagnostic seul)
+
+1. Imposer le format du ticket comme pour les étiquettes :
+   `printHtml(html, 300, { pageSizeMicrons: { width: 80000|58000, height:
+<hauteur mesurée> } })` — mesurer `document.body.scrollHeight` dans la
+   fenêtre cachée (`printing.templates.ts`) pour supprimer la hauteur fixe
+   297 mm ; `margins: none` est déjà prévu par `printHtmlPages`.
+2. Mettre le Code 39 à l'échelle (`max-width:100%;height:auto`) ou réduire le
+   module étroit (1,1 px ⇒ 275 px, tient nativement dans 280 px) — arbitrage
+   lisibilité du scan (X-dimension) vs largeur.
+3. Ne plus imprimer le payload QR deux fois.
+
+**Aucun code modifié dans cette session** (diagnostic seul ; script de
+reproduction temporaire supprimé).
