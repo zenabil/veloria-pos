@@ -15,15 +15,15 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête = `fix(tests): W4 - couverture verte, gardes auto-derivees, tests miroir convertis (audit 2026-10-19)` (sha de W4, cf. §20). **Arbre TOUJOURS NON propre** : chantier impression / `*.capabilities` (20 fichiers M + 3 nouveaux) **intact et non commité** — staffage par chemins explicites uniquement (AGENTS.md §10). **Décision M5 (Q5) : commit ou stash du chantier impression — À DÉCIDER PAR LE PROPRIÉTAIRE** (les vagues W1→W4 ont été commitées sans y toucher).
+- Branche : `chore/root-layout` — tête = `feat(ui): W10 - etat d'erreur persistant par ecran, coordonnees non codees en dur (audit 2026-10-19)`. **Arbre PROPRE** : le chantier impression (`*.capabilities`) a été **commité** en W5/W8/W9 (décision M5/Q5 résolue de fait) ⇒ plus de fichier non commité à stash.
 - **Audit intégral EXÉCUTÉ (§18, 2026-10-19)** : 3 livrables — `docs/reports/FULL_AUDIT_2026-10-19.md` (rapport, 16 axes A→P, **228 findings** : 0 Critical · 23 High · 95 Medium · 110 Low) · `docs/reports/FULL_AUDIT_2026-10-19_PLAN.md` (plan en **11 vagues W0→W10**, ~11-13 j, 20 décisions owner) · `docs/ADR-120-*.md` (**proposé**, en attente d'approbation). Preuves brutes : `docs/reports/maintenance/audit-raw/`.
-- **Remédiation : vagues W1 → W4 EXÉCUTÉES et commitées** : `0e900f1` **W1** (logique financière : 7 High + 3 Low — E-20/22/23/24/25/26/27/33/34/36 + ADR-121) · `cd43aa2` **W2** (sécurité : K-01/04/05, A-04/05/09/10/11/13/17, K-02/03, G-13/15/21) · `833cea1` **W3** (base : E-21/28/31/36 + F-08 + ADR-122) · **W4** (couverture : `test:coverage` **EXIT 0** + gardes auto-dérivées G-01/G-03/G-04/G-05/G-06/G-08/I-02/I-04/C-05 + 4 tests miroir convertis + bug OCR EAN-13 corrigé + ADR-123). **Prochaine vague : W5** (rendu/UI caissier : `formatDzd` throw, double-submit, `useBusyFlag`).
-- **Baseline gelé 2026-10-20 (mesuré, arbre sale)** : `tsc -b` **0** · `typecheck:electron` **0** · `typecheck:manager` **0** · `eslint . --max-warnings 0` **exit 0** · `vitest` **132 fichiers / 907 tests** **0** · `test:db` **36 fichiers / 164 tests** **0** (isolé) · **`test:coverage` = EXIT 0 (VERT — 95,63 % lignes · 86,96 % branches · 100 % fonctions, seuils 80/75/88/80 par fichier ; était EXIT 1 avec 18 dépassements)** · `verify:migrations` **VERIFIED** · `verify:domain` **VERIFIED** · `verify:perf` **VERIFIED** · `verify:fr` **0** (317 fichiers) · `license:scan` **0** (1347 fichiers) · `format:check` **0** · `build` ✓ (28,6 s) · `build:electron` ✓ (manifeste signé **217 fichiers**).
-- **Nouveaux constats P1 (non corrigés, voir plan)** : `formatDzd()` **throw** pendant le rendu React (268 sites `.tsx` vs 16 `formatDzdSafe`) · `useBusyFlag` ne bloque pas le double-submit (13 sections réglages, dont `database.reset`) · `RAW_GUARDED_CHANNELS` : **corrigé en W4** (constante rendue applicable) · jour métier en UTC au lieu de `Africa/Algiers` (E-35) · `verify:licensing` hors CI (bloqué : l'état local du Manager n'existe pas sur un runner).
-- **Corrigé en W1→W4 (à ne plus re-signaler)** : `customers.accessQrSvg` sans staff-gate (fuite du PIN client en clair) · `staffScope()` ⇒ «no session = gérant» · `database.optimize` sans gate · conversion Proforma→vente cassée si remise · clôture Z : chèque/transfert comptés en espèces, dépenses `pending` décomptées, retours annulés remboursés · clôture Z ne verrouillait pas la période (W3) · `customers.phone` sans unicité (W3) · `paginationSchema.page` sans borne (W3) · `better-sqlite3` sans pragma sur la sonde de copie (W3) · **`test:coverage` rouge (18 dépassements) (W4)** · **`FROZEN_SCHEMA_COUNT` ne comptait pas `validators.staff.ts` (W4)** · **extraction EAN-13/14 cassée dans l'analyseur OCR (`{12,13,14}` = quantifiant invalide) (W4)**.
-- ADRs : 001→**123**. `docs/INDEX.md` **à jour jusqu'à 123**.
-- Outillage : `knip.json` (§16) — candidats bruts **219 → 30**, `Unused files` **32 → 0**. Re-mesuré 2026-10-19 : `Unused files` 0, `Unused exports` 18 + `Unused exported types` 9 + 1 dependency (`expo-constants`) + 1 config hint (`tailwindcss`).
-- **Contrats gelés (état après W4)** : snapshot `ipc-channels.json` **177** (+`closings.reopen` en W3) · `FROZEN_SCHEMA_COUNT` **121** (113 avant W3 → 114 après W3 → 121 après W4 : `validators.staff.ts` entre dans l'inventaire) · **nouvel invariant `FROZEN_EXPORT_COUNT = 127`** (bridge-shape : tous les exports des 12 modules de validation) · `operation-id-coverage` : liste REQUIRED complétée (23 → **43** schémas) + classification complète (121 schémas) · migrations **49**.
+- **Remédiation : vagues W1 → W10 EXÉCUTÉES et commitées** : `0e900f1` **W1** (logique financière) · `cd43aa2` **W2** (sécurité) · `833cea1` **W3** (base) · **W4** (couverture verte + gardes auto-dérivées) · `1e56547` **W5** (rendu/UI caissier + atelier impression) · **W6** (code mort trié — ADR-127) · `4a96938` **W9** (encodage + chiffres à jour) · `7086954` **W8** (chemins chauds indexés, N+1, bundle) · **W7** (règles uniques — ADR-128) · **W10** (état d'erreur persistant — ADR-129). **Plan d'audit : TERMINÉ** (les 11 vagues sont exécutées).
+- **Baseline gelé 2026-10-21 (mesuré, arbre propre)** : `tsc -b` **0** · `typecheck:electron` **0** · `eslint . --max-warnings 0` **exit 0** · `vitest` **140 fichiers / 964 tests** **0** · `test:db` **38 fichiers / 177 tests** **0** (isolé) · **`test:coverage` = EXIT 0 (VERT — 95,83 % lignes · 87,19 % branches · 100 % fonctions, seuils 80/75/88/80 par fichier ; aucun seuil abaissé)** · `knip` **0** (0 fichier, 0 export, 0 type, 0 dépendance) · `verify:migrations` **VERIFIED** · `verify:domain` **VERIFIED** · `verify:perf` **VERIFIED** · `verify:fr` **0** (322 fichiers, **plus de liste d'attente**) · `verify:encoding` **0** (864 fichiers) · `license:scan` **0** (1367 fichiers) · `format:check` **0** · `build` ✓ (12,1 s) · `build:electron` ✓ (manifeste signé **216 fichiers**).
+- **Nouveaux constats P1 (non corrigés, voir plan)** : jour métier en UTC au lieu de `Africa/Algiers` (E-35) · `verify:licensing` hors CI (bloqué : l'état local du Manager n'existe pas sur un runner) · **E2E non rejoués** depuis le 2026-10-18.
+- **Corrigé en W1→W10 (à ne plus re-signaler)** : `customers.accessQrSvg` sans staff-gate · `staffScope()` ⇒ «no session = gérant» · `database.optimize` sans gate · conversion Proforma→vente cassée si remise · clôture Z (chèque/transfert/dépenses/retours) · verrou de période close (W3) · unicité téléphone + `paginationSchema.page` borné (W3) · `test:coverage` rouge (W4) · `FROZEN_SCHEMA_COUNT` (W4) · extraction EAN-13/14 (W4) · `formatDzd` qui throw au rendu + double-submit + focus + lots bornés (W5) · atelier impression (W5) · code mort trié, `knip` à 0, `expo-constants` retirée, garde FR sans liste d'attente (W6) · chemins chauds indexés (migration 0050) + N+1 supprimés + bundle découpé (W8) · encodage réparé (W9) · **règles uniques (quantité/montant/date/normalisation) + état « en retard » produit (W7)** · **état d'erreur persistant dans 12 écrans (W10)**.
+- ADRs : 001→**129**. `docs/INDEX.md` **à jour jusqu'à 129**.
+- Outillage : `knip.json` (§16) — `Unused files` **32 → 0** ; re-mesuré 2026-10-21 : **0 fichier · 0 export · 0 type · 0 dépendance** (la couverture `knip` s'étend désormais à `license-manager/**` et `cloud/**` — J-11).
+- **Contrats gelés (état après W10)** : snapshot `ipc-channels.json` **177** · `FROZEN_SCHEMA_COUNT` **121** · `FROZEN_EXPORT_COUNT = 127` · `operation-id-coverage` : 43 REQUIRED + classification complète (121 schémas) · migrations **50** (migration 0050 = index de performance, non destructive).
 - E2E (non relancés depuis le 2026-10-18) : suite 2026-10-18 — **12/13 specs vertes**, **37** blocs `test()` (pas 24) ; `full-loop-client` exige le relais `:8100` (hard-fail, pas skip) ; `installer` non exécutable hors paquet Win + UAC. **W2 touche `staffScope()` (K-04) et W3 ajoute un canal ⇒ les specs `staff-session` et `full-loop-client` sont à rejouer avant le tag.**
 - Non relancés : E2E, `verify:licensing`, packaging/`release/`, `npm audit` réseau (offline ⇒ non probant).
 - **Pièges découverts pendant l'audit** : (1) `npm run lint` passe sur `docs/**` ⇒ **tout `.mjs` déposé sous `docs/` casse la porte** (allowlist `allowDefaultProject` = 24 chemins, `eslint.config.mjs:31-58`) ; (2) `test:db` échoue (12 `Hook timed out`) si lancé **en parallèle** d'autres outils lourds ⇒ **`hookTimeout` passé à 60 s (W4)** ; (3) `format:check` échoue sur tout `.md` écrit à la main ⇒ **toujours** passer Prettier sur les livrables ; (4) `npm run build` seul invalide le manifeste licence ⇒ toujours enchaîner `build:electron` ; (5) `better-sqlite3` est compilé pour l'ABI Electron (136) : pour interroger la base hors GUI, passer par `ELECTRON_RUN_AS_NODE=1 npx electron script.cjs` ; (6) toute arête inter-features nouvelle fait **échouer** le test A3 ⇒ liste blanche `tests/unit/a3-organisation.test.ts` à mettre à jour dans le même commit ; (7) **`test:coverage` instrumentant tout le code, les tests d'intégration lourds dépassaient `testTimeout` (15 s) ⇒ passé à 60 s (W4)** ; (8) **écrire un fichier via `Set-Content` (PowerShell) corrompt l'UTF-8** (double encodage) ⇒ toujours écrire via l'outil d'édition ou un script Node.
@@ -855,3 +855,116 @@ complétée (23 → **43**). La cible de W4 prévue au plan (120) devient **121*
 4. **Q5** toujours ouvert (workshop impression), **20 décisions owner**
    (§4 du plan), **ADR-120** toujours proposé non approuvé.
 5. **E2E à rejouer** avant tout tag : `staff-session`, `full-loop-client`.
+
+## 21) Session 2026-10-21 — remédiation : fin du plan d'audit (W6, W7, W10)
+
+- **Demande propriétaire** : « اكمل الجلسة المسماة "تدقيق Veloria PoS وخطة
+  الإصلاح الجذري" المفتوحة بتاريخ 20 oct 2026 على الساعة 14:56 » — reprise
+  exacte de la session `ses_ea6665c78ffeLz5b52nyesQy1d` (état restauré depuis
+  `opencode.db` : 804 messages, work-in-progress W6 interrompu sur une
+  question au propriétaire).
+- **État hérité** : W1→W5, W8, W9 commitées ; **W6 (code mort) à moitié
+  fait** (4 fichiers modifiés, non commités) ; la question laissée en
+  suspens portait sur `expo-constants` (dépendance mobile fantôme).
+
+### Vague W6 — code mort trié (`60211cf`, ADR-127)
+
+- **Correction d'un excès de la session précédente** : la suppression
+  aveugle des 24 ré-exports du barrel d'impression a **cassé le build**
+  (`tsc` : 8 symboles consommés par la suite de tests) ⇒ le rapport `knip`
+  **ne voit pas** l'usage par les tests : la preuve, c'est la porte
+  `typecheck`, pas l'outil. Règle retenue : _recherche exhaustive + tsc +
+  suite complète_, jamais le rapport seul.
+- **B-03** : le miroir main du constructeur de QR V1 est supprimé (le POS
+  n'émet plus que la V2) ; le **format** V1 reste lu par l'APK et décrit par
+  le use-case applicatif (spécification exécutée par son test).
+- **B-02** : `clearSecureState()` supprimé (aucun flux ne l'appelait).
+- **B-32** (décision propriétaire : « retirer + lockfile régénéré ») :
+  `expo-constants` retirée de `mobile/package.json` ; le lockfile n'est
+  modifié que sur **une ligne** (npm réécrivait aussi des champs `libc`
+  sans rapport — écartés pour ne pas polluer la revue) ; la dépendance reste
+  dans l'arbre comme **transitive** de `expo` (correct).
+- **B-36** : `tailwindcss` retiré de `ignoreDependencies`.
+- **O-05** : les 2 commentaires arabes de l'impression sont corrigés ⇒ la
+  liste `PENDING_WORKSHOP` de `verify-fr-only.mjs` est **supprimée** (la
+  garde FR est pleine : 321 fichiers, plus de dérogation temporaire).
+- Résultat : **`knip` = 0** (0 fichier, 0 export, 0 type, 0 dépendance).
+
+### Vague W7 — règles uniques (ADR-128)
+
+8 duplications supprimées, une par une, avec test de parité :
+
+| #    | Règle unique (source)                                    | Copies supprimées                                               |
+| ---- | -------------------------------------------------------- | --------------------------------------------------------------- |
+| D-02 | `parseQuantityInput` (`domain/common/quantity.ts`)       | `parseQtyInput`, `parseQty`, `parseQuantityInput` (weight-sale) |
+| D-03 | `formatQuantityFr` (idem)                                | `fmtQty`, `formatQtyFr`                                         |
+| D-04 | `percentOfMinor` (`domain/money/money.ts`)               | 2 calculs _inline_ (zakat, restockage)                          |
+| D-05 | `multiplyMinorByQuantitySafe` (variante qui ne lève pas) | 7 `Math.round(prix × qté)` sans garde                           |
+| D-06 | `daysBetween` (`domain/common/dates.ts`)                 | 3 implémentations d'écart en jours                              |
+| D-07 | `strictOrNum` (`@shared/money/parse.ts`)                 | copie locale (réception)                                        |
+| D-08 | `toMinorSafe` (`domain/money/money.ts`)                  | `asMinor`                                                       |
+
+- **E-29** : le renderer normalise désormais le nom client **exactement**
+  comme le main (« Cœur » ⇒ `coeur`, plus « c eur ») + test de parité sur
+  16 vecteurs.
+- **E-30** : l'état `'overdue'` **existe enfin** (règle unique dans
+  `electron/ipc/handlers/debt-status.ts` : une vente ouverte échue) — écrit
+  dans les 4 écritures du solde **et** recalculé à la lecture (l'échéance
+  dépend du temps : un état matérialisé ne peut pas suivre le temps) ;
+  `agingBucket` (code mort) supprimé. Trois flux ont été réordonnés
+  (encaissement, avoir sur retour, annulation) pour que le statut soit lu
+  dans l'état final de la transaction.
+- **J-11** : `knip` couvre `license-manager/**` et `cloud/**` (la Edge
+  Function est déclarée `entry`).
+- 2 nouveaux tests : `parity-normalisation.test.ts` (E-29) et
+  `money-rule-convergence.test.ts` (D-02 → D-08).
+
+### Vague W10 — état d'erreur persistant (ADR-129)
+
+- **A-06** : 12 écrans de données déclarent un état d'erreur **persistant**
+  (`loadError`) et l'affichent via la nouvelle primitive `ErrorState`
+  (`role="alert"`, message FR, icône) — l'erreur ne disparaît plus en 4,5 s
+  et un tableau vide après un échec ne passe plus pour « aucune donnée ».
+- Garde : `tests/unit/a06-screen-error-state.test.ts` (14 cas) parcourt les
+  écrans et exige état + affichage (exemptions documentées : licence,
+  caisse, réglages).
+- **A-28** : le téléphone/e-mail codés en dur dans « À propos » sont
+  remplacés par la **fiche entreprise** (réglable par le commerçant).
+- **A-07 / A-27** : déjà traités en W5 (rappelés dans l'ADR).
+
+### Portes (arbre propre, 2026-10-21)
+
+`test:coverage` **EXIT 0** (95,83 % lignes · 87,19 % branches · 100 %
+fonctions — aucun seuil abaissé) · `vitest` **140 fichiers / 964 tests** 0 ·
+`test:db` **38 fichiers / 177 tests** 0 · `tsc -b` 0 · `typecheck:electron` 0 ·
+`eslint --max-warnings 0` exit 0 · `format:check` 0 · **`knip` 0** ·
+`verify:migrations` VERIFIED · `verify:domain` VERIFIED · `verify:perf`
+VERIFIED · `verify:fr` 0 (322 fichiers) · `verify:encoding` 0 (864 fichiers) ·
+`license:scan` 0 (1367 fichiers) · `build` ✓ (12,1 s) · `build:electron` ✓
+(manifeste signé 216 fichiers).
+
+### En attente / à faire
+
+1. **E2E à rejouer** avant tout tag : `staff-session` et `full-loop-client`
+   (touchés par K-04 en W2 et par le canal `closings.reopen` en W3).
+2. `verify:licensing`, packaging `release/`, `npm audit` (réseau) non
+   relancés (hors périmètre / réseau).
+3. **ADR-120** toujours _proposé_ (non approuvé) · les autres décisions
+   owner du plan (§4) : Q6 (avoir en cours), Q7 (source de vérité de la
+   dette), Q17 (jour métier `Africa/Algiers`), Q19 (APK/EAS).
+4. Reste à faire hors plan d'audit : Q11 (extension du seuil de couverture
+   à `src/features`), les 11 autres fichiers « miroir » (I-03).
+
+### Pièges de cette session
+
+- **`knip` ne voit pas l'usage d'un export par les tests** ⇒ ne jamais
+  supprimer sur la foi du rapport : recherche exhaustive + `tsc -b` + suite.
+- **`npm run test:coverage 2>&1 | Select-Object -First N`** : le `-First`
+  ferme le pipeline et **tue** le run (sortie tronquée) ⇒ écrire dans un
+  fichier (`> file 2>&1`) puis lire le fichier.
+- `opencode.db` (historique des sessions) s'ouvre avec
+  `node --experimental-sqlite` : `better-sqlite3` du projet est compilé pour
+  l'ABI Electron (136) et refuse de charger sous Node 22 (ABI 127).
+- Un `while` de recherche qui ne fait pas progresser l'index boucle à
+  l'infini : écrire les scripts Node hors du dépôt (dossier TEMP) et les
+  supprimer après usage (un `.cjs` à la racine casse `eslint`).

@@ -133,6 +133,8 @@
 - [ADR-125](./ADR-125-encodage-repare-journal-centralise-chiffres-a-jour.md) Encodage réparé (U+FFFD), porte d'encodage, journal centralisé, chiffres à jour (W9)
 - [ADR-126](./ADR-126-chemins-chauds-indexes-n-plus-1-bundle.md) Chemins chauds indexés (migration 0050), N+1 supprimés, bundle découpé (W8)
 - [ADR-127](./ADR-127-code-mort-trie-vague-w6.md) Code mort trié : barrel d'impression trié, miroirs morts, dépendance fantôme retirée (W6)
+- [ADR-128](./ADR-128-regles-uniques-vague-w7.md) Règles uniques : quantités, montants, dates, normalisation, statut « en retard » (W7)
+- [ADR-129](./ADR-129-etat-erreur-persistant-ecrans-vague-w10.md) État d'erreur persistant dans chaque écran + coordonnées non codées en dur (W10)
 
 ## Ou ecrire quoi
 
