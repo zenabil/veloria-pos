@@ -1,37 +1,22 @@
 // Veloria PoS — Domain: politique crédit client (framework-free).
-// P3 : tranches d'ancienneté (buckets) + règle du jour de règlement.
+// P3 : règle du jour de règlement + calcul du retard (E-30).
 // Pur : les soldes viennent du main, la règle rend un verdict affichable.
 
 import { DomainError } from "../common/errors.ts";
+import { daysBetween } from "../common/dates.ts";
 
-export type AgingBucket = "current" | "d30" | "d60" | "d90";
-
-export function agingBucket(daysOverdue: number): AgingBucket {
-  if (!Number.isInteger(daysOverdue) || daysOverdue < 0) {
-    throw new DomainError("CUSTOMER_ERROR", "Ancienneté de dette invalide.");
-  }
-  if (daysOverdue <= 0) return "current";
-  if (daysOverdue <= 30) return "d30";
-  if (daysOverdue <= 60) return "d60";
-  return "d90";
-}
-
-/** Jours calendaires entre deux dates AAAA-MM-JJ (échéance → aujourd'hui). */
+/**
+ * Jours calendaires entre deux dates AAAA-MM-JJ (échéance → aujourd'hui).
+ * W7 (D-06) : le calcul est désormais celui de `domain/common/dates.ts`
+ * (source unique) — la copie locale était bornée à 0, la règle est donc
+ * appliquée ici : un retard ne peut pas être négatif.
+ */
 export function daysOverdue(dueDate: string, today: string): number {
-  const a = Date.UTC(
-    Number(dueDate.slice(0, 4)),
-    Number(dueDate.slice(5, 7)) - 1,
-    Number(dueDate.slice(8, 10)),
-  );
-  const b = Date.UTC(
-    Number(today.slice(0, 4)),
-    Number(today.slice(5, 7)) - 1,
-    Number(today.slice(8, 10)),
-  );
-  if (!Number.isFinite(a) || !Number.isFinite(b)) {
+  const days = daysBetween(dueDate, today);
+  if (!Number.isFinite(days)) {
     throw new DomainError("CUSTOMER_ERROR", "Dates d'échéance invalides.");
   }
-  return Math.max(0, Math.round((b - a) / 86_400_000));
+  return Math.max(0, days);
 }
 
 /** Le jour de règlement du mois est-il passé (relance à prévoir) ? */

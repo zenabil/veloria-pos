@@ -2,22 +2,32 @@
 // Extrait de `ClientDialogs.tsx` (P2 : découpage sans changement de comportement).
 // Rapproche les lignes (retours/dettes/historique) au client par nom normalisé
 // FR ; repli = toutes les lignes quand aucun rapprochement n'est possible.
+//
+// W7 (D-08) : la conversion de montant a quitté ce module — c'est
+// `toMinorSafe` (`@domain/money/money.ts`), source unique de la conversion
+// leniente vers les centimes.
 
-/** Normalisation FR insensible aux accents/casse (rapprochement renderer). */
+/**
+ * Normalisation FR insensible aux accents/casse (rapprochement renderer).
+ *
+ * W7 (E-29) : MIROIR EXACT de `normCustomerSearch`
+ * (`electron/ipc/handlers/customers.repo.ts`) — c'est la même règle que
+ * celle de la migration 0047 (colonne `search_norm`) et donc que celle de
+ * l'index de recherche. AVANT, le renderer transformait « œ » en ESPACE
+ * (au lieu de « oe ») : le rapprochement du tiroir client ne retrouvait pas
+ * les lignes que la recherche, elle, retrouvait.
+ * Toute évolution doit changer les deux + le test de parité.
+ */
 export function normFr(v: string | null | undefined): string {
   return (v ?? "")
     .toLowerCase()
     .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .replace(/[^a-z0-9 ]/g, " ")
+    .replace(/\p{M}/gu, "")
+    .replace(/œ/g, "oe")
+    .replace(/æ/g, "ae")
+    .replace(/ø/g, "o")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-/** Montant serveur → entier sûr (jamais NaN propagé à l'affichage). */
-export function asMinor(v: unknown): number {
-  const n = typeof v === "number" ? v : Number(v ?? 0);
-  return Number.isFinite(n) ? Math.trunc(n) : 0;
 }
 
 /** Champ date serveur → chaîne sûre (jamais "[object Object]" à l'affichage). */

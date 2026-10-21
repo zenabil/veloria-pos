@@ -4,7 +4,8 @@
 // par défaut ». Le flux d'ajout (dialogue vs direct) vit dans sell-search.ts.
 import { parseDzdInputStrict } from "@domain/money/money.ts";
 import { computeLineTotal } from "@domain/sales/sale-rules.ts";
-import { parseQuantityInput, quantityForAmountMinor } from "@domain/sales/weight-sale.ts";
+import { quantityForAmountMinor } from "@domain/sales/weight-sale.ts";
+import { parseQuantityInput } from "@domain/common/quantity.ts";
 import { isMeasuredUnit } from "@domain/units/units.ts";
 
 /**
@@ -40,10 +41,11 @@ export function isFeminineQuantityUnit(unitCode: string): boolean {
   return unitCode.trim().toUpperCase() === "M";
 }
 
-/** Quantité FR sans zéros parasites : 1.5 → « 1,5 » ; 1.235 → « 1,235 ». */
-export function formatQtyFr(q: number): string {
-  return String(Math.round(q * 1000) / 1000).replace(".", ",");
-}
+/**
+ * W7 (D-03) : le formatage de quantité est désormais
+ * `formatQuantityFr` (`@domain/common/quantity.ts`) — source unique.
+ * (La copie locale affichait « 1.5 » au lieu de « 1,5 ».)
+ */
 
 export type WeightMode = "quantity" | "amount";
 

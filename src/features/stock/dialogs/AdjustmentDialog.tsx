@@ -24,7 +24,8 @@ import {
 } from "@shared/ui/primitives.tsx";
 import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
 
-import { parseQtyInput, type StockRow } from "../types.ts";
+import { parseQuantityInput } from "@domain/common/quantity.ts";
+import { type StockRow } from "../types.ts";
 
 import type { Notify } from "@shared/ui/primitives.tsx";
 import { frError } from "@shared/errors/fr-map.ts";
@@ -91,7 +92,7 @@ export function StockAdjustmentDialog({
     });
   }
 
-  const qty = parseQtyInput(qtyText.trim() === "" ? "0" : qtyText);
+  const qty = parseQuantityInput(qtyText.trim() === "" ? "0" : qtyText, { allowZero: true });
   const toKind: AdjustmentKind = kind === "in" ? "in" : kind === "out" ? "out" : "set";
   let newStock: number | null = null;
   let previewErr = "";

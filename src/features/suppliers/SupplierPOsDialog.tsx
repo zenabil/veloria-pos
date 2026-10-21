@@ -4,7 +4,12 @@
 import { useEffect, useRef, useState } from "react";
 import { PackagePlus, Printer, Search, Trash2, Truck } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
-import { formatDzd, minorToInput, parseDzdInputStrict } from "@domain/money/money.ts";
+import {
+  formatDzd,
+  minorToInput,
+  multiplyMinorByQuantitySafe,
+  parseDzdInputStrict,
+} from "@domain/money/money.ts";
 import { buildCompanyHead } from "@shared/documents/sale-ticket.ts";
 import { strictOrNeg } from "@shared/money/parse.ts";
 import { frError } from "@shared/errors/fr-map.ts";
@@ -160,7 +165,7 @@ export function SupplierPOsDialog({
           qty,
           unit: it.unit_code,
           unitPriceMinor: unit,
-          lineTotalMinor: Math.round(unit * qty),
+          lineTotalMinor: multiplyMinorByQuantitySafe(unit, qty),
           ref: "",
         });
       }

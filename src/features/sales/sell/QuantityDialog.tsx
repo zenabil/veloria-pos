@@ -7,8 +7,8 @@ import { useEffect, useRef, useState } from "react";
 import { formatDzd } from "@domain/money/money.ts";
 import { unitLabel } from "@domain/units/units.ts";
 import { Button, Field, Modal, TextInput } from "@shared/ui/primitives.tsx";
+import { formatQuantityFr } from "@domain/common/quantity.ts";
 import {
-  formatQtyFr,
   isFeminineQuantityUnit,
   quantityNoun,
   weightDialogPreview,
@@ -84,7 +84,7 @@ export function QuantityDialog({
           <div className="flex justify-between gap-3 text-slate-300">
             <dt>Stock actuel</dt>
             <dd className="text-right font-semibold tabular-nums">
-              {stockQty == null ? "—" : `${formatQtyFr(stockQty)} ${unitLower}`}
+              {stockQty == null ? "—" : `${formatQuantityFr(stockQty)} ${unitLower}`}
             </dd>
           </div>
         </dl>
@@ -143,7 +143,7 @@ export function QuantityDialog({
                     {noun} {calcule}
                   </span>
                   <span className="text-right font-semibold tabular-nums">
-                    {formatQtyFr(preview.qty)} {unitLower}
+                    {formatQuantityFr(preview.qty)} {unitLower}
                   </span>
                 </div>
               ) : (
@@ -152,7 +152,7 @@ export function QuantityDialog({
                     {noun} {vendu}
                   </span>
                   <span className="text-right font-semibold tabular-nums">
-                    {formatQtyFr(preview.qty)} {unitLower}
+                    {formatQuantityFr(preview.qty)} {unitLower}
                   </span>
                 </div>
               )}
@@ -166,7 +166,7 @@ export function QuantityDialog({
           )}
           {overStock ? (
             <p role="alert" className="mt-2 font-semibold text-amber-300">
-              Attention : quantité supérieure au stock ({formatQtyFr(stockQty)} {unitLower}).
+              Attention : quantité supérieure au stock ({formatQuantityFr(stockQty)} {unitLower}).
             </p>
           ) : null}
         </div>

@@ -2,28 +2,22 @@
 import { describe, it, expect } from "vitest";
 import {
   normFr,
-  asMinor,
   asCreatedAt,
   matchClient,
   keepClient,
 } from "@/features/customers/client-matching.ts";
 
 describe("client-matching (rapprochement 360)", () => {
-  it("normFr: accents/casse/ponctuation neutralisés", () => {
+  it("normFr: accents/casse neutralisés (W7/E-29 : parité avec le main)", () => {
     expect(normFr("Amine Benali")).toBe("amine benali");
-    expect(normFr("Hôtel-Café  L'Atlas")).toBe("hotel cafe l atlas");
+    expect(normFr("Hôtel-Café  L'Atlas")).toBe("hotel-cafe l'atlas");
     expect(normFr(null)).toBe("");
     expect(normFr(undefined)).toBe("");
   });
 
-  it("asMinor: entier sûr, jamais NaN", () => {
-    expect(asMinor(1250)).toBe(1250);
-    expect(asMinor(12.9)).toBe(12);
-    expect(asMinor("300")).toBe(300);
-    expect(asMinor(NaN)).toBe(0);
-    expect(asMinor(undefined)).toBe(0);
-    expect(asMinor({})).toBe(0);
-  });
+  // W7 (D-08) : `asMinor` a quitté ce module — la conversion de montant est
+  // désormais `toMinorSafe` (`@domain/money/money.ts`), testée dans
+  // `money-rule-convergence.test.ts`.
 
   it("asCreatedAt: chaîne sûre", () => {
     expect(asCreatedAt({ created_at: "2026-01-01" })).toBe("2026-01-01");

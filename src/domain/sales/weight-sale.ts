@@ -6,22 +6,10 @@
 import { MAX_QUANTITY, roundQuantity } from "../common/quantity.ts";
 
 /**
- * Parse une quantité saisie (virgule FR acceptée, ex. « 1,5 »), arrondie à
- * 3 décimales (précision g/kg — même règle que `assertValidQuantity`).
- * null si vide, non numérique, ≤ 0 ou > 1 000 000 : jamais de quantité 0
- * silencieuse (l'appelant affiche un message FR).
+ * W7 (D-02) : le parseur de quantité a quitté ce module — c'est
+ * `parseQuantityInput` (`domain/common/quantity.ts`), source unique
+ * (règle de saisie : virgule FR, décimal simple, 3 décimales, > 0).
  */
-export function parseQuantityInput(raw: string): number | null {
-  if (typeof raw !== "string") return null;
-  const t = raw.replace(",", ".").trim();
-  // Décimal simple uniquement : rejette « 1e3 », « 0x10 », « +5 »… (Number()
-  // les accepterait — jamais voulu pour une saisie de caisse).
-  if (!/^\d+(?:\.\d+)?$/.test(t)) return null;
-  const n = Number(t);
-  if (!Number.isFinite(n) || n <= 0 || n > MAX_QUANTITY) return null;
-  const qty = roundQuantity(n);
-  return qty > 0 ? qty : null;
-}
 
 /**
  * Quantité vendue correspondant à un montant saisi : `quantité = montant ÷

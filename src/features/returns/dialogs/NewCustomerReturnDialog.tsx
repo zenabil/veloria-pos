@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Search } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 
-import { formatDzd } from "@domain/money/money.ts";
+import { formatDzd, multiplyMinorByQuantitySafe } from "@domain/money/money.ts";
 import { formatDzdSafe } from "@shared/formatters/format.ts";
 import { strictOrNeg } from "@shared/money/parse.ts";
 import { useOperationId } from "@shared/ui/use-operation-id.ts";
@@ -116,7 +116,12 @@ export function CustomerReturnDialog({
     };
   });
   const chosen = parsed.filter((l) => l.wanted > 0);
-  const total = chosen.reduce((a, l) => a + Math.round(l.unit_price_minor * l.wanted), 0);
+  // W7 (D-05) : multiplication gardée (règle financière unique) — plus de
+  // `Math.round(prix * qté)` sans garde de capacité.
+  const total = chosen.reduce(
+    (a, l) => a + multiplyMinorByQuantitySafe(l.unit_price_minor, l.wanted),
+    0,
+  );
   // P1-5 : strict (bornes H-1, jamais NaN) ; invalide → -1 = refusé par les gardes.
   const refund = strictOrNeg(refundText, "Remboursement");
   const credit = strictOrNeg(creditText, "Avoir");
@@ -249,7 +254,7 @@ export function CustomerReturnDialog({
                       />
                     </td>
                     <td className="px-3 py-2 text-right font-bold tabular-nums">
-                      {formatDzd(Math.round(l.unit_price_minor * l.wanted))}
+                      {formatDzd(multiplyMinorByQuantitySafe(l.unit_price_minor, l.wanted))}
                     </td>
                     <td className="px-3 py-2">
                       <Select

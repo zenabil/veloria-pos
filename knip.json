@@ -5,9 +5,16 @@
       "entry": [
         "electron/preload/preload.ts",
         "license-manager/main/main.ts",
-        "license-manager/renderer/manager-env.d.ts"
+        "license-manager/renderer/manager-env.d.ts",
+        "cloud/supabase/functions/**/index.ts"
       ],
-      "project": ["src/**/*.{ts,tsx,css}", "electron/**/*.ts", "tests/**/*.{ts,tsx}"],
+      "project": [
+        "src/**/*.{ts,tsx,css}",
+        "electron/**/*.ts",
+        "tests/**/*.{ts,tsx}",
+        "license-manager/**/*.{ts,tsx}",
+        "cloud/**/*.ts"
+      ],
       "ignoreExportsUsedInFile": true,
       "ignoreBinaries": ["net"],
       "ignoreDependencies": ["bindings", "@eslint/js"]

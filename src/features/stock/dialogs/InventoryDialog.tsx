@@ -8,7 +8,7 @@ import { newOperationId } from "@domain/common/ids.ts";
 
 import { Button, Field, Modal, TextInput, cn } from "@shared/ui/primitives.tsx";
 import type { InventoryPreset } from "../StockScreen.tsx";
-import { parseQtyInput } from "../types.ts";
+import { parseQuantityInput } from "@domain/common/quantity.ts";
 
 import type { Notify } from "@shared/ui/primitives.tsx";
 import { frError } from "@shared/errors/fr-map.ts";
@@ -45,7 +45,7 @@ export function InventoryDialog({
 
   function diffOf(r: InventoryRowState): number | null {
     if (r.actual.trim() === "") return null;
-    const v = parseQtyInput(r.actual);
+    const v = parseQuantityInput(r.actual, { allowZero: true });
     return v == null ? null : Math.round((v - r.systemQty) * 1000) / 1000;
   }
 
@@ -64,7 +64,7 @@ export function InventoryDialog({
     const items: { productId: number; actualQty: number }[] = [];
     for (const r of rows) {
       if (r.actual.trim() === "") continue;
-      const v = parseQtyInput(r.actual);
+      const v = parseQuantityInput(r.actual);
       if (v == null) {
         notify(`Quantité invalide pour « ${r.name} ».`, "err");
         return;

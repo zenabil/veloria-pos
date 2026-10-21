@@ -3,11 +3,7 @@ import { describe, it, expect } from "vitest";
 import { convertQuantity, normalizeUnitCodeStrict } from "@/domain/units/units.ts";
 import { barcodeKind, validateBarcode } from "@/domain/barcode/barcode-rules.ts";
 import { evaluateMargin } from "@/domain/pricing/price-rules.ts";
-import {
-  agingBucket,
-  daysOverdue,
-  settlementDueThisMonth,
-} from "@/domain/customer/credit-policy.ts";
+import { daysOverdue, settlementDueThisMonth } from "@/domain/customer/credit-policy.ts";
 import { countCash } from "@/domain/closings/cash-count.ts";
 
 describe("P3-b : units", () => {
@@ -50,13 +46,9 @@ describe("P3-b : price-rules", () => {
 });
 
 describe("P3-b : credit-policy", () => {
-  it("tranches 0/30/60/90+", () => {
-    expect(agingBucket(0)).toBe("current");
-    expect(agingBucket(30)).toBe("d30");
-    expect(agingBucket(31)).toBe("d60");
-    expect(agingBucket(61)).toBe("d90");
-    expect(() => agingBucket(-1)).toThrow();
-  });
+  // W7 (E-30) : `agingBucket` (tranches d'ancienneté) a été supprimé — code
+  // mort : aucun écran ne l'utilisait. L'état « en retard » est désormais
+  // produit par la règle E-30 (vente ouverte échue) côté main.
   it("retard calendaire + jour de règlement", () => {
     expect(daysOverdue("2026-09-01", "2026-09-20")).toBe(19);
     expect(daysOverdue("2026-09-20", "2026-09-20")).toBe(0);
@@ -64,6 +56,15 @@ describe("P3-b : credit-policy", () => {
     expect(settlementDueThisMonth(15, "2026-09-20")).toBe(true);
     expect(settlementDueThisMonth(25, "2026-09-20")).toBe(false);
     expect(settlementDueThisMonth(null, "2026-09-20")).toBe(false);
+  });
+  // W7 (D-06) : les branches d'erreur sont désormais couvertes (le seuil de
+  // couverture par fichier est de 80 % des lignes / 75 % des branches).
+  it("refuse les dates et les jours de règlement invalides (FR)", () => {
+    expect(() => daysOverdue("pas-une-date", "2026-09-20")).toThrow();
+    expect(() => daysOverdue("2026-09-01", "")).toThrow();
+    expect(() => settlementDueThisMonth(0, "2026-09-20")).toThrow();
+    expect(() => settlementDueThisMonth(32, "2026-09-20")).toThrow();
+    expect(() => settlementDueThisMonth(15, "pas-une-date")).toThrow();
   });
 });
 

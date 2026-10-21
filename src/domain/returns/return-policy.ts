@@ -4,8 +4,8 @@
 // Montants en centimes (DZD), erreurs DomainError FR (RETURN_ERROR).
 
 import { DomainError } from "../common/errors.ts";
-import { assertSafeMinor, assertSafeTotal } from "../money/money.ts";
-import { isRealCalendarDate } from "../common/dates.ts";
+import { assertSafeMinor, assertSafeTotal, percentOfMinor } from "../money/money.ts";
+import { daysBetween, isRealCalendarDate } from "../common/dates.ts";
 
 export type ReturnDisposition = "restock" | "damage";
 
@@ -35,15 +35,24 @@ export interface ReturnPolicyDecision {
   restock: boolean;
 }
 
-function daysBetween(from: string, to: string): number {
-  const a = Date.UTC(
-    Number(from.slice(0, 4)),
-    Number(from.slice(5, 7)) - 1,
-    Number(from.slice(8, 10)),
-  );
-  const b = Date.UTC(Number(to.slice(0, 4)), Number(to.slice(5, 7)) - 1, Number(to.slice(8, 10)));
-  return Math.round((b - a) / 86_400_000);
+/**
+ * W7 (D-04) : le pourcentage passe par la règle financière unique
+ * (`percentOfMinor` — garde de capacité comprise) au lieu d'un calcul
+ * inline. L'erreur de la règle (MoneyError) est traduite en DomainError
+ * FR (RETURN_ERROR) : le contrat d'erreur du domaine ne change pas.
+ */
+function percentOfMinorGuarded(amountMinor: number, percent: number): number {
+  try {
+    return percentOfMinor(amountMinor, percent);
+  } catch {
+    throw new DomainError("RETURN_ERROR", "Frais de restockage invalides.");
+  }
 }
+
+/**
+ * W7 (D-06) : le calcul de l'écart en jours est celui de
+ * `domain/common/dates.ts` (source unique) — plus de copie locale.
+ */
 
 export function evaluateReturnPolicy(input: ReturnPolicyInput): ReturnPolicyDecision {
   if (!isRealCalendarDate(input.saleDate) || !isRealCalendarDate(input.returnDate)) {
@@ -81,7 +90,7 @@ export function evaluateReturnPolicy(input: ReturnPolicyInput): ReturnPolicyDeci
   const feeMinor =
     input.disposition === "damage" || input.restockingFeePct === 0
       ? 0
-      : Math.round((input.returnTotalMinor * input.restockingFeePct) / 100);
+      : percentOfMinorGuarded(input.returnTotalMinor, input.restockingFeePct);
   assertSafeTotal(feeMinor, "Frais de restockage invalides");
   return {
     allowed: true,

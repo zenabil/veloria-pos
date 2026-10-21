@@ -4,11 +4,13 @@ import { adjustmentReasonCode, computeAdjustmentNewStock } from "@domain/invento
 import { adjustmentReasonFr } from "@shared/formatters/format.ts";
 import {
   maxStockLabel,
-  parseQtyInput,
   stockStatusLabel,
   stockStatusTone,
   suggestIntakeInvoiceNumber,
 } from "@features/stock/types.ts";
+// W7 (D-02) : le parseur de quantité est une source unique
+// (`@domain/common/quantity.ts`), plus une copie par feature.
+import { parseQuantityInput } from "@domain/common/quantity.ts";
 import {
   inventoryApplySchema,
   productCreateSchema,
@@ -43,10 +45,16 @@ describe("Stock adjustment domain", () => {
 
 describe("Stock UI helpers", () => {
   it("parses French quantities", () => {
-    expect(parseQtyInput("12,5")).toBe(12.5);
-    expect(parseQtyInput("")).toBe(0);
-    expect(parseQtyInput("-3")).toBe(null);
-    expect(parseQtyInput("abc")).toBe(null);
+    expect(parseQuantityInput("12,5")).toBe(12.5);
+    // W7 (D-02) : une saisie vide n'est plus « 0 » implicite (les champs
+    // qui veulent 0 le normalisent explicitement) et le 0 doit être demandé.
+    expect(parseQuantityInput("")).toBe(null);
+    expect(parseQuantityInput("0")).toBe(null);
+    expect(parseQuantityInput("0", { allowZero: true })).toBe(0);
+    expect(parseQuantityInput("-3")).toBe(null);
+    expect(parseQuantityInput("abc")).toBe(null);
+    // Décimal simple uniquement (« 1e3 » n'est pas une saisie de caisse).
+    expect(parseQuantityInput("1e3")).toBe(null);
   });
 
   it("labels status and max", () => {

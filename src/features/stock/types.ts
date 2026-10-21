@@ -68,13 +68,6 @@ export function maxStockLabel(maxLevel: number): string {
   return maxLevel > 0 ? String(maxLevel) : "—";
 }
 
-/** Saisie FR (virgule acceptée), bornée 0 – 1 000 000, 3 décimales max. */
-export function parseQtyInput(raw: string): number | null {
-  const n = Number(raw.replace(",", ".").trim());
-  if (!Number.isFinite(n) || n < 0 || n > 1_000_000) return null;
-  return Math.round(n * 1000) / 1000;
-}
-
 /**
  * Numéro de facture fournisseur suggéré à la sélection du fournisseur
  * (champ reste modifiable) : `BL-{CODE}-{AAAAMMJJ}`.

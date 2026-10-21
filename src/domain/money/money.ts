@@ -241,6 +241,24 @@ export function multiplyMinorByQuantity(unitPriceMinor: number, quantity: number
   return out;
 }
 
+/**
+ * W7 (D-05) — multiplication SÛRE pour le RENDU (variante qui ne lève
+ * jamais).
+ * Même règle que `multiplyMinorByQuantity` (arrondi au centime + garde de
+ * capacité + bornes), mais une valeur invalide ⇒ 0 au lieu d'une exception.
+ * Rappel A-01 : une exception levée pendant un rendu React fait tomber
+ * l'`ErrorBoundary` ⇒ **écran mort devant le caissier**. Les sites
+ * renderer qui multiplient un prix unitaire par une quantité utilisent donc
+ * cette variante (la base reste l'autorité : elle recalcule et refuse).
+ */
+export function multiplyMinorByQuantitySafe(unitPriceMinor: number, quantity: number): number {
+  try {
+    return multiplyMinorByQuantity(unitPriceMinor, quantity);
+  } catch {
+    return 0;
+  }
+}
+
 /** Percentage discount on a minor amount. Percent in [0,100]. */
 export function percentOfMinor(amountMinor: number, percent: number): number {
   assertSafeTotal(amountMinor, "Montant de remise invalide");
@@ -250,4 +268,20 @@ export function percentOfMinor(amountMinor: number, percent: number): number {
   const out = Math.round((amountMinor * percent) / 100);
   assertSafeTotal(out, "Montant de remise invalide");
   return out;
+}
+
+/**
+ * W7 (D-08) — SOURCE UNIQUE de la conversion LENIENTE d'une valeur serveur
+ * (JSON : `number | string | null | undefined`) vers des centimes.
+ * Auparavant dupliquée dans `features/customers/client-matching.ts`
+ * (`asMinor`) et dispersée dans les dialogues clients.
+ * Contrat : jamais d'exception, jamais de NaN (une valeur illisible ⇒ 0),
+ * troncature vers l'entier. C'est l'outil du RENDU (affichage) ; pour un
+ * chemin d'écriture, utiliser `parseDzdInputStrict` / `assertSafeMinor`.
+ */
+export function toMinorSafe(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(value ?? 0);
+  if (!Number.isFinite(n)) return 0;
+  const t = Math.trunc(n);
+  return Number.isSafeInteger(t) ? t : 0;
 }

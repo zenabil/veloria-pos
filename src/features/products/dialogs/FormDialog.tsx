@@ -15,7 +15,8 @@ import { UNIT_OPTIONS, isArchived, unitLabel, type Category, type Product } from
 
 import type { Notify } from "@shared/ui/primitives.tsx";
 import { frError } from "@shared/errors/fr-map.ts";
-import { parseMoney, parseQty } from "./common.ts";
+import { parseQuantityInput } from "@domain/common/quantity.ts";
+import { parseMoney } from "./common.ts";
 
 // ---------------------------------------------------------------------------
 // Formulaire produit (création + édition).
@@ -168,9 +169,13 @@ export function ProductFormDialog({
       notify("Prix invalides.", "err");
       return;
     }
-    const quantity = parseQty(qty.trim() === "" ? "0" : qty);
-    const minLevel = parseQty(minStock.trim() === "" ? "0" : minStock);
-    const maxLevel = parseQty(maxStock.trim() === "" ? "0" : maxStock);
+    const quantity = parseQuantityInput(qty.trim() === "" ? "0" : qty, { allowZero: true });
+    const minLevel = parseQuantityInput(minStock.trim() === "" ? "0" : minStock, {
+      allowZero: true,
+    });
+    const maxLevel = parseQuantityInput(maxStock.trim() === "" ? "0" : maxStock, {
+      allowZero: true,
+    });
     if (quantity == null || minLevel == null || maxLevel == null) {
       notify("Stock / seuils invalides (0 – 1 000 000).", "err");
       return;

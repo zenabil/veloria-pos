@@ -3,9 +3,10 @@
 // conversions quantité ↔ montant, flux ajout/dialogue, confirmation.
 import { describe, expect, it } from "vitest";
 import { isMeasuredUnit } from "@domain/units/units.ts";
-import { parseQuantityInput, quantityForAmountMinor } from "@domain/sales/weight-sale.ts";
+import { quantityForAmountMinor } from "@domain/sales/weight-sale.ts";
+import { parseQuantityInput } from "@domain/common/quantity.ts";
+import { formatQuantityFr } from "@domain/common/quantity.ts";
 import {
-  formatQtyFr,
   isFeminineQuantityUnit,
   needsQuantityDialog,
   quantityNoun,
@@ -122,12 +123,12 @@ describe("isFeminineQuantityUnit : accord FR (Longueur féminin)", () => {
   });
 });
 
-describe("formatQtyFr : quantité FR sans zéros parasites", () => {
+describe("formatQuantityFr : quantité FR sans zéros parasites", () => {
   it("virgule décimale, sans zéros inutiles", () => {
-    expect(formatQtyFr(1.5)).toBe("1,5");
-    expect(formatQtyFr(1.235)).toBe("1,235");
-    expect(formatQtyFr(2)).toBe("2");
-    expect(formatQtyFr(0.001)).toBe("0,001");
+    expect(formatQuantityFr(1.5)).toBe("1,5");
+    expect(formatQuantityFr(1.235)).toBe("1,235");
+    expect(formatQuantityFr(2)).toBe("2");
+    expect(formatQuantityFr(0.001)).toBe("0,001");
   });
 });
 

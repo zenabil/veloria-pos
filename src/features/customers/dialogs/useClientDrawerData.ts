@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "@shared/types/ipc-client.ts";
 import { frError } from "@shared/errors/fr-map.ts";
-import { asMinor, keepClient } from "../client-matching.ts";
+import { keepClient } from "../client-matching.ts";
+import { toMinorSafe } from "@domain/money/money.ts";
 import type { StatementSale } from "../types.ts";
 import type { Notify } from "@shared/ui/primitives.tsx";
 import type {
@@ -88,9 +89,9 @@ export function useClientDrawerData({
         setPayments(
           Array.isArray(s.payments)
             ? s.payments.map((p) => ({
-                id: asMinor(p["id"]),
+                id: toMinorSafe(p["id"]),
                 sale_id: typeof p["sale_id"] === "number" ? p["sale_id"] : null,
-                amount_minor: asMinor(p["amount_minor"]),
+                amount_minor: toMinorSafe(p["amount_minor"]),
                 method: typeof p["method"] === "string" ? p["method"] : "",
                 reference: typeof p["reference"] === "string" ? p["reference"] : null,
                 payment_date: typeof p["payment_date"] === "string" ? p["payment_date"] : "",

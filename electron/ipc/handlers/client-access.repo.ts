@@ -8,6 +8,7 @@
 import { createHash, pbkdf2Sync, randomBytes, randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
 import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./idempotency";
+import { liveDebtStatus, overdueSalesSql } from "./debt-status";
 
 /**
  * Union EXACTE du CHECK `sync_outbox.kind` de la migration
@@ -199,7 +200,8 @@ function requireLiveCustomer(customerId: number): {
   const db = getDb();
   const row = db
     .prepare(
-      `SELECT id, first_name, last_name, phone, credit_limit_minor, outstanding_balance_minor, debt_status, is_over_limit, settlement_day
+      `SELECT id, first_name, last_name, phone, credit_limit_minor, outstanding_balance_minor, debt_status, is_over_limit, settlement_day,
+        (CASE WHEN outstanding_balance_minor > 0 AND ${overdueSalesSql("id")} THEN 1 ELSE 0 END) AS has_overdue_sale
        FROM customers WHERE id = ? AND deleted_at IS NULL`,
     )
     .get(customerId) as
@@ -213,10 +215,24 @@ function requireLiveCustomer(customerId: number): {
         debt_status: string;
         is_over_limit: number;
         settlement_day: number | null;
+        has_overdue_sale: number;
       }
     | undefined;
   if (!row) throw new Error("Client introuvable.");
-  return row;
+  // E-30 : le statut « en retard » est recalculé à la lecture (l'échéance
+  // expire avec le temps, sans mouvement en base) — l'APK affiche ainsi
+  // « En retard » au bon moment (mobile/src/tokens.ts).
+  return {
+    id: row.id,
+    first_name: row.first_name,
+    last_name: row.last_name,
+    phone: row.phone,
+    credit_limit_minor: row.credit_limit_minor,
+    outstanding_balance_minor: row.outstanding_balance_minor,
+    debt_status: liveDebtStatus(row.debt_status, row.has_overdue_sale === 1),
+    is_over_limit: row.is_over_limit,
+    settlement_day: row.settlement_day,
+  };
 }
 
 export function activateClientAccessAtomic(args: {

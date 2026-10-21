@@ -1,5 +1,6 @@
 // Veloria PoS — Retours : tiroir détail + création (client/fournisseur) + remboursement.
 // Branchés sur le bridge window.veloria (jamais de SQLite côté renderer).
+import { multiplyMinorByQuantitySafe } from "@domain/money/money.ts";
 import { useState } from "react";
 import { Printer, ReceiptText, Undo2 } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
@@ -214,7 +215,7 @@ export function ReturnDetailsDrawer({
           qty,
           unit: "",
           unitPriceMinor: unit,
-          lineTotalMinor: Math.round(unit * qty),
+          lineTotalMinor: multiplyMinorByQuantitySafe(unit, qty),
           ref:
             typeof l.product_id === "number" && l.product_id > 0
               ? String(l.product_id).padStart(5, "0")

@@ -1,12 +1,8 @@
 // Veloria PoS — Catalogue : parseurs partagés des dialogues (P4).
 // Source unique (détail/ajustement + formulaire) : jamais de doublon local.
+// W7 (D-02) : le parseur de quantité n'est plus ici — c'est
+// `parseQuantityInput` (`@domain/common/quantity.ts`), source unique.
 import { parseDzdInputStrict } from "@domain/money/money.ts";
-
-export function parseQty(raw: string): number | null {
-  const n = Number(raw.replace(",", ".").trim());
-  if (!Number.isFinite(n) || n < 0 || n > 1_000_000) return null;
-  return Math.round(n * 1000) / 1000;
-}
 
 export function parseMoney(raw: string): number | null {
   if (raw.trim() === "") return 0;

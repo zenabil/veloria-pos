@@ -4,6 +4,7 @@
 import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
 import { formatInvoiceNumber } from "./numbers";
+import { debtStatusSql } from "./debt-status";
 import {
   auditOperationId,
   claimIdempotency,
@@ -480,7 +481,7 @@ export function createSaleAtomic(input: CreateSaleInput): {
     if (input.customerId != null && input.remainingMinor !== 0) {
       const upd = db
         .prepare(
-          `UPDATE customers SET outstanding_balance_minor = outstanding_balance_minor + ?, debt_status = CASE WHEN outstanding_balance_minor + ? <= 0 THEN 'none' WHEN credit_limit_minor > 0 AND outstanding_balance_minor + ? > credit_limit_minor THEN 'over_limit' ELSE 'due' END, is_over_limit = CASE WHEN credit_limit_minor > 0 AND outstanding_balance_minor + ? > credit_limit_minor THEN 1 ELSE 0 END, updated_at = ? WHERE id = ? AND (? = 1 OR credit_limit_minor <= 0 OR outstanding_balance_minor + ? <= credit_limit_minor)`,
+          `UPDATE customers SET outstanding_balance_minor = outstanding_balance_minor + ?, debt_status = ${debtStatusSql("outstanding_balance_minor + ?", "id")}, is_over_limit = CASE WHEN credit_limit_minor > 0 AND outstanding_balance_minor + ? > credit_limit_minor THEN 1 ELSE 0 END, updated_at = ? WHERE id = ? AND (? = 1 OR credit_limit_minor <= 0 OR outstanding_balance_minor + ? <= credit_limit_minor)`,
         )
         .run(
           input.remainingMinor,
@@ -654,14 +655,6 @@ export function cancelSaleAtomic(saleId: number, now: string, operationId: strin
     // (même règle que la création : un solde retombé à 0 redevient 'none').
     const remaining = Number(sale["remaining_balance_minor"] ?? 0);
     const customerId = sale["customer_id"] as number | null;
-    if (customerId != null && remaining !== 0) {
-      db.prepare(
-        `UPDATE customers SET outstanding_balance_minor = outstanding_balance_minor - ?,
-          debt_status = CASE WHEN outstanding_balance_minor - ? <= 0 THEN 'none' WHEN credit_limit_minor > 0 AND outstanding_balance_minor - ? > credit_limit_minor THEN 'over_limit' ELSE 'due' END,
-          is_over_limit = CASE WHEN credit_limit_minor > 0 AND outstanding_balance_minor - ? > credit_limit_minor THEN 1 ELSE 0 END,
-          updated_at = ? WHERE id = ?`,
-      ).run(remaining, remaining, remaining, remaining, now, customerId);
-    }
     // ENCAISSEMENT ANNULÉ (E-25) : la promesse UI est « le stock sera restauré
     // ET l'encaissement annulé ». Les lignes de paiement de la vente sont donc
     // supprimées (l'encaissement n'a jamais eu lieu) et la vente est remise à
@@ -676,6 +669,17 @@ export function cancelSaleAtomic(saleId: number, now: string, operationId: strin
     db.prepare(
       `UPDATE sales SET is_cancelled = 1, cancelled_at = ?, amount_paid_minor = 0, remaining_balance_minor = ?, payment_status = 'unpaid', updated_at = ? WHERE id = ?`,
     ).run(now, totalMinor, now, saleId);
+    if (customerId != null && remaining !== 0) {
+      // E-30 : le statut du client est recalculé APRÈS l'annulation de la
+      // vente (une vente annulée n'est plus « ouverte » : le client ne peut
+      // pas rester « en retard » sur une vente annulée).
+      db.prepare(
+        `UPDATE customers SET outstanding_balance_minor = outstanding_balance_minor - ?,
+          debt_status = ${debtStatusSql("outstanding_balance_minor - ?", "id")},
+          is_over_limit = CASE WHEN credit_limit_minor > 0 AND outstanding_balance_minor - ? > credit_limit_minor THEN 1 ELSE 0 END,
+          updated_at = ? WHERE id = ?`,
+      ).run(remaining, remaining, remaining, remaining, now, customerId);
+    }
     db.prepare(
       `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at) VALUES (?, 'sale.cancelled', 'sale', ?, ?, ?, ?)`,
     ).run(

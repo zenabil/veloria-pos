@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { PackagePlus, Search } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
-import { formatDzd, parseDzdInputStrict } from "@domain/money/money.ts";
+import { formatDzd } from "@domain/money/money.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { todayUtcDate } from "@shared/dates/dates.ts";
 
@@ -11,8 +11,9 @@ import { Button, Card, Field, Modal, TextArea, TextInput } from "@shared/ui/prim
 import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
 import { SupplierQuickCreateDialog } from "@features/suppliers/dialogs/FormDialog.tsx";
 
-import { parseQtyInput, suggestIntakeInvoiceNumber } from "../types.ts";
-
+import { parseQuantityInput } from "@domain/common/quantity.ts";
+import { strictOrNum } from "@shared/money/parse.ts";
+import { suggestIntakeInvoiceNumber } from "../types.ts";
 import type { Notify } from "@shared/ui/primitives.tsx";
 import { frError } from "@shared/errors/fr-map.ts";
 import { playSound } from "@shared/sound/sound.ts";
@@ -165,17 +166,16 @@ export function StockIntakeDialog({
   // P1-5 : parse strict (bornes H-1, jamais NaN). Invalide → -1 sentinelle :
   // tous les gardes existants (`isInteger && >= 0`) le rejettent, le type
   // reste `number` pour les calculs aval.
-  function strictOrNum(raw: string): number {
-    try {
-      return parseDzdInputStrict(raw, "Montant");
-    } catch {
-      return -1;
-    }
-  }
+  // W7 (D-07) : la copie locale est supprimée — `strictOrNum` est désormais
+  // la source unique (`@shared/money/parse.ts`).
 
   const parsed = lines.map((l) => {
-    const received = parseQtyInput(l.received.trim() === "" ? "0" : l.received);
-    const damaged = parseQtyInput(l.damaged.trim() === "" ? "0" : l.damaged);
+    const received = parseQuantityInput(l.received.trim() === "" ? "0" : l.received, {
+      allowZero: true,
+    });
+    const damaged = parseQuantityInput(l.damaged.trim() === "" ? "0" : l.damaged, {
+      allowZero: true,
+    });
     const price = strictOrNum(l.price.trim() === "" ? "0" : l.price);
     // Saisie vide = null (conserver) ; sinon centimes validés (>= 0).
     const sellingRaw = l.selling.trim();

@@ -2,6 +2,8 @@
 // Grain : créances clients au document, dettes fournisseurs au compte (ADR-015).
 // Les montants restent en centimes (DZD) jusqu'au formatage.
 
+import { daysBetween } from "@domain/common/dates.ts";
+
 export type DebtType = "customer" | "supplier";
 export type DebtStatus = "overdue" | "due";
 export type DebtTypeFilter = "all" | DebtType;
@@ -85,9 +87,9 @@ export function settleInfo(
   const next = `${y}-${mm}-${String(eff).padStart(2, "0")}`;
   const today = todayYmd.slice(0, 10);
   if (today > next) return { band: "overdue", next };
-  const diffDays = Math.round(
-    (Date.parse(`${next}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000,
-  );
+  // W7 (D-06) : écart en jours calculé par la source unique
+  // (`domain/common/dates.ts`) au lieu d'un `Date.parse` local.
+  const diffDays = daysBetween(today, next);
   if (diffDays <= 7) return { band: "soon", next };
   return { band: "ok", next };
 }

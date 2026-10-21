@@ -6,6 +6,7 @@
 
 import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
+import { debtStatusSql, liveDebtStatus, overdueSalesSql } from "./debt-status";
 import {
   auditOperationId,
   claimIdempotency,
@@ -154,16 +155,31 @@ export function searchCustomers(
             : `${nameKey} ASC, c.id ASC`;
   // Agrégats par client en sous-requêtes corrélées (ventes non annulées ;
   // `sales.customer_id` est indexé : ~1 ms pour une page de 20).
+  // E-30 : `has_overdue_sale` = le client a-t-il une vente ouverte échue ?
+  // (le statut stocké ne peut pas suivre le temps : l'échéance peut
+  // expirer sans qu'aucun mouvement ne passe par la base).
   const rows = db
     .prepare(
       `SELECT c.*,
         (SELECT COUNT(*) FROM sales s WHERE s.customer_id = c.id AND s.is_cancelled = 0) AS invoice_count,
         (SELECT COALESCE(SUM(s.total_minor), 0) FROM sales s WHERE s.customer_id = c.id AND s.is_cancelled = 0) AS total_purchases_minor,
-        (SELECT MAX(s.created_at) FROM sales s WHERE s.customer_id = c.id AND s.is_cancelled = 0) AS last_sale_at
+        (SELECT MAX(s.created_at) FROM sales s WHERE s.customer_id = c.id AND s.is_cancelled = 0) AS last_sale_at,
+        (CASE WHEN c.outstanding_balance_minor > 0 AND ${overdueSalesSql("c.id")} THEN 1 ELSE 0 END) AS has_overdue_sale
        FROM customers c ${where} ORDER BY ${order} LIMIT ? OFFSET ?`,
     )
-    .all(...params, pageSize, (page - 1) * pageSize);
-  return { rows, total };
+    .all(...params, pageSize, (page - 1) * pageSize) as Record<string, unknown>[];
+  // Statut affiché = statut stocké, promotions 'due' → 'overdue' si une
+  // vente ouverte a dépassé son échéance (E-30).
+  return {
+    rows: rows.map((row) => {
+      const { has_overdue_sale, ...rest } = row;
+      return {
+        ...rest,
+        debt_status: liveDebtStatus(row["debt_status"], has_overdue_sale === 1),
+      };
+    }),
+    total,
+  };
 }
 
 export function createCustomer(args: {
@@ -284,7 +300,7 @@ export function updateCustomer(args: {
     db.prepare(
       // Plafond modifié → statut recalculé (même règle qu'à la création :
       // 'none' si solde ≤ 0, 'over_limit' si plafond > 0 dépassé, sinon 'due').
-      `UPDATE customers SET first_name = ?, last_name = ?, search_name = ?, search_norm = ?, phone = ?, address = ?, credit_limit_minor = ?, credit_allowed = ?, settlement_day = ?, notes = ?, debt_status = CASE WHEN outstanding_balance_minor <= 0 THEN 'none' WHEN ? > 0 AND outstanding_balance_minor > ? THEN 'over_limit' ELSE 'due' END, is_over_limit = CASE WHEN ? > 0 AND outstanding_balance_minor > ? THEN 1 ELSE 0 END, updated_at = ? WHERE id = ?`,
+      `UPDATE customers SET first_name = ?, last_name = ?, search_name = ?, search_norm = ?, phone = ?, address = ?, credit_limit_minor = ?, credit_allowed = ?, settlement_day = ?, notes = ?, debt_status = ${debtStatusSql("outstanding_balance_minor", "id", "?")}, is_over_limit = CASE WHEN ? > 0 AND outstanding_balance_minor > ? THEN 1 ELSE 0 END, updated_at = ? WHERE id = ?`,
     ).run(
       args.firstName.trim(),
       args.lastName.trim(),
@@ -636,23 +652,6 @@ export function recordCustomerPaymentAtomic(args: {
       args.staffUserId ?? null,
       args.now,
     );
-    if (args.customerId != null) {
-      // Soustraction exacte (un solde négatif = avoir explicite, jamais masqué)
-      // + recalcul du statut (même règle que la création de vente).
-      db.prepare(
-        `UPDATE customers SET outstanding_balance_minor = outstanding_balance_minor - ?,
-          debt_status = CASE WHEN outstanding_balance_minor - ? <= 0 THEN 'none' WHEN credit_limit_minor > 0 AND outstanding_balance_minor - ? > credit_limit_minor THEN 'over_limit' ELSE 'due' END,
-          is_over_limit = CASE WHEN credit_limit_minor > 0 AND outstanding_balance_minor - ? > credit_limit_minor THEN 1 ELSE 0 END,
-          updated_at = ? WHERE id = ?`,
-      ).run(
-        args.amountMinor,
-        args.amountMinor,
-        args.amountMinor,
-        args.amountMinor,
-        args.now,
-        args.customerId,
-      );
-    }
     if (args.saleId != null) {
       db.prepare(
         `UPDATE sales SET amount_paid_minor = amount_paid_minor + ?, remaining_balance_minor = total_minor - (amount_paid_minor + ?), payment_status = CASE WHEN total_minor - (amount_paid_minor + ?) = 0 THEN 'paid' WHEN (amount_paid_minor + ?) = 0 THEN 'unpaid' ELSE 'partial' END, updated_at = ? WHERE id = ?`,
@@ -663,6 +662,27 @@ export function recordCustomerPaymentAtomic(args: {
         args.amountMinor,
         args.now,
         args.saleId,
+      );
+    }
+    // E-30 : le statut du client est recalculé APRÈS le mouvement de la
+    // vente (le statut « en retard » dépend du reste dû de la vente : il
+    // doit être lu dans l'état FINAL de la transaction, sinon un paiement
+    // qui solde une vente échue laisserait le client « en retard »).
+    if (args.customerId != null) {
+      // Soustraction exacte (un solde négatif = avoir explicite, jamais masqué)
+      // + recalcul du statut (même règle que la création de vente).
+      db.prepare(
+        `UPDATE customers SET outstanding_balance_minor = outstanding_balance_minor - ?,
+          debt_status = ${debtStatusSql("outstanding_balance_minor - ?", "id")},
+          is_over_limit = CASE WHEN credit_limit_minor > 0 AND outstanding_balance_minor - ? > credit_limit_minor THEN 1 ELSE 0 END,
+          updated_at = ? WHERE id = ?`,
+      ).run(
+        args.amountMinor,
+        args.amountMinor,
+        args.amountMinor,
+        args.amountMinor,
+        args.now,
+        args.customerId,
       );
     }
     const inserted = db

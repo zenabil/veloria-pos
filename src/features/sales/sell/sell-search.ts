@@ -5,7 +5,7 @@
 import type { RefObject } from "react";
 import { playSound } from "@shared/sound/sound.ts";
 import { parseDzdInputStrict } from "@domain/money/money.ts";
-import { MAX_QUANTITY, roundQuantity } from "@domain/common/quantity.ts";
+import { MAX_QUANTITY, formatQuantityFr, roundQuantity } from "@domain/common/quantity.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import { api } from "@shared/types/ipc-client.ts";
@@ -80,9 +80,9 @@ export function parseQtyPrefix(trimmed: string): QtyPrefix {
   return { quantity: qty, code, explicit: true };
 }
 
-function fmtQty(n: number): string {
-  return String(Math.round(n * 1000) / 1000);
-}
+// W7 (D-03) : le formatage de quantité passe par la source unique
+// (`formatQuantityFr`) — l'ancienne copie locale affichait « 1.5 »
+// (point décimal) au lieu de « 1,5 ».
 
 /**
  * Garde stock précoce (UX) : le main retranche de toute façon (survente
@@ -98,7 +98,7 @@ export function stockGuardMessage(
     return `Rupture de stock : « ${productName} » indisponible (ajouté quand même — la vente sera refusée si la survente est interdite).`;
   }
   if (desiredQty > stockQty) {
-    return `Stock insuffisant : « ${productName} » — demandé ${fmtQty(desiredQty)}, disponible ${fmtQty(stockQty)}.`;
+    return `Stock insuffisant : « ${productName} » — demandé ${formatQuantityFr(desiredQty)}, disponible ${formatQuantityFr(stockQty)}.`;
   }
   return null;
 }

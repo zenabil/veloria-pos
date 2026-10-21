@@ -6,6 +6,7 @@ import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
 import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./idempotency";
 import { assertOrderClause } from "./sql-guard";
+import { debtStatusSql } from "./debt-status";
 import {
   consumptionsOfSale,
   consumeLayers,
@@ -372,14 +373,6 @@ export function createReturnAtomic(args: {
       const outstanding = Number(cust?.outstanding_balance_minor ?? 0);
       const applied = Math.min(args.creditMinor, Math.max(0, outstanding));
       creditExcessMinor = args.creditMinor - applied;
-      if (applied > 0) {
-        db.prepare(
-          `UPDATE customers SET outstanding_balance_minor = outstanding_balance_minor - ?,
-            debt_status = CASE WHEN outstanding_balance_minor - ? <= 0 THEN 'none' WHEN credit_limit_minor > 0 AND outstanding_balance_minor - ? > credit_limit_minor THEN 'over_limit' ELSE 'due' END,
-            is_over_limit = CASE WHEN credit_limit_minor > 0 AND outstanding_balance_minor - ? > credit_limit_minor THEN 1 ELSE 0 END,
-            updated_at = ? WHERE id = ?`,
-        ).run(applied, applied, applied, applied, args.now, sale.customer_id);
-      }
       // Le sien de vente porte le reste à payer APRÈS avoir : même source de
       // vérité que le compte client (sinon deux chiffres pour un même client).
       // L'avoir vaut encaissement pour le sien : `amount_paid_minor` augmente,
@@ -395,6 +388,17 @@ export function createReturnAtomic(args: {
         db.prepare(
           `UPDATE sales SET amount_paid_minor = ?, remaining_balance_minor = ?, payment_status = ?, updated_at = ? WHERE id = ?`,
         ).run(newPaid, newRest, newStatus, args.now, args.originalSaleId);
+      }
+      if (applied > 0) {
+        // E-30 : le statut du client est recalculé APRÈS le mouvement de la
+        // vente (le statut « en retard » dépend du reste dû de la vente :
+        // il doit être lu dans l'état FINAL de la transaction).
+        db.prepare(
+          `UPDATE customers SET outstanding_balance_minor = outstanding_balance_minor - ?,
+            debt_status = ${debtStatusSql("outstanding_balance_minor - ?", "id")},
+            is_over_limit = CASE WHEN credit_limit_minor > 0 AND outstanding_balance_minor - ? > credit_limit_minor THEN 1 ELSE 0 END,
+            updated_at = ? WHERE id = ?`,
+        ).run(applied, applied, applied, applied, args.now, sale.customer_id);
       }
     }
     db.prepare(

@@ -6,7 +6,7 @@ import { returnNumber, returnStatusLabel, returnStatusTone } from "@features/ret
 import { debtStatusLabel } from "@features/debts/types.ts";
 import { KIND_LABELS, kindTone } from "@features/history/types.ts";
 import { Badge, Button } from "@shared/ui/primitives.tsx";
-import { asMinor } from "../client-matching.ts";
+import { toMinorSafe } from "@domain/money/money.ts";
 import type { EnrichedCustomer } from "../types.ts";
 import {
   historyKindOf,
@@ -85,7 +85,7 @@ export function ClientDrawerDebts({
                       )}
                     </span>
                     <span className="font-bold tabular-nums">
-                      {formatDzd(asMinor(r.total_minor))}
+                      {formatDzd(toMinorSafe(r.total_minor))}
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
@@ -156,7 +156,7 @@ export function ClientDrawerDebts({
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-mono text-xs text-slate-400">{d.ref}</span>
                         <span className="font-bold tabular-nums text-amber-300">
-                          {formatDzd(asMinor(d.remaining_minor))}
+                          {formatDzd(toMinorSafe(d.remaining_minor))}
                         </span>
                       </div>
                       <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
@@ -167,8 +167,8 @@ export function ClientDrawerDebts({
                       </div>
                       <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
                         <span>
-                          Facturé {formatDzd(asMinor(d.original_minor))} · Réglé{" "}
-                          {formatDzd(asMinor(d.paid_minor))}
+                          Facturé {formatDzd(toMinorSafe(d.original_minor))} · Réglé{" "}
+                          {formatDzd(toMinorSafe(d.paid_minor))}
                         </span>
                         <span>Échéance : {d.due_date ? d.due_date.slice(0, 10) : "—"}</span>
                       </div>
@@ -218,7 +218,7 @@ export function ClientDrawerDebts({
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-semibold">{known ? KIND_LABELS[known] : h.kind}</span>
                       <span className="font-bold tabular-nums">
-                        {h.amount_minor == null ? "—" : formatDzd(asMinor(h.amount_minor))}
+                        {h.amount_minor == null ? "—" : formatDzd(toMinorSafe(h.amount_minor))}
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-2 text-xs text-slate-500">

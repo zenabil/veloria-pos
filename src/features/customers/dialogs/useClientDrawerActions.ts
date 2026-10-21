@@ -8,7 +8,8 @@ import { formatCustomerCode, formatDateTimeFr } from "@shared/formatters/format.
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { frError } from "@shared/errors/fr-map.ts";
 import { newOperationId } from "@domain/common/ids.ts";
-import { asMinor, asCreatedAt } from "../client-matching.ts";
+import { asCreatedAt } from "../client-matching.ts";
+import { multiplyMinorByQuantitySafe, toMinorSafe } from "@domain/money/money.ts";
 import { fullName, type EnrichedCustomer } from "../types.ts";
 import type { PaymentTicketInput } from "@shared/documents/payment-preview.tsx";
 import type { Notify } from "@shared/ui/primitives.tsx";
@@ -120,10 +121,10 @@ export function useClientDrawerActions({
         partyLabel: `${clientName} — ${formatCustomerCode(customer.id)}`,
         reference: typeof p["reference"] === "string" ? p["reference"] : "",
         date: dateRaw !== "" ? dateRaw : formatDateTimeFr(asCreatedAt(p)),
-        amountMinor: asMinor(p["amount_minor"]),
+        amountMinor: toMinorSafe(p["amount_minor"]),
         method,
-        prevBalanceMinor: asMinor(r.prevBalanceMinor),
-        newBalanceMinor: asMinor(r.newBalanceMinor),
+        prevBalanceMinor: toMinorSafe(r.prevBalanceMinor),
+        newBalanceMinor: toMinorSafe(r.newBalanceMinor),
         notes: typeof p["notes"] === "string" ? p["notes"] : "",
       });
     } catch (e) {
@@ -175,7 +176,7 @@ export function useClientDrawerActions({
           qty,
           unit: "",
           unitPriceMinor: unit,
-          lineTotalMinor: Math.round(unit * qty),
+          lineTotalMinor: multiplyMinorByQuantitySafe(unit, qty),
           ref: pid != null && pid > 0 ? String(pid).padStart(5, "0") : "—",
         });
       }
@@ -183,8 +184,8 @@ export function useClientDrawerActions({
         notify("Aucune ligne à imprimer.", "err");
         return;
       }
-      const total = asMinor(h["total_return_value_minor"]);
-      const refund = asMinor(h["amount_refunded_minor"] ?? h["amount_recovered_minor"] ?? 0);
+      const total = toMinorSafe(h["total_return_value_minor"]);
+      const refund = toMinorSafe(h["amount_refunded_minor"] ?? h["amount_recovered_minor"] ?? 0);
       const payload: Record<string, unknown> = {
         company: co?.["company_name"] ?? "Veloria",
         companyPhone: co?.["phone"] ?? "",

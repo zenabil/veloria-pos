@@ -9,7 +9,8 @@ import { Drawer } from "@shared/ui/primitives.tsx";
 import { InvoicePreviewModal } from "@shared/documents/invoice-preview.tsx";
 import { PaymentTicketModal } from "@shared/documents/payment-preview.tsx";
 import { fullName, isArchived } from "../types.ts";
-import { asMinor, normFr } from "../client-matching.ts";
+import { normFr } from "../client-matching.ts";
+import { toMinorSafe } from "@domain/money/money.ts";
 import { useClientDrawerData } from "./useClientDrawerData.ts";
 import { useClientDrawerActions } from "./useClientDrawerActions.ts";
 import {
@@ -105,7 +106,7 @@ export function ClientDetailsDrawer({
   const salesTotal = activeSales.reduce((a, s) => a + s.total_minor, 0);
   const salesRest = activeSales.reduce((a, s) => a + s.remaining_balance_minor, 0);
   const payTotal = payments.reduce((a, p) => a + p.amount_minor, 0);
-  const debtsRest = debtsRows.reduce((a, d) => a + asMinor(d.remaining_minor), 0);
+  const debtsRest = debtsRows.reduce((a, d) => a + toMinorSafe(d.remaining_minor), 0);
 
   return (
     <>

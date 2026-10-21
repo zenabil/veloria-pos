@@ -4,7 +4,7 @@
 // Erreurs = DomainError FR (ZAKAT_ERROR), jamais de NaN.
 
 import { DomainError } from "../common/errors.ts";
-import { assertSafeTotal } from "../money/money.ts";
+import { assertSafeTotal, percentOfMinor } from "../money/money.ts";
 
 export interface ZakatForm {
   cashMinor: number;
@@ -15,6 +15,14 @@ export interface ZakatForm {
   liabilitiesMinor: number;
   nisabMinor: number;
   ratePercent: number;
+}
+
+function percentOfMinorGuarded(amountMinor: number, percent: number): number {
+  try {
+    return percentOfMinor(amountMinor, percent);
+  } catch {
+    throw new DomainError("ZAKAT_ERROR", "Zakat invalide : dépassement de capacité.");
+  }
 }
 
 export function computeZakat(f: ZakatForm): { net: number; zakat: number; above: boolean } {
@@ -56,7 +64,7 @@ export function computeZakat(f: ZakatForm): { net: number; zakat: number; above:
   if (above && net !== 0 && Math.abs(f.ratePercent) > 100_000_000_000 / net) {
     throw new DomainError("ZAKAT_ERROR", "Zakat invalide : dépassement de capacité.");
   }
-  const zakat = above ? Math.round((net * f.ratePercent) / 100) : 0;
+  const zakat = above ? percentOfMinorGuarded(net, f.ratePercent) : 0;
   try {
     assertSafeTotal(zakat, "Zakat invalide : montant");
   } catch {

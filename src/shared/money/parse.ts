@@ -7,6 +7,15 @@ import { parseDzdInputStrict } from "@domain/money/money.ts";
 
 export function strictOrNeg(raw: string, label = "Montant"): number {
   if (raw.trim() === "") return 0;
+  return strictOrNum(raw, label);
+}
+
+/**
+ * W7 (D-07) — SOURCE UNIQUE du parse strict « rendu » (copie locale
+ * supprimée dans `features/stock/dialogs/IntakeDialog.tsx`).
+ * Invalide → -1 sentinelle (rejetée par tous les gardes `>= 0`).
+ */
+export function strictOrNum(raw: string, label = "Montant"): number {
   try {
     return parseDzdInputStrict(raw, label);
   } catch {
