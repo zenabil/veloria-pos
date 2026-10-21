@@ -6,7 +6,7 @@
 // Interface en français uniquement.
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { Search, X } from "lucide-react";
+import { Search, TriangleAlert, X } from "lucide-react";
 import { useCallback, useEffect, useId, useRef } from "react";
 import type {
   ButtonHTMLAttributes,
@@ -535,6 +535,42 @@ export function EmptyState({
         {title}
       </div>
       {hint ? <div className="max-w-sm text-sm leading-relaxed text-slate-500">{hint}</div> : null}
+    </div>
+  );
+}
+
+/**
+ * A-06 : état d'erreur PERSISTANT (le toast dure 4,5 s et n'en garde que 3).
+ * Une erreur de chargement doit rester lisible ET être distinguable de
+ * « aucune donnée » (`EmptyState`) : sans cela, un tableau vide après un
+ * échec laisse croire à un registre vide.
+ */
+export function ErrorState({
+  message,
+  onRetry,
+  retryLabel = "Réessayer",
+}: {
+  message: string;
+  onRetry?: () => void;
+  retryLabel?: string;
+}): ReactNode {
+  return (
+    <div
+      role="alert"
+      className="flex flex-col items-center justify-center gap-2.5 px-6 py-14 text-center"
+    >
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-rose-400/30 bg-rose-400/10 text-rose-300">
+        <TriangleAlert size={22} aria-hidden="true" />
+      </div>
+      <div className="text-[13px] font-bold uppercase tracking-[0.14em] text-rose-200">
+        Échec du chargement
+      </div>
+      <div className="max-w-sm text-sm leading-relaxed text-slate-400">{message}</div>
+      {onRetry ? (
+        <Button variant="secondary" onClick={onRetry}>
+          {retryLabel}
+        </Button>
+      ) : null}
     </div>
   );
 }

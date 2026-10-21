@@ -14,6 +14,7 @@ import { formatBytes } from "@shared/formatters/files.ts";
 import { Field, Select, TextInput } from "@shared/ui/primitives.tsx";
 import { Button, Modal } from "@shared/ui/primitives.tsx";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
+import { useCompany } from "@shared/company/use-company.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { saveAppSettings, useAppSettings } from "@shared/settings/use-app-settings.ts";
 import { confirmDeletesEnabled, setConfirmDeletesEnabled } from "@shared/ui/confirm.ts";
@@ -1180,6 +1181,8 @@ export function DisplaySection(): React.JSX.Element {
 export function AboutSection({ notify }: { notify: Notify }): React.JSX.Element {
   const [diag, setDiag] = useState<Record<string, string | number> | null>(null);
   const { busy, run } = useBusyFlag();
+  // A-28 : la fiche entreprise est la source des coordonnées affichées.
+  const { company } = useCompany();
 
   useEffect(() => {
     api
@@ -1237,8 +1240,17 @@ export function AboutSection({ notify }: { notify: Notify }): React.JSX.Element 
           value="SQLite — fichier local unique, sans serveur ni internet"
         />
         <InfoRow label="Développeur" value="zenagui bilal" />
-        <InfoRow label="Téléphone" value="+213770204047" />
-        <InfoRow label="E-mail" value="zenaguibilal2@gmail.com" />
+        <InfoRow
+          label="Téléphone"
+          // A-28 : plus de numéro FIGÉ dans l'application — c'est la fiche
+          // entreprise (réglable dans « Entreprise ») qui fait foi. Un numéro
+          // codé en dur ne peut pas être corrigé par le commerçant.
+          value={company.phone.trim() === "" ? "Non renseigné" : company.phone}
+        />
+        <InfoRow
+          label="E-mail"
+          value={company.email.trim() === "" ? "Non renseigné" : company.email}
+        />
         <InfoRow
           label="Support"
           value="Sauvegarde .vposdb + journaux (ci-dessous) avant tout signalement"

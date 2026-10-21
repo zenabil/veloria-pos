@@ -17,6 +17,7 @@ import { useStaff } from "@features/staff/use-staff.ts";
 import { BarChart } from "@shared/charts/BarChart.tsx";
 import { MiniTable, ReportSectionCard } from "./widgets.tsx";
 import {
+  ErrorState,
   Button,
   Card,
   EmptyState,
@@ -63,6 +64,9 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
   const [summary, setSummary] = useState<ReportSummary | null>(null);
   const [stockValue, setStockValue] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  // A-06 : erreur de chargement PERSISTANTE (le toast dure 4,5 s).
+  // Distingue « échec du chargement » de « aucune donnée ».
+  const [loadError, setLoadError] = useState("");
   const [exportOpen, setExportOpen] = useState(false);
   const [preview, setPreview] = useState<{
     htmlA4: string;
@@ -116,6 +120,7 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
     if (f === "" || t === "") return;
     const seq = nextSeq();
     setLoading(true);
+    setLoadError("");
     try {
       const [s, st] = await Promise.all([
         api.reportSummary({
@@ -137,7 +142,9 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
       }
     } catch (e) {
       if (!isSeqCurrent(seq)) return;
-      notify(frError(e, "Chargement impossible."), "err");
+      const loadErrorMessage = frError(e, "Chargement impossible.");
+      setLoadError(loadErrorMessage);
+      notify(loadErrorMessage, "err");
     } finally {
       if (isSeqCurrent(seq)) setLoading(false);
     }
@@ -595,7 +602,9 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
         </Button>
       </Card>
 
-      {loading && !summary ? (
+      {loadError ? (
+        <ErrorState message={loadError} />
+      ) : loading && !summary ? (
         <p className="p-8 text-center text-sm text-slate-500" role="status">
           Chargement…
         </p>

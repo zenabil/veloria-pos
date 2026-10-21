@@ -14,6 +14,7 @@ import {
   Button,
   Card,
   EmptyState,
+  ErrorState,
   Kbd,
   Kpi,
   Modal,
@@ -86,6 +87,9 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
   const [to, setTo] = useState(todayUtcDate());
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(false);
+  // A-06 : erreur de chargement PERSISTANTE (le toast dure 4,5 s).
+  // Distingue « échec du chargement » de « aucune donnée ».
+  const [loadError, setLoadError] = useState("");
   const [preview, setPreview] = useState<{ htmlA4: string } | null>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
   const fromRef = useRef<HTMLInputElement>(null);
@@ -99,13 +103,16 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
     // périmée d'une plage précédente ne doit pas écraser la plus récente.
     const seq = nextSeq();
     setLoading(true);
+    setLoadError("");
     try {
       const s = (await api.dashboardSummary({ from: f, to: t })) as DashboardSummary;
       if (!isSeqCurrent(seq)) return;
       setSummary(s);
     } catch (e) {
       if (!isSeqCurrent(seq)) return;
-      notify(frError(e, "Chargement impossible."), "err");
+      const loadErrorMessage = frError(e, "Chargement impossible.");
+      setLoadError(loadErrorMessage);
+      notify(loadErrorMessage, "err");
     } finally {
       if (isSeqCurrent(seq)) setLoading(false);
     }
@@ -435,7 +442,9 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
 
       {!summary || !k ? (
         // P12: chargement initial ≠ vide (pas de flash « Aucune donnée »).
-        loading ? (
+        loadError ? (
+          <ErrorState message={loadError} />
+        ) : loading ? (
           <EmptyState title="Chargement…" hint="Calcul des indicateurs en cours." />
         ) : (
           <EmptyState

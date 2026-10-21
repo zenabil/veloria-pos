@@ -12,6 +12,7 @@ import {
   Button,
   Card,
   EmptyState,
+  ErrorState,
   Kpi,
   Modal,
   PageHeader,
@@ -36,6 +37,9 @@ export function ZakatScreen({ notify }: { notify: Notify }): React.JSX.Element {
   const [hijriYear, setHijriYear] = useState("1448");
   const [sources, setSources] = useState<ZakatSources | null>(null);
   const [loading, setLoading] = useState(true);
+  // A-06 : erreur de chargement PERSISTANTE (le toast dure 4,5 s).
+  // Distingue « échec du chargement » de « aucune donnée ».
+  const [loadError, setLoadError] = useState("");
   const [calcOpen, setCalcOpen] = useState(false);
   const [history, setHistory] = useState<ZakatCalculation[]>([]);
   const [total, setTotal] = useState(0);
@@ -49,11 +53,14 @@ export function ZakatScreen({ notify }: { notify: Notify }): React.JSX.Element {
 
   async function load(): Promise<void> {
     setLoading(true);
+    setLoadError("");
     try {
       const s = (await api.zakatSources()) as ZakatSources;
       setSources(s);
     } catch (e) {
-      notify(frError(e, "Chargement impossible."), "err");
+      const loadErrorMessage = frError(e, "Chargement impossible.");
+      setLoadError(loadErrorMessage);
+      notify(loadErrorMessage, "err");
     } finally {
       setLoading(false);
     }
@@ -306,7 +313,9 @@ export function ZakatScreen({ notify }: { notify: Notify }): React.JSX.Element {
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-auto">
-          {loading ? (
+          {loadError ? (
+            <ErrorState message={loadError} />
+          ) : loading ? (
             <p className="p-8 text-center text-sm text-slate-500" role="status">
               Chargement…
             </p>

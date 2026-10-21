@@ -21,6 +21,7 @@ import { formatDzd } from "@domain/money/money.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { runBulk } from "@shared/ui/bulk-actions.ts";
 import {
+  ErrorState,
   Badge,
   Button,
   Card,
@@ -77,6 +78,9 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
   const [rows, setRows] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  // A-06 : erreur de chargement PERSISTANTE (le toast dure 4,5 s).
+  // Distingue « échec du chargement » de « aucune donnée ».
+  const [loadError, setLoadError] = useState("");
   const [stats, setStats] = useState<Stats>({ total: 0, available: 0, low: 0, out: 0 });
   const [categories, setCategories] = useState<Category[]>([]);
   const [selection, setSelection] = useState<Set<number>>(new Set());
@@ -143,6 +147,7 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
   ): Promise<void> {
     const seq = (loadSeq.current += 1);
     setLoading(true);
+    setLoadError("");
     try {
       const res = (await api.productSearch({
         query: q.trim(),
@@ -157,7 +162,9 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
       setTotal(res.total);
     } catch (err) {
       if (seq !== loadSeq.current) return;
-      notify(frError(err, "Chargement impossible."), "err");
+      const loadErrorMessage = frError(err, "Chargement impossible.");
+      setLoadError(loadErrorMessage);
+      notify(loadErrorMessage, "err");
     } finally {
       if (seq === loadSeq.current) setLoading(false);
     }
@@ -525,7 +532,9 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
       {/* Table produits */}
       <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="min-h-0 flex-1 overflow-auto">
-          {loading && rows.length === 0 ? (
+          {loadError ? (
+            <ErrorState message={loadError} />
+          ) : loading && rows.length === 0 ? (
             <p className="p-8 text-center text-sm text-slate-500" role="status">
               Chargement…
             </p>

@@ -15,6 +15,7 @@ import { newOperationId } from "@domain/common/ids.ts";
 import { runBulk } from "@shared/ui/bulk-actions.ts";
 import { formatDateTimeFr } from "@shared/formatters/format.ts";
 import {
+  ErrorState,
   Badge,
   Button,
   Card,
@@ -75,6 +76,9 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
   const [rows, setRows] = useState<EnrichedCustomer[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  // A-06 : erreur de chargement PERSISTANTE (le toast dure 4,5 s).
+  // Distingue « échec du chargement » de « aucune donnée ».
+  const [loadError, setLoadError] = useState("");
   const [stats, setStats] = useState<Stats>({ total: 0, credit: 0, debt: 0, recent: 0 });
   const [selection, setSelection] = useState<Set<number>>(new Set());
   // A-15 : état de lot (concurrence bornée + progression affichée).
@@ -147,6 +151,7 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
   ): Promise<void> {
     const seq = (loadSeq.current += 1);
     setLoading(true);
+    setLoadError("");
     try {
       // UNE requête : recherche + filtre dette + TRI SERVEUR + agrégats
       // (factures, achats, dernière vente) calculés côté main — contrat validé,
@@ -177,7 +182,9 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
       setTotal(res.total);
     } catch (err) {
       if (seq !== loadSeq.current) return;
-      notify(frError(err, "Chargement impossible."), "err");
+      const loadErrorMessage = frError(err, "Chargement impossible.");
+      setLoadError(loadErrorMessage);
+      notify(loadErrorMessage, "err");
     } finally {
       if (seq === loadSeq.current) setLoading(false);
     }
@@ -560,7 +567,9 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
       {/* Table clients */}
       <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="min-h-0 flex-1 overflow-auto">
-          {loading && rows.length === 0 ? (
+          {loadError ? (
+            <ErrorState message={loadError} />
+          ) : loading && rows.length === 0 ? (
             <p className="p-8 text-center text-sm text-slate-500" role="status">
               Chargement…
             </p>

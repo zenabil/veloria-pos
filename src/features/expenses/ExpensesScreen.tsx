@@ -10,6 +10,7 @@ import { downloadCsv } from "@shared/export/csv.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { runBulk } from "@shared/ui/bulk-actions.ts";
 import {
+  ErrorState,
   Badge,
   Button,
   Card,
@@ -65,6 +66,9 @@ export function ExpensesScreen({ notify }: { notify: Notify }): React.JSX.Elemen
   const [rows, setRows] = useState<Expense[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  // A-06 : erreur de chargement PERSISTANTE (le toast dure 4,5 s).
+  // Distingue « échec du chargement » de « aucune donnée ».
+  const [loadError, setLoadError] = useState("");
   const [stats, setStats] = useState<Stats>({
     totalMinor: 0,
     monthlyMinor: 0,
@@ -123,6 +127,7 @@ export function ExpensesScreen({ notify }: { notify: Notify }): React.JSX.Elemen
     // une page périmée (les IPC n'ont pas d'annulation : on ignore par séquence).
     const seq = nextSeq();
     setLoading(true);
+    setLoadError("");
     try {
       const res = (await api.expensesList({
         query: q.trim(),
@@ -140,7 +145,9 @@ export function ExpensesScreen({ notify }: { notify: Notify }): React.JSX.Elemen
       setTotal(res.total);
     } catch (err) {
       if (!isSeqCurrent(seq)) return;
-      notify(frError(err, "Chargement impossible."), "err");
+      const loadErrorMessage = frError(err, "Chargement impossible.");
+      setLoadError(loadErrorMessage);
+      notify(loadErrorMessage, "err");
     } finally {
       if (isSeqCurrent(seq)) setLoading(false);
     }
@@ -576,7 +583,9 @@ export function ExpensesScreen({ notify }: { notify: Notify }): React.JSX.Elemen
       {/* Table dépenses */}
       <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="min-h-0 flex-1 overflow-auto">
-          {loading && rows.length === 0 ? (
+          {loadError ? (
+            <ErrorState message={loadError} />
+          ) : loading && rows.length === 0 ? (
             <p className="p-8 text-center text-sm text-slate-500" role="status">
               Chargement…
             </p>

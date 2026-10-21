@@ -10,6 +10,7 @@ import { runBulk } from "@shared/ui/bulk-actions.ts";
 import { formatDzd } from "@domain/money/money.ts";
 import { downloadCsv } from "@shared/export/csv.ts";
 import {
+  ErrorState,
   Badge,
   Button,
   Card,
@@ -66,6 +67,9 @@ export function ReturnsScreen({ notify }: { notify: Notify }): React.JSX.Element
   const [rows, setRows] = useState<ReturnRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  // A-06 : erreur de chargement PERSISTANTE (le toast dure 4,5 s).
+  // Distingue « échec du chargement » de « aucune donnée ».
+  const [loadError, setLoadError] = useState("");
   const [stats, setStats] = useState<Stats>({
     totalReturns: 0,
     customerReturns: 0,
@@ -128,6 +132,7 @@ export function ReturnsScreen({ notify }: { notify: Notify }): React.JSX.Element
   ): Promise<void> {
     const seq = nextSeq();
     setLoading(true);
+    setLoadError("");
     try {
       const res = (await api.returnsList({
         query: q.trim(),
@@ -144,7 +149,9 @@ export function ReturnsScreen({ notify }: { notify: Notify }): React.JSX.Element
       setTotal(res.total);
     } catch (err) {
       if (!isSeqCurrent(seq)) return;
-      notify(frError(err, "Chargement impossible."), "err");
+      const loadErrorMessage = frError(err, "Chargement impossible.");
+      setLoadError(loadErrorMessage);
+      notify(loadErrorMessage, "err");
     } finally {
       if (isSeqCurrent(seq)) setLoading(false);
     }
@@ -557,7 +564,9 @@ export function ReturnsScreen({ notify }: { notify: Notify }): React.JSX.Element
       {/* Table retours */}
       <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="min-h-0 flex-1 overflow-auto">
-          {loading && rows.length === 0 ? (
+          {loadError ? (
+            <ErrorState message={loadError} />
+          ) : loading && rows.length === 0 ? (
             <p className="p-8 text-center text-sm text-slate-500" role="status">
               Chargement…
             </p>
