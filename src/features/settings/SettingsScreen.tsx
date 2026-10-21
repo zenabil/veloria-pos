@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Card, PageHeader, cn } from "@shared/ui/primitives.tsx";
 import { SETTINGS_SECTIONS, type SettingsSectionId } from "./types.ts";
 import {
+  AnnouncementSection,
   CompanySection,
   CustomersSection,
   ProductsSection,
@@ -72,6 +73,8 @@ export function SettingsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
               <SoundSection notify={notify} />
               <CustomersSection notify={notify} goSales={() => setSection("commerce")} />
               <SuppliersSection notify={notify} />
+              {/* Q1 : saisie de l'annonce magasin (affichée dans l'APK). */}
+              <AnnouncementSection notify={notify} />
             </>
           ) : null}
           {section === "catalogue" ? (

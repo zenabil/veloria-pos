@@ -6,6 +6,7 @@ import { Download, Eye, HandCoins, Plus, SlidersHorizontal, Undo2, X } from "luc
 import { api } from "@shared/types/ipc-client.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { newOperationId } from "@domain/common/ids.ts";
+import { runBulk } from "@shared/ui/bulk-actions.ts";
 import { formatDzd } from "@domain/money/money.ts";
 import { downloadCsv } from "@shared/export/csv.ts";
 import {
@@ -73,6 +74,8 @@ export function ReturnsScreen({ notify }: { notify: Notify }): React.JSX.Element
   });
   const [selection, setSelection] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  // A-15 : progression du lot (concurrence bornée).
+  const [bulkLabel, setBulkLabel] = useState("");
   // Confirmation non bloquante (modale applicative).
   const confirmAsync = useConfirm();
   const [drawer, setDrawer] = useState<{ kind: ReturnKind; data: ReturnDetailData } | null>(null);
@@ -302,27 +305,37 @@ export function ReturnsScreen({ notify }: { notify: Notify }): React.JSX.Element
     )
       return;
     setBulkBusy(true);
-    let done = 0;
+    // A-15 : lot à concurrence bornée + progression.
     const failed: string[] = [];
-    for (const r of rows.filter((x) => selection.has(rowKey(x)))) {
-      try {
-        await api.returnCancel({ kind: r.kind, id: r.entity_id, operationId: newOperationId() });
-        done += 1;
-      } catch (e) {
+    const targets = rows.filter((x) => selection.has(rowKey(x)));
+    const res = await runBulk(
+      targets,
+      async (r) => {
+        await api.returnCancel({
+          kind: r.kind,
+          id: r.entity_id,
+          operationId: newOperationId(),
+        });
+      },
+      {
+        onProgress: (processed, total) => setBulkLabel(`Annulation ${processed}/${total}…`),
         // Règle 6 : le garde-fou main explique mieux dans le tiroir, mais la
         // boucle ne doit jamais avaler les échecs sans trace visible.
-        failed.push(`${returnNumber(r.kind, r.number, r.entity_id)} — ${frError(e, "échec")}`);
-      }
-    }
+        onError: (r, e) => {
+          failed.push(`${returnNumber(r.kind, r.number, r.entity_id)} — ${frError(e, "échec")}`);
+        },
+      },
+    );
     if (failed.length === 0) {
-      notify(`${done}/${selection.size} retour(s) annulé(s).`, "ok");
+      notify(`${res.done}/${selection.size} retour(s) annulé(s).`, "ok");
     } else {
       notify(
-        `${done}/${selection.size} annulé(s) · échec(s) : ${failed.slice(0, 3).join(" ; ")}`,
+        `${res.done}/${selection.size} annulé(s) · échec(s) : ${failed.slice(0, 3).join(" ; ")}`,
         "err",
       );
     }
     setBulkBusy(false);
+    setBulkLabel("");
     refresh();
   }
 
@@ -529,7 +542,7 @@ export function ReturnsScreen({ notify }: { notify: Notify }): React.JSX.Element
           <strong>{selection.size} sélectionné(s)</strong>
           <Button variant="secondary" onClick={() => void cancelSelection()} disabled={bulkBusy}>
             <Undo2 size={15} aria-hidden="true" />{" "}
-            {bulkBusy ? "Annulation…" : "Annuler la sélection"}
+            {bulkBusy ? bulkLabel || "Annulation…" : "Annuler la sélection"}
           </Button>
           <button
             type="button"

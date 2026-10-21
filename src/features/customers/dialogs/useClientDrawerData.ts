@@ -57,6 +57,14 @@ export function useClientDrawerData({
   const [historyRows, setHistoryRows] = useState<ClientHistoryItem[]>([]);
   const [historyState, setHistoryState] = useState<LazyState>("idle");
   const seq = useRef(0);
+  // A-14 (P2) : état des chargements paresseux en REF (source de vérité
+  // synchrone). Le `useState` était lu dans la closure de l'effet
+  // `useEffect(..., [tab])` ⇒ sa valeur pouvait être périmée ⇒ chargement
+  // sauté (état « ready » périmé) ou dupliqué (état « idle » périmé) au
+  // changement d'onglet rapide. Le ref est mis à jour à chaque écriture.
+  const returnsStateRef = useRef<LazyState>("idle");
+  const debtsStateRef = useRef<LazyState>("idle");
+  const historyStateRef = useRef<LazyState>("idle");
 
   // Relevé : rechargé à l'ouverture et au changement de fiche (le tiroir
   // reste monté quand on navigue d'un client à l'autre depuis la table).
@@ -107,7 +115,8 @@ export function useClientDrawerData({
   }, [customerId]);
 
   async function loadReturns(): Promise<void> {
-    if (returnsState === "loading" || returnsState === "ready") return;
+    if (returnsStateRef.current === "loading" || returnsStateRef.current === "ready") return;
+    returnsStateRef.current = "loading";
     setReturnsState("loading");
     try {
       const res = (await api.returnsList({
@@ -122,15 +131,18 @@ export function useClientDrawerData({
       })) as { rows: ClientReturnItem[] };
       const rows = Array.isArray(res.rows) ? res.rows : [];
       setReturnsRows(keepClient(rows, (r) => [r.party_name, r.ref], clientNorm));
+      returnsStateRef.current = "ready";
       setReturnsState("ready");
     } catch (e) {
+      returnsStateRef.current = "error";
       setReturnsState("error");
       notify(frError(e, "Retours indisponibles."), "err");
     }
   }
 
   async function loadDebts(): Promise<void> {
-    if (debtsState === "loading" || debtsState === "ready") return;
+    if (debtsStateRef.current === "loading" || debtsStateRef.current === "ready") return;
+    debtsStateRef.current = "loading";
     setDebtsState("loading");
     try {
       const res = (await api.debtsList({
@@ -145,15 +157,18 @@ export function useClientDrawerData({
       })) as { rows: ClientDebtItem[] };
       const rows = Array.isArray(res.rows) ? res.rows : [];
       setDebtsRows(keepClient(rows, (r) => [r.party_name, r.ref], clientNorm));
+      debtsStateRef.current = "ready";
       setDebtsState("ready");
     } catch (e) {
+      debtsStateRef.current = "error";
       setDebtsState("error");
       notify(frError(e, "Dettes indisponibles."), "err");
     }
   }
 
   async function loadHistory(): Promise<void> {
-    if (historyState === "loading" || historyState === "ready") return;
+    if (historyStateRef.current === "loading" || historyStateRef.current === "ready") return;
+    historyStateRef.current = "loading";
     setHistoryState("loading");
     try {
       const res = (await api.historyList({
@@ -168,8 +183,10 @@ export function useClientDrawerData({
       })) as { rows: ClientHistoryItem[] };
       const rows = Array.isArray(res.rows) ? res.rows : [];
       setHistoryRows(keepClient(rows, (r) => [r.entity_name, r.label, r.ref], clientNorm));
+      historyStateRef.current = "ready";
       setHistoryState("ready");
     } catch (e) {
+      historyStateRef.current = "error";
       setHistoryState("error");
       notify(frError(e, "Historique indisponible."), "err");
     }
@@ -179,8 +196,10 @@ export function useClientDrawerData({
     if (tab === "retours") void loadReturns();
     else if (tab === "dettes") void loadDebts();
     else if (tab === "historique") void loadHistory();
-    // Chargements paresseux à l'activation de l'onglet.
-  }, [tab]);
+    // Chargements paresseux à l'activation de l'onglet. A-14 : `customerId`
+    // entre dans les dépendances (le tiroir peut changer de client sans
+    // changer d'onglet) ; les guards sont lus dans des refs (état synchrone).
+  }, [tab, customerId]);
 
   return {
     tab,

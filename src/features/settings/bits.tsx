@@ -1,6 +1,7 @@
 // Veloria PoS — Paramètres : blocs d'interface partagés des sections.
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button, Card, Switch, cn } from "@shared/ui/primitives.tsx";
+import { createSyncGuard, type SyncGuard } from "@shared/ui/sync-guard.ts";
 
 export function Section({
   title,
@@ -54,17 +55,31 @@ export function SwitchRow({
   );
 }
 
+/**
+ * A-02 (P1) : garde anti-double-clic SYNCHRONE.
+ * Le `useState` React est asynchrone : deux `run()` dans le même tick
+ * voyaient toutes deux `busy === false` ⇒ deux envois de la même action
+ * (réinitialisation de la base, export de sauvegarde, push du miroir…).
+ * Le pattern retenu est celui de la caisse (`useSellState.ts:41-48`) : une
+ * garde synchrone tranche AVANT tout `await`, le `state` ne sert qu'à
+ * l'affichage (bouton désactivé).
+ */
 export function useBusyFlag(): {
   busy: boolean;
   run: <T>(task: () => Promise<T>) => Promise<void>;
 } {
   const [busy, setBusy] = useState(false);
+  // Garde instanciée une seule fois (lazy init) : elle vit dans une ref.
+  const guardRef = useRef<SyncGuard | null>(null);
+  if (guardRef.current === null) guardRef.current = createSyncGuard();
+  const guard = guardRef.current;
   async function run<T>(task: () => Promise<T>): Promise<void> {
-    if (busy) return;
+    if (!guard.tryEnter()) return;
     setBusy(true);
     try {
       await task();
     } finally {
+      guard.exit();
       setBusy(false);
     }
   }

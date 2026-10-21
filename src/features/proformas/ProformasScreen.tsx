@@ -18,6 +18,7 @@ import {
 import { api } from "@shared/types/ipc-client.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { newOperationId } from "@domain/common/ids.ts";
+import { runBulk } from "@shared/ui/bulk-actions.ts";
 import { formatDzd } from "@domain/money/money.ts";
 import {
   Badge,
@@ -96,6 +97,8 @@ export function ProformasScreen({ notify }: { notify: Notify }): React.JSX.Eleme
   const [stats, setStats] = useState<Stats>({ total: 0, draft: 0, pending: 0, converted: 0 });
   const [selection, setSelection] = useState<Set<number>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  // A-15 : progression du lot (concurrence bornée).
+  const [bulkLabel, setBulkLabel] = useState("");
   // Confirmation non bloquante (modale applicative).
   const confirmAsync = useConfirm();
   const [drawer, setDrawer] = useState<ProformaDetailData | null>(null);
@@ -299,17 +302,21 @@ export function ProformasScreen({ notify }: { notify: Notify }): React.JSX.Eleme
     if (!(await confirmAsync(`Supprimer ${selection.size} devis ? Convertis exclus (refusés).`)))
       return;
     setBulkBusy(true);
-    let done = 0;
-    for (const id of selection) {
-      try {
+    // A-15 : lot à concurrence bornée + progression.
+    const res = await runBulk(
+      [...selection],
+      async (id) => {
         await api.proformaDelete({ id, operationId: newOperationId() });
-        done += 1;
-      } catch {
-        /* convertis refusés : on continue */
-      }
-    }
-    notify(`${done}/${selection.size} devis supprimé(s).`, done > 0 ? "ok" : "err");
+      },
+      {
+        onProgress: (processed, total) => setBulkLabel(`Suppression ${processed}/${total}…`),
+        // Convertis refusés : on continue (le lot n'est pas interrompu).
+        onError: () => undefined,
+      },
+    );
+    notify(`${res.done}/${selection.size} devis supprimé(s).`, res.done > 0 ? "ok" : "err");
     setBulkBusy(false);
+    setBulkLabel("");
     refresh();
   }
 
@@ -563,7 +570,7 @@ export function ProformasScreen({ notify }: { notify: Notify }): React.JSX.Eleme
           <strong>{selection.size} sélectionné(s)</strong>
           <Button variant="secondary" onClick={() => void deleteSelection()} disabled={bulkBusy}>
             <Trash2 size={15} aria-hidden="true" />{" "}
-            {bulkBusy ? "Suppression…" : "Supprimer la sélection"}
+            {bulkBusy ? bulkLabel || "Suppression…" : "Supprimer la sélection"}
           </Button>
           <button
             type="button"

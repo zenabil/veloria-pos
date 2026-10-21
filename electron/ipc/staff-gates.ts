@@ -130,6 +130,10 @@ const STAFF_CHANNEL_PERMISSION: Record<string, string> = {
   [IPC_CHANNELS["sync.enqueue"]]: "settings",
   [IPC_CHANNELS["sync.pushNow"]]: "settings",
   [IPC_CHANNELS["announcements.save"]]: "settings",
+  // Q1 (UI annonce) : lecture de l'annonce courante — même permission que
+  // l'écriture (`settings`) : c'est un contenu magasin, pas une lecture
+  // catalogue ouverte.
+  [IPC_CHANNELS["announcements.get"]]: "settings",
   // R2 RADICAL (P0) : paramètres + calculs zakat = mutations gardées.
   [IPC_CHANNELS["zakat.saveParams"]]: "settings",
   [IPC_CHANNELS["zakat.save"]]: "settings",

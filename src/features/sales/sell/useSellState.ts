@@ -184,12 +184,15 @@ export function useSellState(cart: ActiveCart) {
   }, []);
 
   // Synchroniser le montant saisi vers l'onglet actif, borné à [0, total].
+  // A-24 : `cart.activeId` entre dans les dépendances — au changement
+  // d'onglet, le montant saisi doit être ré-appliqué au NOUVEL onglet actif
+  // (sinon la saisie part sur l'onglet précédent).
   useEffect(() => {
     // P1-5 : strict (bornes H-1, jamais NaN) ; invalide → 0 (pas de saisie).
     const parsed = strictOrNeg(paidText.trim() === "" ? "0" : paidText, "Montant");
     const safe = Math.min(Math.max(parsed, 0), totalMinor);
     cart.setTotals({ amountPaidMinor: safe });
-  }, [paidText, totalMinor]);
+  }, [paidText, totalMinor, cart.activeId]);
 
   // Frais de livraison saisis vers l'onglet actif, bornés à [0, 1e9] centimes
   // (MONEY-ROOT : entier ≥ 0, invalide → 0 = pas de livraison).
@@ -197,7 +200,7 @@ export function useSellState(cart: ActiveCart) {
     const parsed = strictOrNeg(deliveryText.trim() === "" ? "0" : deliveryText, "Livraison");
     const safe = Math.min(Math.max(parsed, 0), 1_000_000_000);
     cart.setTotals({ deliveryFeeMinor: safe });
-  }, [deliveryText]);
+  }, [deliveryText, cart.activeId]);
 
   const totalQty = cart.lines.reduce((a, l) => a + l.quantity, 0);
 

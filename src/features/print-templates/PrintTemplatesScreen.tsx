@@ -18,6 +18,7 @@ import { PrinterCard } from "@shared/printer/PrinterCard.tsx";
 import {
   Button,
   Card,
+  EmptyState,
   Field,
   PageHeader,
   Select,
@@ -50,6 +51,10 @@ interface TemplateView {
 
 export function PrintTemplatesScreen({ notify }: { notify: Notify }): React.JSX.Element {
   const [busy, setBusy] = useState(false);
+  // A-07 : états de chargement et d'erreur persistants (le Studio
+  // affichait les réglages du type précédent pendant le chargement).
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const [docType, setDocType] = useState<TemplateDocType>("ticket");
   const [templates, setTemplates] = useState<TemplateView[]>([]);
@@ -75,6 +80,12 @@ export function PrintTemplatesScreen({ notify }: { notify: Notify }): React.JSX.
   }, [docType]);
 
   async function loadTemplates(keepId?: number | null): Promise<void> {
+    // A-07 : états chargement / erreur PERSISTANTS (avant : aucun drapeau de
+    // chargement ⇒ les réglages du type PRÉCÉDENT restaient affichés pendant
+    // le chargement du nouveau type ; et l'échec ne vivait que 4,5 s dans un
+    // toast).
+    setLoading(true);
+    setError("");
     try {
       const r = (await api.templatesList()) as { rows?: unknown };
       const rows = Array.isArray(r.rows) ? (r.rows as TemplateView[]) : [];
@@ -101,7 +112,11 @@ export function PrintTemplatesScreen({ notify }: { notify: Notify }): React.JSX.
         schedulePreview(fresh);
       }
     } catch (e) {
-      notify(frError(e, "Modèles indisponibles."), "err");
+      const message = frError(e, "Modèles indisponibles.");
+      setError(message);
+      notify(message, "err");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -338,7 +353,19 @@ export function PrintTemplatesScreen({ notify }: { notify: Notify }): React.JSX.
               </button>
             ))}
           </div>
-          {typeTemplates.length > 0 ? (
+          {error ? (
+            <p
+              role="alert"
+              className="rounded-xl border border-rose-400/40 bg-rose-400/10 px-3 py-2 text-sm text-rose-200"
+            >
+              {error} — réessayez ou réinitialisez l'usine.
+            </p>
+          ) : null}
+          {loading ? (
+            <p role="status" className="text-sm text-slate-400">
+              Chargement des modèles…
+            </p>
+          ) : typeTemplates.length > 0 ? (
             <Field label="Modèle">
               <Select
                 value={selectedId ?? 0}
@@ -356,7 +383,10 @@ export function PrintTemplatesScreen({ notify }: { notify: Notify }): React.JSX.
               </Select>
             </Field>
           ) : (
-            <p className="text-sm text-slate-400">Aucun modèle : réinitialisez l'usine.</p>
+            <EmptyState
+              title="Aucun modèle pour ce document"
+              hint="Réinitialisez le modèle d'usine pour repartir des réglages par défaut."
+            />
           )}
           <Field label="Nom du modèle">
             <TextInput

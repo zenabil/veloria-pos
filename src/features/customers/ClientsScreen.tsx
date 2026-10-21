@@ -12,6 +12,7 @@ import {
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { formatDzd } from "@domain/money/money.ts";
 import { newOperationId } from "@domain/common/ids.ts";
+import { runBulk } from "@shared/ui/bulk-actions.ts";
 import { formatDateTimeFr } from "@shared/formatters/format.ts";
 import {
   Badge,
@@ -76,6 +77,9 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<Stats>({ total: 0, credit: 0, debt: 0, recent: 0 });
   const [selection, setSelection] = useState<Set<number>>(new Set());
+  // A-15 : état de lot (concurrence bornée + progression affichée).
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkLabel, setBulkLabel] = useState("");
   const [drawer, setDrawer] = useState<{
     customer: EnrichedCustomer;
     sales: StatementSale[];
@@ -281,23 +285,27 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
   async function archiveSelection(): Promise<void> {
     if (selection.size === 0) return;
     if (!(await confirmAsync(`Archiver ${selection.size} client(s) ?`))) return;
-    let done = 0;
-    let failed = 0;
-    for (const id of selection) {
-      try {
+    setBulkBusy(true);
+    // A-15 : lot à concurrence bornée (200 archives séquentielles =
+    // plusieurs minutes sans retour visuel) ; un échec est isolé, le lot
+    // continue.
+    const res = await runBulk(
+      [...selection],
+      async (id) => {
         await api.customerArchive({ id, operationId: newOperationId() });
-        done += 1;
-      } catch (e) {
-        failed += 1;
-        console.error("[Veloria] clients : archivage impossible", id, e);
-      }
-    }
+      },
+      {
+        onProgress: (processed, total) => setBulkLabel(`Archivage ${processed}/${total}…`),
+      },
+    );
+    setBulkBusy(false);
+    setBulkLabel("");
     // Échec partiel = erreur (avant : toast vert malgré les échecs silencieux).
     notify(
-      failed > 0
-        ? `${done} client(s) archivé(s), ${failed} échec(s).`
-        : `${done} client(s) archivé(s).`,
-      failed > 0 ? "err" : "ok",
+      res.failed > 0
+        ? `${res.done} client(s) archivé(s), ${res.failed} échec(s).`
+        : `${res.done} client(s) archivé(s).`,
+      res.failed > 0 ? "err" : "ok",
     );
     // Retour page 1 : la page courante peut ne plus exister après l'archivage.
     setPage(1);
@@ -324,24 +332,38 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
     try {
       // Export COMPLET du filtre courant (l'en-tête annonce le total filtré :
       // n'exporter que la page affichée était une troncature silencieuse de
-      // plus). Boucle bornée par le total serveur.
+      // plus). Pages fetched avec une concurrence bornée (A-15) + progression.
       const all: EnrichedCustomer[] = [];
       const pageCount = Math.ceil(total / PAGE_SIZE);
-      for (let p = 1; p <= pageCount; p++) {
-        const res = await callChecked(
-          (a) =>
-            a.customers.search({
-              query: query.trim(),
-              page: p,
-              pageSize: PAGE_SIZE,
-              includeArchived: archiveFilter !== "active",
-              archivedOnly: archiveFilter === "archived",
-              debtFilter: creditFilter,
-              sort,
-            }),
-          enrichedCustomerSearchSchema,
-        );
-        all.push(...res.rows.map(toEnriched));
+      setBulkBusy(true);
+      const pages: (EnrichedCustomer[] | undefined)[] = [];
+      await runBulk(
+        Array.from({ length: pageCount }, (_, i) => i + 1),
+        async (p) => {
+          const res = await callChecked(
+            (a) =>
+              a.customers.search({
+                query: query.trim(),
+                page: p,
+                pageSize: PAGE_SIZE,
+                includeArchived: archiveFilter !== "active",
+                archivedOnly: archiveFilter === "archived",
+                debtFilter: creditFilter,
+                sort,
+              }),
+            enrichedCustomerSearchSchema,
+          );
+          pages[p - 1] = res.rows.map(toEnriched);
+        },
+        {
+          onProgress: (processed, totalPages) =>
+            setBulkLabel(`Export ${processed}/${totalPages} page(s)…`),
+        },
+      );
+      setBulkBusy(false);
+      setBulkLabel("");
+      for (const rows of pages) {
+        if (rows) all.push(...rows);
       }
       downloadCsv(
         `clients-${new Date().toISOString().slice(0, 10)}.csv`,
@@ -398,9 +420,11 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
             <Button
               variant="secondary"
               onClick={() => void exportCsv()}
+              disabled={bulkBusy}
               title="Exporter tout le filtre (CSV)"
             >
-              <Download size={16} aria-hidden="true" /> CSV
+              <Download size={16} aria-hidden="true" />
+              {bulkBusy && bulkLabel.startsWith("Export") ? bulkLabel : "CSV"}
             </Button>
           </>
         }
@@ -519,8 +543,9 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
       {selection.size > 0 ? (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-400/30 bg-amber-400/[0.07] px-4 py-2.5 text-sm">
           <strong>{selection.size} sélectionné(s)</strong>
-          <Button variant="secondary" onClick={() => void archiveSelection()}>
-            <Trash2 size={15} aria-hidden="true" /> Archiver la sélection
+          <Button variant="secondary" onClick={() => void archiveSelection()} disabled={bulkBusy}>
+            <Trash2 size={15} aria-hidden="true" />
+            {bulkBusy ? bulkLabel || "Archivage…" : "Archiver la sélection"}
           </Button>
           <button
             type="button"

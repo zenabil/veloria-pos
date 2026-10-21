@@ -5,6 +5,7 @@ import path from "node:path";
 import {
   fromDzd,
   formatDzd,
+  formatDzdStrict,
   percentOfMinor,
   multiplyMinorByQuantity,
   assertSafeTotal,
@@ -44,6 +45,21 @@ assert(fromDzd(19.99) === 1999, "19.99 DZD = 1999 (no float error)");
 assert(multiplyMinorByQuantity(1999, 3) === 5997, "line total 1999x3=5997");
 assert(percentOfMinor(999, 10) === 100, "percent rounds to minor");
 assert(formatDzd(81000).includes("DZD"), "format FR DZD");
+// A-01 (P1) : le format de RENDU ne lève jamais (une valeur fausse ne peut
+// plus tuer l'écran du caissier) ; le format STRICT reste disponible pour
+// les chemins transactionnels (il lève, lui).
+assert(formatDzdStrict(81000).includes("DZD"), "format FR DZD strict");
+assert(formatDzd(Number.NaN) === "—", "format DZD sûr : NaN ⇒ « — »");
+assert(formatDzd(1.5) === "—", "format DZD sûr : fractionnaire ⇒ « — »");
+assert(formatDzd(-1) === "—", "format DZD sûr : négatif ⇒ « — »");
+assert(formatDzd(1e12) === "—", "format DZD sûr : hors bornes ⇒ « — »");
+let strictThrew = false;
+try {
+  formatDzdStrict(Number.NaN);
+} catch {
+  strictThrew = true;
+}
+assert(strictThrew, "format DZD strict : valeur invalide ⇒ exception (écriture)");
 
 const t = computeSaleTotals({
   lines: [

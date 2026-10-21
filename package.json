@@ -26,6 +26,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:coverage:features": "vitest run --config vitest.features.config.ts --coverage",
     "test:db": "vitest run tests/database tests/integration",
     "test:e2e": "playwright test",
     "test:e2e:installer": "playwright test tests/e2e/installer.spec.ts",

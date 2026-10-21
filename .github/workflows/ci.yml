@@ -33,6 +33,7 @@ jobs:
       - run: npm run verify:fr
       - run: npm test
       - run: npm run test:coverage
+      - run: npm run test:coverage:features
       - run: npm run verify:migrations
       - run: npm run verify:domain
       - run: npm run verify:perf

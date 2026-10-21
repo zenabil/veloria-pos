@@ -11,6 +11,7 @@ import { formatDzd, parseDzdInputStrict } from "@domain/money/money.ts";
 import { formatBytes } from "@shared/formatters/files.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { useOperationId } from "@shared/ui/use-operation-id.ts";
+import { runBulk } from "@shared/ui/bulk-actions.ts";
 import { todayUtcDate } from "@shared/dates/dates.ts";
 import { parseInvoiceText } from "@domain/ocr/parser.ts";
 import { confidenceLabelFr, matchByName, normalizeProductName } from "@domain/ocr/matcher.ts";
@@ -583,42 +584,52 @@ export function OcrImportDialog({
     importGuard.current = true;
     setImporting(true);
     try {
-      const lines: {
-        productId: number | null;
-        productName: string;
-        quantityReceived: number;
-        quantityDamaged: number;
-        purchasePriceMinor: number;
-        sellingPriceMinor: number | null;
-      }[] = [];
-      for (const r of usable) {
-        const qty = parsedQty(r);
-        const purchase = parsedPurchase(r);
-        const selling = parsedSelling(r);
-        if (qty === null || purchase === null) continue;
-        let pid = r.productId;
-        if (r.createNew) {
-          const created = (await api.productCreate({
-            // Un UUID figé par ligne (import rejoué = produits retrouvés,
-            // jamais dupliqués — voir `products.operation_id` UNIQUE).
-            operationId: productOpIdFor(r.key),
-            name: r.ocrName.trim().slice(0, 200),
+      const prepared: (
+        | {
+            productId: number | null;
+            productName: string;
+            quantityReceived: number;
+            quantityDamaged: number;
+            purchasePriceMinor: number;
+            sellingPriceMinor: number | null;
+          }
+        | undefined
+      )[] = [];
+      // A-15 : création des produits à concurrence bornée (une création par
+      // ligne ⇒ autant d'allers-retours IPC), ordre d'import conservé.
+      await runBulk(
+        usable,
+        async (r, index) => {
+          const qty = parsedQty(r);
+          const purchase = parsedPurchase(r);
+          const selling = parsedSelling(r);
+          if (qty === null || purchase === null) return;
+          let pid = r.productId;
+          if (r.createNew) {
+            const created = (await api.productCreate({
+              // Un UUID figé par ligne (import rejoué = produits retrouvés,
+              // jamais dupliqués — voir `products.operation_id` UNIQUE).
+              operationId: productOpIdFor(r.key),
+              name: r.ocrName.trim().slice(0, 200),
+              purchasePriceMinor: purchase,
+              sellingPriceMinor: selling ?? 0,
+              quantity: 0,
+            })) as { id: number };
+            pid = created.id;
+          }
+          prepared[index] = {
+            productId: pid,
+            productName:
+              pid !== null ? (r.createNew ? r.ocrName.trim() : r.productLabel) : r.ocrName.trim(),
+            quantityReceived: qty,
+            quantityDamaged: 0,
             purchasePriceMinor: purchase,
-            sellingPriceMinor: selling ?? 0,
-            quantity: 0,
-          })) as { id: number };
-          pid = created.id;
-        }
-        lines.push({
-          productId: pid,
-          productName:
-            pid !== null ? (r.createNew ? r.ocrName.trim() : r.productLabel) : r.ocrName.trim(),
-          quantityReceived: qty,
-          quantityDamaged: 0,
-          purchasePriceMinor: purchase,
-          sellingPriceMinor: selling,
-        });
-      }
+            sellingPriceMinor: selling,
+          };
+        },
+        { concurrency: 4 },
+      );
+      const lines = prepared.filter((l): l is NonNullable<typeof l> => l !== undefined);
       if (lines.length === 0) throw new Error("Aucune ligne valide à importer.");
       const res = (await api.stockIntake({
         operationId: intakeOp.operationId,

@@ -54,6 +54,8 @@ export const IPC_CHANNELS = {
   "sync.getConfig": "sync.getConfig",
   "sync.saveConfig": "sync.saveConfig",
   "announcements.save": "announcements.save",
+  // Q1 (UI annonce) : lecture de l'annonce magasin courante (POS → APK).
+  "announcements.get": "announcements.get",
   // categories (filtre catalogue)
   "categories.list": "categories.list",
   "categories.create": "categories.create",

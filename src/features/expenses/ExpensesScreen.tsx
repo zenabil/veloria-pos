@@ -8,6 +8,7 @@ import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { formatDzd } from "@domain/money/money.ts";
 import { downloadCsv } from "@shared/export/csv.ts";
 import { newOperationId } from "@domain/common/ids.ts";
+import { runBulk } from "@shared/ui/bulk-actions.ts";
 import {
   Badge,
   Button,
@@ -73,6 +74,8 @@ export function ExpensesScreen({ notify }: { notify: Notify }): React.JSX.Elemen
   });
   const [selection, setSelection] = useState<Set<number>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  // A-15 : progression du lot (suppressions en série).
+  const [bulkLabel, setBulkLabel] = useState("");
   // Confirmation non bloquante (modale applicative).
   const confirmAsync = useConfirm();
   const [drawer, setDrawer] = useState<Expense | null>(null);
@@ -318,29 +321,35 @@ export function ExpensesScreen({ notify }: { notify: Notify }): React.JSX.Elemen
     if (selection.size === 0 || bulkBusy) return;
     if (!(await confirmAsync(`Supprimer ${selection.size} dépense(s) ? Irréversible.`))) return;
     setBulkBusy(true);
-    let done = 0;
+    // A-15 : lot à concurrence bornée + progression (les suppressions
+    // s'enchaînaient une par une, sans retour visuel).
     const failed: string[] = [];
-    for (const id of selection) {
-      // P18: UUID frais par suppression (caller-owned : une confirmation
-      // = une opération). Chaque ligne est une entité distincte.
-      try {
+    const res = await runBulk(
+      [...selection],
+      async (id) => {
+        // P18: UUID frais par suppression (caller-owned : une confirmation
+        // = une opération). Chaque ligne est une entité distincte.
         await api.expenseDelete({ id, operationId: newOperationId() });
-        done += 1;
-      } catch (e) {
+      },
+      {
+        onProgress: (processed, total) => setBulkLabel(`Suppression ${processed}/${total}…`),
         // Règle 6 : pas de catch silencieux — les échecs sont listés à l'utilisateur.
-        const row = rows.find((r2) => r2.id === id);
-        failed.push(`${row ? row.description : `DEP-${id}`} — ${frError(e, "échec")}`);
-      }
-    }
+        onError: (id, e) => {
+          const row = rows.find((r2) => r2.id === id);
+          failed.push(`${row ? row.description : `DEP-${id}`} — ${frError(e, "échec")}`);
+        },
+      },
+    );
     if (failed.length === 0) {
-      notify(`${done}/${selection.size} dépense(s) supprimée(s).`, "ok");
+      notify(`${res.done}/${selection.size} dépense(s) supprimée(s).`, "ok");
     } else {
       notify(
-        `${done}/${selection.size} supprimée(s) · échec(s) : ${failed.slice(0, 3).join(" ; ")}`,
+        `${res.done}/${selection.size} supprimée(s) · échec(s) : ${failed.slice(0, 3).join(" ; ")}`,
         "err",
       );
     }
     setBulkBusy(false);
+    setBulkLabel("");
     refresh();
   }
 
@@ -552,7 +561,7 @@ export function ExpensesScreen({ notify }: { notify: Notify }): React.JSX.Elemen
           <strong>{selection.size} sélectionnée(s)</strong>
           <Button variant="secondary" onClick={() => void deleteSelection()} disabled={bulkBusy}>
             <Trash2 size={15} aria-hidden="true" />{" "}
-            {bulkBusy ? "Suppression…" : "Supprimer la sélection"}
+            {bulkBusy ? bulkLabel || "Suppression…" : "Supprimer la sélection"}
           </Button>
           <button
             type="button"

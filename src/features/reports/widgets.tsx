@@ -35,8 +35,10 @@ export function MiniTable({
       <table className="w-full text-sm">
         <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
           <tr>
+            {/* A-27 : clés STABLES (le contenu de l'en-tête ne bouge pas) —
+                `key={i}` était un index de position. */}
             {headers.map((h, i) => (
-              <th key={i} className={cn("py-1.5 pr-3", i > 0 && "text-right")}>
+              <th key={`th-${h}`} className={cn("py-1.5 pr-3", i > 0 && "text-right")}>
                 {h}
               </th>
             ))}
@@ -44,9 +46,12 @@ export function MiniTable({
         </thead>
         <tbody>
           {rows.map((r, i) => (
-            <tr key={i} className="border-t border-white/[0.06]">
+            <tr key={`row-${i}`} className="border-t border-white/[0.06]">
               {r.map((c, j) => (
-                <td key={j} className={cn("py-1.5 pr-3", j === 0 ? "" : "text-right tabular-nums")}>
+                <td
+                  key={`cell-${j}`}
+                  className={cn("py-1.5 pr-3", j === 0 ? "" : "text-right tabular-nums")}
+                >
                   {c}
                 </td>
               ))}

@@ -47,6 +47,8 @@ export const api = {
   syncGetConfig: () => call((a) => a.sync.getConfig()),
   syncSaveConfig: (p: unknown) => call((a) => a.sync.saveConfig(p)),
   announcementSave: (p: unknown) => call((a) => a.announcements.save(p)),
+  /** Q1 : lecture de l'annonce magasin courante (POS → APK). */
+  announcementGet: () => call((a) => a.announcements.get()),
   supplierUpdate: (p: unknown) => call((a) => a.suppliers.update(p)),
   printerGet: () => call((a) => a.printer.get()),
   printerSave: (p: unknown) => call((a) => a.printer.save(p)),

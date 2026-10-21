@@ -4,17 +4,15 @@ import { formatDzd } from "@domain/money/money.ts";
 
 /**
  * Format monétaire SÛR pour le rendu React (ne lève jamais).
- * Corrompu/NaN/négatif inattendu → "—" au lieu de crasher le composant
- * (P1-5 : pas de try/catch dans le corps du composant, pas de throw au render).
- * Les écritures utilisent `parseDzdInputStrict` + try/catch + frError.
+ * A-01 (P1) : `formatDzd` est désormais SÛR par construction (une valeur
+ * corrompue ⇒ « — », jamais d'exception au render ⇒ jamais d'écran mort).
+ * Ce helper reste l'API explicite pour les valeurs d'origine incertaine
+ * (`unknown` : chaîne, null, undefined) : conversion + repli « — ».
  */
 export function formatDzdSafe(raw: unknown): string {
+  if (raw == null) return "—";
   const n = typeof raw === "number" ? raw : Number(raw);
-  try {
-    return formatDzd(n);
-  } catch {
-    return "—";
-  }
+  return formatDzd(n);
 }
 
 /**

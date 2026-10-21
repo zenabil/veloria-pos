@@ -63,6 +63,8 @@ const api = {
   },
   announcements: {
     save: (p: unknown) => invoke(IPC_CHANNELS["announcements.save"], p),
+    // Q1 (UI annonce) : lecture de l'annonce courante.
+    get: () => invoke(IPC_CHANNELS["announcements.get"]),
   },
   categories: {
     list: () => invoke(IPC_CHANNELS["categories.list"]),

@@ -66,7 +66,8 @@ export function BarChart({
         {labels.map((l, i) =>
           i % step === 0 ? (
             <text
-              key={i}
+              // A-27 : clé stable (le libellé de l'axe ne bouge pas).
+              key={`lbl-${l}-${i}`}
               x={Math.round(pad + slot * i + slot / 2)}
               y={h - 8}
               textAnchor="middle"

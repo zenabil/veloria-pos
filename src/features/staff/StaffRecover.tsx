@@ -4,13 +4,12 @@
 import { useState } from "react";
 import { api } from "@shared/types/ipc-client.ts";
 import { frError } from "@shared/errors/fr-map.ts";
+// A-03 (P1) : source UNIQUE de l'`operationId` (domaine) — la copie locale
+// avait un repli UUID CONSTANT (toutes les récupérations ⇒ même clé ⇒
+// rejeux silencieux par `idempotency_keys`).
+import { newOperationId } from "@domain/common/ids.ts";
 import { Card } from "@shared/ui/primitives.tsx";
 import type { Notify } from "@shared/ui/primitives.tsx";
-
-function newOperationId(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
-  return "00000000-0000-4000-8000-000000000000";
-}
 
 export function StaffRecover({
   notify,

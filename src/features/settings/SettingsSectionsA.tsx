@@ -1,9 +1,11 @@
 // Veloria PoS — Paramètres : sections Général → Fournisseurs.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@shared/types/ipc-client.ts";
 import { strictOrNeg } from "@shared/money/parse.ts";
 import { minorToInput } from "@domain/money/money.ts";
-import { Field, Select, TextInput } from "@shared/ui/primitives.tsx";
+import { newOperationId } from "@domain/common/ids.ts";
+import { assertValidAnnouncement } from "@domain/customer/client-access.ts";
+import { Field, Select, TextArea, TextInput } from "@shared/ui/primitives.tsx";
 import { saveAppSettings, useAppSettings } from "@shared/settings/use-app-settings.ts";
 import { SaveBar, Section, SwitchRow, useBusyFlag } from "./bits.tsx";
 import {
@@ -586,6 +588,74 @@ export function CustomersSection({
         . Les relances se consultent dans Dettes.
       </p>
       <SaveBar busy={busy} onSave={save} label="Enregistrer les clients" />
+    </Section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Annonce magasin (Q1) : message affiché en haut de l'application client.
+// ---------------------------------------------------------------------------
+
+export function AnnouncementSection({ notify }: { notify: Notify }): React.JSX.Element {
+  const [text, setText] = useState("");
+  const [loading, setLoading] = useState(true);
+  const { busy, run } = useBusyFlag();
+  // Ref « vivant » : l Annonce peut être quittée avant la réponse IPC.
+  const alive = useRef(true);
+
+  // Lecture de l'annonce courante : sans elle, le gérant écrirait dans le vide
+  // (Q1 — l'audit : « la saisie commerçante côté POS manque »).
+  useEffect(() => {
+    alive.current = true;
+    void (async () => {
+      try {
+        const res = (await api.announcementGet()) as { text?: string | null };
+        if (!alive.current) return;
+        setText(typeof res.text === "string" ? res.text : "");
+      } catch (e) {
+        if (!alive.current) return;
+        notify(frError(e, "Annonce actuelle indisponible."), "err");
+      } finally {
+        if (alive.current) setLoading(false);
+      }
+    })();
+    return () => {
+      alive.current = false;
+    };
+  }, [notify]);
+
+  function save(): void {
+    void run(async () => {
+      try {
+        const clean = text.trim();
+        // Règle du domaine (1..120 caractères) : message FR immédiat, avant
+        // l'aller-retour IPC.
+        assertValidAnnouncement(clean);
+        await api.announcementSave({ operationId: newOperationId(), text: clean });
+        notify("Annonce enregistrée : visible dans l'application client.", "ok");
+      } catch (e) {
+        notify(frError(e, "Annonce impossible à enregistrer."), "err");
+      }
+    });
+  }
+
+  return (
+    <Section
+      title="Annonce magasin"
+      hint="Message affiché en haut de l'application client (APK). 120 caractères maximum."
+    >
+      <Field label="Annonce" hint={loading ? "Lecture…" : `${text.trim().length}/120 caractères`}>
+        <TextArea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={3}
+          maxLength={120}
+          disabled={loading}
+          placeholder="Livraison exceptionnelle ce samedi."
+          aria-label="Annonce magasin"
+        />
+      </Field>
+      <SaveBar busy={busy} onSave={save} label="Enregistrer l'annonce" />
     </Section>
   );
 }

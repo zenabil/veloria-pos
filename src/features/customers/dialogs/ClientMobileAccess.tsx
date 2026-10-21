@@ -14,6 +14,7 @@ import {
   syncEnqueueResultSchema,
 } from "@shared/types/ipc-contracts.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
+import { runBulk } from "@shared/ui/bulk-actions.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { selectDetailSaleIds } from "../../../application/customers/client-access.ts";
@@ -145,19 +146,26 @@ export function ClientMobileAccess({
       const month = new Date().toISOString().slice(0, 7);
       const kinds = ["customer_snapshot", "invoice_list", "payment_list"] as const;
       let done = 0;
-      for (const kind of kinds) {
-        const r = await callChecked(
-          (a) =>
-            a.sync.enqueue({
-              operationId: newOperationId(),
-              customerId: customer.id,
-              kind,
-              monthKey: kind === "customer_snapshot" ? month : null,
-            }),
-          syncEnqueueResultSchema,
-        );
-        if (r.queued) done += 1;
-      }
+      // A-15 : lot à concurrence bornée (les 3 clichés + les détails étaient
+      // enchaînés un par un, sans retour visuel).
+      const res = await runBulk(
+        kinds,
+        async (kind) => {
+          const r = await callChecked(
+            (a) =>
+              a.sync.enqueue({
+                operationId: newOperationId(),
+                customerId: customer.id,
+                kind,
+                monthKey: kind === "customer_snapshot" ? month : null,
+              }),
+            syncEnqueueResultSchema,
+          );
+          if (r.queued) done += 1;
+        },
+        { concurrency: 3 },
+      );
+      void res;
       // Détails des factures ouvertes (page détail APK, cap 10, best-effort
       // par vente : un détail manquant n'échoue jamais toute la synchro).
       let details = 0;
@@ -166,8 +174,9 @@ export function ClientMobileAccess({
           sales?: { id: number; is_cancelled: number; remaining_balance_minor: number }[];
         };
         const ids = selectDetailSaleIds(Array.isArray(st.sales) ? st.sales : [], 10);
-        for (const saleId of ids) {
-          try {
+        await runBulk(
+          ids,
+          async (saleId) => {
             const r = await callChecked(
               (a) =>
                 a.sync.enqueue({
@@ -179,10 +188,10 @@ export function ClientMobileAccess({
               syncEnqueueResultSchema,
             );
             if (r.queued) details += 1;
-          } catch {
-            /* détail ignoré, les 3 clichés restent la priorité */
-          }
-        }
+          },
+          // Un détail ignoré n'échoue jamais la synchro (le lot continue).
+          { concurrency: 4, onError: () => undefined },
+        );
       } catch {
         /* relevé illisible : les 3 clichés restent la priorité */
       }

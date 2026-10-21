@@ -98,24 +98,35 @@ function ensureCtx(): AudioContext | null {
     }
   }
   // Durcissement : onglet masqué = contexte suspendu (zéro son fantôme au
-  // retour, reprise explicite dans playTones). Câblé une seule fois.
-  if (!visibilityWired && typeof document !== "undefined") {
-    visibilityWired = true;
-    try {
-      document.addEventListener("visibilitychange", () => {
-        if (document.hidden) {
-          try {
-            void ctx?.suspend();
-          } catch {
-            /* ignore */
-          }
-        }
-      });
-    } catch {
-      /* ignore */
-    }
-  }
+  // retour, reprise explicite dans playTones). A-23 : l'écouteur est câblé
+  // UNE SEULE FOIS au niveau du module et lit le contexte COURANT (variable
+  // module) — avant, il capturait le `ctx` de l'appel qui l'enregistrait et
+  // n'était jamais retiré.
+  wireVisibility();
   return ctx;
+}
+
+/**
+ * A-23 : écouteur `visibilitychange` unique et stable (au niveau du module).
+ * Il lit `ctx` (variable module) : pas de closure figée, pas de fuite
+ * d'écouteurs, et le comportement est identique au premier contexte comme
+ * aux suivants.
+ */
+function wireVisibility(): void {
+  if (visibilityWired || typeof document === "undefined") return;
+  visibilityWired = true;
+  try {
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) return;
+      try {
+        void ctx?.suspend();
+      } catch {
+        /* ignore */
+      }
+    });
+  } catch {
+    /* ignore */
+  }
 }
 
 interface Tone {

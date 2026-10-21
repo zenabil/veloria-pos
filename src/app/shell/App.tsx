@@ -3,7 +3,7 @@
 // PERF (requête 5) : caisse (module d'accueil) chargée d'emblée, les 16 autres
 // modules en lazy (chunks séparés, voir module-screens.ts) — premier affichage
 // et mémoire réduits ; la navigation reste instantanée après le 1er chargement.
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { SellScreen } from "@features/sales/SellScreen.tsx";
 import { useLicense } from "@features/license/use-license.ts";
 import { useStaff } from "@features/staff/use-staff.ts";
@@ -40,6 +40,8 @@ let toastSeq = 0;
 export function App(): React.JSX.Element {
   const [active, setActive] = useState<ModuleId>("sell");
   const [toasts, setToasts] = useState<Toast[]>([]);
+  // A-22 : minuteurs de toast (nettoyés au démontage).
+  const toastTimers = useRef(new Map<number, number>());
   // Code de secours bootstrap : mémoire uniquement, affiché une fois.
   const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
   // R6 : code initial porté par le login quand c'est lui qui a créé le
@@ -100,9 +102,22 @@ export function App(): React.JSX.Element {
         /* son best effort */
       }
     }
-    window.setTimeout(() => {
+    // A-22 : le minuteur est conservé puis annulé au démontage (toast
+    // still mounted ⇒ pas de setState sur un composant mort, pas de
+    // minuteur fantôme qui déclenche après le remplacement du toast).
+    const timer = window.setTimeout(() => {
+      toastTimers.current.delete(id);
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 4500);
+    toastTimers.current.set(id, timer);
+  }, []);
+  // A-22 : nettoyage des minuteurs de toast au démontage.
+  useEffect(() => {
+    const timers = toastTimers.current;
+    return () => {
+      for (const timer of timers.values()) window.clearTimeout(timer);
+      timers.clear();
+    };
   }, []);
   // P5 : déverrouillage audio au premier geste + préférence SQLite.
   useEffect(() => {

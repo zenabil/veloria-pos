@@ -28,7 +28,10 @@ export function useCountUp(target: number, durationMs = 300): number {
       const eased = p >= 1 ? 1 : 1 - Math.pow(2, -10 * p);
       const v = Math.round(from + (target - from) * eased);
       shownRef.current = v;
-      setShown(v);
+      // A-16 : bail-out à l'égalité — sans lui, chaque frame rAF déclenchait
+      // un `setState` (≈18 par animation, ×3 compteurs sur le tableau de bord
+      // ⇒ ≈54 rendus de la barre « Aujourd'hui » pour un seul chiffre).
+      if (v !== shown) setShown(v);
       if (p < 1) raf = window.requestAnimationFrame(tick);
     };
     raf = window.requestAnimationFrame(tick);

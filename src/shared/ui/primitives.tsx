@@ -7,7 +7,7 @@
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { Search, X } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useId, useRef } from "react";
 import type {
   ButtonHTMLAttributes,
   InputHTMLAttributes,
@@ -297,6 +297,63 @@ export function TextArea(props: TextareaHTMLAttributes<HTMLTextAreaElement>): Re
 }
 
 /** Fenêtre modale unifiée : fond flouté, focus piégé, Échap / clic extérieur. */
+/**
+ * A-08 / A-25 — PIÈGE DE FOCUS + RESTAURATION, commun à `Modal` et `Drawer`.
+ *
+ * - Le focus ne doit JAMAIS sortir du dialogue (Tab / Maj+Tab bouclent) :
+ *   sans cela, le caissier continuait de saisir dans la page MASQUÉE derrière
+ *   le tiroir (9 consommateurs : produits, clients, dettes, historique,
+ *   retours, dépenses, stock, fournisseurs, devis).
+ * - Focus initial sur le premier champ (sinon le premier bouton) : la saisie
+ *   démarre sans souris.
+ * - À la fermeture, le focus RETOURNE sur l'élément qui a ouvert le
+ *   dialogue (clavier et lecteur d'écran) — sinon le focus tombe sur le
+ *   `body` et le caissier doit reparcourir toute la page à l'aveugle.
+ */
+function useDialogFocus(
+  boxRef: React.RefObject<HTMLElement | null>,
+  onClose: () => void,
+  extraKey?: (e: KeyboardEvent) => boolean,
+): void {
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    const field = boxRef.current?.querySelector<HTMLElement>("input, select, textarea");
+    (field ?? boxRef.current?.querySelector<HTMLElement>("button"))?.focus();
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (extraKey?.(e)) return;
+      if (e.key !== "Tab") return;
+      const box = boxRef.current;
+      if (!box) return;
+      const focusables = box.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      );
+      const list = [...focusables].filter((el) => !el.hasAttribute("disabled"));
+      const first = list[0];
+      const last = list[list.length - 1];
+      if (!first || !last) return;
+      const active = document.activeElement;
+      if (e.shiftKey && (active === first || !box.contains(active))) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (active === last || !box.contains(active))) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      if (opener && typeof opener.focus === "function" && document.contains(opener)) {
+        opener.focus();
+      }
+    };
+  }, [boxRef, onClose, extraKey]);
+}
+
 export function Modal({
   label,
   title,
@@ -311,66 +368,42 @@ export function Modal({
   wide?: boolean;
 }): ReactNode {
   const boxRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === "Escape") {
-        onClose();
-        return;
-      }
-      // Entrée universelle : dans un champ de saisie SANS formulaire parent
-      // (les formulaires soumettent nativement), Entrée active le bouton
-      // primaire du dialogue (ex. Valider l'encaissement). Jamais de double
-      // déclenchement : on s'efface dès qu'un <form> gère déjà la touche.
-      if (e.key === "Enter" && boxRef.current) {
-        const target = e.target as HTMLElement | null;
-        const isField =
-          target != null &&
-          target.tagName === "INPUT" &&
-          (target as HTMLInputElement).type !== "checkbox";
-        const inForm = target?.closest("form") != null;
-        if (isField && !inForm) {
-          const primary = boxRef.current.querySelector<HTMLButtonElement>(
-            "button[data-primary]:not([disabled])",
-          );
-          if (primary) {
-            e.preventDefault();
-            primary.click();
-            return;
-          }
-        }
-      }
-      if (e.key !== "Tab" || !boxRef.current) return;
-      const focusables = boxRef.current.querySelectorAll<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+  // Entrée universelle : dans un champ de saisie SANS formulaire parent
+  // (les formulaires soumettent nativement), Entrée active le bouton
+  // primaire du dialogue (ex. Valider l'encaissement). Jamais de double
+  // déclenchement : on s'efface dès qu'un <form> gère déjà la touche.
+  const onExtraKey = useCallback((e: KeyboardEvent): boolean => {
+    if (e.key !== "Enter" || !boxRef.current) return false;
+    const target = e.target as HTMLElement | null;
+    const isField =
+      target != null &&
+      target.tagName === "INPUT" &&
+      (target as HTMLInputElement).type !== "checkbox";
+    const inForm = target?.closest("form") != null;
+    if (isField && !inForm) {
+      const primary = boxRef.current.querySelector<HTMLButtonElement>(
+        "button[data-primary]:not([disabled])",
       );
-      const list = [...focusables].filter((el) => !el.hasAttribute("disabled"));
-      if (list.length === 0) return;
-      const first = list[0];
-      const last = list[list.length - 1];
-      if (first == null || last == null) return;
-      if (e.shiftKey && document.activeElement === first) {
+      if (primary) {
         e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
+        primary.click();
+        return true;
       }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  useEffect(() => {
-    const field = boxRef.current?.querySelector<HTMLElement>("input, select, textarea");
-    (field ?? boxRef.current?.querySelector<HTMLElement>("button"))?.focus();
+    }
+    return false;
   }, []);
+
+  // Piège de focus + focus initial + restauration (A-08/A-25).
+  useDialogFocus(boxRef, onClose, onExtraKey);
 
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-label={label}
+      aria-labelledby={titleId}
       onClick={onClose}
       className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,15,28,0.75)] p-4 backdrop-blur-[8px]"
     >
@@ -381,7 +414,9 @@ export function Modal({
       >
         <Card className="veloria-dialog-in max-h-[90vh] space-y-4 overflow-auto rounded-[18px] border-[#28395d] p-6 shadow-[0_24px_48px_-12px_rgba(2,6,13,0.85)]">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-[17px] font-bold tracking-tight text-slate-100">{title}</h2>
+            <h2 id={titleId} className="text-[17px] font-bold tracking-tight text-slate-100">
+              {title}
+            </h2>
             <button
               type="button"
               aria-label="Fermer"
@@ -653,40 +688,50 @@ export function Drawer({
   children: ReactNode;
   wide?: boolean;
 }): ReactNode {
+  const boxRef = useRef<HTMLElement>(null);
+  const titleId = useId();
+
+  // Entrée universelle (comme Modal) : champ sans formulaire parent →
+  // bouton primaire du tiroir. Les formulaires soumettent nativement.
+  const onExtraKey = useCallback((e: KeyboardEvent): boolean => {
+    if (e.key !== "Enter" || !boxRef.current) return false;
+    const target = e.target as HTMLElement | null;
+    const isField =
+      target != null &&
+      target.tagName === "INPUT" &&
+      (target as HTMLInputElement).type !== "checkbox";
+    const inForm = target?.closest("form") != null;
+    if (isField && !inForm) {
+      const primary = boxRef.current.querySelector<HTMLButtonElement>(
+        "button[data-primary]:not([disabled])",
+      );
+      if (primary) {
+        e.preventDefault();
+        primary.click();
+        return true;
+      }
+    }
+    return false;
+  }, []);
+
+  // A-08 : le tiroir avait un `onKeyDown` SANS `tabIndex` ⇒ Échap ne
+  // fonctionnait que si le focus était DANS le tiroir, et le focus restait
+  // sur le bouton de la page cachée derrière l'overlay (le caissier
+  // écrivait dans la page invisible). Piège de focus + focus initial +
+  // restauration, comme le Modal.
+  useDialogFocus(boxRef, onClose, onExtraKey);
+
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-label={label}
+      aria-labelledby={titleId}
       onClick={onClose}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") {
-          onClose();
-          return;
-        }
-        // Entrée universelle (comme Modal) : champ sans formulaire parent →
-        // bouton primaire du tiroir. Les formulaires soumettent nativement.
-        if (e.key === "Enter") {
-          const target = e.target as HTMLElement | null;
-          const isField =
-            target != null &&
-            target.tagName === "INPUT" &&
-            (target as HTMLInputElement).type !== "checkbox";
-          const inForm = target?.closest("form") != null;
-          if (isField && !inForm) {
-            const box = e.currentTarget.querySelector<HTMLButtonElement>(
-              "button[data-primary]:not([disabled])",
-            );
-            if (box) {
-              e.preventDefault();
-              box.click();
-            }
-          }
-        }
-      }}
       className="fixed inset-0 z-50 bg-[rgba(10,15,28,0.75)] backdrop-blur-[8px]"
     >
       <aside
+        ref={boxRef}
         onClick={(e) => e.stopPropagation()}
         className={cn(
           "absolute bottom-0 right-0 top-0 flex w-full flex-col border-l border-white/10 bg-[#0d1c2d] shadow-[0_24px_48px_-12px_rgba(2,6,13,0.85)]",
@@ -702,6 +747,7 @@ export function Drawer({
             ) : null}
             {above}
             <h2
+              id={titleId}
               className={cn(
                 "truncate text-xl font-bold tracking-tight text-slate-100",
                 above && !sub ? "mt-2" : sub || above ? "mt-1" : "",

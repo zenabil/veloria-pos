@@ -559,6 +559,19 @@ export function enqueueSnapshotAtomic(args: {
   }
 }
 
+/**
+ * Annonce magasin COURANTE (lecture seule) : le texte pushed vers l'application
+ * client (APK). Sans cette lecture, la saisie côté POS ne pourrait qu'ÉCRASER
+ * l'annonce existante sans jamais la montrer au gérant (Q1 — tranche UI).
+ */
+export function getCurrentAnnouncement(): { text: string | null } {
+  const db = getDb();
+  const row = db
+    .prepare(`SELECT text FROM announcements WHERE is_active = 1 ORDER BY id DESC LIMIT 1`)
+    .get() as { text: string } | undefined;
+  return { text: row?.text ?? null };
+}
+
 export function saveAnnouncementAtomic(args: { operationId: string; text: string; now: string }): {
   announcementId: number;
 } {

@@ -19,6 +19,7 @@ import { parseProductsCsv } from "@domain/import/csv-import.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { formatDzd } from "@domain/money/money.ts";
 import { newOperationId } from "@domain/common/ids.ts";
+import { runBulk } from "@shared/ui/bulk-actions.ts";
 import {
   Badge,
   Button,
@@ -79,6 +80,9 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
   const [stats, setStats] = useState<Stats>({ total: 0, available: 0, low: 0, out: 0 });
   const [categories, setCategories] = useState<Category[]>([]);
   const [selection, setSelection] = useState<Set<number>>(new Set());
+  // A-15 : état de lot (concurrence bornée + progression affichée).
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkLabel, setBulkLabel] = useState("");
   // Confirmation non bloquante (modale applicative).
   const confirmAsync = useConfirm();
   const [drawerProduct, setDrawerProduct] = useState<Product | null>(null);
@@ -281,16 +285,27 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
   async function archiveSelection(): Promise<void> {
     if (selection.size === 0) return;
     if (!(await confirmAsync(`Archiver ${selection.size} produit(s) ?`))) return;
-    let done = 0;
-    for (const id of selection) {
-      try {
+    setBulkLabel(`Archivage 0/${selection.size}…`);
+    setBulkBusy(true);
+    // A-15 : lot à concurrence bornée + progression (200 archives
+    // séquentielles = plusieurs minutes sans aucun retour visuel).
+    const res = await runBulk(
+      [...selection],
+      async (id) => {
         await api.productArchive({ id, operationId: newOperationId() });
-        done += 1;
-      } catch {
-        /* produit déjà traité : on continue */
-      }
-    }
-    notify(`${done} produit(s) archivé(s).`, done > 0 ? "ok" : "err");
+      },
+      {
+        onProgress: (processed, total) => setBulkLabel(`Archivage ${processed}/${total}…`),
+      },
+    );
+    setBulkBusy(false);
+    setBulkLabel("");
+    notify(
+      res.failed > 0
+        ? `${res.done} produit(s) archivé(s), ${res.failed} échec(s).`
+        : `${res.done} produit(s) archivé(s).`,
+      res.failed > 0 ? "err" : "ok",
+    );
     refresh();
   }
 
@@ -490,8 +505,9 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
       {selection.size > 0 ? (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-400/30 bg-amber-400/[0.07] px-4 py-2.5 text-sm">
           <strong>{selection.size} sélectionné(s)</strong>
-          <Button variant="secondary" onClick={() => void archiveSelection()}>
-            <Archive size={15} aria-hidden="true" /> Archiver la sélection
+          <Button variant="secondary" onClick={() => void archiveSelection()} disabled={bulkBusy}>
+            <Archive size={15} aria-hidden="true" />
+            {bulkBusy ? bulkLabel || "Archivage…" : "Archiver la sélection"}
           </Button>
           <Button variant="secondary" onClick={openLabelsSelection}>
             <Barcode size={15} aria-hidden="true" /> Étiquettes

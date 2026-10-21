@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@shared/types/ipc-client.ts";
 import { frError } from "@shared/errors/fr-map.ts";
+import { newOperationId } from "@domain/common/ids.ts";
 import { Card } from "@shared/ui/primitives.tsx";
 import type { Notify } from "@shared/ui/primitives.tsx";
 import type { StaffUserView } from "./use-staff.ts";
@@ -21,10 +22,13 @@ const PERMISSION_LABELS: { key: string; label: string }[] = [
   { key: "cancel", label: "Annulation" },
 ];
 
-function newOperationId(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
-  return "00000000-0000-4000-8000-000000000000";
-}
+// A-03 (P1) : `newOperationId` vient désormais du DOMAINE
+// (`src/domain/common/ids.ts` — UUIDv7 via `crypto.getRandomValues`, qui
+// fonctionne dans TOUT contexte). La copie locale avait un repli UUID
+// CONSTANT : sans `crypto.randomUUID`, toutes les opérations d'équipe
+// would've partagé le même `operationId` ⇒ `idempotency_keys` aurait confondu
+// des opérations distinctes en rejeux (création de gérant, permissions,
+// changement de code, secours) et les aurait perdues en silence.
 
 export function UsersAdmin({
   notify,

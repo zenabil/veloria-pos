@@ -169,8 +169,33 @@ function decimalToMinorStrict(value: number): number {
  * Arithmétique entière uniquement (même règle que l'APK `formatMinor`) :
  * `minor / 100` en float perdrait le centime au-delà de 2^53 et diverge du
  * Client. Ici : partie entière groupée via Intl (entier seul, exact) +
- * centimes `abs % 100`. */
+ * centimes `abs % 100`.
+ *
+ * A-01 (P1) — RENDU : ce formatteur ne LÈVE JAMAIS. Une valeur corrompue
+ * (NaN, fractionnaire, négative, hors bornes) affichée pendant un render
+ * React faisait tomber l'`ErrorBoundary` ⇒ **écran mort devant le caissier**
+ * (268 sites d'appel, une seule valeur fausse suffisait). Valeur invalide
+ * ⇒ « — ». Pour un chemin qui EXIGE la correction d'une valeur (logique
+ * transactionnelle, écriture), utiliser `formatDzdStrict` (qui lève). */
 export function formatDzd(minor: number): string {
+  if (!Number.isSafeInteger(minor) || minor < 0 || minor > MAX_MINOR_SINGLE) return "—";
+  const sign = minor < 0 ? "-" : "";
+  const abs = Math.abs(minor);
+  const major = Math.trunc(abs / MINOR_PER_MAJOR);
+  const cents = abs % MINOR_PER_MAJOR;
+  const grouped = new Intl.NumberFormat("fr-FR", {
+    maximumFractionDigits: 0,
+  }).format(major);
+  return `${sign}${grouped},${String(cents).padStart(2, "0")} DZD`;
+}
+
+/**
+ * A-01 (P1) : variante STRICTE de `formatDzd` — elle LÈVE (`MoneyError`)
+ * sur une valeur invalide. Réservée aux chemins transactionnels / écriture
+ * (vérification de saisie, calculs envoyés au main) où une valeur corrompue
+ * doit être signalée et non masquée.
+ */
+export function formatDzdStrict(minor: number): string {
   assertMinorInteger(minor);
   const sign = minor < 0 ? "-" : "";
   const abs = Math.abs(minor);

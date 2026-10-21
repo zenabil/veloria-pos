@@ -167,6 +167,11 @@ export function registerCustomersChannels(): void {
       now: new Date().toISOString(),
     }),
   );
+  // Q1 (UI annonce) : lecture de l'annonce courante — sans elle, le gérant
+  // écrirait dans le vide. Lecture seule, même permission que l'écriture.
+  handle(IPC_CHANNELS["announcements.get"], V.emptyPayloadSchema, () =>
+    ClientAccess.getCurrentAnnouncement(),
+  );
   // Poussée miroir : manuelle (bouton commerçant) + auto (timer 60 s).
   // Best-effort : un échec réseau rend une erreur FR, jamais de donnée perdue
   // (la file reste `pending` et sera rejouée).

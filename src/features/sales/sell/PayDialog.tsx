@@ -75,7 +75,15 @@ export function PayDialog({
       // Saisie en cours invalide : repli bénin à 0 avant l'ajout (pas d'échec utilisateur).
       base = 0;
     }
-    setPaidText(minorToInput(base + dzd * 100));
+    // A-21 : `minorToInput` refuse un montant hors bornes (1e9 centimes).
+    // Un dépassement ne doit surtout pas faire tomber le gestionnaire
+    // d'événement (l'ErrorBoundary ne voit pas les exceptions d'un
+    // onClick) : message FR + saisie inchangée.
+    try {
+      setPaidText(minorToInput(base + dzd * 100));
+    } catch {
+      notify("Montant maximal dépassé (10 000 000,00 DZD).", "err");
+    }
   }
 
   function validate(): void {
