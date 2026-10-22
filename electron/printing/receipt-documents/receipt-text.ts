@@ -6,7 +6,7 @@ import {
   type ReceiptLine,
   type ThermalWidth,
 } from "./common";
-import { amountInWordsFr, formatMinorDa, tvaBreakdown } from "./amounts";
+import { amountInWordsFr, formatMinorDa, formatQtyFr, tvaBreakdown } from "./amounts";
 import {
   thermalCenter,
   thermalCols,
@@ -91,6 +91,7 @@ function toReceiptLines(value: unknown): ReceiptLine[] {
         unitPriceMinor: r["unitPriceMinor"],
         lineTotalMinor: r["lineTotalMinor"],
         ref: typeof r["ref"] === "string" ? r["ref"] : undefined,
+        billedTotalMinor: typeof r["billedTotalMinor"] === "number" ? r["billedTotalMinor"] : null,
       });
     }
   }
@@ -171,9 +172,15 @@ export function buildReceiptText(d: ReceiptData, width?: ThermalWidth): string {
   out.push(sep);
   out.push(`PRODUIT · QTÉ x P.U. = TOTAL`);
   for (const l of d.lines) {
+    // ADR-131/132 : ligne facturée au MONTANT SAISI — la multiplication
+    // « qté x P.U. » serait arithmétiquement fausse (0,071 × 700 ≠ 50,00) ;
+    // le ticket affiche donc le détail réel : poids + « montant saisi ».
+    const qty = `${formatQtyFr(l.qty)}${l.unit ? ` ${l.unit}` : ""}`;
+    const middle =
+      l.billedTotalMinor != null ? `${qty} · montant saisi` : `${qty} x ${fmt(l.unitPriceMinor)}`;
     for (const row of thermalItem(
       `${l.ref && l.ref !== "—" ? `[${l.ref}] ` : ""}${l.name}`,
-      `${l.qty} x ${fmt(l.unitPriceMinor)}`,
+      middle,
       fmt(l.lineTotalMinor),
       cols,
     ))
@@ -181,8 +188,13 @@ export function buildReceiptText(d: ReceiptData, width?: ThermalWidth): string {
   }
   out.push(sep);
   for (const row of thermalRow("Sous-total", fmt(d.subtotalMinor), cols)) out.push(row);
+  // Remise SIGNÉE (ADR-131/132) : une remise négative = majoration (prix
+  // facturé > prix catalogue) ou facture au montant saisi. L'écart reste
+  // VISIBLE sur le ticket (jamais masqué) et le ticket se recompose à l'œil.
   if (d.discountMinor > 0)
-    for (const row of thermalRow("Remise", fmt(d.discountMinor), cols)) out.push(row);
+    for (const row of thermalRow("Remise", `−${fmt(d.discountMinor)}`, cols)) out.push(row);
+  else if (d.discountMinor < 0)
+    for (const row of thermalRow("Majoration", `+${fmt(-d.discountMinor)}`, cols)) out.push(row);
   const rate = typeof d.tvaRatePercent === "number" ? d.tvaRatePercent : 0;
   if (rate > 0) {
     const ht = typeof d.htMinor === "number" ? d.htMinor : 0;

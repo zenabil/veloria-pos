@@ -44,6 +44,12 @@ export const quantity = z
 export const moneyMinor = z.number().int().min(0).max(1_000_000_000);
 // A1-P0 : montants strictement positifs bornés (paiements, remboursements).
 export const moneyMinorPositive = z.number().int().min(1).max(1_000_000_000);
+// ADR-131/132 : montants SIGNÉS (remise négative = majoration de prix ou
+// facture au montant saisi). Borne d'IMPRESSION volontairement plus stricte
+// que `assertSignedTotal` (domaine, ±1e11) : une remise de vente reste
+// bornée à ~500 001 centimes par ligne (tolérance d'arrondi), donc jamais
+// atteignable ici — fail-closed sans risque de rejet légitime.
+export const moneyMinorSigned = z.number().int().min(-1_000_000_000).max(1_000_000_000);
 
 export const optionalOperationId = z.string().uuid().nullable().optional();
 // A1-P0 : quantités ≥ 0 avec 3 décimales max (même règle que `quantity`, zéro inclus

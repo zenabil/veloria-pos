@@ -132,6 +132,9 @@ export function buildSaleSnapshot(
       unitPriceMinor: l.unitPriceMinor,
       lineTotalMinor: computeBilledTotal(l),
       ref: l.productId != null ? String(l.productId).padStart(5, "0") : "—",
+      // ADR-131/132 : le ticket doit savoir que la ligne est facturée au
+      // montant SAISI (sinon il afficherait une multiplication fausse).
+      billedTotalMinor: l.billedTotalMinor ?? null,
     })),
     subtotalMinor: totals.subtotalMinor,
     discountMinor: totals.discountAmountMinor,
@@ -193,5 +196,6 @@ export function buildProformaLines(cart: ActiveCart): PreviewLine[] {
     unitPriceMinor: l.unitPriceMinor,
     lineTotalMinor: computeBilledTotal(l),
     ref: l.productId != null ? String(l.productId).padStart(5, "0") : "—",
+    billedTotalMinor: l.billedTotalMinor ?? null,
   }));
 }

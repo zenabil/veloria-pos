@@ -1,6 +1,6 @@
 // Veloria PoS — Caisse : dialogue de changement de prix (extrait de CartPanel).
 // La remise vit UNIQUEMENT dans le prix unitaire ; vente sous coût = confirmation explicite.
-import { formatDzd, parseDzdInputStrict } from "@domain/money/money.ts";
+import { MoneyError, formatDzd, parseDzdInputStrict } from "@domain/money/money.ts";
 import { Button, Field, Modal, TextInput, cn } from "@shared/ui/primitives.tsx";
 
 export interface PriceTarget {
@@ -66,13 +66,19 @@ export function PriceDialog({
           let parsed: number | null = null;
           try {
             parsed = parseDzdInputStrict(priceText, "x");
-          } catch {
+          } catch (e) {
+            // Saisie vide ou partielle : cas NORMAL pendant la frappe — le
+            // message FR reste dans le champ et rien n'est journalisé comme
+            // une erreur. Seule une exception INATTENDUE est tracée (AGENTS §6).
+            if (!(e instanceof MoneyError)) {
+              console.error("[Veloria] prix unitaire illisible", e);
+            }
             parsed = null;
           }
           const below =
             parsed != null && priceFor.purchaseMinor > 0 && parsed < priceFor.purchaseMinor;
           // Majoration (prix > prix catalogue) : autorisée (remise signée,
-          // migration 0051) mais ANNONCÉE + tracée dans l'audit de la vente.
+          // migration 0051) mais ANNONCÉE + tracée dans le journal de la vente.
           const above =
             parsed != null && priceFor.originalMinor > 0 && parsed > priceFor.originalMinor;
           if (!below && !above) return null;
@@ -86,12 +92,15 @@ export function PriceDialog({
               {below ? (
                 <p role="alert" className="font-bold text-red-300">
                   Attention : ce prix passe SOUS le coût d&apos;achat (
-                  {formatDzd(priceFor.purchaseMinor)}). La vente sera tracée dans l&apos;audit.
+                  {formatDzd(priceFor.purchaseMinor)}). La vente sera tracée dans le journal de la
+                  vente.
                 </p>
               ) : (
                 <p role="alert" className="font-bold text-amber-200">
-                  Majoration : ce prix dépasse le prix catalogue (
-                  {formatDzd(priceFor.originalMinor)}). L&apos;écart sera tracé dans l&apos;audit.
+                  Majoration : {formatDzd(parsed ?? 0)} au lieu de{" "}
+                  {formatDzd(priceFor.originalMinor)} (+
+                  {formatDzd((parsed ?? 0) - priceFor.originalMinor)}). L&apos;écart sera enregistré
+                  dans le journal de la vente.
                 </p>
               )}
               {below ? (

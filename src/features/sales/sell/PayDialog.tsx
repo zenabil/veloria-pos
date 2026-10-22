@@ -217,7 +217,8 @@ export function PayDialog({
               </strong>
               <br />
               <span className="text-xs text-red-200/80">
-                Je confirme autoriser cette vente malgré le dépassement (tracé en audit).
+                Je confirme autoriser cette vente malgré le dépassement (tracé dans le journal de la
+                vente).
               </span>
             </span>
           </label>

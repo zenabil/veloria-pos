@@ -115,7 +115,7 @@ export function SellScreen({ notify }: { notify: Notify }): React.JSX.Element {
       closeTab: () => closeTab(flowDeps, cart.activeId),
       focusClient: () => s.customerRef.current?.focus(),
       openHelp: () => s.setHelpOpen(true),
-      bump: (delta) => bumpLastQty(cart, delta),
+      bump: (delta) => bumpLastQty(cart, delta, notify),
     };
   });
 
@@ -226,6 +226,9 @@ export function SellScreen({ notify }: { notify: Notify }): React.JSX.Element {
           totalQty={s.totalQty}
           totals={s.totals}
           totalsErr={s.totalsErr}
+          raisedLineCount={
+            cart.lines.filter((l) => l.unitPriceMinor > l.originalUnitPriceMinor).length
+          }
           deliveryText={s.deliveryText}
           setDeliveryText={s.setDeliveryText}
           deliveryFeeMinor={cart.deliveryFeeMinor}

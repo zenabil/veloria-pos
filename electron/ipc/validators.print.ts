@@ -1,7 +1,7 @@
 // Veloria PoS - Zod: impression + sauvegardes + licences + etiquettes + documents (extrait de validators.ts, deplacement pur).
 
 import { z } from "zod";
-import { moneyMinor } from "./validators.common";
+import { moneyMinor, moneyMinorSigned } from "./validators.common";
 import { quantity } from "./validators.common";
 import { optionalOperationId } from "./validators.common";
 import { timbreQuittanceLf2025 } from "../printing/receipt-documents";
@@ -13,6 +13,13 @@ export const printLineSchema = z.object({
   unitPriceMinor: moneyMinor,
   lineTotalMinor: moneyMinor,
   ref: z.string().max(20).default(""),
+  /**
+   * ADR-131/132 : montant facturé tel que SAISI (mode « Montant » du
+   * dialogue quantité). Absent/null = facturation prix × quantité. Conservé
+   * dans le document pour que le ticket affiche « Montant saisi » au lieu
+   * d'une multiplication arithmétiquement fausse (0,071 × 700 ≠ 50,00).
+   */
+  billedTotalMinor: moneyMinor.nullable().optional(),
 });
 
 export const printerSaveSchema = z.object({
@@ -85,7 +92,13 @@ export const printPayloadSchema = z
     date: z.string().max(50).default(""),
     lines: z.array(printLineSchema).min(1).max(200),
     subtotalMinor: moneyMinor.default(0),
-    discountMinor: moneyMinor.default(0),
+    /**
+     * Remise SIGNÉE (ADR-131/132) : négative = majoration (prix facturé >
+     * prix catalogue) ou facture au montant saisi. La borne basse est
+     * symétrique à `moneyMinor` : le ticket reste imprimable et l'écart
+     * reste VISIBLE (jamais masqué).
+     */
+    discountMinor: moneyMinorSigned.default(0),
     deliveryMinor: moneyMinor.default(0),
     totalMinor: moneyMinor.default(0),
     paidMinor: moneyMinor.default(0),

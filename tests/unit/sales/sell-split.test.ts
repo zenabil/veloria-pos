@@ -429,6 +429,8 @@ describe("sell-finalize : clichés + totaux", () => {
         unitPriceMinor: 115000,
         lineTotalMinor: computeLineTotal(115000, 2),
         ref: "00007",
+        // ADR-131/132 : marque du montant SAISI (absente = prix × quantité).
+        billedTotalMinor: null,
       },
     ]);
     expect(snap.paymentMethod).toBe("cash");
@@ -450,6 +452,7 @@ describe("sell-finalize : clichés + totaux", () => {
         unitPriceMinor: 115000,
         lineTotalMinor: computeLineTotal(115000, 2),
         ref: "00007",
+        billedTotalMinor: null,
       },
     ]);
   });

@@ -2,7 +2,7 @@
 
 import { escapeHtml } from "./html";
 import type { ReceiptData, ReceiptLine } from "./common";
-import { amountInWordsFr, buildQrPayload, tvaBreakdown } from "./amounts";
+import { amountInWordsFr, buildQrPayload, formatQtyFr, tvaBreakdown } from "./amounts";
 import {
   codeBlocks,
   companyHead,
@@ -107,12 +107,20 @@ export function proformaFromReceipt(d: ReceiptData): ProformaData {
 /** Devis A4 (maquette : destinataire, validité, conditions, non comptabilisé). */
 export function buildProformaA4Html(d: ProformaData, page?: PageOpts): string {
   const rows = d.lines
-    .map(
-      (l) =>
-        `<tr><td>${escapeHtml(l.ref ?? "—")}</td><td>${escapeHtml(l.name)}</td>` +
-        `<td class="num">${l.qty}</td><td class="num">${fmtDzd(l.unitPriceMinor)}</td>` +
-        `<td class="num">${fmtDzd(l.lineTotalMinor)}</td></tr>`,
-    )
+    .map((l) => {
+      // ADR-131/132 : ligne facturée au MONTANT SAISI — le total affiché ne
+      // vaut pas qté × P.U. (quantité arrondie) : la ligne le dit.
+      const byAmount =
+        l.billedTotalMinor != null ||
+        Math.abs(l.lineTotalMinor - Math.round(l.unitPriceMinor * l.qty)) > 1;
+      const qtyCell = `${formatQtyFr(l.qty)}${l.unit ? ` ${escapeHtml(l.unit)}` : ""}`;
+      const note = byAmount ? `<div class="muted">montant saisi</div>` : "";
+      return (
+        `<tr><td>${escapeHtml(l.ref ?? "—")}</td><td>${escapeHtml(l.name)}${note}</td>` +
+        `<td class="num">${qtyCell}</td><td class="num">${fmtDzd(l.unitPriceMinor)}</td>` +
+        `<td class="num">${fmtDzd(l.lineTotalMinor)}</td></tr>`
+      );
+    })
     .join("");
   const destRows = [
     `<div><span class="lbl">Nom :</span> ${escapeHtml(d.customerName || "—")}</div>`,
@@ -161,7 +169,17 @@ ${headerNoteHtml(d.headerNote ?? "")}
 <tbody>${rows}</tbody></table>
 <table class="totals"><tbody>
 <tr><td>Sous-total</td><td class="num">${fmtDzd(d.subtotalMinor)}</td></tr>
-${d.discountMinor > 0 || d.hideZeroRows !== true ? `<tr><td>Remise</td><td class="num">${fmtDzd(d.discountMinor)}</td></tr>` : ""}
+${(() => {
+  // ADR-131/132 : remise SIGNÉE — une remise négative est une MAJORATION
+  // (prix au-dessus du catalogue ou facture au montant saisi). Elle reste
+  // VISIBLE même quand le réglage masque les lignes à zéro, sinon le total
+  // du devis ne se recompose plus à l'œil.
+  if (d.discountMinor > 0)
+    return `<tr><td>Remise</td><td class="num">−${fmtDzd(d.discountMinor)}</td></tr>`;
+  if (d.discountMinor < 0)
+    return `<tr><td>Majoration</td><td class="num">+${fmtDzd(-d.discountMinor)}</td></tr>`;
+  return d.hideZeroRows !== true ? `<tr><td>Remise</td><td class="num">${fmtDzd(0)}</td></tr>` : "";
+})()}
 ${(() => {
   const rate = typeof d.tvaRatePercent === "number" ? d.tvaRatePercent : 0;
   if (!(rate > 0)) return "";

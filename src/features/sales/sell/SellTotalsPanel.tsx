@@ -10,6 +10,7 @@ export function SellTotalsPanel({
   totalQty,
   totals,
   totalsErr,
+  raisedLineCount,
   deliveryText,
   setDeliveryText,
   deliveryFeeMinor,
@@ -23,6 +24,12 @@ export function SellTotalsPanel({
   totalQty: number;
   totals: SellTotals | null;
   totalsErr: string;
+  /**
+   * Nombre de lignes facturées AU-DESSUS de leur prix catalogue (ADR-131).
+   * Sert à distinguer la vraie majoration de prix de l'écart d'arrondi du
+   * mode « Montant » (les deux donnent une remise négative).
+   */
+  raisedLineCount: number;
   deliveryText: string;
   setDeliveryText: (v: string) => void;
   deliveryFeeMinor: number;
@@ -61,7 +68,10 @@ export function SellTotalsPanel({
             ) : null}
             {totals != null && totals.discountAmountMinor < 0 ? (
               <div className="flex justify-between font-semibold text-sky-300">
-                <dt>Majoration</dt>
+                <dt>
+                  {raisedLineCount > 0 ? "Majoration" : "Écart au prix catalogue"}
+                  {raisedLineCount > 1 ? ` (${raisedLineCount} lignes)` : ""}
+                </dt>
                 <dd className="tabular-nums">+{formatDzd(-totals.discountAmountMinor)}</dd>
               </div>
             ) : null}

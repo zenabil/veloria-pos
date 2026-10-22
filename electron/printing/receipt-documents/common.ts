@@ -12,6 +12,13 @@ export interface ReceiptLine {
   lineTotalMinor: number;
   /** Référence imprimée (code-barres ou identifiant paddé, « — » sinon). */
   ref?: string | undefined;
+  /**
+   * ADR-131/132 : montant facturé tel que SAISI (mode « Montant »). Quand il
+   * est présent, le ticket affiche « Montant saisi » au lieu de la
+   * multiplication quantité × prix unitaire (arithmétiquement fausse dès que
+   * la quantité est arrondie). Absent = facturation prix × quantité.
+   */
+  billedTotalMinor?: number | null | undefined;
 }
 
 export interface ReceiptData {

@@ -4,6 +4,7 @@
 // supprime jamais les précédents.
 import { create } from "zustand";
 import { roundQuantity } from "@domain/common/quantity.ts";
+import { isBilledByAmount } from "@domain/sales/sale-rules.ts";
 import type { CartLine } from "@/application/sales/create-sale.ts";
 
 export interface CartTab {
@@ -120,11 +121,14 @@ export const useCartsStore = create<CartsStore>((set) => ({
             l.productId === incoming.productId &&
             l.unitPriceMinor === incoming.unitPriceMinor &&
             (l.originalUnitPriceMinor || l.unitPriceMinor) === incoming.originalUnitPriceMinor &&
-            // Mode « Montant » (ADR-114) : deux lignes au montant facturé
-            // DIFFÉRENT ne sont jamais fusionnées (le total facturé de la
-            // ligne est unique : le fusionner additionnerait les poids mais
-            // garderait un seul montant).
-            (l.billedTotalMinor ?? null) === (incoming.billedTotalMinor ?? null),
+            // Mode « Montant » (ADR-131/132) : une ligne facturée au montant
+            // SAISI n'est JAMAIS fusionnée (ni avec une autre ligne à montant
+            // saisi, ni avec une ligne au prix unitaire) : le montant facturé
+            // est unique par ligne, la fusion additionnerait les poids mais
+            // garderait un seul montant (perte de recette) et rendrait la
+            // ligne incohérente (montant ≠ prix × quantité).
+            l.billedTotalMinor == null &&
+            incoming.billedTotalMinor == null,
         );
         if (existing) {
           return {
@@ -148,7 +152,11 @@ export const useCartsStore = create<CartsStore>((set) => ({
       tabs: patchActive(s.tabs, s.activeId, (t) => ({
         ...t,
         lines: t.lines.map((l) =>
-          l.key === key
+          // ADR-132 : ligne facturée au MONTANT SAISI = prix VERROUILLÉ.
+          // Modifier le prix rendrait le montant saisi incohérent avec
+          // prix × quantité (ligne invendable). Le caissier supprime la
+          // ligne et la ressaisit.
+          l.key === key && !isBilledByAmount(l)
             ? {
                 ...l,
                 originalUnitPriceMinor: l.originalUnitPriceMinor || l.unitPriceMinor,
@@ -164,8 +172,12 @@ export const useCartsStore = create<CartsStore>((set) => ({
         ...t,
         // P1-3 : arrondi unifié ici (3 décimales) — tous les appelants
         // (boutons, saisie, clavier) passent par la même règle ; ≤ 0 = retrait.
+        // ADR-132 : ligne facturée au MONTANT SAISI = quantité VERROUILLÉE
+        // (le poids retiré du stock est celui calculé à la saisie).
         lines: t.lines
-          .map((l) => (l.key === key ? { ...l, quantity: roundQuantity(qty) } : l))
+          .map((l) =>
+            l.key === key && !isBilledByAmount(l) ? { ...l, quantity: roundQuantity(qty) } : l,
+          )
           .filter((l) => l.quantity > 0),
       })),
     })),

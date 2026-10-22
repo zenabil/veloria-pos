@@ -5,6 +5,7 @@
 // facturé (arrondi exact, jamais le montant brut saisi).
 import { useEffect, useRef, useState } from "react";
 import { formatDzd } from "@domain/money/money.ts";
+import { computeLineTotal } from "@domain/sales/sale-rules.ts";
 import { unitLabel } from "@domain/units/units.ts";
 import { Button, Field, Modal, TextInput } from "@shared/ui/primitives.tsx";
 import { formatQuantityFr } from "@domain/common/quantity.ts";
@@ -34,13 +35,20 @@ export function QuantityDialog({
   const noun = quantityNoun(row.unit_code);
   // Accord FR : « longueur vendue » (M) vs « poids vendu » (KG/G/L/ML/CL).
   const vendu = isFeminineQuantityUnit(row.unit_code) ? "vendue" : "vendu";
-  const calcule = isFeminineQuantityUnit(row.unit_code) ? "calculée" : "calculé";
+  const retenu = isFeminineQuantityUnit(row.unit_code) ? "retenue" : "retenu";
   const unit = unitLabel(row.unit_code);
   const unitLower = unit.toLowerCase();
   const priceMinor = row.selling_price_minor;
   const stockQty = Number.isFinite(row.quantity) ? row.quantity : null;
   const preview = weightDialogPreview(mode, text, priceMinor);
   const overStock = stockQty != null && preview != null && preview.qty > stockQty;
+  // Mode « Montant » : le montant facturé est celui SAISI ; l'écart avec
+  // prix × poids arrondi est affiché (sinon 0,071 kg × 700,00 DZD ≠ 50,00
+  // DZD semble inexplicable pour le caissier et le client).
+  const referenceMinor =
+    mode === "amount" && preview != null ? computeLineTotal(priceMinor, preview.qty) : null;
+  const ecartMinor =
+    referenceMinor != null && preview != null ? preview.totalMinor - referenceMinor : 0;
 
   // Le champ reprend le focus à chaque changement de mode (clavier d'abord).
   useEffect(() => {
@@ -113,11 +121,13 @@ export function QuantityDialog({
         </div>
 
         <Field
-          label={mode === "quantity" ? `${noun} ${vendu} (${unitLower})` : "Montant vendu (DZD)"}
+          label={
+            mode === "quantity" ? `${noun} ${vendu} (${unitLower})` : "Montant à facturer (DZD)"
+          }
           {...(error !== "" ? { error } : {})}
           {...(mode === "amount"
             ? {
-                hint: "Le montant saisi est facturé tel quel ; le poids (arrondi au gramme) sert au stock.",
+                hint: "Le montant saisi est facturé tel quel ; le poids (arrondi à l'unité de stock) sert au stock.",
               }
             : {})}
         >
@@ -130,7 +140,7 @@ export function QuantityDialog({
             }}
             inputMode="decimal"
             placeholder={mode === "quantity" ? "0,000" : "0,00"}
-            aria-label={mode === "quantity" ? `${noun} vendu` : "Montant vendu"}
+            aria-label={mode === "quantity" ? `${noun} vendu` : "Montant à facturer"}
             autoComplete="off"
           />
         </Field>
@@ -148,7 +158,7 @@ export function QuantityDialog({
               {mode === "amount" ? (
                 <div className="flex justify-between gap-3 text-slate-300">
                   <span>
-                    {noun} {calcule}
+                    {noun} {retenu} pour le stock
                   </span>
                   <span className="text-right font-semibold tabular-nums">
                     {formatQuantityFr(preview.qty)} {unitLower}
@@ -164,12 +174,24 @@ export function QuantityDialog({
                   </span>
                 </div>
               )}
-              <div className="flex justify-between gap-3 text-slate-200">
+              <div aria-live="polite" className="flex justify-between gap-3 text-slate-200">
                 <span>Total à facturer</span>
                 <span className="text-right font-bold tabular-nums text-amber-300">
                   {formatDzd(preview.totalMinor)}
                 </span>
               </div>
+              {mode === "amount" && ecartMinor !== 0 ? (
+                <div className="flex justify-between gap-3 text-xs text-slate-400">
+                  <span>
+                    Écart d&apos;arrondi {isFeminineQuantityUnit(row.unit_code) ? "de la" : "du"}{" "}
+                    {noun.toLowerCase()}
+                  </span>
+                  <span className="text-right tabular-nums">
+                    {ecartMinor > 0 ? "+" : "−"}
+                    {formatDzd(Math.abs(ecartMinor))}
+                  </span>
+                </div>
+              ) : null}
             </div>
           )}
           {overStock ? (

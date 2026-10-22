@@ -28,6 +28,13 @@ export interface PreviewLine {
   unitPriceMinor: number;
   lineTotalMinor: number;
   ref: string;
+  /**
+   * ADR-131/132 : montant facturé tel que SAISI (mode « Montant »). Quand il
+   * est présent, le document affiche « Montant saisi » au lieu de la
+   * multiplication quantité × prix unitaire (arithmétiquement fausse dès que
+   * la quantité est arrondie). Absent = facturation prix × quantité.
+   */
+  billedTotalMinor?: number | null | undefined;
 }
 
 export interface LastSale {

@@ -148,6 +148,18 @@ export function formatMinorDa(m: number): string {
   return `${sign}${GROUP_FR.format(dinars)},${String(centimes).padStart(2, "0")} DA`;
 }
 
+/**
+ * Quantité au format FR (virgule décimale, zéros parasites retirés).
+ * MIROIR de `src/domain/common/quantity.ts` (`formatQuantityFr`) : electron
+ * ne peut pas importer `src/` (rootDir — même convention que le timbre).
+ * Le ticket imprimait « 0.071 » (point JS) : incohérent avec le reste du
+ * document en français.
+ */
+export function formatQtyFr(qty: number): string {
+  if (typeof qty !== "number" || !Number.isFinite(qty)) return "0";
+  return String(Math.round(qty * 1000) / 1000).replace(".", ",");
+}
+
 // ---------------------------------------------------------------------------
 // C5 : timbre de quittance LF 2025 — MIROIR de `src/domain/invoice/
 // timbre-rules.ts` (electron ne peut pas importer src/ : rootDir — même

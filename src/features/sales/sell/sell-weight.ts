@@ -2,7 +2,7 @@
 // L'unité continue (KG/G/L/ML/CL/M) rend la quantité obligatoire : le vendeur
 // la saisit au dialogue « quantité vendue » (poids OU montant), jamais « 1
 // par défaut ». Le flux d'ajout (dialogue vs direct) vit dans sell-search.ts.
-import { parseDzdInputStrict } from "@domain/money/money.ts";
+import { MoneyError, parseDzdInputStrict } from "@domain/money/money.ts";
 import { computeLineTotal } from "@domain/sales/sale-rules.ts";
 import { quantityForAmountMinor } from "@domain/sales/weight-sale.ts";
 import { parseQuantityInput } from "@domain/common/quantity.ts";
@@ -84,9 +84,14 @@ export function weightDialogPreview(
     // stock) — ADR-114 révisé : facturer le poids arrondi faisait perdre
     // jusqu'à 0,0005 × prix unitaire par ligne (0,35 DZD sur 700 DZD/kg).
     return { qty, totalMinor: amountMinor };
-  } catch {
+  } catch (e) {
     // Montant au-delà des bornes monétaires, quantité hors borne… : l'UI
     // affiche « saisie invalide » — jamais d'exception brute à l'écran.
+    // Une saisie vide/partielle est NORMALE (aucun log) ; seule une erreur
+    // inattendue est journalisée (AGENTS §6).
+    if (!(e instanceof MoneyError)) {
+      console.error("[Veloria] saisie quantité/montant invalide", e);
+    }
     return null;
   }
 }

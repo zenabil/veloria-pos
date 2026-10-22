@@ -7,6 +7,7 @@ import { playSound } from "@shared/sound/sound.ts";
 import { minorToInput } from "@domain/money/money.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import { roundQuantity } from "@domain/common/quantity.ts";
+import { isBilledByAmount } from "@domain/sales/sale-rules.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { formatCustomerCode } from "@shared/formatters/format.ts";
 import { api } from "@shared/types/ipc-client.ts";
@@ -104,9 +105,18 @@ export function openPay(d: SellFlowDeps): void {
   d.setPayOpen(true);
 }
 
-export function bumpLastQty(cart: ActiveCart, delta: 1 | -1): void {
+export function bumpLastQty(cart: ActiveCart, delta: 1 | -1, notify?: Notify): void {
+  // ADR-132 : le raccourci vise la DERNIÈRE ligne (c'est ce qu'annonce
+  // l'aide « Quantité dernière ligne »). Si elle est facturée au MONTANT
+  // SAISI (quantité verrouillée), on ne fait RIEN : remonter à une ligne
+  // antérieure modifierait un produit que le caissier n'a pas visé (et « − »
+  // pourrait même la retirer).
   const last = cart.lines[cart.lines.length - 1];
   if (!last) return;
+  if (isBilledByAmount(last)) {
+    notify?.("Quantité verrouillée : montant saisi — retirez la ligne pour la corriger.", "err");
+    return;
+  }
   cart.setQty(last.key, roundQuantity(last.quantity + delta));
 }
 
@@ -251,11 +261,13 @@ export async function finalizeSale(d: SellFlowDeps): Promise<void> {
           // Vente = ticket uniquement (jamais A4) — politique opération → format.
           await api.printReceipt(buildPrintPayload(d.company, sale, sale.balances));
           d.notify("Impression auto envoyée.", "ok");
-        } catch {
+        } catch (e) {
+          console.error("[Veloria] impression auto impossible", e);
           d.notify("Impression auto impossible.", "err");
         }
       }
-    } catch {
+    } catch (e) {
+      console.error("[Veloria] aperçu du ticket indisponible", e);
       d.notify("Aperçu indisponible.", "err");
     }
     clearSaleForm(d);

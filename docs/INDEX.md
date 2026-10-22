@@ -4,7 +4,7 @@
 > l avancement en `reports/PHASE_*.md`. Ne jamais ecrire de rapport a la racine.
 > Conventions : `AGENTS.md` + `docs/STRUCTURE.md` (carte maintenance).
 
-## Decisions (ADR-001 a ADR-119 — tous saries, jamais supprimes)
+## Decisions (ADR-001 a ADR-132 — tous saries, jamais supprimes)
 
 - [ADR-001](./ADR-001-vite-renderer.md) Renderer Vite
 - [ADR-002](./ADR-002-native-versions.md) Versions natives
@@ -137,6 +137,7 @@
 - [ADR-129](./ADR-129-etat-erreur-persistant-ecrans-vague-w10.md) État d'erreur persistant dans chaque écran + coordonnées non codées en dur (W10)
 - [ADR-130](./ADR-130-import-export-csv-clients-produits.md) Import & export CSV sur les écrans Clients et Produits (canal `customers.import`)
 - [ADR-131](./ADR-131-remise-signee-majoration-montant-exact.md) Remise de ligne signée (majoration), facture au montant exact, focus des dialogues (migration 0051)
+- [ADR-132](./ADR-132-ligne-montant-saisi-verrouillee-ticket-readable.md) Ligne « montant saisi » verrouillée, ticket/devise à remise signée, panier increvable
 
 ## Ou ecrire quoi
 

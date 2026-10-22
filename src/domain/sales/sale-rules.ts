@@ -91,6 +91,20 @@ export function billedAmountToleranceMinor(unitPriceMinor: number): number {
 }
 
 /**
+ * true si la ligne est facturée au MONTANT SAISI (mode « Montant », ADR-131).
+ *
+ * Une telle ligne est VERROUILLÉE (ADR-132) : ni sa quantité (poids) ni son
+ * prix unitaire ne peuvent changer. En effet, le montant facturé EST celui
+ * saisi ; recalculer prix × quantité romprait l'invariant
+ * |montant − prix × qté| ≤ tolérance (borne d'arrondi) et rendrait la ligne
+ * incohérente — donc invendable et illisible à l'écran.
+ * Pour changer le montant, le caissier supprime la ligne et la ressaisit.
+ */
+export function isBilledByAmount(line: CartLineInput): boolean {
+  return line.billedTotalMinor != null;
+}
+
+/**
  * Montant facturé de la ligne : le montant SAISI (mode « Montant ») s'il est
  * présent, sinon prix × quantité. Le montant saisi est validé : entier
  * strictement positif, borné, et à portée de l'arrondi de la quantité.
