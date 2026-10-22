@@ -112,3 +112,62 @@ mention d'articles ne se comprime pas. Mesure Playwright après correctif :
   (886 fichiers) · `verify:migrations` **VERIFIED**.
 - **Reste hors périmètre** : impression sur imprimante thermique réelle et
   E2E non rejoués ; packaging `release/` antérieur à ce design.
+
+## 5. Suivi 2026-10-23 — le « فراغ » après le code-barres
+
+Le propriétaire a signalé un vide en bas du ticket (« هناك فراغ في التذكرة »),
+précisé **après le code-barres**. Deux causes distinctes ont été isolées.
+
+### 5.1 Aperçu : le blanc de la fenêtre n'est pas le papier
+
+Les captures Playwright précédentes étaient des captures **pleine page** de
+**302 × 1400 px** (80 mm) et **219 × 1400 px** (58 mm) : le ticket occupait les
+575 / 654 premiers pixels, puis **825 px de blanc** suivaient. Ce blanc venait
+du viewport de capture, pas du ticket. Correctifs :
+
+- le builder ajoute un fond **gris `#d1d5db`** et une ombre portée à
+  `#veloria-ticket` **uniquement en `@media screen`** : l'aperçu montre une
+  feuille blanche détourée sur un fond neutre, et le blanc résiduel n'est plus
+  confondu avec le papier. Le média print (PDF et `webContents.print`) reste
+  blanc : vérifié dans le PDF, seuls `#ffffff` et `#000000` sont peints ;
+- les captures de contrôle sont désormais des captures **d'élément**
+  (`#veloria-ticket`) : **280 × 575 px** et **200 × 654 px**, sans blanc ajouté.
+
+### 5.2 Papier : le pilote étiquette `2120TF(Label)` ignore la hauteur reçue
+
+Le PDF réel produit par le nouveau builder est **serré** :
+
+| Largeur | Page PDF              | Dernier texte | Blanc sous le texte |
+| ------- | --------------------- | ------------- | ------------------- |
+| 80 mm   | **80,09 × 155,19 mm** | « POS »       | **6,23 mm**         |
+| 58 mm   | **58,25 × 176,36 mm** | « POS »       | **6,23 mm**         |
+
+Il n'y a donc **aucun grand blanc interne** dans le document ni dans le PDF.
+Le poste imprime pourtant sur une imprimante configurée comme **étiquette** :
+
+- imprimante `4BARCODE 3B-365B` (USB003), pilote **`2120TF(Label)`** ;
+- `PrinterDriverData` : `PageWidth=900`, `PageHeight=600` (90 × 60 mm),
+  `SensorType=0` (détection de **gap**), `GapLen=30`, `ContinuousForm=0`,
+  `PrintMode=4` (arrachage) ;
+- l'application demande une page **80 × 155 mm** ; ce pilote d'étiquettes
+  continue de fonctionner au **gap/longueur d'étiquette** et laisse le rouleau
+  avancer après le code-barres.
+
+**Correctif matériel (hors code)** : passer le pilote en **mode reçu/continu**
+(« Continuous », `SensorType=2`, `ContinuousForm=1`, gap 0) ou installer le
+pilote **reçu** du XP-365B / 3B-365B, puis sélectionner la queue ainsi créée
+dans Veloria (largeur 80 mm). Le pilote étiquette reste valable pour de vraies
+étiquettes 90 × 60 mm, pas pour un ticket de 155 mm.
+
+**Build de test** : `release/veloria-csv-test/` date de `c30b5c6` et **ne
+contient pas** `ticket-html.js` ; un essai papier depuis cette copie ne peut
+pas valider le nouveau dessin. Rebuilder la copie stable (ou le packaging)
+avant l'essai papier.
+
+### 5.3 Portes du suivi
+
+`ticket-html.test.ts` **10 cas** (dont le fond écran) · `split-parity.test.ts`
+**18 cas** · suite complète **151 fichiers / 1 052 tests** **0** ·
+`typecheck` / `typecheck:electron` / ESLint **0** · `build` ✓ ·
+`build:electron` ✓ (manifeste **220**) · `verify:fr` **0** (325) ·
+`verify:encoding` **0** (887) · `verify:migrations` **VERIFIED**.

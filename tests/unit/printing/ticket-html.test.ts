@@ -168,6 +168,16 @@ describe("Ticket de vente HTML (ADR-134)", () => {
     expect(html.includes("<img src=x")).toBe(false);
   });
 
+  it("aperçu écran : papier blanc détouré sur fond gris, impression blanche", () => {
+    const html = buildReceiptTicketHtml(DOC, "80mm", CODES);
+    expect(html).toContain("@media screen{html,body{background:#d1d5db}");
+    expect(html).toContain("html,body{margin:0;padding:0;background:#fff");
+    expect(html).toContain("#veloria-ticket{box-shadow:");
+    // Le fond gris est réservé à l'écran : `@media print` n'est pas nécessaire
+    // car `printToPDF`/`webContents.print` rendent la feuille en média print.
+    expect(html.includes("@media print")).toBe(false);
+  });
+
   it("code-barres complet et QR optionnel", () => {
     const html = buildReceiptTicketHtml(DOC, "80mm", CODES);
     expect(html).toContain("<svg");

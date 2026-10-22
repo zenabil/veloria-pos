@@ -130,6 +130,8 @@ function stylesOf(m: TicketMetrics): string {
     `@page{margin:0}` +
     `html,body{margin:0;padding:0;background:#fff;color:#000}` +
     `*{box-sizing:border-box}` +
+    `@media screen{html,body{background:#d1d5db}` +
+    `#veloria-ticket{box-shadow:0 2px 10px rgba(0,0,0,.35)}}` +
     `#veloria-ticket{width:${m.widthPx}px;margin:0 auto;padding:0 0 2mm;background:#fff;color:#000;` +
     `font-family:"Courier New","Liberation Mono",monospace;font-size:${m.base}px;line-height:1.25;` +
     `-webkit-print-color-adjust:exact;print-color-adjust:exact}` +
