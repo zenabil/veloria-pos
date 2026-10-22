@@ -15,7 +15,7 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête = `9fbc90e` (§30, ADR-134, design du ticket de vente), parent `2d8028a` (§28, ADR-135). **Arbre propre** après le commit `docs(handoff)` de §30 (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- Branche : `chore/root-layout` — tête = commit `docs(handoff)` de §31 (code `e3cf6e7`, aperçu du ticket + diagnostic du vide papier), parent `9fbc90e` (§30, ADR-134, design du ticket de vente). **Arbre propre** après ce commit (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
 - **Audit intégral EXÉCUTÉ (§18, 2026-10-19)** : 3 livrables — `docs/reports/FULL_AUDIT_2026-10-19.md` (rapport, 16 axes A→P, **228 findings** : 0 Critical · 23 High · 95 Medium · 110 Low) · `docs/reports/FULL_AUDIT_2026-10-19_PLAN.md` (plan en **11 vagues W0→W10**, ~11-13 j, 20 décisions owner) · `docs/ADR-120-*.md` (**proposé**, en attente d'approbation). Preuves brutes : `docs/reports/maintenance/audit-raw/`.
 - **Remédiation : vagues W1 → W10 EXÉCUTÉES et commitées** : `0e900f1` **W1** (logique financière) · `cd43aa2` **W2** (sécurité) · `833cea1` **W3** (base) · **W4** (couverture verte + gardes auto-dérivées) · `1e56547` **W5** (rendu/UI caissier + atelier impression) · **W6** (code mort trié — ADR-127) · `4a96938` **W9** (encodage + chiffres à jour) · `7086954` **W8** (chemins chauds indexés, N+1, bundle) · **W7** (règles uniques — ADR-128) · **W10** (état d'erreur persistant — ADR-129). **Plan d'audit : TERMINÉ** (les 11 vagues sont exécutées).
 - **Baseline gelé 2026-10-21 (mesuré, arbre propre)** : `tsc -b` **0** · `typecheck:electron` **0** · `eslint . --max-warnings 0` **exit 0** · `vitest` **142 fichiers / 976 tests** **0** · `test:db` **39 fichiers / 183 tests** **0** (isolé) · **`test:coverage` = EXIT 0 (VERT — 95,83 % lignes · 87,19 % branches · 100 % fonctions, seuils 80/75/88/80 par fichier ; aucun seuil abaissé)** · `knip` **0** (0 fichier, 0 export, 0 type, 0 dépendance) · `verify:migrations` **VERIFIED** · `verify:domain` **VERIFIED** · `verify:perf` **VERIFIED** · `verify:fr` **0** (322 fichiers, **plus de liste d'attente**) · `verify:encoding` **0** (868 fichiers) · `license:scan` **0** (1420 fichiers) · `format:check` **0** · `build` ✓ (12,1 s) · `build:electron` ✓ (manifeste signé **216 fichiers**).
@@ -35,6 +35,7 @@
 - **Packaging REFAIT 2026-10-21** (§21) : `release/` reconstruit **de zéro** (ADR-023 : jamais de réutilisation) — `Veloria-PoS-Setup-1.0.0.exe` (NSIS, machine, FR) + `.blockmap` · `Veloria-PoS-Portable-1.0.0.exe` · `Veloria-License-Manager-Setup-1.0.0.exe` + `.blockmap` · `Veloria-License-Manager-Portable-1.0.0.exe` · `SHA256SUMS.txt` · `release/win-unpacked/` (= POS). `release:smoke` **0** · `better-sqlite3` **chargé dans le runtime packagé** (Electron 37.2.0, ABI 136, SQLite 3.50.2 — règle AGENTS.md §9). **Attention** : ce packaging date du **21/10**, avant EMP-1 (22/10 21:04), ADR-135 et ADR-134 ; l'installateur **ne contient ni le refus explicite, ni le bouton « Données CSV », ni le nouveau ticket**. Rebuild requis pour tester.
 - Non relancés : E2E, `verify:licensing`, `npm audit` réseau (offline ⇒ non probant). **APK mobile impossible ici** : ni EAS CLI/jeton, ni JDK/Android SDK, ni `EXPO_PUBLIC_*` réel (placeholders dans `mobile/eas.json`).
 - **Portes §30 (2026-10-22, arbre de `9fbc90e`)** : `npm run typecheck` **0** · `typecheck:electron` **0** · `eslint . --max-warnings 0` **0** · `vitest` **151 fichiers / 1 051 tests** **0** · `build` ✓ · `build:electron` ✓ (manifeste **220 fichiers**) · `verify:fr` **0** (325 fichiers) · `verify:encoding` **0** (886) · `verify:migrations` **VERIFIED**. E2E et `verify:licensing` **non rejoués** ; packaging `release/` antérieur au design ticket.
+- **Portes §31 (2026-10-23, arbre de `e3cf6e7`)** : `typecheck` **0** · `typecheck:electron` **0** · `eslint` **0** · `vitest` **151 fichiers / 1 052 tests** **0** · `build` ✓ · `build:electron` ✓ (manifeste **220**) · `verify:fr` **0** (325) · `verify:encoding` **0** (887) · `verify:migrations` **VERIFIED**. **PDF réel** : 80,09 × 155,19 mm et 58,25 × 176,36 mm, dernier texte « POS » à **6,23 mm** du bas, aucun gris peint (blanc/noir uniquement). **Vide papier** : pilote étiquette `2120TF(Label)` en 90 × 60 mm, gap actif — passer le pilote en reçu/continu (détail §31). E2E, `verify:licensing` et packaging **non rejoués**.
 - **Pièges découverts pendant l'audit** : (1) `npm run lint` passe sur `docs/**` ⇒ **tout `.mjs` déposé sous `docs/` casse la porte** (allowlist `allowDefaultProject` = 24 chemins, `eslint.config.mjs:31-58`) ; (2) `test:db` échoue (12 `Hook timed out`) si lancé **en parallèle** d'autres outils lourds ⇒ **`hookTimeout` passé à 60 s (W4)** ; (3) `format:check` échoue sur tout `.md` écrit à la main ⇒ **toujours** passer Prettier sur les livrables ; (4) `npm run build` seul invalide le manifeste licence ⇒ toujours enchaîner `build:electron` ; (5) `better-sqlite3` est compilé pour l'ABI Electron (136) : pour interroger la base hors GUI, passer par `ELECTRON_RUN_AS_NODE=1 npx electron script.cjs` ; (6) toute arête inter-features nouvelle fait **échouer** le test A3 ⇒ liste blanche `tests/unit/a3-organisation.test.ts` à mettre à jour dans le même commit ; (7) **`test:coverage` instrumentant tout le code, les tests d'intégration lourds dépassaient `testTimeout` (15 s) ⇒ passé à 60 s (W4)** ; (8) **écrire un fichier via `Set-Content` (PowerShell) corrompt l'UTF-8** (double encodage) ⇒ toujours écrire via l'outil d'édition ou un script Node.
 
 ## 2) Objectifs réalisés (11 → 12 oct 2026)
@@ -1688,3 +1689,96 @@ jusqu'ici en texte monospace, et l'aperçu ne montrait pas le rendu réel.
    ADR-135, ni EMP-1.
 4. Recueillir l'avis du propriétaire sur le dessin (taille de l'enseigne,
    mentions du pied) avant de figer d'éventuels réglages supplémentaires.
+
+---
+
+## 31) Session 2026-10-22/23 — « فراغ » après le code-barres : aperçu et pilote
+
+### Demande
+
+Le propriétaire a signalé un vide dans le ticket : « هناك فراغ في التذكرة »,
+puis a précisé **« أسفل التذكرة بعد الباركود »** (en bas, après le code-barres).
+Le ticket doit rester fidèle à la photo, en 58/80 mm, N&B, avec un aperçu qui
+reflète exactement le papier.
+
+### Diagnostic
+
+1. **Le blanc des captures n'était pas dans le ticket.** Les anciennes captures
+   Playwright étaient des captures **pleine page** de **302 × 1400 px** (80 mm)
+   et **219 × 1400 px** (58 mm) : le ticket s'arrêtait à 575 / 654 px, puis
+   **825 px de blanc** suivaient. Ces pixels venaient du viewport de capture,
+   pas du document.
+2. **Le PDF est serré.** Rendu Electron réel + `printToPDF` :
+   - 80 mm : **80,09 × 155,19 mm**, dernier texte « POS » à **6,23 mm** du bas ;
+   - 58 mm : **58,25 × 176,36 mm**, même blanc de **6,23 mm** ;
+   - couleurs du PDF : seulement `#ffffff` et `#000000`, aucun gris.
+3. **Le vide papier vient du pilote étiquette.** Le poste utilise
+   `4BARCODE 3B-365B` (USB003) avec le pilote **`2120TF(Label)`**. Le
+   `PrinterDriverData` contient `PageWidth=900`, `PageHeight=600` (90 × 60 mm),
+   `SensorType=0` (gap), `GapLen=30`, `ContinuousForm=0`, `PrintMode=4`
+   (arrachage) ; le PrintTicket par défaut est un `PageMediaSize` de
+   **90 000 × 60 000 microns**. L'application demande une page **80 × 155 mm** ;
+   ce pilote d'étiquettes continue de fonctionner au **gap** et avance le
+   rouleau après le code-barres. Le HTML et le PDF ne sont pas en cause.
+
+### Livré (commit `e3cf6e7`, ADR-134 §5)
+
+- **Aperçu** : `#veloria-ticket` est détouré sur un fond **gris `#d1d5db`**
+  avec une ombre, **uniquement en `@media screen`**. Le média print reste
+  blanc ; le PDF ne peint que blanc et noir. Le `body` n'a plus de padding
+  écran, donc la hauteur mesurée reste **575 px / 155,135 mm** en 80 mm
+  (aucun blanc ajouté par l'aperçu).
+- **Captures de contrôle** : captures **d'élément** `#veloria-ticket`
+  (`280 × 575 px` et `200 × 654 px`), sans blanc ajouté, plus des aperçus
+  `320 × 650` / `240 × 700` montrant la feuille sur fond gris.
+- **Test** : `ticket-html.test.ts` passe de 9 à **10 cas** (fond écran, fond
+  print blanc, ombre, absence de `@media print`).
+- **ADR-134 §5** : preuves PDF, diagnostic du pilote et consignes de passage
+  en mode reçu/continu.
+
+### Configuration pilote à appliquer (hors code)
+
+Le shell n'est **pas élevé** (groupe Administrateurs en « refus uniquement ») :
+les clés HKLM n'ont pas été modifiées. Deux voies :
+
+1. **Passer le pilote actuel en continu** : Préférences d'impression de
+   `4BARCODE 3B-365B` → type de papier **continu/reçu** (pas étiquette),
+   capteur **continu** (pas gap), gap **0**, taille **80 mm × hauteur du
+   ticket** (ou personnalisée 80 × 155 mm), mode **arrachage**. Objectif
+   registre : `SensorType=2`, `ContinuousForm=1`, `GapLen=0`.
+2. **Installer le pilote reçu** du XP-365B / 3B-365B (le paquet Windows
+   constructeur contient les deux modes), créer la queue « reçu », puis la
+   sélectionner dans Veloria en largeur 80 mm.
+
+Le pilote `2120TF(Label)` reste correct pour de vraies étiquettes 90 × 60 mm,
+pas pour un ticket de 155 mm. Le type de papier réel (rouleau continu ou
+étiquettes) reste **à confirmer** avant l'essai.
+
+### Build de test
+
+`release/veloria-csv-test/` date de `c30b5c6` et **ne contient pas**
+`dist-electron/printing/receipt-documents/ticket-html.js` : un essai papier
+depuis cette copie ne peut pas valider le nouveau dessin. Rebuilder la copie
+stable (copier `dist/` + `dist-electron/` à jour, ou refaire le packaging)
+avant l'essai papier.
+
+### Portes
+
+`ticket-html.test.ts` **10 cas** · `split-parity.test.ts` **18 cas** · suite
+complète **151 fichiers / 1 052 tests** **0** · `typecheck` /
+`typecheck:electron` / ESLint **0** · `build` ✓ · `build:electron` ✓
+(manifeste **220**) · `verify:fr` **0** (325) · `verify:encoding` **0** (887) ·
+`verify:migrations` **VERIFIED**.
+
+### Reste
+
+1. Confirmer le papier chargé (rouleau continu 80 mm ou étiquettes 90 × 60).
+2. Appliquer le mode reçu/continu (ou installer le pilote reçu) et imprimer
+   un ticket réel pour vérifier la disparition du blanc.
+3. Rebuilder `release/veloria-csv-test/` avec le `dist`/`dist-electron` de
+   `e3cf6e7` avant l'essai propriétaire.
+4. Éventuellement, ajouter un avertissement dans `PrinterCard` quand le
+   pilote sélectionné est un pilote étiquette (détection `driverName`) —
+   non fait faute de confirmation du papier et pour éviter une copie UI
+   trompeuse.
+5. Rejouer l'E2E `csv-import-export` et refaire le packaging complet.
