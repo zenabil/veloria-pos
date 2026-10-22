@@ -28,6 +28,7 @@
 - **« Grand blanc après le code-barres » sur la facture de vente imprimée — CORRIGÉ (§26, ADR-133)** : (a) le ticket **n'imposait aucun format de page** (`printOptions()` sans `pageSize` ⇒ format par défaut du pilote, A4/297 mm) alors que son contenu **se termine par le bloc codes** ⇒ la page est désormais **largeur du rouleau × hauteur mesurée du contenu** (+3 mm de coupe, plancher 30 mm, repli = ancien comportement) ; (b) le **Code 39 n'était jamais mis à l'échelle** (462 px dans 280/200 px + `overflow:hidden`) ⇒ module calé sur la colonne (1,1 px ⇒ 275,7 px en 80 mm) + plafond CSS `max-width/height:auto` (58 mm : 200/200 px, plus de barre coupée) ; (c) l'export PDF passait des **microns** à `printToPDF` (qui attend des **pouces**) ⇒ conversion explicite, PDF d'un ticket 80 mm = **80,1 × 141,5 mm sur 1 page**. Restent assumés : Code 39 de 14 car. non scannable sur 58 mm (limite matérielle) et payload QR imprimé deux fois (contrat texte ADR-050).
 - **Import/export Clients & Produits — VÉRIFIÉS et DURCIS (§27, EMP-1 `6bb3a51`)** : le câblage existait (ADR-130) et les 3 E2E étaient vertes, mais **réimporter l'export clients créait 2 fiches bidon** (en-tête `Client;Téléphone…` traité comme données, guillemets conservés) au lieu d'échouer proprement, et un téléphone `pas-un-numero` était accepté. **Corrigé** : parseur CSV quote-aware, **refus FR explicite des exports de rapport** (produits et clients), **téléphone importé validé** (domaine + main), **export interrompu** si une page est illisible (plus de CSV tronqué annoncé « ok »). Parseur inchangé sur les formats documentés (`nom;vente;achat;quantité[;code-barres]`, `prénom;nom;téléphone`). Aucune migration, aucun canal, aucun ADR nouveau (restaure la décision 3 d'ADR-130). **Complété par §28/ADR-135** : second export « Données CSV » réimportable, sans changer le rapport.
 - **Export de données réimportable — AJOUTÉ (§28, ADR-135 `2d8028a`)** : les écrans Produits et Clients ont désormais **deux exports** : « Rapport CSV » (lisible Excel, ADR-130) et « Données CSV » (`nom;vente;achat;quantité[;code-barres]` / `prénom;nom;téléphone`) qui se réimporte tel quel. Montants via `minorToInput` (jamais `formatDzd`) ; `protectFormulas:false` pour préserver `+213…`/`-…` (le rapport garde RX-18) ; export données **refusé** si le filtre inclut des archivés (le format d'import ne transporte pas le statut). Aucun canal, schéma, migration. Réimporter dans la même base échoue proprement sur l'unicité code-barres/téléphone : la restauration complète reste `Paramètres → Sauvegarde`.
+- **Essai réel de la build CSV — LANCÉ (§29, 2026-10-22)** : build propre depuis `c30b5c6` dans un worktree isolé (`tsc -b` **0**, `vite build` ✓, `build:electron` ✓, manifeste **218 fichiers** signé), copie stable non versionnée `release/veloria-csv-test/` (gitignorée) + raccourci Bureau `Veloria POS - Test CSV.lnk`. Licence existante **ACTIVE** (`VLIC-757224A4`, pro à vie, 17 pages) réutilisée : aucune réactivation nécessaire. La base réelle `%PROGRAMDATA%\Veloria PoS\Data\Veloria POS DB.sqlite` a été migrée **50 → 51** par cette build : l'ancien installateur du 21/10 refusera désormais cette base (« version plus récente ») ; snapshot pré-migration + copie manuelle disponibles. `release/` (installateur) reste l'ancienne build.
 - **Contrats gelés (état après ADR-132, inchangés par ADR-135)** : snapshot `ipc-channels.json` **178** (+`customers.import`) · `FROZEN_SCHEMA_COUNT` **122** · `FROZEN_EXPORT_COUNT = 129` (+`moneyMinorSigned`) · `FROZEN_SCHEMA_TOTAL` (op-id) **122** · `operation-id-coverage` : **44** REQUIRED + classification complète (122 schémas) · migrations **51** (0051 = remise signée, table `sales` reconstruite).
 - E2E (non relancés depuis le 2026-10-18) : suite 2026-10-18 — **12/13 specs vertes**, **37** blocs `test()` (pas 24) ; `full-loop-client` exige le relais `:8100` (hard-fail, pas skip) ; `installer` non exécutable hors paquet Win + UAC. **W2 touche `staffScope()` (K-04) et W3 ajoute un canal ⇒ les specs `staff-session` et `full-loop-client` sont à rejouer avant le tag.** Spec `cashier-amount-mode` (nouvelle, ADR-132) **rejouée le 2026-10-22 : 2/2 verte** ; le reste de la suite reste non rejoué. **§28** : la spec `csv-import-export` est **bloquée avant lancement** par une intégrité `dist-electron/printing/printing.pdf-exports.js` du chantier concurrent (pas par le CSV) ; le contenu de l'export données est couvert par les tests unitaires.
 - **Packaging REFAIT 2026-10-21** (§21) : `release/` reconstruit **de zéro** (ADR-023 : jamais de réutilisation) — `Veloria-PoS-Setup-1.0.0.exe` (NSIS, machine, FR) + `.blockmap` · `Veloria-PoS-Portable-1.0.0.exe` · `Veloria-License-Manager-Setup-1.0.0.exe` + `.blockmap` · `Veloria-License-Manager-Portable-1.0.0.exe` · `SHA256SUMS.txt` · `release/win-unpacked/` (= POS). `release:smoke` **0** · `better-sqlite3` **chargé dans le runtime packagé** (Electron 37.2.0, ABI 136, SQLite 3.50.2 — règle AGENTS.md §9). **Attention** : ce packaging date du **21/10**, avant EMP-1 (22/10 21:04) et ADR-135 ; l'installateur **ne contient ni le refus explicite ni le bouton « Données CSV »**. Rebuild requis pour tester le correctif.
@@ -1549,3 +1550,57 @@ touchés **0** · `vitest` **150 fichiers / 1 042 tests** **0** · `vite build`
 3. Vérifier dans l'app réelle : Produits → « Données CSV » → réimport sur une
    base vierge ; Clients idem. Attendu : mêmes noms/prix/quantités/codes et
    prénom/nom/téléphone, sans erreur `Ligne 2`.
+
+---
+
+## 29) Session 2026-10-22 — lancement réel de la build CSV (essai propriétaire)
+
+### Demande
+
+Le propriétaire a demandé : « شغل النسخة الجديدة و فعلها لأجربها » — lancer la
+nouvelle version et l'activer pour tester l'export/import `Données CSV`.
+
+### Réalisé
+
+- **Build propre hors arbre sale** : worktree détaché sur `c30b5c6` dans
+  `%TEMP%\opencode\veloria-csv-run` (le chantier impression/Documents
+  concurrent n'est pas inclus). `npm run build` : `tsc -b` **0**, `vite build`
+  ✓ (1 773 modules) ; `npm run build:electron` : preload + stamp + manifeste
+  d'intégrité **218 fichiers** signé.
+- **Copie stable** : `release/veloria-csv-test/` (gitignorée, `/release/`)
+  contient `dist`, `dist-electron`, `package.json` + jonctions
+  `node_modules`, `resources`, `database`, `public`. Le statut licence y est
+  **ACTIVE** après vérification d'intégrité.
+- **Raccourci Bureau** : `Veloria POS - Test CSV.lnk` → Electron du dépôt avec
+  l'argument du dossier stable. Permet de rouvrir la build de test après
+  fermeture, sans toucher à l'installateur.
+- **Activation** : la licence de production existante est **ACTIVE**
+  (`VLIC-757224A4`, édition `pro`, `lifetime`, 17 pages, matériel
+  `CBFB-E42A-A0BD-C53F`). Aucun import `.vlic` ni réactivation nécessaire ;
+  l'intégrité de la build de test est valide.
+- **Lancement** : fenêtre `Veloria PoS - Point de vente` ouverte, renderer
+  neuf ; les assets produits/clients contiennent bien le bouton
+  **« Données CSV »**. Aucune erreur `license.integrity_failed` /
+  `TAMPER_DETECTED` dans les logs.
+
+### Effet sur la base réelle
+
+- Démarrage sur la base de production
+  `C:\ProgramData\Veloria PoS\Data\Veloria POS DB.sqlite` ; migration
+  **0051** appliquée (schéma **50 → 51**).
+- **Conséquence** : l'ancienne build installée (21/10) refuse maintenant cette
+  base (« créée avec une version plus récente »). Ne pas relancer l'ancien
+  installateur sur cette base ; utiliser la build de test ou refaire le
+  packaging.
+- Filets : snapshot pré-migration automatique dans
+  `%APPDATA%\Veloria PoS\backups` + copie manuelle
+  `%TEMP%\opencode\veloria-db-backup-20261022-221055.sqlite` (schéma 50).
+
+### Reste
+
+1. Laisser le propriétaire tester Produits/Clients → « Données CSV » →
+   réimport (base vierge ou copie) et remonter le résultat.
+2. Après stabilisation du chantier impression : `tsc -b`,
+   `build:electron`, E2E `csv-import-export`, puis packaging neuf.
+3. Ne pas commiter `release/` (gitignoré) ni les fichiers du chantier
+   concurrent.
