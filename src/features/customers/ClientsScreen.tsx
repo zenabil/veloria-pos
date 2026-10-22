@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Download,
   Eye,
+  FileDown,
   Pencil,
   Plus,
   RotateCcw,
@@ -45,6 +46,7 @@ import { parseCustomersCsv } from "@domain/import/csv-import.ts";
 import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
 import { ClientDetailsDrawer, ClientFormDialog } from "./ClientDialogs.tsx";
 import {
+  customerImportCsvRows,
   debtLabel,
   debtTone,
   enrichCustomer,
@@ -95,6 +97,7 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
   // A-15 : état de lot (concurrence bornée + progression affichée).
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkLabel, setBulkLabel] = useState("");
+  const [exportKind, setExportKind] = useState<"report" | "data" | null>(null);
   const [drawer, setDrawer] = useState<{
     customer: EnrichedCustomer;
     sales: StatementSale[];
@@ -342,18 +345,31 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
     }
   }
 
-  async function exportCsv(): Promise<void> {
+  /**
+   * ADR-135 : deux formats. « rapport » = registre lisible dans Excel
+   * (colonnes enrichies, montants DZD) ; « données » = réimportable tel quel
+   * (`prénom;nom;téléphone`).
+   */
+  async function exportCsv(kind: "report" | "data"): Promise<void> {
     if (total === 0) {
       notify("Rien à exporter.", "err");
       return;
     }
+    if (kind === "data" && archiveFilter !== "active") {
+      notify(
+        "Export données impossible : revenez aux clients actifs (le format d'import ne transporte pas le statut archivé).",
+        "err",
+      );
+      return;
+    }
+    setExportKind(kind);
+    setBulkBusy(true);
     try {
       // Export COMPLET du filtre courant (l'en-tête annonce le total filtré :
       // n'exporter que la page affichée était une troncature silencieuse de
       // plus). Pages fetched avec une concurrence bornée (A-15) + progression.
       const all: EnrichedCustomer[] = [];
       const pageCount = Math.ceil(total / PAGE_SIZE);
-      setBulkBusy(true);
       const pages: (EnrichedCustomer[] | undefined)[] = [];
       const bulk = await runBulk(
         Array.from({ length: pageCount }, (_, i) => i + 1),
@@ -375,11 +391,11 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
         },
         {
           onProgress: (processed, totalPages) =>
-            setBulkLabel(`Export ${processed}/${totalPages} page(s)…`),
+            setBulkLabel(
+              `${kind === "data" ? "Export données" : "Export"} ${processed}/${totalPages} page(s)…`,
+            ),
         },
       );
-      setBulkBusy(false);
-      setBulkLabel("");
       if (bulk.failed > 0) {
         console.error(
           `[Veloria] clients : export CSV interrompu (${bulk.failed}/${bulk.total} page(s)).`,
@@ -393,22 +409,37 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
       for (const rows of pages) {
         if (rows) all.push(...rows);
       }
-      downloadCsv(
-        `clients-${new Date().toISOString().slice(0, 10)}.csv`,
-        all.map((c) => ({
-          Client: fullName(c),
-          Téléphone: c.phone || "",
-          "Jour règlement": c.settlement_day ?? "",
-          Achats: formatDzd(c.totalPurchasesMinor),
-          Dette: formatDzd(c.outstanding_balance_minor),
-          "Dernière vente": c.lastSaleAt ? formatDateTimeFr(c.lastSaleAt) : "",
-          Statut: debtLabel(c),
-        })),
-      );
-      notify(`${all.length} ligne(s) exportée(s).`, "ok");
+      const date = new Date().toISOString().slice(0, 10);
+      if (kind === "report") {
+        downloadCsv(
+          `clients-${date}.csv`,
+          all.map((c) => ({
+            Client: fullName(c),
+            Téléphone: c.phone || "",
+            "Jour règlement": c.settlement_day ?? "",
+            Achats: formatDzd(c.totalPurchasesMinor),
+            Dette: formatDzd(c.outstanding_balance_minor),
+            "Dernière vente": c.lastSaleAt ? formatDateTimeFr(c.lastSaleAt) : "",
+            Statut: debtLabel(c),
+          })),
+        );
+        notify(`${all.length} ligne(s) exportée(s).`, "ok");
+      } else {
+        downloadCsv(`clients-donnees-${date}.csv`, customerImportCsvRows(all), {
+          protectFormulas: false,
+        });
+        notify(
+          `${all.length} client(s) exporté(s) en format réimportable (prénom;nom;téléphone).`,
+          "ok",
+        );
+      }
     } catch (e) {
-      console.error("[Veloria] clients : export CSV impossible", e);
+      console.error(`[Veloria] clients : export CSV (${kind}) impossible`, e);
       notify("Export impossible.", "err");
+    } finally {
+      setBulkBusy(false);
+      setBulkLabel("");
+      setExportKind(null);
     }
   }
 
@@ -481,12 +512,21 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
             </Button>
             <Button
               variant="secondary"
-              onClick={() => void exportCsv()}
+              onClick={() => void exportCsv("report")}
               disabled={bulkBusy}
-              title="Exporter tout le filtre (CSV)"
+              title="Exporter tout le filtre en rapport CSV (lecture seule)"
             >
               <Download size={16} aria-hidden="true" />
-              {bulkBusy && bulkLabel.startsWith("Export") ? bulkLabel : "CSV"}
+              {bulkBusy && exportKind === "report" ? bulkLabel : "Rapport CSV"}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => void exportCsv("data")}
+              disabled={bulkBusy}
+              title="Exporter tout le filtre en CSV réimportable (prénom;nom;téléphone)"
+            >
+              <FileDown size={16} aria-hidden="true" />
+              {bulkBusy && exportKind === "data" ? bulkLabel : "Données CSV"}
             </Button>
             <Button
               variant="secondary"

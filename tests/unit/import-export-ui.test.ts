@@ -32,11 +32,16 @@ describe("W10/ADR-130 : import & export CSV (Clients, Produits)", () => {
   it("Clients : export CSV câblé (toutes les pages du filtre)", () => {
     const src = read(CLIENTS);
     expect(src, "export").toContain("downloadCsv");
-    expect(src, "en-tête du fichier").toContain("clients-${new Date()");
+    expect(src, "en-tête du fichier").toContain("clients-${date}");
     // Export COMPLET (toutes les pages), pas la seule page affichée.
     expect(src, "parcours des pages").toContain("Math.ceil(total / PAGE_SIZE)");
     // Une page illisible interrompt l'export (jamais de CSV tronqué annoncé « ok »).
     expect(src, "échec de page non silencieux").toContain("Export interrompu");
+    // ADR-135 : second export réimportable + garde archivés.
+    expect(src, "données réimportables").toContain("customerImportCsvRows");
+    expect(src, "sans préfixe anti-formule").toContain("protectFormulas: false");
+    expect(src, "bouton données").toContain("Données CSV");
+    expect(src, "garde archivés").toContain('archiveFilter !== "active"');
   });
 
   it("Produits : import CSV câblé (parseur domaine + IPC)", () => {
@@ -49,12 +54,17 @@ describe("W10/ADR-130 : import & export CSV (Clients, Produits)", () => {
   it("Produits : export CSV câblé (toutes les pages du filtre)", () => {
     const src = read(PRODUCTS);
     expect(src, "export").toContain("downloadCsv");
-    expect(src, "en-tête du fichier").toContain("catalogue-${new Date()");
+    expect(src, "en-tête du fichier").toContain("catalogue-${date}");
     expect(src, "parcours des pages").toContain("Math.ceil(total / PAGE_SIZE)");
-    // Les montants exportés sont formatés (jamais des centimes bruts).
+    // Les montants affichés restent formatés (jamais des centimes bruts).
     expect(src, "montants formatés").toContain("formatDzd(p.selling_price_minor)");
     // Une page illisible interrompt l'export (jamais de CSV tronqué annoncé « ok »).
     expect(src, "échec de page non silencieux").toContain("Export interrompu");
+    // ADR-135 : second export réimportable + garde archivés.
+    expect(src, "données réimportables").toContain("productImportCsvRows");
+    expect(src, "sans préfixe anti-formule").toContain("protectFormulas: false");
+    expect(src, "bouton données").toContain("Données CSV");
+    expect(src, "garde archivés").toContain("includeArchived");
   });
 
   it("export catalogue : lignes CSV (montants DZD, code-barres, statut)", () => {

@@ -67,6 +67,12 @@ quantité, stock mini, code-barres, statut.
   (format ou téléphone déjà utilisé ⇒ message FR, **rien n'est écrit**)
   plutôt que de créer des doublons.
 
+> **Mise à jour 2026-10-22 — ADR-135.** Le constat terrain « j'ai exporté puis
+> importé le même fichier » a montré que le rapport seul ne suffit pas. Un
+> **second bouton « Données CSV »** produit désormais le format d'import exact
+> (`nom;vente;achat;quantité[;code-barres]`, `prénom;nom;téléphone`). Le
+> rapport reste un rapport : il n'est toujours pas réimportable.
+
 ## Décision 4 — les contrats gelés bougent (et sont documentés)
 
 | Contrat                       | Avant | Après   | Pourquoi                         |

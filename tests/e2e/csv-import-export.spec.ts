@@ -58,10 +58,20 @@ test("Clients : import CSV (prénom;nom;téléphone) puis export CSV", async () 
   await row.waitFor({ timeout: 15_000 });
   expect((await row.textContent()) ?? "").toContain(phone);
 
-  // 3. Export : le filtre courant est parcouru et le compte est rapporté.
-  await page.locator('button[title="Exporter tout le filtre (CSV)"]').click();
+  // 3. Export rapport : le filtre courant est parcouru et le compte est rapporté.
+  await page
+    .locator('button[title="Exporter tout le filtre en rapport CSV (lecture seule)"]')
+    .click();
   const exportToast = await readSuccessToast(page, /ligne\(s\) exportée/);
   expect(exportToast).toMatch(/1 ligne/);
+
+  // 4. Export données : second format, réimportable (ADR-135).
+  await page
+    .locator('button[title="Exporter tout le filtre en CSV réimportable (prénom;nom;téléphone)"]')
+    .click();
+  const dataToast = await readSuccessToast(page, /format réimportable/);
+  expect(dataToast).toMatch(/1 client/);
+  expect(dataToast).toMatch(/prénom;nom;téléphone/);
 });
 
 test("Clients : un fichier CSV invalide est refusé SANS écrire de fiche", async () => {
@@ -122,7 +132,19 @@ test("Catalogue : export CSV du catalogue filtré", async () => {
   await page.getByRole("button", { name: "Créer le produit" }).click();
   await readSuccessToast(page, /créé/);
 
-  await page.locator('button[title="Exporter tout le filtre (CSV)"]').click();
+  await page
+    .locator('button[title="Exporter tout le filtre en rapport CSV (lecture seule)"]')
+    .click();
   const exportToast = await readSuccessToast(page, /produit\(s\) exporté/);
   expect(exportToast).toMatch(/1 produit/);
+
+  // Second format : données réimportables (ADR-135).
+  await page
+    .locator(
+      'button[title="Exporter tout le filtre en CSV réimportable (nom;vente;achat;quantité[;code-barres])"]',
+    )
+    .click();
+  const dataToast = await readSuccessToast(page, /format réimportable/);
+  expect(dataToast).toMatch(/1 produit/);
+  expect(dataToast).toMatch(/nom;vente;achat;quantité/);
 });

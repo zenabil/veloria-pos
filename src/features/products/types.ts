@@ -3,7 +3,7 @@
 // P3 : les unités viennent du domaine (source unique @domain/units/units.ts).
 
 import { UNIT_CODES } from "@domain/units/units.ts";
-import { formatDzd } from "@domain/money/money.ts";
+import { formatDzd, minorToInput } from "@domain/money/money.ts";
 
 export interface Product {
   id: number;
@@ -60,6 +60,23 @@ export function productCsvRows(rows: Product[]): Record<string, unknown>[] {
     "Stock mini": p.min_stock_level,
     "Code-barres": p.primary_barcode ?? "",
     Statut: stockLabel(p),
+  }));
+}
+
+/**
+ * Lignes CSV RÉIMPORTABLES — format exact de `parseProductsCsv`
+ * (`nom;vente;achat;quantité[;code-barres]`, ADR-135). Les montants passent
+ * par `minorToInput` (round-trip garanti), jamais par `formatDzd` (groupes +
+ * suffixe DZD illisibles pour l'import). Catégorie/unité/statut restent dans
+ * le rapport : le flux d'import ne les transporte pas.
+ */
+export function productImportCsvRows(rows: Product[]): Record<string, unknown>[] {
+  return rows.map((p) => ({
+    nom: p.name,
+    vente: minorToInput(p.selling_price_minor),
+    achat: minorToInput(p.purchase_price_minor),
+    quantité: p.quantity,
+    "code-barres": p.primary_barcode ?? "",
   }));
 }
 

@@ -8,6 +8,7 @@ import {
   Barcode,
   Download,
   Eye,
+  FileDown,
   Pencil,
   Plus,
   RotateCcw,
@@ -50,6 +51,7 @@ import {
   isArchived,
   sortProducts,
   productCsvRows,
+  productImportCsvRows,
   stockLabel,
   stockTone,
   type Category,
@@ -90,6 +92,7 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
   // A-15 : état de lot (concurrence bornée + progression affichée).
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkLabel, setBulkLabel] = useState("");
+  const [exportKind, setExportKind] = useState<"report" | "data" | null>(null);
   // Confirmation non bloquante (modale applicative).
   const confirmAsync = useConfirm();
   const [drawerProduct, setDrawerProduct] = useState<Product | null>(null);
@@ -338,16 +341,28 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
    * Export CSV du catalogue filtré (TOUTES les pages du filtre courant :
    * n'exporter que la page affichée serait une troncature silencieuse).
    * Concurrence bornée + progression (A-15), comme l'export clients.
+   *
+   * ADR-135 : deux formats. « rapport » = lisible dans Excel (colonnes
+   * enrichies, montants DZD) ; « données » = réimportable tel quel
+   * (`nom;vente;achat;quantité[;code-barres]`).
    */
-  async function exportCsv(): Promise<void> {
+  async function exportCsv(kind: "report" | "data"): Promise<void> {
     if (total === 0) {
       notify("Rien à exporter.", "err");
       return;
     }
+    if (kind === "data" && includeArchived) {
+      notify(
+        "Export données impossible : décochez « Afficher les archivés » (le format d'import ne transporte pas le statut).",
+        "err",
+      );
+      return;
+    }
+    setExportKind(kind);
+    setBulkBusy(true);
     try {
       const all: Product[] = [];
       const pageCount = Math.ceil(total / PAGE_SIZE);
-      setBulkBusy(true);
       const pages: (Product[] | undefined)[] = [];
       const bulk = await runBulk(
         Array.from({ length: pageCount }, (_, i) => i + 1),
@@ -364,11 +379,11 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
         },
         {
           onProgress: (processed, totalPages) =>
-            setBulkLabel(`Export ${processed}/${totalPages} page(s)…`),
+            setBulkLabel(
+              `${kind === "data" ? "Export données" : "Export"} ${processed}/${totalPages} page(s)…`,
+            ),
         },
       );
-      setBulkBusy(false);
-      setBulkLabel("");
       if (bulk.failed > 0) {
         console.error(
           `[Veloria] catalogue : export CSV interrompu (${bulk.failed}/${bulk.total} page(s)).`,
@@ -382,11 +397,26 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
       for (const r of pages) {
         if (r) all.push(...r);
       }
-      downloadCsv(`catalogue-${new Date().toISOString().slice(0, 10)}.csv`, productCsvRows(all));
-      notify(`${all.length} produit(s) exporté(s).`, "ok");
+      const date = new Date().toISOString().slice(0, 10);
+      if (kind === "report") {
+        downloadCsv(`catalogue-${date}.csv`, productCsvRows(all));
+        notify(`${all.length} produit(s) exporté(s).`, "ok");
+      } else {
+        downloadCsv(`catalogue-donnees-${date}.csv`, productImportCsvRows(all), {
+          protectFormulas: false,
+        });
+        notify(
+          `${all.length} produit(s) exporté(s) en format réimportable (nom;vente;achat;quantité[;code-barres]).`,
+          "ok",
+        );
+      }
     } catch (e) {
-      console.error("[Veloria] catalogue : export CSV impossible", e);
+      console.error(`[Veloria] catalogue : export CSV (${kind}) impossible`, e);
       notify("Export impossible.", "err");
+    } finally {
+      setBulkBusy(false);
+      setBulkLabel("");
+      setExportKind(null);
     }
   }
 
@@ -423,12 +453,21 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
             </Button>
             <Button
               variant="secondary"
-              onClick={() => void exportCsv()}
+              onClick={() => void exportCsv("report")}
               disabled={bulkBusy}
-              title="Exporter tout le filtre (CSV)"
+              title="Exporter tout le filtre en rapport CSV (lecture seule)"
             >
               <Download size={16} aria-hidden="true" />
-              {bulkBusy && bulkLabel.startsWith("Export") ? bulkLabel : "CSV"}
+              {bulkBusy && exportKind === "report" ? bulkLabel : "Rapport CSV"}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => void exportCsv("data")}
+              disabled={bulkBusy}
+              title="Exporter tout le filtre en CSV réimportable (nom;vente;achat;quantité[;code-barres])"
+            >
+              <FileDown size={16} aria-hidden="true" />
+              {bulkBusy && exportKind === "data" ? bulkLabel : "Données CSV"}
             </Button>
             <Button
               variant="secondary"

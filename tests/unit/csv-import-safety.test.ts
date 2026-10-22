@@ -5,7 +5,8 @@
 // avec un message FR explicite — jamais transformé en fiches bidon.
 import { describe, it, expect } from "vitest";
 import { parseCustomersCsv, parseProductsCsv } from "@/domain/import/csv-import.ts";
-import { productCsvRows, type Product } from "@/features/products/types.ts";
+import { productCsvRows, productImportCsvRows, type Product } from "@/features/products/types.ts";
+import { customerImportCsvRows } from "@/features/customers/types.ts";
 import { toCsv } from "@shared/export/csv.ts";
 
 const PRODUCT: Product = {
@@ -100,5 +101,60 @@ describe("import CSV — téléphone validé avant l'IPC", () => {
       "Amine;Benali;0550 12 34 56\nKarim;Ziani;+213 (0)550-12-34-56\nSans;Numero;",
     );
     expect(rows.map((r) => r.phone)).toEqual(["0550 12 34 56", "+213 (0)550-12-34-56", ""]);
+  });
+});
+
+describe("export données réimportable (ADR-135)", () => {
+  it("produits : l'export données se réimporte à l'identique", () => {
+    const product: Product = {
+      ...PRODUCT,
+      name: 'Farine "fine"; complète',
+      selling_price_minor: 1250,
+      purchase_price_minor: 1000,
+      quantity: 12.5,
+      primary_barcode: "1234567890123",
+    };
+    const text = toCsv(productImportCsvRows([product]), { protectFormulas: false });
+    // En-tête exact du format d'import + valeurs non formatées DZD.
+    expect(text.split("\n")[0]).toBe("nom;vente;achat;quantité;code-barres");
+    expect(text).toContain('"12,5"');
+    expect(text).not.toContain("DZD");
+
+    expect(parseProductsCsv(text)).toEqual([
+      {
+        line: 2,
+        name: 'Farine "fine"; complète',
+        sellingPriceMinor: 1250,
+        purchasePriceMinor: 1000,
+        quantity: 12.5,
+        barcode: "1234567890123",
+      },
+    ]);
+  });
+
+  it("clients : prénom/nom séparés et téléphone +213 conservé", () => {
+    const text = toCsv(
+      customerImportCsvRows([
+        { first_name: 'Amine; "Ali"', last_name: "Benali", phone: "+213 (0)550-12-34-56" },
+      ]),
+      { protectFormulas: false },
+    );
+    expect(text.split("\n")[0]).toBe("prénom;nom;téléphone");
+    // Sans `protectFormulas: false`, le téléphone deviendrait « '+213… ».
+    expect(text).not.toContain("'+213");
+
+    expect(parseCustomersCsv(text)).toEqual([
+      {
+        line: 2,
+        firstName: 'Amine; "Ali"',
+        lastName: "Benali",
+        phone: "+213 (0)550-12-34-56",
+      },
+    ]);
+  });
+
+  it("produits : le rapport reste protégé contre les formules (RX-18)", () => {
+    const text = toCsv(productCsvRows([{ ...PRODUCT, name: "=CMD|calc" }]));
+    expect(text).toContain("'=CMD|calc");
   });
 });

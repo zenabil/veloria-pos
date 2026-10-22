@@ -187,6 +187,15 @@ describe("RX-18 — CSV anti-injection", () => {
     expect(csv).toContain('"1500"');
     expect(csv).not.toContain(`"'1500"`);
   });
+  it("protectFormulas:false préserve les données réimportables (ADR-135)", () => {
+    const csv = toCsv([{ phone: "+213", note: "-5" }], { protectFormulas: false });
+    expect(csv).toContain('"+213"');
+    expect(csv).toContain('"-5"');
+    expect(csv).not.toContain(`"'+213"`);
+    expect(csv).not.toContain(`"'-5"`);
+    // Défaut inchangé : le rapport reste protégé.
+    expect(toCsv([{ phone: "+213" }])).toContain(`"'+213"`);
+  });
 });
 
 describe("EL-31 — logo octets magiques", () => {

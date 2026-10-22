@@ -46,6 +46,22 @@ export function fullName(c: Pick<Customer, "first_name" | "last_name">): string 
   return `${c.first_name} ${c.last_name}`.trim();
 }
 
+/**
+ * Lignes CSV RÉIMPORTABLES — format exact de `parseCustomersCsv`
+ * (`prénom;nom;téléphone`, ADR-135). On garde prénom et nom séparés (jamais
+ * le nom complet du rapport) : l'import ne saurait pas les redécouper sans
+ * perdre les noms composés.
+ */
+export function customerImportCsvRows(
+  rows: Pick<Customer, "first_name" | "last_name" | "phone">[],
+): Record<string, unknown>[] {
+  return rows.map((c) => ({
+    prénom: c.first_name,
+    nom: c.last_name,
+    téléphone: c.phone ?? "",
+  }));
+}
+
 export function isArchived(c: Customer): boolean {
   return c.deleted_at != null;
 }
