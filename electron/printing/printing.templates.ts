@@ -5,6 +5,7 @@ import { log } from "../services/logger";
 import { getActiveTemplate } from "../ipc/handlers/templates.repo";
 import { templateSettingsSchema, type ParsedTemplateSettings } from "../ipc/validators";
 import { getThermalWidth, printOptions } from "./printing.printer-settings";
+import { measureContentPx, thermalPageSize } from "./printing.page-size";
 import { factorySettingsMirror, neutralizeForDocType } from "./printing.capabilities";
 import { enrichReceipt } from "./printing.enrich";
 import {
@@ -176,24 +177,37 @@ export function applySettingsToPayment(
 }
 
 /** Impression N exemplaires (double copie Studio) — boucle explicite. */
-export async function printCopies(html: string, copies: number, waitMs: number): Promise<void> {
+export async function printCopies(
+  html: string,
+  copies: number,
+  waitMs: number,
+  extra?: { thermalWidth?: ThermalWidth | undefined },
+): Promise<void> {
   const n = Number.isInteger(copies) && copies >= 1 ? Math.min(5, copies) : 1;
   for (let i = 0; i < n; i++) {
-    await printHtml(html, waitMs);
+    await printHtml(html, waitMs, { thermalWidth: extra?.thermalWidth });
   }
 }
 
 export interface PrintPage {
   html: string;
   pageSizeMicrons?: { width: number; height: number } | undefined;
+  /** Rouleau thermique : largeur papier + hauteur = contenu mesuré (sans blanc). */
+  thermalWidth?: ThermalWidth | undefined;
 }
 
 export async function printHtml(
   html: string,
   waitMs: number,
-  extra?: { pageSizeMicrons?: { width: number; height: number } | undefined },
+  extra?: {
+    pageSizeMicrons?: { width: number; height: number } | undefined;
+    thermalWidth?: ThermalWidth | undefined;
+  },
 ): Promise<void> {
-  await printHtmlPages([{ html, pageSizeMicrons: extra?.pageSizeMicrons }], waitMs);
+  await printHtmlPages(
+    [{ html, pageSizeMicrons: extra?.pageSizeMicrons, thermalWidth: extra?.thermalWidth }],
+    waitMs,
+  );
 }
 
 /**
@@ -201,6 +215,10 @@ export async function printHtml(
  * Étiquettes rouleau : 1 étiquette = 1 job = 1 avance papier — demander 2
  * étiquettes ne peut plus sortir 1 seule (plus de pagination Chromium
  * multi-étiquettes sur une page pilote trop grande).
+ *
+ * Tickets thermiques : la hauteur de page est la hauteur RÉELLE du contenu
+ * (`thermalWidth`) — sans elle Chromium imprime au format du pilote (A4/297 mm)
+ * et le rouleau sort avec un grand blanc après le bloc code-barres/QR.
  */
 export async function printHtmlPages(pages: PrintPage[], waitMs: number): Promise<void> {
   const { BrowserWindow: BW } = await import("electron");
@@ -240,11 +258,17 @@ export async function printHtmlPages(pages: PrintPage[], waitMs: number): Promis
       });
       await printWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(page.html)}`);
       await loaded;
-      // Étiquettes rouleau : format exact en microns + marges nulles, sinon
-      // Chromium imprime au format du pilote et fait sortir des vierges.
+      // Ticket thermique : format exact (largeur papier + hauteur du contenu),
+      // marges nulles — mesure APRÈS chargement, repli = comportement historique.
+      const measured = page.thermalWidth ? await measureContentPx(printWin.webContents) : 0;
+      const size =
+        page.pageSizeMicrons ??
+        (page.thermalWidth && measured > 0 ? thermalPageSize(page.thermalWidth, measured) : null);
+      // Étiquettes rouleau / tickets : format exact en microns + marges nulles,
+      // sinon Chromium imprime au format du pilote et fait sortir des vierges.
       const base = printOptions();
-      const printOpts = page.pageSizeMicrons
-        ? { ...base, pageSize: page.pageSizeMicrons, margins: { marginType: "none" as const } }
+      const printOpts = size
+        ? { ...base, pageSize: size, margins: { marginType: "none" as const } }
         : base;
       await new Promise<void>((resolve, reject) => {
         printWin.webContents.print(printOpts, (success, err) => {

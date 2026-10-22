@@ -1,6 +1,6 @@
 // Veloria PoS — Documents purs : texte thermique + ticket HTML (pur, zero import hors common).
 
-import { code39Svg } from "./barcode39";
+import { code39ModuleFor, code39Svg } from "./barcode39";
 import { escapeHtml, escapePreText } from "./html";
 import type { ThermalWidth } from "./common";
 
@@ -155,6 +155,18 @@ export function thermalLogo(
 }
 
 /**
+ * Code 39 du ticket thermique : module calé sur la colonne du papier **et**
+ * plafond CSS (`max-width` + `height:auto`) — le SVG garde ses proportions et
+ * n'est plus rogné par `overflow:hidden` (barre coupée à 61 % en 80 mm / 43 %
+ * en 58 mm avant correctif). Le numéro lisible reste centré sous la barre.
+ */
+function thermalBarcode(value: string, maxWidthPx: number): string {
+  const svg = code39Svg(value, 40, code39ModuleFor(value, maxWidthPx));
+  if (!svg) return "";
+  return svg.replace("<svg ", `<svg style="max-width:${maxWidthPx}px;height:auto" `);
+}
+
+/**
  * Ticket thermique HTML (N&B strict) : texte monospace + codes scannables.
  * Chaque document thermique porte son Code 39 (N° du document) + son QR —
  * comme les A4 (`codeBlocks`), mis à l'échelle du papier (58 = 200px).
@@ -183,14 +195,14 @@ export function thermalHtml(
     w === "58mm"
       ? `font-family:monospace;width:200px;font-size:${px}px;line-height:1.35;background:#fff;color:#000;margin:0`
       : `font-family:monospace;width:280px;font-size:${px}px;line-height:1.4;background:#fff;color:#000;margin:0`;
-  const bar = codes?.barcode ? code39Svg(codes.barcode, 40) : "";
+  const maxW = w === "58mm" ? 200 : 280;
+  const bar = codes?.barcode ? thermalBarcode(codes.barcode, maxW) : "";
   const qr = codes?.qrSvg && codes.qrSvg.startsWith("<svg") ? codes.qrSvg : "";
   const payload = codes?.qrPayload ?? "";
-  const maxW = w === "58mm" ? 200 : 280;
   const logo = thermalLogo(chrome?.logo, chrome?.logoSize, maxW);
   const blocks =
     bar || qr
-      ? `<div style="text-align:center;background:#fff;max-width:${w === "58mm" ? "200px" : "280px"}">` +
+      ? `<div style="text-align:center;background:#fff;max-width:${maxW}px">` +
         (bar ? `<div style="max-width:100%;overflow:hidden">${bar}</div>` : "") +
         (qr ? `<div>${qr}</div>` : "") +
         (payload

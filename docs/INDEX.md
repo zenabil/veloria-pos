@@ -4,7 +4,7 @@
 > l avancement en `reports/PHASE_*.md`. Ne jamais ecrire de rapport a la racine.
 > Conventions : `AGENTS.md` + `docs/STRUCTURE.md` (carte maintenance).
 
-## Decisions (ADR-001 a ADR-132 — tous saries, jamais supprimes)
+## Decisions (ADR-001 a ADR-133 — tous saries, jamais supprimes)
 
 - [ADR-001](./ADR-001-vite-renderer.md) Renderer Vite
 - [ADR-002](./ADR-002-native-versions.md) Versions natives
@@ -138,6 +138,7 @@
 - [ADR-130](./ADR-130-import-export-csv-clients-produits.md) Import & export CSV sur les écrans Clients et Produits (canal `customers.import`)
 - [ADR-131](./ADR-131-remise-signee-majoration-montant-exact.md) Remise de ligne signée (majoration), facture au montant exact, focus des dialogues (migration 0051)
 - [ADR-132](./ADR-132-ligne-montant-saisi-verrouillee-ticket-readable.md) Ligne « montant saisi » verrouillée, ticket/devise à remise signée, panier increvable
+- [ADR-133](./ADR-133-format-page-tickets-thermiques.md) Format de page des tickets thermiques = hauteur mesurée du contenu (fin du grand blanc après le code-barres), Code 39 calé, PDF en pouces
 
 ## Ou ecrire quoi
 

@@ -82,6 +82,7 @@ export function registerStudioIpc(getMainWindow: () => BrowserWindow | null): vo
             logo: companyLogoDataUrl(),
           }),
           300,
+          { thermalWidth: width },
         );
       }
       return { ok: true, data: { printed: true } };

@@ -6,6 +6,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { log } from "../services/logger";
 import { assertSafeUserFolder } from "../security/security";
+import { measureContentPx, micronsToInches, thermalPageSize } from "./printing.page-size";
+import type { ThermalWidth } from "./receipt-documents";
 
 // L3 : détection des messages d'exception TECHNIQUES (jamais affichables) —
 // errno Node (EACCES/ENOSPC…), chemins disque, stack JS, tournures anglaises.
@@ -45,6 +47,10 @@ export function safeInvoiceFileName(invoice: string, suffix: string): string {
  * `filePath` (tests/automatisation) : validé strictement — absolu,
  * extension .pdf, dossier parent via `assertSafeUserFolder` (fail-closed,
  * jamais d'écriture hors dossier sûr).
+ *
+ * `thermalWidth` : page = largeur du rouleau + hauteur RÉELLE du contenu
+ * (même correctif que l'impression — sinon page de 297 mm ⇒ grand blanc après
+ * le code-barres). `pageSize` reste le repli si la mesure échoue.
  */
 export async function exportDocumentPdf(
   getMainWindow: () => BrowserWindow | null,
@@ -54,6 +60,7 @@ export async function exportDocumentPdf(
     defaultName: string;
     explicitPath: string | null;
     pageSize: "A4" | { width: number; height: number };
+    thermalWidth?: ThermalWidth | undefined;
   },
 ): Promise<{ saved: boolean; path: string | null }> {
   const { BrowserWindow: BW } = await import("electron");
@@ -106,11 +113,23 @@ export async function exportDocumentPdf(
     });
     await pdfWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(args.html)}`);
     await loaded;
+    // Ticket : hauteur du contenu mesurée (repli = pageSize fourni).
+    const measured = args.thermalWidth ? await measureContentPx(pdfWin.webContents) : 0;
+    const size =
+      args.thermalWidth && measured > 0
+        ? thermalPageSize(args.thermalWidth, measured)
+        : args.pageSize;
     const data =
-      args.pageSize === "A4"
+      size === "A4"
         ? await pdfWin.webContents.printToPDF({ pageSize: "A4", printBackground: true })
         : await pdfWin.webContents.printToPDF({
-            pageSize: args.pageSize,
+            // ATTENTION : `printToPDF` attend des POUCES (pageSize ET marges),
+            // contrairement à `webContents.print` qui attend des microns.
+            pageSize: {
+              width: micronsToInches(size.width),
+              height: micronsToInches(size.height),
+            },
+            margins: { top: 0, bottom: 0, left: 0, right: 0 },
             printBackground: true,
           });
     fs.writeFileSync(target, data);

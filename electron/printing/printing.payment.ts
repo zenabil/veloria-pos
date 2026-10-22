@@ -118,6 +118,7 @@ export function registerPaymentIpc(getMainWindow: () => BrowserWindow | null): v
         }),
         settings.copies,
         300,
+        { thermalWidth: width },
       );
       return { ok: true, data: { printed: true } };
     } catch (err) {

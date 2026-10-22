@@ -133,6 +133,7 @@ export function registerLogisticsIpc(getMainWindow: () => BrowserWindow | null):
         }),
         settings.copies,
         300,
+        { thermalWidth: width },
       );
       return { ok: true, data: { printed: true } };
     } catch (err) {
@@ -181,6 +182,7 @@ export function registerLogisticsIpc(getMainWindow: () => BrowserWindow | null):
         }),
         settings.copies,
         300,
+        { thermalWidth: width },
       );
       return { ok: true, data: { printed: true } };
     } catch (err) {
@@ -229,6 +231,7 @@ export function registerLogisticsIpc(getMainWindow: () => BrowserWindow | null):
           logiCodes(d, d.orderNumber || d.invoice),
         ),
         300,
+        { thermalWidth: width },
       );
       return { ok: true, data: { printed: true } };
     } catch (err) {

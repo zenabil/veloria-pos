@@ -72,6 +72,7 @@ export function registerReceiptIpc(getMainWindow: () => BrowserWindow | null): v
         }),
         settings.copies,
         300,
+        { thermalWidth: width },
       );
       return { ok: true, data: { printed: true } };
     } catch (err) {
@@ -183,6 +184,7 @@ export function registerReceiptIpc(getMainWindow: () => BrowserWindow | null): v
       await printHtml(
         thermalHtml(`${text}\n[PAGE DE TEST ${width} — N&B]`, width, { barcode: "TEST" }),
         300,
+        { thermalWidth: width },
       );
       return { ok: true, data: { printed: true } };
     } catch (err) {

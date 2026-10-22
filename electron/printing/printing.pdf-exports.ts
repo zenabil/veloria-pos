@@ -58,8 +58,10 @@ export function registerPdfExportsIpc(getMainWindow: () => BrowserWindow | null)
         waitMs: 300,
         defaultName: safeInvoiceFileName(String(input.invoice || "ticket"), "ticket-80mm"),
         explicitPath: filePath ?? null,
-        // Largeur thermique réelle (microns) ; hauteur A4, contenu paginé si long.
+        // Page = largeur du rouleau + hauteur RÉELLE du contenu (mesurée) ;
+        // le repli garde l'ancien gabarit si la mesure échoue.
         pageSize: { width: width === "58mm" ? 58000 : 80000, height: 297000 },
+        thermalWidth: width,
       });
       return { ok: true, data: res };
     } catch (err) {
@@ -121,6 +123,7 @@ export function registerPdfExportsIpc(getMainWindow: () => BrowserWindow | null)
         defaultName: safeInvoiceFileName(String(parsed.reference || "recu"), "recu"),
         explicitPath: filePath ?? null,
         pageSize: { width: width === "58mm" ? 58000 : 80000, height: 297000 },
+        thermalWidth: width,
       });
       return { ok: true, data: res };
     } catch (err) {
