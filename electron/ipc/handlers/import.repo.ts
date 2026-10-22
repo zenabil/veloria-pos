@@ -6,7 +6,11 @@ import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
 import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./idempotency";
 import { createLayer } from "./fifo";
-import { assertPhoneAvailable, normCustomerSearch, phoneDigitsParity } from "./customers.repo";
+import { assertPhoneAvailable, digitsOnly, normCustomerSearch } from "./customers.repo";
+
+/** Miroir main de la règle domaine : chiffres + séparateurs usuels, ≥ 6 chiffres.
+ * (EMP-1) Sans elle, « pas-un-numero » passait le contrôle et créait une fiche. */
+const IMPORT_PHONE_CHARS = /^[0-9 +().\-/\u00A0]+$/;
 
 export interface ProductImportRow {
   name: string;
@@ -73,8 +77,8 @@ export function importCustomersAtomic(
         throw new Error(`Ligne ${line} : téléphone trop long (30 caractères maximum).`);
       }
       if (phone) {
-        const digits = phoneDigitsParity(phone);
-        if (digits.length === 0) {
+        const digits = digitsOnly(phone);
+        if (digits.length < 6 || !IMPORT_PHONE_CHARS.test(phone)) {
           throw new Error(`Ligne ${line} : téléphone invalide.`);
         }
         if (seenPhones.has(digits)) {

@@ -85,6 +85,32 @@ test("Clients : un fichier CSV invalide est refusé SANS écrire de fiche", asyn
   expect(await page.getByRole("row", { name: new RegExp(tag) }).count()).toBe(0);
 });
 
+test("Clients : un export de rapport est refusé (aucune fiche bidon)", async () => {
+  const { page } = ctx;
+  const tag = uniqueTag("E2EReport");
+  const csvPath = path.join(os.tmpdir(), `veloria-clients-report-${tag}.csv`);
+  // Format EXACT de l'export clients (rapport) : il ne doit jamais être
+  // réimporté comme des fiches (en-tête + nom complet + colonnes riches).
+  fs.writeFileSync(
+    csvPath,
+    `Client;Téléphone;Jour règlement;Achats;Dette;Dernière vente;Statut\n` +
+      `"Amine ${tag}";"0550${String(Date.now()).slice(-6)}";"5";"1 200,00 DZD";"0,00 DZD";"21/10/2026 10:00";"À jour"\n`,
+    "utf-8",
+  );
+
+  await gotoModule(page, "Clients");
+  await page.setInputFiles('input[type="file"]', csvPath);
+
+  const err = page.locator('[role="status"], [role="alert"]', { hasText: /export de rapport/ });
+  await err.first().waitFor({ timeout: 15_000 });
+  expect((await err.first().textContent()) ?? "").toMatch(/prénom;nom;téléphone/);
+
+  // Aucune fiche « Client » ni « Amine <tag> » créée.
+  await page.getByLabel("Rechercher un client", { exact: true }).fill(tag);
+  await page.waitForTimeout(1500);
+  expect(await page.getByRole("row", { name: new RegExp(tag) }).count()).toBe(0);
+});
+
 test("Catalogue : export CSV du catalogue filtré", async () => {
   const { page } = ctx;
   const tag = uniqueTag("E2EProd");

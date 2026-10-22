@@ -223,6 +223,20 @@ describe("Import CSV clients (lot atomique)", () => {
     expect(countCustomers(db)).toBe(1);
   });
 
+  it("refuse un téléphone qui n'est pas un numéro (EMP-1, rien n'est écrit)", () => {
+    const db = openMigrated(tmp);
+    trackedDb = db;
+    useDb(db);
+    expect(() =>
+      importCustomersAtomic(
+        [{ firstName: "Amine", lastName: "Benali", phone: "pas-un-numero" }],
+        NOW,
+        OP,
+      ),
+    ).toThrow(/téléphone invalide/);
+    expect(countCustomers(db)).toBe(0);
+  });
+
   it("idempotent de lot : le même operationId rejoué ne duplique rien", () => {
     const db = openMigrated(tmp);
     trackedDb = db;

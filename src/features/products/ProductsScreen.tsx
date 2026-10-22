@@ -349,7 +349,7 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
       const pageCount = Math.ceil(total / PAGE_SIZE);
       setBulkBusy(true);
       const pages: (Product[] | undefined)[] = [];
-      await runBulk(
+      const bulk = await runBulk(
         Array.from({ length: pageCount }, (_, i) => i + 1),
         async (p) => {
           const res = (await api.productSearch({
@@ -369,6 +369,16 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
       );
       setBulkBusy(false);
       setBulkLabel("");
+      if (bulk.failed > 0) {
+        console.error(
+          `[Veloria] catalogue : export CSV interrompu (${bulk.failed}/${bulk.total} page(s)).`,
+        );
+        notify(
+          `Export interrompu : ${bulk.failed} page(s) sur ${bulk.total} illisible(s). Réessayez.`,
+          "err",
+        );
+        return;
+      }
       for (const r of pages) {
         if (r) all.push(...r);
       }

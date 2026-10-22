@@ -35,6 +35,8 @@ describe("W10/ADR-130 : import & export CSV (Clients, Produits)", () => {
     expect(src, "en-tête du fichier").toContain("clients-${new Date()");
     // Export COMPLET (toutes les pages), pas la seule page affichée.
     expect(src, "parcours des pages").toContain("Math.ceil(total / PAGE_SIZE)");
+    // Une page illisible interrompt l'export (jamais de CSV tronqué annoncé « ok »).
+    expect(src, "échec de page non silencieux").toContain("Export interrompu");
   });
 
   it("Produits : import CSV câblé (parseur domaine + IPC)", () => {
@@ -51,6 +53,8 @@ describe("W10/ADR-130 : import & export CSV (Clients, Produits)", () => {
     expect(src, "parcours des pages").toContain("Math.ceil(total / PAGE_SIZE)");
     // Les montants exportés sont formatés (jamais des centimes bruts).
     expect(src, "montants formatés").toContain("formatDzd(p.selling_price_minor)");
+    // Une page illisible interrompt l'export (jamais de CSV tronqué annoncé « ok »).
+    expect(src, "échec de page non silencieux").toContain("Export interrompu");
   });
 
   it("export catalogue : lignes CSV (montants DZD, code-barres, statut)", () => {

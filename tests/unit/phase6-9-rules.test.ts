@@ -116,7 +116,7 @@ describe("Import CSV validé-avant-commit", () => {
     expect(rows[0]?.name).toBe("Nominal");
   });
   it("parse les clients", () => {
-    const rows = parseCustomersCsv("prenom;nom;tel\nAmine;Benali;0550\n");
+    const rows = parseCustomersCsv("prenom;nom;tel\nAmine;Benali;0550123456\n");
     expect(rows).toHaveLength(1);
     expect(() => parseCustomersCsv("prenom;nom\n;Benali\n")).toThrow();
   });

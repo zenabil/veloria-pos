@@ -287,7 +287,9 @@ describe("W4 — import CSV (csv-import)", () => {
   it("plus de 5 000 lignes refusé (produits et clients)", () => {
     const many = Array.from({ length: 5001 }, (_, i) => `Produit ${i};50;40;10`).join("\n");
     expect(() => parseProductsCsv(many)).toThrow(/5 000/);
-    const manyClients = Array.from({ length: 5001 }, (_, i) => `Prenom ${i};Nom;0550`).join("\n");
+    const manyClients = Array.from({ length: 5001 }, (_, i) => `Prenom ${i};Nom;0550123456`).join(
+      "\n",
+    );
     expect(() => parseCustomersCsv(manyClients)).toThrow(/5 000/);
   });
 
