@@ -15,22 +15,24 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête = commit de cette session (§27, EMP-1 `6bb3a51`), parent `627795a` `docs(handoff): session 2026-10-22 (ter) - grand blanc apres le code-barres corrige (ADR-133)`. **Arbre PROPRE** (hors ce handoff, commité à part) : plus de fichier non commité à stash.
+- Branche : `chore/root-layout` — tête = commit de cette session (§28, ADR-135 `2d8028a`), parent `4c82f6f`. **Arbre non propre** : un chantier impression/Documents concurrent (`electron/printing/*`, `src/features/history/HistoryDialogs.tsx`, `src/shared/documents/DocumentPreviewModal.tsx`, `src/features/debts/DebtDialogs.tsx`) était en cours et n'a **pas** été touché ni commité par cette session.
 - **Audit intégral EXÉCUTÉ (§18, 2026-10-19)** : 3 livrables — `docs/reports/FULL_AUDIT_2026-10-19.md` (rapport, 16 axes A→P, **228 findings** : 0 Critical · 23 High · 95 Medium · 110 Low) · `docs/reports/FULL_AUDIT_2026-10-19_PLAN.md` (plan en **11 vagues W0→W10**, ~11-13 j, 20 décisions owner) · `docs/ADR-120-*.md` (**proposé**, en attente d'approbation). Preuves brutes : `docs/reports/maintenance/audit-raw/`.
 - **Remédiation : vagues W1 → W10 EXÉCUTÉES et commitées** : `0e900f1` **W1** (logique financière) · `cd43aa2` **W2** (sécurité) · `833cea1` **W3** (base) · **W4** (couverture verte + gardes auto-dérivées) · `1e56547` **W5** (rendu/UI caissier + atelier impression) · **W6** (code mort trié — ADR-127) · `4a96938` **W9** (encodage + chiffres à jour) · `7086954` **W8** (chemins chauds indexés, N+1, bundle) · **W7** (règles uniques — ADR-128) · **W10** (état d'erreur persistant — ADR-129). **Plan d'audit : TERMINÉ** (les 11 vagues sont exécutées).
 - **Baseline gelé 2026-10-21 (mesuré, arbre propre)** : `tsc -b` **0** · `typecheck:electron` **0** · `eslint . --max-warnings 0` **exit 0** · `vitest` **142 fichiers / 976 tests** **0** · `test:db` **39 fichiers / 183 tests** **0** (isolé) · **`test:coverage` = EXIT 0 (VERT — 95,83 % lignes · 87,19 % branches · 100 % fonctions, seuils 80/75/88/80 par fichier ; aucun seuil abaissé)** · `knip` **0** (0 fichier, 0 export, 0 type, 0 dépendance) · `verify:migrations` **VERIFIED** · `verify:domain` **VERIFIED** · `verify:perf` **VERIFIED** · `verify:fr` **0** (322 fichiers, **plus de liste d'attente**) · `verify:encoding` **0** (868 fichiers) · `license:scan` **0** (1420 fichiers) · `format:check` **0** · `build` ✓ (12,1 s) · `build:electron` ✓ (manifeste signé **216 fichiers**).
 - **Nouveaux constats P1 (non corrigés, voir plan)** : jour métier en UTC au lieu de `Africa/Algiers` (E-35) · `verify:licensing` hors CI (bloqué : l'état local du Manager n'existe pas sur un runner) · **E2E non rejoués** depuis le 2026-10-18.
 - **Corrigé en W1→W10 (à ne plus re-signaler)** : `customers.accessQrSvg` sans staff-gate · `staffScope()` ⇒ «no session = gérant» · `database.optimize` sans gate · conversion Proforma→vente cassée si remise · clôture Z (chèque/transfert/dépenses/retours) · verrou de période close (W3) · unicité téléphone + `paginationSchema.page` borné (W3) · `test:coverage` rouge (W4) · `FROZEN_SCHEMA_COUNT` (W4) · extraction EAN-13/14 (W4) · `formatDzd` qui throw au rendu + double-submit + focus + lots bornés (W5) · atelier impression (W5) · code mort trié, `knip` à 0, `expo-constants` retirée, garde FR sans liste d'attente (W6) · chemins chauds indexés (migration 0050) + N+1 supprimés + bundle découpé (W8) · encodage réparé (W9) · **règles uniques (quantité/montant/date/normalisation) + état « en retard » produit (W7)** · **état d'erreur persistant dans 12 écrans (W10)**.
-- ADRs : 001→**133**. `docs/INDEX.md` **à jour jusqu'à 133**.
+- ADRs : 001→**133** + **135** (export données réimportable). Le numéro **134** est réservé au chantier impression concurrent non commité. `docs/INDEX.md` **à jour jusqu'à 135**.
 - **3 bugs caisse signalés par le propriétaire (2026-10-21) — DIAGNOSTIC PROUVÉ puis CORRIGÉS (§23, ADR-131)** : (B1) focus qui revient au champ « Nom » de l'article libre — `useDialogFocus` rejouait son effet à chaque rendu (`onClose` inline = identité nouvelle) ⇒ **corrigé** (refs, dépendances `[boxRef]`) ; (B2) vente au poids en mode « Montant » : 50,00 DZD saisis mais **49,70 facturés** ⇒ **corrigé** (le montant saisi est facturé tel quel, `billedTotalMinor`) ; (B3) panier mixte : `CHECK constraint failed: discount_amount_minor >= 0` (7× dans le journal du 2026-10-21) — une **majoration** (prix de ligne > prix d'origine) produisait une remise négative, acceptée par le domaine mais **interdite par la base** ⇒ **corrigé** (migration **0051** : remise signée, table `sales` reconstruite + runner « FK off » ; garde des lignes AVANT l'INSERT ⇒ message FR au lieu du CHECK SQL). **Lien B1 → B3** (la saisie tronquée du prix forçait une correction par majoration). Reste : refaire le packaging (schéma changé) ; constat secondaire non traité (4 ventes à `amount_paid_minor = 0`).
 - **Constats bloquants de la revue UI d'ADR-131 — CORRIGÉS (§25, ADR-132)** : (C1) éditer qté/prix d'une ligne « montant saisi » tuait l'écran Vente (`computeBilledTotal` levait au rendu) ⇒ ligne **verrouillée** (qté + prix, jamais fusionnée, `+`/`−` strictement sur la dernière ligne) + `safeLineTotal` (« — » + log, jamais d'exception) ; (C2) ticket **non imprimable** (remise négative refusée par `discountMinor`) ⇒ `moneyMinorSigned`, ticket « Remise −X »/« Majoration +X », « montant saisi » au lieu de qté × P.U., quantités FR, devis A4 à majoration visible ; (C3) couverture **E2E** du mode Montant. Revue ui-fr (3 risques corrigés) + db-guardian CLEAN (aucune migration).
 - Outillage : `knip.json` (§16) — `Unused files` **32 → 0** ; re-mesuré 2026-10-21 : **0 fichier · 0 export · 0 type · 0 dépendance** (la couverture `knip` s'étend désormais à `license-manager/**` et `cloud/**` — J-11).
 - **« Grand blanc après le code-barres » sur la facture de vente imprimée — CORRIGÉ (§26, ADR-133)** : (a) le ticket **n'imposait aucun format de page** (`printOptions()` sans `pageSize` ⇒ format par défaut du pilote, A4/297 mm) alors que son contenu **se termine par le bloc codes** ⇒ la page est désormais **largeur du rouleau × hauteur mesurée du contenu** (+3 mm de coupe, plancher 30 mm, repli = ancien comportement) ; (b) le **Code 39 n'était jamais mis à l'échelle** (462 px dans 280/200 px + `overflow:hidden`) ⇒ module calé sur la colonne (1,1 px ⇒ 275,7 px en 80 mm) + plafond CSS `max-width/height:auto` (58 mm : 200/200 px, plus de barre coupée) ; (c) l'export PDF passait des **microns** à `printToPDF` (qui attend des **pouces**) ⇒ conversion explicite, PDF d'un ticket 80 mm = **80,1 × 141,5 mm sur 1 page**. Restent assumés : Code 39 de 14 car. non scannable sur 58 mm (limite matérielle) et payload QR imprimé deux fois (contrat texte ADR-050).
-- **Import/export Clients & Produits — VÉRIFIÉS et DURCIS (§27, EMP-1 `6bb3a51`)** : le câblage existait (ADR-130) et les 3 E2E étaient vertes, mais **réimporter l'export clients créait 2 fiches bidon** (en-tête `Client;Téléphone…` traité comme données, guillemets conservés) au lieu d'échouer proprement, et un téléphone `pas-un-numero` était accepté. **Corrigé** : parseur CSV quote-aware, **refus FR explicite des exports de rapport** (produits et clients), **téléphone importé validé** (domaine + main), **export interrompu** si une page est illisible (plus de CSV tronqué annoncé « ok »). Parseur inchangé sur les formats documentés (`nom;vente;achat;quantité[;code-barres]`, `prénom;nom;téléphone`). Aucune migration, aucun canal, aucun ADR nouveau (restaure la décision 3 d'ADR-130).
-- **Contrats gelés (état après ADR-132)** : snapshot `ipc-channels.json` **178** (+`customers.import`) · `FROZEN_SCHEMA_COUNT` **122** · `FROZEN_EXPORT_COUNT = 129` (+`moneyMinorSigned`) · `FROZEN_SCHEMA_TOTAL` (op-id) **122** · `operation-id-coverage` : **44** REQUIRED + classification complète (122 schémas) · migrations **51** (0051 = remise signée, table `sales` reconstruite).
-- E2E (non relancés depuis le 2026-10-18) : suite 2026-10-18 — **12/13 specs vertes**, **37** blocs `test()` (pas 24) ; `full-loop-client` exige le relais `:8100` (hard-fail, pas skip) ; `installer` non exécutable hors paquet Win + UAC. **W2 touche `staffScope()` (K-04) et W3 ajoute un canal ⇒ les specs `staff-session` et `full-loop-client` sont à rejouer avant le tag.** Spec `cashier-amount-mode` (nouvelle, ADR-132) **rejouée le 2026-10-22 : 2/2 verte** ; le reste de la suite reste non rejoué.
-- **Packaging REFAIT 2026-10-21** (§21) : `release/` reconstruit **de zéro** (ADR-023 : jamais de réutilisation) — `Veloria-PoS-Setup-1.0.0.exe` (NSIS, machine, FR) + `.blockmap` · `Veloria-PoS-Portable-1.0.0.exe` · `Veloria-License-Manager-Setup-1.0.0.exe` + `.blockmap` · `Veloria-License-Manager-Portable-1.0.0.exe` · `SHA256SUMS.txt` · `release/win-unpacked/` (= POS). `release:smoke` **0** · `better-sqlite3` **chargé dans le runtime packagé** (Electron 37.2.0, ABI 136, SQLite 3.50.2 — règle AGENTS.md §9).
+- **Import/export Clients & Produits — VÉRIFIÉS et DURCIS (§27, EMP-1 `6bb3a51`)** : le câblage existait (ADR-130) et les 3 E2E étaient vertes, mais **réimporter l'export clients créait 2 fiches bidon** (en-tête `Client;Téléphone…` traité comme données, guillemets conservés) au lieu d'échouer proprement, et un téléphone `pas-un-numero` était accepté. **Corrigé** : parseur CSV quote-aware, **refus FR explicite des exports de rapport** (produits et clients), **téléphone importé validé** (domaine + main), **export interrompu** si une page est illisible (plus de CSV tronqué annoncé « ok »). Parseur inchangé sur les formats documentés (`nom;vente;achat;quantité[;code-barres]`, `prénom;nom;téléphone`). Aucune migration, aucun canal, aucun ADR nouveau (restaure la décision 3 d'ADR-130). **Complété par §28/ADR-135** : second export « Données CSV » réimportable, sans changer le rapport.
+- **Export de données réimportable — AJOUTÉ (§28, ADR-135 `2d8028a`)** : les écrans Produits et Clients ont désormais **deux exports** : « Rapport CSV » (lisible Excel, ADR-130) et « Données CSV » (`nom;vente;achat;quantité[;code-barres]` / `prénom;nom;téléphone`) qui se réimporte tel quel. Montants via `minorToInput` (jamais `formatDzd`) ; `protectFormulas:false` pour préserver `+213…`/`-…` (le rapport garde RX-18) ; export données **refusé** si le filtre inclut des archivés (le format d'import ne transporte pas le statut). Aucun canal, schéma, migration. Réimporter dans la même base échoue proprement sur l'unicité code-barres/téléphone : la restauration complète reste `Paramètres → Sauvegarde`.
+- **Contrats gelés (état après ADR-132, inchangés par ADR-135)** : snapshot `ipc-channels.json` **178** (+`customers.import`) · `FROZEN_SCHEMA_COUNT` **122** · `FROZEN_EXPORT_COUNT = 129` (+`moneyMinorSigned`) · `FROZEN_SCHEMA_TOTAL` (op-id) **122** · `operation-id-coverage` : **44** REQUIRED + classification complète (122 schémas) · migrations **51** (0051 = remise signée, table `sales` reconstruite).
+- E2E (non relancés depuis le 2026-10-18) : suite 2026-10-18 — **12/13 specs vertes**, **37** blocs `test()` (pas 24) ; `full-loop-client` exige le relais `:8100` (hard-fail, pas skip) ; `installer` non exécutable hors paquet Win + UAC. **W2 touche `staffScope()` (K-04) et W3 ajoute un canal ⇒ les specs `staff-session` et `full-loop-client` sont à rejouer avant le tag.** Spec `cashier-amount-mode` (nouvelle, ADR-132) **rejouée le 2026-10-22 : 2/2 verte** ; le reste de la suite reste non rejoué. **§28** : la spec `csv-import-export` est **bloquée avant lancement** par une intégrité `dist-electron/printing/printing.pdf-exports.js` du chantier concurrent (pas par le CSV) ; le contenu de l'export données est couvert par les tests unitaires.
+- **Packaging REFAIT 2026-10-21** (§21) : `release/` reconstruit **de zéro** (ADR-023 : jamais de réutilisation) — `Veloria-PoS-Setup-1.0.0.exe` (NSIS, machine, FR) + `.blockmap` · `Veloria-PoS-Portable-1.0.0.exe` · `Veloria-License-Manager-Setup-1.0.0.exe` + `.blockmap` · `Veloria-License-Manager-Portable-1.0.0.exe` · `SHA256SUMS.txt` · `release/win-unpacked/` (= POS). `release:smoke` **0** · `better-sqlite3` **chargé dans le runtime packagé** (Electron 37.2.0, ABI 136, SQLite 3.50.2 — règle AGENTS.md §9). **Attention** : ce packaging date du **21/10**, avant EMP-1 (22/10 21:04) et ADR-135 ; l'installateur **ne contient ni le refus explicite ni le bouton « Données CSV »**. Rebuild requis pour tester le correctif.
 - Non relancés : E2E, `verify:licensing`, `npm audit` réseau (offline ⇒ non probant). **APK mobile impossible ici** : ni EAS CLI/jeton, ni JDK/Android SDK, ni `EXPO_PUBLIC_*` réel (placeholders dans `mobile/eas.json`).
+- **Portes §28 (2026-10-22)** : `npx tsc -p tsconfig.json --noEmit` **0** · `vitest` **150 fichiers / 1 042 tests** **0** · `vite build` ✓ · `verify:fr` **0** (325 fichiers) · `verify:encoding` **0** (885) · `verify:domain` **VERIFIED** · `verify:migrations` **VERIFIED** · ESLint fichiers touchés **0**. **Bloqués par le chantier concurrent** : `tsc -b` / `typecheck:electron` (3 erreurs dans `electron/printing/*`) et E2E `csv-import-export` (intégrité `dist-electron/printing/printing.pdf-exports.js`).
 - **Pièges découverts pendant l'audit** : (1) `npm run lint` passe sur `docs/**` ⇒ **tout `.mjs` déposé sous `docs/` casse la porte** (allowlist `allowDefaultProject` = 24 chemins, `eslint.config.mjs:31-58`) ; (2) `test:db` échoue (12 `Hook timed out`) si lancé **en parallèle** d'autres outils lourds ⇒ **`hookTimeout` passé à 60 s (W4)** ; (3) `format:check` échoue sur tout `.md` écrit à la main ⇒ **toujours** passer Prettier sur les livrables ; (4) `npm run build` seul invalide le manifeste licence ⇒ toujours enchaîner `build:electron` ; (5) `better-sqlite3` est compilé pour l'ABI Electron (136) : pour interroger la base hors GUI, passer par `ELECTRON_RUN_AS_NODE=1 npx electron script.cjs` ; (6) toute arête inter-features nouvelle fait **échouer** le test A3 ⇒ liste blanche `tests/unit/a3-organisation.test.ts` à mettre à jour dans le même commit ; (7) **`test:coverage` instrumentant tout le code, les tests d'intégration lourds dépassaient `testTimeout` (15 s) ⇒ passé à 60 s (W4)** ; (8) **écrire un fichier via `Set-Content` (PowerShell) corrompt l'UTF-8** (double encodage) ⇒ toujours écrire via l'outil d'édition ou un script Node.
 
 ## 2) Objectifs réalisés (11 → 12 oct 2026)
@@ -1462,3 +1464,88 @@ fichiers) · `verify:migrations` **VERIFIED**.
   rien) ; le champ est conservé pour compatibilité.
 - E2E : seul le refus du rapport **clients** est couvert en réel ; le refus du
   rapport **produits** est couvert par le test unitaire.
+
+## 28) Session 2026-10-22 (quinquies) - export données réimportable (ADR-135)
+
+### Objectif
+
+Le propriétaire a réimporté un CSV **exporté par le même programme** et a reçu
+`Ligne 2 : prix de vente invalide`. Le geste naturel « exporter puis
+réimporter » doit fonctionner, sans transformer le rapport en format
+d'import.
+
+### Cause racine
+
+- La version installée (`release/`, **21/10 22:58**) est antérieure au
+  correctif EMP-1 `6bb3a51` (**22/10 21:04**) : `app.asar` ne contient pas la
+  détection d'en-tête de rapport.
+- Ancien parseur : l'en-tête `Nom;Catégorie;Unité;Prix d'achat;Prix de vente…`
+  est consommé, puis `Catégorie` est lu comme `Prix de vente` sur la première
+  ligne de données ⇒ message `Ligne 2`.
+- Le correctif EMP-1 refuse désormais ce fichier proprement, mais **le besoin
+  de transfert restait entier**.
+
+### Livré (commit `2d8028a`, ADR-135)
+
+- **Deux exports** sur Produits et Clients :
+  - « Rapport CSV » : inchangé (colonnes enrichies, montants DZD, RX-18) ;
+  - « Données CSV » : format exact d'import, réimportable tel quel.
+- Produits : `nom;vente;achat;quantité;code-barres` via `minorToInput`
+  (jamais `formatDzd`) ; Clients : `prénom;nom;téléphone` (prénom/nom
+  séparés).
+- `toCsv(..., { protectFormulas: false })` uniquement pour le fichier de
+  données : préserve `+213…` et les noms `-…` ; le rapport garde RX-18.
+- Export données **refusé** si le filtre courant inclut des archivés
+  (produits : `includeArchived` ; clients : `archiveFilter !== "active"`) :
+  le format d'import ne transporte pas le statut, aucune réactivation
+  silencieuse.
+- `finally` : `bulkBusy`/`bulkLabel`/`exportKind` remis à zéro même en cas
+  d'exception (l'ancien `catch` laissait le bouton bloqué).
+- Aucun canal IPC, schéma Zod ou migration. Réimport dans la même base :
+  échec propre sur l'unicité code-barres/téléphone (tout-ou-rien) ; la
+  restauration complète reste `Paramètres → Sauvegarde → Restaurer`.
+
+### Fichiers
+
+- Code : `src/shared/export/csv.ts`, `src/features/products/types.ts`,
+  `src/features/customers/types.ts`, `src/features/products/ProductsScreen.tsx`,
+  `src/features/customers/ClientsScreen.tsx`.
+- Tests : `tests/unit/csv-import-safety.test.ts` (13 cas, aller-retour
+  produits/clients + RX-18), `tests/unit/root-repair.test.ts` (16 cas,
+  `protectFormulas:false`), `tests/unit/import-export-ui.test.ts` (6 cas,
+  câblage statique + gardes archivés), `tests/e2e/csv-import-export.spec.ts`
+  (clics rapport + données).
+- Docs : `docs/ADR-135-export-donnees-reimportable-csv.md`,
+  `docs/ADR-130-import-export-csv-clients-produits.md` (note de mise à jour),
+  `docs/INDEX.md`.
+
+### Portes (arbre de ce commit)
+
+Format ✓ · `npx tsc -p tsconfig.json --noEmit` **0** · ESLint fichiers
+touchés **0** · `vitest` **150 fichiers / 1 042 tests** **0** · `vite build`
+✓ · `verify:fr` **0** (325) · `verify:encoding` **0** (885) · `verify:domain`
+**VERIFIED** · `verify:migrations` **VERIFIED**.
+
+### Bloqué par le chantier concurrent (hors périmètre)
+
+- `tsc -b` / `typecheck:electron` : 3 erreurs dans `electron/printing/*`
+  (`receiptTextOf`, `m` inutilisé) — fichiers non touchés.
+- E2E `csv-import-export` : échec **avant lancement** sur
+  `integrity.mismatch` de `dist-electron/printing/printing.pdf-exports.js`
+  (chantier impression/Documents en cours). Ce n'est pas une régression CSV ;
+  le contenu de l'export données est couvert par les tests unitaires.
+- Le numéro **ADR-134** est utilisé par ce chantier concurrent ; le présent
+  ADR est donc **ADR-135**. Ne pas commiter `electron/printing/*`,
+  `src/features/history/HistoryDialogs.tsx`,
+  `src/shared/documents/DocumentPreviewModal.tsx` ni
+  `src/features/debts/DebtDialogs.tsx` avec ce travail.
+
+### Reste
+
+1. Quand le chantier impression est terminé : relancer `tsc -b`,
+   `npm run build:electron`, puis la spec E2E `csv-import-export`.
+2. Refaire le packaging (`release/` du 21/10) pour que l'utilisateur voie le
+   correctif EMP-1 et le bouton « Données CSV ».
+3. Vérifier dans l'app réelle : Produits → « Données CSV » → réimport sur une
+   base vierge ; Clients idem. Attendu : mêmes noms/prix/quantités/codes et
+   prénom/nom/téléphone, sans erreur `Ligne 2`.
