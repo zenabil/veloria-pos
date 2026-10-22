@@ -1,4 +1,4 @@
-# Handoff — Veloria POS (état au 2026-10-20)
+# Handoff — Veloria POS (état au 2026-10-22)
 
 > Document de continuité : tout ce qui a été fait, fichiers modifiés,
 > erreurs (fermées/ouvertes), en-attente, commandes. Sessions 2026-10-07
@@ -15,13 +15,13 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête = commit de cette session (§28, ADR-135 `2d8028a`), parent `4c82f6f`. **Arbre non propre** : un chantier impression/Documents concurrent (`electron/printing/*`, `src/features/history/HistoryDialogs.tsx`, `src/shared/documents/DocumentPreviewModal.tsx`, `src/features/debts/DebtDialogs.tsx`) était en cours et n'a **pas** été touché ni commité par cette session.
+- Branche : `chore/root-layout` — tête = `9fbc90e` (§30, ADR-134, design du ticket de vente), parent `2d8028a` (§28, ADR-135). **Arbre propre** après le commit `docs(handoff)` de §30 (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
 - **Audit intégral EXÉCUTÉ (§18, 2026-10-19)** : 3 livrables — `docs/reports/FULL_AUDIT_2026-10-19.md` (rapport, 16 axes A→P, **228 findings** : 0 Critical · 23 High · 95 Medium · 110 Low) · `docs/reports/FULL_AUDIT_2026-10-19_PLAN.md` (plan en **11 vagues W0→W10**, ~11-13 j, 20 décisions owner) · `docs/ADR-120-*.md` (**proposé**, en attente d'approbation). Preuves brutes : `docs/reports/maintenance/audit-raw/`.
 - **Remédiation : vagues W1 → W10 EXÉCUTÉES et commitées** : `0e900f1` **W1** (logique financière) · `cd43aa2` **W2** (sécurité) · `833cea1` **W3** (base) · **W4** (couverture verte + gardes auto-dérivées) · `1e56547` **W5** (rendu/UI caissier + atelier impression) · **W6** (code mort trié — ADR-127) · `4a96938` **W9** (encodage + chiffres à jour) · `7086954` **W8** (chemins chauds indexés, N+1, bundle) · **W7** (règles uniques — ADR-128) · **W10** (état d'erreur persistant — ADR-129). **Plan d'audit : TERMINÉ** (les 11 vagues sont exécutées).
 - **Baseline gelé 2026-10-21 (mesuré, arbre propre)** : `tsc -b` **0** · `typecheck:electron` **0** · `eslint . --max-warnings 0` **exit 0** · `vitest` **142 fichiers / 976 tests** **0** · `test:db` **39 fichiers / 183 tests** **0** (isolé) · **`test:coverage` = EXIT 0 (VERT — 95,83 % lignes · 87,19 % branches · 100 % fonctions, seuils 80/75/88/80 par fichier ; aucun seuil abaissé)** · `knip` **0** (0 fichier, 0 export, 0 type, 0 dépendance) · `verify:migrations` **VERIFIED** · `verify:domain` **VERIFIED** · `verify:perf` **VERIFIED** · `verify:fr` **0** (322 fichiers, **plus de liste d'attente**) · `verify:encoding` **0** (868 fichiers) · `license:scan` **0** (1420 fichiers) · `format:check` **0** · `build` ✓ (12,1 s) · `build:electron` ✓ (manifeste signé **216 fichiers**).
 - **Nouveaux constats P1 (non corrigés, voir plan)** : jour métier en UTC au lieu de `Africa/Algiers` (E-35) · `verify:licensing` hors CI (bloqué : l'état local du Manager n'existe pas sur un runner) · **E2E non rejoués** depuis le 2026-10-18.
 - **Corrigé en W1→W10 (à ne plus re-signaler)** : `customers.accessQrSvg` sans staff-gate · `staffScope()` ⇒ «no session = gérant» · `database.optimize` sans gate · conversion Proforma→vente cassée si remise · clôture Z (chèque/transfert/dépenses/retours) · verrou de période close (W3) · unicité téléphone + `paginationSchema.page` borné (W3) · `test:coverage` rouge (W4) · `FROZEN_SCHEMA_COUNT` (W4) · extraction EAN-13/14 (W4) · `formatDzd` qui throw au rendu + double-submit + focus + lots bornés (W5) · atelier impression (W5) · code mort trié, `knip` à 0, `expo-constants` retirée, garde FR sans liste d'attente (W6) · chemins chauds indexés (migration 0050) + N+1 supprimés + bundle découpé (W8) · encodage réparé (W9) · **règles uniques (quantité/montant/date/normalisation) + état « en retard » produit (W7)** · **état d'erreur persistant dans 12 écrans (W10)**.
-- ADRs : 001→**133** + **135** (export données réimportable). Le numéro **134** est réservé au chantier impression concurrent non commité. `docs/INDEX.md` **à jour jusqu'à 135**.
+- ADRs : 001→**135** (`134` = design du ticket de vente, `135` = export données réimportable). `docs/INDEX.md` **à jour jusqu'à 135**.
 - **3 bugs caisse signalés par le propriétaire (2026-10-21) — DIAGNOSTIC PROUVÉ puis CORRIGÉS (§23, ADR-131)** : (B1) focus qui revient au champ « Nom » de l'article libre — `useDialogFocus` rejouait son effet à chaque rendu (`onClose` inline = identité nouvelle) ⇒ **corrigé** (refs, dépendances `[boxRef]`) ; (B2) vente au poids en mode « Montant » : 50,00 DZD saisis mais **49,70 facturés** ⇒ **corrigé** (le montant saisi est facturé tel quel, `billedTotalMinor`) ; (B3) panier mixte : `CHECK constraint failed: discount_amount_minor >= 0` (7× dans le journal du 2026-10-21) — une **majoration** (prix de ligne > prix d'origine) produisait une remise négative, acceptée par le domaine mais **interdite par la base** ⇒ **corrigé** (migration **0051** : remise signée, table `sales` reconstruite + runner « FK off » ; garde des lignes AVANT l'INSERT ⇒ message FR au lieu du CHECK SQL). **Lien B1 → B3** (la saisie tronquée du prix forçait une correction par majoration). Reste : refaire le packaging (schéma changé) ; constat secondaire non traité (4 ventes à `amount_paid_minor = 0`).
 - **Constats bloquants de la revue UI d'ADR-131 — CORRIGÉS (§25, ADR-132)** : (C1) éditer qté/prix d'une ligne « montant saisi » tuait l'écran Vente (`computeBilledTotal` levait au rendu) ⇒ ligne **verrouillée** (qté + prix, jamais fusionnée, `+`/`−` strictement sur la dernière ligne) + `safeLineTotal` (« — » + log, jamais d'exception) ; (C2) ticket **non imprimable** (remise négative refusée par `discountMinor`) ⇒ `moneyMinorSigned`, ticket « Remise −X »/« Majoration +X », « montant saisi » au lieu de qté × P.U., quantités FR, devis A4 à majoration visible ; (C3) couverture **E2E** du mode Montant. Revue ui-fr (3 risques corrigés) + db-guardian CLEAN (aucune migration).
 - Outillage : `knip.json` (§16) — `Unused files` **32 → 0** ; re-mesuré 2026-10-21 : **0 fichier · 0 export · 0 type · 0 dépendance** (la couverture `knip` s'étend désormais à `license-manager/**` et `cloud/**` — J-11).
@@ -29,11 +29,12 @@
 - **Import/export Clients & Produits — VÉRIFIÉS et DURCIS (§27, EMP-1 `6bb3a51`)** : le câblage existait (ADR-130) et les 3 E2E étaient vertes, mais **réimporter l'export clients créait 2 fiches bidon** (en-tête `Client;Téléphone…` traité comme données, guillemets conservés) au lieu d'échouer proprement, et un téléphone `pas-un-numero` était accepté. **Corrigé** : parseur CSV quote-aware, **refus FR explicite des exports de rapport** (produits et clients), **téléphone importé validé** (domaine + main), **export interrompu** si une page est illisible (plus de CSV tronqué annoncé « ok »). Parseur inchangé sur les formats documentés (`nom;vente;achat;quantité[;code-barres]`, `prénom;nom;téléphone`). Aucune migration, aucun canal, aucun ADR nouveau (restaure la décision 3 d'ADR-130). **Complété par §28/ADR-135** : second export « Données CSV » réimportable, sans changer le rapport.
 - **Export de données réimportable — AJOUTÉ (§28, ADR-135 `2d8028a`)** : les écrans Produits et Clients ont désormais **deux exports** : « Rapport CSV » (lisible Excel, ADR-130) et « Données CSV » (`nom;vente;achat;quantité[;code-barres]` / `prénom;nom;téléphone`) qui se réimporte tel quel. Montants via `minorToInput` (jamais `formatDzd`) ; `protectFormulas:false` pour préserver `+213…`/`-…` (le rapport garde RX-18) ; export données **refusé** si le filtre inclut des archivés (le format d'import ne transporte pas le statut). Aucun canal, schéma, migration. Réimporter dans la même base échoue proprement sur l'unicité code-barres/téléphone : la restauration complète reste `Paramètres → Sauvegarde`.
 - **Essai réel de la build CSV — LANCÉ (§29, 2026-10-22)** : build propre depuis `c30b5c6` dans un worktree isolé (`tsc -b` **0**, `vite build` ✓, `build:electron` ✓, manifeste **218 fichiers** signé), copie stable non versionnée `release/veloria-csv-test/` (gitignorée) + raccourci Bureau `Veloria POS - Test CSV.lnk`. Licence existante **ACTIVE** (`VLIC-757224A4`, pro à vie, 17 pages) réutilisée : aucune réactivation nécessaire. La base réelle `%PROGRAMDATA%\Veloria PoS\Data\Veloria POS DB.sqlite` a été migrée **50 → 51** par cette build : l'ancien installateur du 21/10 refusera désormais cette base (« version plus récente ») ; snapshot pré-migration + copie manuelle disponibles. `release/` (installateur) reste l'ancienne build.
-- **Contrats gelés (état après ADR-132, inchangés par ADR-135)** : snapshot `ipc-channels.json` **178** (+`customers.import`) · `FROZEN_SCHEMA_COUNT` **122** · `FROZEN_EXPORT_COUNT = 129` (+`moneyMinorSigned`) · `FROZEN_SCHEMA_TOTAL` (op-id) **122** · `operation-id-coverage` : **44** REQUIRED + classification complète (122 schémas) · migrations **51** (0051 = remise signée, table `sales` reconstruite).
-- E2E (non relancés depuis le 2026-10-18) : suite 2026-10-18 — **12/13 specs vertes**, **37** blocs `test()` (pas 24) ; `full-loop-client` exige le relais `:8100` (hard-fail, pas skip) ; `installer` non exécutable hors paquet Win + UAC. **W2 touche `staffScope()` (K-04) et W3 ajoute un canal ⇒ les specs `staff-session` et `full-loop-client` sont à rejouer avant le tag.** Spec `cashier-amount-mode` (nouvelle, ADR-132) **rejouée le 2026-10-22 : 2/2 verte** ; le reste de la suite reste non rejoué. **§28** : la spec `csv-import-export` est **bloquée avant lancement** par une intégrité `dist-electron/printing/printing.pdf-exports.js` du chantier concurrent (pas par le CSV) ; le contenu de l'export données est couvert par les tests unitaires.
-- **Packaging REFAIT 2026-10-21** (§21) : `release/` reconstruit **de zéro** (ADR-023 : jamais de réutilisation) — `Veloria-PoS-Setup-1.0.0.exe` (NSIS, machine, FR) + `.blockmap` · `Veloria-PoS-Portable-1.0.0.exe` · `Veloria-License-Manager-Setup-1.0.0.exe` + `.blockmap` · `Veloria-License-Manager-Portable-1.0.0.exe` · `SHA256SUMS.txt` · `release/win-unpacked/` (= POS). `release:smoke` **0** · `better-sqlite3` **chargé dans le runtime packagé** (Electron 37.2.0, ABI 136, SQLite 3.50.2 — règle AGENTS.md §9). **Attention** : ce packaging date du **21/10**, avant EMP-1 (22/10 21:04) et ADR-135 ; l'installateur **ne contient ni le refus explicite ni le bouton « Données CSV »**. Rebuild requis pour tester le correctif.
+- **Design du ticket de vente — LIVRÉ (§30, ADR-134 `9fbc90e`)** : le ticket papier, le PDF, l'aperçu vente et l'atelier partagent désormais **un seul document HTML** (`buildReceiptTicketHtml`) : en-tête enseigne, date, ligne client, table `Qté/Article/P.U/Montant` à lignes pointillées, `N Article(s)`, encadré arrondi `Ancien solde/Total vente/Versement/Nouveau solde` (ou `Reste à payer`/`Monnaie rendue`), remerciement, Code 39 + QR, mentions légales. Le montant saisi garde `P.U —` + « Montant saisi » (ADR-131/132). L'aperçu renvoie `{ text80, html80 }` (aucun canal, schéma ni migration ajouté) et s'affiche en iframe `sandbox=""`. Défaut trouvé et corrigé : l'encadré dépassait de **14 px** en 80 mm (`flex:0 0 74%`) ⇒ `flex:1 1 auto; min-width:0` ; mesure Playwright **0 débordement** en 58 et 80 mm. Le payload QR n'est plus imprimé deux fois quand un SVG existe. `buildReceiptText` reste pour les autres documents thermiques et le repli d'aperçu.
+- **Contrats gelés (inchangés par ADR-134/135)** : snapshot `ipc-channels.json` **178** (+`customers.import`) · `FROZEN_SCHEMA_COUNT` **122** · `FROZEN_EXPORT_COUNT = 129` (+`moneyMinorSigned`) · `FROZEN_SCHEMA_TOTAL` (op-id) **122** · `operation-id-coverage` : **44** REQUIRED + classification complète (122 schémas) · migrations **51** (0051 = remise signée, table `sales` reconstruite). `printing.preview` renvoie en plus `html80` (même canal, même schéma de requête).
+- E2E (non relancés depuis le 2026-10-18) : suite 2026-10-18 — **12/13 specs vertes**, **37** blocs `test()` (pas 24) ; `full-loop-client` exige le relais `:8100` (hard-fail, pas skip) ; `installer` non exécutable hors paquet Win + UAC. **W2 touche `staffScope()` (K-04) et W3 ajoute un canal ⇒ les specs `staff-session` et `full-loop-client` sont à rejouer avant le tag.** Spec `cashier-amount-mode` (nouvelle, ADR-132) **rejouée le 2026-10-22 : 2/2 verte** ; le reste de la suite reste non rejoué. **§28** : la spec `csv-import-export` était **bloquée avant lancement** par une intégrité `dist-electron/printing/printing.pdf-exports.js` du chantier concurrent (pas par le CSV) ; le blocage d'intégrité est **levé par §30** (`build:electron` refait avec le design ticket), mais la spec **n'a pas été rejouée**.
+- **Packaging REFAIT 2026-10-21** (§21) : `release/` reconstruit **de zéro** (ADR-023 : jamais de réutilisation) — `Veloria-PoS-Setup-1.0.0.exe` (NSIS, machine, FR) + `.blockmap` · `Veloria-PoS-Portable-1.0.0.exe` · `Veloria-License-Manager-Setup-1.0.0.exe` + `.blockmap` · `Veloria-License-Manager-Portable-1.0.0.exe` · `SHA256SUMS.txt` · `release/win-unpacked/` (= POS). `release:smoke` **0** · `better-sqlite3` **chargé dans le runtime packagé** (Electron 37.2.0, ABI 136, SQLite 3.50.2 — règle AGENTS.md §9). **Attention** : ce packaging date du **21/10**, avant EMP-1 (22/10 21:04), ADR-135 et ADR-134 ; l'installateur **ne contient ni le refus explicite, ni le bouton « Données CSV », ni le nouveau ticket**. Rebuild requis pour tester.
 - Non relancés : E2E, `verify:licensing`, `npm audit` réseau (offline ⇒ non probant). **APK mobile impossible ici** : ni EAS CLI/jeton, ni JDK/Android SDK, ni `EXPO_PUBLIC_*` réel (placeholders dans `mobile/eas.json`).
-- **Portes §28 (2026-10-22)** : `npx tsc -p tsconfig.json --noEmit` **0** · `vitest` **150 fichiers / 1 042 tests** **0** · `vite build` ✓ · `verify:fr` **0** (325 fichiers) · `verify:encoding` **0** (885) · `verify:domain` **VERIFIED** · `verify:migrations` **VERIFIED** · ESLint fichiers touchés **0**. **Bloqués par le chantier concurrent** : `tsc -b` / `typecheck:electron` (3 erreurs dans `electron/printing/*`) et E2E `csv-import-export` (intégrité `dist-electron/printing/printing.pdf-exports.js`).
+- **Portes §30 (2026-10-22, arbre de `9fbc90e`)** : `npm run typecheck` **0** · `typecheck:electron` **0** · `eslint . --max-warnings 0` **0** · `vitest` **151 fichiers / 1 051 tests** **0** · `build` ✓ · `build:electron` ✓ (manifeste **220 fichiers**) · `verify:fr` **0** (325 fichiers) · `verify:encoding` **0** (886) · `verify:migrations` **VERIFIED**. E2E et `verify:licensing` **non rejoués** ; packaging `release/` antérieur au design ticket.
 - **Pièges découverts pendant l'audit** : (1) `npm run lint` passe sur `docs/**` ⇒ **tout `.mjs` déposé sous `docs/` casse la porte** (allowlist `allowDefaultProject` = 24 chemins, `eslint.config.mjs:31-58`) ; (2) `test:db` échoue (12 `Hook timed out`) si lancé **en parallèle** d'autres outils lourds ⇒ **`hookTimeout` passé à 60 s (W4)** ; (3) `format:check` échoue sur tout `.md` écrit à la main ⇒ **toujours** passer Prettier sur les livrables ; (4) `npm run build` seul invalide le manifeste licence ⇒ toujours enchaîner `build:electron` ; (5) `better-sqlite3` est compilé pour l'ABI Electron (136) : pour interroger la base hors GUI, passer par `ELECTRON_RUN_AS_NODE=1 npx electron script.cjs` ; (6) toute arête inter-features nouvelle fait **échouer** le test A3 ⇒ liste blanche `tests/unit/a3-organisation.test.ts` à mettre à jour dans le même commit ; (7) **`test:coverage` instrumentant tout le code, les tests d'intégration lourds dépassaient `testTimeout` (15 s) ⇒ passé à 60 s (W4)** ; (8) **écrire un fichier via `Set-Content` (PowerShell) corrompt l'UTF-8** (double encodage) ⇒ toujours écrire via l'outil d'édition ou un script Node.
 
 ## 2) Objectifs réalisés (11 → 12 oct 2026)
@@ -1604,3 +1605,86 @@ nouvelle version et l'activer pour tester l'export/import `Données CSV`.
    `build:electron`, E2E `csv-import-export`, puis packaging neuf.
 3. Ne pas commiter `release/` (gitignoré) ni les fichiers du chantier
    concurrent.
+
+---
+
+## 30) Session 2026-10-22 (sexies) — design du ticket de vente (ADR-134)
+
+### Demande
+
+Le propriétaire a fourni la photo d'un ticket de superette et demandé que la
+facture de vente imprimée reprenne ce dessin : grande enseigne, date, client,
+table `Qté / Article / P.U / Montant`, `N Article(s)`, encadré arrondi des
+soldes, remerciement, code-barres + numéro et pied légal. Le ticket sortait
+jusqu'ici en texte monospace, et l'aperçu ne montrait pas le rendu réel.
+
+### Livré (commit `9fbc90e`, ADR-134)
+
+- **Builder HTML unique** `buildReceiptTicketHtml`
+  (`electron/printing/receipt-documents/ticket-html.ts` +
+  `ticket-blocks.ts`) utilisé par l'impression, le PDF, l'aperçu, l'échantillon
+  Studio, l'impression de test et la page de test.
+- **Mise en page** : logo + enseigne (1,9 × la base, bornée 16–28 px), ville
+  en italique, contact et `RC / NIF / NIS`, date centrée, ligne
+  `Client : Nom | téléphone | adresse` (ou « Comptant »), vendeur, table à
+  colonnes fixes (`colgroup`) et lignes pointillées. Montants de table
+  **compacts** (sans « DA », milliers ni « ,00 ») pour tenir en 58 mm ;
+  l'encadré garde les montants `DA` formatés.
+- **Montant saisi** (ADR-131/132) : `P.U` = « — », mention « Montant saisi »,
+  jamais de multiplication fausse ; référence produit sur la deuxième ligne.
+- **Encadré** : `Ancien solde` (si fiche), `Total vente`, `Timbre fiscal`
+  (espèces), `Versement`, `Nouveau solde` en gras ; replis `Reste à payer`,
+  `Reste (timbre)`, `Monnaie rendue`. Détail fiscal au-dessus seulement si
+  remise/livraison/TVA.
+- **Pied** : nombre d'articles, montant en lettres, règlement/échéance,
+  remerciement (défaut « Merci de votre visite. »), Code 39 + numéro, QR
+  optionnel, mention légale (défaut « Ticket obligatoire pour toutes
+  réclamations »), signatures si le modèle les garde.
+- **Aperçu** : `printing.preview` renvoie `{ text80, html80 }` ; les modales
+  Vente, Historique, Dettes, Retours et l'atelier affichent `html80` dans une
+  iframe `sandbox=""`, avec repli `text80`. Aucun canal, schéma Zod ni
+  migration ajouté.
+- **Correctif pendant la vérification** : l'encadré `flex:0 0 74%` dépassait
+  de **14 px** du papier 80 mm ; passé à `flex:1 1 auto; min-width:0`.
+  Playwright : **0 élément hors cadre** en 58 et 80 mm (280 × 575 px /
+  200 × 654 px pour 6 lignes).
+- **QR** : le payload texte n'est plus imprimé quand un SVG QR existe (fin de
+  la duplication constatée en ADR-133 §D4) ; le numéro lisible sous les barres
+  n'apparaît que sans code-barres.
+
+### Fichiers
+
+- Code main : `electron/printing/receipt-documents/ticket-html.ts` (236 l.),
+  `ticket-blocks.ts` (147 l.), `receipt-documents.ts`,
+  `printing.receipt.ts`, `printing.pdf-exports.ts`, `printing.samples.ts`,
+  `printing.studio.ts`.
+- Renderer : `src/shared/documents/DocumentPreviewModal.tsx`,
+  `src/shared/documents/invoice-preview.tsx`,
+  `src/features/history/HistoryDialogs.tsx`,
+  `src/features/debts/DebtDialogs.tsx`,
+  `src/features/returns/dialogs/DetailsDrawer.tsx`,
+  `src/features/print-templates/PrintTemplatesScreen.tsx`.
+- Tests : `tests/unit/printing/ticket-html.test.ts` (9 cas),
+  `tests/unit/printing/split-parity.test.ts` (18 cas, échantillon ticket =
+  `text80` + `html80`).
+- Docs : `docs/ADR-134-design-ticket-vente.md`, `docs/INDEX.md`.
+
+### Portes (arbre de `9fbc90e`)
+
+`npm run typecheck` **0** · `typecheck:electron` **0** · `eslint
+--max-warnings 0` **0** · `vitest` **151 fichiers / 1 051 tests** **0** ·
+`build` ✓ · `build:electron` ✓ (manifeste **220 fichiers**) · `verify:fr`
+**0** (325) · `verify:encoding` **0** (886) · `verify:migrations`
+**VERIFIED**.
+
+### Reste
+
+1. **Imprimer sur l'imprimante thermique réelle** (58 et 80 mm) et vérifier
+   le rendu papier : lisibilité des montants compacts, alignement de
+   l'encadré, scan du Code 39.
+2. Rejouer l'E2E `csv-import-export` (blocage d'intégrité levé) et, plus tard,
+   la suite E2E complète.
+3. Refaire le packaging : `release/` (21/10) ne contient ni ADR-134, ni
+   ADR-135, ni EMP-1.
+4. Recueillir l'avis du propriétaire sur le dessin (taille de l'enseigne,
+   mentions du pied) avant de figer d'éventuels réglages supplémentaires.
