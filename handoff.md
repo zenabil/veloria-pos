@@ -22,7 +22,7 @@
 - **Nouveaux constats P1 (non corrigés, voir plan)** : jour métier en UTC au lieu de `Africa/Algiers` (E-35) · `verify:licensing` hors CI (bloqué : l'état local du Manager n'existe pas sur un runner) · **E2E non rejoués** depuis le 2026-10-18.
 - **Corrigé en W1→W10 (à ne plus re-signaler)** : `customers.accessQrSvg` sans staff-gate · `staffScope()` ⇒ «no session = gérant» · `database.optimize` sans gate · conversion Proforma→vente cassée si remise · clôture Z (chèque/transfert/dépenses/retours) · verrou de période close (W3) · unicité téléphone + `paginationSchema.page` borné (W3) · `test:coverage` rouge (W4) · `FROZEN_SCHEMA_COUNT` (W4) · extraction EAN-13/14 (W4) · `formatDzd` qui throw au rendu + double-submit + focus + lots bornés (W5) · atelier impression (W5) · code mort trié, `knip` à 0, `expo-constants` retirée, garde FR sans liste d'attente (W6) · chemins chauds indexés (migration 0050) + N+1 supprimés + bundle découpé (W8) · encodage réparé (W9) · **règles uniques (quantité/montant/date/normalisation) + état « en retard » produit (W7)** · **état d'erreur persistant dans 12 écrans (W10)**.
 - ADRs : 001→**130**. `docs/INDEX.md` **à jour jusqu'à 130**.
-- **3 bugs caisse signalés par le propriétaire (2026-10-21) — DIAGNOSTIC PROUVÉ (§23), CORRECTION EN ATTENTE** : (B1) focus qui revient au champ « Nom » de l'article libre — `useDialogFocus` rejoue son effet à chaque rendu (`onClose` inline = identité nouvelle) ⇒ refocus du 1ᵉʳ champ ; (B2) vente au poids en mode « Montant » : 50,00 DZD saisis mais **49,70 facturés** (poids arrondi à 3 déc. × prix ; le montant exact est perdu — ADR-114) ; (B3) panier mixte : `CHECK constraint failed: discount_amount_minor >= 0` (7× dans le journal du 2026-10-21) — une **majoration** (prix de ligne > prix d'origine) produit une remise négative, acceptée par le domaine mais **interdite par la base** ⇒ rollback + message générique ; **lien B1 → B3** (la saisie tronquée du prix force une correction par majoration). Décisions owner en attente (B2 : facturation exacte ou arrondie ; B3 : interdire ou autoriser la majoration).
+- **3 bugs caisse signalés par le propriétaire (2026-10-21) — DIAGNOSTIC PROUVÉ puis CORRIGÉS (§23, ADR-131)** : (B1) focus qui revient au champ « Nom » de l'article libre — `useDialogFocus` rejouait son effet à chaque rendu (`onClose` inline = identité nouvelle) ⇒ **corrigé** (refs, dépendances `[boxRef]`) ; (B2) vente au poids en mode « Montant » : 50,00 DZD saisis mais **49,70 facturés** ⇒ **corrigé** (le montant saisi est facturé tel quel, `billedTotalMinor`) ; (B3) panier mixte : `CHECK constraint failed: discount_amount_minor >= 0` (7× dans le journal du 2026-10-21) — une **majoration** (prix de ligne > prix d'origine) produisait une remise négative, acceptée par le domaine mais **interdite par la base** ⇒ **corrigé** (migration **0051** : remise signée, table `sales` reconstruite + runner « FK off » ; garde des lignes AVANT l'INSERT ⇒ message FR au lieu du CHECK SQL). **Lien B1 → B3** (la saisie tronquée du prix forçait une correction par majoration). Reste : rejouer l'E2E + refaire le packaging (schéma changé) ; constat secondaire non traité (4 ventes à `amount_paid_minor = 0`).
 - Outillage : `knip.json` (§16) — `Unused files` **32 → 0** ; re-mesuré 2026-10-21 : **0 fichier · 0 export · 0 type · 0 dépendance** (la couverture `knip` s'étend désormais à `license-manager/**` et `cloud/**` — J-11).
 - **« Grand blanc après le code-barres » sur la facture de vente imprimée — DIAGNOSTIC PROUVÉ (§24), CORRECTION EN ATTENTE** : (a) le ticket **n'impose pas de format de page** (`printOptions()` sans `pageSize` ⇒ format par défaut du pilote, souvent A4/297 mm) et son contenu **se termine par le bloc codes** ⇒ le blanc de page arrive juste après le code-barres (l'export PDF a le même défaut : `pageSize {80000×297000}`) ; (b) le **Code 39 n'est jamais mis à l'échelle** sur le thermique (largeur intrinsèque 462 px dans une colonne de 280/200 px + `overflow:hidden`) ⇒ barre coupée à 61 %/43 % et numéro lisible absent sur 58 mm (l'A4 et les étiquettes, eux, appliquent `max-width`/`height:auto`).
 - **Contrats gelés (état après ADR-130)** : snapshot `ipc-channels.json` **178** (+`customers.import`) · `FROZEN_SCHEMA_COUNT` **122** · `FROZEN_EXPORT_COUNT = 128` · `FROZEN_SCHEMA_TOTAL` (op-id) **122** · `operation-id-coverage` : **44** REQUIRED + classification complète (122 schémas) · migrations **50** (migration 0050 = index de performance, non destructive).
@@ -943,6 +943,47 @@ soit un panier qui rétrécit après un montant saisi) ⇒ montant payé → 0.
 
 **Aucun code modifié dans cette session** (diagnostic seul ; le fichier de
 reproduction temporaire a été supprimé).
+
+### Correctifs APPLIQUÉS (2026-10-22) — ADR-131
+
+**Décisions propriétaire** : B2 ⇒ (b) facturer le montant saisi **exact** ;
+B3 ⇒ (b) autoriser la majoration ⇒ **une seule migration** pour les deux ;
+B1 ⇒ correctif + test.
+
+| Fichier                                                                                                   | Correction                                                                                                                                                                                                 |
+| --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/ui/primitives.tsx`                                                                            | `useDialogFocus` : `onClose`/`extraKey` dans des refs « dernière valeur » ; l'effet ne dépend plus que de `[boxRef]` ⇒ **plus de refocus du 1ᵉʳ champ** (corrige B1 pour TOUS les dialogues)               |
+| `database/migrations/0051_sales_signed_discount.sql`                                                      | **NOUVEAU** : reconstruction de `sales` ⇒ `discount_amount_minor` **signé** (borne −1e11) ; triggers 0031 « remise non négative » remplacés par un plancher borné ; marqueur `-- veloria:foreign-keys-off` |
+| `electron/database/sqlite.service.ts`                                                                     | Runner : migration « FK off » (FK désactivées **avant** la transaction — `PRAGMA foreign_keys` est un no-op dedans) + `PRAGMA foreign_key_check` fail-closed après                                         |
+| `src/domain/sales/sale-rules.ts`                                                                          | `billedTotalMinor` sur la ligne ; `computeBilledTotal()` (montant saisi validé : entier > 0 + borne d'arrondi 0,0005 × prix + 1) ; `billedAmountToleranceMinor()`                                          |
+| `electron/ipc/money-guard.ts`                                                                             | Miroir main : `priceLine({ billedTotalMinor })` + tolérance (parité prouvée par `money-guard-parity.test.ts`)                                                                                              |
+| `electron/ipc/handlers/sales.repo.ts`                                                                     | `validateSaleLines()` **AVANT** l'INSERT (messages FR, plus de CHECK SQL brut) ; remise signée bornée ; `raisedLines` (majorations) dans l'audit                                                           |
+| `electron/ipc/validators.sales.ts` / `validators.documents.ts` / `validators.print.ts`                    | Champ optionnel `billedTotalMinor` (vente, devis, brouillon) ; le validateur d'impression accepte le montant saisi dans la borne d'arrondi                                                                 |
+| `electron/ipc/credit-gates.ts` / `registry.sales.ts` / `registry.documents.ts` / `handlers/carts.repo.ts` | Total facturé = montant saisi (gate crédit, payload vente, devis, brouillons)                                                                                                                              |
+| `src/features/sales/sell/sell-weight.ts`                                                                  | Aperçu « Montant » = **montant saisi** (50,00 DZD ⇒ 50,00 DZD)                                                                                                                                             |
+| `src/features/sales/sell/QuantityDialog.tsx` / `SellOverlays.tsx` / `SellScreen.tsx` / `sell-search.ts`   | Le montant saisi est transmis jusqu'à la ligne du panier (`billedTotalMinor`)                                                                                                                              |
+| `src/features/sales/cart-store.ts`                                                                        | Deux lignes à montants facturés DIFFÉRENTS ne fusionnent plus (le poids s'additionne, le montant non)                                                                                                      |
+| `src/features/sales/sell/CartPanel.tsx` / `sell-totals.ts`                                                | Total de ligne = montant facturé ; marque « montant saisi » dans le panier ; le ticket porte le montant exact                                                                                              |
+| `src/features/sales/sell/PriceDialog.tsx`                                                                 | La **majoration** est annoncée en clair (« Majoration : ce prix dépasse le prix catalogue… l'écart sera tracé dans l'audit »)                                                                              |
+| `src/features/sales/sell/cart-drafts.ts`                                                                  | Le montant facturé survit au redémarrage (brouillon)                                                                                                                                                       |
+
+**Tests ajoutés** : `tests/unit/sales/sale-signed-discount.test.ts` (9),
+`tests/integration/sale-signed-discount.test.ts` (3, repos réels),
+`tests/unit/ui-dialog-focus.test.ts` (3),
+`tests/unit/money-guard-parity.test.ts` (+1 bloc parité montant saisi).
+
+**Portes (arbre propre, 2026-10-22)** : `tsc -b` **0** · `eslint --max-warnings 0` **0** ·
+`format:check` **0** · `vitest` **145 fichiers / 992 tests** **0** ·
+`test:db` **40 / 186** **0** · `verify:migrations` **VERIFIED** ·
+`verify:domain` **VERIFIED** · `verify:fr` **0** (322 fichiers) ·
+`verify:encoding` **0** (872 fichiers) · `verify:perf` **VERIFIED** · `knip` **0**.
+
+**À faire** : rejouer l'E2E (non relancés depuis le 2026-10-18) · reconstruire le
+packaging (la migration 0051 change le schéma : `release/` à refaire) ·
+**constat secondaire** (§23 « Constat secondaire ») : 4 ventes enregistrées avec
+`amount_paid_minor = 0` (ventes à crédit au lieu d'encaissement) — piste :
+l'effet de synchro `paidText → cart.amountPaidMinor` borné à `totalMinor`
+(qui vaut 0 quand `computeSaleTotals` lève). **Non traité dans cette session.**
 
 ## 21) Session 2026-10-21 — remédiation : fin du plan d'audit (W6, W7, W10)
 
