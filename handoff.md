@@ -15,7 +15,7 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête = commit de cette session (§26, ADR-133), parent `c781c9a` `docs(handoff): session 2026-10-22 (bis) - cloture des constats UI d'ADR-131 (ADR-132)`. **Arbre PROPRE** (hors ce handoff, commité à part) : plus de fichier non commité à stash.
+- Branche : `chore/root-layout` — tête = commit de cette session (§27, EMP-1 `6bb3a51`), parent `627795a` `docs(handoff): session 2026-10-22 (ter) - grand blanc apres le code-barres corrige (ADR-133)`. **Arbre PROPRE** (hors ce handoff, commité à part) : plus de fichier non commité à stash.
 - **Audit intégral EXÉCUTÉ (§18, 2026-10-19)** : 3 livrables — `docs/reports/FULL_AUDIT_2026-10-19.md` (rapport, 16 axes A→P, **228 findings** : 0 Critical · 23 High · 95 Medium · 110 Low) · `docs/reports/FULL_AUDIT_2026-10-19_PLAN.md` (plan en **11 vagues W0→W10**, ~11-13 j, 20 décisions owner) · `docs/ADR-120-*.md` (**proposé**, en attente d'approbation). Preuves brutes : `docs/reports/maintenance/audit-raw/`.
 - **Remédiation : vagues W1 → W10 EXÉCUTÉES et commitées** : `0e900f1` **W1** (logique financière) · `cd43aa2` **W2** (sécurité) · `833cea1` **W3** (base) · **W4** (couverture verte + gardes auto-dérivées) · `1e56547` **W5** (rendu/UI caissier + atelier impression) · **W6** (code mort trié — ADR-127) · `4a96938` **W9** (encodage + chiffres à jour) · `7086954` **W8** (chemins chauds indexés, N+1, bundle) · **W7** (règles uniques — ADR-128) · **W10** (état d'erreur persistant — ADR-129). **Plan d'audit : TERMINÉ** (les 11 vagues sont exécutées).
 - **Baseline gelé 2026-10-21 (mesuré, arbre propre)** : `tsc -b` **0** · `typecheck:electron` **0** · `eslint . --max-warnings 0` **exit 0** · `vitest` **142 fichiers / 976 tests** **0** · `test:db` **39 fichiers / 183 tests** **0** (isolé) · **`test:coverage` = EXIT 0 (VERT — 95,83 % lignes · 87,19 % branches · 100 % fonctions, seuils 80/75/88/80 par fichier ; aucun seuil abaissé)** · `knip` **0** (0 fichier, 0 export, 0 type, 0 dépendance) · `verify:migrations` **VERIFIED** · `verify:domain` **VERIFIED** · `verify:perf` **VERIFIED** · `verify:fr` **0** (322 fichiers, **plus de liste d'attente**) · `verify:encoding` **0** (868 fichiers) · `license:scan` **0** (1420 fichiers) · `format:check` **0** · `build` ✓ (12,1 s) · `build:electron` ✓ (manifeste signé **216 fichiers**).
@@ -26,6 +26,7 @@
 - **Constats bloquants de la revue UI d'ADR-131 — CORRIGÉS (§25, ADR-132)** : (C1) éditer qté/prix d'une ligne « montant saisi » tuait l'écran Vente (`computeBilledTotal` levait au rendu) ⇒ ligne **verrouillée** (qté + prix, jamais fusionnée, `+`/`−` strictement sur la dernière ligne) + `safeLineTotal` (« — » + log, jamais d'exception) ; (C2) ticket **non imprimable** (remise négative refusée par `discountMinor`) ⇒ `moneyMinorSigned`, ticket « Remise −X »/« Majoration +X », « montant saisi » au lieu de qté × P.U., quantités FR, devis A4 à majoration visible ; (C3) couverture **E2E** du mode Montant. Revue ui-fr (3 risques corrigés) + db-guardian CLEAN (aucune migration).
 - Outillage : `knip.json` (§16) — `Unused files` **32 → 0** ; re-mesuré 2026-10-21 : **0 fichier · 0 export · 0 type · 0 dépendance** (la couverture `knip` s'étend désormais à `license-manager/**` et `cloud/**` — J-11).
 - **« Grand blanc après le code-barres » sur la facture de vente imprimée — CORRIGÉ (§26, ADR-133)** : (a) le ticket **n'imposait aucun format de page** (`printOptions()` sans `pageSize` ⇒ format par défaut du pilote, A4/297 mm) alors que son contenu **se termine par le bloc codes** ⇒ la page est désormais **largeur du rouleau × hauteur mesurée du contenu** (+3 mm de coupe, plancher 30 mm, repli = ancien comportement) ; (b) le **Code 39 n'était jamais mis à l'échelle** (462 px dans 280/200 px + `overflow:hidden`) ⇒ module calé sur la colonne (1,1 px ⇒ 275,7 px en 80 mm) + plafond CSS `max-width/height:auto` (58 mm : 200/200 px, plus de barre coupée) ; (c) l'export PDF passait des **microns** à `printToPDF` (qui attend des **pouces**) ⇒ conversion explicite, PDF d'un ticket 80 mm = **80,1 × 141,5 mm sur 1 page**. Restent assumés : Code 39 de 14 car. non scannable sur 58 mm (limite matérielle) et payload QR imprimé deux fois (contrat texte ADR-050).
+- **Import/export Clients & Produits — VÉRIFIÉS et DURCIS (§27, EMP-1 `6bb3a51`)** : le câblage existait (ADR-130) et les 3 E2E étaient vertes, mais **réimporter l'export clients créait 2 fiches bidon** (en-tête `Client;Téléphone…` traité comme données, guillemets conservés) au lieu d'échouer proprement, et un téléphone `pas-un-numero` était accepté. **Corrigé** : parseur CSV quote-aware, **refus FR explicite des exports de rapport** (produits et clients), **téléphone importé validé** (domaine + main), **export interrompu** si une page est illisible (plus de CSV tronqué annoncé « ok »). Parseur inchangé sur les formats documentés (`nom;vente;achat;quantité[;code-barres]`, `prénom;nom;téléphone`). Aucune migration, aucun canal, aucun ADR nouveau (restaure la décision 3 d'ADR-130).
 - **Contrats gelés (état après ADR-132)** : snapshot `ipc-channels.json` **178** (+`customers.import`) · `FROZEN_SCHEMA_COUNT` **122** · `FROZEN_EXPORT_COUNT = 129` (+`moneyMinorSigned`) · `FROZEN_SCHEMA_TOTAL` (op-id) **122** · `operation-id-coverage` : **44** REQUIRED + classification complète (122 schémas) · migrations **51** (0051 = remise signée, table `sales` reconstruite).
 - E2E (non relancés depuis le 2026-10-18) : suite 2026-10-18 — **12/13 specs vertes**, **37** blocs `test()` (pas 24) ; `full-loop-client` exige le relais `:8100` (hard-fail, pas skip) ; `installer` non exécutable hors paquet Win + UAC. **W2 touche `staffScope()` (K-04) et W3 ajoute un canal ⇒ les specs `staff-session` et `full-loop-client` sont à rejouer avant le tag.** Spec `cashier-amount-mode` (nouvelle, ADR-132) **rejouée le 2026-10-22 : 2/2 verte** ; le reste de la suite reste non rejoué.
 - **Packaging REFAIT 2026-10-21** (§21) : `release/` reconstruit **de zéro** (ADR-023 : jamais de réutilisation) — `Veloria-PoS-Setup-1.0.0.exe` (NSIS, machine, FR) + `.blockmap` · `Veloria-PoS-Portable-1.0.0.exe` · `Veloria-License-Manager-Setup-1.0.0.exe` + `.blockmap` · `Veloria-License-Manager-Portable-1.0.0.exe` · `SHA256SUMS.txt` · `release/win-unpacked/` (= POS). `release:smoke` **0** · `better-sqlite3` **chargé dans le runtime packagé** (Electron 37.2.0, ABI 136, SQLite 3.50.2 — règle AGENTS.md §9).
@@ -1383,3 +1384,81 @@ réel (`dist-electron` + `printToPDF`).
   repli garde l'ancien comportement (aucun `pageSize`) ⇒ le blanc reviendrait
   (mais jamais de ticket tronqué). À confirmer sur l'imprimante de production.
 - `release/` toujours à reconstruire (déjà dû à la migration 0051 d'ADR-131).
+
+## 27) Session 2026-10-22 (quater) — vérification import/export Clients & Produits (EMP-1)
+
+**Demande propriétaire** : « تحقق من خاصية التصدير و الاستيراد في صفحة المنتجات و العملاء ».
+Vérification réelle du câblage, puis correction du seul chemin destructeur trouvé.
+
+### Ce qui a été vérifié
+
+| Écran    | Import                                                            | Export                                                | Preuve                                 |
+| -------- | ----------------------------------------------------------------- | ----------------------------------------------------- | -------------------------------------- |
+| Produits | bouton + input masqué + `parseProductsCsv` + `api.productsImport` | toutes les pages du filtre + `downloadCsv` + toast FR | E2E réelle + unitaires + intégration   |
+| Clients  | idem avec `parseCustomersCsv` + `api.customerImport`              | toutes les pages du filtre + `downloadCsv` + toast FR | E2E réelle (4/4) + intégration (7 cas) |
+
+Câblage conforme aux règles : parseur domaine avant confirmation, `operationId`
+de lot, transaction atomique tout-ou-rien côté main, gates staff + licence,
+messages FR, aucun accès SQLite/Node dans le renderer. **Aucune régression de
+canal, de schéma ni de migration** (aucune migration ajoutée).
+
+### Constats
+
+| #   | Constat (prouvé)                                                                                                                                                                                                                                                                                                         | Sévérité | État                                                |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | --------------------------------------------------- |
+| 1   | Réimporter le CSV **exporté par l'écran Clients** créait **2 fiches bidon** (`Client / "Téléphone"` avec téléphone `"Jour règlement"`, puis `"Amine Benali" / "0550123456"` avec téléphone `"5"`). Le parseur ne connaissait ni les guillemets ni l'en-tête de rapport, et le main acceptait un téléphone non numérique. | P1       | CORRIGÉ                                             |
+| 2   | Téléphone `pas-un-numero` accepté à l'import (`phoneDigitsParity` ne retirait que les séparateurs, pas les lettres).                                                                                                                                                                                                     | P2       | CORRIGÉ                                             |
+| 3   | Champs CSV entre guillemets (Excel, exports de l'app) non décodés (`""` et `;` internes).                                                                                                                                                                                                                                | P2       | CORRIGÉ                                             |
+| 4   | Export : une page IPC en échec était ignorée par `runBulk` ⇒ CSV partiel annoncé « N exporté(s) » (troncature silencieuse).                                                                                                                                                                                              | P2       | CORRIGÉ                                             |
+| 5   | Export ≠ aller-retour : c'est un **rapport** (catégorie, statut, montants formatés, nom complet), l'import est un **flux de données** — décision 3 d'ADR-130. Un export réimporté doit être **refusé proprement**, pas accepté.                                                                                          | —        | COMPORTEMENT CONFORME (message désormais explicite) |
+
+### Correctifs
+
+- `src/domain/import/csv-import.ts` : `splitCsvLine()` quote-aware (`""`, `;`
+  internes), détection des en-têtes de rapport (`Nom;Catégorie…`,
+  `Client;Téléphone…`) ⇒ `DomainError` FR explicite « export de rapport, pas un
+  fichier d'import » avec le format attendu ; validation du téléphone importé
+  (vide accepté, sinon chiffres + séparateurs usuels, ≥ 6 chiffres).
+- `electron/ipc/handlers/import.repo.ts` : **miroir main** de la règle
+  téléphone (`digitsOnly` + charset) — la base reste l'autorité ; `seenPhones`
+  compare les chiffres.
+- `src/features/products/ProductsScreen.tsx` + `src/features/customers/ClientsScreen.tsx` :
+  si `runBulk` rapporte une page en échec, **aucun téléchargement** ; toast FR
+  « Export interrompu : N page(s) sur M illisible(s). Réessayez. » + log
+  technique.
+
+### Fichiers
+
+- Code : `src/domain/import/csv-import.ts`,
+  `electron/ipc/handlers/import.repo.ts`,
+  `src/features/products/ProductsScreen.tsx`,
+  `src/features/customers/ClientsScreen.tsx`.
+- Tests : `tests/unit/csv-import-safety.test.ts` (**nouveau, 10 cas**),
+  `tests/integration/customers-import.test.ts` (+1 cas téléphone bidon),
+  `tests/unit/import-export-ui.test.ts` (+ garde « Export interrompu »),
+  `tests/unit/domain-rules-coverage.test.ts` + `tests/unit/phase6-9-rules.test.ts`
+  (fixtures téléphone réalistes), `tests/e2e/csv-import-export.spec.ts`
+  (+1 cas « export de rapport refusé, aucune fiche bidon »).
+
+### Portes (arbre de ce commit, 2026-10-22)
+
+`tsc -b` **0** · `typecheck:electron` **0** · `eslint` (fichiers touchés,
+`--max-warnings 0`) **0** · `vitest` **150 fichiers / 1 038 tests** **0** ·
+`build` ✓ · `build:electron` ✓ (manifeste signé 218 fichiers) ·
+**E2E `csv-import-export` : 4/4 vertes** (import + export réels, fichier
+invalide, export de rapport refusé, export catalogue) · `verify:domain`
+**VERIFIED** · `verify:fr` **0** (323 fichiers) · `verify:encoding` **0** (882
+fichiers) · `verify:migrations` **VERIFIED**.
+
+### Reste / limites connues
+
+- L'export reste un **rapport** (ADR-130) : non réimportable par conception ;
+  il est désormais refusé avec un message FR explicite, sans écriture.
+- Pas de plafond de volume à l'export Clients/Produits (contrairement à
+  l'historique, `EXPORT_MAX = 5 000`) : parcours page par page, concurrence
+  bornée ; à arbitrer si un catalogue dépasse quelques dizaines de milliers de
+  lignes.
+- `skipped` reste à 0 dans le contrat d'import (aucune ligne ignorée : tout ou
+  rien) ; le champ est conservé pour compatibilité.
+- E2E : seul le refus du rapport **clients** est couvert en réel ; le refus du
+  rapport **produits** est couvert par le test unitaire.
