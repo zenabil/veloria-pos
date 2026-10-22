@@ -119,7 +119,12 @@ export const useCartsStore = create<CartsStore>((set) => ({
             l.productId != null &&
             l.productId === incoming.productId &&
             l.unitPriceMinor === incoming.unitPriceMinor &&
-            (l.originalUnitPriceMinor || l.unitPriceMinor) === incoming.originalUnitPriceMinor,
+            (l.originalUnitPriceMinor || l.unitPriceMinor) === incoming.originalUnitPriceMinor &&
+            // Mode « Montant » (ADR-114) : deux lignes au montant facturé
+            // DIFFÉRENT ne sont jamais fusionnées (le total facturé de la
+            // ligne est unique : le fusionner additionnerait les poids mais
+            // garderait un seul montant).
+            (l.billedTotalMinor ?? null) === (incoming.billedTotalMinor ?? null),
         );
         if (existing) {
           return {

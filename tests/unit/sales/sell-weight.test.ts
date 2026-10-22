@@ -187,12 +187,17 @@ describe("weightDialogPreview : aperçu en direct du dialogue", () => {
     });
     expect(weightDialogPreview("quantity", "2", 9000)).toEqual({ qty: 2, totalMinor: 18000 });
   });
-  it("mode montant : quantité calculée + total facturé exact (arrondi assumé)", () => {
+  it("mode montant : quantité calculée + MONTANT SAISI facturé tel quel", () => {
+    // ADR-114 révisé : le montant saisi est facturé EXACT (avant : poids
+    // arrondi × prix ⇒ 675,50 DZD saisis facturés 675,45).
     expect(weightDialogPreview("amount", "675", 45000)).toEqual({ qty: 1.5, totalMinor: 67500 });
     expect(weightDialogPreview("amount", "675,50", 45000)).toEqual({
       qty: 1.501,
-      totalMinor: 67545,
+      totalMinor: 67550,
     });
+    // Cas réel du propriétaire : 50 DZD à 700 DZD/kg → 0,071 kg, 50,00 DZD
+    // facturés (et non 49,70).
+    expect(weightDialogPreview("amount", "50", 70000)).toEqual({ qty: 0.071, totalMinor: 5000 });
   });
   it("saisies invalides → null", () => {
     expect(weightDialogPreview("quantity", "", 45000)).toBeNull();

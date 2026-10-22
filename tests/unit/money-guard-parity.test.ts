@@ -15,6 +15,7 @@ import {
   multiplyMinorByQuantity,
   percentOfMinor,
 } from "@/domain/money/money.ts";
+import { computeBilledTotal } from "@/domain/sales/sale-rules.ts";
 
 describe("R7 : bornes main/domaine identiques", () => {
   it("plafonds miroirs", () => {
@@ -71,4 +72,61 @@ describe("R7 : percentOfTotal(main) = percentOfMinor(domaine)", () => {
       expect(percentOfTotal(net, rate)).toBe(percentOfMinor(net, rate));
     });
   }
+});
+
+/**
+ * Mode « Montant » (ADR-114 révisé) : le montant facturé est celui SAISI.
+ * Le main (priceLine) et le domaine (computeBilledTotal) doivent tomber
+ * sur le MÊME montant — et refuser le MÊME gonflement.
+ */
+describe("R7 : priceLine(main) avec montant saisi = domaine(computeBilledTotal)", () => {
+  const vectors = [
+    { unit: 70000, original: 70000, qty: 0.071, billed: 5000 },
+    { unit: 45000, original: 45000, qty: 1.501, billed: 67550 },
+    { unit: 10000, original: 10000, qty: 2, billed: null },
+  ];
+  for (const v of vectors) {
+    it(`unit=${v.unit} qty=${v.qty} montant=${String(v.billed)}`, () => {
+      const main = priceLine({
+        unitPriceMinor: v.unit,
+        originalUnitPriceMinor: v.original,
+        quantity: v.qty,
+        billedTotalMinor: v.billed,
+      });
+      const domain = computeBilledTotal({
+        productId: null,
+        productName: "X",
+        unitCode: "KG",
+        originalUnitPriceMinor: v.original,
+        unitPriceMinor: v.unit,
+        purchasePriceMinor: 0,
+        quantity: v.qty,
+        billedTotalMinor: v.billed,
+      });
+      expect(main.charged).toBe(domain);
+      expect(main.original).toBe(multiplyMinorByQuantity(v.original, v.qty));
+      expect(main.discount).toBe(multiplyMinorByQuantity(v.original, v.qty) - domain);
+    });
+  }
+  it("rejette le MÊME gonflement des deux côtés", () => {
+    const args = {
+      unitPriceMinor: 70000,
+      originalUnitPriceMinor: 70000,
+      quantity: 0.071,
+      billedTotalMinor: 90000,
+    };
+    expect(() => priceLine(args)).toThrow();
+    expect(() =>
+      computeBilledTotal({
+        productId: null,
+        productName: "X",
+        unitCode: "KG",
+        originalUnitPriceMinor: 70000,
+        unitPriceMinor: 70000,
+        purchasePriceMinor: 0,
+        quantity: 0.071,
+        billedTotalMinor: 90000,
+      }),
+    ).toThrow();
+  });
 });

@@ -529,6 +529,7 @@ describe("parité idempotence + brouillons", () => {
             unitPriceMinor: 115000,
             purchasePriceMinor: 100000,
             quantity: 2,
+            billedTotalMinor: null,
           },
         ],
         customerId: null,

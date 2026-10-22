@@ -55,6 +55,7 @@ export function enforceCreditGates(
         originalUnitPriceMinor?: unknown;
         unitPriceMinor?: unknown;
         quantity?: unknown;
+        billedTotalMinor?: unknown;
       }>;
     };
     const paid = typeof sale.amountPaidMinor === "number" ? sale.amountPaidMinor : null;
@@ -67,7 +68,11 @@ export function enforceCreditGates(
           valid = false;
           break;
         }
-        charged += Math.round(l.unitPriceMinor * l.quantity);
+        // Mode « Montant » (ADR-114) : le montant facturé est celui SAISI.
+        charged +=
+          typeof l.billedTotalMinor === "number"
+            ? l.billedTotalMinor
+            : Math.round(l.unitPriceMinor * l.quantity);
       }
       if (valid) {
         const delivery = typeof sale.deliveryFeeMinor === "number" ? sale.deliveryFeeMinor : 0;

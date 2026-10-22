@@ -23,7 +23,8 @@ export function QuantityDialog({
 }: {
   row: SearchRow;
   onClose: () => void;
-  onConfirm: (quantity: number) => void;
+  /** Quantité (poids) + montant facturé EXACT (mode « Montant », ADR-114). */
+  onConfirm: (quantity: number, billedTotalMinor: number | null) => void;
 }): React.JSX.Element {
   const [mode, setMode] = useState<WeightMode>("quantity");
   const [text, setText] = useState("");
@@ -62,7 +63,9 @@ export function QuantityDialog({
       inputRef.current?.focus();
       return;
     }
-    onConfirm(preview.qty);
+    // Mode « Montant » : le montant SAISI est facturé tel quel (la quantité
+    // reste l'unité de stock) — mode « poids » : facturation prix × poids.
+    onConfirm(preview.qty, mode === "amount" ? preview.totalMinor : null);
   }
 
   return (
@@ -112,6 +115,11 @@ export function QuantityDialog({
         <Field
           label={mode === "quantity" ? `${noun} ${vendu} (${unitLower})` : "Montant vendu (DZD)"}
           {...(error !== "" ? { error } : {})}
+          {...(mode === "amount"
+            ? {
+                hint: "Le montant saisi est facturé tel quel ; le poids (arrondi au gramme) sert au stock.",
+              }
+            : {})}
         >
           <TextInput
             ref={inputRef}

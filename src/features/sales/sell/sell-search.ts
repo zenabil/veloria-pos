@@ -275,6 +275,7 @@ export function addProduct(
   d: Pick<SellSearchDeps, "cart" | "notify" | "searchRef">,
   p: SearchRow,
   qty = 1,
+  billedTotalMinor?: number | null,
 ): void {
   // Clé anti-collision (scan rapide) : UUIDv7, jamais Date.now().
   // Garde stock précoce : cumul panier + demandé vs disponible (le main retranche).
@@ -297,6 +298,8 @@ export function addProduct(
     purchasePriceMinor: p.purchase_price_minor,
     quantity: safeQty,
     stockQty: Number.isFinite(p.quantity) ? p.quantity : null,
+    // Mode « Montant » (ADR-114) : montant facturé EXACT de la ligne.
+    billedTotalMinor: billedTotalMinor ?? null,
   });
   // P5 : bip d'ajout (discret, coupable en un clic en tête).
   playSound("blip");
@@ -327,8 +330,10 @@ export function addProductOrAskQuantity(
 /**
  * Confirmation du dialogue « quantité vendue » : ajoute la ligne avec la
  * quantité saisie (poids entré ou converti du montant), referme le dialogue
- * et nettoie la recherche. `false` = rien à confirmer (quantité invalide ou
- * dialogue déjà fermé) — le dialogue reste ouvert sur quantité invalide.
+ * et nettoie la recherche. `billedTotalMinor` = montant facturé EXACT (mode
+ * « Montant » ADR-114) — absent ⇒ facturation prix × quantité.
+ * `false` = rien à confirmer (quantité invalide ou dialogue déjà fermé) —
+ * le dialogue reste ouvert sur quantité invalide.
  */
 export function confirmWeightedAdd(
   d: Pick<
@@ -336,13 +341,14 @@ export function confirmWeightedAdd(
     "cart" | "notify" | "searchRef" | "quantityFor" | "setQuantityFor" | "setQuery" | "setResults"
   >,
   quantity: number,
+  billedTotalMinor?: number | null,
 ): boolean {
   const row = d.quantityFor;
   const qty = roundQuantity(quantity);
   // Bornes identiques au domaine/IPC : finie, > 0, ≤ 1 000 000 (jamais de
   // « 1 par défaut » silencieux ni d'Infinity dans la ligne de panier).
   if (row == null || !Number.isFinite(qty) || qty <= 0 || qty > MAX_QUANTITY) return false;
-  addProduct(d, row, qty);
+  addProduct(d, row, qty, billedTotalMinor);
   d.setQuantityFor(null);
   d.setQuery("");
   d.setResults([]);

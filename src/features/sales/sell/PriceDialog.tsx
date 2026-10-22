@@ -1,7 +1,7 @@
 // Veloria PoS — Caisse : dialogue de changement de prix (extrait de CartPanel).
 // La remise vit UNIQUEMENT dans le prix unitaire ; vente sous coût = confirmation explicite.
 import { formatDzd, parseDzdInputStrict } from "@domain/money/money.ts";
-import { Button, Field, Modal, TextInput } from "@shared/ui/primitives.tsx";
+import { Button, Field, Modal, TextInput, cn } from "@shared/ui/primitives.tsx";
 
 export interface PriceTarget {
   key: string;
@@ -71,21 +71,39 @@ export function PriceDialog({
           }
           const below =
             parsed != null && priceFor.purchaseMinor > 0 && parsed < priceFor.purchaseMinor;
-          if (!below) return null;
+          // Majoration (prix > prix catalogue) : autorisée (remise signée,
+          // migration 0051) mais ANNONCÉE + tracée dans l'audit de la vente.
+          const above =
+            parsed != null && priceFor.originalMinor > 0 && parsed > priceFor.originalMinor;
+          if (!below && !above) return null;
           return (
-            <div className="space-y-2 rounded-xl border border-red-400/30 bg-red-500/10 p-4 text-sm">
-              <p role="alert" className="font-bold text-red-300">
-                Attention : ce prix passe SOUS le coût d&apos;achat (
-                {formatDzd(priceFor.purchaseMinor)}). La vente sera tracée dans l&apos;audit.
-              </p>
-              <label className="flex cursor-pointer items-center gap-2 text-slate-200">
-                <input
-                  type="checkbox"
-                  checked={priceBelowCostAck}
-                  onChange={(e) => setPriceBelowCostAck(e.target.checked)}
-                />
-                Je confirme explicitement la vente sous coût.
-              </label>
+            <div
+              className={cn(
+                "space-y-2 rounded-xl border p-4 text-sm",
+                below ? "border-red-400/30 bg-red-500/10" : "border-amber-400/30 bg-amber-400/10",
+              )}
+            >
+              {below ? (
+                <p role="alert" className="font-bold text-red-300">
+                  Attention : ce prix passe SOUS le coût d&apos;achat (
+                  {formatDzd(priceFor.purchaseMinor)}). La vente sera tracée dans l&apos;audit.
+                </p>
+              ) : (
+                <p role="alert" className="font-bold text-amber-200">
+                  Majoration : ce prix dépasse le prix catalogue (
+                  {formatDzd(priceFor.originalMinor)}). L&apos;écart sera tracé dans l&apos;audit.
+                </p>
+              )}
+              {below ? (
+                <label className="flex cursor-pointer items-center gap-2 text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={priceBelowCostAck}
+                    onChange={(e) => setPriceBelowCostAck(e.target.checked)}
+                  />
+                  Je confirme explicitement la vente sous coût.
+                </label>
+              ) : null}
             </div>
           );
         })()}

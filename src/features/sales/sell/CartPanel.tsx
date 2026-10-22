@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Minus, Plus, Trash2, X } from "lucide-react";
 import { formatDzd, minorToInput, parseDzdInputStrict } from "@domain/money/money.ts";
-import { computeLineTotal } from "@domain/sales/sale-rules.ts";
+import { computeBilledTotal } from "@domain/sales/sale-rules.ts";
 import { roundQuantity } from "@domain/common/quantity.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import type { ActiveCart } from "../cart-store.ts";
@@ -225,6 +225,11 @@ export function CartPanel({
                       >
                         {formatDzd(l.unitPriceMinor)}
                       </button>
+                      {l.billedTotalMinor != null ? (
+                        <div className="text-[11px] text-amber-300/90 tabular-nums">
+                          montant saisi
+                        </div>
+                      ) : null}
                       {l.originalUnitPriceMinor > l.unitPriceMinor ? (
                         <div className="text-[11px] text-slate-500 line-through tabular-nums">
                           {formatDzd(l.originalUnitPriceMinor)}
@@ -232,7 +237,7 @@ export function CartPanel({
                       ) : null}
                     </td>
                     <td className="px-3 py-2 text-right font-bold tabular-nums">
-                      {formatDzd(computeLineTotal(l.unitPriceMinor, l.quantity))}
+                      {formatDzd(computeBilledTotal(l))}
                     </td>
                     <td className="px-2 py-2 text-center">
                       <button

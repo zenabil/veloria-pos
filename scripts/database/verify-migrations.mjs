@@ -835,33 +835,36 @@ console.log("OK  0026 credit-revocation policy (refused with debt, allowed when 
 }
 
 // 0031 RADICAL: triggers défensifs remises (discount >= 0, origine >= 0, borne).
+// 0051 a REMPLACÉ les 2 triggers « remise non négative » (majoration
+// autorisée) par un PLANCHER borné (`..._floor_*`) : la liste ci-dessous
+// couvre les 6 triggers toujours présents.
 {
   const trg = db
     .prepare(
-      "SELECT COUNT(*) AS c FROM sqlite_master WHERE type = 'trigger' AND name IN ('trg_sale_items_discount_nonneg_ins','trg_sale_items_discount_nonneg_upd','trg_sale_items_original_nonneg_ins','trg_sale_items_original_nonneg_upd','trg_sale_items_discount_bound_ins','trg_sale_items_discount_bound_upd')",
+      "SELECT COUNT(*) AS c FROM sqlite_master WHERE type = 'trigger' AND name IN ('trg_sale_items_discount_floor_ins','trg_sale_items_discount_floor_upd','trg_sale_items_original_nonneg_ins','trg_sale_items_original_nonneg_upd','trg_sale_items_discount_bound_ins','trg_sale_items_discount_bound_upd')",
     )
     .get();
   if (trg.c !== 6) {
-    console.error(`FAIL: 0031 discount defensive triggers missing (found ${trg.c}/6)`);
+    console.error(`FAIL: discount defensive triggers missing (found ${trg.c}/6)`);
     process.exit(1);
   }
-  console.log("OK  0031 discount defensive triggers (6/6)");
-  // Remise négative refusée au niveau DB (était acceptée avant 0031).
+  console.log("OK  0031/0051 discount defensive triggers (6/6)");
+  // Remise hors bornes refusée au niveau DB (plancher 0051 + plafond 0031).
   // Vente comptant soldée (pas de crédit → trigger 0007 OK sans client).
   db.prepare(
     "INSERT INTO sales (uuid, invoice_number, subtotal_minor, total_minor, amount_paid_minor, remaining_balance_minor, payment_status, created_at, updated_at) VALUES ('neg31','FAC-NEG-31',100,100,100,0,'paid','2026-01-05','2026-01-05')",
   ).run();
   const saleId = db.prepare("SELECT id FROM sales WHERE uuid = 'neg31'").get().id;
-  let negDiscountRejected = false;
+  let hugeDiscountRejected = false;
   try {
     db.prepare(
-      "INSERT INTO sale_items (sale_id, product_name_snapshot, unit_code, unit_price_minor, purchase_price_minor, quantity, line_total_minor, original_unit_price_minor, discount_minor) VALUES (?, 'Test', 'PIECE', 100, 50, 1, 100, 100, -5)",
+      "INSERT INTO sale_items (sale_id, product_name_snapshot, unit_code, unit_price_minor, purchase_price_minor, quantity, line_total_minor, original_unit_price_minor, discount_minor) VALUES (?, 'Test', 'PIECE', 100, 50, 1, 100, 100, -200000000000)",
     ).run(saleId);
   } catch {
-    negDiscountRejected = true;
+    hugeDiscountRejected = true;
   }
-  if (!negDiscountRejected) {
-    console.error("FAIL: 0031 negative discount accepted");
+  if (!hugeDiscountRejected) {
+    console.error("FAIL: out-of-bounds negative discount accepted");
     process.exit(1);
   }
   let overDiscountRejected = false;
@@ -880,7 +883,47 @@ console.log("OK  0026 credit-revocation policy (refused with debt, allowed when 
   db.prepare(
     "INSERT INTO sale_items (sale_id, product_name_snapshot, unit_code, unit_price_minor, purchase_price_minor, quantity, line_total_minor, original_unit_price_minor, discount_minor) VALUES (?, 'Test', 'PIECE', 80, 50, 2, 160, 100, 40)",
   ).run(saleId);
-  console.log("OK  0031 discount bounds enforced (negative/over rejected, sane accepted)");
+  console.log("OK  0031/0051 discount bounds enforced (out-of-bounds rejected, sane accepted)");
+}
+
+// 0051 : remise SIGNÉE (majoration) + reconstruction de `sales` sans perte.
+{
+  const tableSql = db
+    .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='sales'")
+    .get().sql;
+  if (/discount_amount_minor\s*>=\s*0\s*\)/i.test(tableSql)) {
+    console.error("FAIL: 0051 discount_amount_minor still forbids negative values");
+    process.exit(1);
+  }
+  if (!/discount_amount_minor\s*>=\s*-100000000000/i.test(tableSql)) {
+    console.error("FAIL: 0051 signed discount bound missing");
+    process.exit(1);
+  }
+  const trg = db
+    .prepare(
+      "SELECT COUNT(*) AS c FROM sqlite_master WHERE type = 'trigger' AND name IN ('trg_sale_items_discount_nonneg_ins','trg_sale_items_discount_nonneg_upd')",
+    )
+    .get();
+  if (trg.c !== 0) {
+    console.error("FAIL: 0051 non-negative discount triggers still present");
+    process.exit(1);
+  }
+  // Majoration : remise négative ACCEPTÉE (le total reste recomposé).
+  db.prepare(
+    "INSERT INTO sales (uuid, invoice_number, subtotal_minor, discount_type, discount_value_minor, discount_amount_minor, delivery_fee_minor, total_minor, amount_paid_minor, remaining_balance_minor, payment_status, created_at, updated_at) VALUES ('maj51','FAC-MAJ-51',500,'none',0,-49500,0,50000,50000,0,'paid','2026-01-06','2026-01-06')",
+  ).run();
+  const majId = db.prepare("SELECT id FROM sales WHERE uuid = 'maj51'").get().id;
+  db.prepare(
+    "INSERT INTO sale_items (sale_id, product_name_snapshot, unit_code, original_unit_price_minor, unit_price_minor, purchase_price_minor, quantity, line_total_minor, discount_minor) VALUES (?, 'Majoration', 'PIECE', 500, 50000, 0, 1, 50000, -49500)",
+  ).run(majId);
+  const maj = db
+    .prepare("SELECT discount_amount_minor, total_minor FROM sales WHERE id = ?")
+    .get(majId);
+  if (maj.discount_amount_minor !== -49500 || maj.total_minor !== 50000) {
+    console.error("FAIL: 0051 signed discount not stored");
+    process.exit(1);
+  }
+  console.log("OK  0051 signed discount (majoration accepted, recomposition intact)");
 }
 
 // 0032: accès clients APK + file miroir (3 tables + CHECKs).

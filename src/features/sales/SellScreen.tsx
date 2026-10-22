@@ -303,8 +303,8 @@ export function SellScreen({ notify }: { notify: Notify }): React.JSX.Element {
           s.setQuantityFor(null);
           s.searchRef.current?.focus();
         }}
-        onConfirmQuantity={(qty) => {
-          confirmWeightedAdd(searchDeps, qty);
+        onConfirmQuantity={(qty, billedTotalMinor) => {
+          confirmWeightedAdd(searchDeps, qty, billedTotalMinor);
         }}
       />
 

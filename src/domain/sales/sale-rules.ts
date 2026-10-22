@@ -32,6 +32,14 @@ export interface CartLineInput {
   unitPriceMinor: number;
   purchasePriceMinor: number;
   quantity: number;
+  /**
+   * Montant facturé EXACT de la ligne (centimes) — mode « Montant » du
+   * dialogue « quantité vendue » (ADR-114) : le vendeur saisit un MONTANT
+   * (ex. 50,00 DZD) ; la quantité (poids) reste l'unité de stock, mais le
+   * montant facturé est celui SAISI (pas prix × poids arrondi).
+   * `null`/absent = facturation prix × quantité (règle par défaut).
+   */
+  billedTotalMinor?: number | null;
 }
 
 export interface SaleTotalsInput {
@@ -70,6 +78,42 @@ export function computeLineTotal(unitPriceMinor: number, quantity: number): numb
 }
 
 /**
+ * Tolérance du montant facturé saisi (mode « Montant ») : la quantité est
+ * arrondie à 3 décimales ⇒ l'écart entre le montant SAISI et prix × quantité
+ * est au plus 0,0005 × prix unitaire, arrondi au centime (+ 1 de marge).
+ * Le main revalide le montant transmis par le renderer avec CETTE borne :
+ * le renderer ne peut donc pas gonfler le total d'une ligne (garde fail-closed,
+ * AGENTS §4 — les montants sont recalculés côté main).
+ */
+export function billedAmountToleranceMinor(unitPriceMinor: number): number {
+  assertSafeMinor(unitPriceMinor, { label: "Prix unitaire invalide" });
+  return Math.ceil(unitPriceMinor * 0.0005) + 1;
+}
+
+/**
+ * Montant facturé de la ligne : le montant SAISI (mode « Montant ») s'il est
+ * présent, sinon prix × quantité. Le montant saisi est validé : entier
+ * strictement positif, borné, et à portée de l'arrondi de la quantité.
+ */
+export function computeBilledTotal(line: CartLineInput): number {
+  const billed = line.billedTotalMinor;
+  if (billed == null) return computeLineTotal(line.unitPriceMinor, line.quantity);
+  if (!Number.isSafeInteger(billed) || billed <= 0) {
+    throw new DomainError("SALE_ERROR", "Montant facturé de ligne invalide.");
+  }
+  assertSafeMinor(billed, { label: "Montant facturé de ligne invalide" });
+  const reference = computeLineTotal(line.unitPriceMinor, line.quantity);
+  const tolerance = billedAmountToleranceMinor(line.unitPriceMinor);
+  if (Math.abs(billed - reference) > tolerance) {
+    throw new DomainError(
+      "SALE_ERROR",
+      "Montant facturé de ligne incohérent avec le prix et la quantité.",
+    );
+  }
+  return billed;
+}
+
+/**
  * Remise d'une ligne : (original − final) × qty, chaque total arrondi en
  * centimes AVANT soustraction (même règle que le main, défense en profondeur).
  * Lève sur prix invalide (jamais de remise silencieuse à 0).
@@ -79,10 +123,11 @@ export function computeLineDiscount(line: CartLineInput): LineDiscount {
     throw new DomainError("SALE_ERROR", "Nom de produit manquant dans le panier.");
   }
   assertSafeMinor(line.originalUnitPriceMinor, { label: "Prix d'origine invalide" });
-  const chargedMinor = computeLineTotal(line.unitPriceMinor, line.quantity);
+  const chargedMinor = computeBilledTotal(line);
   const originalTotal = multiplyMinorByQuantity(line.originalUnitPriceMinor, line.quantity);
   const discountMinor = originalTotal - chargedMinor;
-  // Signée : majoration (prix relevé) admise, bornes H-1 gardées.
+  // Signée : majoration (prix relevé) ou facture au montant saisi admises,
+  // bornes H-1 gardées (migration 0051 : la base accepte la remise signée).
   assertSignedTotal(discountMinor, "Remise de ligne invalide");
   const purchase = Number(line.purchasePriceMinor);
   const belowCost =

@@ -52,6 +52,7 @@ describe("toCartDraftTabs (projection carts.save)", () => {
             unitPriceMinor: 115000,
             purchasePriceMinor: 100000,
             quantity: 2,
+            billedTotalMinor: null,
           },
         ],
         customerId: 3,

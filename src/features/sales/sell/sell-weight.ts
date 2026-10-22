@@ -52,14 +52,19 @@ export type WeightMode = "quantity" | "amount";
 export interface WeightPreview {
   /** Quantité finale (≤ 3 décimales) — c'est ce nombre que reçoit la ligne. */
   qty: number;
-  /** Total réellement facturé (centimes) à cette quantité (arrondi exact). */
+  /** Total réellement facturé (centimes).
+   *  - mode « poids » : prix × quantité (arrondi exact) ;
+   *  - mode « montant » : le MONTANT SAISI (exact) — le poids arrondi au
+   *    gramme ne rogne plus la recette (50,00 DZD saisis ⇒ 50,00 DZD
+   *    facturés, pas 49,70).
+   */
   totalMinor: number;
 }
 
 /**
  * Aperçu du dialogue : mode poids → total facturé ; mode montant → quantité
- * calculée + total EXACT arrondi (l'UI affiche ce total, jamais le montant
- * brut). null = saisie vide/invalide/insuffisante (jamais de quantité 0).
+ * calculée + le MONTANT SAISI comme total facturé (exact).
+ * null = saisie vide/invalide/insuffisante (jamais de quantité 0).
  */
 export function weightDialogPreview(
   mode: WeightMode,
@@ -75,7 +80,10 @@ export function weightDialogPreview(
     const amountMinor = parseDzdInputStrict(text, "Montant");
     const qty = quantityForAmountMinor(amountMinor, unitPriceMinor);
     if (qty == null) return null;
-    return { qty, totalMinor: computeLineTotal(unitPriceMinor, qty) };
+    // Le montant SAISI est facturé tel quel (la quantité reste l'unité de
+    // stock) — ADR-114 révisé : facturer le poids arrondi faisait perdre
+    // jusqu'à 0,0005 × prix unitaire par ligne (0,35 DZD sur 700 DZD/kg).
+    return { qty, totalMinor: amountMinor };
   } catch {
     // Montant au-delà des bornes monétaires, quantité hors borne… : l'UI
     // affiche « saisie invalide » — jamais d'exception brute à l'écran.

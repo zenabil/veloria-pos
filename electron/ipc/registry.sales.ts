@@ -34,6 +34,8 @@ export function registerSalesChannels(): void {
         unitPriceMinor: l.unitPriceMinor,
         originalUnitPriceMinor: l.originalUnitPriceMinor,
         quantity: l.quantity,
+        // ADR-114 (mode « Montant ») : montant facturé exact de la ligne.
+        billedTotalMinor: l.billedTotalMinor ?? null,
       });
       return { line: l, ...p };
     });
@@ -89,6 +91,7 @@ export function registerSalesChannels(): void {
         unitPriceMinor: l.unitPriceMinor,
         purchasePriceMinor: l.purchasePriceMinor,
         quantity: l.quantity,
+        billedTotalMinor: l.billedTotalMinor ?? null,
       })),
       lineTotals: chargedTotals,
       now,

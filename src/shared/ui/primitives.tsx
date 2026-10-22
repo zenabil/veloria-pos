@@ -309,22 +309,44 @@ export function TextArea(props: TextareaHTMLAttributes<HTMLTextAreaElement>): Re
  * - À la fermeture, le focus RETOURNE sur l'élément qui a ouvert le
  *   dialogue (clavier et lecteur d'écran) — sinon le focus tombe sur le
  *   `body` et le caissier doit reparcourir toute la page à l'aveugle.
+ *
+ * BUG FIX 2026-10-21 — « le focus revient au 1ᵉʳ champ à chaque frappe » :
+ * l'effet ne dépendait QUE de `[boxRef, onClose, extraKey]` et `onClose`
+ * arrive des écrans sous forme de flécheta inline (`() => setX(false)`) :
+ * son identité change à CHAQUE rendu ⇒ l'effet se rejouait à chaque frappe
+ * ⇒ le cleanup rendait le focus à l'ouvrant puis l'effet re-focalisait le
+ * PREMIER `input` du dialogue (le nom du produit, pas le prix !). Symptôme
+ * observé : « article libre » — 1 chiffre saisi dans le prix puis retour
+ * automatique au champ Nom. Le piège est global : TOUS les dialogues dont
+ * `onClose` est inline (et dont le champ|Lu n'est pas le premier) étaient
+ * concernés.
+ * CORRECTIF : `onClose`/`extraKey` sont conservés dans des refs « dernière
+ * valeur connue » ; l'effet ne dépend plus que de `boxRef` (montage /
+ * démontage) ⇒ le focus n'est posé qu'une fois, à l'ouverture.
  */
 function useDialogFocus(
   boxRef: React.RefObject<HTMLElement | null>,
   onClose: () => void,
   extraKey?: (e: KeyboardEvent) => boolean,
 ): void {
+  // Dernière valeur connue : l'effet d'écoute ne doit jamais être rejoué
+  // (il re-focaliserait le premier champ), or `onClose` est instable.
+  const onCloseRef = useRef(onClose);
+  const extraKeyRef = useRef(extraKey);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+    extraKeyRef.current = extraKey;
+  });
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
     const field = boxRef.current?.querySelector<HTMLElement>("input, select, textarea");
     (field ?? boxRef.current?.querySelector<HTMLElement>("button"))?.focus();
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === "Escape") {
-        onClose();
+        onCloseRef.current();
         return;
       }
-      if (extraKey?.(e)) return;
+      if (extraKeyRef.current?.(e)) return;
       if (e.key !== "Tab") return;
       const box = boxRef.current;
       if (!box) return;
@@ -351,7 +373,7 @@ function useDialogFocus(
         opener.focus();
       }
     };
-  }, [boxRef, onClose, extraKey]);
+  }, [boxRef]);
 }
 
 export function Modal({

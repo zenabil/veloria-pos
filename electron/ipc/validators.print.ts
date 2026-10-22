@@ -102,7 +102,12 @@ export const printPayloadSchema = z
       const l = v.lines[i];
       if (!l) continue;
       const expected = Math.round(l.unitPriceMinor * l.qty);
-      if (l.lineTotalMinor !== expected) {
+      // Mode « Montant » (ADR-114) : le montant facturé est celui SAISI, il
+      // peut donc s'écarter de prix × qté — mais SEULEMENT dans la borne
+      // d'arrondi de la quantité (0,0005 × prix + 1 centime). Au-delà : payload
+      // incohérent ⇒ refusé (jamais de montant faux imprimé).
+      const tolerance = Math.ceil(l.unitPriceMinor * 0.0005) + 1;
+      if (Math.abs(l.lineTotalMinor - expected) > tolerance) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: `Ligne ${i + 1} incohérente.`,

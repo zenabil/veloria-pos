@@ -15,6 +15,8 @@ export interface CartDraftLine {
   unitPriceMinor: number;
   purchasePriceMinor: number;
   quantity: number;
+  /** Montant facturé EXACT (mode « Montant » ADR-114) — absent/NULL = prix × qté. */
+  billedTotalMinor?: number | null;
 }
 
 export interface CartDraftTab {
@@ -36,6 +38,13 @@ function cleanLine(l: CartDraftLine): CartDraftLine | null {
     if (!Number.isInteger(v) || v < 0) return null;
   }
   if (!Number.isFinite(l.quantity) || l.quantity <= 0 || l.quantity > 1_000_000) return null;
+  // Montant facturé exact (mode « Montant ») : absent/NULL = prix × qté.
+  const billed =
+    l.billedTotalMinor == null
+      ? null
+      : Number.isInteger(l.billedTotalMinor) && l.billedTotalMinor > 0
+        ? l.billedTotalMinor
+        : null;
   return {
     key: l.key,
     productId: l.productId,
@@ -46,6 +55,7 @@ function cleanLine(l: CartDraftLine): CartDraftLine | null {
     unitPriceMinor: l.unitPriceMinor,
     purchasePriceMinor: l.purchasePriceMinor,
     quantity: Math.round(l.quantity * 1000) / 1000,
+    billedTotalMinor: billed,
   };
 }
 

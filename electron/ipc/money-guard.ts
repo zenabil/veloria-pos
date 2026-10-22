@@ -53,15 +53,45 @@ export function priceLine(args: {
   unitPriceMinor: number;
   originalUnitPriceMinor: number;
   quantity: number;
+  billedTotalMinor?: number | null;
 }): PricedLine {
   assertUnitPriceMinor(args.unitPriceMinor);
   assertUnitPriceMinor(args.originalUnitPriceMinor, "Prix d'origine invalide.");
   assertQuantity(args.quantity);
-  const charged = Math.round(args.unitPriceMinor * args.quantity);
+  const charged = billedTotalOfLine(args.unitPriceMinor, args.quantity, args.billedTotalMinor);
   const original = Math.round(args.originalUnitPriceMinor * args.quantity);
   assertTotalMinor(charged, "Montant de ligne invalide.");
   assertTotalMinor(original, "Montant de ligne invalide.");
   return { charged, original, discount: original - charged };
+}
+
+/**
+ * Tolérance du montant facturé saisi (mode « Montant ») : miroir EXACT de
+ * `billedAmountToleranceMinor` (`src/domain/sales/sale-rules.ts`) — parité
+ * prouvée par `tests/unit/money-guard-parity.test.ts`.
+ */
+export function billedAmountToleranceMinor(unitPriceMinor: number): number {
+  assertUnitPriceMinor(unitPriceMinor);
+  return Math.ceil(unitPriceMinor * 0.0005) + 1;
+}
+
+/** Prix × quantité, ou le montant SAISI (mode « Montant ») s'il est fourni. */
+function billedTotalOfLine(
+  unitPriceMinor: number,
+  quantity: number,
+  billedTotalMinor?: number | null,
+): number {
+  if (billedTotalMinor == null) return Math.round(unitPriceMinor * quantity);
+  if (!Number.isSafeInteger(billedTotalMinor) || billedTotalMinor <= 0) {
+    throw new Error("Montant facturé de ligne invalide.");
+  }
+  assertTotalMinor(billedTotalMinor, "Montant facturé de ligne invalide.");
+  const reference = Math.round(unitPriceMinor * quantity);
+  const tolerance = billedAmountToleranceMinor(unitPriceMinor);
+  if (Math.abs(billedTotalMinor - reference) > tolerance) {
+    throw new Error("Montant facturé de ligne incohérent avec le prix et la quantité.");
+  }
+  return billedTotalMinor;
 }
 
 /**

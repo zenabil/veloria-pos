@@ -31,6 +31,8 @@ export async function createProforma(d: SellFlowDeps): Promise<void> {
         productName: l.productName,
         unitPriceMinor: l.unitPriceMinor,
         quantity: l.quantity,
+        // Mode « Montant » (ADR-114) : le devis garde le montant SAISI.
+        billedTotalMinor: l.billedTotalMinor ?? null,
       })),
       discountMinor: 0,
       deliveryMinor: 0,

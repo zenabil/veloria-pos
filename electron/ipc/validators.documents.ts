@@ -68,6 +68,8 @@ export const proformaCreateSchema = z.object({
         productName: z.string().min(1).max(200),
         unitPriceMinor: moneyMinor,
         quantity,
+        // Mode « Montant » (ADR-114) : montant facturé EXACT de la ligne.
+        billedTotalMinor: moneyMinorPositive.nullable().optional(),
       }),
     )
     .min(1)
@@ -114,6 +116,8 @@ export const proformaUpdateSchema = z.object({
         productName: z.string().min(1).max(200),
         unitPriceMinor: moneyMinor,
         quantity,
+        // Mode « Montant » (ADR-114) : montant facturé EXACT de la ligne.
+        billedTotalMinor: moneyMinorPositive.nullable().optional(),
       }),
     )
     .min(1)

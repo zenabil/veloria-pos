@@ -1,7 +1,7 @@
 // Veloria PoS — Vente : constructeurs purs (totaux, clichés, charges d'impression).
 // Extraits de sell-finalize (zéro IO, testés par tests/unit/sales/sell-split).
 import { strictOrNeg } from "@shared/money/parse.ts";
-import { computeLineTotal } from "@domain/sales/sale-rules.ts";
+import { computeBilledTotal } from "@domain/sales/sale-rules.ts";
 import { timbreQuittanceLf2025 } from "@domain/invoice/timbre-rules.ts";
 import { totalsOf } from "@/application/sales/create-sale.ts";
 import type { ActiveCart, CartTab } from "../cart-store.ts";
@@ -130,7 +130,7 @@ export function buildSaleSnapshot(
       qty: l.quantity,
       unit: l.unitCode,
       unitPriceMinor: l.unitPriceMinor,
-      lineTotalMinor: computeLineTotal(l.unitPriceMinor, l.quantity),
+      lineTotalMinor: computeBilledTotal(l),
       ref: l.productId != null ? String(l.productId).padStart(5, "0") : "—",
     })),
     subtotalMinor: totals.subtotalMinor,
@@ -191,7 +191,7 @@ export function buildProformaLines(cart: ActiveCart): PreviewLine[] {
     qty: l.quantity,
     unit: l.unitCode,
     unitPriceMinor: l.unitPriceMinor,
-    lineTotalMinor: computeLineTotal(l.unitPriceMinor, l.quantity),
+    lineTotalMinor: computeBilledTotal(l),
     ref: l.productId != null ? String(l.productId).padStart(5, "0") : "—",
   }));
 }

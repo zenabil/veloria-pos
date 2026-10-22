@@ -123,7 +123,8 @@ export function SellOverlays({
   /** ADR-114 : produit à unité continue (poids/volume/longueur) à quantifier. */
   quantityFor: SearchRow | null;
   onCloseQuantity: () => void;
-  onConfirmQuantity: (quantity: number) => void;
+  /** Quantité (poids) + montant facturé EXACT (mode « Montant », ADR-114). */
+  onConfirmQuantity: (quantity: number, billedTotalMinor: number | null) => void;
 }): React.JSX.Element {
   return (
     <>

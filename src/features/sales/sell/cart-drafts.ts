@@ -14,6 +14,8 @@ export interface CartDraftLinePayload {
   unitPriceMinor: number;
   purchasePriceMinor: number;
   quantity: number;
+  /** Montant facturé EXACT (mode « Montant » ADR-114) — null = prix × qté. */
+  billedTotalMinor: number | null;
 }
 
 export interface CartDraftTabPayload {
@@ -41,6 +43,7 @@ export function toCartDraftTabs(tabs: CartTab[]): CartDraftTabPayload[] {
       unitPriceMinor: l.unitPriceMinor,
       purchasePriceMinor: l.purchasePriceMinor,
       quantity: l.quantity,
+      billedTotalMinor: l.billedTotalMinor ?? null,
     })),
     customerId: t.customerId,
     customerLabel: t.customerLabel,

@@ -271,11 +271,41 @@ export function runMigrations(database: BetterSqlite3DB = getDb()): void {
   for (const m of pending) {
     if (!applied.has(m.version)) {
       log("INFO", "database", "migration.applying", { version: m.version, file: m.file });
-      (runOne as unknown as (sql: string, v: number, c: string) => void)(
-        m.sql,
-        m.version,
-        m.checksum,
-      );
+      // Reconstruction de table (procédure SQLite « 12 étapes ») : les clés
+      // étrangères doivent être DÉSACTIVÉES, et `PRAGMA foreign_keys` est un
+      // NO-OP DANS une transaction ⇒ il faut les couper AVANT le BEGIN.
+      // Le marqueur `-- veloria:foreign-keys-off` (migration 0051 : remise
+      // signée) demande ce mode ; le runner réactive les FK juste après et
+      // contrôle l'intégrité référentielle (fail-closed).
+      const needsFkOff = m.sql.includes("-- veloria:foreign-keys-off");
+      if (needsFkOff) {
+        database.pragma("foreign_keys = OFF");
+      }
+      try {
+        (runOne as unknown as (sql: string, v: number, c: string) => void)(
+          m.sql,
+          m.version,
+          m.checksum,
+        );
+      } finally {
+        if (needsFkOff) {
+          database.pragma("foreign_keys = ON");
+        }
+      }
+      if (needsFkOff) {
+        // La table reconstruite doit rester référencée par ses enfants
+        // (clauses REFERENCES non réécrites) : toute violation = STOP.
+        const broken = database.prepare("PRAGMA foreign_key_check").all();
+        if (broken.length > 0) {
+          log("FATAL", "database", "migration.fk_check_failed", {
+            version: m.version,
+            violations: broken.length,
+          });
+          throw new Error(
+            `Migration ${m.version} : intégrité référentielle rompue (${String(broken.length)} violation(s)). Restaurez une sauvegarde vérifiée.`,
+          );
+        }
+      }
       // P01: les fichiers historiques peuvent contenir `PRAGMA foreign_keys = OFF`
       // (0001, usage CLI). Dans une transaction SQLite ce PRAGMA est un no-op,
       // mais on ré-affirme l'invariant applicatif après chaque migration.

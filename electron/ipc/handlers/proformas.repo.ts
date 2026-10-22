@@ -22,6 +22,27 @@ export interface ProformaLineInput {
   productName: string;
   unitPriceMinor: number;
   quantity: number;
+  /** Montant facturé EXACT (mode « Montant » ADR-114) — absent = prix × qté. */
+  billedTotalMinor?: number | null;
+}
+
+/**
+ * Montant de ligne (devis) : le montant SAISI s'il est fourni (mode
+ * « Montant » ADR-114), sinon prix × quantité. La borne d'arrondi de la
+ * quantité est respectée (le renderer ne peut pas gonfler un devis).
+ */
+function proformaLineTotal(l: ProformaLineInput): number {
+  const billed = l.billedTotalMinor;
+  if (billed == null) return Math.round(l.unitPriceMinor * l.quantity);
+  if (!Number.isSafeInteger(billed) || billed <= 0) {
+    throw new Error("Montant facturé de ligne invalide.");
+  }
+  const reference = Math.round(l.unitPriceMinor * l.quantity);
+  const tolerance = Math.ceil(l.unitPriceMinor * 0.0005) + 1;
+  if (Math.abs(billed - reference) > tolerance) {
+    throw new Error("Montant facturé de ligne incohérent avec le prix et la quantité.");
+  }
+  return billed;
 }
 
 function allocateNumber(prefix: string, key: string, now: string): string {
@@ -70,7 +91,7 @@ export function createProformaAtomic(args: {
       if (!Number.isInteger(l.unitPriceMinor) || l.unitPriceMinor < 0) {
         throw new Error("Prix de ligne invalide.");
       }
-      const total = Math.round(l.unitPriceMinor * l.quantity);
+      const total = proformaLineTotal(l);
       subtotal += total;
       prepared.push({
         pid: l.productId,
@@ -341,7 +362,7 @@ export function updateProformaAtomic(args: {
       if (!Number.isInteger(l.unitPriceMinor) || l.unitPriceMinor < 0) {
         throw new Error("Prix de ligne invalide.");
       }
-      const total = Math.round(l.unitPriceMinor * l.quantity);
+      const total = proformaLineTotal(l);
       subtotal += total;
       prepared.push({
         pid: l.productId,

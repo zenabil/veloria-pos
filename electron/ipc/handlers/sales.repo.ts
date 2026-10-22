@@ -138,6 +138,12 @@ export interface SaleLineInput {
   unitPriceMinor: number;
   purchasePriceMinor: number;
   quantity: number;
+  /**
+   * Montant facturé EXACT de la ligne (mode « Montant » ADR-114) — `null`/
+   * absent = prix × quantité. Validé AVANT toute écriture (borne d'arrondi
+   * de la quantité : le renderer ne peut pas gonfler un total).
+   */
+  billedTotalMinor?: number | null;
 }
 
 export interface CreateSaleInput {
@@ -195,6 +201,63 @@ export function allocateInvoiceNumber(prefix: string, now: string): string {
   return num;
 }
 
+/**
+ * Contrôle PRÉALABLE des lignes de vente (fail-closed, FR) — miroir de la
+ * règle du domaine (`computeLineDiscount`) :
+ * - prix d'origine et prix facturé : entiers ≥ 0 ;
+ * - montant facturé saisi (mode « Montant ») : entier > 0 et à portée de
+ *   l'arrondi de la quantité (le renderer ne peut pas gonfler un total) ;
+ * - remise de ligne SIGNÉE bornée (majoration admise — migration 0051).
+ * Appelé AVANT l'INSERT de la vente : un refus arrive donc en message FR
+ * (jamais un CHECK SQL brut).
+ *
+ * `lineTotals` / `lineDiscounts` : les valeurs EFFECTIVES qui seront écrites
+ * (conversion d'un devis) — sinon elles sont recalculées ici.
+ */
+export function validateSaleLines(
+  lines: SaleLineInput[],
+  lineTotals?: number[],
+  lineDiscounts?: number[],
+): void {
+  lines.forEach((line, i) => {
+    if (!Number.isInteger(line.originalUnitPriceMinor) || line.originalUnitPriceMinor < 0) {
+      throw new Error(`Prix d'origine invalide pour « ${line.productName} ».`);
+    }
+    if (!Number.isInteger(line.unitPriceMinor) || line.unitPriceMinor < 0) {
+      throw new Error(`Prix facturé invalide pour « ${line.productName} ».`);
+    }
+    // Montant saisi : validé même quand le total effectif est fourni.
+    billedTotalOfLine(line);
+    const charged = lineTotals?.[i] ?? billedTotalOfLine(line);
+    if (!Number.isSafeInteger(charged) || charged < 0) {
+      throw new Error(`Montant facturé invalide pour « ${line.productName} ».`);
+    }
+    const originalTotal = Math.round(line.originalUnitPriceMinor * line.quantity);
+    const discount = lineDiscounts ? (lineDiscounts[i] ?? 0) : originalTotal - charged;
+    if (!Number.isSafeInteger(discount) || Math.abs(discount) > 100_000_000_000) {
+      throw new Error(`Remise de ligne invalide pour « ${line.productName} ».`);
+    }
+    if (discount > originalTotal + 1) {
+      throw new Error(`Remise de ligne supérieure au total pour « ${line.productName} ».`);
+    }
+  });
+}
+
+/** Montant facturé de la ligne (miroir `priceLine`) : saisi ou prix × qté. */
+function billedTotalOfLine(line: SaleLineInput): number {
+  const billed = line.billedTotalMinor;
+  if (billed == null) return Math.round(line.unitPriceMinor * line.quantity);
+  if (!Number.isSafeInteger(billed) || billed <= 0) {
+    throw new Error(`Montant facturé invalide pour « ${line.productName} ».`);
+  }
+  const reference = Math.round(line.unitPriceMinor * line.quantity);
+  const tolerance = Math.ceil(line.unitPriceMinor * 0.0005) + 1;
+  if (Math.abs(billed - reference) > tolerance) {
+    throw new Error(`Montant facturé incohérent pour « ${line.productName} ».`);
+  }
+  return billed;
+}
+
 export function createSaleAtomic(input: CreateSaleInput): {
   saleId: number;
   invoiceNumber: string;
@@ -224,6 +287,15 @@ export function createSaleAtomic(input: CreateSaleInput): {
   if (input.remainingMinor > 0 && input.customerId == null) {
     throw new Error("Vente à crédit : choisissez un client autorisé au crédit.");
   }
+
+  // CONTRÔLE PRÉALABLE DES LIGNES (fail-closed, AVANT toute écriture) :
+  // l'INSERT de la vente précède la boucle des lignes dans la transaction —
+  // sans ce pré-contrôle, une ligne invalide (remise hors bornes, montant
+  // facturé incohérent) était refusée par le CHECK SQL de la base
+  // (« CHECK constraint failed: discount_amount_minor >= 0 ») : le message
+  // technique arrivait à l'écran au lieu du message FR, et le garde-fou
+  // principal de la remise (ligne 0031) ne jouait pas son rôle.
+  validateSaleLines(input.lines, input.lineTotals, input.lineDiscounts);
 
   const tx = db.transaction(() => {
     // PLAFOND-BLOQUANT (règle radicale) : autorisation + plafond relus ICI,
@@ -370,6 +442,15 @@ export function createSaleAtomic(input: CreateSaleInput): {
       final: number;
       purchase: number;
     }[] = [];
+    // Majorations (prix facturé > prix d'origine) : traces d'audit — la
+    // remise de ligne devient négative (migration 0051) et le caissier doit
+    // pouvoir justifier l'écart au prix catalogue.
+    const raisedLines: {
+      productId: number | null;
+      name: string;
+      final: number;
+      original: number;
+    }[] = [];
     input.lines.forEach((line, i) => {
       if (!Number.isInteger(line.originalUnitPriceMinor) || line.originalUnitPriceMinor < 0) {
         throw new Error(`Prix d'origine invalide pour « ${line.productName} ».`);
@@ -378,13 +459,15 @@ export function createSaleAtomic(input: CreateSaleInput): {
       const originalTotal = Math.round(line.originalUnitPriceMinor * line.quantity);
       // Remise de ligne : (original − facturé) × qté par défaut ; sinon la
       // répartition fournie par l'appelant (remise globale d'un devis).
+      // Remise SIGNÉE (migration 0051) : négative = majoration (prix relevé
+      // au-dessus du catalogue) ou facture au montant saisi (ADR-114).
       const lineDiscount = input.lineDiscounts
         ? (input.lineDiscounts[i] ?? 0)
         : originalTotal - charged;
-      if (!Number.isInteger(lineDiscount) || lineDiscount < 0) {
+      if (!Number.isSafeInteger(lineDiscount) || Math.abs(lineDiscount) > 100_000_000_000) {
         throw new Error(`Remise de ligne invalide pour « ${line.productName} ».`);
       }
-      if (lineDiscount > originalTotal) {
+      if (lineDiscount > originalTotal + 1) {
         throw new Error(`Remise de ligne supérieure au total pour « ${line.productName} ».`);
       }
       if (line.purchasePriceMinor > 0 && line.unitPriceMinor < line.purchasePriceMinor) {
@@ -393,6 +476,14 @@ export function createSaleAtomic(input: CreateSaleInput): {
           name: line.productName,
           final: line.unitPriceMinor,
           purchase: line.purchasePriceMinor,
+        });
+      }
+      if (line.unitPriceMinor > line.originalUnitPriceMinor) {
+        raisedLines.push({
+          productId: line.productId,
+          name: line.productName,
+          final: line.unitPriceMinor,
+          original: line.originalUnitPriceMinor,
         });
       }
       const itemIns = db
@@ -512,6 +603,7 @@ export function createSaleAtomic(input: CreateSaleInput): {
         paid: input.amountPaidMinor,
         discount: input.discountAmountMinor,
         belowCostLines,
+        raisedLines,
         limitOverride: input.limitOverrideApproved ? 1 : 0,
       }),
       input.now,

@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { moneyMinor } from "./validators.common";
+import { moneyMinorPositive } from "./validators.common";
 import { quantity } from "./validators.common";
 import { optionalOperationId } from "./validators.common";
 import { businessDate } from "./validators.common";
@@ -16,6 +17,10 @@ export const saleItemSchema = z.object({
   unitPriceMinor: moneyMinor,
   purchasePriceMinor: moneyMinor.default(0),
   quantity,
+  // ADR-114 (mode « Montant ») : montant facturé EXACT de la ligne. Validé
+  // côté main (entier > 0 + borne d'arrondi de la quantité) — le renderer
+  // ne peut pas gonfler un total.
+  billedTotalMinor: moneyMinorPositive.nullable().optional(),
 });
 
 export const saleCreateSchema = z.object({
@@ -41,6 +46,9 @@ export const cartLineSchema = z.object({
   unitPriceMinor: moneyMinor,
   purchasePriceMinor: moneyMinor.default(0),
   quantity,
+  // Montant facturé exact (mode « Montant » ADR-114) — persisté avec le
+  // brouillon pour que la facture au montant reste exacte après redémarrage.
+  billedTotalMinor: moneyMinorPositive.nullable().optional(),
 });
 
 export const cartsSaveSchema = z.object({

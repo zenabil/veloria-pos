@@ -50,6 +50,8 @@ interface SalePayload {
     unitPriceMinor: number;
     purchasePriceMinor: number;
     quantity: number;
+    /** Montant facturé EXACT (mode « Montant » ADR-114) — null = prix × qté. */
+    billedTotalMinor: number | null;
   }[];
   deliveryFeeMinor: number;
   amountPaidMinor: number;
@@ -95,6 +97,7 @@ export function buildSalePayload(draft: SaleDraft): SalePayload {
       unitPriceMinor: l.unitPriceMinor,
       purchasePriceMinor: l.purchasePriceMinor,
       quantity: l.quantity,
+      billedTotalMinor: l.billedTotalMinor ?? null,
     })),
     deliveryFeeMinor: draft.deliveryFeeMinor,
     amountPaidMinor: draft.amountPaidMinor,
