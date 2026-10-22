@@ -68,6 +68,7 @@ export function DebtDetailsDrawer({
   const { record: companyRecord } = useCompany();
   const [ticket, setTicket] = useState<{
     text80: string;
+    html80: string;
     payload: Record<string, unknown>;
   } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -120,8 +121,12 @@ export function DebtDetailsDrawer({
         customer,
         customerId,
       );
-      const pv = (await api.printPreview(payload)) as { text80: string };
-      setTicket({ text80: pv.text80, payload });
+      const pv = (await api.printPreview(payload)) as { text80: string; html80?: unknown };
+      setTicket({
+        text80: pv.text80,
+        html80: typeof pv.html80 === "string" ? pv.html80 : "",
+        payload,
+      });
     } catch (e) {
       notify(frError(e, "Aperçu indisponible."), "err");
     } finally {
@@ -287,6 +292,7 @@ export function DebtDetailsDrawer({
         <DocumentPreviewModal
           label="Ticket de vente"
           title="Ticket de vente"
+          html80={ticket.html80}
           text80={ticket.text80}
           onClose={() => setTicket(null)}
           actions={

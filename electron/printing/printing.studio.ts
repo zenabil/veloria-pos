@@ -70,20 +70,21 @@ export function registerStudioIpc(getMainWindow: () => BrowserWindow | null): vo
         // Seul le devis reste en A4 ; tout le reste est thermique 58/80.
         await printHtml(html.htmlA4, 400);
       } else {
-        // Papier du modèle (58/80) : même enveloppe que l'impression réelle —
-        // logo de l'entreprise compris s'il est activé (opt-in thermique).
+        // Papier du modèle (58/80). ADR-134 : le ticket sort son HTML de
+        // design complet (logo + codes déjà dedans) ; les autres documents
+        // thermiques gardent l'enveloppe texte historique.
         const width = thermalWidthFor(s.paper);
-        await printHtml(
-          thermalDocumentHtml({
-            settings: s,
-            width,
-            text: html.text80,
-            codes: { barcode: "TEST", qrSvg: "", qrPayload: "" },
-            logo: companyLogoDataUrl(),
-          }),
-          300,
-          { thermalWidth: width },
-        );
+        const doc =
+          html.html80 !== ""
+            ? html.html80
+            : thermalDocumentHtml({
+                settings: s,
+                width,
+                text: html.text80,
+                codes: { barcode: "TEST", qrSvg: "", qrPayload: "" },
+                logo: companyLogoDataUrl(),
+              });
+        await printHtml(doc, 300, { thermalWidth: width });
       }
       return { ok: true, data: { printed: true } };
     } catch (err) {

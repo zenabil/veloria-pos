@@ -22,9 +22,8 @@ import {
   printHtml,
   receiptTextOf,
   templateRenderOf,
-  thermalDocumentHtml,
 } from "./printing.templates";
-import { buildReceiptText, thermalHtml } from "./receipt-documents";
+import { buildReceiptTicketHtml, type ReceiptData } from "./receipt-documents";
 
 export function registerReceiptIpc(getMainWindow: () => BrowserWindow | null): void {
   ipcMain.handle(IPC_CHANNELS["printing.listPrinters"], async (event, raw: unknown) => {
@@ -62,14 +61,10 @@ export function registerReceiptIpc(getMainWindow: () => BrowserWindow | null): v
       await assertConfiguredPrinterAvailable(getMainWindow);
       const d = applyTemplateToReceipt("ticket", enrichReceipt(raw));
       const { settings, width } = templateRenderOf("ticket");
+      // ADR-134 : le ticket papier = le HTML du design, source unique avec
+      // l'aperçu et le PDF (plus de texte monospace recomposé).
       await printCopies(
-        thermalDocumentHtml({
-          settings,
-          width,
-          text: receiptTextOf(d, width),
-          codes: receiptCodes(d),
-          logo: d.companyLogo,
-        }),
+        buildReceiptTicketHtml(d, width, receiptCodes(d), settings.thermalFontPx),
         settings.copies,
         300,
         { thermalWidth: width },
@@ -91,8 +86,15 @@ export function registerReceiptIpc(getMainWindow: () => BrowserWindow | null): v
     if (staffDenied) return staffDenied;
     try {
       const t = applyTemplateToReceipt("ticket", enrichReceipt(raw));
-      const { width } = templateRenderOf("ticket");
-      return { ok: true, data: { text80: receiptTextOf(t, width) } };
+      const { settings, width } = templateRenderOf("ticket");
+      // Même builder que l'impression et le PDF : l'aperçu ne peut plus mentir.
+      return {
+        ok: true,
+        data: {
+          text80: receiptTextOf(t, width),
+          html80: buildReceiptTicketHtml(t, width, receiptCodes(t), settings.thermalFontPx),
+        },
+      };
     } catch (err) {
       log("ERROR", "printing", "preview.failed", { error: String(err) });
       if (isValidationError(err)) return validationError();
@@ -146,7 +148,7 @@ export function registerReceiptIpc(getMainWindow: () => BrowserWindow | null): v
     try {
       emptyPayloadSchema.parse(raw ?? {});
       const width = getThermalWidth();
-      const text = buildReceiptText({
+      const demo: ReceiptData = {
         company: "Veloria",
         companyPhone: "",
         companyAddress: "",
@@ -180,12 +182,11 @@ export function registerReceiptIpc(getMainWindow: () => BrowserWindow | null): v
         deliveryMinor: 0,
         totalMinor: 10000,
         paidMinor: 10000,
+      };
+      // Page de test = le vrai design du ticket (mêmes builders que la vente).
+      await printHtml(buildReceiptTicketHtml(demo, width, { barcode: "TEST" }), 300, {
+        thermalWidth: width,
       });
-      await printHtml(
-        thermalHtml(`${text}\n[PAGE DE TEST ${width} — N&B]`, width, { barcode: "TEST" }),
-        300,
-        { thermalWidth: width },
-      );
       return { ok: true, data: { printed: true } };
     } catch (err) {
       log("ERROR", "printing", "test.failed", { error: String(err) });

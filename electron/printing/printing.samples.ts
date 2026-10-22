@@ -7,13 +7,14 @@ import {
   thermalWidthFor,
   type TemplateSettings,
 } from "./printing.templates";
-import { companyLogoDataUrl, qrSvgOf, withQr } from "./printing.enrich";
+import { companyLogoDataUrl, qrSvgOf, receiptCodes, withQr } from "./printing.enrich";
 import {
   buildDeliveryText,
   buildLabelsHtml,
   buildPaymentText,
   buildProformaA4Html,
   buildReceiptText,
+  buildReceiptTicketHtml,
   buildReturnSlipText,
   LABEL_FORMATS,
   proformaFromReceipt,
@@ -106,7 +107,7 @@ export function renderTemplateSample(
   docType: string,
   override: TemplateSettings | undefined,
   forceWidth?: ThermalWidth,
-): { text80: string; htmlA4: string } {
+): { text80: string; html80: string; htmlA4: string } {
   const s = override ?? activeTemplateSettings(docType);
   const width = forceWidth ?? thermalWidthFor(s.paper);
   const page = { page: "A4", marginMm: s.marginMm };
@@ -126,6 +127,7 @@ export function renderTemplateSample(
       : "58x30";
     return {
       text80: "",
+      html80: "",
       htmlA4: buildLabelsHtml(items, {
         format: fmt,
         showName: s.showProductName,
@@ -163,6 +165,7 @@ export function renderTemplateSample(
     const d = { ...base, qrPayload, qrSvg: "" };
     return {
       text80: buildPaymentText(d, width),
+      html80: "",
       htmlA4: "",
     };
   }
@@ -174,7 +177,7 @@ export function renderTemplateSample(
       date: "03/10/2026, 10:00:00",
     });
     // Devis = A4 uniquement (jamais de ticket).
-    return { text80: "", htmlA4: buildProformaA4Html(p, page) };
+    return { text80: "", html80: "", htmlA4: buildProformaA4Html(p, page) };
   }
   if (docType === "bon_livraison") {
     const d = {
@@ -184,6 +187,7 @@ export function renderTemplateSample(
     };
     return {
       text80: buildDeliveryText(d, width),
+      html80: "",
       htmlA4: "",
     };
   }
@@ -197,11 +201,14 @@ export function renderTemplateSample(
     };
     return {
       text80: buildReturnSlipText(d, width),
+      html80: "",
       htmlA4: "",
     };
   }
+  // Ticket : le HTML du design réel (l'aperçu Studio montre le papier).
   return {
     text80: buildReceiptText(receipt, width),
+    html80: buildReceiptTicketHtml(receipt, width, receiptCodes(receipt), s.thermalFontPx),
     htmlA4: "",
   };
 }

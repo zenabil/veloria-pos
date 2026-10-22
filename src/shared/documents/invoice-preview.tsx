@@ -17,6 +17,7 @@ import { frError } from "@shared/errors/fr-map.ts";
 interface LoadedPreview {
   payload: Record<string, unknown>;
   text80: string;
+  html80: string;
   invoice: string;
 }
 
@@ -76,11 +77,12 @@ export function InvoicePreviewModal({
           }
         }
         const payload = buildSaleTicketPayload(d, co, customer, customerId);
-        const pv = (await api.printPreview(payload)) as { text80: string };
+        const pv = (await api.printPreview(payload)) as { text80: string; html80?: unknown };
         if (!cancelled) {
           setDoc({
             payload,
             text80: pv.text80,
+            html80: typeof pv.html80 === "string" ? pv.html80 : "",
             invoice: String(d.sale["invoice_number"] ?? ""),
           });
         }
@@ -131,6 +133,13 @@ export function InvoicePreviewModal({
         <p className="py-10 text-center text-sm text-slate-500" role="status">
           Chargement…
         </p>
+      ) : doc.html80 !== "" ? (
+        <iframe
+          sandbox=""
+          srcDoc={doc.html80}
+          title={`Aperçu ticket ${doc.invoice}`}
+          className="h-[50vh] w-full rounded-xl border border-white/10 bg-white"
+        />
       ) : (
         <pre
           className="h-[50vh] overflow-auto rounded-xl border border-white/10 bg-white p-4 font-mono text-[12px] leading-snug text-black"

@@ -165,13 +165,17 @@ describe("printing.samples : coherence au centime", () => {
     const r = sampleReceipt();
     expect((r.htMinor ?? 0) + (r.tvaMinor ?? 0)).toBe(r.totalMinor);
   });
-  it("renderTemplateSample : ticket = text80, devis = htmlA4", () => {
+  it("renderTemplateSample : ticket = text80 + html80, devis = htmlA4", () => {
     const s = renderTemplateSample("ticket", undefined);
     expect(s.text80).toContain("TICKET DE CAISSE");
+    // ADR-134 : l'aperçu Studio montre le design réellement imprimé.
+    expect(s.html80).toContain("Total vente");
+    expect(s.html80).toContain("Article(s)");
     // Vente = ticket : jamais de HTML A4 pour une vente.
     expect(s.htmlA4).toBe("");
     const p = renderTemplateSample("proforma", undefined);
     expect(p.text80).toBe("");
+    expect(p.html80).toBe("");
     expect(p.htmlA4).toContain("PROFORMA / DEVIS");
   });
 });
@@ -209,6 +213,7 @@ describe("receipt-documents : barrel vs direct", () => {
   it("surface publique inchangee", () => {
     for (const name of [
       "buildReceiptText",
+      "buildReceiptTicketHtml",
       "toReceiptData",
       "buildProformaA4Html",
       "proformaFromReceipt",

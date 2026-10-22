@@ -58,9 +58,11 @@ export function ReturnDetailsDrawer({
     kind === "customer"
       ? Number(h["amount_refunded_minor"] ?? 0) + Number(h["credit_to_customer_minor"] ?? 0)
       : Number(h["amount_recovered_minor"] ?? 0);
-  const [ticket, setTicket] = useState<{ text80: string; payload: Record<string, unknown> } | null>(
-    null,
-  );
+  const [ticket, setTicket] = useState<{
+    text80: string;
+    html80: string;
+    payload: Record<string, unknown>;
+  } | null>(null);
   // Bon de retour dédié (previewReturnSlip/printReturnSlip) : ticket uniquement.
   const [slip, setSlip] = useState<{
     text80: string;
@@ -152,8 +154,12 @@ export function ReturnDetailsDrawer({
             : null,
         ),
       };
-      const pv = (await api.printPreview(payload)) as { text80: string };
-      setTicket({ text80: pv.text80, payload });
+      const pv = (await api.printPreview(payload)) as { text80: string; html80?: unknown };
+      setTicket({
+        text80: pv.text80,
+        html80: typeof pv.html80 === "string" ? pv.html80 : "",
+        payload,
+      });
     } catch (e) {
       notify(frError(e, "Aperçu indisponible."), "err");
     } finally {
@@ -446,12 +452,21 @@ export function ReturnDetailsDrawer({
 
       {ticket ? (
         <Modal label="Bon de retour" title={`Bon ${num}`} onClose={() => setTicket(null)} wide>
-          <pre
-            className="h-[50vh] overflow-auto rounded-xl border border-white/10 bg-white p-4 font-mono text-[12px] leading-snug text-black"
-            aria-label={`Aperçu ticket retour ${num}`}
-          >
-            {ticket.text80}
-          </pre>
+          {ticket.html80 !== "" ? (
+            <iframe
+              sandbox=""
+              srcDoc={ticket.html80}
+              title={`Aperçu ticket retour ${num}`}
+              className="h-[50vh] w-full rounded-xl border border-white/10 bg-white"
+            />
+          ) : (
+            <pre
+              className="h-[50vh] overflow-auto rounded-xl border border-white/10 bg-white p-4 font-mono text-[12px] leading-snug text-black"
+              aria-label={`Aperçu ticket retour ${num}`}
+            >
+              {ticket.text80}
+            </pre>
+          )}
           <div className="mt-3 flex gap-2">
             <Button variant="secondary" onClick={() => void printTicket()} className="flex-1">
               <Printer size={15} aria-hidden="true" /> Imprimer le ticket

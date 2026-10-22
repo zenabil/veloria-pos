@@ -9,6 +9,7 @@ export function DocumentPreviewModal({
   label,
   title,
   htmlA4 = "",
+  html80 = "",
   text80 = "",
   onClose,
   actions,
@@ -19,19 +20,22 @@ export function DocumentPreviewModal({
   title: string;
   /** HTML A4 (construit côté main, rendu sandboxé ; vide = document thermique). */
   htmlA4?: string | undefined;
-  /** Texte du ticket 58/80mm (vide = document A4). */
+  /** HTML du ticket 58/80mm (design réel imprimé, ADR-134). */
+  html80?: string | undefined;
+  /** Repli texte du ticket (document thermique sans HTML dédié). */
   text80?: string | undefined;
   onClose: () => void;
   /** Rangée de boutons (imprimer / PDF…) — la sémantique reste par site :
    *  canaux `printing.*` distincts, guards `busy` propres. */
   actions: React.ReactNode;
 }): React.JSX.Element {
+  const html = htmlA4 !== "" ? htmlA4 : html80;
   return (
     <Modal label={label} title={title} onClose={onClose} wide>
-      {htmlA4 !== "" ? (
+      {html !== "" ? (
         <iframe
           sandbox=""
-          srcDoc={htmlA4}
+          srcDoc={html}
           title={`Aperçu ${title}`}
           className="h-[50vh] w-full rounded-xl border border-white/10 bg-white"
         />

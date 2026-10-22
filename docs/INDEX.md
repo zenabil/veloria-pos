@@ -139,6 +139,7 @@
 - [ADR-131](./ADR-131-remise-signee-majoration-montant-exact.md) Remise de ligne signée (majoration), facture au montant exact, focus des dialogues (migration 0051)
 - [ADR-132](./ADR-132-ligne-montant-saisi-verrouillee-ticket-readable.md) Ligne « montant saisi » verrouillée, ticket/devise à remise signée, panier increvable
 - [ADR-133](./ADR-133-format-page-tickets-thermiques.md) Format de page des tickets thermiques = hauteur mesurée du contenu (fin du grand blanc après le code-barres), Code 39 calé, PDF en pouces
+- [ADR-134](./ADR-134-design-ticket-vente.md) Design du ticket de vente : un seul HTML pour le papier, le PDF et l'aperçu (en-tête enseigne, encadré de soldes)
 - [ADR-135](./ADR-135-export-donnees-reimportable-csv.md) Export de données CSV réimportable (deuxième bouton « Données CSV » à côté du rapport)
 
 ## Ou ecrire quoi

@@ -19,7 +19,6 @@ import {
   applyTemplateToReceipt,
   pageOptsOf,
   proformaWithSettings,
-  receiptTextOf,
   templateRenderOf,
   thermalDocumentHtml,
 } from "./printing.templates";
@@ -29,6 +28,7 @@ import { labelOptsOf, labelsOf } from "./printing.reports-labels";
 import {
   buildLabelsHtml,
   buildProformaA4Html,
+  buildReceiptTicketHtml,
   buildReportHtml,
   labelPageMicrons,
   toReportData,
@@ -48,13 +48,8 @@ export function registerPdfExportsIpc(getMainWindow: () => BrowserWindow | null)
       const d = applyTemplateToReceipt("ticket", enrichReceipt(input));
       const { settings, width } = templateRenderOf("ticket");
       const res = await exportDocumentPdf(getMainWindow, {
-        html: thermalDocumentHtml({
-          settings,
-          width,
-          text: receiptTextOf(d, width),
-          codes: receiptCodes(d),
-          logo: d.companyLogo,
-        }),
+        // ADR-134 : PDF ticket = exactement le HTML imprimé (design unique).
+        html: buildReceiptTicketHtml(d, width, receiptCodes(d), settings.thermalFontPx),
         waitMs: 300,
         defaultName: safeInvoiceFileName(String(input.invoice || "ticket"), "ticket-80mm"),
         explicitPath: filePath ?? null,

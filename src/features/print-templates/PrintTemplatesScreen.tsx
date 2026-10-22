@@ -62,8 +62,12 @@ export function PrintTemplatesScreen({ notify }: { notify: Notify }): React.JSX.
   const [draft, setDraft] = useState<TemplateSettings>(() => factorySettings("ticket"));
   const [draftName, setDraftName] = useState("Défaut");
   // Aperçu : UN seul format par document (politique opération → format) —
-  // htmlA4 porte le HTML (devis A4, gabarit étiquette), sinon text80.
-  const [preview, setPreview] = useState<{ text80: string; htmlA4: string } | null>(null);
+  // htmlA4 (devis, étiquettes), html80 (ticket, ADR-134), sinon text80.
+  const [preview, setPreview] = useState<{
+    text80: string;
+    html80: string;
+    htmlA4: string;
+  } | null>(null);
   const [dirty, setDirty] = useState(false);
   const previewTimer = useDebouncedTimer();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -128,9 +132,10 @@ export function PrintTemplatesScreen({ notify }: { notify: Notify }): React.JSX.
           const r = (await api.templatePreview({
             docType,
             settings: next,
-          })) as { text80?: unknown; htmlA4?: unknown };
+          })) as { text80?: unknown; html80?: unknown; htmlA4?: unknown };
           setPreview({
             text80: typeof r.text80 === "string" ? r.text80 : "",
+            html80: typeof r.html80 === "string" ? r.html80 : "",
             htmlA4: typeof r.htmlA4 === "string" ? r.htmlA4 : "",
           });
         } catch {
@@ -486,14 +491,17 @@ export function PrintTemplatesScreen({ notify }: { notify: Notify }): React.JSX.
               : docType === "etiquette"
                 ? "Étiquettes : gabarit thermique — jamais A4."
                 : "Ticket 58/80 mm uniquement — jamais A4 (choix 58/80 via le papier)."}
-            {docType !== "proforma" && docType !== "etiquette"
+            {docType !== "proforma" &&
+            docType !== "etiquette" &&
+            docType !== "ticket" &&
+            preview?.html80 === ""
               ? " Le logo et le filigrane (si activés) sortent à l'impression — l'aperçu texte ne les montre pas."
               : ""}
           </p>
-          {preview?.htmlA4 ? (
+          {preview?.htmlA4 || preview?.html80 ? (
             <iframe
               sandbox=""
-              srcDoc={preview.htmlA4}
+              srcDoc={preview.htmlA4 || preview.html80}
               title="Aperçu modèle"
               className="h-[560px] w-full rounded-xl border border-white/10 bg-white"
             />
