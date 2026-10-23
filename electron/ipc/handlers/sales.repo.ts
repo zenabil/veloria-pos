@@ -30,13 +30,13 @@ export function listSalesHistory(
   staffUserId: number | null = null,
 ): { rows: unknown[]; total: number } {
   const db = getDb();
-  const q = query.trim();
+  const q = query.trim().replace(/\s+/g, "");
   // R2 (0046) : périmètre auteur — null = gérant (tout), sinon mes ventes.
   // Les lignes historiques sans auteur (NULL) sont invisibles aux utilisateurs.
   const conds: string[] = [];
   const params: unknown[] = [];
   if (q) {
-    conds.push(`s.invoice_number LIKE ? ESCAPE '\\'`);
+    conds.push(`REPLACE(s.invoice_number, ' ', '') LIKE ? ESCAPE '\\'`);
     params.push(`%${q.replace(/[%_\\]/g, (c) => `\\${c}`)}%`);
   }
   if (staffUserId != null) {

@@ -168,9 +168,9 @@ export function filterInvoices(
   query: string,
   filter: InvoiceFilter,
 ): HomeInvoice[] {
-  const q = query.trim().toLowerCase();
+  const q = query.trim().toLowerCase().replace(/\s+/g, "");
   return rows.filter((s) => {
-    if (q && !s.invoice_number.toLowerCase().includes(q)) return false;
+    if (q && !s.invoice_number.toLowerCase().replace(/\s+/g, "").includes(q)) return false;
     if (filter === "cancelled") return s.is_cancelled === 1;
     if (s.is_cancelled === 1) return false;
     if (filter === "all") return true;

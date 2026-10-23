@@ -1782,3 +1782,4 @@ complète **151 fichiers / 1 052 tests** **0** · `typecheck` /
    non fait faute de confirmation du papier et pour éviter une copie UI
    trompeuse.
 5. Rejouer l'E2E `csv-import-export` et refaire le packaging complet.
+\

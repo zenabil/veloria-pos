@@ -28,6 +28,12 @@ interface IntakeLine {
   quantity_received: number;
   already_returned: number;
   eligible: number;
+  product_primary_barcode?: string | null;
+  product_barcodes?: string[] | null;
+  product_barcode?: string | null;
+  barcode?: string | null;
+  primary_barcode?: string | null;
+  barcodes?: string[] | null;
 }
 
 export function SupplierReturnDialog({
@@ -50,6 +56,7 @@ export function SupplierReturnDialog({
   const [lines, setLines] = useState<(IntakeLine & { qty: string; condition: ItemCondition })[]>(
     [],
   );
+  const [itemQuery, setItemQuery] = useState("");
   const [recoverText, setRecoverText] = useState("");
   const [method, setMethod] = useState<"cash" | "cheque" | "transfer">("cash");
   const [reason, setReason] = useState<string>(RETURN_REASONS[0] as string);
@@ -136,6 +143,24 @@ export function SupplierReturnDialog({
       over: Number.isFinite(q) && q > l.eligible,
     };
   });
+  const qItem = itemQuery.trim().toLowerCase();
+  const visibleLines = parsed
+    .map((l, i) => ({ l, i }))
+    .filter(({ l }) => {
+      if (qItem === "") return true;
+      const name = String(l.product_name_snapshot).toLowerCase();
+      const codes = [
+        l.product_primary_barcode,
+        l.product_barcode,
+        l.barcode,
+        l.primary_barcode,
+        ...(Array.isArray(l.product_barcodes) ? l.product_barcodes : []),
+        ...(Array.isArray(l.barcodes) ? l.barcodes : []),
+      ]
+        .filter((x): x is string => typeof x === "string" && x.trim() !== "")
+        .map((x) => x.toLowerCase());
+      return name.includes(qItem) || codes.some((c) => c.includes(qItem));
+    });
   const chosen = parsed.filter((l) => l.wanted > 0);
   // W7 (D-05) : multiplication gardée (règle financière unique).
   const total = chosen.reduce(
@@ -271,6 +296,14 @@ export function SupplierReturnDialog({
 
       {intakeId != null ? (
         <>
+          <TextInput
+            value={itemQuery}
+            onChange={(e) => setItemQuery(e.target.value)}
+            placeholder="Rechercher un produit (nom ou code-barres)…"
+            aria-label="Rechercher un produit dans le bon"
+            className="mb-2"
+          />
+
           <div className="max-h-56 overflow-auto rounded-xl border border-white/10">
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
@@ -283,7 +316,7 @@ export function SupplierReturnDialog({
                 </tr>
               </thead>
               <tbody>
-                {parsed.map((l, i) => (
+                {visibleLines.map(({ l, i }) => (
                   <tr
                     key={`${l.product_id ?? "x"}-${l.product_name_snapshot}`}
                     className="border-t border-white/[0.06]"

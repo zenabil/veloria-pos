@@ -850,10 +850,27 @@ export function getReturnableSaleItems(saleId: number): {
         )
         .get(saleId, it["product_id"], it["product_id"]) as { q: number }
     ).q;
+    const barcodes =
+      it["product_id"] != null
+        ? (
+            db
+              .prepare(
+                `SELECT barcode FROM product_barcodes WHERE product_id = ? ORDER BY is_primary DESC, id`,
+              )
+              .all(it["product_id"]) as { barcode: string }[]
+          ).map((b) => b.barcode)
+        : [];
+    const primary = barcodes.length > 0 ? (barcodes[0] ?? null) : null;
     return {
       ...it,
       already_returned: Number(already),
       eligible: Number(it["quantity"]) - Number(already),
+      product_primary_barcode: primary,
+      product_barcodes: barcodes,
+      product_barcode: primary,
+      barcode: primary,
+      primary_barcode: primary,
+      barcodes,
     };
   });
   const cust =
@@ -887,10 +904,27 @@ export function getReturnableIntakeItems(intakeId: number): {
         )
         .get(intakeId, it["product_id"], it["product_id"]) as { q: number }
     ).q;
+    const barcodes =
+      it["product_id"] != null
+        ? (
+            db
+              .prepare(
+                `SELECT barcode FROM product_barcodes WHERE product_id = ? ORDER BY is_primary DESC, id`,
+              )
+              .all(it["product_id"]) as { barcode: string }[]
+          ).map((b) => b.barcode)
+        : [];
+    const primary = barcodes.length > 0 ? (barcodes[0] ?? null) : null;
     return {
       ...it,
       already_returned: Number(already),
       eligible: Number(it["quantity_received"]) - Number(already),
+      product_primary_barcode: primary,
+      product_barcodes: barcodes,
+      product_barcode: primary,
+      barcode: primary,
+      primary_barcode: primary,
+      barcodes,
     };
   });
   const sup =

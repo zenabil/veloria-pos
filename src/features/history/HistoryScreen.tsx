@@ -226,7 +226,7 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
   }
 
   async function searchAndOpen(raw: string): Promise<void> {
-    const code = raw.trim();
+    const code = raw.trim().replace(/\s+/g, "").toUpperCase();
     if (code.length < 2) return;
     setQuery(code);
     setPage(1);
@@ -242,7 +242,8 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
       })) as { rows: HistoryRow[]; total: number };
       setRows(res.rows);
       setTotal(res.total);
-      const exact = res.rows.find((r) => r.ref.trim().toLowerCase() === code.toLowerCase());
+      const norm = (v: string): string => v.trim().replace(/\s+/g, "").toUpperCase();
+      const exact = res.rows.find((r) => norm(String(r.ref)) === code);
       if (exact) {
         await openDrawer(exact);
       } else if (res.rows.length === 1 && res.rows[0]) {
