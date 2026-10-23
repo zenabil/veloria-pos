@@ -19,7 +19,7 @@ import { newOperationId } from "@domain/common/ids.ts";
 import { saveAppSettings, useAppSettings } from "@shared/settings/use-app-settings.ts";
 import { confirmDeletesEnabled, setConfirmDeletesEnabled } from "@shared/ui/confirm.ts";
 import { SaveBar, Section, SwitchRow, useBusyFlag } from "./bits.tsx";
-import { PrinterCard } from "@shared/printer/PrinterCard.tsx";
+
 import { InfoRow, type Notify } from "@shared/ui/primitives.tsx";
 import { useDensity, useTheme } from "@shared/ui/theme-density.ts";
 import { frError } from "@shared/errors/fr-map.ts";
@@ -198,15 +198,6 @@ export function InvoiceSection({ notify }: { notify: Notify }): React.JSX.Elemen
       <SaveBar busy={busy} onSave={save} label="Enregistrer la facturation" />
     </Section>
   );
-}
-
-// ---------------------------------------------------------------------------
-// Impression : imprimante, silence, test.
-// ---------------------------------------------------------------------------
-
-export function PrintingSection({ notify }: { notify: Notify }): React.JSX.Element {
-  // Source unique : la carte partagée (même écriture que le Studio).
-  return <PrinterCard notify={notify} showSilent showHardwareTest showTestPage />;
 }
 
 // ---------------------------------------------------------------------------
