@@ -4,7 +4,7 @@ import { amountInWordsFr, formatMinorDa } from "./amounts";
 import { headerHtml, metricsOf, stylesOf } from "./ticket-html";
 import { ticketCodesHtml, ticketLegalHtml } from "./ticket-blocks";
 import type { PaymentTicketData } from "./payment-ticket";
-import type { ThermalWidth } from "./common";
+import type { ReceiptData, ThermalWidth } from "./common";
 import type { TicketCodes } from "./ticket-html";
 
 export function buildPaymentTicketHtml(
@@ -77,7 +77,7 @@ export function buildPaymentTicketHtml(
         watermark: d.watermark,
         headerNote: d.headerNote,
         footerNote: d.footerNote,
-      } as any,
+      } as ReceiptData,
       m,
     ) +
     title +
@@ -85,9 +85,9 @@ export function buildPaymentTicketHtml(
     (d.reference ? `<div class="t-meta2">Réf : ${escapeHtml(d.reference)}</div>` : "") +
     bottom +
     notes +
-    ticketCodesHtml({ invoice: d.reference } as any, codes, m) +
-    ticketLegalHtml({ footerNote: d.footerNote } as any) +
-    `<div class="t-thanks">${escapeHtml(d.thankYouMessage?.trim() || "Merci pour votre règlement.")}</div>` +
+    ticketCodesHtml({ invoice: d.reference } as unknown as ReceiptData, codes, m) +
+    ticketLegalHtml({ footerNote: d.footerNote } as unknown as ReceiptData) +
+    `<div class="t-thanks">${escapeHtml(d.thankYouMessage.trim() || "Merci pour votre règlement.")}</div>` +
     `<div class="t-soft">Veloria POS</div>`;
   return (
     `<!doctype html><html lang="fr"><head><meta charset="utf-8">` +

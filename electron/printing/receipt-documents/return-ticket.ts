@@ -64,8 +64,8 @@ export function buildReturnSlipTicketHtml(
     (client !== "" ? client : "") +
     items +
     bottom +
-    ticketCodesHtml(d as any, codes, m) +
-    ticketLegalHtml(d as any) +
+    ticketCodesHtml(d, codes, m) +
+    ticketLegalHtml(d) +
     `<div class="t-soft">Veloria POS</div>`;
   return (
     `<!doctype html><html lang="fr"><head><meta charset="utf-8">` +
