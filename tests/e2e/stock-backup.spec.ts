@@ -47,7 +47,7 @@ test("réception fournisseur : le stock augmente", async () => {
   await createProduct(name, "100", "10");
   expect(await stockQtyOf(name)).toMatch(/10 PIECE/);
   await page.locator('button[title="Réception fournisseur (facture + livraison)"]').click();
-  const dialog = page.getByRole("dialog", { name: "Réception fournisseur" });
+  const dialog = page.getByRole("dialog", { name: /Réception/ });
   await dialog.getByLabel("Rechercher produit ligne 1", { exact: true }).fill(name);
   await dialog
     .getByRole("button", { name: new RegExp(name) })
@@ -96,10 +96,10 @@ test("restauration : la base revient à l'état sauvegardé", async () => {
   // arrière-plan (sauvegarde auto) : le clic est rejoué jusqu'à ouverture.
   await expect(async () => {
     await page.getByRole("button", { name: "Restaurer" }).first().click({ timeout: 5_000 });
-    await page.getByRole("dialog", { name: "Confirmation" }).waitFor({ timeout: 5_000 });
+    await page.getByRole("dialog", { name: /Confirmer l'action/ }).waitFor({ timeout: 5_000 });
   }).toPass({ timeout: 30_000 });
   await page
-    .getByRole("dialog", { name: "Confirmation" })
+    .getByRole("dialog", { name: /Confirmer l'action/ })
     .getByRole("button", { name: "Confirmer" })
     .click();
   await readSuccessToast(page, /Base restaurée/);

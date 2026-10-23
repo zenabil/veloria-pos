@@ -37,6 +37,7 @@ export function DocumentPreviewModal({
           sandbox=""
           srcDoc={html}
           title={`Aperçu ${title}`}
+          aria-label={`Aperçu ticket 58/80 mm — ${title}`}
           className="h-[50vh] w-full rounded-xl border border-white/10 bg-white"
         />
       ) : (

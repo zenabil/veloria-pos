@@ -135,7 +135,6 @@ test("historique : aperçu ticket 58/80", async () => {
   await histRow.getByRole("button", { name: /Voir/ }).click();
   await page.getByRole("button", { name: /Voir le document/ }).click();
   await expect(page.getByLabel("Aperçu ticket 58/80 mm — Ticket de vente")).toBeVisible();
-  // Aperçu 100% ticket : aucun onglet A4, aucun iframe.
+  // Aperçu 100% ticket : aucun onglet A4 ; l'iframe rend le HTML 80 mm (ADR-134).
   await expect(page.getByRole("tab", { name: "Facture A4" })).toHaveCount(0);
-  await expect(page.locator("iframe")).toHaveCount(0);
 });

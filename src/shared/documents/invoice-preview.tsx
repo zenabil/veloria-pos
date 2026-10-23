@@ -138,6 +138,7 @@ export function InvoicePreviewModal({
           sandbox=""
           srcDoc={doc.html80}
           title={`Aperçu ticket ${doc.invoice}`}
+          aria-label={`Aperçu ticket ${doc.invoice}`}
           className="h-[50vh] w-full rounded-xl border border-white/10 bg-white"
         />
       ) : (

@@ -58,8 +58,12 @@ test("restart : la vente reste enregistrée après redémarrage", async () => {
   await page.evaluate("window.veloria.app.restart()").catch(() => undefined);
   await page.waitForEvent("close", { timeout: 30_000 }).catch(() => undefined);
   await waitForProcessExit(child, 30_000);
-  // Une relance automatique a pu garder le verrou : on nettoie les instances
-  // de test orphelines avant de relancer proprement sur les mêmes dossiers.
+  // Une relance automatique a pu garder le verrou : on laisse le temps au
+  // processus `app.relaunch()` d'apparaître, puis on nettoie DEUX fois les
+  // instances de test orphelines avant de relancer sur les mêmes dossiers.
+  await new Promise((r) => setTimeout(r, 2_000));
+  await killStaleTestInstances();
+  await new Promise((r) => setTimeout(r, 1_000));
   await killStaleTestInstances();
 
   // Relance sur les mêmes dossiers : démarrage normal + données conservées.
