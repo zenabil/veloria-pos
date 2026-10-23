@@ -16,7 +16,6 @@ const DEFAULTS: Record<string, unknown> = {
   sales: { defaultPaymentMethod: "cash", allowCreditSales: true, autoPrintInvoice: false },
   invoice: {
     showLogo: true,
-    showBalances: true,
     showCustomerBalance: true,
     showPreviousBalance: true,
     footerText: "",

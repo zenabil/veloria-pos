@@ -91,17 +91,19 @@ export function SaveBar({
   onSave,
   label,
   danger,
+  disabled = false,
 }: {
   busy: boolean;
   onSave: () => void;
   label?: string;
   danger?: boolean;
+  disabled?: boolean;
 }): React.JSX.Element {
   return (
     <div className="flex gap-2">
       <Button
         onClick={onSave}
-        disabled={busy}
+        disabled={busy || disabled}
         className={
           danger
             ? "flex-1 border-red-500/50 bg-red-500/10 font-bold text-red-200 hover:bg-red-500/20"

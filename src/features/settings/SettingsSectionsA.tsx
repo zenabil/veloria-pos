@@ -655,7 +655,7 @@ export function AnnouncementSection({ notify }: { notify: Notify }): React.JSX.E
           aria-label="Annonce magasin"
         />
       </Field>
-      <SaveBar busy={busy} onSave={save} label="Enregistrer l'annonce" />
+      <SaveBar busy={busy} onSave={save} label="Enregistrer l'annonce" disabled={loading} />
     </Section>
   );
 }

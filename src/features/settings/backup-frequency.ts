@@ -9,15 +9,15 @@ import type { BackupFrequency } from "@domain/backup/backup-rules.ts";
 export type { BackupFrequency };
 export { backupFrequencyMinutes } from "@domain/backup/backup-rules.ts";
 
-export const BACKUP_FREQUENCIES: { value: BackupFrequency; label: string; minutes: number }[] = [
-  { value: "10min", label: "Toutes les 10 minutes", minutes: 10 },
-  { value: "30min", label: "Toutes les 30 minutes", minutes: 30 },
-  { value: "1h", label: "Toutes les heures (1 heure)", minutes: 60 },
-  { value: "6h", label: "Toutes les 6 heures", minutes: 360 },
-  { value: "12h", label: "Toutes les 12 heures", minutes: 720 },
-  { value: "daily", label: "Quotidien", minutes: 1440 },
-  { value: "weekly", label: "Hebdomadaire", minutes: 10080 },
-  { value: "custom", label: "Personnalisé", minutes: 0 },
+export const BACKUP_FREQUENCIES: { value: BackupFrequency; label: string }[] = [
+  { value: "10min", label: "Toutes les 10 minutes" },
+  { value: "30min", label: "Toutes les 30 minutes" },
+  { value: "1h", label: "Toutes les heures (1 heure)" },
+  { value: "6h", label: "Toutes les 6 heures" },
+  { value: "12h", label: "Toutes les 12 heures" },
+  { value: "daily", label: "Quotidien" },
+  { value: "weekly", label: "Hebdomadaire" },
+  { value: "custom", label: "Personnalisé" },
 ];
 
 /** Repli legacy : `auto` ne portait que `intervalDays` (jours). */

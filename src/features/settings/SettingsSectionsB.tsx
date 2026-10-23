@@ -836,6 +836,10 @@ export function DatabaseSection({ notify }: { notify: Notify }): React.JSX.Eleme
       .then((h) => {
         const v = (h as { sqliteVersion?: unknown }).sqliteVersion;
         if (typeof v === "string") setSqliteVersion(v);
+        const fk = (h as { foreignKeyViolations?: unknown }).foreignKeyViolations;
+        if (Array.isArray(fk)) {
+          setHealth((prev) => (prev ? { ...prev, foreignKeyViolations: fk } : prev));
+        }
       })
       .catch(() => undefined);
   }
@@ -923,8 +927,14 @@ export function DatabaseSection({ notify }: { notify: Notify }): React.JSX.Eleme
         <InfoRow label="Moteur" value={sqliteVersion ? `SQLite ${sqliteVersion} · WAL` : "—"} />
         <InfoRow label="Schéma" value={health ? `v${health.schemaVersion}` : "—"} />
         <InfoRow
-          label="Santé"
-          value={health ? (health.integrity === "ok" ? "Saine" : health.integrity) : "—"}
+          label="Clés étrangères"
+          value={
+            health
+              ? health.foreignKeyViolations.length === 0
+                ? "Aucune violation"
+                : `${health.foreignKeyViolations.length} violation(s)`
+              : "—"
+          }
         />
       </dl>
       <div className="grid grid-cols-2 gap-2">
