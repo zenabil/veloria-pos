@@ -1783,3 +1783,14 @@ complÃ¨te **151 fichiers / 1 052 tests** **0** Â· `typecheck` /
    trompeuse.
 5. Rejouer l'E2E `csv-import-export` et refaire le packaging complet.
 \
+
+## Session 32 — Audit page Paramètres (nettoyage mineur)
+
+- ackup-frequency.ts : champ minutes inutilisé retiré de BACKUP_FREQUENCIES (code mort/redondant).
+- its.tsx : SaveBar accepte disabled (actions conditionnelles).
+- SettingsSectionsA.tsx : AnnouncementSection désactive SaveBar pendant le chargement initial.
+- SettingsSectionsB.tsx : DatabaseSection alimente oreignKeyViolations depuis dbHealth et affiche le compteur.
+- use-app-settings.ts : clé showBalances inutilisée retirée des valeurs par défaut de invoice.
+
+Vérifications : typecheck 0 · eslint 0 · vitest settings-helpers/settings/a3 0 · verify:migrations VERIFIED · verify:fr 0 · verify:encoding 0.
+
