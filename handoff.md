@@ -1794,3 +1794,11 @@ complÃ¨te **151 fichiers / 1 052 tests** **0** Â· `typecheck` /
 
 Vérifications : typecheck 0 · eslint 0 · vitest settings-helpers/settings/a3 0 · verify:migrations VERIFIED · verify:fr 0 · verify:encoding 0.
 
+
+## Session 33 — Fusion de composants Paramètres
+
+- SecuritySection intègre désormais les préférences d'affichage (mode clair, compact) ; DisplaySection supprimé.
+- PrintingSection supprimé ; PrinterCard inliné directement dans SettingsScreen (documents).
+
+Vérifications : typecheck 0 · eslint 0 · vitest a3/settings/settings-helpers 0.
+
