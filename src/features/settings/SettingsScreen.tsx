@@ -17,12 +17,11 @@ import {
   BackupSection,
   ClientSyncSection,
   DatabaseSection,
-  DisplaySection,
   InvoiceSection,
-  PrintingSection,
   SecuritySection,
   ZakatSettingsSection,
 } from "./SettingsSectionsB.tsx";
+import { PrinterCard } from "@shared/printer/PrinterCard.tsx";
 import { UsersAdmin } from "@features/staff/UsersAdmin.tsx";
 import { ChangeCodeCard } from "@features/staff/ChangeCodeCard.tsx";
 import { useStaff } from "@features/staff/use-staff.ts";
@@ -86,7 +85,7 @@ export function SettingsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
           {section === "documents" ? (
             <>
               <InvoiceSection notify={notify} />
-              <PrintingSection notify={notify} />
+              <PrinterCard notify={notify} showSilent showHardwareTest showTestPage />
               <ZakatSettingsSection notify={notify} />
             </>
           ) : null}
@@ -109,7 +108,6 @@ export function SettingsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
           ) : null}
           {section === "system" ? (
             <>
-              <DisplaySection />
               <SecuritySection notify={notify} />
               <AboutSection notify={notify} />
             </>

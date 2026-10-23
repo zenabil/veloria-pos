@@ -1015,6 +1015,8 @@ export function DatabaseSection({ notify }: { notify: Notify }): React.JSX.Eleme
 export function SecuritySection({ notify }: { notify: Notify }): React.JSX.Element {
   const [confirm, setConfirm] = useState(confirmDeletesEnabled());
   const [integrity, setIntegrity] = useState<string | null>(null);
+  const { theme, toggleTheme } = useTheme();
+  const { density, toggleDensity } = useDensity();
 
   useEffect(() => {
     api
@@ -1033,13 +1035,30 @@ export function SecuritySection({ notify }: { notify: Notify }): React.JSX.Eleme
   }
 
   return (
-    <Section title="Sécurité" hint="Garde-fous destructifs + état réel.">
+    <Section
+      title="Sécurité et affichage"
+      hint="Garde-fous destructifs, préférences du poste et état réel."
+    >
       <SwitchRow
         label="Confirmer avant suppression"
         hint="Annulations et suppressions définitives."
         checked={confirm}
         onChange={toggle}
         ariaLabel="Confirmer avant suppression"
+      />
+      <SwitchRow
+        label="Mode clair"
+        hint="Sombre par défaut (repos visuel en caisse)."
+        checked={theme === "light"}
+        onChange={() => toggleTheme()}
+        ariaLabel="Basculer en mode clair ou sombre"
+      />
+      <SwitchRow
+        label="Affichage compact"
+        hint="Resserre les tableaux (confortable par défaut)."
+        checked={density === "compact"}
+        onChange={() => toggleDensity()}
+        ariaLabel="Basculer en affichage compact ou confortable"
       />
       <dl className="space-y-2.5">
         <InfoRow label="Intégrité base" value={integrity ?? "—"} />
@@ -1161,28 +1180,7 @@ export function ZakatSettingsSection({ notify }: { notify: Notify }): React.JSX.
 // jamais de bascule accidentelle en encaissement).
 // ---------------------------------------------------------------------------
 
-export function DisplaySection(): React.JSX.Element {
-  const { theme, toggleTheme } = useTheme();
-  const { density, toggleDensity } = useDensity();
-  return (
-    <Section title="Affichage" hint="Préférences de ce poste (enregistrées localement).">
-      <SwitchRow
-        label="Mode clair"
-        hint="Sombre par défaut (repos visuel en caisse)."
-        checked={theme === "light"}
-        onChange={() => toggleTheme()}
-        ariaLabel="Basculer en mode clair ou sombre"
-      />
-      <SwitchRow
-        label="Affichage compact"
-        hint="Resserre les tableaux (confortable par défaut)."
-        checked={density === "compact"}
-        onChange={() => toggleDensity()}
-        ariaLabel="Basculer en affichage compact ou confortable"
-      />
-    </Section>
-  );
-}
+// (DisplaySection fusionnée dans SecuritySection.)
 
 // ---------------------------------------------------------------------------
 // À propos : versions, développeur, dossiers.
