@@ -19,14 +19,15 @@ import {
   printCopies,
   printHtml,
   templateRenderOf,
-  thermalDocumentHtml,
 } from "./printing.templates";
 import { applyInvoiceSettings, withCompanyIdentity, withLogo, withQr } from "./printing.enrich";
 import {
   buildDeliveryText,
+  buildDeliveryTicketHtml,
   buildPurchaseOrderText,
   buildQrPayload,
   buildReturnSlipText,
+  buildReturnSlipTicketHtml,
   thermalHtml,
   toReceiptData,
 } from "./receipt-documents";
@@ -100,7 +101,10 @@ export function registerLogisticsIpc(getMainWindow: () => BrowserWindow | null):
       const { width } = templateRenderOf("bon_livraison");
       return {
         ok: true,
-        data: { text80: buildDeliveryText(d, width) },
+        data: {
+          text80: buildDeliveryText(d, width),
+          html80: buildDeliveryTicketHtml(d, width, logiCodes(d, d.invoice)),
+        },
       };
     } catch (err) {
       log("ERROR", "printing", "previewDelivery.failed", { error: String(err) });
@@ -124,13 +128,7 @@ export function registerLogisticsIpc(getMainWindow: () => BrowserWindow | null):
       const d = logisticsOf(raw, "delivery");
       const { settings, width } = templateRenderOf("bon_livraison");
       await printCopies(
-        thermalDocumentHtml({
-          settings,
-          width,
-          text: buildDeliveryText(d, width),
-          codes: logiCodes(d, d.invoice),
-          logo: d.companyLogo,
-        }),
+        buildDeliveryTicketHtml(d, width, logiCodes(d, d.invoice), settings.thermalFontPx),
         settings.copies,
         300,
         { thermalWidth: width },
@@ -153,7 +151,10 @@ export function registerLogisticsIpc(getMainWindow: () => BrowserWindow | null):
       const { width } = templateRenderOf("avoir");
       return {
         ok: true,
-        data: { text80: buildReturnSlipText(d, width) },
+        data: {
+          text80: buildReturnSlipText(d, width),
+          html80: buildReturnSlipTicketHtml(d, width, logiCodes(d, d.returnNumber || d.invoice)),
+        },
       };
     } catch (err) {
       log("ERROR", "printing", "previewReturn.failed", { error: String(err) });
@@ -173,13 +174,12 @@ export function registerLogisticsIpc(getMainWindow: () => BrowserWindow | null):
       const d = logisticsOf(raw, "return");
       const { settings, width } = templateRenderOf("avoir");
       await printCopies(
-        thermalDocumentHtml({
-          settings,
+        buildReturnSlipTicketHtml(
+          d,
           width,
-          text: buildReturnSlipText(d, width),
-          codes: logiCodes(d, d.returnNumber || d.invoice),
-          logo: d.companyLogo,
-        }),
+          logiCodes(d, d.returnNumber || d.invoice),
+          settings.thermalFontPx,
+        ),
         settings.copies,
         300,
         { thermalWidth: width },

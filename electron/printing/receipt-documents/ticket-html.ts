@@ -236,3 +236,5 @@ export function buildReceiptTicketHtml(
     `<body><div id="veloria-ticket" class="${narrow ? "t-58" : "t-80"}">${body}</div></body></html>`
   );
 }
+
+export { metricsOf, stylesOf, headerHtml, clientHtml, itemsHtml };

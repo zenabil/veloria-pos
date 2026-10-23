@@ -44,6 +44,9 @@ export {
 } from "./receipt-documents/chrome";
 export { buildReceiptText, toReceiptData } from "./receipt-documents/receipt-text";
 export { buildReceiptTicketHtml } from "./receipt-documents/ticket-html";
+export { buildDeliveryTicketHtml } from "./receipt-documents/delivery-ticket";
+export { buildReturnSlipTicketHtml } from "./receipt-documents/return-ticket";
+export { buildPaymentTicketHtml } from "./receipt-documents/payment-ticket-html";
 export type { TicketCodes } from "./receipt-documents/ticket-html";
 export { buildProformaA4Html, proformaFromReceipt } from "./receipt-documents/proforma";
 export type { ProformaData } from "./receipt-documents/proforma";

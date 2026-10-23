@@ -8,19 +8,13 @@ import { paymentTicketSchema } from "../ipc/validators";
 import { guardPrint, isValidationError, unavailable, validationError } from "./printing.guards";
 import { enforceRawChannelGates } from "../ipc/raw-guards";
 import { assertConfiguredPrinterAvailable } from "./printing.printer-settings";
-import {
-  applyTemplateToPayment,
-  printCopies,
-  templateRenderOf,
-  thermalDocumentHtml,
-} from "./printing.templates";
+import { applyTemplateToPayment, printCopies, templateRenderOf } from "./printing.templates";
 import {
   applyPaymentSettings,
-  companyLogoDataUrl,
   withCompanyIdentityPayment,
   withLogoPayment,
 } from "./printing.enrich";
-import { buildPaymentText, toPaymentTicketData } from "./receipt-documents";
+import { buildPaymentText, buildPaymentTicketHtml, toPaymentTicketData } from "./receipt-documents";
 
 // Reçu de règlement de dette (ticket de règlement) : aperçu + impression
 // ticket 58/80mm uniquement (jamais A4) après encaissement client /
@@ -29,6 +23,7 @@ import { buildPaymentText, toPaymentTicketData } from "./receipt-documents";
 // règlement d'un module non licencié.
 export function paymentOf(raw: unknown): {
   text80: string;
+  html80: string;
   codes: { barcode: string; qrSvg: string; qrPayload: string };
 } {
   // Validation Zod d'abord (montants/soldes), normalisation ensuite
@@ -74,8 +69,10 @@ export function paymentOf(raw: unknown): {
   const d = { ...base, qrPayload, qrSvg };
   const codes = { barcode: base.reference || "PAY", qrSvg, qrPayload };
   const { width } = templateRenderOf("recu");
+  const { settings } = templateRenderOf("recu");
   return {
     text80: buildPaymentText(d, width),
+    html80: buildPaymentTicketHtml(d, width, codes, settings.thermalFontPx),
     codes,
   };
 }
@@ -103,23 +100,9 @@ export function registerPaymentIpc(getMainWindow: () => BrowserWindow | null): v
     if (!getMainWindow()) return unavailable("Fenêtre d'impression indisponible.");
     try {
       await assertConfiguredPrinterAvailable(getMainWindow);
-      const { text80, codes } = paymentOf(raw);
+      const { html80 } = paymentOf(raw);
       const { settings, width } = templateRenderOf("recu");
-      const visible = settings.showCodes
-        ? codes
-        : { barcode: "", qrSvg: codes.qrSvg, qrPayload: codes.qrPayload };
-      await printCopies(
-        thermalDocumentHtml({
-          settings,
-          width,
-          text: text80,
-          codes: visible,
-          logo: companyLogoDataUrl(),
-        }),
-        settings.copies,
-        300,
-        { thermalWidth: width },
-      );
+      await printCopies(html80, settings.copies, 300, { thermalWidth: width });
       return { ok: true, data: { printed: true } };
     } catch (err) {
       log("ERROR", "printing", "printPayment.failed", { error: String(err) });

@@ -1802,3 +1802,12 @@ Vérifications : typecheck 0 · eslint 0 · vitest settings-helpers/settings/a3 0 ·
 
 Vérifications : typecheck 0 · eslint 0 · vitest a3/settings/settings-helpers 0.
 
+
+## Session 34 — Tickets HTML (livraison, retour, règlement) au design ticket de vente
+
+- Nouveaux builders HTML : uildDeliveryTicketHtml, uildReturnSlipTicketHtml, uildPaymentTicketHtml (design ADR-134).
+- IPC livraison/retour/règlement renvoient html80 et impriment en HTML (plus de texte monospace).
+- Exportés via barrel eceipt-documents.ts.
+
+Vérifications : typecheck 0 · vitest printing 41/41.
+
