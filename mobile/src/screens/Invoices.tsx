@@ -182,8 +182,8 @@ export function InvoicesScreen(props: {
       </ScrollView>
 
       {rows.length === 0 ? (
-        <View style={{ flex: 1, justifyContent: "center" }}>
-          <EmptyState icon="search-outline" title={t(l, "noInvoices")} hint={t(l, "emptyHint")} />
+        <View style={{ flex: 1, justifyContent: "center", paddingVertical: SPACE.xxl }}>
+          <EmptyState icon="receipt-outline" title={t(l, "noInvoices")} hint={t(l, "emptyHint")} />
         </View>
       ) : (
         <FlatList
