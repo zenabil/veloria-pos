@@ -72,6 +72,7 @@ export function HomeScreen(props: {
   const h = toHome(props.snapshot);
   const [spinning, setSpinning] = useState(false);
   const tone = debtColor(h.debtStatus, h.overLimit);
+  // accent secondaire pour les cartes KPI (cohérence Fintech clean).
   // D12 : salut selon l'heure (soir après 18h) + ligne dynamique — une seule
   // phrase utile sous le nom : les impayés s'ils existent, sinon rien (propre).
   const hour = new Date().getHours();
