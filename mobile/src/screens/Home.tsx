@@ -354,6 +354,8 @@ export function HomeScreen(props: {
               padding: SPACE.md,
               marginTop: SPACE.md,
               alignItems: "flex-start",
+              borderLeftWidth: 3,
+              borderLeftColor: COLORS.debtOk,
             }}
           >
             <IconBubble icon="megaphone" color={COLORS.debtOk} size={32} />
