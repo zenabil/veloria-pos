@@ -125,8 +125,8 @@ export function QrScannerScreen(props: {
                 key={i}
                 style={{
                   position: "absolute",
-                  width: 38,
-                  height: 38,
+                  width: 42,
+                  height: 42,
                   borderColor: COLORS.primary,
                   ...corner,
                 }}
