@@ -186,9 +186,9 @@ export function Ticket(props: {
           style={{
             color: COLORS.cardText,
             fontWeight: "900",
-            fontSize: 18,
-            marginTop: 8,
-            letterSpacing: 0.3,
+            fontSize: 20,
+            marginTop: 10,
+            letterSpacing: 0.4,
           }}
         >
           {props.shopName}
