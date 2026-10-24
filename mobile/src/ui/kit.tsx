@@ -278,6 +278,7 @@ export function IconBubble(props: {
           backgroundColor: bg,
           alignItems: "center",
           justifyContent: "center",
+          ...SHADOW.card,
         },
         props.style,
       ]}
