@@ -307,7 +307,9 @@ export function SectionHead(props: {
       }}
     >
       <View style={{ flex: 1 }}>
-        <Text style={{ ...TYPE.headline, color: COLORS.cardText }}>{props.title}</Text>
+        <Text style={{ ...TYPE.headline, color: COLORS.cardText, letterSpacing: 0.2 }}>
+          {props.title}
+        </Text>
         {props.caption ? (
           <Text style={{ ...TYPE.caption, color: COLORS.cardMuted, marginTop: 2 }}>
             {props.caption}
