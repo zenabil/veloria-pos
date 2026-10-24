@@ -147,7 +147,7 @@ export function PaymentsScreen(props: {
             <Amount
               text={amount(total)}
               tone={COLORS.debtOk}
-              size={SIZES.heroAmount}
+              size={SIZES.heroAmount + 2}
               style={{ marginTop: 4 }}
             />
             <View style={{ flexDirection: flow(dir), marginTop: SPACE.sm }}>
