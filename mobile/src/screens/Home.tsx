@@ -217,7 +217,7 @@ export function HomeScreen(props: {
               gap: SPACE.sm,
             }}
           >
-            <Ionicons name="cloud-offline-outline" size={16} color={COLORS.primary} />
+            <Ionicons name="cloud-offline-outline" size={18} color={COLORS.primary} />
             <Text style={{ color: COLORS.primary, fontWeight: "700", fontSize: 12, flex: 1 }}>
               {t(l, "staleDataOn")} {props.syncedAt ? formatDateFr(props.syncedAt) : "—"} ·{" "}
               {t(l, "retry")}
