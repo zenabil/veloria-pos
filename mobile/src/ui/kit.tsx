@@ -405,6 +405,7 @@ export function Field(props: {
         borderColor: focused ? COLORS.primary : COLORS.border,
         paddingHorizontal: SPACE.md,
         minHeight: 52,
+        ...(focused ? SHADOW.gold : null),
         gap: SPACE.sm,
       }}
     >
