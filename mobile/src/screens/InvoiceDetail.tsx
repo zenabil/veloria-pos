@@ -232,7 +232,7 @@ export function InvoiceDetailScreen(props: {
             }}
           >
             {[
-              { k: t(l, "total"), v: amount(s.total_minor), c: COLORS.white, size: 16 },
+              { k: t(l, "total"), v: amount(s.total_minor), c: COLORS.white, size: 18 },
               {
                 k: t(l, "paidAmount"),
                 v: paid != null ? amount(paid) : "—",
