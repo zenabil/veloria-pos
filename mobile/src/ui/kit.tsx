@@ -252,7 +252,9 @@ export function Badge(props: {
       ]}
     >
       {props.icon ? <Ionicons name={props.icon} size={12} color={props.color} /> : null}
-      <Text style={{ color: props.color, fontWeight: "800", fontSize: 11 }}>{props.label}</Text>
+      <Text style={{ color: props.color, fontWeight: "800", fontSize: 11, letterSpacing: 0.3 }}>
+        {props.label}
+      </Text>
     </View>
   );
 }
