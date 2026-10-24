@@ -331,9 +331,14 @@ export function HomeScreen(props: {
                 SHADOW.card,
               ]}
             >
-              <IconBubble icon={a.icon} color={a.color} size={38} />
+              <IconBubble icon={a.icon} color={a.color} size={42} />
               <Text
-                style={{ fontSize: 11, fontWeight: "800", color: COLORS.cardText }}
+                style={{
+                  fontSize: 12,
+                  fontWeight: "800",
+                  color: COLORS.cardText,
+                  letterSpacing: 0.2,
+                }}
                 numberOfLines={1}
               >
                 {a.label}
