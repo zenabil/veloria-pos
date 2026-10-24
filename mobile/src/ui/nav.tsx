@@ -111,6 +111,8 @@ export function PageBar(props: {
         gap: SPACE.sm,
         paddingHorizontal: SPACE.md,
         paddingVertical: SPACE.sm,
+        borderBottomWidth: 1,
+        borderBottomColor: tint(COLORS.white, "14"),
       }}
     >
       {props.onBack ? (
