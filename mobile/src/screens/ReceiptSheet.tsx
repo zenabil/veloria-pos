@@ -182,7 +182,15 @@ export function Ticket(props: {
         >
           <Text style={{ color: COLORS.headerBg, fontWeight: "900", fontSize: 24 }}>V</Text>
         </LinearGradient>
-        <Text style={{ color: COLORS.cardText, fontWeight: "900", fontSize: 16, marginTop: 6 }}>
+        <Text
+          style={{
+            color: COLORS.cardText,
+            fontWeight: "900",
+            fontSize: 18,
+            marginTop: 8,
+            letterSpacing: 0.3,
+          }}
+        >
           {props.shopName}
         </Text>
       </View>
