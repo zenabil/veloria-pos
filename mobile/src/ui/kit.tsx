@@ -359,7 +359,7 @@ export function Amount(props: {
           fontSize: props.size ?? AMOUNT_MD,
           color: props.tone ?? COLORS.cardText,
           textAlign: props.align,
-          letterSpacing: 0.2,
+          letterSpacing: 0.3,
         },
         props.style,
       ]}
