@@ -385,9 +385,9 @@ export function HomeScreen(props: {
               <Text style={{ color: COLORS.cardMuted, fontSize: 12 }} numberOfLines={1}>
                 {t(l, "totalPurchases")}
               </Text>
-              <IconBubble icon="trending-up" color={COLORS.headerBg} size={28} />
+              <IconBubble icon="trending-up" color={COLORS.headerBg} size={30} />
             </View>
-            <Amount text={amount(h.monthPurchasesMinor)} size={SIZES.amountMd} />
+            <Amount text={amount(h.monthPurchasesMinor)} size={SIZES.amountMd + 2} />
             <Text style={{ color: COLORS.cardMuted, fontSize: 11, marginTop: 2 }}>
               {h.lastSales.length} {t(l, "invoices")}
             </Text>
