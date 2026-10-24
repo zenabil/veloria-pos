@@ -41,6 +41,8 @@ export function TabBar(props: {
           paddingVertical: SPACE.xs,
           flexDirection: flow(dir),
           ...SHADOW.nav,
+          borderWidth: 1,
+          borderColor: tint(COLORS.white, "1A"),
         }}
       >
         {props.tabs.map((x) => {
