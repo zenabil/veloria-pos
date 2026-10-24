@@ -90,6 +90,7 @@ export function Card(props: {
           padding: SPACE.lg,
           borderWidth: 1,
           borderColor: tint(COLORS.headerBg, "0D"),
+          ...SHADOW.card,
         },
         props.raised ? SHADOW.raised : SHADOW.card,
         props.tone ? { backgroundColor: props.tone } : null,
