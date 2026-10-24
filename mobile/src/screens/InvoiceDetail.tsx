@@ -108,8 +108,8 @@ export function InvoiceDetailScreen(props: {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={{
-                width: 52,
-                height: 52,
+                width: 56,
+                height: 56,
                 borderRadius: 18,
                 alignItems: "center",
                 justifyContent: "center",
