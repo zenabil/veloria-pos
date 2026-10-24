@@ -250,7 +250,7 @@ export function LoginScreen(props: {
             <Image
               // eslint-disable-next-line @typescript-eslint/no-require-imports
               source={require("../../assets/brand/veloria-customer.png")}
-              style={{ width: 96, height: 96, borderRadius: 26 }}
+              style={{ width: 104, height: 104, borderRadius: 28 }}
               accessibilityLabel="Veloria"
             />
             <Text
