@@ -30,7 +30,7 @@ export class RootErrorBoundary extends Component<{ children: ReactNode }, State>
         <Image
           // eslint-disable-next-line @typescript-eslint/no-require-imports
           source={require("../../assets/brand/veloria-customer.png")}
-          style={{ width: 88, height: 88, borderRadius: 26 }}
+          style={{ width: 96, height: 96, borderRadius: 28 }}
           accessibilityLabel="Veloria"
         />
         <Text style={{ color: COLORS.white, fontWeight: "900", fontSize: 18, marginTop: 8 }}>
