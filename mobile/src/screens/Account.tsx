@@ -180,7 +180,7 @@ export function AccountScreen(props: {
           <Amount
             text={props.hidden ? "•••" : formatMinor(props.debtMinor, l)}
             tone={COLORS.white}
-            size={SIZES.amountMd}
+            size={SIZES.amountMd + 2}
           />
         </View>
 
