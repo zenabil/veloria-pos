@@ -160,7 +160,9 @@ export function PaymentsScreen(props: {
           </Card>
         }
         ListEmptyComponent={
-          <EmptyState icon="wallet-outline" title={t(l, "noPayments")} hint={t(l, "emptyHint")} />
+          <View style={{ paddingVertical: SPACE.xxl }}>
+            <EmptyState icon="wallet-outline" title={t(l, "noPayments")} hint={t(l, "emptyHint")} />
+          </View>
         }
         renderItem={({ item: p }) => (
           <View style={{ flexDirection: flow(dir), marginBottom: SPACE.sm }}>
