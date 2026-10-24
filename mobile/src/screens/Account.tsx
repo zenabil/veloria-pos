@@ -145,7 +145,7 @@ export function AccountScreen(props: {
           </View>
           <View style={{ flex: 1 }}>
             <Text
-              style={{ fontSize: 19, fontWeight: "900", color: COLORS.white }}
+              style={{ fontSize: 20, fontWeight: "900", color: COLORS.white, letterSpacing: 0.3 }}
               numberOfLines={1}
             >
               {props.customerName}
