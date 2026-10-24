@@ -122,9 +122,9 @@ export function HomeScreen(props: {
         end={{ x: 1, y: 1 }}
         style={{
           padding: SPACE.lg,
-          paddingBottom: 56,
-          borderBottomLeftRadius: RADIUS.heroBottom,
-          borderBottomRightRadius: RADIUS.heroBottom,
+          paddingBottom: 64,
+          borderBottomLeftRadius: RADIUS.heroBottom + 4,
+          borderBottomRightRadius: RADIUS.heroBottom + 4,
         }}
       >
         <View
@@ -229,7 +229,7 @@ export function HomeScreen(props: {
 
       <View style={{ padding: SPACE.lg, paddingTop: 0 }}>
         {/* Carte solde — déborde sur le héros */}
-        <Card raised style={{ marginTop: -40 }}>
+        <Card raised style={{ marginTop: -48, borderLeftWidth: 4, borderLeftColor: tone }}>
           <View
             style={{
               flexDirection: flow(dir),

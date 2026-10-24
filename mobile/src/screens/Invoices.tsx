@@ -211,6 +211,8 @@ export function InvoicesScreen(props: {
                   marginBottom: SPACE.sm,
                   padding: SPACE.md,
                   opacity: s.is_cancelled === 1 ? 0.78 : 1,
+                  borderLeftWidth: 3,
+                  borderLeftColor: tone,
                 }}
                 raised={open}
               >
