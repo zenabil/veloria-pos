@@ -51,7 +51,7 @@ export function Tap(props: {
   testID?: string;
 }): React.JSX.Element {
   const [pressed, setPressed] = useState(false);
-  const to = props.scaleTo ?? 0.97;
+  const to = props.scaleTo ?? 0.96;
   return (
     <Pressable
       accessibilityRole="button"
