@@ -196,6 +196,7 @@ export function Chip(props: {
         justifyContent: "center",
         flexDirection: "row",
         gap: 6,
+        ...(active ? SHADOW.card : null),
       }}
     >
       {props.icon && active ? (
