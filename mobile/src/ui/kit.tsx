@@ -148,7 +148,7 @@ export function Button(props: {
           gap: SPACE.sm,
           opacity: off ? 0.55 : 1,
         },
-        variant === "gold" ? SHADOW.gold : variant === "navy" ? SHADOW.card : null,
+        variant === "gold" ? SHADOW.gold : variant === "navy" ? SHADOW.raised : null,
         props.style,
       ]}
     >
