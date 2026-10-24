@@ -173,9 +173,9 @@ export function Ticket(props: {
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={{
-            width: 50,
-            height: 50,
-            borderRadius: 17,
+            width: 56,
+            height: 56,
+            borderRadius: 18,
             alignItems: "center",
             justifyContent: "center",
           }}
