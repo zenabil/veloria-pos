@@ -473,7 +473,13 @@ export function Dashed(props: { style?: StyleProp<ViewStyle> }): React.JSX.Eleme
   return (
     <View
       style={[
-        { borderTopWidth: 1, borderTopColor: COLORS.border, borderStyle: "dashed", height: 1 },
+        {
+          borderTopWidth: 1,
+          borderTopColor: COLORS.border,
+          borderStyle: "dashed",
+          height: 1,
+          opacity: 0.6,
+        },
         props.style,
       ]}
     />
