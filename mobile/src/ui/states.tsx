@@ -92,6 +92,7 @@ export function EmptyState(props: {
           color: COLORS.cardText,
           marginTop: SPACE.lg,
           textAlign: "center",
+          letterSpacing: 0.2,
         }}
       >
         {props.title}
