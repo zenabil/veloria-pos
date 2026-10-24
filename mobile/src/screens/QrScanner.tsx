@@ -148,7 +148,9 @@ export function QrScannerScreen(props: {
               backgroundColor: COLORS.overlay,
             }}
           >
-            <Text style={{ color: COLORS.white, fontWeight: "800", fontSize: 15 }}>
+            <Text
+              style={{ color: COLORS.white, fontWeight: "900", fontSize: 17, letterSpacing: 0.3 }}
+            >
               {t(l, "scanQr")}
             </Text>
           </View>
