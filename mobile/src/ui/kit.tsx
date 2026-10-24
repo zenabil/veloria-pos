@@ -386,6 +386,7 @@ export function Field(props: {
   trailing?: React.ReactNode;
 }): React.JSX.Element {
   const rtl = props.lang === "ar";
+  const [focused, setFocused] = useState(false);
   const inner = (
     <View
       style={{
@@ -394,7 +395,7 @@ export function Field(props: {
         backgroundColor: COLORS.cardBg,
         borderRadius: RADIUS.pill,
         borderWidth: 1.5,
-        borderColor: COLORS.border,
+        borderColor: focused ? COLORS.primary : COLORS.border,
         paddingHorizontal: SPACE.md,
         minHeight: 52,
         gap: SPACE.sm,
@@ -427,6 +428,8 @@ export function Field(props: {
         aria-label={props.ariaLabel}
         autoCapitalize="none"
         returnKeyType={props.returnKeyType ?? "done"}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         onSubmitEditing={props.onSubmitEditing}
         style={{
           flex: 1,

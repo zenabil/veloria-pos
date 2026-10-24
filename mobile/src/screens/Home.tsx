@@ -140,7 +140,13 @@ export function HomeScreen(props: {
               {t(l, greetKey)}
             </Text>
             <Text
-              style={{ color: COLORS.white, fontSize: 22, fontWeight: "900", marginTop: 2 }}
+              style={{
+                color: COLORS.white,
+                fontSize: 24,
+                fontWeight: "900",
+                marginTop: 2,
+                letterSpacing: 0.3,
+              }}
               numberOfLines={1}
             >
               {h.shop.name}
@@ -247,7 +253,7 @@ export function HomeScreen(props: {
               }
             />
           </View>
-          <Amount text={amount(h.debtMinor)} tone={tone} size={SIZES.heroAmount} />
+          <Amount text={amount(h.debtMinor)} tone={tone} size={SIZES.heroAmount + 4} />
           {creditUsed != null ? (
             <View
               style={{

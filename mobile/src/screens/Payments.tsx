@@ -70,7 +70,7 @@ export function PaymentsScreen(props: {
         end={{ x: 1, y: 1 }}
         style={{ paddingHorizontal: SPACE.md, paddingTop: SPACE.sm, paddingBottom: SPACE.sm }}
       >
-        <Text style={{ color: COLORS.white, fontWeight: "900", fontSize: 20 }}>
+        <Text style={{ color: COLORS.white, fontWeight: "900", fontSize: 22, letterSpacing: 0.3 }}>
           {t(l, "payments")}
         </Text>
         <ScrollView

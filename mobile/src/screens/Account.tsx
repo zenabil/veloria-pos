@@ -131,9 +131,9 @@ export function AccountScreen(props: {
         <View style={{ flexDirection: flow(dir), alignItems: "center", gap: SPACE.md }}>
           <View
             style={{
-              width: 64,
-              height: 64,
-              borderRadius: 32,
+              width: 72,
+              height: 72,
+              borderRadius: 36,
               backgroundColor: tint(COLORS.white, "1A"),
               borderWidth: 2,
               borderColor: COLORS.primary,

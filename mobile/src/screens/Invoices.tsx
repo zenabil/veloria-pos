@@ -100,7 +100,9 @@ export function InvoicesScreen(props: {
             marginBottom: SPACE.sm,
           }}
         >
-          <Text style={{ color: COLORS.white, fontWeight: "900", fontSize: 20 }}>
+          <Text
+            style={{ color: COLORS.white, fontWeight: "900", fontSize: 22, letterSpacing: 0.3 }}
+          >
             {t(l, "invoices")}
           </Text>
           <View

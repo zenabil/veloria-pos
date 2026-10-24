@@ -28,6 +28,23 @@ export const COLORS = {
   dangerText: "#B42318",
   dangerLight: "#FF7A7A",
   announcementText: "#005320",
+  // V4 — échelle de gris neutre (texte secondaire, séparateurs, fonds).
+  gray50: "#F8FAFC",
+  gray100: "#F1F5F9",
+  gray200: "#E2E8F0",
+  gray300: "#CBD5E1",
+  gray400: "#94A3B8",
+  gray500: "#64748B",
+  gray600: "#475569",
+  gray700: "#334155",
+  gray800: "#1E293B",
+  gray900: "#0F172A",
+  // V4 — palette « dark mode » (préparation, non activée par défaut).
+  darkBg: "#0B1220",
+  darkCard: "#121C2E",
+  darkBorder: "#1E2A3F",
+  darkText: "#E6EDF7",
+  darkMuted: "#94A3B8",
 } as const;
 
 export const RADIUS = {
@@ -112,10 +129,10 @@ export const GRADIENTS = {
 export const SHADOW = {
   card: {
     shadowColor: COLORS.headerBg,
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 16,
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 20,
+    elevation: 3,
   },
   raised: {
     shadowColor: COLORS.headerBg,
