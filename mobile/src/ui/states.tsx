@@ -22,7 +22,7 @@ export function Skeleton(props: {
           width: props.width ?? "100%",
           borderRadius: props.radius ?? 10,
           backgroundColor: COLORS.border,
-          opacity: 0.7,
+          opacity: 0.5,
         },
         props.style,
       ]}
