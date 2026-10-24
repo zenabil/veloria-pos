@@ -117,7 +117,15 @@ export function InvoiceDetailScreen(props: {
             >
               <Text style={{ color: COLORS.headerBg, fontWeight: "900", fontSize: 24 }}>V</Text>
             </LinearGradient>
-            <Text style={{ color: COLORS.cardText, fontWeight: "900", fontSize: 17, marginTop: 8 }}>
+            <Text
+              style={{
+                color: COLORS.cardText,
+                fontWeight: "900",
+                fontSize: 20,
+                marginTop: 10,
+                letterSpacing: 0.3,
+              }}
+            >
               {props.shopName}
             </Text>
             <Text style={{ color: COLORS.cardMuted, fontSize: 12 }}>{props.customerName}</Text>
