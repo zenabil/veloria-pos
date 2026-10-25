@@ -342,6 +342,18 @@ describe("sell-search : scan douchette (régression)", () => {
     expect(addLine.mock.calls[0]?.[0]).toMatchObject({ quantity: 1 });
   });
 
+  it("runSearch rafale machine sur « 2X500G » inconnu : jamais « 2 × 500G »", async () => {
+    mockApi.productByBarcode.mockResolvedValue({ product: null });
+    mockApi.productSearch.mockResolvedValue({ rows: [] });
+    const { d, addLine, notifs } = fakeDeps();
+    d.scanBurstRef.current = true;
+    await runSearch(d, "2X500G");
+    expect(mockApi.productByBarcode).toHaveBeenCalledTimes(1);
+    expect(mockApi.productByBarcode).toHaveBeenCalledWith({ barcode: "2X500G" });
+    expect(addLine).not.toHaveBeenCalled();
+    expect(notifs).toHaveLength(1);
+  });
+
   it("runSearch préfixe quantité sur code à lettres (2*AB-12) : le code seul est cherché", async () => {
     const row: SearchRow = {
       id: 6,

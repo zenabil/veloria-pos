@@ -240,12 +240,15 @@ export function onQueryChange(d: SellSearchDeps, q: string): void {
 
 export async function runSearch(d: SellSearchDeps, trimmed: string): Promise<void> {
   const seq = (d.searchSeq.current += 1);
-  // Quantité rapide (`5*CODE`) : le préfixe ne part jamais au moteur.
-  const prefix = parseQtyPrefix(trimmed);
-  const code = prefix.code;
   // Scan machine (rafale douchette) : sert au message d'échec et au vidage
   // du champ — un code inconnu ne doit pas se concaténer au scan suivant.
   const machineScan = d.scanBurstRef.current;
+  // Quantité rapide (`5*CODE`) : saisie HUMAINE uniquement. En rafale machine,
+  // le jeton entier est un code (il peut contenir x/*) — jamais « 2 × 500G ».
+  const prefix: QtyPrefix = machineScan
+    ? { quantity: 1, code: trimmed, explicit: false }
+    : parseQtyPrefix(trimmed);
+  const code = prefix.code;
   try {
     // Code-barres exact d'abord (chemin indexé). Le jeton COMPLET gagne sur
     // l'interprétation quantité (`2X500G` peut être un vrai code-barres).
