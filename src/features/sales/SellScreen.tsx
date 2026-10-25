@@ -48,6 +48,7 @@ import { SellOverlays } from "./sell/SellOverlays.tsx";
 import { SellShortcutsHelp } from "./sell/SellShortcutsHelp.tsx";
 import { useAppSettings, type SalesSettings } from "@shared/settings/use-app-settings.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
+import { useStaff } from "@features/staff/use-staff.ts";
 import { useCompany } from "@shared/company/use-company.ts";
 import type { Notify } from "@shared/ui/primitives.tsx";
 import type { Customer } from "../customers/types.ts";
@@ -61,6 +62,10 @@ export function SellScreen({ notify }: { notify: Notify }): React.JSX.Element {
   // Confirmation non bloquante (modale applicative).
   const confirmAsync = useConfirm();
   const { value: salesSettings } = useAppSettings<SalesSettings>("sales");
+  const { hasPermission } = useStaff(notify);
+  const canDiscount = hasPermission("discount");
+  const canCancel = hasPermission("cancel");
+  const canDebts = hasPermission("debts");
   const defaultMethod = salesSettings?.defaultPaymentMethod ?? "cash";
   // Actions clavier : ref vers les dernières closures (écouteur monté une fois).
   const keyActions = useRef<SellKeyActions | null>(null);
@@ -145,7 +150,9 @@ export function SellScreen({ notify }: { notify: Notify }): React.JSX.Element {
    * Quantité tapée (`5*code`) ou unité discrète → ajout direct.
    */
   function addRow(r: SearchRow, prefix: QtyPrefix): void {
-    if (addProductOrAskQuantity(searchDeps, r, prefix) === "dialog") return;
+    const outcome = addProductOrAskQuantity(searchDeps, r, prefix);
+    if (outcome === "dialog") return;
+    if (outcome === "blocked") return;
     s.setQuery("");
     s.setResults([]);
   }
@@ -198,6 +205,7 @@ export function SellScreen({ notify }: { notify: Notify }): React.JSX.Element {
           onSelectCustomer={(c) => selectCustomer(searchDeps, c)}
           customerRef={s.customerRef}
           notify={notify}
+          canDebts={canDebts}
         />
       </div>
 
@@ -220,6 +228,7 @@ export function SellScreen({ notify }: { notify: Notify }): React.JSX.Element {
           clearActiveCart={() => clearActiveCart(flowDeps)}
           confirmAsync={confirmAsync}
           notify={notify}
+          canDiscount={canDiscount}
         />
         <SellTotalsPanel
           linesCount={cart.lines.length}
@@ -231,11 +240,14 @@ export function SellScreen({ notify }: { notify: Notify }): React.JSX.Element {
           }
           deliveryText={s.deliveryText}
           setDeliveryText={s.setDeliveryText}
+          deliveryError={s.deliveryError}
           deliveryFeeMinor={cart.deliveryFeeMinor}
           onOpenPay={() => openPay(flowDeps)}
           preview={s.preview}
           onPrint={() => void print()}
-          onCancelLastSale={s.preview?.saleId != null ? () => void cancelLastSale(flowDeps) : null}
+          onCancelLastSale={
+            canCancel && s.preview?.saleId != null ? () => void cancelLastSale(flowDeps) : null
+          }
           cancelBusy={s.cancelBusy}
         />
       </div>
@@ -246,6 +258,7 @@ export function SellScreen({ notify }: { notify: Notify }): React.JSX.Element {
         customerLabel={cart.customerLabel}
         paidText={s.paidText}
         setPaidText={s.setPaidText}
+        paidError={s.paidError}
         paymentMethod={cart.paymentMethod}
         defaultMethod={defaultMethod}
         setPaymentMethod={(m) => cart.setTotals({ paymentMethod: m })}

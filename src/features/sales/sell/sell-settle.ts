@@ -1,7 +1,7 @@
 // Veloria PoS — Vente : règlement de dette client (extrait de sell-finalize).
 // Montant strict borné par la dette, accusé validé, idempotence operationId.
 import { playSound } from "@shared/sound/sound.ts";
-import { formatDzd, minorToInput, parseDzdInputStrict } from "@domain/money/money.ts";
+import { formatDzdTotal, minorToInputTotal, parseDzdInputTotal } from "@domain/money/money.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { callChecked, paymentAckSchema } from "@shared/types/ipc-contracts.ts";
@@ -13,7 +13,7 @@ export function openSettle(d: SellFlowDeps): void {
     d.notify("Aucune dette à régler pour ce client.", "err");
     return;
   }
-  d.setSettleAmount(minorToInput(d.customerBalance));
+  d.setSettleAmount(minorToInputTotal(d.customerBalance));
   d.setSettleMethod("cash");
   d.setSettleOperationId(newOperationId());
   d.setSettleOpen(true);
@@ -24,7 +24,7 @@ export async function settleDebt(d: SellFlowDeps): Promise<void> {
   // P1-5 : strict (bornes H-1, jamais NaN) — erreur FR mappée.
   let amountMinor = 0;
   try {
-    amountMinor = parseDzdInputStrict(
+    amountMinor = parseDzdInputTotal(
       d.settleAmount.trim() === "" ? "0" : d.settleAmount,
       "Montant",
     );
@@ -55,7 +55,7 @@ export async function settleDebt(d: SellFlowDeps): Promise<void> {
         }),
       paymentAckSchema,
     );
-    d.notify(`Paiement de ${formatDzd(amountMinor)} enregistré.`, "ok");
+    d.notify(`Paiement de ${formatDzdTotal(amountMinor)} enregistré.`, "ok");
     // P5 : encaissement = caisse.
     playSound("cash");
     d.setSettleOpen(false);

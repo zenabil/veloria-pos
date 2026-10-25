@@ -1,7 +1,7 @@
 // Veloria PoS — Caisse : barre d'onglets paniers (extrait de SellScreen, JSX pur).
 // Chaque panier garde ses articles et son client. F6 = nouvel onglet, F8 = fermer l'actif.
 import { X } from "lucide-react";
-import { formatDzd } from "@domain/money/money.ts";
+import { formatDzdTotal } from "@domain/money/money.ts";
 import { Badge, Button } from "@shared/ui/primitives.tsx";
 import type { CartTab } from "../cart-store.ts";
 
@@ -60,7 +60,7 @@ export function SellTabsBar({
               <Badge tone={selected ? "amber" : "grey"}>{t.lines.length}</Badge>
               {total != null ? (
                 <span className="text-xs font-bold tabular-nums text-slate-300">
-                  {formatDzd(total)}
+                  {formatDzdTotal(total)}
                 </span>
               ) : null}
             </button>

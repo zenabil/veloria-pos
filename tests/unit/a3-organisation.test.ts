@@ -50,6 +50,9 @@ const ALLOWED: ReadonlySet<string> = new Set([
   "products>stock",
   "products>suppliers",
   "sales>customers",
+  // sales>staff : la caisse masque les actions non autorisées (remise,
+  // annulation, règlement) ; `staff` reste une feuille, aucun cycle.
+  "sales>staff",
   "settings>license",
   "settings>staff",
   // reports>staff (ADR-121) : l'écran Rapports affiche le bouton « Rouvrir la

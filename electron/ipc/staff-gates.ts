@@ -5,7 +5,7 @@
 // Lectures métier gardées (ventes, stock, dettes, dépenses, retours, clôtures,
 // paramètres) : un utilisateur ne voit que ce que sa permission autorise.
 // Restent ouverts SANS session : staff.list/login/recover (porte d'entrée),
-// carts.load (brouillons éphémères du poste), recherches catalogue et relevés
+// recherches catalogue et relevés
 // publics (customers/suppliers/paymentReceipt/statement/stats, purchase.list/
 // detail, proformas.list/detail/stats). Canaux absents = lectures ouvertes.
 // dashboard.summary / reports.summary / history.* sont ouverts mais FILTRÉS
@@ -203,6 +203,9 @@ const SESSION_REQUIRED_CHANNELS: ReadonlySet<string> = new Set([
   IPC_CHANNELS["debts.stats"],
   IPC_CHANNELS["zakat.sources"],
   IPC_CHANNELS["zakat.history"],
+  // Brouillons de caisse : jamais lisibles avant l'ouverture d'une session
+  // (ils contiennent des noms de clients et des lignes de panier).
+  IPC_CHANNELS["carts.load"],
 ]);
 
 /**

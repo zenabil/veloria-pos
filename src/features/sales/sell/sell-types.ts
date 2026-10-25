@@ -53,6 +53,8 @@ export interface LastSale {
   customerAddress: string;
   customerCode: string;
   paymentMethod: "cash" | "cheque" | "transfer" | null;
+  /** Échéance de crédit imprimée sur le ticket (null = comptant). */
+  dueDate?: string | null;
   balances?: { prev: number; current: number } | undefined;
 }
 

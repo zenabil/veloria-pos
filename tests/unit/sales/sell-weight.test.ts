@@ -267,7 +267,7 @@ describe("confirmWeightedAdd : confirmation du dialogue", () => {
     expect(dialogs).toEqual([]);
   });
   it("grande quantité décimale valide (16 384,005 kg) → acceptée (parité IPC)", () => {
-    const { d, added, dialogs } = fakeDeps(row());
+    const { d, added, dialogs } = fakeDeps(row({ quantity: 20000 }));
     expect(confirmWeightedAdd(d, 16384.005)).toBe(true);
     expect(added).toHaveLength(1);
     expect(added[0]?.quantity).toBe(16384.005);

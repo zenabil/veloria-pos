@@ -1,6 +1,6 @@
 // Veloria PoS — Caisse : totaux + dernière vente (extrait de SellScreen, JSX pur).
 import { Printer } from "lucide-react";
-import { formatDzd } from "@domain/money/money.ts";
+import { formatDzdTotal } from "@domain/money/money.ts";
 import { Button, Card, Field, SectionTitle, TextInput } from "@shared/ui/primitives.tsx";
 import type { SellTotals } from "./useSellState.ts";
 import type { LastSale } from "./sell-types.ts";
@@ -13,6 +13,7 @@ export function SellTotalsPanel({
   raisedLineCount,
   deliveryText,
   setDeliveryText,
+  deliveryError,
   deliveryFeeMinor,
   onOpenPay,
   preview,
@@ -32,6 +33,7 @@ export function SellTotalsPanel({
   raisedLineCount: number;
   deliveryText: string;
   setDeliveryText: (v: string) => void;
+  deliveryError: string;
   deliveryFeeMinor: number;
   onOpenPay: () => void;
   preview: { sale: LastSale; text80: string } | null;
@@ -58,12 +60,12 @@ export function SellTotalsPanel({
                 {linesCount} article{linesCount > 1 ? "s" : ""} ·{" "}
                 {Math.round(totalQty * 1000) / 1000} unité(s)
               </dt>
-              <dd className="tabular-nums">{formatDzd(totals?.subtotalMinor ?? 0)}</dd>
+              <dd className="tabular-nums">{formatDzdTotal(totals?.subtotalMinor ?? 0)}</dd>
             </div>
             {totals != null && totals.discountAmountMinor > 0 ? (
               <div className="flex justify-between font-semibold text-emerald-300">
                 <dt>Remise</dt>
-                <dd className="tabular-nums">−{formatDzd(totals.discountAmountMinor)}</dd>
+                <dd className="tabular-nums">−{formatDzdTotal(totals.discountAmountMinor)}</dd>
               </div>
             ) : null}
             {totals != null && totals.discountAmountMinor < 0 ? (
@@ -72,23 +74,27 @@ export function SellTotalsPanel({
                   {raisedLineCount > 0 ? "Majoration" : "Écart au prix catalogue"}
                   {raisedLineCount > 1 ? ` (${raisedLineCount} lignes)` : ""}
                 </dt>
-                <dd className="tabular-nums">+{formatDzd(-totals.discountAmountMinor)}</dd>
+                <dd className="tabular-nums">+{formatDzdTotal(-totals.discountAmountMinor)}</dd>
               </div>
             ) : null}
             {deliveryFeeMinor > 0 ? (
               <div className="flex justify-between text-slate-300">
                 <dt>Livraison</dt>
-                <dd className="tabular-nums">{formatDzd(deliveryFeeMinor)}</dd>
+                <dd className="tabular-nums">{formatDzdTotal(deliveryFeeMinor)}</dd>
               </div>
             ) : null}
             <div className="flex items-baseline justify-between border-t border-white/10 pt-2">
               <dt className="text-xl font-extrabold">Total net à payer</dt>
               <dd className="font-mono-currency-hero tabular-nums text-amber-300">
-                {formatDzd(totals?.totalMinor ?? 0)}
+                {formatDzdTotal(totals?.totalMinor ?? 0)}
               </dd>
             </div>
           </dl>
-          <Field label="Livraison (DZD)" hint="Vide = sans livraison.">
+          <Field
+            label="Livraison (DZD)"
+            hint="Vide = sans livraison."
+            {...(deliveryError !== "" ? { error: deliveryError } : {})}
+          >
             <TextInput
               value={deliveryText}
               onChange={(e) => setDeliveryText(e.target.value)}
@@ -99,7 +105,9 @@ export function SellTotalsPanel({
           </Field>
           <Button
             onClick={onOpenPay}
-            disabled={linesCount === 0 || totals == null || totalsErr !== ""}
+            disabled={
+              linesCount === 0 || totals == null || totalsErr !== "" || deliveryError !== ""
+            }
             className="w-full py-3 text-base"
             title="Ouvrir l'encaissement [F10]"
           >

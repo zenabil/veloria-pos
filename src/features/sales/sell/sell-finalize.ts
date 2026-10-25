@@ -4,7 +4,7 @@
 // sell-proforma, purs → sell-totals. Les actions prennent leurs dépendances
 // explicites (fabrique flowDepsFrom pour l'écran).
 import { playSound } from "@shared/sound/sound.ts";
-import { minorToInput } from "@domain/money/money.ts";
+import { minorToInputTotal, parseDzdInputTotal } from "@domain/money/money.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import { roundQuantity } from "@domain/common/quantity.ts";
 import { isBilledByAmount } from "@domain/sales/sale-rules.ts";
@@ -13,8 +13,9 @@ import { formatCustomerCode } from "@shared/formatters/format.ts";
 import { api } from "@shared/types/ipc-client.ts";
 import { callChecked, saleResultSchema } from "@shared/types/ipc-contracts.ts";
 import { buildSalePayload } from "@/application/sales/create-sale.ts";
+import { toCartDraftTabs } from "./cart-drafts.ts";
 import type { RefObject } from "react";
-import type { ActiveCart } from "../cart-store.ts";
+import { MAX_CART_TABS, type ActiveCart } from "../cart-store.ts";
 import type { Notify } from "@shared/ui/primitives.tsx";
 import type { EnrichedCustomer, StatementSale } from "../../customers/types.ts";
 import type { SellState, SellTotals } from "./useSellState.ts";
@@ -49,6 +50,9 @@ export interface SellFlowDeps {
   setSettleOpen: (v: boolean) => void;
   paidText: string;
   setPaidText: (v: string) => void;
+  paidError: string;
+  deliveryError: string;
+  setDeliveryText: (v: string) => void;
   dueDate: string;
   setDueDate: (v: string) => void;
   settleAmount: string;
@@ -98,9 +102,17 @@ export function openPay(d: SellFlowDeps): void {
     d.notify("Panier vide : ajoutez au moins un article.", "err");
     return;
   }
-  d.setPaidText(minorToInput(d.totals.totalMinor));
+  if (d.deliveryError !== "") {
+    d.notify(d.deliveryError, "err");
+    return;
+  }
+  d.setPaidText(minorToInputTotal(d.totals.totalMinor));
   d.setDueDate("");
-  d.setPayOperationId(newOperationId());
+  // Une seule identité d'opération par tentative de panier : un retry (même
+  // après fermeture du dialogue) rejoue la même opération, jamais une seconde.
+  const operationId = d.cart.saleOperationId ?? newOperationId();
+  if (d.cart.saleOperationId == null) d.cart.setSaleOperationId(operationId);
+  d.setPayOperationId(operationId);
   d.setLimitOverride(false);
   d.setPayOpen(true);
 }
@@ -117,13 +129,26 @@ export function bumpLastQty(cart: ActiveCart, delta: 1 | -1, notify?: Notify): v
     notify?.("Quantité verrouillée : montant saisi — retirez la ligne pour la corriger.", "err");
     return;
   }
-  cart.setQty(last.key, roundQuantity(last.quantity + delta));
+  const next = roundQuantity(last.quantity + delta);
+  if (next <= 0) {
+    notify?.("Quantité minimale atteinte : utilisez la croix pour retirer la ligne.", "err");
+    return;
+  }
+  if (delta > 0 && last.stockQty != null && next > last.stockQty) {
+    notify?.(
+      `Stock insuffisant : « ${last.productName} » — disponible ${Math.round(last.stockQty * 1000) / 1000}.`,
+      "err",
+    );
+    return;
+  }
+  cart.setQty(last.key, next);
 }
 
 export function clearSaleForm(d: SellFlowDeps): void {
   d.cart.clear();
   d.cart.setTotals({ paymentMethod: d.defaultMethod });
   d.setPaidText("");
+  d.setDeliveryText("");
   d.setDueDate("");
   d.setCustomerQuery("");
   d.setCustomerResults([]);
@@ -135,6 +160,10 @@ export function clearSaleForm(d: SellFlowDeps): void {
 }
 
 export function openNewTab(d: SellFlowDeps): void {
+  if (d.cart.tabs.length >= MAX_CART_TABS) {
+    d.notify(`Limite de ${MAX_CART_TABS} paniers atteinte : fermez un onglet.`, "err");
+    return;
+  }
   // Paniers multiples : le panier en cours est conservé, un nouvel
   // onglet vide devient l'onglet actif (moyen par défaut des réglages).
   d.cart.newTab();
@@ -188,7 +217,27 @@ export async function finalizeSale(d: SellFlowDeps): Promise<void> {
   d.setPayOpen(false);
   d.setBusy(true);
   try {
-    const snapshot = buildSaleSnapshot(d.cart, totals, d.defaultMethod);
+    // Le montant saisi est revalidé ici (source : texte, pas l'état optimiste).
+    // Un texte invalide ne doit JAMAIS devenir 0 (crédit involontaire).
+    let rawPaidMinor = 0;
+    try {
+      rawPaidMinor = d.paidText.trim() === "" ? 0 : parseDzdInputTotal(d.paidText, "Montant donné");
+    } catch (e) {
+      d.notify(frError(e, "Montant donné invalide."), "err");
+      return;
+    }
+    const appliedPaidMinor = Math.min(rawPaidMinor, totals.totalMinor);
+    const remainingMinor = totals.totalMinor - appliedPaidMinor;
+    const dueDate = remainingMinor > 0 && d.dueDate !== "" ? d.dueDate : null;
+    if (appliedPaidMinor !== d.cart.amountPaidMinor) {
+      d.cart.setTotals({ amountPaidMinor: appliedPaidMinor });
+    }
+    const snapshot = buildSaleSnapshot(
+      { ...d.cart, amountPaidMinor: appliedPaidMinor },
+      totals,
+      d.defaultMethod,
+      dueDate,
+    );
     // Solde précédent lu AVANT commit (puis courant = précédent + reste).
     // RX-01: autorisation crédit RELUE ici (pas l'état optimiste) — le main
     // retranche de toute façon (trigger 0007), mais l'UX refuse tôt en FR.
@@ -219,6 +268,19 @@ export async function finalizeSale(d: SellFlowDeps): Promise<void> {
         /* aperçu sans soldes plutôt que pas de vente */
       }
     }
+    // Persister l'identité de la tentative AVANT le commit : si l'application
+    // meurt entre le commit et le nettoyage du panier, le brouillon rejouera
+    // le même operationId et `createSaleAtomic` reconnaîtra la vente.
+    if (d.cart.saleOperationId == null) d.cart.setSaleOperationId(d.payOperationId);
+    const draftTabs = toCartDraftTabs(d.cart.tabs).map((t) =>
+      t.tabId === d.cart.activeId ? { ...t, saleOperationId: d.payOperationId } : t,
+    );
+    try {
+      await api.cartsSave({ operationId: newOperationId(), tabs: draftTabs });
+    } catch (e) {
+      d.notify(frError(e, "Sauvegarde du panier impossible : vente annulée."), "err");
+      return;
+    }
     // P2 : résultat validé (jamais de cast) — dérive main/renderer = erreur FR.
     const res = await callChecked(
       (a) =>
@@ -227,14 +289,15 @@ export async function finalizeSale(d: SellFlowDeps): Promise<void> {
             operationId: d.payOperationId,
             lines: d.cart.lines,
             deliveryFeeMinor: d.cart.deliveryFeeMinor,
-            amountPaidMinor: d.cart.amountPaidMinor,
+            amountPaidMinor: appliedPaidMinor,
             customerId: d.cart.customerId,
             customerCreditAllowed: freshCredit ?? d.customerCredit ?? false,
             customerOutstandingMinor: prevBalance ?? d.customerBalance ?? null,
             customerCreditLimitMinor: freshLimit ?? d.customerCreditLimit ?? null,
             limitOverrideApproved: d.limitOverride,
-            dueDate: totals.remainingMinor > 0 && d.dueDate !== "" ? d.dueDate : null,
-            paymentMethod: d.cart.paymentMethod ?? d.defaultMethod,
+            dueDate,
+            // Crédit sans versement : aucun moyen de paiement à imprimer.
+            paymentMethod: appliedPaidMinor > 0 ? (d.cart.paymentMethod ?? d.defaultMethod) : null,
           }),
         ),
       saleResultSchema,
@@ -249,8 +312,13 @@ export async function finalizeSale(d: SellFlowDeps): Promise<void> {
     };
     sale.balances =
       prevBalance != null
-        ? { prev: prevBalance, current: prevBalance + totals.remainingMinor }
+        ? { prev: prevBalance, current: prevBalance + remainingMinor }
         : undefined;
+    // Fermer la caisse AVANT toute impression : si l'aperçu/le pilote échoue,
+    // la vente déjà commitée ne peut pas être rejouée depuis le panier.
+    clearSaleForm(d);
+    d.setResults([]);
+    d.searchRef.current?.focus();
     try {
       const pv = (await api.printPreview(buildPrintPayload(d.company, sale, sale.balances))) as {
         text80: string;
@@ -270,10 +338,6 @@ export async function finalizeSale(d: SellFlowDeps): Promise<void> {
       console.error("[Veloria] aperçu du ticket indisponible", e);
       d.notify("Aperçu indisponible.", "err");
     }
-    clearSaleForm(d);
-    d.setResults([]);
-    // Vente chaînée : le focus revient en recherche (zéro clic entre deux ventes).
-    d.searchRef.current?.focus();
   } catch (e) {
     d.notify(frError(e, "Échec de la vente."), "err");
   } finally {

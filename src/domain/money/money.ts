@@ -127,13 +127,17 @@ export function fromDzd(major: number): number {
  * MoneyError (jamais NaN). SEUL parseur d'entrée (P1-5 : l'ancien
  * `dzdInputToMinor` NaN a été supprimé après migration des 28 appelants).
  */
-export function parseDzdInputStrict(raw: string, label = "Montant invalide"): number {
+export function parseDzdInputStrict(
+  raw: string,
+  label = "Montant invalide",
+  maxMinor = MAX_MINOR_SINGLE,
+): number {
   if (typeof raw !== "string") throw new MoneyError(`${label}.`);
   if (raw.trim().length === 0) throw new MoneyError(`${label} : saisie vide.`);
   const n = Number(raw.replace(",", ".").trim());
   if (!Number.isFinite(n)) throw new MoneyError(`${label} : saisie non numérique.`);
   if (n < 0) throw new MoneyError(`${label} : montant négatif interdit.`);
-  if (n * MINOR_PER_MAJOR > MAX_MINOR_SINGLE + 50) {
+  if (n * MINOR_PER_MAJOR > maxMinor + 50) {
     throw new MoneyError(`${label} : montant trop élevé.`);
   }
   // E-34 : arrondi AU CENTIÈME SUPÉRIEUR (half away from zero) sans passer
@@ -141,8 +145,16 @@ export function parseDzdInputStrict(raw: string, label = "Montant invalide"): nu
   // (10.005 → 1000.4999999999999 → 1000 : un centime perdu). On travaille
   // donc sur la chaîne décimale : partie entière × 100 + centimes arrondis.
   const out = decimalToMinorStrict(n);
-  assertSafeMinor(out, { label });
+  assertSafeMinor(out, { label, max: maxMinor });
   return out;
+}
+
+/**
+ * Saisie d'un TOTAL (paiement, règlement de dette) : même parseur strict,
+ * plafond `MAX_MINOR_TOTAL` au lieu du plafond d'une valeur unitaire.
+ */
+export function parseDzdInputTotal(raw: string, label = "Montant invalide"): number {
+  return parseDzdInputStrict(raw, label, MAX_MINOR_TOTAL);
 }
 
 /**
@@ -240,13 +252,18 @@ export function formatDzdStrict(minor: number): string {
  * Round-trip garanti : `parseDzdInputStrict(minorToInput(m)) === m`.
  * Réservé aux inputs — l'affichage utilise `formatDzd` (groupement + "DZD").
  */
-export function minorToInput(minor: number): string {
-  assertSafeMinor(minor);
+export function minorToInput(minor: number, maxMinor = MAX_MINOR_SINGLE): string {
+  assertSafeMinor(minor, { max: maxMinor });
   const major = Math.trunc(minor / MINOR_PER_MAJOR);
   const cents = minor % MINOR_PER_MAJOR;
   if (cents === 0) return String(major);
   if (cents % 10 === 0) return `${major},${cents / 10}`;
   return `${major},${String(cents).padStart(2, "0")}`;
+}
+
+/** Saisie d'un TOTAL (paiement) : plafond `MAX_MINOR_TOTAL`. */
+export function minorToInputTotal(minor: number): string {
+  return minorToInput(minor, MAX_MINOR_TOTAL);
 }
 
 /** Multiply minor by a quantity (quantity may be decimal, e.g. kg). Rounds to nearest minor. */

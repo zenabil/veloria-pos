@@ -126,6 +126,7 @@ function tab(over: Partial<CartDraftTab> = {}): CartDraftTab {
     amountPaidMinor: 0,
     paymentMethod: "cash",
     deliveryFeeMinor: 0,
+    saleOperationId: "11111111-1111-4111-8111-111111111111",
     ...over,
   };
 }
@@ -167,6 +168,7 @@ describe("P4-a : brouillons paniers (fonctions de production)", () => {
     expect(loaded).toHaveLength(1);
     expect(loaded[0]?.tabId).toBe(1);
     expect(loaded[0]?.lines[0]?.key).toBe("l1");
+    expect(loaded[0]?.saleOperationId).toBe("11111111-1111-4111-8111-111111111111");
 
     clearCartDraftsAtomic();
     expect((db.prepare("SELECT COUNT(*) AS n FROM cart_drafts").get() as { n: number }).n).toBe(0);

@@ -10,6 +10,7 @@ export function AmountMethodFields({
   amountAria,
   amountValue,
   onAmountChange,
+  amountError = "",
   methodValue,
   onMethodChange,
 }: {
@@ -17,12 +18,13 @@ export function AmountMethodFields({
   amountAria: string;
   amountValue: string;
   onAmountChange: (v: string) => void;
+  amountError?: string;
   methodValue: PaymentMethod;
   onMethodChange: (m: PaymentMethod) => void;
 }): React.JSX.Element {
   return (
     <div className="grid grid-cols-2 gap-3">
-      <Field label={amountLabel}>
+      <Field label={amountLabel} {...(amountError !== "" ? { error: amountError } : {})}>
         <TextInput
           value={amountValue}
           onChange={(e) => onAmountChange(e.target.value)}

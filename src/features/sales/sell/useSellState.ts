@@ -4,8 +4,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useCartsStore, type ActiveCart, type CartTab } from "../cart-store.ts";
 import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
-import { minorToInput } from "@domain/money/money.ts";
-import { strictOrNeg } from "@shared/money/parse.ts";
+import {
+  MAX_MINOR_SINGLE,
+  minorToInput,
+  minorToInputTotal,
+  parseDzdInputStrict,
+  parseDzdInputTotal,
+} from "@domain/money/money.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { api } from "@shared/types/ipc-client.ts";
@@ -33,8 +38,10 @@ export function useSellState(cart: ActiveCart) {
   const [busy, setBusy] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [paidText, setPaidText] = useState("");
+  const [paidError, setPaidError] = useState("");
   // Frais de livraison du panier actif (centimes, saisie miroir de paidText).
   const [deliveryText, setDeliveryText] = useState("");
+  const [deliveryError, setDeliveryError] = useState("");
   // Idempotence (F-01) : un UUID par dialogue d'encaissement, figé à
   // l'ouverture et rejoué en cas de retry/double-clic.
   const [payOperationId, setPayOperationId] = useState<string>(() => newOperationId());
@@ -131,9 +138,11 @@ export function useSellState(cart: ActiveCart) {
   useEffect(() => {
     const tab = cart.tabs.find((t) => t.id === activeId);
     const minor = tab?.amountPaidMinor ?? 0;
-    setPaidText(minor > 0 ? minorToInput(minor) : "");
+    setPaidText(minor > 0 ? minorToInputTotal(minor) : "");
     const fee = tab?.deliveryFeeMinor ?? 0;
     setDeliveryText(fee > 0 ? minorToInput(fee) : "");
+    setPaidError("");
+    setDeliveryError("");
     // Changer d'onglet referme aussi la recherche client (contexte différent)
     // + réinitialise l'échéance (RX-17 : pas de fuite inter-paniers).
     setCustomerQuery("");
@@ -155,7 +164,9 @@ export function useSellState(cart: ActiveCart) {
           const st = useCartsStore.getState();
           const active = st.tabs.find((t) => t.id === st.activeId);
           const minor = active?.amountPaidMinor ?? 0;
-          setPaidText(minor > 0 ? minorToInput(minor) : "");
+          setPaidText(minor > 0 ? minorToInputTotal(minor) : "");
+          const fee = active?.deliveryFeeMinor ?? 0;
+          setDeliveryText(fee > 0 ? minorToInput(fee) : "");
         }
       })
       .catch(() => undefined);
@@ -188,18 +199,40 @@ export function useSellState(cart: ActiveCart) {
   // d'onglet, le montant saisi doit être ré-appliqué au NOUVEL onglet actif
   // (sinon la saisie part sur l'onglet précédent).
   useEffect(() => {
-    // P1-5 : strict (bornes H-1, jamais NaN) ; invalide → 0 (pas de saisie).
-    const parsed = strictOrNeg(paidText.trim() === "" ? "0" : paidText, "Montant");
-    const safe = Math.min(Math.max(parsed, 0), totalMinor);
-    cart.setTotals({ amountPaidMinor: safe });
+    const raw = paidText.trim();
+    if (raw === "") {
+      setPaidError("");
+      cart.setTotals({ amountPaidMinor: 0 });
+      return;
+    }
+    try {
+      // Paiement d'un TOTAL : plafond MAX_MINOR_TOTAL, pas celui d'une valeur.
+      const parsed = parseDzdInputTotal(raw, "Montant");
+      setPaidError("");
+      cart.setTotals({ amountPaidMinor: Math.min(parsed, totalMinor) });
+    } catch (e) {
+      // Saisie invalide : NE PAS transformer en 0 (créerait un crédit
+      // involontaire). On conserve la dernière valeur valide et on bloque
+      // l'encaissement tant que l'erreur est visible.
+      setPaidError(frError(e, "Montant invalide."));
+    }
   }, [paidText, totalMinor, cart.activeId]);
 
-  // Frais de livraison saisis vers l'onglet actif, bornés à [0, 1e9] centimes
-  // (MONEY-ROOT : entier ≥ 0, invalide → 0 = pas de livraison).
+  // Frais de livraison saisis vers l'onglet actif, bornés à [0, 1e9] centimes.
   useEffect(() => {
-    const parsed = strictOrNeg(deliveryText.trim() === "" ? "0" : deliveryText, "Livraison");
-    const safe = Math.min(Math.max(parsed, 0), 1_000_000_000);
-    cart.setTotals({ deliveryFeeMinor: safe });
+    const raw = deliveryText.trim();
+    if (raw === "") {
+      setDeliveryError("");
+      cart.setTotals({ deliveryFeeMinor: 0 });
+      return;
+    }
+    try {
+      const parsed = parseDzdInputStrict(raw, "Livraison");
+      setDeliveryError("");
+      cart.setTotals({ deliveryFeeMinor: Math.min(parsed, MAX_MINOR_SINGLE) });
+    } catch (e) {
+      setDeliveryError(frError(e, "Frais de livraison invalides."));
+    }
   }, [deliveryText, cart.activeId]);
 
   const totalQty = cart.lines.reduce((a, l) => a + l.quantity, 0);
@@ -217,6 +250,8 @@ export function useSellState(cart: ActiveCart) {
     setPayOpen,
     paidText,
     setPaidText,
+    paidError,
+    deliveryError,
     payOperationId,
     setPayOperationId,
     deliveryText,

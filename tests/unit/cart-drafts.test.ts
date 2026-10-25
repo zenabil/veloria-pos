@@ -26,6 +26,7 @@ describe("toCartDraftTabs (projection carts.save)", () => {
         amountPaidMinor: 50000,
         paymentMethod: "cash",
         deliveryFeeMinor: 1500,
+        saleOperationId: "11111111-1111-4111-8111-111111111111",
       },
       {
         id: 2,
@@ -36,6 +37,7 @@ describe("toCartDraftTabs (projection carts.save)", () => {
         amountPaidMinor: 0,
         paymentMethod: null,
         deliveryFeeMinor: 0,
+        saleOperationId: null,
       },
     ];
     expect(toCartDraftTabs(tabs)).toEqual([
@@ -60,6 +62,7 @@ describe("toCartDraftTabs (projection carts.save)", () => {
         amountPaidMinor: 50000,
         paymentMethod: "cash",
         deliveryFeeMinor: 1500,
+        saleOperationId: "11111111-1111-4111-8111-111111111111",
       },
       {
         tabId: 2,
@@ -70,6 +73,7 @@ describe("toCartDraftTabs (projection carts.save)", () => {
         amountPaidMinor: 0,
         paymentMethod: null,
         deliveryFeeMinor: 0,
+        saleOperationId: null,
       },
     ]);
   });

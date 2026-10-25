@@ -44,6 +44,10 @@ export const quantity = z
 export const moneyMinor = z.number().int().min(0).max(1_000_000_000);
 // A1-P0 : montants strictement positifs bornés (paiements, remboursements).
 export const moneyMinorPositive = z.number().int().min(1).max(1_000_000_000);
+// TOTAUX : un paiement ou un règlement peut couvrir un total de vente
+// (MAX_MINOR_TOTAL = 1e11), pas seulement une valeur unitaire (1e9).
+export const moneyTotal = z.number().int().min(0).max(100_000_000_000);
+export const moneyTotalPositive = z.number().int().min(1).max(100_000_000_000);
 // ADR-131/132 : montants SIGNÉS (remise négative = majoration de prix ou
 // facture au montant saisi). Borne d'IMPRESSION volontairement plus stricte
 // que `assertSignedTotal` (domaine, ±1e11) : une remise de vente reste

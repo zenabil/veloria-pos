@@ -1,5 +1,5 @@
 // Veloria PoS — Caisse : règlement de dette standalone (P4, extrait de SellScreen).
-import { formatDzd } from "@domain/money/money.ts";
+import { formatDzdTotal } from "@domain/money/money.ts";
 import { Button, Modal } from "@shared/ui/primitives.tsx";
 import { AmountMethodFields } from "./AmountMethodFields.tsx";
 
@@ -37,7 +37,7 @@ export function SettleDialog({
           <div className="flex items-baseline justify-between">
             <dt className="font-extrabold">Dette restante</dt>
             <dd className="text-xl font-extrabold tabular-nums text-red-300">
-              {formatDzd(customerBalance)}
+              {formatDzdTotal(customerBalance)}
             </dd>
           </div>
         </dl>

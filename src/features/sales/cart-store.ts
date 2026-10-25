@@ -16,6 +16,12 @@ export interface CartTab {
   amountPaidMinor: number;
   paymentMethod: "cash" | "cheque" | "transfer" | null;
   deliveryFeeMinor: number;
+  /**
+   * Identité d'une tentative d'encaissement pour CE panier. Réutilisée tant
+   * que la vente n'a pas abouti (retry/double-clic = même opération), puis
+   * effacée avec le panier. Évite un second brouillon d'opération.
+   */
+  saleOperationId?: string | null;
 }
 
 type TotalsPatch = Partial<Pick<CartTab, "amountPaidMinor" | "paymentMethod" | "deliveryFeeMinor">>;
@@ -37,12 +43,17 @@ interface CartsStore {
   clear: () => void;
   setCustomer: (id: number | null, label: string) => void;
   setTotals: (patch: TotalsPatch) => void;
+  setSaleOperationId: (id: string | null) => void;
   /** P4 : remplace les onglets par les brouillons persistés (démarrage). */
   hydrate: (tabs: CartTab[]) => void;
 }
 
 /** Vue de l'onglet actif + gestion des onglets (ce que consomme l'écran). */
 export type ActiveCart = CartTab & CartsStore;
+
+/** Limites alignées sur le schéma IPC et le domaine (une seule règle). */
+export const MAX_CART_LINES = 500;
+export const MAX_CART_TABS = 20;
 
 let tabSeq = 0;
 let lineSeq = 0;
@@ -67,6 +78,7 @@ function makeTab(name: string): CartTab {
     amountPaidMinor: 0,
     paymentMethod: "cash",
     deliveryFeeMinor: 0,
+    saleOperationId: null,
   };
 }
 
@@ -86,6 +98,7 @@ export const useCartsStore = create<CartsStore>((set) => ({
   activeId: firstTab.id,
   newTab: () =>
     set((s) => {
+      if (s.tabs.length >= MAX_CART_TABS) return {};
       const tab = makeTab(nextTabName());
       return { tabs: [...s.tabs, tab], activeId: tab.id };
     }),
@@ -144,6 +157,7 @@ export const useCartsStore = create<CartsStore>((set) => ({
             ),
           };
         }
+        if (t.lines.length >= MAX_CART_LINES) return t;
         return { ...t, lines: [...t.lines, incoming] };
       }),
     })),
@@ -175,9 +189,13 @@ export const useCartsStore = create<CartsStore>((set) => ({
         // ADR-132 : ligne facturée au MONTANT SAISI = quantité VERROUILLÉE
         // (le poids retiré du stock est celui calculé à la saisie).
         lines: t.lines
-          .map((l) =>
-            l.key === key && !isBilledByAmount(l) ? { ...l, quantity: roundQuantity(qty) } : l,
-          )
+          .map((l) => {
+            if (l.key !== key || isBilledByAmount(l)) return l;
+            const next = roundQuantity(qty);
+            // Le stock affiché est la borne caisse ; le main reste juge final.
+            if (l.stockQty != null && next > l.stockQty) return l;
+            return { ...l, quantity: next };
+          })
           .filter((l) => l.quantity > 0),
       })),
     })),
@@ -198,6 +216,7 @@ export const useCartsStore = create<CartsStore>((set) => ({
         deliveryFeeMinor: 0,
         customerId: null,
         customerLabel: "Client de passage",
+        saleOperationId: null,
       })),
     })),
   setCustomer: (id, label) =>
@@ -212,26 +231,32 @@ export const useCartsStore = create<CartsStore>((set) => ({
     set((s) => ({
       tabs: patchActive(s.tabs, s.activeId, (t) => ({ ...t, ...patch })),
     })),
+  setSaleOperationId: (id) =>
+    set((s) => ({
+      tabs: patchActive(s.tabs, s.activeId, (t) => ({ ...t, saleOperationId: id })),
+    })),
   hydrate: (tabs) =>
     set(() => {
       // P4 : lignes validées défensivement (brouillon corrompu = ignoré) ;
       // compteurs recalés pour ne jamais recoller des clés/noms existants.
       const clean = tabs
         .filter((t) => Number.isInteger(t.id) && t.id > 0 && Array.isArray(t.lines))
-        .slice(0, 20)
+        .slice(0, MAX_CART_TABS)
         .map((t) => ({
           id: t.id,
           name:
             typeof t.name === "string" && t.name.length > 0
               ? t.name.slice(0, 40)
               : `Panier ${t.id}`,
-          lines: t.lines.filter(
-            (l) =>
-              typeof l.key === "string" &&
-              typeof l.productName === "string" &&
-              Number.isFinite(l.quantity) &&
-              l.quantity > 0,
-          ),
+          lines: t.lines
+            .filter(
+              (l) =>
+                typeof l.key === "string" &&
+                typeof l.productName === "string" &&
+                Number.isFinite(l.quantity) &&
+                l.quantity > 0,
+            )
+            .slice(0, MAX_CART_LINES),
           customerId: t.customerId ?? null,
           customerLabel: t.customerLabel || "Client de passage",
           amountPaidMinor:
@@ -241,6 +266,12 @@ export const useCartsStore = create<CartsStore>((set) => ({
             Number.isInteger(t.deliveryFeeMinor) && t.deliveryFeeMinor >= 0
               ? t.deliveryFeeMinor
               : 0,
+          // Le brouillon reprend l'identité d'encaissement éventuelle : un
+          // retry après crash rejoue la même vente au lieu d'en créer une 2e.
+          saleOperationId:
+            typeof t.saleOperationId === "string" && t.saleOperationId.length > 0
+              ? t.saleOperationId
+              : null,
         }))
         .filter((t) => t.lines.length > 0);
       if (clean.length === 0) return {};
@@ -278,5 +309,6 @@ export function useCart(): ActiveCart {
     clear: store.clear,
     setCustomer: store.setCustomer,
     setTotals: store.setTotals,
+    setSaleOperationId: store.setSaleOperationId,
   };
 }

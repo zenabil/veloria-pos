@@ -90,7 +90,7 @@ const NESTED_WITH_REASON: Record<string, string> = {
 /** G-05 : nombre d'exports GELÉ (121 schémas + 6 aides hors `*Schema`). */
 // ADR-130 (2026-10-21) : 127 → 128 (customersImportSchema).
 // ADR-132 (2026-10-22) : 128 → 129 (moneyMinorSigned — remise signée).
-const FROZEN_EXPORT_COUNT = 129;
+const FROZEN_EXPORT_COUNT = 131;
 
 describe("Preload bridge shape", () => {
   it("exposes every IPC channel", () => {

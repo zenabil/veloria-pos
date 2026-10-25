@@ -391,10 +391,12 @@ describe("sell-finalize : monnaie + crédit + échéance", () => {
     expect(creditBlockState(true, { remainingMinor: 0 }, null, null).blocked).toBe(false);
     expect(creditBlockState(false, { remainingMinor: 100 }, null, null).blocked).toBe(false);
   });
-  it("isValidDueDate : AAAA-MM-JJ strict", () => {
+  it("isValidDueDate : AAAA-MM-JJ calendaire réel", () => {
     expect(isValidDueDate("2026-10-07")).toBe(true);
     expect(isValidDueDate("07/10/2026")).toBe(false);
     expect(isValidDueDate("")).toBe(false);
+    expect(isValidDueDate("2026-02-30")).toBe(false);
+    expect(isValidDueDate("2024-02-29")).toBe(true);
   });
 });
 
@@ -441,7 +443,8 @@ describe("sell-finalize : clichés + totaux", () => {
       "cash",
     );
     expect(snapLibre.lines[0]?.ref).toBe("—");
-    expect(snapLibre.paymentMethod).toBe("cheque");
+    // Versement 0 : la vente est à crédit, aucun moyen de paiement à imprimer.
+    expect(snapLibre.paymentMethod).toBeNull();
   });
   it("buildProformaLines : même mapping que le devis d'origine", () => {
     expect(buildProformaLines(tab() as never)).toEqual([
@@ -482,6 +485,8 @@ describe("sell-finalize : clichés + totaux", () => {
     const bal = buildPrintPayload(COMPANY, base, { prev: 1000, current: 1000 });
     expect(bal["prevBalanceMinor"]).toBe(1000);
     expect(bal["currentBalanceMinor"]).toBe(1000);
+    const credit = buildPrintPayload(COMPANY, { ...base, dueDate: "2026-11-01" });
+    expect(credit["dueDate"]).toBe("2026-11-01");
   });
 });
 
@@ -540,6 +545,7 @@ describe("parité idempotence + brouillons", () => {
         amountPaidMinor: 0,
         paymentMethod: "cash",
         deliveryFeeMinor: 0,
+        saleOperationId: null,
       },
     ]);
   });

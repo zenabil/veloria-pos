@@ -2,7 +2,12 @@
 // La remise vit UNIQUEMENT dans le prix unitaire (clic sur le P.U. → PriceDialog).
 import { useEffect, useState } from "react";
 import { Minus, Plus, Trash2, X } from "lucide-react";
-import { formatDzd, minorToInput, parseDzdInputStrict } from "@domain/money/money.ts";
+import {
+  formatDzd,
+  formatDzdTotal,
+  minorToInput,
+  parseDzdInputStrict,
+} from "@domain/money/money.ts";
 import { computeBilledTotal, isBilledByAmount } from "@domain/sales/sale-rules.ts";
 import { roundQuantity } from "@domain/common/quantity.ts";
 import { frError } from "@shared/errors/fr-map.ts";
@@ -35,12 +40,14 @@ export function CartPanel({
   clearActiveCart,
   confirmAsync,
   notify,
+  canDiscount,
 }: {
   cart: ActiveCart;
   totalQty: number;
   clearActiveCart: () => void;
   confirmAsync: (message: string) => Promise<boolean>;
   notify: Notify;
+  canDiscount: boolean;
 }): React.JSX.Element {
   // P0-7 : dialogue de changement de prix (ouvert par clic sur le P.U.).
   const [priceFor, setPriceFor] = useState<PriceTarget | null>(null);
@@ -62,6 +69,10 @@ export function CartPanel({
     originalUnitPriceMinor: number;
     unitPriceMinor: number;
   }): void {
+    if (!canDiscount) {
+      notify("Modification de prix non autorisée pour cet utilisateur.", "err");
+      return;
+    }
     setPriceFor({
       key: line.key,
       name: line.productName,
@@ -234,6 +245,7 @@ export function CartPanel({
                                     `Stock insuffisant : « ${l.productName} » — disponible ${Math.round(l.stockQty * 1000) / 1000}.`,
                                     "err",
                                   );
+                                  return;
                                 }
                                 cart.setQty(l.key, v);
                               }
@@ -257,6 +269,7 @@ export function CartPanel({
                                   `Stock insuffisant : « ${l.productName} » — disponible ${Math.round(l.stockQty * 1000) / 1000}.`,
                                   "err",
                                 );
+                                return;
                               }
                               cart.setQty(l.key, next);
                             }}
@@ -272,7 +285,9 @@ export function CartPanel({
                           title={
                             locked
                               ? "Prix verrouillé : montant saisi — supprimez la ligne pour la ressaisir."
-                              : "Modifier le prix (remise)"
+                              : !canDiscount
+                                ? "Modification de prix non autorisée."
+                                : "Modifier le prix (remise)"
                           }
                           aria-label={
                             locked
@@ -280,7 +295,7 @@ export function CartPanel({
                               : `Modifier le prix de ${l.productName}`
                           }
                           aria-describedby={lockHintId}
-                          disabled={locked}
+                          disabled={locked || !canDiscount}
                           onClick={() =>
                             openPrice({
                               key: l.key,
@@ -310,15 +325,15 @@ export function CartPanel({
                             —
                           </span>
                         ) : (
-                          formatDzd(total)
+                          formatDzdTotal(total)
                         )}
                         {locked && total != null ? (
                           // La marque est SOUS le total (c'est le total qui est
                           // facturé) et rappelle le poids : 0,071 kg × 700,00 DZD
                           // ne fait pas 50,00 DZD — l'écart est visible.
                           <div
-                            title={`Montant facturé tel que saisi : ${formatDzd(total)} (poids indicatif ${Math.round(l.quantity * 1000) / 1000} ${l.unitCode.toLowerCase()})`}
-                            aria-label={`Montant facturé tel que saisi : ${formatDzd(total)}`}
+                            title={`Montant facturé tel que saisi : ${formatDzdTotal(total)} (poids indicatif ${Math.round(l.quantity * 1000) / 1000} ${l.unitCode.toLowerCase()})`}
+                            aria-label={`Montant facturé tel que saisi : ${formatDzdTotal(total)}`}
                             className="text-xs font-semibold text-amber-300/90"
                           >
                             Montant saisi

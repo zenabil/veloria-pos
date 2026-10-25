@@ -28,6 +28,8 @@ export interface CartDraftTab {
   amountPaidMinor: number;
   paymentMethod: "cash" | "cheque" | "transfer" | null;
   deliveryFeeMinor: number;
+  /** Identité de la tentative de vente (reprise idempotente après crash). */
+  saleOperationId?: string | null;
 }
 
 function cleanLine(l: CartDraftLine): CartDraftLine | null {
@@ -100,17 +102,21 @@ export function saveCartDraftsAtomic(
           ? t.customerLabel.slice(0, 100)
           : "Client de passage";
       if (keptCustomer != null) {
-        const exists = db.prepare(`SELECT id FROM customers WHERE id = ?`).get(keptCustomer) as
-          | { id: number }
-          | undefined;
+        const exists = db
+          .prepare(`SELECT id FROM customers WHERE id = ? AND deleted_at IS NULL`)
+          .get(keptCustomer) as { id: number } | undefined;
         if (!exists) {
           keptCustomer = null;
           keptLabel = "Client de passage";
         }
       }
+      const saleOperationId =
+        typeof t.saleOperationId === "string" && t.saleOperationId.length > 0
+          ? t.saleOperationId.slice(0, 64)
+          : null;
       db.prepare(
-        `INSERT INTO cart_drafts (tab_id, name, lines_json, customer_id, customer_label, amount_paid_minor, payment_method, delivery_fee_minor, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO cart_drafts (tab_id, name, lines_json, customer_id, customer_label, amount_paid_minor, payment_method, delivery_fee_minor, sale_operation_id, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         t.tabId,
         t.name.slice(0, 40),
@@ -120,6 +126,7 @@ export function saveCartDraftsAtomic(
         paid,
         method,
         deliveryFee,
+        saleOperationId,
         now,
       );
       saved += 1;
@@ -172,6 +179,10 @@ export function loadCartDrafts(): CartDraftTab[] {
     const method = typeof r["payment_method"] === "string" ? r["payment_method"] : "";
     const rawName = typeof r["name"] === "string" ? r["name"] : "";
     const rawLabel = typeof r["customer_label"] === "string" ? r["customer_label"] : "";
+    const saleOperationId =
+      typeof r["sale_operation_id"] === "string" && r["sale_operation_id"].length > 0
+        ? r["sale_operation_id"]
+        : null;
     out.push({
       tabId,
       name: (rawName || `Panier ${tabId}`).slice(0, 40),
@@ -182,6 +193,7 @@ export function loadCartDrafts(): CartDraftTab[] {
       paymentMethod:
         method === "cash" || method === "cheque" || method === "transfer" ? method : null,
       deliveryFeeMinor: Number.isInteger(fee) && fee >= 0 ? fee : 0,
+      saleOperationId,
     });
   }
   return out;

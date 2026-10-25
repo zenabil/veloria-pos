@@ -2,7 +2,7 @@
 // + création express (nom + tél) sans quitter la caisse.
 import { useState } from "react";
 import { HandCoins, Plus, User, X } from "lucide-react";
-import { formatDzd } from "@domain/money/money.ts";
+import { formatDzdTotal } from "@domain/money/money.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import { api } from "@shared/types/ipc-client.ts";
@@ -31,6 +31,7 @@ export function SellCustomerPanel({
   onSelectCustomer,
   customerRef,
   notify,
+  canDebts,
 }: {
   customerQuery: string;
   onSearchCustomers: (q: string) => void;
@@ -50,6 +51,7 @@ export function SellCustomerPanel({
   onSelectCustomer: (c: CustomerRow) => void;
   customerRef: RefObject<HTMLInputElement | null>;
   notify: Notify;
+  canDebts: boolean;
 }): React.JSX.Element {
   // Création express : prénom + nom (+ tél optionnel), comptant par défaut.
   // La fiche complète (plafond, crédit) reste dans Clients.
@@ -151,12 +153,12 @@ export function SellCustomerPanel({
         ) : null}
         {customerBalance != null ? (
           <span className="text-xs tabular-nums text-slate-400">
-            Solde : {formatDzd(customerBalance)}
+            Solde : {formatDzdTotal(customerBalance)}
           </span>
         ) : null}
         {customerCreditLimit != null && customerCreditLimit > 0 ? (
           <span className="text-xs tabular-nums text-slate-400">
-            Plafond : {formatDzd(customerCreditLimit)}
+            Plafond : {formatDzdTotal(customerCreditLimit)}
           </span>
         ) : null}
         {limitExceeded ? (
@@ -166,10 +168,10 @@ export function SellCustomerPanel({
           customerCreditLimit > 0 &&
           customerId != null ? (
           <span className="text-xs tabular-nums text-slate-500">
-            Projeté : {formatDzd(projectedMinor)}
+            Projeté : {formatDzdTotal(projectedMinor)}
           </span>
         ) : null}
-        {customerId != null && (customerBalance ?? 0) > 0 ? (
+        {canDebts && customerId != null && (customerBalance ?? 0) > 0 ? (
           <button
             type="button"
             onClick={onOpenSettle}
@@ -188,14 +190,16 @@ export function SellCustomerPanel({
             <X size={13} aria-hidden="true" /> Passage
           </button>
         ) : null}
-        <button
-          type="button"
-          onClick={() => setQuickOpen((o) => !o)}
-          title="Créer un client sans quitter la caisse"
-          className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-white"
-        >
-          <Plus size={13} aria-hidden="true" /> Nouveau
-        </button>
+        {canDebts ? (
+          <button
+            type="button"
+            onClick={() => setQuickOpen((o) => !o)}
+            title="Créer un client sans quitter la caisse"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-white"
+          >
+            <Plus size={13} aria-hidden="true" /> Nouveau
+          </button>
+        ) : null}
       </div>
       {quickOpen ? (
         <form
@@ -244,7 +248,7 @@ export function SellCustomerPanel({
                     {c.credit_allowed === 1 ? "Crédit" : "Comptant"}
                   </Badge>
                   <span className="text-xs tabular-nums text-slate-400">
-                    {formatDzd(c.outstanding_balance_minor)}
+                    {formatDzdTotal(c.outstanding_balance_minor)}
                   </span>
                 </span>
               </button>

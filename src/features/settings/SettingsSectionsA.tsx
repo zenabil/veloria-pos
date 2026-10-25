@@ -474,13 +474,11 @@ export function StockSection({ notify }: { notify: Notify }): React.JSX.Element 
   const { value } = useAppSettings<{ allowNegativeStock: boolean; defaultMinStock: number }>(
     "inventory",
   );
-  const [allowNegative, setAllowNegative] = useState(false);
   const [minStock, setMinStock] = useState("");
   const { busy, run } = useBusyFlag();
 
   useEffect(() => {
     if (value) {
-      setAllowNegative(value.allowNegativeStock);
       setMinStock(value.defaultMinStock > 0 ? String(value.defaultMinStock) : "");
     }
   }, [value]);
@@ -494,7 +492,8 @@ export function StockSection({ notify }: { notify: Notify }): React.JSX.Element 
     void run(async () => {
       try {
         await saveAppSettings("inventory", {
-          allowNegativeStock: allowNegative,
+          // Le stock négatif est refusé par le trigger 0037 : on fige false.
+          allowNegativeStock: false,
           defaultMinStock: min,
         });
         notify("Réglages stock enregistrés.", "ok");
@@ -515,13 +514,9 @@ export function StockSection({ notify }: { notify: Notify }): React.JSX.Element 
           aria-label="Seuil bas par défaut"
         />
       </Field>
-      <SwitchRow
-        label="Autoriser le stock négatif (ventes)"
-        hint="Caisse uniquement, jamais les ajustements."
-        checked={allowNegative}
-        onChange={setAllowNegative}
-        ariaLabel="Autoriser le stock négatif"
-      />
+      <p className="text-xs text-slate-500">
+        Le stock négatif est interdit par la base de données (vente refusée).
+      </p>
       <SaveBar busy={busy} onSave={save} label="Enregistrer le stock" />
     </Section>
   );

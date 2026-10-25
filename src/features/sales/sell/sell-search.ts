@@ -10,7 +10,7 @@ import { newOperationId } from "@domain/common/ids.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import { api } from "@shared/types/ipc-client.ts";
 import { needsQuantityDialog } from "./sell-weight.ts";
-import type { ActiveCart } from "../cart-store.ts";
+import { MAX_CART_LINES, type ActiveCart } from "../cart-store.ts";
 import type { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
 import type { Notify } from "@shared/ui/primitives.tsx";
 import type { CustomForm } from "./CustomItemDialog.tsx";
@@ -95,7 +95,7 @@ export function stockGuardMessage(
   productName: string,
 ): string | null {
   if (!Number.isFinite(stockQty) || stockQty <= 0) {
-    return `Rupture de stock : « ${productName} » indisponible (ajouté quand même — la vente sera refusée si la survente est interdite).`;
+    return `Rupture de stock : « ${productName} » indisponible.`;
   }
   if (desiredQty > stockQty) {
     return `Stock insuffisant : « ${productName} » — demandé ${formatQuantityFr(desiredQty)}, disponible ${formatQuantityFr(stockQty)}.`;
@@ -276,9 +276,16 @@ export function addProduct(
   p: SearchRow,
   qty = 1,
   billedTotalMinor?: number | null,
-): void {
+): boolean {
   // Clé anti-collision (scan rapide) : UUIDv7, jamais Date.now().
-  // Garde stock précoce : cumul panier + demandé vs disponible (le main retranche).
+  // Garde stock précoce : cumul panier + demandé vs disponible. Le main
+  // refuse désormais TOUJOURS le stock négatif (trigger 0037) : on ne laisse
+  // donc plus entrer une ligne qui ne pourra jamais être encaissée.
+  const lineCount = Array.isArray(d.cart.lines) ? d.cart.lines.length : 0;
+  if (lineCount >= MAX_CART_LINES) {
+    d.notify(`Panier plein (${MAX_CART_LINES} lignes maximum).`, "err");
+    return false;
+  }
   const wanted = Number.isFinite(qty) && qty > 0 ? roundQuantity(qty) : 1;
   const safeQty = wanted > 0 ? wanted : 1;
   const inCart = Array.isArray(d.cart.lines)
@@ -287,7 +294,10 @@ export function addProduct(
         .reduce((a, l) => a + l.quantity, 0)
     : 0;
   const guard = stockGuardMessage(p.quantity, roundQuantity(inCart + safeQty), p.name);
-  if (guard) d.notify(guard, "err");
+  if (guard) {
+    d.notify(guard, "err");
+    return false;
+  }
   d.cart.addLine({
     key: `l-${newOperationId()}`,
     productId: p.id,
@@ -305,6 +315,7 @@ export function addProduct(
   playSound("blip");
   // Seul l'ajout depuis la recherche refocalise le champ de recherche.
   d.searchRef.current?.focus();
+  return true;
 }
 
 /**
@@ -318,13 +329,12 @@ export function addProductOrAskQuantity(
   d: Pick<SellSearchDeps, "cart" | "notify" | "searchRef" | "setQuantityFor">,
   p: SearchRow,
   prefix: QtyPrefix,
-): "added" | "dialog" {
+): "added" | "dialog" | "blocked" {
   if (needsQuantityDialog(p.unit_code, prefix.explicit)) {
     d.setQuantityFor(p);
     return "dialog";
   }
-  addProduct(d, p, prefix.quantity);
-  return "added";
+  return addProduct(d, p, prefix.quantity) ? "added" : "blocked";
 }
 
 /**
@@ -348,7 +358,7 @@ export function confirmWeightedAdd(
   // Bornes identiques au domaine/IPC : finie, > 0, ≤ 1 000 000 (jamais de
   // « 1 par défaut » silencieux ni d'Infinity dans la ligne de panier).
   if (row == null || !Number.isFinite(qty) || qty <= 0 || qty > MAX_QUANTITY) return false;
-  addProduct(d, row, qty, billedTotalMinor);
+  if (!addProduct(d, row, qty, billedTotalMinor)) return false;
   d.setQuantityFor(null);
   d.setQuery("");
   d.setResults([]);
@@ -360,6 +370,11 @@ export function addCustomProduct(d: SellSearchDeps): void {
   if (!parsed.ok) {
     d.notify(parsed.error, "err");
     if (parsed.focusPrice) d.customPriceRef.current?.focus();
+    return;
+  }
+  const lineCount = Array.isArray(d.cart.lines) ? d.cart.lines.length : 0;
+  if (lineCount >= MAX_CART_LINES) {
+    d.notify(`Panier plein (${MAX_CART_LINES} lignes maximum).`, "err");
     return;
   }
   // Article libre hors catalogue : pas de stock décrémenté (productId null).

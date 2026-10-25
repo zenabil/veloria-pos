@@ -6,6 +6,7 @@ import {
   stockGuardMessage,
   type SellSearchDeps,
 } from "@/features/sales/sell/sell-search.ts";
+import { openPay } from "@/features/sales/sell/sell-finalize.ts";
 import type { CartLine } from "@/application/sales/create-sale.ts";
 import type { SearchRow } from "@/features/sales/sell/sell-types.ts";
 
@@ -94,6 +95,51 @@ describe("stockGuardMessage : alerte FR précoce (le main retranche)", () => {
   });
 });
 
+describe("openPay : identité d'opération stable par panier", () => {
+  it("réutilise l'operationId du panier après fermeture/réouverture", () => {
+    const cart: {
+      lines: CartLine[];
+      saleOperationId: string | null;
+      setSaleOperationId: (id: string | null) => void;
+    } = {
+      lines: [
+        {
+          key: "l1",
+          productId: 1,
+          productName: "Article",
+          unitCode: "PIECE",
+          originalUnitPriceMinor: 1000,
+          unitPriceMinor: 1000,
+          purchasePriceMinor: 500,
+          quantity: 1,
+        },
+      ],
+      saleOperationId: null,
+      setSaleOperationId: (id) => {
+        cart.saleOperationId = id;
+      },
+    };
+    const setPaidText = vi.fn();
+    const setPayOperationId = vi.fn();
+    const deps = {
+      cart,
+      totals: { totalMinor: 1000, remainingMinor: 1000 },
+      deliveryError: "",
+      setPaidText,
+      setDueDate: vi.fn(),
+      setPayOperationId,
+      setLimitOverride: vi.fn(),
+      setPayOpen: vi.fn(),
+    };
+    openPay(deps as never);
+    const first = setPayOperationId.mock.calls[0]?.[0] as string;
+    expect(first).toBeTruthy();
+    expect(cart.saleOperationId).toBe(first);
+    openPay(deps as never);
+    expect(setPayOperationId).toHaveBeenLastCalledWith(first);
+  });
+});
+
 describe("addProduct : quantité + garde + clés UUID", () => {
   it("quantité du préfixe appliquée + cliché stock", () => {
     const { d, added, notifs } = fakeAddDeps();
@@ -103,10 +149,10 @@ describe("addProduct : quantité + garde + clés UUID", () => {
     expect(added[0]?.stockQty).toBe(10);
     expect(notifs).toEqual([]);
   });
-  it("rupture : notifié mais ajouté (le main décide selon paramètres)", () => {
+  it("rupture : notifié et NON ajouté (le main refuse toujours le stock négatif)", () => {
     const { d, added, notifs } = fakeAddDeps();
-    addProduct(d, row({ quantity: 0 }));
-    expect(added).toHaveLength(1);
+    expect(addProduct(d, row({ quantity: 0 }))).toBe(false);
+    expect(added).toHaveLength(0);
     expect(notifs.map((n) => n.msg).join(" ")).toContain("Rupture de stock");
   });
   it("cumul panier pris en compte (2 en panier + 9 demandés > 10)", () => {
@@ -123,9 +169,10 @@ describe("addProduct : quantité + garde + clés UUID", () => {
         stockQty: 10,
       },
     ];
-    const { d, notifs } = fakeAddDeps(existing);
+    const { d, added, notifs } = fakeAddDeps(existing);
     addProduct(d, row(), 9);
     expect(notifs.map((n) => n.msg).join(" ")).toContain("Stock insuffisant");
+    expect(added).toHaveLength(0);
   });
   it("clés uniques même en rafale (jamais Date.now)", () => {
     const { d, added } = fakeAddDeps();

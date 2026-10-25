@@ -1,8 +1,7 @@
 // Veloria PoS — Caisse : encaissement en UNE SEULE ÉTAPE.
 // Montant + moyen + échéance (si crédit) + validation sur le même écran.
 // Le paiement reste atomique + idempotent (finalize du parent).
-import { formatDzd, minorToInput } from "@domain/money/money.ts";
-import { strictOrNeg } from "@shared/money/parse.ts";
+import { formatDzdTotal, minorToInputTotal, parseDzdInputTotal } from "@domain/money/money.ts";
 import { Button, Field, Modal, TextInput } from "@shared/ui/primitives.tsx";
 import { AmountMethodFields } from "./AmountMethodFields.tsx";
 import { isValidDueDate } from "./sell-totals.ts";
@@ -22,6 +21,7 @@ export function PayDialog({
   customerLabel,
   paidText,
   setPaidText,
+  paidError,
   paymentMethod,
   defaultMethod,
   setPaymentMethod,
@@ -45,6 +45,8 @@ export function PayDialog({
   customerLabel: string;
   paidText: string;
   setPaidText: (v: string) => void;
+  /** Erreur de saisie du montant donné (bloque la validation). */
+  paidError: string;
   paymentMethod: "cash" | "cheque" | "transfer" | null;
   defaultMethod: "cash" | "cheque" | "transfer";
   setPaymentMethod: (m: "cash" | "cheque" | "transfer") => void;
@@ -69,7 +71,7 @@ export function PayDialog({
   function addQuick(dzd: number): void {
     let base = 0;
     try {
-      const cur = strictOrNeg(paidText.trim() === "" ? "0" : paidText, "Montant");
+      const cur = paidText.trim() === "" ? 0 : parseDzdInputTotal(paidText, "Montant");
       base = Number.isFinite(cur) && cur > 0 ? cur : 0;
     } catch {
       // Saisie en cours invalide : repli bénin à 0 avant l'ajout (pas d'échec utilisateur).
@@ -80,17 +82,21 @@ export function PayDialog({
     // d'événement (l'ErrorBoundary ne voit pas les exceptions d'un
     // onClick) : message FR + saisie inchangée.
     try {
-      setPaidText(minorToInput(base + dzd * 100));
+      setPaidText(minorToInputTotal(base + dzd * 100));
     } catch {
-      notify("Montant maximal dépassé (10 000 000,00 DZD).", "err");
+      notify("Montant maximal dépassé.", "err");
     }
   }
 
   function validate(): void {
+    if (paidError !== "") {
+      notify(paidError, "err");
+      return;
+    }
     // L'échéance n'a de sens qu'en crédit : refus FR tôt au lieu d'un commit
     // voué à l'échec (le parent re-vérifie, défense en profondeur).
     if (needsCredit && dueDate !== "" && !isValidDueDate(dueDate)) {
-      notify("Échéance invalide : format AAAA-MM-JJ.", "err");
+      notify("Échéance invalide : date réelle AAAA-MM-JJ requise.", "err");
       return;
     }
     onValidate();
@@ -107,18 +113,18 @@ export function PayDialog({
           <div className="flex items-baseline justify-between border-t border-white/10 pt-2">
             <dt className="font-extrabold">Total net à payer</dt>
             <dd className="font-mono-currency-lg font-extrabold tabular-nums text-amber-300">
-              {formatDzd(totals.totalMinor)}
+              {formatDzdTotal(totals.totalMinor)}
             </dd>
           </div>
           {changeMinor > 0 ? (
             <div className="flex items-center justify-between font-bold text-emerald-300">
               <dt>Monnaie à rendre</dt>
-              <dd className="font-mono-currency-xl tabular-nums">{formatDzd(changeMinor)}</dd>
+              <dd className="font-mono-currency-xl tabular-nums">{formatDzdTotal(changeMinor)}</dd>
             </div>
           ) : totals.remainingMinor > 0 ? (
             <div className="flex justify-between font-bold text-sky-300">
               <dt>Reste (crédit client)</dt>
-              <dd className="tabular-nums">{formatDzd(totals.remainingMinor)}</dd>
+              <dd className="tabular-nums">{formatDzdTotal(totals.remainingMinor)}</dd>
             </div>
           ) : null}
         </dl>
@@ -127,6 +133,7 @@ export function PayDialog({
           amountAria="Montant donné"
           amountValue={paidText}
           onAmountChange={setPaidText}
+          amountError={paidError}
           methodValue={paymentMethod ?? defaultMethod}
           onMethodChange={setPaymentMethod}
         />
@@ -134,7 +141,7 @@ export function PayDialog({
           <Button
             type="button"
             variant="secondary"
-            onClick={() => setPaidText(minorToInput(totals.totalMinor))}
+            onClick={() => setPaidText(minorToInputTotal(totals.totalMinor))}
             title="Montant exact du total"
             className="min-h-[44px]"
           >
@@ -176,7 +183,7 @@ export function PayDialog({
           <p className="text-sm text-slate-300">
             Reste à crédit :{" "}
             <strong className="tabular-nums text-sky-300">
-              {formatDzd(totals.remainingMinor)}
+              {formatDzdTotal(totals.remainingMinor)}
             </strong>
           </p>
         ) : null}
@@ -184,18 +191,18 @@ export function PayDialog({
           <dl className="space-y-1.5 rounded-xl bg-black/25 p-4 text-sm">
             <div className="flex justify-between text-slate-300">
               <dt>Solde actuel</dt>
-              <dd className="tabular-nums font-semibold">{formatDzd(outstandingMinor)}</dd>
+              <dd className="tabular-nums font-semibold">{formatDzdTotal(outstandingMinor)}</dd>
             </div>
             {creditLimitMinor != null && creditLimitMinor > 0 ? (
               <>
                 <div className="flex justify-between text-slate-300">
                   <dt>Plafond</dt>
-                  <dd className="tabular-nums font-semibold">{formatDzd(creditLimitMinor)}</dd>
+                  <dd className="tabular-nums font-semibold">{formatDzdTotal(creditLimitMinor)}</dd>
                 </div>
                 {projectedMinor != null ? (
                   <div className="flex justify-between text-slate-300">
                     <dt>Solde après vente</dt>
-                    <dd className="tabular-nums font-semibold">{formatDzd(projectedMinor)}</dd>
+                    <dd className="tabular-nums font-semibold">{formatDzdTotal(projectedMinor)}</dd>
                   </div>
                 ) : null}
               </>
@@ -239,7 +246,7 @@ export function PayDialog({
           </Button>
           <Button
             type="button"
-            disabled={busy || creditBlocked}
+            disabled={busy || creditBlocked || paidError !== ""}
             onClick={validate}
             className="flex-[2]"
           >

@@ -298,6 +298,18 @@ export function createSaleAtomic(input: CreateSaleInput): {
   validateSaleLines(input.lines, input.lineTotals, input.lineDiscounts);
 
   const tx = db.transaction(() => {
+    // Client archivé : une vente sur une fiche archivée rendrait les
+    // rapports/relances incohérents. Vérifié pour TOUTE vente avec client,
+    // pas seulement le crédit.
+    if (input.customerId != null) {
+      const customer = db
+        .prepare(`SELECT deleted_at FROM customers WHERE id = ?`)
+        .get(input.customerId) as { deleted_at: string | null } | undefined;
+      if (!customer) throw new Error("Client introuvable.");
+      if (customer.deleted_at != null) {
+        throw new Error("Client archivé : vente impossible.");
+      }
+    }
     // PLAFOND-BLOQUANT (règle radicale) : autorisation + plafond relus ICI,
     // dans la transaction (pas de TOCTOU) — solde + reste > plafond (> 0)
     // = refus, sauf accord vendeur explicite (limitOverrideApproved, tracé).
@@ -375,13 +387,22 @@ export function createSaleAtomic(input: CreateSaleInput): {
     ];
     const qtyById = new Map<number, number>();
     const categoryById = new Map<number, number | null>();
+    const activeById = new Map<number, boolean>();
     if (wantedIds.length > 0) {
       const placeholders = wantedIds.map(() => "?").join(",");
       const rows = db
-        .prepare(`SELECT id, quantity, category_id FROM products WHERE id IN (${placeholders})`)
-        .all(...wantedIds) as { id: number; quantity: number; category_id: number | null }[];
+        .prepare(
+          `SELECT id, quantity, category_id, is_active FROM products WHERE id IN (${placeholders})`,
+        )
+        .all(...wantedIds) as {
+        id: number;
+        quantity: number;
+        category_id: number | null;
+        is_active: number;
+      }[];
       for (const r of rows) {
         qtyById.set(Number(r.id), Number(r.quantity));
+        activeById.set(Number(r.id), Number(r.is_active) === 1);
         categoryById.set(Number(r.id), r.category_id == null ? null : Number(r.category_id));
       }
     }
@@ -389,7 +410,13 @@ export function createSaleAtomic(input: CreateSaleInput): {
       if (line.productId != null) {
         const q = qtyById.get(line.productId);
         if (q === undefined) throw new Error("Produit introuvable.");
-        if (!input.allowNegativeStock && line.quantity > q) {
+        if (activeById.get(line.productId) !== true) {
+          throw new Error(`Produit archivé : « ${line.productName} » — vente impossible.`);
+        }
+        // Le stock négatif est interdit par le trigger 0037 : la garde est
+        // inconditionnelle (le paramètre historique allowNegativeStock est
+        // conservé pour compatibilité d'appel mais ne peut pas l'activer).
+        if (line.quantity > q) {
           throw new Error(`Stock insuffisant pour « ${line.productName} ».`);
         }
       }
@@ -519,7 +546,7 @@ export function createSaleAtomic(input: CreateSaleInput): {
           productId: line.productId,
           qty: line.quantity,
           now: input.now,
-          oversell: input.allowNegativeStock,
+          oversell: false,
           fallbackUnitCostMinor: fallback,
           record: { saleId, saleItemId },
         });

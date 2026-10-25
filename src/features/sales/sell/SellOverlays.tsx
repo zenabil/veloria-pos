@@ -19,6 +19,7 @@ export function SellOverlays({
   customerLabel,
   paidText,
   setPaidText,
+  paidError,
   paymentMethod,
   defaultMethod,
   setPaymentMethod,
@@ -74,6 +75,7 @@ export function SellOverlays({
   customerLabel: string;
   paidText: string;
   setPaidText: (v: string) => void;
+  paidError: string;
   paymentMethod: "cash" | "cheque" | "transfer" | null;
   defaultMethod: "cash" | "cheque" | "transfer";
   setPaymentMethod: (m: "cash" | "cheque" | "transfer") => void;
@@ -135,6 +137,7 @@ export function SellOverlays({
           customerLabel={customerLabel}
           paidText={paidText}
           setPaidText={setPaidText}
+          paidError={paidError}
           paymentMethod={paymentMethod}
           defaultMethod={defaultMethod}
           setPaymentMethod={setPaymentMethod}

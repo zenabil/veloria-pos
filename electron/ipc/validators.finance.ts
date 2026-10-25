@@ -1,7 +1,7 @@
 // Veloria PoS - Zod: depenses + societe + rapports + dettes + clotures + zakat (extrait de validators.ts, deplacement pur).
 
 import { z } from "zod";
-import { moneyMinor, moneyMinorPositive } from "./validators.common";
+import { moneyMinor, moneyMinorPositive, moneyTotalPositive } from "./validators.common";
 import { businessDate } from "./validators.common";
 import { optionalOperationId } from "./validators.common";
 
@@ -10,7 +10,7 @@ export const recordPaymentSchema = z
     operationId: z.string().uuid(),
     customerId: z.number().int().positive().nullable().optional(),
     saleId: z.number().int().positive().nullable().optional(),
-    amountMinor: moneyMinorPositive,
+    amountMinor: moneyTotalPositive,
     method: z.enum(["cash", "cheque", "transfer"]),
     reference: z.string().max(100).nullable().optional(),
     notes: z.string().max(500).nullable().optional(),

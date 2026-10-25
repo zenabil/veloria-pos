@@ -1,6 +1,7 @@
 // Veloria PoS — Vente : constructeurs purs (totaux, clichés, charges d'impression).
 // Extraits de sell-finalize (zéro IO, testés par tests/unit/sales/sell-split).
-import { strictOrNeg } from "@shared/money/parse.ts";
+import { parseDzdInputTotal } from "@domain/money/money.ts";
+import { isRealCalendarDate } from "@shared/dates/dates.ts";
 import { computeBilledTotal } from "@domain/sales/sale-rules.ts";
 import { timbreQuittanceLf2025 } from "@domain/invoice/timbre-rules.ts";
 import { totalsOf } from "@/application/sales/create-sale.ts";
@@ -20,9 +21,9 @@ export interface CompanyFields {
   article: string;
 }
 
-/** RX-17 : échéance calendaire réelle (AAAA-MM-JJ). */
+/** RX-17 : échéance calendaire réelle (AAAA-MM-JJ), pas seulement le format. */
 export function isValidDueDate(dueDate: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}$/.test(dueDate);
+  return /^\d{4}-\d{2}-\d{2}$/.test(dueDate) && isRealCalendarDate(dueDate);
 }
 
 /**
@@ -34,11 +35,13 @@ export function computeChangeMinor(
   payOpen: boolean,
   totals: { totalMinor: number } | null,
 ): number {
-  const rawPaidMinor = strictOrNeg(paidText.trim() === "" ? "0" : paidText, "Montant");
-  return payOpen &&
-    totals != null &&
-    Number.isFinite(rawPaidMinor) &&
-    rawPaidMinor > totals.totalMinor
+  let rawPaidMinor = 0;
+  try {
+    rawPaidMinor = paidText.trim() === "" ? 0 : parseDzdInputTotal(paidText, "Montant");
+  } catch {
+    return 0;
+  }
+  return payOpen && totals != null && rawPaidMinor > totals.totalMinor
     ? rawPaidMinor - totals.totalMinor
     : 0;
 }
@@ -123,6 +126,7 @@ export function buildSaleSnapshot(
   cart: ActiveCart,
   totals: SellTotals,
   defaultMethod: "cash" | "cheque" | "transfer",
+  dueDate?: string | null,
 ): Omit<LastSale, "invoice" | "date" | "balances"> {
   return {
     lines: cart.lines.map((l) => ({
@@ -146,7 +150,10 @@ export function buildSaleSnapshot(
     customerPhone: "",
     customerAddress: "",
     customerCode: "",
-    paymentMethod: cart.paymentMethod ?? defaultMethod,
+    // Une vente à crédit sans versement n'a pas de moyen de paiement :
+    // l'afficher « Espèces » sur le ticket serait faux.
+    paymentMethod: cart.amountPaidMinor > 0 ? (cart.paymentMethod ?? defaultMethod) : null,
+    dueDate: dueDate ?? null,
   };
 }
 
@@ -184,6 +191,7 @@ export function buildPrintPayload(
     stampMinor: timbreQuittanceLf2025(sale.paidMinor, paymentMethod),
     prevBalanceMinor: balances?.prev,
     currentBalanceMinor: balances?.current,
+    dueDate: sale.dueDate ?? "",
   };
 }
 

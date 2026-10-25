@@ -5,7 +5,6 @@ import * as V from "./validators";
 import { randomUUID } from "node:crypto";
 import * as Sales from "./handlers/sales.repo";
 import * as Carts from "./handlers/carts.repo";
-import { getDb } from "../database/sqlite.service";
 import { getCurrentStaffUser } from "./handlers/staff-session";
 import { getStaffRole } from "./handlers/staff.repo";
 import { enqueueCustomerRefresh, enqueueSaleRefresh } from "../sync/sync.service";
@@ -52,18 +51,6 @@ export function registerSalesChannels(): void {
           : input.amountPaidMinor === 0
             ? "unpaid"
             : "partial";
-    const settings = { allowNegativeStock: false };
-    try {
-      const row = getDb()
-        .prepare(`SELECT value_json FROM app_settings WHERE key = 'inventory'`)
-        .get() as { value_json: string } | undefined;
-      if (row)
-        settings.allowNegativeStock =
-          (JSON.parse(row.value_json) as { allowNegativeStock?: boolean }).allowNegativeStock ===
-          true;
-    } catch {
-      /* default */
-    }
     const result = Sales.createSaleAtomic({
       operationId: input.operationId,
       uuid: randomUUID(),
@@ -95,7 +82,8 @@ export function registerSalesChannels(): void {
       })),
       lineTotals: chargedTotals,
       now,
-      allowNegativeStock: settings.allowNegativeStock,
+      // Stock négatif interdit par la base (0037) : paramètre historique figé.
+      allowNegativeStock: false,
       // R2 (0046) : la vente porte son auteur (filtrage tableau/historique/rapports).
       staffUserId: getCurrentStaffUser(),
     });

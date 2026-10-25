@@ -27,6 +27,8 @@ export interface CartDraftTabPayload {
   amountPaidMinor: number;
   paymentMethod: "cash" | "cheque" | "transfer" | null;
   deliveryFeeMinor: number;
+  /** Identité d'encaissement persistée (reprise idempotente après crash). */
+  saleOperationId: string | null;
 }
 
 /** Projection pure des onglets vers la charge `carts.save` (mêmes champs, même ordre). */
@@ -51,5 +53,6 @@ export function toCartDraftTabs(tabs: CartTab[]): CartDraftTabPayload[] {
     paymentMethod: t.paymentMethod,
     deliveryFeeMinor:
       Number.isInteger(t.deliveryFeeMinor) && t.deliveryFeeMinor >= 0 ? t.deliveryFeeMinor : 0,
+    saleOperationId: t.saleOperationId ?? null,
   }));
 }

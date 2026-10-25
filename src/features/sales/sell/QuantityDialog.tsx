@@ -4,7 +4,7 @@
 // est calculé en direct. Le total affiché est toujours le total réellement
 // facturé (arrondi exact, jamais le montant brut saisi).
 import { useEffect, useRef, useState } from "react";
-import { formatDzd } from "@domain/money/money.ts";
+import { formatDzd, formatDzdTotal } from "@domain/money/money.ts";
 import { computeLineTotal } from "@domain/sales/sale-rules.ts";
 import { unitLabel } from "@domain/units/units.ts";
 import { Button, Field, Modal, TextInput } from "@shared/ui/primitives.tsx";
@@ -177,7 +177,7 @@ export function QuantityDialog({
               <div aria-live="polite" className="flex justify-between gap-3 text-slate-200">
                 <span>Total à facturer</span>
                 <span className="text-right font-bold tabular-nums text-amber-300">
-                  {formatDzd(preview.totalMinor)}
+                  {formatDzdTotal(preview.totalMinor)}
                 </span>
               </div>
               {mode === "amount" && ecartMinor !== 0 ? (
@@ -188,7 +188,7 @@ export function QuantityDialog({
                   </span>
                   <span className="text-right tabular-nums">
                     {ecartMinor > 0 ? "+" : "−"}
-                    {formatDzd(Math.abs(ecartMinor))}
+                    {formatDzdTotal(Math.abs(ecartMinor))}
                   </span>
                 </div>
               ) : null}
