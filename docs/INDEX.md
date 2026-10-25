@@ -142,6 +142,7 @@
 - [ADR-134](./ADR-134-design-ticket-vente.md) Design du ticket de vente : un seul HTML pour le papier, le PDF et l'aperçu (en-tête enseigne, encadré de soldes)
 - [ADR-135](./ADR-135-export-donnees-reimportable-csv.md) Export de données CSV réimportable (deuxième bouton « Données CSV » à côté du rapport)
 - [ADR-136](./ADR-136-conditionnement-carton.md) Conditionnement « carton » : tarif automatique monotone, stock/FIFO en unités de base, achat et retours (migration 0054)
+- [ADR-137](./ADR-137-cout-fifo-caisse.md) Coût FIFO en caisse : le stock ancien garde son coût jusqu'à la vente, alerte et audit sous-coût sur le COGS réel
 
 ## Ou ecrire quoi
 

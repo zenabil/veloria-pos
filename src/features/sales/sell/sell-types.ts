@@ -6,6 +6,8 @@ export interface SearchRow {
   name: string;
   selling_price_minor: number;
   purchase_price_minor: number;
+  /** Coût de la prochaine couche FIFO (null/absent = aucune couche restante). */
+  fifo_next_unit_cost_minor?: number | null;
   quantity: number;
   unit_code: string;
   primary_barcode: string | null;

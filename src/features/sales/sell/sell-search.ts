@@ -305,7 +305,9 @@ export function addProduct(
     unitCode: p.unit_code,
     originalUnitPriceMinor: p.selling_price_minor,
     unitPriceMinor: p.selling_price_minor,
-    purchasePriceMinor: p.purchase_price_minor,
+    // FIFO : le coût de référence caisse est la prochaine couche à sortir,
+    // jamais le dernier prix d'achat (qui ignore le stock plus ancien).
+    purchasePriceMinor: p.fifo_next_unit_cost_minor ?? p.purchase_price_minor,
     quantity: safeQty,
     stockQty: Number.isFinite(p.quantity) ? p.quantity : null,
     // Mode « Montant » (ADR-114) : montant facturé EXACT de la ligne.

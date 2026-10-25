@@ -99,7 +99,7 @@ export function CartPanel({
     const belowCost = priceFor.purchaseMinor > 0 && finalMinor < priceFor.purchaseMinor;
     if (belowCost && !priceBelowCostAck) {
       notify(
-        `Prix sous le coût d'achat (${formatDzd(priceFor.purchaseMinor)}) : cochez la confirmation explicite.`,
+        `Prix sous le coût FIFO (${formatDzd(priceFor.purchaseMinor)}) : cochez la confirmation explicite.`,
         "err",
       );
       return;

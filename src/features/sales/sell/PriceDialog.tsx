@@ -48,7 +48,7 @@ export function PriceDialog({
           </div>
           {priceFor.purchaseMinor > 0 ? (
             <div className="flex justify-between text-slate-300">
-              <dt>Coût d&apos;achat</dt>
+              <dt title="Coût de la prochaine unité en stock (FIFO)">Coût FIFO</dt>
               <dd className="font-semibold tabular-nums">{formatDzd(priceFor.purchaseMinor)}</dd>
             </div>
           ) : null}
@@ -91,7 +91,7 @@ export function PriceDialog({
             >
               {below ? (
                 <p role="alert" className="font-bold text-red-300">
-                  Attention : ce prix passe SOUS le coût d&apos;achat (
+                  Attention : ce prix passe SOUS le coût FIFO de la prochaine unité (
                   {formatDzd(priceFor.purchaseMinor)}). La vente sera tracée dans le journal de la
                   vente.
                 </p>

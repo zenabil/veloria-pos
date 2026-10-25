@@ -31,6 +31,8 @@ export interface ProductRow {
   created_at: string;
   updated_at: string;
   primary_barcode: string | null;
+  /** Prochaine couche FIFO à sortir (null = aucune couche restante). */
+  fifo_next_unit_cost_minor: number | null;
 }
 
 export function searchProducts(args: {
@@ -72,7 +74,10 @@ export function searchProducts(args: {
         pk.factor AS packaging_factor,
         pk.selling_price_minor AS packaging_selling_price_minor,
         pk.purchase_price_minor AS packaging_purchase_price_minor,
-        pk.auto_carton_pricing AS packaging_auto_carton_pricing
+        pk.auto_carton_pricing AS packaging_auto_carton_pricing,
+        (SELECT l.unit_cost_minor FROM inventory_layers l
+          WHERE l.product_id = p.id AND l.remaining_quantity > 0
+          ORDER BY l.id ASC LIMIT 1) AS fifo_next_unit_cost_minor
        FROM products p LEFT JOIN categories c ON c.id = p.category_id
        LEFT JOIN product_packagings pk ON pk.product_id = p.id AND pk.is_active = 1
        WHERE ${whereSql} ORDER BY p.name COLLATE NOCASE LIMIT ? OFFSET ?`,
@@ -92,7 +97,10 @@ export function getProductByBarcode(barcode: string): ProductRow | null {
         pk.factor AS packaging_factor,
         pk.selling_price_minor AS packaging_selling_price_minor,
         pk.purchase_price_minor AS packaging_purchase_price_minor,
-        pk.auto_carton_pricing AS packaging_auto_carton_pricing
+        pk.auto_carton_pricing AS packaging_auto_carton_pricing,
+        (SELECT l.unit_cost_minor FROM inventory_layers l
+          WHERE l.product_id = p.id AND l.remaining_quantity > 0
+          ORDER BY l.id ASC LIMIT 1) AS fifo_next_unit_cost_minor
        FROM products p LEFT JOIN categories c ON c.id = p.category_id
        LEFT JOIN product_packagings pk ON pk.product_id = p.id AND pk.is_active = 1
        WHERE p.id = (SELECT product_id FROM product_barcodes WHERE barcode = ?)

@@ -30,6 +30,7 @@ export interface CartLineInput {
   originalUnitPriceMinor: number;
   /** Prix facturé (égal à l'original sauf changement via le dialogue prix). */
   unitPriceMinor: number;
+  /** Coût d'achat de référence (caisse : coût de la prochaine couche FIFO). */
   purchasePriceMinor: number;
   quantity: number;
   /**

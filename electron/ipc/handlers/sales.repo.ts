@@ -138,6 +138,7 @@ export interface SaleLineInput {
   originalUnitPriceMinor: number;
   /** Prix facturé (après changement éventuel via le dialogue prix). */
   unitPriceMinor: number;
+  /** Coût de référence caisse ; le COGS FIFO réel l'écrase après consommation. */
   purchasePriceMinor: number;
   quantity: number;
   /**
@@ -580,7 +581,7 @@ export function createSaleAtomic(input: CreateSaleInput): {
     // figé (cogs_minor) ne bougera plus jamais, même si les achats futurs
     // changent les coûts. Le prix de vente reste indépendant (unit_price_minor).
     // P0-7 : remise recalculée ici (original − final) × qty — jamais de valeur
-    // remise venue du renderer ; vente sous coût d'achat → audit explicite.
+    // remise venue du renderer ; vente sous coût FIFO → audit explicite.
     const belowCostLines: {
       productId: number | null;
       name: string;
@@ -615,14 +616,6 @@ export function createSaleAtomic(input: CreateSaleInput): {
       }
       if (lineDiscount > originalTotal + 1) {
         throw new Error(`Remise de ligne supérieure au total pour « ${line.productName} ».`);
-      }
-      if (line.purchasePriceMinor > 0 && line.unitPriceMinor < line.purchasePriceMinor) {
-        belowCostLines.push({
-          productId: line.productId,
-          name: line.productName,
-          final: line.unitPriceMinor,
-          purchase: line.purchasePriceMinor,
-        });
       }
       if (line.unitPriceMinor > line.originalUnitPriceMinor) {
         raisedLines.push({
@@ -669,7 +662,22 @@ export function createSaleAtomic(input: CreateSaleInput): {
           fallbackUnitCostMinor: fallback,
           record: { saleId, saleItemId },
         });
-        db.prepare(`UPDATE sale_items SET cogs_minor = ? WHERE id = ?`).run(cogsMinor, saleItemId);
+        // Sous-coût : comparé au COGS FIFO RÉEL de la ligne (le dernier prix
+        // d'achat ignore les couches plus anciennes), après consommation.
+        const cogsPerSaleUnit = line.quantity > 0 ? Math.round(cogsMinor / line.quantity) : 0;
+        if (cogsMinor > 0 && charged < cogsMinor) {
+          belowCostLines.push({
+            productId: line.productId,
+            name: line.productName,
+            final: line.quantity > 0 ? Math.round(charged / line.quantity) : line.unitPriceMinor,
+            purchase: cogsPerSaleUnit,
+          });
+        }
+        // Snapshot de coût = COGS FIFO de la ligne : retours, annulations et
+        // lectures historiques restent alignés sur la sortie réelle.
+        db.prepare(
+          `UPDATE sale_items SET cogs_minor = ?, purchase_price_minor = ? WHERE id = ?`,
+        ).run(cogsMinor, cogsPerSaleUnit, saleItemId);
         const avgUnit = baseQty > 0 ? Math.round(cogsMinor / baseQty) : 0;
         // Quantité courante issue du préchargé (mis à jour ligne à ligne) :
         // aucun SELECT dans la boucle.
