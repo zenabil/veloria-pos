@@ -4,7 +4,7 @@ import { Kbd, Modal } from "@shared/ui/primitives.tsx";
 import { FOOTER_HINTS } from "@/app/shell/footer-hints.ts";
 
 const EXTRA = [
-  { k: "+ / −", label: "Quantité dernière ligne" },
+  { k: "+ / −", label: "Quantité dernière ligne (même dans la recherche)" },
   { k: "↑ ↓ + Entrée", label: "Choisir un produit" },
   { k: "5*code", label: "Quantité rapide au scan" },
   { k: "?", label: "Cette aide" },

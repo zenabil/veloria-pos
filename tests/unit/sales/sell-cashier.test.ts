@@ -6,7 +6,8 @@ import {
   stockGuardMessage,
   type SellSearchDeps,
 } from "@/features/sales/sell/sell-search.ts";
-import { openPay } from "@/features/sales/sell/sell-finalize.ts";
+import { bumpLastQty, openPay } from "@/features/sales/sell/sell-finalize.ts";
+import { shouldIgnoreBump } from "@/features/sales/sell/useSellShortcuts.ts";
 import type { CartLine } from "@/application/sales/create-sale.ts";
 import type { SearchRow } from "@/features/sales/sell/sell-types.ts";
 
@@ -137,6 +138,52 @@ describe("openPay : identité d'opération stable par panier", () => {
     expect(cart.saleOperationId).toBe(first);
     openPay(deps as never);
     expect(setPayOperationId).toHaveBeenLastCalledWith(first);
+  });
+});
+
+describe("shouldIgnoreBump : +/− dans les champs", () => {
+  it("laisse +/− agir dans la recherche produit, pas dans les autres champs", () => {
+    const search = { tagName: "INPUT" };
+    expect(shouldIgnoreBump(search, search)).toBe(false);
+    expect(shouldIgnoreBump({ tagName: "INPUT" }, search)).toBe(true);
+    expect(shouldIgnoreBump({ tagName: "SELECT" }, search)).toBe(true);
+    expect(shouldIgnoreBump(null, search)).toBe(false);
+  });
+});
+
+describe("bumpLastQty : clavier +/−", () => {
+  const line = {
+    key: "l1",
+    productId: 1,
+    productName: "Article",
+    unitCode: "PIECE",
+    originalUnitPriceMinor: 1000,
+    unitPriceMinor: 1000,
+    purchasePriceMinor: 500,
+    quantity: 1,
+    stockQty: 5,
+  };
+
+  it("ne supprime pas la dernière unité avec −", () => {
+    const setQty = vi.fn();
+    const notify = vi.fn();
+    bumpLastQty({ lines: [line], setQty } as never, -1, notify);
+    expect(setQty).not.toHaveBeenCalled();
+    expect(notify).toHaveBeenCalledWith(expect.stringContaining("croix"), "err");
+  });
+
+  it("respecte le stock avec +", () => {
+    const setQty = vi.fn();
+    const notify = vi.fn();
+    bumpLastQty({ lines: [{ ...line, quantity: 5 }], setQty } as never, 1, notify);
+    expect(setQty).not.toHaveBeenCalled();
+    expect(notify).toHaveBeenCalledWith(expect.stringContaining("Stock insuffisant"), "err");
+  });
+
+  it("ajuste la quantité de la dernière ligne dans la limite du stock", () => {
+    const setQty = vi.fn();
+    bumpLastQty({ lines: [line], setQty } as never, 1);
+    expect(setQty).toHaveBeenCalledWith("l1", 2);
   });
 });
 

@@ -16,6 +16,22 @@ export interface SellKeyActions {
   bump: (d: 1 | -1) => void;
 }
 
+/**
+ * +/− doivent agir sur la dernière ligne même quand le focus est dans la
+ * recherche/scan. On ne les avale que dans les AUTRES champs éditables
+ * (client, quantité, livraison…) où ils font partie de la saisie normale.
+ */
+export function shouldIgnoreBump(
+  active: { tagName: string } | null,
+  search: unknown,
+): boolean {
+  return (
+    active != null &&
+    active !== search &&
+    ["INPUT", "SELECT", "TEXTAREA"].includes(active.tagName)
+  );
+}
+
 export interface ScanKey {
   key: string;
   ctrlKey: boolean;
@@ -101,16 +117,19 @@ export function useSellShortcuts(
         keyActions.current?.openHelp();
         return;
       }
+      // +/− sont RÉSERVÉS à la quantité de la dernière ligne, y compris quand
+      // le focus est dans la recherche/scan : la caisse est clavier-first et
+      // un scan laisse le focus dans ce champ. On n'avale donc jamais ces
+      // touches dans la recherche ; les autres champs (client, quantité,
+      // livraison, formulaires) conservent la saisie normale.
       if (e.key === "+" || e.key === "=" || e.code === "NumpadAdd") {
-        const active = document.activeElement;
-        if (active && ["INPUT", "SELECT", "TEXTAREA"].includes(active.tagName)) return;
+        if (shouldIgnoreBump(document.activeElement, searchRef.current)) return;
         e.preventDefault();
         keyActions.current?.bump(1);
         return;
       }
       if (e.key === "-" || e.code === "NumpadSubtract") {
-        const active = document.activeElement;
-        if (active && ["INPUT", "SELECT", "TEXTAREA"].includes(active.tagName)) return;
+        if (shouldIgnoreBump(document.activeElement, searchRef.current)) return;
         e.preventDefault();
         keyActions.current?.bump(-1);
         return;
