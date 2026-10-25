@@ -16,6 +16,13 @@ export interface CartDraftLinePayload {
   quantity: number;
   /** Montant facturé EXACT (mode « Montant » ADR-114) — null = prix × qté. */
   billedTotalMinor: number | null;
+  /** Conditionnement (survit au redémarrage comme le montant saisi). */
+  packagingId: number | null;
+  packagingLabelFr: string | null;
+  packagingFactor: number | null;
+  packagingSellingPriceMinor: number | null;
+  packagingAutoCartonPricing: boolean;
+  packagingPriceOverridden: boolean;
 }
 
 export interface CartDraftTabPayload {
@@ -46,6 +53,12 @@ export function toCartDraftTabs(tabs: CartTab[]): CartDraftTabPayload[] {
       purchasePriceMinor: l.purchasePriceMinor,
       quantity: l.quantity,
       billedTotalMinor: l.billedTotalMinor ?? null,
+      packagingId: l.packagingId ?? null,
+      packagingLabelFr: l.packagingLabelFr ?? null,
+      packagingFactor: l.packagingFactor ?? null,
+      packagingSellingPriceMinor: l.packagingSellingPriceMinor ?? null,
+      packagingAutoCartonPricing: l.packagingAutoCartonPricing === true,
+      packagingPriceOverridden: l.packagingPriceOverridden === true,
     })),
     customerId: t.customerId,
     customerLabel: t.customerLabel,

@@ -29,6 +29,8 @@ const REQUIRED_NAMES: readonly string[] = [
   "expenseDeleteSchema",
   "idempotentIdSchema",
   "inventoryApplySchema",
+  "packagingDeleteSchema",
+  "packagingSaveSchema",
   "productCreateSchema",
   "productsImportSchema",
   "proformaConvertSchema",
@@ -98,7 +100,8 @@ const ALL_SCHEMA_NAMES: readonly string[] = Object.keys(V)
 /** Nombre total de schémas gelé (121 = 43 REQUIRED + 78 sans operationId). */
 // ADR-130 (2026-10-21) : 121 → 122 (customersImportSchema : import CSV
 // clients — mutation de lot, operationId REQUIS).
-const FROZEN_SCHEMA_TOTAL = 122;
+// ADR-136 (2026-10-25) : 122 → 125 (3 schémas packaging).
+const FROZEN_SCHEMA_TOTAL = 125;
 
 function schemaOf(name: string): unknown {
   return (V as unknown as Record<string, unknown>)[name];

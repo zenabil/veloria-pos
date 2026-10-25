@@ -8,6 +8,7 @@ import { formatDzd, minorToInput } from "@domain/money/money.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { normalizeUnitCode, validateProductDraft } from "@domain/product/product-rules.ts";
 import { evaluateMargin } from "@domain/pricing/price-rules.ts";
+import type { Packaging } from "@domain/packaging/types.ts";
 
 import { Button, Field, Modal, Select, Switch, TextInput } from "@shared/ui/primitives.tsx";
 import { SupplierQuickCreateDialog } from "@features/suppliers/dialogs/FormDialog.tsx";
@@ -21,6 +22,28 @@ import { parseMoney } from "./common.ts";
 // ---------------------------------------------------------------------------
 // Formulaire produit (création + édition).
 // ---------------------------------------------------------------------------
+
+interface PackagingDraft {
+  id: number | null;
+  enabled: boolean;
+  label: string;
+  factor: string;
+  selling: string;
+  purchase: string;
+  auto: boolean;
+}
+
+function emptyPackaging(): PackagingDraft {
+  return {
+    id: null,
+    enabled: false,
+    label: "",
+    factor: "",
+    selling: "",
+    purchase: "",
+    auto: true,
+  };
+}
 
 export function ProductFormDialog({
   product,
@@ -62,6 +85,7 @@ export function ProductFormDialog({
     product && product.max_stock_level > 0 ? String(product.max_stock_level) : "",
   );
   const [unit, setUnit] = useState(product?.unit_code ?? "PIECE");
+  const [packaging, setPackaging] = useState<PackagingDraft>(() => emptyPackaging());
   // P3 : péremption (colonne expiration_date — fini le `null` systématique).
   const [expiration, setExpiration] = useState(product?.expiration_date ?? "");
   const [active, setActive] = useState(product ? !isArchived(product) : true);
@@ -98,6 +122,35 @@ export function ProductFormDialog({
       .productSuppliers({ id: product.id })
       .then((r) => {
         setSupplierIds(((r as { rows?: { id: number }[] }).rows ?? []).map((s) => s.id));
+      })
+      .catch(() => undefined);
+    api
+      .productPackagingsList({ productId: product.id })
+      .then((r) => {
+        const active = ((r as { rows?: Record<string, unknown>[] }).rows ?? []).find(
+          (row) => Number(row["is_active"]) === 1,
+        );
+        if (!active) return;
+        const label = active["label_fr"];
+        const loaded: Packaging = {
+          id: Number(active["id"]),
+          productId: Number(active["product_id"] ?? product.id),
+          labelFr: typeof label === "string" ? label : "",
+          factor: Number(active["factor"] ?? 0),
+          sellingPriceMinor: Number(active["selling_price_minor"] ?? 0),
+          purchasePriceMinor: Number(active["purchase_price_minor"] ?? 0),
+          autoCartonPricing: Number(active["auto_carton_pricing"]) === 1,
+          isActive: true,
+        };
+        setPackaging({
+          id: loaded.id,
+          enabled: true,
+          label: loaded.labelFr,
+          factor: String(loaded.factor),
+          selling: minorToInput(loaded.sellingPriceMinor),
+          purchase: minorToInput(loaded.purchasePriceMinor),
+          auto: loaded.autoCartonPricing,
+        });
       })
       .catch(() => undefined);
   }, []);
@@ -189,6 +242,41 @@ export function ProductFormDialog({
       notify("20 codes-barres maximum.", "err");
       return;
     }
+    // Conditionnement : validation AVANT toute écriture (messages FR).
+    let packagingInput: {
+      labelFr: string;
+      factor: number;
+      sellingPriceMinor: number;
+      purchasePriceMinor: number;
+      autoCartonPricing: boolean;
+    } | null = null;
+    if (packaging.enabled) {
+      const label = packaging.label.trim();
+      if (label.length < 2) {
+        notify("Libellé du conditionnement requis (2 lettres min.).", "err");
+        return;
+      }
+      const factor = Number(packaging.factor.trim());
+      if (!Number.isInteger(factor) || factor <= 1) {
+        notify("Taille du carton invalide (entier supérieur à 1).", "err");
+        return;
+      }
+      const cartonSelling = parseMoney(packaging.selling);
+      const cartonPurchase = parseMoney(
+        packaging.purchase.trim() === "" ? "0" : packaging.purchase,
+      );
+      if (cartonSelling == null || cartonPurchase == null) {
+        notify("Prix du carton invalides.", "err");
+        return;
+      }
+      packagingInput = {
+        labelFr: label,
+        factor,
+        sellingPriceMinor: cartonSelling,
+        purchasePriceMinor: cartonPurchase,
+        autoCartonPricing: packaging.auto,
+      };
+    }
     const payload = {
       name: cleanName,
       categoryId: categoryId === "" ? null : Number(categoryId),
@@ -223,11 +311,11 @@ export function ProductFormDialog({
     }
     setBusy(true);
     try {
+      let savedProductId = product?.id ?? null;
       if (product == null) {
         const res = (await api.productCreate({ ...payload, operationId })) as { id: number };
+        savedProductId = res.id;
         await api.productSetSuppliers({ productId: res.id, supplierIds });
-        setOperationId(newOperationId());
-        notify(`Produit « ${cleanName} » créé.`, "ok");
       } else {
         // M-3 : pure update — pas d'operationId (contrat honnête, ignoré sinon).
         await api.productUpdate({ ...payload, id: product.id });
@@ -237,8 +325,26 @@ export function ProductFormDialog({
           await api.productRestore({ id: product.id, operationId: newOperationId() });
         if (!active && !isArchived(product))
           await api.productArchive({ id: product.id, operationId: newOperationId() });
-        notify(`Produit « ${cleanName} » enregistré.`, "ok");
       }
+      if (savedProductId != null) {
+        if (packagingInput != null) {
+          await api.productPackagingSave({
+            operationId: newOperationId(),
+            productId: savedProductId,
+            ...packagingInput,
+          });
+        } else if (packaging.id != null) {
+          await api.productPackagingDelete({
+            operationId: newOperationId(),
+            productId: savedProductId,
+          });
+        }
+      }
+      setOperationId(newOperationId());
+      notify(
+        product == null ? `Produit « ${cleanName} » créé.` : `Produit « ${cleanName} » enregistré.`,
+        "ok",
+      );
       onSaved();
     } catch (e) {
       notify(frError(e, "Enregistrement impossible."), "err");
@@ -445,6 +551,76 @@ export function ProductFormDialog({
                 aria-label="Stock maximum"
               />
             </Field>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+            <label className="flex cursor-pointer items-center justify-between gap-3 text-sm font-semibold">
+              <span>
+                Conditionnement
+                <span className="block text-xs font-normal text-slate-500">
+                  Vente à la pièce avec tarif carton automatique. Stock et FIFO restent en pièces.
+                </span>
+              </span>
+              <Switch
+                checked={packaging.enabled}
+                onChange={() => setPackaging((p) => ({ ...p, enabled: !p.enabled }))}
+                ariaLabel="Activer le conditionnement"
+              />
+            </label>
+            {packaging.enabled ? (
+              <div className="mt-3 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Libellé">
+                    <TextInput
+                      value={packaging.label}
+                      onChange={(e) => setPackaging((p) => ({ ...p, label: e.target.value }))}
+                      placeholder="Carton de 12"
+                      aria-label="Libellé du conditionnement"
+                    />
+                  </Field>
+                  <Field label="Taille du carton" hint="Nombre de pièces (entier > 1).">
+                    <TextInput
+                      value={packaging.factor}
+                      onChange={(e) => setPackaging((p) => ({ ...p, factor: e.target.value }))}
+                      inputMode="numeric"
+                      placeholder="12"
+                      aria-label="Taille du carton"
+                    />
+                  </Field>
+                  <Field label="Prix du carton (DZD)">
+                    <TextInput
+                      value={packaging.selling}
+                      onChange={(e) => setPackaging((p) => ({ ...p, selling: e.target.value }))}
+                      inputMode="decimal"
+                      placeholder="0,00"
+                      aria-label="Prix du carton"
+                    />
+                  </Field>
+                  <Field label="Prix d'achat du carton (DZD)">
+                    <TextInput
+                      value={packaging.purchase}
+                      onChange={(e) => setPackaging((p) => ({ ...p, purchase: e.target.value }))}
+                      inputMode="decimal"
+                      placeholder="0,00"
+                      aria-label="Prix d'achat du carton"
+                    />
+                  </Field>
+                </div>
+                <label className="flex cursor-pointer items-center justify-between gap-3 text-sm font-semibold">
+                  <span>
+                    Appliquer automatiquement le tarif carton
+                    <span className="block text-xs font-normal text-slate-500">
+                      Dès que la quantité atteint la taille du carton (prix manuel = règle
+                      désactivée).
+                    </span>
+                  </span>
+                  <Switch
+                    checked={packaging.auto}
+                    onChange={() => setPackaging((p) => ({ ...p, auto: !p.auto }))}
+                    ariaLabel="Tarif carton automatique"
+                  />
+                </label>
+              </div>
+            ) : null}
           </div>
           {editing ? (
             <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-sm font-semibold">

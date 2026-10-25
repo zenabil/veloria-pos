@@ -37,7 +37,8 @@ const MODULES = [
 // dans l'inventaire : les 7 schémas de l'équipe étaient hors comptage).
 // ADR-130 (2026-10-21) : 121 → 122 (customersImportSchema ajouté avec le
 // canal `customers.import` — import CSV clients).
-const FROZEN_SCHEMA_COUNT = 122;
+// ADR-136 (2026-10-25) : 122 → 125 (packagings produit : list/save/delete).
+const FROZEN_SCHEMA_COUNT = 125;
 const FROZEN_MAX_LINES = 300;
 
 describe("Validators inventory (split guard)", () => {

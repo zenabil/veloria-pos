@@ -71,6 +71,26 @@ export const productSuppliersSchema = z.object({
   operationId: optionalOperationId,
 });
 
+// Conditionnement produit : un actif par produit, prix carton en centimes.
+export const packagingListSchema = z.object({
+  productId: z.number().int().positive(),
+});
+
+export const packagingSaveSchema = z.object({
+  operationId: z.string().uuid(),
+  productId: z.number().int().positive(),
+  labelFr: z.string().min(2).max(40),
+  factor: z.number().int().min(2).max(1_000_000),
+  sellingPriceMinor: moneyMinor,
+  purchasePriceMinor: moneyMinor.default(0),
+  autoCartonPricing: z.boolean().default(true),
+});
+
+export const packagingDeleteSchema = z.object({
+  operationId: z.string().uuid(),
+  productId: z.number().int().positive(),
+});
+
 // Appariement OCR par lot : UNE traversée IPC pour ≤ 150 lignes (au lieu de
 // ~300 allers-retours barcode + recherche). Le main boucle en local, le
 // renderer applique la logique floue sur les candidats retournés.

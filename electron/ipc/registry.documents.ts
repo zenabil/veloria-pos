@@ -41,6 +41,7 @@ export function registerDocumentsChannels(): void {
         quantity: i.quantity,
         restocked: i.restocked,
         condition: i.condition,
+        unitFactor: i.unitFactor,
       })),
       refundMinor: input.refundMinor,
       creditMinor: input.creditMinor,

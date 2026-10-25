@@ -134,6 +134,16 @@ export const useCartsStore = create<CartsStore>((set) => ({
             l.productId === incoming.productId &&
             l.unitPriceMinor === incoming.unitPriceMinor &&
             (l.originalUnitPriceMinor || l.unitPriceMinor) === incoming.originalUnitPriceMinor &&
+            // Le conditionnement fait partie de l'identité de ligne : un prix
+            // carton/manuel ne fusionne jamais avec un autre réglage.
+            (l.packagingId ?? null) === (incoming.packagingId ?? null) &&
+            (l.packagingFactor ?? null) === (incoming.packagingFactor ?? null) &&
+            (l.packagingSellingPriceMinor ?? null) ===
+              (incoming.packagingSellingPriceMinor ?? null) &&
+            (l.packagingAutoCartonPricing === true) ===
+              (incoming.packagingAutoCartonPricing === true) &&
+            (l.packagingPriceOverridden === true) ===
+              (incoming.packagingPriceOverridden === true) &&
             // Mode « Montant » (ADR-131/132) : une ligne facturée au montant
             // SAISI n'est JAMAIS fusionnée (ni avec une autre ligne à montant
             // saisi, ni avec une ligne au prix unitaire) : le montant facturé
@@ -175,6 +185,9 @@ export const useCartsStore = create<CartsStore>((set) => ({
                 ...l,
                 originalUnitPriceMinor: l.originalUnitPriceMinor || l.unitPriceMinor,
                 unitPriceMinor: finalMinor,
+                // Prix manuel = règle carton désactivée (badge « Prix manuel »).
+                packagingPriceOverridden:
+                  l.packagingId != null ? true : (l.packagingPriceOverridden ?? null),
               }
             : l,
         ),

@@ -21,14 +21,9 @@ export interface SellKeyActions {
  * recherche/scan. On ne les avale que dans les AUTRES champs éditables
  * (client, quantité, livraison…) où ils font partie de la saisie normale.
  */
-export function shouldIgnoreBump(
-  active: { tagName: string } | null,
-  search: unknown,
-): boolean {
+export function shouldIgnoreBump(active: { tagName: string } | null, search: unknown): boolean {
   return (
-    active != null &&
-    active !== search &&
-    ["INPUT", "SELECT", "TEXTAREA"].includes(active.tagName)
+    active != null && active !== search && ["INPUT", "SELECT", "TEXTAREA"].includes(active.tagName)
   );
 }
 

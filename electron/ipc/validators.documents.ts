@@ -18,6 +18,8 @@ export const returnCreateSchema = z.object({
         quantity,
         restocked: z.boolean().default(true),
         condition: z.enum(["good", "defective"]).default("good"),
+        // Unité de la ligne vendue : 1 = pièce, >1 = carton complet.
+        unitFactor: z.number().int().positive().max(1_000_000).default(1),
       }),
     )
     .min(1)

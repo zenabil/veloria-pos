@@ -4,6 +4,7 @@ import { IPC_CHANNELS } from "./channels";
 import * as V from "./validators";
 import { randomUUID } from "node:crypto";
 import * as Products from "./handlers/products.repo";
+import * as Packagings from "./handlers/packagings.repo";
 import { getCurrentStaffUser } from "./handlers/staff-session";
 import { handle } from "./handle";
 
@@ -92,6 +93,32 @@ export function registerCatalogChannels(): void {
       new Date().toISOString(),
       input.operationId ?? null,
     ),
+  );
+
+  // conditionnements produit (cartons)
+  handle(IPC_CHANNELS["products.packagings.list"], V.packagingListSchema, (input) => ({
+    rows: Packagings.listProductPackagings(input.productId),
+  }));
+  handle(IPC_CHANNELS["products.packagings.save"], V.packagingSaveSchema, (input) =>
+    Packagings.saveProductPackagingAtomic({
+      operationId: input.operationId,
+      productId: input.productId,
+      labelFr: input.labelFr,
+      factor: input.factor,
+      sellingPriceMinor: input.sellingPriceMinor,
+      purchasePriceMinor: input.purchasePriceMinor,
+      autoCartonPricing: input.autoCartonPricing,
+      now: new Date().toISOString(),
+      staffUserId: getCurrentStaffUser(),
+    }),
+  );
+  handle(IPC_CHANNELS["products.packagings.delete"], V.packagingDeleteSchema, (input) =>
+    Packagings.deleteProductPackagingAtomic({
+      operationId: input.operationId,
+      productId: input.productId,
+      now: new Date().toISOString(),
+      staffUserId: getCurrentStaffUser(),
+    }),
   );
 
   // categories (filtre catalogue)

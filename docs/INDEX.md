@@ -141,6 +141,7 @@
 - [ADR-133](./ADR-133-format-page-tickets-thermiques.md) Format de page des tickets thermiques = hauteur mesurée du contenu (fin du grand blanc après le code-barres), Code 39 calé, PDF en pouces
 - [ADR-134](./ADR-134-design-ticket-vente.md) Design du ticket de vente : un seul HTML pour le papier, le PDF et l'aperçu (en-tête enseigne, encadré de soldes)
 - [ADR-135](./ADR-135-export-donnees-reimportable-csv.md) Export de données CSV réimportable (deuxième bouton « Données CSV » à côté du rapport)
+- [ADR-136](./ADR-136-conditionnement-carton.md) Conditionnement « carton » : tarif automatique monotone, stock/FIFO en unités de base, achat et retours (migration 0054)
 
 ## Ou ecrire quoi
 

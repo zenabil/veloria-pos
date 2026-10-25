@@ -310,6 +310,14 @@ export function addProduct(
     stockQty: Number.isFinite(p.quantity) ? p.quantity : null,
     // Mode « Montant » (ADR-114) : montant facturé EXACT de la ligne.
     billedTotalMinor: billedTotalMinor ?? null,
+    // Conditionnement : la quantité caisse reste en unités de base ; le tarif
+    // carton est appliqué à la projection (totaux + payload).
+    packagingId: p.packaging_id ?? null,
+    packagingLabelFr: p.packaging_label_fr ?? null,
+    packagingFactor: p.packaging_factor ?? null,
+    packagingSellingPriceMinor: p.packaging_selling_price_minor ?? null,
+    packagingAutoCartonPricing: p.packaging_auto_carton_pricing === 1,
+    packagingPriceOverridden: false,
   });
   // P5 : bip d'ajout (discret, coupable en un clic en tête).
   playSound("blip");

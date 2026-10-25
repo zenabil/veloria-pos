@@ -97,6 +97,9 @@ export const stockIntakeSchema = z.object({
         // Prix de vente par ligne (optionnel) : null/omitted = conserver le prix
         // actuel du produit ; number (dont 0 explicite) = nouveau prix de vente.
         sellingPriceMinor: moneyMinor.nullable().optional(),
+        // Achat en carton : facteur réel revalidé côté main contre la DB.
+        packagingId: z.number().int().positive().nullable().optional(),
+        unitFactor: z.number().int().positive().max(1_000_000).default(1),
       }),
     )
     .min(1)

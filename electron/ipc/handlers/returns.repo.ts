@@ -17,9 +17,12 @@ import {
 
 export interface ReturnItemInput {
   productId: number | null;
+  /** Quantité dans l'unité de la ligne vendue (carton ou pièce). */
   quantity: number;
   restocked: boolean;
   condition: "good" | "defective";
+  /** Facteur de la ligne vendue (1 = pièce, >1 = carton complet). */
+  unitFactor?: number;
 }
 
 export type ReturnKind = "customer" | "supplier";
@@ -163,7 +166,7 @@ export function createReturnAtomic(args: {
     let totalReturn = 0;
     // DB-04/DB-08: cumul demandé par produit DANS cette requête (2 lignes même
     // produit) + cumul déjà planifié pour la restauration — jamais 2× les
-    // mêmes couches, éligibilité sur le TOTAL vendu (SUM, pas LIMIT 1).
+    // mêmes couches, éligibilité sur le TOTAL vendu en UNITÉS DE BASE.
     const requestedByProduct = new Map<string, number>();
     const plannedRestoreByProduct = new Map<string, number>();
     const keyOf = (pid: number | null): string => (pid == null ? "null" : `p${pid}`);
@@ -171,6 +174,8 @@ export function createReturnAtomic(args: {
       productId: number | null;
       name: string;
       qty: number;
+      unitFactor: number;
+      baseQty: number;
       unitPrice: number;
       purchase: number;
       restocked: boolean;
@@ -180,23 +185,28 @@ export function createReturnAtomic(args: {
       cogsMinor: number;
     }[] = [];
     for (const item of args.items) {
-      // Total vendu agrégé sur TOUTES les lignes (doublons autorisés en schéma).
+      const unitFactor = item.unitFactor ?? 1;
+      if (!Number.isInteger(unitFactor) || unitFactor <= 0) {
+        throw new Error("Facteur de conditionnement du retour invalide.");
+      }
+      if (unitFactor > 1 && !Number.isInteger(item.quantity)) {
+        throw new Error("Retour partiel d'un carton impossible (cartons complets uniquement).");
+      }
+      // Total vendu agrégé sur TOUTES les lignes, converti en unités de base.
       const soldAgg = db
         .prepare(
-          `SELECT COALESCE(SUM(quantity),0) AS qty, MIN(product_name_snapshot) AS pname FROM sale_items WHERE sale_id = ? AND (product_id IS ? OR product_id = ?)`,
+          `SELECT COALESCE(SUM(quantity * unit_factor),0) AS qty FROM sale_items WHERE sale_id = ? AND (product_id IS ? OR product_id = ?)`,
         )
-        .get(args.originalSaleId, item.productId, item.productId) as
-        | { qty: number; pname: string | null }
-        | undefined;
-      const soldQty = Number(soldAgg?.qty ?? 0);
-      if (!(soldQty > 0)) throw new Error("Ligne de vente introuvable pour ce retour.");
-      // Prix/coût de référence : première ligne (valeur documentée ; l'UI
-      // fusionne même produit+prix donc cas nominal non ambigu).
+        .get(args.originalSaleId, item.productId, item.productId) as { qty: number } | undefined;
+      const soldBase = Number(soldAgg?.qty ?? 0);
+      if (!(soldBase > 0)) throw new Error("Ligne de vente introuvable pour ce retour.");
+      // Prix/coût de référence : la ligne vendue DANS LA MÊME UNITÉ (carton
+      // ou pièce) — jamais le prix d'une autre unité du même produit.
       const sold = db
         .prepare(
-          `SELECT product_id, product_name_snapshot, unit_price_minor, purchase_price_minor, quantity, category_id FROM sale_items WHERE sale_id = ? AND (product_id IS ? OR product_id = ?) ORDER BY id ASC LIMIT 1`,
+          `SELECT product_id, product_name_snapshot, unit_price_minor, purchase_price_minor, quantity, category_id, unit_factor FROM sale_items WHERE sale_id = ? AND (product_id IS ? OR product_id = ?) AND unit_factor = ? ORDER BY id ASC LIMIT 1`,
         )
-        .get(args.originalSaleId, item.productId, item.productId) as
+        .get(args.originalSaleId, item.productId, item.productId, unitFactor) as
         | {
             product_id: number | null;
             product_name_snapshot: string;
@@ -204,27 +214,29 @@ export function createReturnAtomic(args: {
             purchase_price_minor: number;
             quantity: number;
             category_id: number | null;
+            unit_factor: number;
           }
         | undefined;
       if (!sold) throw new Error("Ligne de vente introuvable pour ce retour.");
-      const already = (
+      const alreadyBase = (
         db
           .prepare(
-            `SELECT COALESCE(SUM(ri.quantity),0) AS q FROM return_items ri JOIN returns r ON r.id = ri.return_id WHERE r.original_sale_id = ? AND r.status != 'cancelled' AND (ri.product_id IS ? OR ri.product_id = ?)`,
+            `SELECT COALESCE(SUM(ri.quantity * ri.unit_factor),0) AS q FROM return_items ri JOIN returns r ON r.id = ri.return_id WHERE r.original_sale_id = ? AND r.status != 'cancelled' AND (ri.product_id IS ? OR ri.product_id = ?)`,
           )
           .get(args.originalSaleId, item.productId, item.productId) as { q: number }
       ).q;
+      const baseQty = Math.round(item.quantity * unitFactor * 1000) / 1000;
       // Éligible sur le TOTAL (SUM) moins déjà-retourné moins déjà-demandé
       // dans cette requête (2 lignes même produit).
-      const inRequest = requestedByProduct.get(keyOf(item.productId)) ?? 0;
-      const eligible = Number(soldQty) - Number(already) - inRequest;
+      const inRequestBase = requestedByProduct.get(keyOf(item.productId)) ?? 0;
+      const eligibleBase = Number(soldBase) - Number(alreadyBase) - inRequestBase;
       if (!(item.quantity > 0)) throw new Error("Quantité retournée invalide.");
-      if (item.quantity > eligible) {
+      if (baseQty > eligibleBase) {
         throw new Error(
-          `Quantité retournée supérieure à l'éligible (${eligible}) pour « ${sold.product_name_snapshot} ».`,
+          `Quantité retournée supérieure à l'éligible (${eligibleBase} unités de base) pour « ${sold.product_name_snapshot} ».`,
         );
       }
-      requestedByProduct.set(keyOf(item.productId), inRequest + item.quantity);
+      requestedByProduct.set(keyOf(item.productId), inRequestBase + baseQty);
       if (
         !Number.isSafeInteger(sold.unit_price_minor) ||
         sold.unit_price_minor < 0 ||
@@ -239,6 +251,8 @@ export function createReturnAtomic(args: {
         productId: sold.product_id,
         name: sold.product_name_snapshot,
         qty: item.quantity,
+        unitFactor,
+        baseQty,
         unitPrice: sold.unit_price_minor,
         purchase: sold.purchase_price_minor,
         restocked: item.restocked,
@@ -301,36 +315,41 @@ export function createReturnAtomic(args: {
           quantity: number;
         };
         before = Number(prod.quantity);
-        after = before + p.qty;
+        after = Math.round((before + p.baseQty) * 1000) / 1000;
         db.prepare(
           `UPDATE products SET quantity = ?, stock_status = CASE WHEN ? <= 0 THEN 'out_of_stock' WHEN ? <= min_stock_level THEN 'low_stock' ELSE 'in_stock' END, updated_at = ? WHERE id = ?`,
         ).run(after, after, after, args.now, p.productId);
         const plan = planRestore(
           saleConsumptions.filter((c) => c.productId === p.productId),
-          p.qty,
+          p.baseQty,
           plannedRestoreByProduct.get(keyOf(p.productId)) ?? 0,
         );
         plannedRestoreByProduct.set(
           keyOf(p.productId),
-          (plannedRestoreByProduct.get(keyOf(p.productId)) ?? 0) + p.qty,
+          (plannedRestoreByProduct.get(keyOf(p.productId)) ?? 0) + p.baseQty,
         );
         restoreToLayers(plan.slices.map((s) => ({ layerId: s.layerId, quantity: s.quantity })));
         let cost = plan.slices.reduce(
           (a, s) => a + Math.round(Number(s.unitCostMinor) * Number(s.quantity)),
           0,
         );
+        const purchasePerBase = Math.max(
+          0,
+          Math.round(p.purchase / (p.unitFactor > 1 ? p.unitFactor : 1)),
+        );
         if (plan.remainder > 0) {
-          // Vente antérieure à FIFO : couche de restauration au coût snapshot.
+          // Vente antérieure à FIFO : couche de restauration au coût snapshot
+          // ramené à l'unité de base.
           createLayer({
             productId: p.productId,
             qty: plan.remainder,
-            unitCostMinor: Math.max(0, Math.round(p.purchase)),
+            unitCostMinor: purchasePerBase,
             reason: "return_restore",
             now: args.now,
           });
-          cost += Math.round(p.purchase * plan.remainder);
+          cost += Math.round(purchasePerBase * plan.remainder);
         }
-        restoredUnit = p.qty > 0 ? Math.round(cost / p.qty) : Math.round(p.purchase);
+        restoredUnit = p.baseQty > 0 ? Math.round(cost / p.baseQty) : purchasePerBase;
         p.cogsMinor = cost;
         db.prepare(
           `INSERT INTO stock_movements (uuid, product_id, movement_type, quantity_delta, quantity_after, unit_cost_minor, related_entity_type, related_entity_id, reason, reference, staff_user_id, created_at)
@@ -338,7 +357,7 @@ export function createReturnAtomic(args: {
         ).run(
           randomUUID(),
           p.productId,
-          p.qty,
+          p.baseQty,
           after,
           restoredUnit,
           String(returnId),
@@ -348,8 +367,8 @@ export function createReturnAtomic(args: {
         );
       }
       db.prepare(
-        `INSERT INTO return_items (return_id, product_id, product_name_snapshot, quantity, unit_price_minor, purchase_price_minor, restocked, condition, stock_before, stock_after, line_total_minor, category_id, cogs_minor)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO return_items (return_id, product_id, product_name_snapshot, quantity, unit_price_minor, purchase_price_minor, restocked, condition, stock_before, stock_after, line_total_minor, category_id, cogs_minor, unit_factor)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         returnId,
         p.productId,
@@ -364,6 +383,7 @@ export function createReturnAtomic(args: {
         p.lineTotal,
         p.categoryId,
         p.cogsMinor,
+        p.unitFactor,
       );
     }
     // AVOIR : le solde du client ne peut pas devenir négatif (trigger 0023
@@ -520,7 +540,7 @@ export function createSupplierReturnAtomic(args: {
     for (const item of args.items) {
       const bought = db
         .prepare(
-          `SELECT product_id, product_name_snapshot, purchase_price_minor, quantity_received FROM stock_intake_items WHERE stock_intake_id = ? AND (product_id IS ? OR product_id = ?) LIMIT 1`,
+          `SELECT product_id, product_name_snapshot, purchase_price_minor, quantity_received, unit_factor FROM stock_intake_items WHERE stock_intake_id = ? AND (product_id IS ? OR product_id = ?) LIMIT 1`,
         )
         .get(args.intakeId, item.productId, item.productId) as
         | {
@@ -528,6 +548,7 @@ export function createSupplierReturnAtomic(args: {
             product_name_snapshot: string;
             purchase_price_minor: number;
             quantity_received: number;
+            unit_factor: number;
           }
         | undefined;
       if (!bought) throw new Error("Ligne d'achat introuvable pour ce retour.");
@@ -538,10 +559,13 @@ export function createSupplierReturnAtomic(args: {
           )
           .get(args.intakeId, item.productId, item.productId) as { q: number }
       ).q;
+      const purchasedBase =
+        Number(bought.quantity_received) *
+        (Number.isInteger(bought.unit_factor) && Number(bought.unit_factor) > 0
+          ? Number(bought.unit_factor)
+          : 1);
       const eligible =
-        Number(bought.quantity_received) -
-        Number(already) -
-        (requestedByProduct.get(keyOf(item.productId)) ?? 0);
+        purchasedBase - Number(already) - (requestedByProduct.get(keyOf(item.productId)) ?? 0);
       if (!(item.quantity > 0)) throw new Error("Quantité retournée invalide.");
       if (item.quantity > eligible) {
         throw new Error(
@@ -755,7 +779,7 @@ export function listReturnsUnified(
       r.total_return_value_minor AS total_minor,
       (r.amount_refunded_minor + r.credit_to_customer_minor) AS settled_minor,
       r.status AS status,
-      (SELECT COALESCE(SUM(quantity), 0) FROM return_items WHERE return_id = r.id AND restocked = 1) AS stock_qty
+      (SELECT COALESCE(SUM(quantity * unit_factor), 0) FROM return_items WHERE return_id = r.id AND restocked = 1) AS stock_qty
     FROM returns r LEFT JOIN customers c ON c.id = r.customer_id`);
   }
   if (type === "all" || type === "supplier") {
@@ -855,14 +879,42 @@ export function getReturnableSaleItems(saleId: number): {
   const items = db
     .prepare(`SELECT * FROM sale_items WHERE sale_id = ? ORDER BY id`)
     .all(saleId) as Record<string, unknown>[];
+  // Éligibilité en UNITÉS DE BASE : le stock et les retours raisonnent en
+  // pièces, même quand la ligne vendue est un carton.
+  const keyOf = (pid: unknown): string => (pid == null ? "null" : `p${Number(pid)}`);
+  const soldBase = new Map<string, number>();
+  for (const it of items) {
+    const factor = Number(it["unit_factor"] ?? 1) > 0 ? Number(it["unit_factor"] ?? 1) : 1;
+    const k = keyOf(it["product_id"]);
+    soldBase.set(
+      k,
+      Math.round(((soldBase.get(k) ?? 0) + Number(it["quantity"]) * factor) * 1000) / 1000,
+    );
+  }
+  const alreadyRows = db
+    .prepare(
+      `SELECT ri.product_id AS pid, COALESCE(SUM(ri.quantity * ri.unit_factor),0) AS q
+       FROM return_items ri JOIN returns r ON r.id = ri.return_id
+       WHERE r.original_sale_id = ? AND r.status != 'cancelled'
+       GROUP BY ri.product_id`,
+    )
+    .all(saleId) as { pid: number | null; q: number }[];
+  const alreadyBase = new Map<string, number>();
+  for (const r of alreadyRows) {
+    alreadyBase.set(keyOf(r.pid), Number(r.q));
+  }
   const out = items.map((it) => {
-    const already = (
-      db
-        .prepare(
-          `SELECT COALESCE(SUM(ri.quantity),0) AS q FROM return_items ri JOIN returns r ON r.id = ri.return_id WHERE r.original_sale_id = ? AND r.status != 'cancelled' AND (ri.product_id IS ? OR ri.product_id = ?)`,
-        )
-        .get(saleId, it["product_id"], it["product_id"]) as { q: number }
-    ).q;
+    const factor = Number(it["unit_factor"] ?? 1) > 0 ? Number(it["unit_factor"] ?? 1) : 1;
+    const k = keyOf(it["product_id"]);
+    const remainingBase = Math.max(
+      0,
+      Math.round(((soldBase.get(k) ?? 0) - (alreadyBase.get(k) ?? 0)) * 1000) / 1000,
+    );
+    const eligible =
+      factor > 1
+        ? Math.min(Number(it["quantity"]), Math.floor(remainingBase / factor + 1e-9))
+        : Math.min(Number(it["quantity"]), remainingBase);
+    const already = Math.max(0, Number(it["quantity"]) - eligible);
     const barcodes =
       it["product_id"] != null
         ? (
@@ -877,7 +929,7 @@ export function getReturnableSaleItems(saleId: number): {
     return {
       ...it,
       already_returned: Number(already),
-      eligible: Number(it["quantity"]) - Number(already),
+      eligible,
       product_primary_barcode: primary,
       product_barcodes: barcodes,
       product_barcode: primary,
@@ -928,10 +980,15 @@ export function getReturnableIntakeItems(intakeId: number): {
           ).map((b) => b.barcode)
         : [];
     const primary = barcodes.length > 0 ? (barcodes[0] ?? null) : null;
+    const factor =
+      Number.isInteger(Number(it["unit_factor"])) && Number(it["unit_factor"]) > 0
+        ? Number(it["unit_factor"])
+        : 1;
+    const purchasedBase = Number(it["quantity_received"]) * factor;
     return {
       ...it,
       already_returned: Number(already),
-      eligible: Number(it["quantity_received"]) - Number(already),
+      eligible: purchasedBase - Number(already),
       product_primary_barcode: primary,
       product_barcodes: barcodes,
       product_barcode: primary,
@@ -1081,12 +1138,17 @@ export function cancelReturnAtomic(args: {
         .all(args.id) as Record<string, unknown>[];
       for (const it of items) {
         if (Number(it["restocked"]) === 1 && it["product_id"] != null) {
+          const factor =
+            Number.isInteger(Number(it["unit_factor"])) && Number(it["unit_factor"]) > 0
+              ? Number(it["unit_factor"])
+              : 1;
+          const baseQty = Math.round(Number(it["quantity"]) * factor * 1000) / 1000;
           const prod = db
             .prepare(`SELECT quantity FROM products WHERE id = ?`)
             .get(it["product_id"]) as {
             quantity: number;
           };
-          const after = Number(prod.quantity) - Number(it["quantity"]);
+          const after = Math.round((Number(prod.quantity) - baseQty) * 1000) / 1000;
           if (after < 0) {
             throw new Error(
               `Annulation impossible : stock insuffisant pour « ${txt(it["product_name_snapshot"]) || "?"} ».`,
@@ -1099,7 +1161,7 @@ export function cancelReturnAtomic(args: {
           // préserver l'invariant couches = stock (retours vierges uniquement).
           consumeLayers({
             productId: Number(it["product_id"]),
-            qty: Number(it["quantity"]),
+            qty: baseQty,
             now: args.now,
             oversell: false,
             fallbackUnitCostMinor: 0,
@@ -1110,7 +1172,7 @@ export function cancelReturnAtomic(args: {
           ).run(
             randomUUID(),
             it["product_id"],
-            -Number(it["quantity"]),
+            -baseQty,
             after,
             String(args.id),
             txt(r["return_number"]),

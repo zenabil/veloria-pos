@@ -66,8 +66,15 @@ export function searchProducts(args: {
   const rows = db
     .prepare(
       `SELECT p.*, c.name AS category_name,
-        (SELECT b.barcode FROM product_barcodes b WHERE b.product_id = p.id ORDER BY b.is_primary DESC, b.id LIMIT 1) AS primary_barcode
+        (SELECT b.barcode FROM product_barcodes b WHERE b.product_id = p.id ORDER BY b.is_primary DESC, b.id LIMIT 1) AS primary_barcode,
+        pk.id AS packaging_id,
+        pk.label_fr AS packaging_label_fr,
+        pk.factor AS packaging_factor,
+        pk.selling_price_minor AS packaging_selling_price_minor,
+        pk.purchase_price_minor AS packaging_purchase_price_minor,
+        pk.auto_carton_pricing AS packaging_auto_carton_pricing
        FROM products p LEFT JOIN categories c ON c.id = p.category_id
+       LEFT JOIN product_packagings pk ON pk.product_id = p.id AND pk.is_active = 1
        WHERE ${whereSql} ORDER BY p.name COLLATE NOCASE LIMIT ? OFFSET ?`,
     )
     .all(...params, args.pageSize, offset) as ProductRow[];
@@ -79,8 +86,15 @@ export function getProductByBarcode(barcode: string): ProductRow | null {
   const row = db
     .prepare(
       `SELECT p.*, c.name AS category_name,
-        (SELECT b.barcode FROM product_barcodes b WHERE b.product_id = p.id ORDER BY b.is_primary DESC, b.id LIMIT 1) AS primary_barcode
+        (SELECT b.barcode FROM product_barcodes b WHERE b.product_id = p.id ORDER BY b.is_primary DESC, b.id LIMIT 1) AS primary_barcode,
+        pk.id AS packaging_id,
+        pk.label_fr AS packaging_label_fr,
+        pk.factor AS packaging_factor,
+        pk.selling_price_minor AS packaging_selling_price_minor,
+        pk.purchase_price_minor AS packaging_purchase_price_minor,
+        pk.auto_carton_pricing AS packaging_auto_carton_pricing
        FROM products p LEFT JOIN categories c ON c.id = p.category_id
+       LEFT JOIN product_packagings pk ON pk.product_id = p.id AND pk.is_active = 1
        WHERE p.id = (SELECT product_id FROM product_barcodes WHERE barcode = ?)
        AND p.is_active = 1 LIMIT 1`,
     )
@@ -495,6 +509,9 @@ export function deleteProductAtomic(id: number, now: string, operationId: string
     // Liaison N-N : suppression explicite (plutôt que CASCADE silencieux) —
     // traçée dans l'audit ci-dessous, dans la même transaction.
     db.prepare(`DELETE FROM product_suppliers WHERE product_id = ?`).run(id);
+    // Conditionnement = configuration du produit (aucun historique de vente
+    // n'existe ici, garanti par PRODUCT_USAGE_TABLES).
+    db.prepare(`DELETE FROM product_packagings WHERE product_id = ?`).run(id);
     db.prepare(`DELETE FROM products WHERE id = ?`).run(id);
     db.prepare(
       `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at) VALUES (?, 'product.deleted', 'product', ?, ?, ?, ?)`,

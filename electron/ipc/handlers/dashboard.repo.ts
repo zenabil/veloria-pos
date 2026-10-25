@@ -299,12 +299,12 @@ export function getDashboardSummary(
   const fastMoving = getAll<{ name: string; qty: number; total: number }>(
     `SELECT product_id, name, SUM(qty) AS qty, SUM(total) AS total FROM (
        SELECT li.product_id AS product_id, li.product_name_snapshot AS name,
-         li.quantity AS qty, li.line_total_minor AS total
+         li.quantity * li.unit_factor AS qty, li.line_total_minor AS total
        FROM sale_items li JOIN sales s ON s.id = li.sale_id
        WHERE s.is_cancelled = 0 AND s.created_at >= ? AND s.created_at < ?${fastSaleStaff}
        UNION ALL
        SELECT ri.product_id AS product_id, ri.product_name_snapshot AS name,
-         -ri.quantity AS qty, -ri.line_total_minor AS total
+         -(ri.quantity * ri.unit_factor) AS qty, -ri.line_total_minor AS total
        FROM return_items ri JOIN returns r ON r.id = ri.return_id
        WHERE r.status != 'cancelled' AND r.created_at >= ? AND r.created_at < ?${fastReturnStaff}
      )

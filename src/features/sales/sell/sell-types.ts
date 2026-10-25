@@ -9,6 +9,12 @@ export interface SearchRow {
   quantity: number;
   unit_code: string;
   primary_barcode: string | null;
+  /** Conditionnement actif (null/absent = produit vendu à l'unité de base). */
+  packaging_id?: number | null;
+  packaging_label_fr?: string | null;
+  packaging_factor?: number | null;
+  packaging_selling_price_minor?: number | null;
+  packaging_auto_carton_pricing?: number | null;
 }
 
 export interface CustomerRow {

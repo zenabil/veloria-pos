@@ -793,7 +793,8 @@ export function getReportsSummary(args: ReportsSummaryInput): Record<string, unk
     );
   const topProducts = db
     .prepare(
-      `SELECT li.product_name_snapshot AS name, COALESCE(SUM(li.quantity), 0) AS qty,
+      `SELECT li.product_name_snapshot AS name,
+        COALESCE(SUM(li.quantity * li.unit_factor), 0) AS qty,
         COALESCE(SUM(li.line_total_minor), 0) AS total
        FROM sale_items li JOIN sales s ON s.id = li.sale_id
        ${saleCat ? "JOIN products p ON p.id = li.product_id AND p.category_id = ?" : ""}

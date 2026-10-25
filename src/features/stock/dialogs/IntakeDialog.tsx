@@ -30,12 +30,28 @@ interface IntakeLine {
   productName: string;
   unit: string;
   received: string;
+  /** TOUJOURS en unités de base (pièces). */
   damaged: string;
   price: string;
   /** Prix de vente par ligne (DZD, saisie FR) : vide = conserver l'actuel. */
   selling: string;
   search: string;
-  results: { id: number; name: string; unit_code: string; quantity: number }[];
+  packagingId: number | null;
+  packagingFactor: number | null;
+  packagingLabel: string | null;
+  packagingPurchasePriceMinor: number | null;
+  /** Unité d'achat choisie : le prix et la quantité reçue suivent ce choix. */
+  purchaseUnit: "piece" | "carton";
+  results: {
+    id: number;
+    name: string;
+    unit_code: string;
+    quantity: number;
+    packaging_id?: number | null;
+    packaging_label_fr?: string | null;
+    packaging_factor?: number | null;
+    packaging_purchase_price_minor?: number | null;
+  }[];
 }
 
 let intakeKey = 1;
@@ -52,6 +68,11 @@ function emptyIntakeLine(): IntakeLine {
     price: "",
     selling: "",
     search: "",
+    packagingId: null,
+    packagingFactor: null,
+    packagingLabel: null,
+    packagingPurchasePriceMinor: null,
+    purchaseUnit: "piece",
     results: [],
   };
 }
@@ -149,7 +170,7 @@ export function StockIntakeDialog({
     }
     try {
       const res = (await api.stockProducts({ query: q.trim(), page: 1, pageSize: 8 })) as {
-        rows: { id: number; name: string; unit_code: string; quantity: number }[];
+        rows: IntakeLine["results"];
       };
       setLines((prev) => prev.map((l) => (l.key === key ? { ...l, results: res.rows } : l)));
     } catch (e) {
@@ -170,6 +191,10 @@ export function StockIntakeDialog({
   // la source unique (`@shared/money/parse.ts`).
 
   const parsed = lines.map((l) => {
+    const factor =
+      l.purchaseUnit === "carton" && l.packagingId != null && (l.packagingFactor ?? 0) > 1
+        ? (l.packagingFactor as number)
+        : 1;
     const received = parseQuantityInput(l.received.trim() === "" ? "0" : l.received, {
       allowZero: true,
     });
@@ -181,23 +206,46 @@ export function StockIntakeDialog({
     const sellingRaw = l.selling.trim();
     const selling = sellingRaw === "" ? null : strictOrNum(sellingRaw);
     const sellingOk = selling === null || (Number.isInteger(selling) && selling >= 0);
+    const baseReceived = received != null ? Math.round(received * factor * 1000) / 1000 : null;
     const net =
-      received != null && damaged != null ? Math.round((received - damaged) * 1000) / 1000 : null;
+      baseReceived != null && damaged != null
+        ? Math.round((baseReceived - damaged) * 1000) / 1000
+        : null;
+    // Total payé = prix d'achat × unités reçues (abîmés inclus dans le coût).
     const lineTotal =
-      net != null && Number.isInteger(price) && price >= 0 && net > 0 ? Math.round(price * net) : 0;
+      received != null && Number.isInteger(price) && price >= 0 && received > 0
+        ? Math.round(price * received)
+        : 0;
     const name = l.productId != null ? l.productName : l.productName.trim();
+    const cartonQtyOk = factor === 1 || (received != null && Number.isInteger(received));
+    const damagedIntegerOk = factor === 1 || (damaged != null && Number.isInteger(damaged));
     const valid =
       name.length > 0 &&
       received != null &&
       received > 0 &&
       damaged != null &&
       damaged >= 0 &&
-      (net ?? 0) >= 0 &&
-      damaged <= received &&
+      (net ?? 0) > 0 &&
+      baseReceived != null &&
+      damaged <= baseReceived &&
+      cartonQtyOk &&
+      damagedIntegerOk &&
       Number.isInteger(price) &&
       price >= 0 &&
       sellingOk;
-    return { ...l, received, damaged, price, selling, net, lineTotal, valid, sellingOk };
+    return {
+      ...l,
+      factor,
+      baseReceived,
+      received,
+      damaged,
+      price,
+      selling,
+      net,
+      lineTotal,
+      valid,
+      sellingOk,
+    };
   });
   const subtotal = parsed.reduce((a, l) => a + (l.valid ? l.lineTotal : 0), 0);
   const shippingMinor = shipping.trim() === "" ? 0 : strictOrNum(shipping);
@@ -247,6 +295,8 @@ export function StockIntakeDialog({
           quantityDamaged: typeof l.damaged === "number" ? l.damaged : 0,
           purchasePriceMinor: l.price,
           sellingPriceMinor: l.selling,
+          packagingId: l.purchaseUnit === "carton" && l.packagingId != null ? l.packagingId : null,
+          unitFactor: l.factor,
         })),
       })) as { intakeId: number; totalMinor: number };
       notify(`Réception #${res.intakeId} enregistrée : ${formatDzd(res.totalMinor)}.`, "ok");
@@ -428,6 +478,12 @@ export function StockIntakeDialog({
                                   productId: r.id,
                                   productName: r.name,
                                   unit: r.unit_code,
+                                  packagingId: r.packaging_id ?? null,
+                                  packagingFactor: r.packaging_factor ?? null,
+                                  packagingLabel: r.packaging_label_fr ?? null,
+                                  packagingPurchasePriceMinor:
+                                    r.packaging_purchase_price_minor ?? null,
+                                  purchaseUnit: "piece",
                                   results: [],
                                   search: "",
                                 })
@@ -467,8 +523,40 @@ export function StockIntakeDialog({
                     disabled={l.productId != null}
                   />
                 </Field>
+                {l.packagingId != null && l.packagingFactor != null ? (
+                  <div className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] px-3 py-2">
+                    <span className="text-xs font-semibold text-slate-300">Unité d'achat :</span>
+                    <Button
+                      type="button"
+                      variant={l.purchaseUnit === "carton" ? "primary" : "secondary"}
+                      onClick={() => {
+                        patchLine(l.key, {
+                          purchaseUnit: "carton",
+                          price:
+                            (lines[idx]?.price ?? "").trim() === "" &&
+                            l.packagingPurchasePriceMinor != null
+                              ? (l.packagingPurchasePriceMinor / 100).toFixed(2).replace(".", ",")
+                              : (lines[idx]?.price ?? ""),
+                        });
+                      }}
+                      title={l.packagingLabel ?? `Carton de ${l.packagingFactor}`}
+                    >
+                      {l.packagingLabel ?? `Carton de ${l.packagingFactor}`}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={l.purchaseUnit === "piece" ? "primary" : "secondary"}
+                      onClick={() => patchLine(l.key, { purchaseUnit: "piece" })}
+                    >
+                      Pièce
+                    </Button>
+                    <span className="text-[11px] text-slate-400">
+                      1 carton = {l.packagingFactor} pièces
+                    </span>
+                  </div>
+                ) : null}
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  <Field label="Reçue *">
+                  <Field label={`Reçue *${l.purchaseUnit === "carton" ? " (cartons)" : ""}`}>
                     <TextInput
                       value={lines[idx]?.received ?? ""}
                       onChange={(e) => patchLine(l.key, { received: e.target.value })}
@@ -476,7 +564,7 @@ export function StockIntakeDialog({
                       aria-label={`Quantité reçue ligne ${idx + 1}`}
                     />
                   </Field>
-                  <Field label="Abîmée">
+                  <Field label="Abîmée (pièces)">
                     <TextInput
                       value={lines[idx]?.damaged ?? ""}
                       onChange={(e) => patchLine(l.key, { damaged: e.target.value })}
@@ -484,7 +572,9 @@ export function StockIntakeDialog({
                       aria-label={`Quantité abîmée ligne ${idx + 1}`}
                     />
                   </Field>
-                  <Field label="Prix achat (DZD) *">
+                  <Field
+                    label={`Prix achat / ${l.purchaseUnit === "carton" ? "carton" : "pièce"} *`}
+                  >
                     <TextInput
                       value={lines[idx]?.price ?? ""}
                       onChange={(e) => patchLine(l.key, { price: e.target.value })}
@@ -493,7 +583,7 @@ export function StockIntakeDialog({
                       aria-label={`Prix achat ligne ${idx + 1}`}
                     />
                   </Field>
-                  <Field label="Prix de vente (DZD)" hint="Vide = conserver.">
+                  <Field label="Prix de vente / pièce" hint="Vide = conserver.">
                     <TextInput
                       value={lines[idx]?.selling ?? ""}
                       onChange={(e) => patchLine(l.key, { selling: e.target.value })}
@@ -504,11 +594,14 @@ export function StockIntakeDialog({
                   </Field>
                 </div>
                 <p className="text-xs tabular-nums text-slate-400">
-                  Net : {l.net ?? "—"} · Ligne : {formatDzd(l.valid ? l.lineTotal : 0)} · Livraison
-                  : {formatDzd(l.share)} ·{" "}
+                  {l.net != null
+                    ? `${l.net} pièce(s) — coût/pièce : ${formatDzd(l.net > 0 ? Math.round((l.lineTotal + l.share) / l.net) : 0)}`
+                    : "Quantités invalides"}{" "}
+                  · Ligne : {formatDzd(l.valid ? l.lineTotal : 0)} · Livraison :{" "}
+                  {formatDzd(l.share)} ·{" "}
                   <strong
                     className="text-amber-200"
-                    title="Estimation informative : le stock et la marge valorisent au prix d'achat hors livraison"
+                    title="Estimation informative : la valorisation FIFO répartit le total payé au centime près"
                   >
                     Coût rendu estimé : {formatDzd(l.landing)}
                   </strong>{" "}

@@ -79,6 +79,8 @@ export function registerSalesChannels(): void {
         purchasePriceMinor: l.purchasePriceMinor,
         quantity: l.quantity,
         billedTotalMinor: l.billedTotalMinor ?? null,
+        packagingId: l.packagingId ?? null,
+        unitFactor: l.unitFactor,
       })),
       lineTotals: chargedTotals,
       now,

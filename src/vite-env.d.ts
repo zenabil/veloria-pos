@@ -39,6 +39,11 @@ interface Window {
       remove(p: unknown): Promise<VeloriaOutcome>;
       suppliers(p: unknown): Promise<VeloriaOutcome>;
       setSuppliers(p: unknown): Promise<VeloriaOutcome>;
+      packagings: {
+        list(p: unknown): Promise<VeloriaOutcome>;
+        save(p: unknown): Promise<VeloriaOutcome>;
+        remove(p: unknown): Promise<VeloriaOutcome>;
+      };
     };
     customers: {
       search(p: unknown): Promise<VeloriaOutcome>;

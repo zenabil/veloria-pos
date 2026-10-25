@@ -17,6 +17,12 @@ export interface CartDraftLine {
   quantity: number;
   /** Montant facturé EXACT (mode « Montant » ADR-114) — absent/NULL = prix × qté. */
   billedTotalMinor?: number | null;
+  packagingId?: number | null;
+  packagingLabelFr?: string | null;
+  packagingFactor?: number | null;
+  packagingSellingPriceMinor?: number | null;
+  packagingAutoCartonPricing?: boolean | null;
+  packagingPriceOverridden?: boolean | null;
 }
 
 export interface CartDraftTab {
@@ -47,6 +53,19 @@ function cleanLine(l: CartDraftLine): CartDraftLine | null {
       : Number.isInteger(l.billedTotalMinor) && l.billedTotalMinor > 0
         ? l.billedTotalMinor
         : null;
+  const packagingId =
+    Number.isInteger(l.packagingId) && (l.packagingId as number) > 0
+      ? (l.packagingId as number)
+      : null;
+  const factor =
+    Number.isInteger(l.packagingFactor) && (l.packagingFactor as number) > 1
+      ? (l.packagingFactor as number)
+      : null;
+  const cartonPrice =
+    Number.isInteger(l.packagingSellingPriceMinor) && (l.packagingSellingPriceMinor as number) >= 0
+      ? (l.packagingSellingPriceMinor as number)
+      : null;
+  const keepPackaging = packagingId != null && factor != null && cartonPrice != null;
   return {
     key: l.key,
     productId: l.productId,
@@ -58,6 +77,15 @@ function cleanLine(l: CartDraftLine): CartDraftLine | null {
     purchasePriceMinor: l.purchasePriceMinor,
     quantity: Math.round(l.quantity * 1000) / 1000,
     billedTotalMinor: billed,
+    packagingId: keepPackaging ? packagingId : null,
+    packagingLabelFr:
+      keepPackaging && typeof l.packagingLabelFr === "string"
+        ? l.packagingLabelFr.slice(0, 40)
+        : null,
+    packagingFactor: keepPackaging ? factor : null,
+    packagingSellingPriceMinor: keepPackaging ? cartonPrice : null,
+    packagingAutoCartonPricing: keepPackaging && l.packagingAutoCartonPricing === true,
+    packagingPriceOverridden: l.packagingPriceOverridden === true,
   };
 }
 

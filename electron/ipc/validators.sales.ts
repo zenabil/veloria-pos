@@ -22,6 +22,9 @@ export const saleItemSchema = z.object({
   // côté main (entier > 0 + borne d'arrondi de la quantité) — le renderer
   // ne peut pas gonfler un total.
   billedTotalMinor: moneyMinorPositive.nullable().optional(),
+  // Conditionnement : facteur et tarif carton revalidés en DB côté main.
+  packagingId: z.number().int().positive().nullable().optional(),
+  unitFactor: z.number().int().positive().max(1_000_000).default(1),
 });
 
 export const saleCreateSchema = z.object({
@@ -52,6 +55,13 @@ export const cartLineSchema = z.object({
   // Montant facturé exact (mode « Montant » ADR-114) — persisté avec le
   // brouillon pour que la facture au montant reste exacte après redémarrage.
   billedTotalMinor: moneyMinorPositive.nullable().optional(),
+  // Conditionnement : persisté pour que le tarif carton survive au redémarrage.
+  packagingId: z.number().int().positive().nullable().optional(),
+  packagingLabelFr: z.string().max(40).nullable().optional(),
+  packagingFactor: z.number().int().min(2).max(1_000_000).nullable().optional(),
+  packagingSellingPriceMinor: moneyMinor.nullable().optional(),
+  packagingAutoCartonPricing: z.boolean().default(false),
+  packagingPriceOverridden: z.boolean().default(false),
 });
 
 export const cartsSaveSchema = z.object({

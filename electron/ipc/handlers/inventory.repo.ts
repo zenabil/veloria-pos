@@ -9,6 +9,7 @@ import { consumeLayers, createLayer, fifoValuation } from "./fifo";
 import { assertOrderClause } from "./sql-guard";
 import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./idempotency";
 import { allocateAmountByWeights } from "./amount-allocation";
+import { allocateUnitCostLayers } from "./cost-allocation";
 import { log } from "../../services/logger";
 
 // ADR-075 : fragment CASE unique du statut stock (3 sites : adjust/intake/
@@ -20,14 +21,21 @@ const STOCK_STATUS_CASE =
 export interface IntakeLineInput {
   productId: number | null;
   productName: string;
+  /** Quantité reçue dans l'unité d'achat choisie (carton ou pièce). */
   quantityReceived: number;
+  /** Quantité abîmée TOUJOURS en unités de base (pièces). */
   quantityDamaged: number;
+  /** Prix d'achat par unité d'achat (carton ou pièce). */
   purchasePriceMinor: number;
   /**
    * Prix de vente par ligne (centimes) : null = champ laissé vide → conserver
    * le prix actuel du produit existant (0 par défaut à la création).
    */
   sellingPriceMinor: number | null;
+  /** Conditionnement d'achat (null = unité de base). */
+  packagingId?: number | null;
+  /** Facteur relu en DB (le renderer ne fait pas foi). */
+  unitFactor?: number;
 }
 
 export function getStockOverview(): {
@@ -187,25 +195,61 @@ export function receiveStockAtomic(args: {
   if (fast) return fast;
   const tx = db.transaction(() => {
     if (args.lines.length === 0) throw new Error("L'entrée doit contenir au moins une ligne.");
+    const packagingIds = [
+      ...new Set(
+        args.lines.filter((l) => l.packagingId != null).map((l) => l.packagingId as number),
+      ),
+    ];
+    const packagingById = new Map<number, { productId: number; factor: number; active: boolean }>();
+    if (packagingIds.length > 0) {
+      const placeholders = packagingIds.map(() => "?").join(",");
+      const rows = db
+        .prepare(
+          `SELECT id, product_id, factor, is_active FROM product_packagings WHERE id IN (${placeholders})`,
+        )
+        .all(...packagingIds) as {
+        id: number;
+        product_id: number;
+        factor: number;
+        is_active: number;
+      }[];
+      for (const r of rows) {
+        packagingById.set(Number(r.id), {
+          productId: Number(r.product_id),
+          factor: Number(r.factor),
+          active: Number(r.is_active) === 1,
+        });
+      }
+    }
     let subtotal = 0;
     const prepared: {
       productId: number | null;
       name: string;
-      net: number;
-      damaged: number;
+      /** Quantité reçue dans l'unité d'achat (cartons ou pièces). */
       received: number;
+      /** Quantité abîmée en unités de base. */
+      damaged: number;
+      /** Quantité nette en unités de base. */
+      net: number;
+      factor: number;
+      packagingId: number | null;
+      /** Coût d'achat par unité de base (hors fret, dérivé). */
       cost: number;
       selling: number | null;
+      /** Total payé de la ligne (achat), avant répartition du fret. */
       lineTotal: number;
       /** Part du fret imputée à la ligne (centimes) — E-27. */
       shippingShare: number;
-      /** Coût rendu unitaire (achat + fret) — E-27. */
+      /** Coût rendu unitaire (achat + fret) — E-27, affichage. */
       landingUnit: number;
+      /** Paliers FIFO exacts (quantité × coût = total payé). */
+      tiers: { quantity: number; unitCostMinor: number }[];
     }[] = [];
+    const round3 = (v: number): number => Math.round(v * 1000) / 1000;
     for (const l of args.lines) {
       if (l.productName.trim().length === 0) throw new Error("Ligne sans nom de produit.");
       if (!(l.quantityReceived > 0)) throw new Error("Quantité reçue invalide.");
-      if (l.quantityDamaged < 0 || l.quantityDamaged > l.quantityReceived) {
+      if (!Number.isFinite(l.quantityDamaged) || l.quantityDamaged < 0) {
         throw new Error("Quantité abîmée invalide.");
       }
       if (!Number.isInteger(l.purchasePriceMinor) || l.purchasePriceMinor < 0) {
@@ -217,20 +261,54 @@ export function receiveStockAtomic(args: {
       ) {
         throw new Error("Prix de vente invalide.");
       }
-      const net = l.quantityReceived - l.quantityDamaged;
-      const lineTotal = Math.round(l.purchasePriceMinor * net);
+      const factor = l.unitFactor ?? 1;
+      if (!Number.isInteger(factor) || factor <= 0) {
+        throw new Error("Facteur de conditionnement invalide.");
+      }
+      const packagingId = l.packagingId ?? null;
+      if (packagingId != null) {
+        const pack = packagingById.get(packagingId);
+        if (!pack || !pack.active) throw new Error("Conditionnement d'achat indisponible.");
+        if (l.productId == null || pack.productId !== l.productId) {
+          throw new Error("Conditionnement d'achat incohérent avec le produit.");
+        }
+        if (pack.factor !== factor) {
+          throw new Error("Taille du carton incohérente avec le conditionnement.");
+        }
+        if (!Number.isInteger(l.quantityReceived)) {
+          throw new Error("Nombre de cartons reçus invalide.");
+        }
+        if (!Number.isInteger(l.quantityDamaged)) {
+          throw new Error("Quantité abîmée en pièces invalide (entier requis).");
+        }
+      } else if (factor !== 1) {
+        throw new Error("Facteur de conditionnement sans conditionnement.");
+      }
+      const baseReceived = round3(l.quantityReceived * factor);
+      if (l.quantityDamaged > baseReceived) {
+        throw new Error("Quantité abîmée supérieure à la quantité reçue.");
+      }
+      const net = round3(baseReceived - l.quantityDamaged);
+      if (!(net > 0)) throw new Error("Quantité nette reçue invalide.");
+      // Total payé = prix d'achat × unités reçues (les abîmés restent payés) ;
+      // le coût est ensuite réparti sur les unités NETTES (1 ou 2 paliers).
+      const lineTotal = Math.round(l.purchasePriceMinor * l.quantityReceived);
+      const cost = Math.max(0, Math.round(lineTotal / net));
       subtotal += lineTotal;
       prepared.push({
         productId: l.productId,
         name: l.productName.trim(),
-        net,
-        damaged: l.quantityDamaged,
         received: l.quantityReceived,
-        cost: l.purchasePriceMinor,
+        damaged: l.quantityDamaged,
+        net,
+        factor,
+        packagingId,
+        cost,
         selling: l.sellingPriceMinor,
         lineTotal,
         shippingShare: 0,
-        landingUnit: l.purchasePriceMinor,
+        landingUnit: cost,
+        tiers: [],
       });
     }
     const total = subtotal + args.shippingMinor;
@@ -245,11 +323,9 @@ export function receiveStockAtomic(args: {
     );
     prepared.forEach((p, i) => {
       p.shippingShare = shippingShares[i] ?? 0;
-      // Coût rendu unitaire (arrondi au centime) : la valeur du stock porte
-      // désormais le fret. L'écart d'arrondi (< 1 centime par ligne) ne touche
-      // QUE la valorisation — ni la dette fournisseur, ni le total de la
-      // réception (inchangés).
-      p.landingUnit = p.net > 0 ? Math.round((p.lineTotal + p.shippingShare) / p.net) : p.cost;
+      const landedTotal = p.lineTotal + p.shippingShare;
+      p.landingUnit = p.net > 0 ? Math.round(landedTotal / p.net) : p.cost;
+      p.tiers = allocateUnitCostLayers(landedTotal, p.net);
     });
     const r = db
       .prepare(
@@ -312,25 +388,37 @@ export function receiveStockAtomic(args: {
       }
       const itemIns = db
         .prepare(
-          `INSERT INTO stock_intake_items (stock_intake_id, product_id, product_name_snapshot, quantity_received, quantity_damaged, purchase_price_minor, landing_cost_minor)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO stock_intake_items (stock_intake_id, product_id, product_name_snapshot, quantity_received, quantity_damaged, purchase_price_minor, landing_cost_minor, packaging_id, unit_factor, line_total_minor)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
-        .run(intakeId, pid, p.name, p.received, p.damaged, p.cost, p.landingUnit);
+        .run(
+          intakeId,
+          pid,
+          p.name,
+          p.received,
+          p.damaged,
+          p.cost,
+          p.landingUnit,
+          p.packagingId,
+          p.factor,
+          p.lineTotal + p.shippingShare,
+        );
       const intakeItemId = Number(itemIns.lastInsertRowid);
       if (p.net > 0) {
-        // FIFO : chaque apport net crée sa propre couche (jamais de fusion).
-        // Coût unitaire = COÛT RENDU (achat + fret réparti) : la valorisation
-        // du stock est complète (E-27).
-        createLayer({
-          productId: pid,
-          intakeId,
-          intakeItemId,
-          qty: p.net,
-          unitCostMinor: p.landingUnit,
-          purchaseDate: args.invoiceDate,
-          reason: "intake",
-          now: args.now,
-        });
+        // FIFO : le total payé (achat + fret) est réparti sur les unités de
+        // base en 1 ou 2 paliers EXACTS (Σ quantité × coût = total payé).
+        for (const tier of p.tiers) {
+          createLayer({
+            productId: pid,
+            intakeId,
+            intakeItemId,
+            qty: tier.quantity,
+            unitCostMinor: tier.unitCostMinor,
+            purchaseDate: args.invoiceDate,
+            reason: "intake",
+            now: args.now,
+          });
+        }
         if (p.productId != null) {
           // Produit existant : stock += net, coût = dernier coût, vente = saisie
           // ou conservation de l'actuel (jamais d'écrasement par vide).
@@ -364,7 +452,7 @@ export function receiveStockAtomic(args: {
             pid,
             p.net,
             after,
-            p.cost,
+            p.landingUnit,
             String(intakeId),
             args.staffUserId ?? null,
             args.now,
@@ -379,7 +467,7 @@ export function receiveStockAtomic(args: {
             pid,
             p.net,
             p.net,
-            p.cost,
+            p.landingUnit,
             String(intakeId),
             args.staffUserId ?? null,
             args.now,
@@ -493,8 +581,15 @@ export function listStockProducts(
     c.name AS category_name,
     (SELECT barcode FROM product_barcodes b WHERE b.product_id = p.id ORDER BY b.is_primary DESC, b.id ASC LIMIT 1) AS primary_barcode,
     (SELECT COALESCE(SUM(remaining_quantity * unit_cost_minor), 0) FROM inventory_layers WHERE product_id = p.id) AS stock_value_minor,
-    (SELECT MAX(created_at) FROM stock_movements m WHERE m.product_id = p.id) AS last_movement_at
-  FROM products p LEFT JOIN categories c ON c.id = p.category_id`;
+    (SELECT MAX(created_at) FROM stock_movements m WHERE m.product_id = p.id) AS last_movement_at,
+    pk.id AS packaging_id,
+    pk.label_fr AS packaging_label_fr,
+    pk.factor AS packaging_factor,
+    pk.selling_price_minor AS packaging_selling_price_minor,
+    pk.purchase_price_minor AS packaging_purchase_price_minor,
+    pk.auto_carton_pricing AS packaging_auto_carton_pricing
+  FROM products p LEFT JOIN categories c ON c.id = p.category_id
+  LEFT JOIN product_packagings pk ON pk.product_id = p.id AND pk.is_active = 1`;
   const order =
     sort === "name_desc"
       ? `p.name COLLATE NOCASE DESC`

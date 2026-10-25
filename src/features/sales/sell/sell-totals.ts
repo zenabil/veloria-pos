@@ -5,6 +5,7 @@ import { isRealCalendarDate } from "@shared/dates/dates.ts";
 import { computeBilledTotal } from "@domain/sales/sale-rules.ts";
 import { timbreQuittanceLf2025 } from "@domain/invoice/timbre-rules.ts";
 import { totalsOf } from "@/application/sales/create-sale.ts";
+import { expandSaleLines } from "@/application/sales/packaging-lines.ts";
 import type { ActiveCart, CartTab } from "../cart-store.ts";
 import type { SellTotals } from "./useSellState.ts";
 import type { LastSale, PreviewLine } from "./sell-types.ts";
@@ -129,7 +130,9 @@ export function buildSaleSnapshot(
   dueDate?: string | null,
 ): Omit<LastSale, "invoice" | "date" | "balances"> {
   return {
-    lines: cart.lines.map((l) => ({
+    // Le ticket doit montrer EXACTEMENT les lignes écrites en base :
+    // 1 carton + 3 pièces, pas une ligne « 15 pièces » au prix pièce.
+    lines: expandSaleLines(cart.lines).map((l) => ({
       name: l.productName,
       qty: l.quantity,
       unit: l.unitCode,

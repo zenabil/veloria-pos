@@ -7,8 +7,12 @@
 
 import { computeSaleTotals, type CartLineInput } from "@domain/sales/sale-rules.ts";
 import { assertCreditSaleAllowed } from "@domain/customer/debt-rules.ts";
+import {
+  expandSaleLines,
+  type PackagingCartMetadata,
+} from "@/application/sales/packaging-lines.ts";
 
-export interface CartLine extends CartLineInput {
+export interface CartLine extends CartLineInput, PackagingCartMetadata {
   key: string;
   /**
    * Caisse : stock disponible au moment de l'ajout (cliché UX, jamais facturé).
@@ -52,6 +56,10 @@ interface SalePayload {
     quantity: number;
     /** Montant facturé EXACT (mode « Montant » ADR-114) — null = prix × qté. */
     billedTotalMinor: number | null;
+    /** Conditionnement appliqué (null = unité de base). */
+    packagingId: number | null;
+    /** 1 = unité de base ; > 1 = nombre d'unités de base par ligne. */
+    unitFactor: number;
   }[];
   deliveryFeeMinor: number;
   amountPaidMinor: number;
@@ -64,7 +72,9 @@ export function totalsOf(
   draft: Pick<SaleDraft, "lines" | "deliveryFeeMinor" | "amountPaidMinor">,
 ): ReturnType<typeof computeSaleTotals> {
   return computeSaleTotals({
-    lines: draft.lines,
+    // Les totaux caisse doivent refléter le tarif carton AVANT l'encaissement :
+    // la projection est la même que celle envoyée au main.
+    lines: expandSaleLines(draft.lines),
     deliveryFeeMinor: draft.deliveryFeeMinor,
     amountPaidMinor: draft.amountPaidMinor,
   });
@@ -89,7 +99,7 @@ export function buildSalePayload(draft: SaleDraft): SalePayload {
     operationId: draft.operationId,
     customerId: draft.customerId,
     limitOverrideApproved: draft.limitOverrideApproved ?? false,
-    lines: draft.lines.map((l) => ({
+    lines: expandSaleLines(draft.lines).map((l) => ({
       productId: l.productId,
       productName: l.productName,
       unitCode: l.unitCode,
@@ -98,6 +108,8 @@ export function buildSalePayload(draft: SaleDraft): SalePayload {
       purchasePriceMinor: l.purchasePriceMinor,
       quantity: l.quantity,
       billedTotalMinor: l.billedTotalMinor ?? null,
+      packagingId: l.packagingId,
+      unitFactor: l.unitFactor,
     })),
     deliveryFeeMinor: draft.deliveryFeeMinor,
     amountPaidMinor: draft.amountPaidMinor,

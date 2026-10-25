@@ -23,6 +23,8 @@ import {
 } from "./fifo";
 import { log } from "../../services/logger";
 
+const round3 = (v: number): number => Math.round(v * 1000) / 1000;
+
 export function listSalesHistory(
   page: number,
   pageSize: number,
@@ -144,6 +146,10 @@ export interface SaleLineInput {
    * de la quantité : le renderer ne peut pas gonfler un total).
    */
   billedTotalMinor?: number | null;
+  /** Conditionnement appliqué (null = unité de base). */
+  packagingId?: number | null;
+  /** Nombre d'unités de base par unité de ligne (1 = pièce). */
+  unitFactor?: number;
 }
 
 export interface CreateSaleInput {
@@ -225,6 +231,19 @@ export function validateSaleLines(
     }
     if (!Number.isInteger(line.unitPriceMinor) || line.unitPriceMinor < 0) {
       throw new Error(`Prix facturé invalide pour « ${line.productName} ».`);
+    }
+    const factor = line.unitFactor ?? 1;
+    if (!Number.isInteger(factor) || factor <= 0) {
+      throw new Error(`Facteur de conditionnement invalide pour « ${line.productName} ».`);
+    }
+    if (factor > 1 && line.billedTotalMinor != null) {
+      throw new Error(`Ligne carton incompatible avec un montant saisi : « ${line.productName} ».`);
+    }
+    if (
+      line.packagingId != null &&
+      (!Number.isInteger(line.packagingId) || line.packagingId <= 0)
+    ) {
+      throw new Error(`Conditionnement invalide pour « ${line.productName} ».`);
     }
     // Montant saisi : validé même quand le total effectif est fourni.
     billedTotalOfLine(line);
@@ -382,43 +401,138 @@ export function createSaleAtomic(input: CreateSaleInput): {
     // 1. stock availability check (unless explicitly allowed) — préchargé en
     // UNE requête (WHERE id IN) avant la boucle : verrou d'écriture plus court
     // pour les grands paniers, jamais de SELECT dans le for.
+    // CONDITIONNEMENT : la vérification est agrégée PAR PRODUIT en unités de
+    // base AVANT toute écriture (un carton = facteur unités), jamais ligne à
+    // ligne — deux lignes du même produit ne doivent pas passer séparément.
     const wantedIds = [
       ...new Set(input.lines.filter((l) => l.productId != null).map((l) => l.productId as number)),
     ];
     const qtyById = new Map<number, number>();
     const categoryById = new Map<number, number | null>();
     const activeById = new Map<number, boolean>();
+    const sellingById = new Map<number, number>();
     if (wantedIds.length > 0) {
       const placeholders = wantedIds.map(() => "?").join(",");
       const rows = db
         .prepare(
-          `SELECT id, quantity, category_id, is_active FROM products WHERE id IN (${placeholders})`,
+          `SELECT id, quantity, category_id, is_active, selling_price_minor FROM products WHERE id IN (${placeholders})`,
         )
         .all(...wantedIds) as {
         id: number;
         quantity: number;
         category_id: number | null;
         is_active: number;
+        selling_price_minor: number;
       }[];
       for (const r of rows) {
         qtyById.set(Number(r.id), Number(r.quantity));
         activeById.set(Number(r.id), Number(r.is_active) === 1);
         categoryById.set(Number(r.id), r.category_id == null ? null : Number(r.category_id));
+        sellingById.set(Number(r.id), Number(r.selling_price_minor));
       }
     }
+    // Packaging relu en DB : le renderer ne fait jamais foi sur le facteur ni
+    // sur le prix carton.
+    const packagingIds = [
+      ...new Set(
+        input.lines.filter((l) => l.packagingId != null).map((l) => l.packagingId as number),
+      ),
+    ];
+    const packagingById = new Map<
+      number,
+      {
+        productId: number;
+        factor: number;
+        sellingPriceMinor: number;
+        auto: boolean;
+        active: boolean;
+      }
+    >();
+    if (packagingIds.length > 0) {
+      const placeholders = packagingIds.map(() => "?").join(",");
+      const rows = db
+        .prepare(
+          `SELECT id, product_id, factor, selling_price_minor, auto_carton_pricing, is_active FROM product_packagings WHERE id IN (${placeholders})`,
+        )
+        .all(...packagingIds) as {
+        id: number;
+        product_id: number;
+        factor: number;
+        selling_price_minor: number;
+        auto_carton_pricing: number;
+        is_active: number;
+      }[];
+      for (const r of rows) {
+        packagingById.set(Number(r.id), {
+          productId: Number(r.product_id),
+          factor: Number(r.factor),
+          sellingPriceMinor: Number(r.selling_price_minor),
+          auto: Number(r.auto_carton_pricing) === 1,
+          active: Number(r.is_active) === 1,
+        });
+      }
+    }
+    const wantedBaseById = new Map<number, number>();
     for (const line of input.lines) {
-      if (line.productId != null) {
-        const q = qtyById.get(line.productId);
-        if (q === undefined) throw new Error("Produit introuvable.");
-        if (activeById.get(line.productId) !== true) {
-          throw new Error(`Produit archivé : « ${line.productName} » — vente impossible.`);
+      const factor = line.unitFactor ?? 1;
+      const baseQty = round3(line.quantity * factor);
+      if (line.productId == null) {
+        if (line.packagingId != null || factor !== 1) {
+          throw new Error(`Article libre sans conditionnement : « ${line.productName} ».`);
         }
-        // Le stock négatif est interdit par le trigger 0037 : la garde est
-        // inconditionnelle (le paramètre historique allowNegativeStock est
-        // conservé pour compatibilité d'appel mais ne peut pas l'activer).
-        if (line.quantity > q) {
-          throw new Error(`Stock insuffisant pour « ${line.productName} ».`);
+        continue;
+      }
+      const q = qtyById.get(line.productId);
+      if (q === undefined) throw new Error("Produit introuvable.");
+      if (activeById.get(line.productId) !== true) {
+        throw new Error(`Produit archivé : « ${line.productName} » — vente impossible.`);
+      }
+      if (line.packagingId != null) {
+        const pack = packagingById.get(line.packagingId);
+        if (!pack || !pack.active) {
+          throw new Error(
+            `Conditionnement indisponible pour « ${line.productName} » : retirez la ligne du panier.`,
+          );
         }
+        if (pack.productId !== line.productId) {
+          throw new Error(`Conditionnement incohérent pour « ${line.productName} ».`);
+        }
+        if (pack.factor !== factor) {
+          throw new Error(
+            `Taille du carton modifiée pour « ${line.productName} » : rafraîchissez le panier.`,
+          );
+        }
+        if (!pack.auto) {
+          throw new Error(`Tarif carton désactivé pour « ${line.productName} ».`);
+        }
+        if (!Number.isInteger(line.quantity) || line.quantity <= 0) {
+          throw new Error(`Nombre de cartons invalide pour « ${line.productName} ».`);
+        }
+        if (line.unitPriceMinor !== pack.sellingPriceMinor) {
+          throw new Error(
+            `Tarif carton modifié pour « ${line.productName} » : rafraîchissez le panier.`,
+          );
+        }
+        const expectedOriginal = round3((sellingById.get(line.productId) ?? 0) * pack.factor);
+        if (line.originalUnitPriceMinor !== expectedOriginal) {
+          throw new Error(
+            `Prix du produit modifié pour « ${line.productName} » : rafraîchissez le panier.`,
+          );
+        }
+      } else if (factor !== 1) {
+        throw new Error(`Facteur de conditionnement incohérent pour « ${line.productName} ».`);
+      }
+      const next = round3((wantedBaseById.get(line.productId) ?? 0) + baseQty);
+      if (next > 1_000_000) {
+        throw new Error(`Quantité totale trop élevée pour « ${line.productName} ».`);
+      }
+      wantedBaseById.set(line.productId, next);
+    }
+    for (const [pid, wantedBase] of wantedBaseById) {
+      const available = qtyById.get(pid) ?? 0;
+      if (wantedBase > available) {
+        const name = input.lines.find((l) => l.productId === pid)?.productName ?? "?";
+        throw new Error(`Stock insuffisant pour « ${name} ».`);
       }
     }
     // 2. invoice number: allocate if not provided (même transaction)
@@ -518,10 +632,12 @@ export function createSaleAtomic(input: CreateSaleInput): {
           original: line.originalUnitPriceMinor,
         });
       }
+      const factor = line.unitFactor ?? 1;
+      const baseQty = round3(line.quantity * factor);
       const itemIns = db
         .prepare(
-          `INSERT INTO sale_items (sale_id, product_id, product_name_snapshot, unit_code, original_unit_price_minor, unit_price_minor, purchase_price_minor, quantity, line_total_minor, discount_minor, category_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO sale_items (sale_id, product_id, product_name_snapshot, unit_code, original_unit_price_minor, unit_price_minor, purchase_price_minor, quantity, line_total_minor, discount_minor, category_id, packaging_id, unit_factor)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           saleId,
@@ -535,28 +651,31 @@ export function createSaleAtomic(input: CreateSaleInput): {
           charged,
           lineDiscount,
           categoryId,
+          line.packagingId ?? null,
+          factor,
         );
       const saleItemId = Number(itemIns.lastInsertRowid);
       if (line.productId != null) {
         // Survente autorisée : la part sans couche utilise le dernier coût connu
         // (dernière couche, sinon snapshot produit) — coût explicite, jamais vide.
         const fallback =
-          latestUnitCost(line.productId) ?? Math.max(0, Math.round(line.purchasePriceMinor));
+          latestUnitCost(line.productId) ??
+          Math.max(0, Math.round(line.purchasePriceMinor / factor));
         const { cogsMinor } = consumeLayers({
           productId: line.productId,
-          qty: line.quantity,
+          qty: baseQty,
           now: input.now,
           oversell: false,
           fallbackUnitCostMinor: fallback,
           record: { saleId, saleItemId },
         });
         db.prepare(`UPDATE sale_items SET cogs_minor = ? WHERE id = ?`).run(cogsMinor, saleItemId);
-        const avgUnit = line.quantity > 0 ? Math.round(cogsMinor / line.quantity) : 0;
+        const avgUnit = baseQty > 0 ? Math.round(cogsMinor / baseQty) : 0;
         // Quantité courante issue du préchargé (mis à jour ligne à ligne) :
         // aucun SELECT dans la boucle.
         const cur = qtyById.get(line.productId);
         if (cur === undefined) throw new Error("Produit introuvable.");
-        const after = cur - line.quantity;
+        const after = round3(cur - baseQty);
         // Garde quantité 0037 : même en survente autorisée, un stock négatif
         // est interdit — échec fermé AVANT l'UPDATE (le trigger reste le
         // dernier rempart, y compris contre le SQL direct).
@@ -575,7 +694,7 @@ export function createSaleAtomic(input: CreateSaleInput): {
         ).run(
           randomUUID(),
           line.productId,
-          -line.quantity,
+          -baseQty,
           after,
           avgUnit,
           String(saleId),
@@ -717,6 +836,7 @@ export function cancelSaleAtomic(saleId: number, now: string, operationId: strin
       product_id: number | null;
       quantity: number;
       purchase_price_minor: number;
+      unit_factor: number;
     }[];
     // Annulation : le stock physique revient ET les couches consommées sont
     // restaurées à l'identique (l'historique des autres ventes reste intact).
@@ -738,9 +858,14 @@ export function cancelSaleAtomic(saleId: number, now: string, operationId: strin
     }
     for (const it of items) {
       if (it.product_id != null) {
+        const factor =
+          Number.isInteger(it.unit_factor) && Number(it.unit_factor) > 0
+            ? Number(it.unit_factor)
+            : 1;
+        const baseQty = round3(Number(it.quantity) * factor);
         const cur = cancelQty.get(it.product_id);
         if (cur === undefined) throw new Error("Produit introuvable.");
-        const after = cur + Number(it.quantity);
+        const after = round3(cur + baseQty);
         db.prepare(
           `UPDATE products SET quantity = ?, stock_status = CASE WHEN ? <= 0 THEN 'out_of_stock' WHEN ? <= min_stock_level THEN 'low_stock' ELSE 'in_stock' END, updated_at = ? WHERE id = ?`,
         ).run(after, after, after, now, it.product_id);
@@ -756,12 +881,13 @@ export function cancelSaleAtomic(saleId: number, now: string, operationId: strin
             .filter((c) => c.layerId != null)
             .map((c) => ({ layerId: c.layerId as number, quantity: Number(c.quantity) })),
         );
-        const missing = Number(it.quantity) - restoredQty;
+        const missing = round3(baseQty - restoredQty);
+        const purchasePerBase = Math.max(0, Math.round(Number(it.purchase_price_minor) / factor));
         if (missing > 0) {
           createLayer({
             productId: it.product_id,
             qty: missing,
-            unitCostMinor: Math.max(0, Math.round(Number(it.purchase_price_minor))),
+            unitCostMinor: purchasePerBase,
             reason: "legacy",
             now,
           });
@@ -771,17 +897,15 @@ export function cancelSaleAtomic(saleId: number, now: string, operationId: strin
           0,
         );
         const avgUnit =
-          Number(it.quantity) > 0
+          baseQty > 0
             ? Math.round(
-                (restoredCost +
-                  Math.round(Number(it.purchase_price_minor) * Math.max(0, missing))) /
-                  Number(it.quantity),
+                (restoredCost + Math.round(purchasePerBase * Math.max(0, missing))) / baseQty,
               )
             : 0;
         db.prepare(
           `INSERT INTO stock_movements (uuid, product_id, movement_type, quantity_delta, quantity_after, unit_cost_minor, related_entity_type, related_entity_id, reason, created_at)
            VALUES (?, ?, 'sale_cancel_in', ?, ?, ?, 'sale', ?, 'Annulation vente', ?)`,
-        ).run(randomUUID(), it.product_id, it.quantity, after, avgUnit, String(saleId), now);
+        ).run(randomUUID(), it.product_id, baseQty, after, avgUnit, String(saleId), now);
       }
     }
     // reverse customer balance by remaining (unpaid part) + recalcul du statut

@@ -33,6 +33,10 @@ export const IPC_CHANNELS = {
   "products.import": "products.import",
   "products.suppliers": "products.suppliers",
   "products.setSuppliers": "products.setSuppliers",
+  // conditionnement produit (cartons) — un actif par produit
+  "products.packagings.list": "products.packagings.list",
+  "products.packagings.save": "products.packagings.save",
+  "products.packagings.delete": "products.packagings.delete",
   // customers
   "customers.search": "customers.search",
   "customers.create": "customers.create",

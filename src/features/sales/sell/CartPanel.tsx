@@ -8,8 +8,10 @@ import {
   minorToInput,
   parseDzdInputStrict,
 } from "@domain/money/money.ts";
-import { computeBilledTotal, isBilledByAmount } from "@domain/sales/sale-rules.ts";
-import { roundQuantity } from "@domain/common/quantity.ts";
+import { isBilledByAmount } from "@domain/sales/sale-rules.ts";
+import { formatQuantityFr, roundQuantity } from "@domain/common/quantity.ts";
+import { packagingDisplay, saleLineTotal } from "@/application/sales/packaging-lines.ts";
+import type { CartLine } from "@/application/sales/create-sale.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import type { ActiveCart } from "../cart-store.ts";
 import { PriceDialog, type PriceTarget } from "./PriceDialog.tsx";
@@ -25,9 +27,9 @@ const RENDER_LIMIT = 60;
  * exception de rendu tue l'écran de la caisse (error boundary). Une ligne
  * incohérente affiche « — » et le détail technique part en journal.
  */
-export function safeLineTotal(line: Parameters<typeof computeBilledTotal>[0]): number | null {
+export function safeLineTotal(line: CartLine): number | null {
   try {
-    return computeBilledTotal(line);
+    return saleLineTotal(line);
   } catch (e) {
     console.error("[Veloria] total de ligne incalculable", e);
     return null;
@@ -151,6 +153,7 @@ export function CartPanel({
                   const locked = isBilledByAmount(l);
                   const total = safeLineTotal(l);
                   const lockHintId = locked ? `verrou-${l.key}` : undefined;
+                  const pack = packagingDisplay(l);
                   return (
                     <tr
                       key={l.key}
@@ -158,6 +161,27 @@ export function CartPanel({
                     >
                       <td className="px-3 py-2 font-medium">
                         {l.productName}
+                        {pack ? (
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                            <span className="text-[11px] font-semibold text-slate-400 tabular-nums">
+                              {formatQuantityFr(l.quantity)} unité(s) — {pack.cartons} carton
+                              {pack.cartons > 1 ? "s" : ""} de {pack.factor}
+                              {pack.pieces > 0
+                                ? ` + ${formatQuantityFr(pack.pieces)} unité(s)`
+                                : ""}
+                            </span>
+                            {pack.cartonApplied ? (
+                              <Badge tone="green">Tarif carton</Badge>
+                            ) : pack.manualPrice ? (
+                              <Badge tone="amber">Prix manuel</Badge>
+                            ) : null}
+                            {pack.cartonApplied && pack.savingsMinor > 0 ? (
+                              <span className="text-[11px] font-bold text-emerald-300 tabular-nums">
+                                Économie : {formatDzd(pack.savingsMinor)}
+                              </span>
+                            ) : null}
+                          </div>
+                        ) : null}
                         {l.stockQty != null ? (
                           l.stockQty <= 0 ? (
                             <div className="mt-1">

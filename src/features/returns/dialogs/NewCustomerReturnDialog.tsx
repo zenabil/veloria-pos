@@ -31,12 +31,15 @@ import { playSound } from "@shared/sound/sound.ts";
 // ---------------------------------------------------------------------------
 
 interface SaleLine {
+  id: number;
   product_id: number | null;
   product_name_snapshot: string;
   unit_price_minor: number;
   quantity: number;
   already_returned: number;
   eligible: number;
+  unit_code?: string | null;
+  unit_factor?: number | null;
   product_primary_barcode?: string | null;
   product_barcodes?: string[] | null;
   product_barcode?: string | null;
@@ -183,6 +186,7 @@ export function CustomerReturnDialog({
           quantity: l.wanted,
           restocked: restockAll && l.condition === "good",
           condition: l.condition,
+          unitFactor: l.unit_factor ?? 1,
         })),
         refundMinor: refund,
         creditMinor: credit,
@@ -268,11 +272,15 @@ export function CustomerReturnDialog({
               </thead>
               <tbody>
                 {visibleLines.map(({ l, i }) => (
-                  <tr
-                    key={`${l.product_id ?? "x"}-${l.product_name_snapshot}`}
-                    className="border-t border-white/[0.06]"
-                  >
-                    <td className="max-w-[180px] truncate px-3 py-2">{l.product_name_snapshot}</td>
+                  <tr key={l.id} className="border-t border-white/[0.06]">
+                    <td className="max-w-[180px] px-3 py-2">
+                      <span className="block truncate">{l.product_name_snapshot}</span>
+                      {l.unit_code && l.unit_code.toUpperCase() !== "PIECE" ? (
+                        <span className="text-[11px] font-semibold text-amber-300/80">
+                          {l.unit_code}
+                        </span>
+                      ) : null}
+                    </td>
                     <td className="px-3 py-2 text-right tabular-nums text-slate-400">
                       {l.quantity} <span className="text-[11px]">(restant {l.eligible})</span>
                     </td>

@@ -39,6 +39,11 @@ const api = {
     remove: (p: unknown) => invoke(IPC_CHANNELS["products.delete"], p),
     suppliers: (p: unknown) => invoke(IPC_CHANNELS["products.suppliers"], p),
     setSuppliers: (p: unknown) => invoke(IPC_CHANNELS["products.setSuppliers"], p),
+    packagings: {
+      list: (p: unknown) => invoke(IPC_CHANNELS["products.packagings.list"], p),
+      save: (p: unknown) => invoke(IPC_CHANNELS["products.packagings.save"], p),
+      remove: (p: unknown) => invoke(IPC_CHANNELS["products.packagings.delete"], p),
+    },
   },
   customers: {
     search: (p: unknown) => invoke(IPC_CHANNELS["customers.search"], p),

@@ -63,6 +63,8 @@ export function registerStockChannels(): void {
         quantityDamaged: l.quantityDamaged,
         purchasePriceMinor: l.purchasePriceMinor,
         sellingPriceMinor: l.sellingPriceMinor ?? null,
+        packagingId: l.packagingId ?? null,
+        unitFactor: l.unitFactor,
       })),
       // Clé d'idempotence générée côté renderer (un UUID par facture) : rejouer
       // le même IPC retourne la réception existante sans double stock/dette.

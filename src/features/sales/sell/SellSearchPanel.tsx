@@ -122,6 +122,14 @@ export function SellSearchPanel({
                       </span>
                     )}
                     <span>· {r.unit_code}</span>
+                    {r.packaging_id != null && r.packaging_factor != null ? (
+                      <span className="font-semibold text-emerald-300/90">
+                        · {r.packaging_label_fr ?? `Carton de ${r.packaging_factor}`}
+                        {r.packaging_selling_price_minor != null
+                          ? ` ${formatDzd(r.packaging_selling_price_minor)}`
+                          : ""}
+                      </span>
+                    ) : null}
                     {r.primary_barcode ? <span>· {r.primary_barcode}</span> : null}
                   </span>
                 </span>
