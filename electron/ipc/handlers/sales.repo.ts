@@ -374,12 +374,16 @@ export function createSaleAtomic(input: CreateSaleInput): {
       ...new Set(input.lines.filter((l) => l.productId != null).map((l) => l.productId as number)),
     ];
     const qtyById = new Map<number, number>();
+    const categoryById = new Map<number, number | null>();
     if (wantedIds.length > 0) {
       const placeholders = wantedIds.map(() => "?").join(",");
       const rows = db
-        .prepare(`SELECT id, quantity FROM products WHERE id IN (${placeholders})`)
-        .all(...wantedIds) as { id: number; quantity: number }[];
-      for (const r of rows) qtyById.set(Number(r.id), Number(r.quantity));
+        .prepare(`SELECT id, quantity, category_id FROM products WHERE id IN (${placeholders})`)
+        .all(...wantedIds) as { id: number; quantity: number; category_id: number | null }[];
+      for (const r of rows) {
+        qtyById.set(Number(r.id), Number(r.quantity));
+        categoryById.set(Number(r.id), r.category_id == null ? null : Number(r.category_id));
+      }
     }
     for (const line of input.lines) {
       if (line.productId != null) {
@@ -456,6 +460,7 @@ export function createSaleAtomic(input: CreateSaleInput): {
         throw new Error(`Prix d'origine invalide pour « ${line.productName} ».`);
       }
       const charged = input.lineTotals[i] ?? 0;
+      const categoryId = line.productId != null ? (categoryById.get(line.productId) ?? null) : null;
       const originalTotal = Math.round(line.originalUnitPriceMinor * line.quantity);
       // Remise de ligne : (original − facturé) × qté par défaut ; sinon la
       // répartition fournie par l'appelant (remise globale d'un devis).
@@ -488,8 +493,8 @@ export function createSaleAtomic(input: CreateSaleInput): {
       }
       const itemIns = db
         .prepare(
-          `INSERT INTO sale_items (sale_id, product_id, product_name_snapshot, unit_code, original_unit_price_minor, unit_price_minor, purchase_price_minor, quantity, line_total_minor, discount_minor)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO sale_items (sale_id, product_id, product_name_snapshot, unit_code, original_unit_price_minor, unit_price_minor, purchase_price_minor, quantity, line_total_minor, discount_minor, category_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           saleId,
@@ -502,6 +507,7 @@ export function createSaleAtomic(input: CreateSaleInput): {
           line.quantity,
           charged,
           lineDiscount,
+          categoryId,
         );
       const saleItemId = Number(itemIns.lastInsertRowid);
       if (line.productId != null) {
@@ -671,6 +677,14 @@ export function cancelSaleAtomic(saleId: number, now: string, operationId: strin
       | undefined;
     if (!sale) throw new Error("Vente introuvable.");
     if (sale["is_cancelled"] === 1) throw new Error("Vente déjà annulée.");
+    const liveReturns = db
+      .prepare(
+        `SELECT COUNT(*) AS n FROM returns WHERE original_sale_id = ? AND status != 'cancelled'`,
+      )
+      .get(saleId) as { n: number };
+    if (Number(liveReturns.n) > 0) {
+      throw new Error("Vente avec retours : annulez d'abord les retours.");
+    }
     const items = db.prepare(`SELECT * FROM sale_items WHERE sale_id = ?`).all(saleId) as {
       id: number;
       product_id: number | null;

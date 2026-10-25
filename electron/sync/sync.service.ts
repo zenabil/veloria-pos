@@ -20,8 +20,10 @@ import {
   buildMirrorRequests,
   isPushDue,
   maskConfig,
+  requiresServiceKeyReentry,
   validateSyncConfig,
   type AccessMirrorRow,
+  type MirrorRequest,
   type OutboxMirrorRow,
   type SyncConfig,
   type SyncConfigView,
@@ -160,6 +162,18 @@ export function saveSyncConfigAtomic(args: { config: unknown; operationId: strin
       anonKey: incomingAnon === "" && prev.anonKey !== "" ? prev.anonKey : incoming.anonKey,
       intervalMinutes: incoming.intervalMinutes,
     });
+    if (
+      requiresServiceKeyReentry({
+        prevUrl: prev.supabaseUrl,
+        prevHasKey: prev.serviceKey.length > 0,
+        nextUrl: cfg.supabaseUrl,
+        incomingKey,
+      })
+    ) {
+      throw new Error(
+        "Changement d'adresse du miroir : ressaisissez la clé service pour confirmer la nouvelle destination.",
+      );
+    }
     writeDoc({ ...cfg, lastPushAt: prev.lastPushAt, lastError: prev.lastError }, args.now);
     const result = { saved: true };
     storeIdempotencyResult(args.operationId, result);
@@ -204,17 +218,11 @@ export async function pushNowAtomic(
     intervalMinutes: doc.intervalMinutes,
   });
   if (!cfg.enabled) throw new Error("Synchronisation désactivée : activez-la d'abord.");
-  const accessRows = db
-    .prepare(
-      `SELECT customer_id, phone_hash, pin_hash, pin_salt, pin_algo, qr_secret_hash, revoked_at, failed_attempts, locked_until, updated_at FROM customer_access ORDER BY customer_id ASC LIMIT 500`,
-    )
-    .all() as AccessMirrorRow[];
   const outboxRows = db
     .prepare(
       `SELECT operation_id, customer_id, kind, payload_json, created_at FROM sync_outbox WHERE status = 'pending' ORDER BY id ASC LIMIT 200`,
     )
     .all() as OutboxMirrorRow[];
-  const requests = buildMirrorRequests(accessRows, outboxRows);
   const send: Transport =
     transport ??
     (async (url, init) => {
@@ -232,22 +240,40 @@ export async function pushNowAtomic(
     Prefer: "resolution=merge-duplicates",
   };
   const base = cfg.supabaseUrl.replace(/\/+$/, "");
-  try {
-    for (const req of requests) {
-      const res = await send(`${base}/rest/v1/${req.table}?on_conflict=${req.onConflict}`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(req.rows),
-      });
-      if (!res.ok) {
-        const detail = await res.text().catch(() => "");
-        // FIX-P1-03 : le détail serveur brut (anglais/JSON) reste au log
-        // technique ; seul un message FR est persisté dans lastError (lu par
-        // l'UI) — règle 6 (jamais d'exception brute à l'utilisateur).
-        log("ERROR", "sync", "push.http", { status: res.status, detail: detail.slice(0, 500) });
-        throw new Error(`Miroir injoignable (HTTP ${res.status}).`);
-      }
+  const post = async (req: MirrorRequest): Promise<void> => {
+    const res = await send(`${base}/rest/v1/${req.table}?on_conflict=${req.onConflict}`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(req.rows),
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      // FIX-P1-03 : le détail serveur brut (anglais/JSON) reste au log
+      // technique ; seul un message FR est persisté dans lastError (lu par
+      // l'UI) — règle 6 (jamais d'exception brute à l'utilisateur).
+      log("ERROR", "sync", "push.http", { status: res.status, detail: detail.slice(0, 500) });
+      throw new Error(`Miroir injoignable (HTTP ${res.status}).`);
     }
+  };
+  let accessCount = 0;
+  try {
+    // Pagination par customer_id : les comptes au-delà du 500e ne sont plus
+    // affamés. Chaque lot est borné ; un échec laisse la file rejouable.
+    let cursor = 0;
+    for (;;) {
+      const batch = db
+        .prepare(
+          `SELECT customer_id, phone_hash, pin_hash, pin_salt, pin_algo, qr_secret_hash, revoked_at, failed_attempts, locked_until, updated_at
+           FROM customer_access WHERE customer_id > ? ORDER BY customer_id ASC LIMIT 500`,
+        )
+        .all(cursor) as AccessMirrorRow[];
+      if (batch.length === 0) break;
+      accessCount += batch.length;
+      for (const req of buildMirrorRequests(batch, [])) await post(req);
+      cursor = Number(batch[batch.length - 1]?.customer_id ?? 0);
+      if (batch.length < 500) break;
+    }
+    for (const req of buildMirrorRequests([], outboxRows)) await post(req);
   } catch (err) {
     // FIX-P1-03 : lastError affiché par l'UI → message FR garanti via la
     // source unique main (toUserMessage : technique → repli FR générique).
@@ -273,7 +299,7 @@ export async function pushNowAtomic(
     } catch {
       /* meta best-effort */
     }
-    const result = { pushed: outboxRows.length, access: accessRows.length };
+    const result = { pushed: outboxRows.length, access: accessCount };
     storeIdempotencyResult(args.operationId, result);
     return result;
   });

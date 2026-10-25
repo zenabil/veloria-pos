@@ -190,6 +190,30 @@ export function formatDzd(minor: number): string {
 }
 
 /**
+ * Variante pour les TOTAUX de période (CA, dettes, stock...). Le plafond
+ * `MAX_MINOR_SINGLE` protège une valeur unitaire ; un agrégat peut atteindre
+ * `MAX_MINOR_TOTAL`. Utiliser `formatDzd` sur un total > 10M DZD afficherait
+ * « — » alors que le montant est valide.
+ */
+export function formatDzdTotal(minor: number): string {
+  if (!Number.isSafeInteger(minor) || minor < 0 || minor > MAX_MINOR_TOTAL) return "—";
+  const major = Math.trunc(minor / MINOR_PER_MAJOR);
+  const cents = minor % MINOR_PER_MAJOR;
+  const grouped = new Intl.NumberFormat("fr-FR", {
+    maximumFractionDigits: 0,
+  }).format(major);
+  return `${grouped},${String(cents).padStart(2, "0")} DZD`;
+}
+
+/** Total signé (marge, trésorerie, résultat net) : jamais de « — » pour un négatif valide. */
+export function formatDzdTotalSigned(minor: number): string {
+  if (!Number.isSafeInteger(minor)) return "—";
+  if (minor >= 0) return formatDzdTotal(minor);
+  const positive = formatDzdTotal(-minor);
+  return positive === "—" ? "—" : `-${positive}`;
+}
+
+/**
  * A-01 (P1) : variante STRICTE de `formatDzd` — elle LÈVE (`MoneyError`)
  * sur une valeur invalide. Réservée aux chemins transactionnels / écriture
  * (vérification de saisie, calculs envoyés au main) où une valeur corrompue

@@ -87,6 +87,32 @@ export function maskConfig(
   };
 }
 
+/** Hôte normalisé d'une URL de miroir ("" si illisible). */
+export function syncHost(url: string): string {
+  try {
+    return new URL(url).host.toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Changement de destination avec conservation d'une clé service existante :
+ * la clé a été saisie pour l'ancien hôte, pas pour le nouveau. Exiger sa
+ * ressaisie empêche un utilisateur `settings` de rediriger silencieusement la
+ * clé service_role (et les données) vers son propre projet/relais.
+ */
+export function requiresServiceKeyReentry(args: {
+  prevUrl: string;
+  prevHasKey: boolean;
+  nextUrl: string;
+  incomingKey: string;
+}): boolean {
+  if (!args.prevHasKey) return false;
+  if (args.incomingKey.trim().length > 0) return false;
+  return syncHost(args.prevUrl) !== syncHost(args.nextUrl);
+}
+
 /** Poussée due ? (désactivée, jamais poussée, ou cadence dépassée). */
 export function isPushDue(cfg: SyncConfig, lastPushAt: string | null, nowMs: number): boolean {
   if (!cfg.enabled) return false;

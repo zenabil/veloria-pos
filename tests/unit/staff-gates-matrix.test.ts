@@ -89,6 +89,26 @@ describe("W2 : portes staff — K-01 / K-04 / K-05", () => {
     expect(() => enforceStaffGates(optimize, {})).not.toThrow();
   });
 
+  it("les opérations destructives sont réservées au gérant", () => {
+    const channels = [
+      IPC_CHANNELS["database.reset"],
+      IPC_CHANNELS["database.relocate"],
+      IPC_CHANNELS["backup.restore"],
+      IPC_CHANNELS["backup.export"],
+      IPC_CHANNELS["sync.saveConfig"],
+    ];
+    for (const channel of channels) {
+      expect(() => enforceStaffGates(channel, {}), channel).toThrow(/Session requise/);
+      session.userId = 7;
+      session.role = "cashier";
+      expect(() => enforceStaffGates(channel, {}), channel).toThrow(/gérant/);
+      session.role = "manager";
+      expect(() => enforceStaffGates(channel, {}), channel).not.toThrow();
+      session.userId = null;
+      session.role = "manager";
+    }
+  });
+
   it("les lectures NON sensibles restent ouvertes (pas de régression UX)", () => {
     // Recherche catalogue, liste de catégories : ouvertes par conception
     // (le rendu filtre, la caisse doit rester rapide hors session).

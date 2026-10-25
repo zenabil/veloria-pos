@@ -5,6 +5,7 @@ import * as V from "./validators";
 import * as Returns from "./handlers/returns.repo";
 import * as Proformas from "./handlers/proformas.repo";
 import { getCurrentStaffUser } from "./handlers/staff-session";
+import { enqueueSaleRefresh } from "../sync/sync.service";
 import { handle } from "./handle";
 
 export function registerDocumentsChannels(): void {
@@ -28,10 +29,11 @@ export function registerDocumentsChannels(): void {
         notes: input.notes ?? null,
         createdAt,
         now,
+        staffUserId: getCurrentStaffUser(),
       });
     }
     if (input.saleId == null) throw new Error("Vente d'origine requise pour un retour client.");
-    return Returns.createReturnAtomic({
+    const result = Returns.createReturnAtomic({
       operationId: input.operationId,
       originalSaleId: input.saleId,
       items: input.items.map((i) => ({
@@ -50,6 +52,9 @@ export function registerDocumentsChannels(): void {
       // R2 (0046) : le retour porte son auteur.
       staffUserId: getCurrentStaffUser(),
     });
+    // Le retour change le solde/les documents du client : rafraîchir le miroir APK.
+    enqueueSaleRefresh(input.saleId);
+    return result;
   });
   handle(IPC_CHANNELS["returns.list"], V.returnListSchema, (input) =>
     Returns.listReturnsUnified(input.query, input.page, input.pageSize, {

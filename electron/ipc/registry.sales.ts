@@ -8,7 +8,7 @@ import * as Carts from "./handlers/carts.repo";
 import { getDb } from "../database/sqlite.service";
 import { getCurrentStaffUser } from "./handlers/staff-session";
 import { getStaffRole } from "./handlers/staff.repo";
-import { enqueueCustomerRefresh } from "../sync/sync.service";
+import { enqueueCustomerRefresh, enqueueSaleRefresh } from "../sync/sync.service";
 import { handle } from "./handle";
 import { priceLine } from "./money-guard";
 
@@ -111,6 +111,7 @@ export function registerSalesChannels(): void {
   );
   handle(IPC_CHANNELS["sales.cancel"], V.idempotentIdSchema, (input) => {
     Sales.cancelSaleAtomic(input.id, new Date().toISOString(), input.operationId);
+    enqueueSaleRefresh(input.id);
     return { cancelled: true };
   });
   handle(IPC_CHANNELS["sales.get"], V.idSchema, (input) =>

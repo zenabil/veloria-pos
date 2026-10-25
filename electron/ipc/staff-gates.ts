@@ -13,7 +13,7 @@
 
 import { IPC_CHANNELS } from "./channels";
 import { getCurrentStaffUser } from "./handlers/staff-session";
-import { userHasPermission } from "./handlers/staff.repo";
+import { getStaffRole, userHasPermission } from "./handlers/staff.repo";
 
 /** Canal → permission requise (union EXACTE des 10 clés 0041). */
 const STAFF_CHANNEL_PERMISSION: Record<string, string> = {
@@ -205,6 +205,19 @@ const SESSION_REQUIRED_CHANNELS: ReadonlySet<string> = new Set([
   IPC_CHANNELS["zakat.history"],
 ]);
 
+/**
+ * Opérations à impact irréversible ou exfiltration massive : réservées au
+ * gérant, même si un utilisateur possède `settings`. La permission `settings`
+ * reste nécessaire pour les réglages courants (imprimante, entreprise...).
+ */
+const MANAGER_ONLY_CHANNELS: ReadonlySet<string> = new Set([
+  IPC_CHANNELS["database.reset"],
+  IPC_CHANNELS["database.relocate"],
+  IPC_CHANNELS["backup.restore"],
+  IPC_CHANNELS["backup.export"],
+  IPC_CHANNELS["sync.saveConfig"],
+]);
+
 /** Remise : toute ligne à prix réduit exige la permission `discount`. */
 function saleHasDiscount(input: unknown): boolean {
   const sale = input as {
@@ -230,6 +243,9 @@ export function enforceStaffGates(channel: string, input: unknown): void {
   if (required.length === 0 && !SESSION_REQUIRED_CHANNELS.has(channel)) return;
   const session = getCurrentStaffUser();
   if (session == null) throw new Error("Session requise : choisissez un utilisateur.");
+  if (MANAGER_ONLY_CHANNELS.has(channel) && getStaffRole(session) !== "manager") {
+    throw new Error("Action réservée au gérant.");
+  }
   for (const key of required) {
     if (!userHasPermission(session, key)) {
       throw new Error("Action non autorisée pour cet utilisateur.");

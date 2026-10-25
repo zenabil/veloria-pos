@@ -3,8 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { FileDown, RefreshCw } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { useCompany } from "@shared/company/use-company.ts";
-import { formatDzd } from "@domain/money/money.ts";
-import { formatDateFr, formatDateTimeFr, formatDzdSigned } from "@shared/formatters/format.ts";
+import { formatDzdTotal, formatDzdTotalSigned } from "@domain/money/money.ts";
+import { formatDateFr, formatDateTimeFr } from "@shared/formatters/format.ts";
 import { BarChart } from "@shared/charts/BarChart.tsx";
 import { todayUtcDate } from "@shared/dates/dates.ts";
 import { downloadCsv } from "@shared/export/csv.ts";
@@ -49,7 +49,7 @@ function TodayStrip({
   if (salesMinor >= 0) {
     cells.push({
       label: "Ventes du jour",
-      value: formatDzd(sales),
+      value: formatDzdTotalSigned(sales),
       tone: "text-[#d4e4fa]",
     });
   }
@@ -86,6 +86,7 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
   const [from, setFrom] = useState(todayUtcDate());
   const [to, setTo] = useState(todayUtcDate());
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [loading, setLoading] = useState(false);
   // A-06 : erreur de chargement PERSISTANTE (le toast dure 4,5 s).
   // Distingue « échec du chargement » de « aucune donnée ».
@@ -177,7 +178,8 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
   /** Lignes d'export : brutes (centimes, sommables) ou humaines (DZD). */
   function buildExportRows(human: boolean): Record<string, unknown>[] | null {
     if (!summary || !k) return null;
-    const money = (v: number): number | string => (human ? formatDzd(v) : v);
+    const money = (v: number, signed = false): number | string =>
+      human ? (signed ? formatDzdTotalSigned(v) : formatDzdTotal(v)) : v;
     const unit = human ? "(DZD)" : "(centimes)";
     return [
       { Section: "Période", Rubrique: "Du", Nombre: null, Valeur: summary.from },
@@ -204,7 +206,7 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
         Section: "KPI",
         Rubrique: `Marge brute ${unit}`,
         Nombre: null,
-        Valeur: money(k.profitMinor),
+        Valeur: money(k.profitMinor, true),
       },
       {
         Section: "KPI",
@@ -224,7 +226,26 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
         Nombre: null,
         Valeur: money(k.stockValueMinor),
       },
-      { Section: "KPI", Rubrique: `Trésorerie ${unit}`, Nombre: null, Valeur: money(k.cashMinor) },
+      {
+        Section: "KPI",
+        Rubrique: `Trésorerie ${unit}`,
+        Nombre: null,
+        Valeur: money(k.cashMinor, true),
+      },
+      ...summary.byCategory.flatMap((c) => [
+        {
+          Section: "Ventes par catégorie",
+          Rubrique: `${c.name} — ventes`,
+          Nombre: null,
+          Valeur: money(c.salesMinor, true),
+        },
+        {
+          Section: "Ventes par catégorie",
+          Rubrique: `${c.name} — marge`,
+          Nombre: null,
+          Valeur: money(c.profitMinor, true),
+        },
+      ]),
       ...summary.daily.map((d) => ({
         Section: "Ventes journalières",
         Rubrique: d.d,
@@ -250,14 +271,14 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
       period: `Du ${formatDateFr(s.from)} au ${formatDateFr(s.to)}`,
       company: companyName,
       kpis: [
-        { label: "Ventes nettes", value: formatDzd(kk.salesMinor) },
-        { label: "Achats nets", value: formatDzd(kk.purchasesMinor) },
-        { label: "Dépenses", value: formatDzd(kk.expensesMinor) },
-        { label: "Marge brute", value: formatDzdSigned(kk.profitMinor) },
-        { label: "Créances", value: formatDzd(kk.customerDebtMinor) },
-        { label: "Dettes", value: formatDzd(kk.supplierDebtMinor) },
-        { label: "Stock", value: formatDzd(kk.stockValueMinor) },
-        { label: "Trésorerie", value: formatDzdSigned(kk.cashMinor) },
+        { label: "Ventes nettes", value: formatDzdTotalSigned(kk.salesMinor) },
+        { label: "Achats nets", value: formatDzdTotal(kk.purchasesMinor) },
+        { label: "Dépenses", value: formatDzdTotal(kk.expensesMinor) },
+        { label: "Marge brute", value: formatDzdTotalSigned(kk.profitMinor) },
+        { label: "Créances", value: formatDzdTotal(kk.customerDebtMinor) },
+        { label: "Dettes", value: formatDzdTotal(kk.supplierDebtMinor) },
+        { label: "Stock", value: formatDzdTotal(kk.stockValueMinor) },
+        { label: "Trésorerie", value: formatDzdTotalSigned(kk.cashMinor) },
       ],
       charts: [
         {
@@ -272,21 +293,33 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
           headers: ["Moyen", "Nombre", "Total"],
           rows: s.byMethod
             .slice(0, 50)
-            .map((m) => [paymentMethodLabel(m.method), String(m.n), formatDzd(m.t)]),
+            .map((m) => [paymentMethodLabel(m.method), String(m.n), formatDzdTotalSigned(m.t)]),
+        },
+        {
+          title: "Ventes par catégorie",
+          headers: ["Catégorie", "Ventes nettes", "Retours", "Marge"],
+          rows: s.byCategory
+            .slice(0, 50)
+            .map((c) => [
+              c.name.slice(0, 60),
+              formatDzdTotalSigned(c.salesMinor),
+              formatDzdTotal(c.returnsMinor),
+              formatDzdTotalSigned(c.profitMinor),
+            ]),
         },
         {
           title: "5 meilleures rotations",
           headers: ["Produit", "Qté", "Total"],
           rows: s.fastMoving
             .slice(0, 50)
-            .map((p) => [p.name.slice(0, 60), String(p.qty), formatDzd(p.total)]),
+            .map((p) => [p.name.slice(0, 60), String(p.qty), formatDzdTotalSigned(p.total)]),
         },
         {
           title: "Échéances dépassées",
           headers: ["Tiers", "Réf", "Reste"],
           rows: s.overdue
             .slice(0, 50)
-            .map((d) => [d.party.slice(0, 60), d.ref.slice(0, 40), formatDzd(d.remaining)]),
+            .map((d) => [d.party.slice(0, 60), d.ref.slice(0, 40), formatDzdTotal(d.remaining)]),
         },
         {
           title: "Stock sous seuil",
@@ -363,6 +396,19 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
   }
 
   const k = summary?.kpis;
+  const categoryRows = summary?.byCategory ?? [];
+  const visibleCategories =
+    categoryFilter === "all"
+      ? categoryRows
+      : categoryRows.filter((c) => (c.id == null ? "none" : String(c.id)) === categoryFilter);
+  const categoryTotals = visibleCategories.reduce(
+    (acc, c) => ({
+      salesMinor: acc.salesMinor + c.salesMinor,
+      returnsMinor: acc.returnsMinor + c.returnsMinor,
+      profitMinor: acc.profitMinor + c.profitMinor,
+    }),
+    { salesMinor: 0, returnsMinor: 0, profitMinor: 0 },
+  );
 
   return (
     <div className="flex h-full flex-col gap-4 overflow-auto">
@@ -463,57 +509,57 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                 ? (summary.daily.find((d) => d.d === todayUtcDate())?.t ?? 0)
                 : -1
             }
-            overdue={summary.overdue.length}
+            overdue={summary.overdueCount}
             out={summary.stock.out}
           />
           {/* KPIs Stitch : 8 cartes, liseré accent 3px */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Kpi
               label="Ventes nettes"
-              value={formatDzd(k.salesMinor)}
-              sub={`${k.salesCount} facture(s) émise(s) · ${summary.comparison.deltaPercent >= 0 ? "+" : ""}${summary.comparison.deltaPercent} % vs précédente`}
+              value={formatDzdTotalSigned(k.salesMinor)}
+              sub={`${k.salesCount} facture(s) · ${k.returnsCount} retour(s) · ${summary.comparison.deltaPercent >= 0 ? "+" : ""}${summary.comparison.deltaPercent} % vs précédente`}
               accent="#fbbf24"
             />
             <Kpi
               label="Achats nets"
-              value={formatDzd(k.purchasesMinor)}
+              value={formatDzdTotal(k.purchasesMinor)}
               sub={`${k.purchasesCount} réception(s) fournisseur(s)`}
               accent="#8ed0ff"
             />
             <Kpi
               label="Dépenses caisse"
-              value={formatDzd(k.expensesMinor)}
+              value={formatDzdTotal(k.expensesMinor)}
               sub={`${k.expensesCount} charge(s)`}
               accent="#ffb4ab"
             />
             <Kpi
               label="Marge brute"
-              value={formatDzdSigned(k.profitMinor)}
-              sub="Ventes − achats revendus"
+              value={formatDzdTotalSigned(k.profitMinor)}
+              sub="Ventes nettes − coût des articles vendus"
               accent="#4edea3"
             />
             <Kpi
               label="Créances clients"
-              value={formatDzd(k.customerDebtMinor)}
-              sub="Comptes clients avec solde"
+              value={formatDzdTotal(k.customerDebtMinor)}
+              sub="Instantané global · comptes avec solde"
               accent="#fbbf24"
             />
             <Kpi
               label="Dettes fournisseurs"
-              value={formatDzd(k.supplierDebtMinor)}
-              sub="Échéance ≤ 7j"
+              value={formatDzdTotal(k.supplierDebtMinor)}
+              sub="Instantané global · solde dû"
               accent="#ffb4ab"
             />
             <Kpi
               label="Valeur stock (achat)"
-              value={formatDzd(k.stockValueMinor)}
-              sub="Valorisation FIFO"
+              value={formatDzdTotal(k.stockValueMinor)}
+              sub="Instantané global · valorisation FIFO"
               accent="#cde8ff"
             />
             <Kpi
               label="Trésorerie globale"
-              value={formatDzdSigned(k.cashMinor)}
-              sub="Encaissé − décaissé"
+              value={formatDzdTotalSigned(k.cashMinor)}
+              sub="Encaissé − remboursements − décaissé"
               accent="#6ffbbe"
             />
           </div>
@@ -530,9 +576,13 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
               />
             </Card>
             <Card className="space-y-3 p-4">
-              <h3 className="text-sm font-extrabold">Par moyen de paiement</h3>
+              <h3 className="text-sm font-extrabold">Encaissements nets par moyen de paiement</h3>
+              <p className="text-xs text-slate-500">
+                Encaissements réels − remboursements réels. Une vente à crédit ne compte que sa part
+                payée.
+              </p>
               {summary.byMethod.length === 0 ? (
-                <p className="text-xs text-slate-500">Aucune vente.</p>
+                <p className="text-xs text-slate-500">Aucun encaissement.</p>
               ) : (
                 <table className="w-full text-sm">
                   <tbody>
@@ -540,8 +590,13 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                       <tr key={m.method} className="border-t border-white/[0.06]">
                         <td className="py-1.5">{paymentMethodLabel(m.method)}</td>
                         <td className="py-1.5 text-right tabular-nums text-slate-400">{m.n}</td>
-                        <td className="py-1.5 text-right font-bold tabular-nums">
-                          {formatDzd(m.t)}
+                        <td
+                          className={cn(
+                            "py-1.5 text-right font-bold tabular-nums",
+                            m.t < 0 ? "text-red-300" : "",
+                          )}
+                        >
+                          {formatDzdTotalSigned(m.t)}
                         </td>
                       </tr>
                     ))}
@@ -550,7 +605,7 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
               )}
               <h3 className="pt-1 text-sm font-extrabold">Comparaison</h3>
               <p className="text-xs text-slate-500">
-                Période précédente : {formatDzd(summary.comparison.prevSalesMinor)} ·{" "}
+                Période précédente : {formatDzdTotalSigned(summary.comparison.prevSalesMinor)} ·{" "}
                 <strong
                   className={cn(
                     "tabular-nums",
@@ -564,29 +619,109 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
             </Card>
           </div>
 
+          {/* Ventes et marge par catégorie (catégorie figée dans la ligne de vente) */}
+          <Card className="space-y-3 p-4">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-extrabold">Ventes et marge par catégorie</h3>
+                <p className="text-xs text-slate-500">Articles, hors livraison · net des retours</p>
+              </div>
+              <label className="flex items-center gap-2 text-xs text-slate-400">
+                Catégorie
+                <select
+                  aria-label="Filtrer par catégorie"
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="rounded-lg border border-white/10 bg-[#0d1c2d] px-2 py-1.5 text-sm text-[#d4e4fa]"
+                >
+                  <option value="all">Toutes les catégories</option>
+                  {categoryRows.map((c) => (
+                    <option key={c.id ?? "none"} value={c.id == null ? "none" : String(c.id)}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            {visibleCategories.length === 0 ? (
+              <p className="text-xs text-slate-500">Aucune vente sur cette catégorie.</p>
+            ) : (
+              <div className="max-h-80 overflow-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-[11px] uppercase tracking-wide text-slate-500">
+                      <th className="pb-1 text-left font-bold">Catégorie</th>
+                      <th className="pb-1 text-right font-bold">Ventes nettes</th>
+                      <th className="pb-1 text-right font-bold">Retours</th>
+                      <th className="pb-1 text-right font-bold">Marge</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleCategories.map((c) => (
+                      <tr key={c.id ?? "none"} className="border-t border-white/[0.06]">
+                        <td className="max-w-[260px] truncate py-1.5">{c.name}</td>
+                        <td className="py-1.5 text-right font-bold tabular-nums">
+                          {formatDzdTotalSigned(c.salesMinor)}
+                        </td>
+                        <td className="py-1.5 text-right tabular-nums text-slate-400">
+                          {formatDzdTotal(c.returnsMinor)}
+                        </td>
+                        <td
+                          className={cn(
+                            "py-1.5 text-right font-bold tabular-nums",
+                            c.profitMinor < 0 ? "text-red-300" : "text-emerald-300",
+                          )}
+                        >
+                          {formatDzdTotalSigned(c.profitMinor)}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="border-t-2 border-white/15 font-extrabold">
+                      <td className="py-1.5">Total</td>
+                      <td className="py-1.5 text-right tabular-nums">
+                        {formatDzdTotalSigned(categoryTotals.salesMinor)}
+                      </td>
+                      <td className="py-1.5 text-right tabular-nums">
+                        {formatDzdTotal(categoryTotals.returnsMinor)}
+                      </td>
+                      <td
+                        className={cn(
+                          "py-1.5 text-right tabular-nums",
+                          categoryTotals.profitMinor < 0 ? "text-red-300" : "text-emerald-300",
+                        )}
+                      >
+                        {formatDzdTotalSigned(categoryTotals.profitMinor)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+
           {/* Finances : revenus/dépenses/marge */}
           <div className="grid gap-4 xl:grid-cols-2">
             <Card className="space-y-1.5 p-4">
               <h3 className="text-sm font-extrabold">Revenus / Dépenses / Marge</h3>
               <dl className="mt-2 space-y-1.5 text-sm">
                 <div className="flex justify-between">
-                  <dt className="text-slate-500">Revenus (ventes)</dt>
-                  <dd className="font-bold tabular-nums">{formatDzd(k.salesMinor)}</dd>
+                  <dt className="text-slate-500">Revenus (ventes nettes)</dt>
+                  <dd className="font-bold tabular-nums">{formatDzdTotalSigned(k.salesMinor)}</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-slate-500">Dépenses</dt>
-                  <dd className="font-bold tabular-nums">{formatDzd(k.expensesMinor)}</dd>
+                  <dd className="font-bold tabular-nums">{formatDzdTotal(k.expensesMinor)}</dd>
                 </div>
                 <div className="flex justify-between border-t border-white/10 pt-1.5">
                   <dt className="font-extrabold">Bénéfice brut</dt>
                   <dd className="font-extrabold tabular-nums text-amber-300">
-                    {formatDzd(k.profitMinor)}
+                    {formatDzdTotalSigned(k.profitMinor)}
                   </dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-slate-500">Bénéfice net (brut − dépenses)</dt>
                   <dd className="font-bold tabular-nums">
-                    {formatDzd(k.profitMinor - k.expensesMinor)}
+                    {formatDzdTotalSigned(k.profitMinor - k.expensesMinor)}
                   </dd>
                 </div>
               </dl>
@@ -603,7 +738,7 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                         <td className="max-w-[220px] truncate py-1.5">{p.name}</td>
                         <td className="py-1.5 text-right tabular-nums text-slate-400">{p.qty}</td>
                         <td className="py-1.5 text-right font-bold tabular-nums">
-                          {formatDzd(p.total)}
+                          {formatDzdTotalSigned(p.total)}
                         </td>
                       </tr>
                     ))}
@@ -643,14 +778,16 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
               <h3 className="text-sm font-extrabold">Dettes</h3>
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">Créances clients</span>
-                <strong className="tabular-nums">{formatDzd(k.customerDebtMinor)}</strong>
+                <strong className="tabular-nums">{formatDzdTotal(k.customerDebtMinor)}</strong>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">Dettes fournisseurs</span>
-                <strong className="tabular-nums">{formatDzd(k.supplierDebtMinor)}</strong>
+                <strong className="tabular-nums">{formatDzdTotal(k.supplierDebtMinor)}</strong>
               </div>
-              <h3 className="pt-1 text-sm font-extrabold">En retard ({summary.overdue.length})</h3>
-              {summary.overdue.length === 0 ? (
+              <h3 className="pt-1 text-sm font-extrabold">
+                En retard ({summary.overdueCount}) — top 5
+              </h3>
+              {summary.overdueCount === 0 ? (
                 <p className="text-xs text-slate-500">Aucune échéance dépassée.</p>
               ) : (
                 <table className="w-full text-sm">
@@ -660,17 +797,17 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                         <td className="max-w-[180px] truncate py-1.5">{d.party}</td>
                         <td className="py-1.5 font-mono text-xs text-slate-400">{d.ref}</td>
                         <td className="py-1.5 text-right font-bold tabular-nums text-red-300">
-                          {formatDzd(d.remaining)}
+                          {formatDzdTotal(d.remaining)}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               )}
-              {summary.upcoming.length > 0 ? (
+              {summary.upcomingCount > 0 ? (
                 <>
                   <h3 className="pt-1 text-sm font-extrabold">
-                    Échéances 7 jours ({summary.upcoming.length})
+                    Échéances 7 jours ({summary.upcomingCount}) — top 5
                   </h3>
                   <table className="w-full text-sm">
                     <tbody>
@@ -681,7 +818,7 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                             {formatDateFr(d.due)}
                           </td>
                           <td className="py-1.5 text-right font-bold tabular-nums">
-                            {formatDzd(d.remaining)}
+                            {formatDzdTotal(d.remaining)}
                           </td>
                         </tr>
                       ))}
@@ -700,7 +837,7 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                   key={s.id}
                   left={s.invoice_number}
                   mid={s.party}
-                  right={formatDzd(s.total_minor)}
+                  right={formatDzdTotal(s.total_minor)}
                   sub={formatDateTimeFr(s.created_at)}
                 />
               ))}
@@ -712,7 +849,7 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                   key={`${p.payment_date}-${p.party}-${p.amount_minor}-${p.method}-${i}`}
                   left={p.dir === "in" ? "Encaissé" : "Payé"}
                   mid={p.party}
-                  right={formatDzd(p.amount_minor)}
+                  right={formatDzdTotal(p.amount_minor)}
                   sub={`${formatDateFr(p.payment_date)} · ${paymentMethodLabel(p.method)}`}
                 />
               ))}
@@ -724,7 +861,7 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                   key={p.id}
                   left={p.ref}
                   mid={p.party}
-                  right={formatDzd(p.total_minor)}
+                  right={formatDzdTotal(p.total_minor)}
                   sub={formatDateFr(p.created_at)}
                 />
               ))}
@@ -736,7 +873,7 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                   key={`${r.kind}-${r.ref}`}
                   left={r.ref}
                   mid={r.kind === "client" ? "Client" : "Fournisseur"}
-                  right={formatDzd(r.total)}
+                  right={formatDzdTotal(r.total)}
                   sub={formatDateFr(r.created_at)}
                 />
               ))}
@@ -748,7 +885,7 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                   key={e.id}
                   left={e.description}
                   mid={e.category}
-                  right={formatDzd(e.amount_minor)}
+                  right={formatDzdTotal(e.amount_minor)}
                   sub={formatDateFr(e.expense_date)}
                 />
               ))}
@@ -764,7 +901,11 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                 ? "Aucune sauvegarde : créez-en une (Paramètres → Sauvegarde)."
                 : `Dernière sauvegarde : ${formatDateTimeFr(summary.alerts.lastBackup)}.`}{" "}
               {summary.alerts.integrity === "ok"
-                ? "Base saine."
+                ? `Base saine${
+                    summary.alerts.integrityAt
+                      ? ` (vérifiée le ${formatDateTimeFr(summary.alerts.integrityAt)})`
+                      : ""
+                  }.`
                 : `Base : ${summary.alerts.integrity} — restaurez une sauvegarde.`}
             </p>
           </Card>

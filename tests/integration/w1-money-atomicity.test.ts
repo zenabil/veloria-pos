@@ -235,6 +235,48 @@ describe("E-23/E-24/E-25/E-26/E-27 — avoirs, dette, annulation, journal, fret"
     expect(cust.outstanding_balance_minor).toBe(3000);
   });
 
+  it("garde : annulation refusée tant qu'un retour non annulé existe", () => {
+    const customerId = seedCustomer(0);
+    const saleId = seedSale({ customerId, total: 5000, paid: 0 });
+    createReturnAtomic({
+      operationId: crypto.randomUUID(),
+      originalSaleId: saleId,
+      items: [{ productId: productOf(saleId), quantity: 1, restocked: true, condition: "good" }],
+      refundMinor: 0,
+      creditMinor: 0,
+      refundMethod: null,
+      reason: "Garde",
+      notes: null,
+      createdAt: NOW,
+      now: NOW,
+    });
+    expect(() => cancelSaleAtomic(saleId, NOW, crypto.randomUUID())).toThrow(/retours/);
+    const sale = db.prepare("SELECT is_cancelled FROM sales WHERE id = ?").get(saleId) as {
+      is_cancelled: number;
+    };
+    expect(sale.is_cancelled).toBe(0);
+  });
+
+  it("garde : retour refusé sur une vente annulée (contrôle main, pas UI)", () => {
+    const customerId = seedCustomer(0);
+    const saleId = seedSale({ customerId, total: 5000, paid: 5000 });
+    cancelSaleAtomic(saleId, NOW, crypto.randomUUID());
+    expect(() =>
+      createReturnAtomic({
+        operationId: crypto.randomUUID(),
+        originalSaleId: saleId,
+        items: [{ productId: productOf(saleId), quantity: 1, restocked: false, condition: "good" }],
+        refundMinor: 0,
+        creditMinor: 0,
+        refundMethod: null,
+        reason: "Garde",
+        notes: null,
+        createdAt: NOW,
+        now: NOW,
+      }),
+    ).toThrow(/annulée/);
+  });
+
   it("E-25 : annuler une vente encaisée supprime l'encaissement et remet le solde", () => {
     // Flux réel : la vente (10000, encaissé 4000) porte le solde client à
     // `remaining` = 6000 (un encaissement ne touche jamais le solde).

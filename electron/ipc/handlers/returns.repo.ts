@@ -155,9 +155,11 @@ export function createReturnAtomic(args: {
           total_minor: number;
           amount_paid_minor: number;
           remaining_balance_minor: number;
+          is_cancelled: number;
         }
       | undefined;
     if (!sale) throw new Error("Vente d'origine introuvable.");
+    if (sale.is_cancelled === 1) throw new Error("Vente annulée : retour impossible.");
     let totalReturn = 0;
     // DB-04/DB-08: cumul demandé par produit DANS cette requête (2 lignes même
     // produit) + cumul déjà planifié pour la restauration — jamais 2× les
@@ -174,6 +176,8 @@ export function createReturnAtomic(args: {
       restocked: boolean;
       condition: string;
       lineTotal: number;
+      categoryId: number | null;
+      cogsMinor: number;
     }[] = [];
     for (const item of args.items) {
       // Total vendu agrégé sur TOUTES les lignes (doublons autorisés en schéma).
@@ -190,7 +194,7 @@ export function createReturnAtomic(args: {
       // fusionne même produit+prix donc cas nominal non ambigu).
       const sold = db
         .prepare(
-          `SELECT product_id, product_name_snapshot, unit_price_minor, purchase_price_minor, quantity FROM sale_items WHERE sale_id = ? AND (product_id IS ? OR product_id = ?) ORDER BY id ASC LIMIT 1`,
+          `SELECT product_id, product_name_snapshot, unit_price_minor, purchase_price_minor, quantity, category_id FROM sale_items WHERE sale_id = ? AND (product_id IS ? OR product_id = ?) ORDER BY id ASC LIMIT 1`,
         )
         .get(args.originalSaleId, item.productId, item.productId) as
         | {
@@ -199,6 +203,7 @@ export function createReturnAtomic(args: {
             unit_price_minor: number;
             purchase_price_minor: number;
             quantity: number;
+            category_id: number | null;
           }
         | undefined;
       if (!sold) throw new Error("Ligne de vente introuvable pour ce retour.");
@@ -239,6 +244,8 @@ export function createReturnAtomic(args: {
         restocked: item.restocked,
         condition: item.condition,
         lineTotal,
+        categoryId: sold.category_id,
+        cogsMinor: 0,
       });
     }
     if (prepared.length === 0) throw new Error("Aucune ligne à retourner.");
@@ -324,6 +331,7 @@ export function createReturnAtomic(args: {
           cost += Math.round(p.purchase * plan.remainder);
         }
         restoredUnit = p.qty > 0 ? Math.round(cost / p.qty) : Math.round(p.purchase);
+        p.cogsMinor = cost;
         db.prepare(
           `INSERT INTO stock_movements (uuid, product_id, movement_type, quantity_delta, quantity_after, unit_cost_minor, related_entity_type, related_entity_id, reason, reference, staff_user_id, created_at)
            VALUES (?, ?, 'return_in', ?, ?, ?, 'return', ?, 'Retour client', ?, ?, ?)`,
@@ -340,8 +348,8 @@ export function createReturnAtomic(args: {
         );
       }
       db.prepare(
-        `INSERT INTO return_items (return_id, product_id, product_name_snapshot, quantity, unit_price_minor, purchase_price_minor, restocked, condition, stock_before, stock_after, line_total_minor)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO return_items (return_id, product_id, product_name_snapshot, quantity, unit_price_minor, purchase_price_minor, restocked, condition, stock_before, stock_after, line_total_minor, category_id, cogs_minor)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         returnId,
         p.productId,
@@ -354,6 +362,8 @@ export function createReturnAtomic(args: {
         before,
         after,
         p.lineTotal,
+        p.categoryId,
+        p.cogsMinor,
       );
     }
     // AVOIR : le solde du client ne peut pas devenir négatif (trigger 0023
@@ -480,6 +490,8 @@ export function createSupplierReturnAtomic(args: {
   notes: string | null;
   createdAt: string;
   now: string;
+  /** Auteur du retour (session main, 0046/0052). */
+  staffUserId?: number | null;
 }): ReturnResult {
   const db = getDb();
   const fast = peekIdempotency<ReturnResult>(args.operationId, "returns.create_supplier");
@@ -574,8 +586,8 @@ export function createSupplierReturnAtomic(args: {
     const number = allocateReturnNumber("supplier", args.now);
     const r = db
       .prepare(
-        `INSERT INTO supplier_returns (uuid, return_number, stock_intake_id, intake_invoice_number, supplier_id, total_return_value_minor, amount_recovered_minor, recovery_method, reason, notes, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO supplier_returns (uuid, return_number, stock_intake_id, intake_invoice_number, supplier_id, total_return_value_minor, amount_recovered_minor, recovery_method, reason, notes, status, staff_user_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         randomUUID(),
@@ -589,6 +601,7 @@ export function createSupplierReturnAtomic(args: {
         args.reason || null,
         args.notes?.trim() || null,
         returnStatus(totalReturn, args.recoverMinor),
+        args.staffUserId ?? null,
         args.createdAt,
         args.now,
       );

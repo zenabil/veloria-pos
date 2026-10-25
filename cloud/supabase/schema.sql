@@ -47,3 +47,26 @@ SELECT DISTINCT ON (customer_id, kind)
   customer_id, kind, payload, created_at
 FROM client_payloads
 ORDER BY customer_id, kind, id DESC;
+
+-- ===========================================================================
+-- VERROUILLAGE RADICAL (2026-10-25) : aucune lecture directe avec la clé
+-- anon/authenticated. La clé anon est publique (APK + QR) ; sans RLS, elle
+-- permettrait de lire tous les condensats et toutes les factures via PostgREST.
+-- Seule l'Edge Function `client-sync` (service_role, côté serveur) lit ces
+-- tables. La vue est `security_invoker` : même si une policy est ajoutée plus
+-- tard, elle ne contourne pas les RLS des tables sous-jacentes.
+-- ===========================================================================
+ALTER TABLE client_access ENABLE ROW LEVEL SECURITY;
+ALTER TABLE client_payloads ENABLE ROW LEVEL SECURITY;
+
+REVOKE ALL ON TABLE client_access FROM anon, authenticated;
+REVOKE ALL ON TABLE client_payloads FROM anon, authenticated;
+REVOKE ALL ON TABLE latest_client_payloads FROM anon, authenticated;
+REVOKE ALL ON SEQUENCE client_payloads_id_seq FROM anon, authenticated;
+
+ALTER VIEW latest_client_payloads SET (security_invoker = true);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE client_access TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE client_payloads TO service_role;
+GRANT SELECT ON TABLE latest_client_payloads TO service_role;
+GRANT USAGE, SELECT ON SEQUENCE client_payloads_id_seq TO service_role;

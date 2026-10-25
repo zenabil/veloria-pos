@@ -6,6 +6,9 @@ export interface DashboardSummary {
   kpis: {
     salesMinor: number;
     salesCount: number;
+    /** Valeur des retours non annulés de la période (déjà déduite de salesMinor). */
+    returnsMinor: number;
+    returnsCount: number;
     purchasesMinor: number;
     purchasesCount: number;
     expensesMinor: number;
@@ -17,7 +20,16 @@ export interface DashboardSummary {
     cashMinor: number;
   };
   daily: { d: string; t: number; n: number }[];
+  /** Encaissements réels − remboursements réels, par moyen de paiement. */
   byMethod: { method: string; n: number; t: number }[];
+  /** Ventes nettes et marge par catégorie (catégorie figée dans la ligne). */
+  byCategory: {
+    id: number | null;
+    name: string;
+    salesMinor: number;
+    profitMinor: number;
+    returnsMinor: number;
+  }[];
   comparison: { prevSalesMinor: number; deltaPercent: number };
   fastMoving: { name: string; qty: number; total: number }[];
   stock: {
@@ -26,7 +38,11 @@ export interface DashboardSummary {
     lowRows: { id: number; name: string; quantity: number; min_stock_level: number }[];
   };
   overdue: { kind: string; ref: string; party: string; remaining: number; due: string }[];
+  /** Total réel, indépendant du Top 5 renvoyé dans overdue. */
+  overdueCount: number;
   upcoming: { kind: string; ref: string; party: string; remaining: number; due: string }[];
+  /** Total réel, indépendant du Top 5 renvoyé dans upcoming. */
+  upcomingCount: number;
   recent: {
     sales: {
       id: number;
@@ -58,7 +74,7 @@ export interface DashboardSummary {
       expense_date: string;
     }[];
   };
-  alerts: { integrity: string; lastBackup: string | null };
+  alerts: { integrity: string; integrityAt: string | null; lastBackup: string | null };
 }
 
 export { paymentMethodLabel } from "@shared/formatters/format.ts";

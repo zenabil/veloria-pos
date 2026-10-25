@@ -4,6 +4,8 @@ import {
   buildMirrorRequests,
   isPushDue,
   maskConfig,
+  requiresServiceKeyReentry,
+  syncHost,
   validateSyncConfig,
 } from "../../electron/sync/sync.protocol";
 
@@ -64,6 +66,49 @@ describe("validateSyncConfig", () => {
   it("clé anon : acceptée vide, refusée trop courte", () => {
     expect(validateSyncConfig({ ...FULL, anonKey: "a".repeat(40) }).anonKey).toBe("a".repeat(40));
     expect(() => validateSyncConfig({ ...FULL, anonKey: "court" })).toThrow(/anon/);
+  });
+});
+
+describe("requiresServiceKeyReentry", () => {
+  it("exige la clé quand l'hôte change et que la clé est conservée", () => {
+    expect(
+      requiresServiceKeyReentry({
+        prevUrl: "https://abcxyz.supabase.co",
+        prevHasKey: true,
+        nextUrl: "https://evil.supabase.co",
+        incomingKey: "",
+      }),
+    ).toBe(true);
+  });
+  it("accepte le même hôte, une nouvelle clé, ou l'absence de clé précédente", () => {
+    expect(
+      requiresServiceKeyReentry({
+        prevUrl: "https://abcxyz.supabase.co",
+        prevHasKey: true,
+        nextUrl: "https://abcxyz.supabase.co/",
+        incomingKey: "",
+      }),
+    ).toBe(false);
+    expect(
+      requiresServiceKeyReentry({
+        prevUrl: "https://abcxyz.supabase.co",
+        prevHasKey: true,
+        nextUrl: "https://evil.supabase.co",
+        incomingKey: "k".repeat(40),
+      }),
+    ).toBe(false);
+    expect(
+      requiresServiceKeyReentry({
+        prevUrl: "https://abcxyz.supabase.co",
+        prevHasKey: false,
+        nextUrl: "https://evil.supabase.co",
+        incomingKey: "",
+      }),
+    ).toBe(false);
+  });
+  it("normalise l'hôte", () => {
+    expect(syncHost("https://ABCXYZ.supabase.co/")).toBe("abcxyz.supabase.co");
+    expect(syncHost("pas une url")).toBe("");
   });
 });
 

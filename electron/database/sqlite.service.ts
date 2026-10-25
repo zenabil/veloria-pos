@@ -318,12 +318,20 @@ export function runMigrations(database: BetterSqlite3DB = getDb()): void {
   }
 }
 
+let lastIntegrityResult: { integrity: string; at: string } | null = null;
+
+/** Dernier verdict de `integrityCheck` (démarrage/diagnostics/restauration). */
+export function getLastIntegrityResult(): { integrity: string; at: string } | null {
+  return lastIntegrityResult;
+}
+
 export function integrityCheck(): { integrity: string; foreignKeys: unknown[] } {
   const database = getDb();
   const rows = database.prepare(`PRAGMA integrity_check`).all() as { integrity_check: string }[];
   const integrity =
     rows.length === 1 ? String(rows[0]?.integrity_check ?? "unknown") : JSON.stringify(rows);
   const foreignKeys = database.prepare(`PRAGMA foreign_key_check`).all();
+  lastIntegrityResult = { integrity, at: new Date().toISOString() };
   return { integrity, foreignKeys };
 }
 

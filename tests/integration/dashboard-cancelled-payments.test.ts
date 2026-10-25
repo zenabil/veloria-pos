@@ -47,6 +47,7 @@ vi.mock("../../electron/database/sqlite.service", () => ({
     };
   },
   integrityCheck: () => ({ integrity: "ok", foreignKeys: [] }),
+  getLastIntegrityResult: () => ({ integrity: "ok", at: new Date().toISOString() }),
 }));
 
 vi.mock("../../electron/services/logger", () => ({
