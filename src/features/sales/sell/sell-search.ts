@@ -17,10 +17,17 @@ import type { CustomForm } from "./CustomItemDialog.tsx";
 import type { CustomerRow, SearchRow } from "./sell-types.ts";
 import type { SellState } from "./useSellState.ts";
 
-/** Code-barres candidat : chemin indexé exact avant la recherche texte. */
+/**
+ * Code-barres candidat : jeton unique (aucun espace) d'au moins 2 caractères.
+ * Lettres (toute casse), chiffres et symboles admis — Code 39/128, codes
+ * internes courts et codes fabricants alphanumériques.
+ */
 export function isBarcodeLike(trimmed: string): boolean {
-  return /^[0-9A-Za-z\-_.]{4,}$/.test(trimmed);
+  return trimmed.length >= 2 && !/\s/.test(trimmed);
 }
+
+/** Longueur maximale d'un code-barres (validateur IPC `barcodeSchema`). */
+const BARCODE_MAX_LENGTH = 64;
 
 /**
  * Probable scan complet (EAN 8+ chiffres) : seul cas où un échec mérite un
@@ -236,15 +243,34 @@ export async function runSearch(d: SellSearchDeps, trimmed: string): Promise<voi
   // Quantité rapide (`5*CODE`) : le préfixe ne part jamais au moteur.
   const prefix = parseQtyPrefix(trimmed);
   const code = prefix.code;
+  // Scan machine (rafale douchette) : sert au message d'échec et au vidage
+  // du champ — un code inconnu ne doit pas se concaténer au scan suivant.
+  const machineScan = d.scanBurstRef.current;
   try {
-    // Code-barres exact d'abord (chemin indexé), puis recherche texte.
-    if (isBarcodeLike(code)) {
+    // Code-barres exact d'abord (chemin indexé). Le jeton COMPLET gagne sur
+    // l'interprétation quantité (`2X500G` peut être un vrai code-barres).
+    if (trimmed.length <= BARCODE_MAX_LENGTH) {
+      const full = (await api.productByBarcode({ barcode: trimmed })) as {
+        product: SearchRow | null;
+      };
+      if (seq !== d.searchSeq.current) return;
+      if (full.product) {
+        // ADR-114 : unité continue → dialogue quantité (quantité 1 par défaut).
+        addProductOrAskQuantity(d, full.product, { quantity: 1, code: trimmed, explicit: false });
+        d.setQuery("");
+        d.setResults([]);
+        d.setSearching(false);
+        return;
+      }
+    }
+    // Préfixe quantité explicite (`5*CODE`, `2x AB-12`) : le code seul est
+    // ensuite cherché comme code-barres, lettres et symboles compris.
+    if (prefix.explicit && code !== trimmed && code.length <= BARCODE_MAX_LENGTH) {
       const hit = (await api.productByBarcode({ barcode: code })) as {
         product: SearchRow | null;
       };
       if (seq !== d.searchSeq.current) return;
       if (hit.product) {
-        // ADR-114 : unité continue sans quantité tapée → dialogue quantité.
         addProductOrAskQuantity(d, hit.product, prefix);
         d.setQuery("");
         d.setResults([]);
@@ -258,10 +284,12 @@ export async function runSearch(d: SellSearchDeps, trimmed: string): Promise<voi
     // Réponse périmée (une recherche plus récente est partie) : ignorée.
     if (seq !== d.searchSeq.current) return;
     d.setResults(res.rows);
-    // Scan sans correspondance : jamais silencieux — le code doit être
-    // enregistré sur la fiche produit (Catalogue → Codes-barres).
-    if (res.rows.length === 0 && isLikelyScan(code)) {
+    // Scan sans correspondance : jamais silencieux (chiffres EAN ou rafale
+    // machine sur un code alphanumérique) — le code doit être enregistré sur
+    // la fiche produit (Catalogue → Codes-barres).
+    if (res.rows.length === 0 && (isLikelyScan(code) || machineScan)) {
       d.notify("Code-barres inconnu : vérifiez la fiche produit (Catalogue).", "err");
+      if (machineScan) d.setQuery("");
     }
   } catch (err) {
     if (seq !== d.searchSeq.current) return;

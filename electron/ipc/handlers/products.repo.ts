@@ -49,7 +49,7 @@ export function searchProducts(args: {
   const params: unknown[] = [];
   if (q) {
     where.push(
-      `(p.name LIKE ? ESCAPE '\\' OR EXISTS (SELECT 1 FROM product_barcodes b WHERE b.product_id = p.id AND b.barcode = ?))`,
+      `(p.name LIKE ? ESCAPE '\\' OR EXISTS (SELECT 1 FROM product_barcodes b WHERE b.product_id = p.id AND b.barcode = ? COLLATE NOCASE))`,
     );
     params.push(`%${q.replace(/[%_\\]/g, (c) => `\\${c}`)}%`, q);
   }
@@ -88,6 +88,9 @@ export function searchProducts(args: {
 
 export function getProductByBarcode(barcode: string): ProductRow | null {
   const db = getDb();
+  // Casse ignorée : les étiquettes Code 39 sont imprimées en majuscules alors
+  // que la fiche peut stocker des minuscules — le scan doit retrouver la fiche.
+  // À casse identique, la correspondance exacte passe devant.
   const row = db
     .prepare(
       `SELECT p.*, c.name AS category_name,
@@ -103,10 +106,15 @@ export function getProductByBarcode(barcode: string): ProductRow | null {
           ORDER BY l.id ASC LIMIT 1) AS fifo_next_unit_cost_minor
        FROM products p LEFT JOIN categories c ON c.id = p.category_id
        LEFT JOIN product_packagings pk ON pk.product_id = p.id AND pk.is_active = 1
-       WHERE p.id = (SELECT product_id FROM product_barcodes WHERE barcode = ?)
+       WHERE p.id = (
+         SELECT product_id FROM product_barcodes
+         WHERE barcode = ? COLLATE NOCASE
+         ORDER BY (barcode = ?) DESC, is_primary DESC, id ASC
+         LIMIT 1
+       )
        AND p.is_active = 1 LIMIT 1`,
     )
-    .get(barcode) as ProductRow | undefined;
+    .get(barcode, barcode) as ProductRow | undefined;
   return row ?? null;
 }
 

@@ -82,10 +82,13 @@ function tab(over: Partial<CartTab> = {}): CartTab {
 }
 
 describe("sell-search : prédicats", () => {
-  it("isBarcodeLike : chemin indexé exact (≥4, sans espaces)", () => {
+  it("isBarcodeLike : jeton unique ≥ 2, lettres/symboles/codes courts admis", () => {
     expect(isBarcodeLike("6191234567890")).toBe(true);
     expect(isBarcodeLike("AB-12_.x")).toBe(true);
-    expect(isBarcodeLike("abc")).toBe(false);
+    expect(isBarcodeLike("abc")).toBe(true);
+    expect(isBarcodeLike("A1")).toBe(true);
+    expect(isBarcodeLike("ab/cd+12")).toBe(true);
+    expect(isBarcodeLike("a")).toBe(false);
     expect(isBarcodeLike("a b c d")).toBe(false);
     expect(isBarcodeLike("")).toBe(false);
   });
@@ -274,12 +277,110 @@ describe("sell-search : scan douchette (régression)", () => {
       unit_code: "KG",
       primary_barcode: "6191234567890",
     };
-    mockApi.productByBarcode.mockResolvedValue({ product: row });
+    // Jeton complet (« 1,5*… ») introuvable, puis code seul trouvé.
+    mockApi.productByBarcode.mockResolvedValueOnce({ product: null });
+    mockApi.productByBarcode.mockResolvedValueOnce({ product: row });
     const { d, addLine, quantityDialogs } = fakeDeps();
     await runSearch(d, "1,5*6191234567890");
     expect(quantityDialogs).toEqual([]);
     expect(addLine).toHaveBeenCalledTimes(1);
     expect(addLine.mock.calls[0]?.[0]).toMatchObject({ quantity: 1.5, unitCode: "KG" });
+  });
+
+  it("runSearch code-barres alphanumérique (lettres + symboles) : ajout direct", async () => {
+    const row: SearchRow = {
+      id: 3,
+      name: "Produit interne",
+      selling_price_minor: 9000,
+      purchase_price_minor: 7000,
+      quantity: 10,
+      unit_code: "PIECE",
+      primary_barcode: "AB/CD-12",
+    };
+    mockApi.productByBarcode.mockResolvedValue({ product: row });
+    const { d, addLine, notifs, queries } = fakeDeps();
+    await runSearch(d, "ab/cd-12");
+    expect(mockApi.productByBarcode).toHaveBeenCalledWith({ barcode: "ab/cd-12" });
+    expect(mockApi.productSearch).not.toHaveBeenCalled();
+    expect(addLine).toHaveBeenCalledTimes(1);
+    expect(notifs).toEqual([]);
+    expect(queries).toContain("");
+  });
+
+  it("runSearch code court (A1) : lookup exact, jamais de simple liste de résultats", async () => {
+    const row: SearchRow = {
+      id: 4,
+      name: "Produit A1",
+      selling_price_minor: 5000,
+      purchase_price_minor: 3000,
+      quantity: 10,
+      unit_code: "PIECE",
+      primary_barcode: "A1",
+    };
+    mockApi.productByBarcode.mockResolvedValue({ product: row });
+    const { d, addLine } = fakeDeps();
+    await runSearch(d, "A1");
+    expect(mockApi.productByBarcode).toHaveBeenCalledWith({ barcode: "A1" });
+    expect(addLine).toHaveBeenCalledTimes(1);
+  });
+
+  it("runSearch jeton complet « 2X500G » : le code-barres exact gagne sur la quantité", async () => {
+    const row: SearchRow = {
+      id: 5,
+      name: "Carton 500G",
+      selling_price_minor: 12000,
+      purchase_price_minor: 9000,
+      quantity: 10,
+      unit_code: "PIECE",
+      primary_barcode: "2X500G",
+    };
+    mockApi.productByBarcode.mockResolvedValue({ product: row });
+    const { d, addLine } = fakeDeps();
+    await runSearch(d, "2X500G");
+    expect(mockApi.productByBarcode).toHaveBeenCalledTimes(1);
+    expect(addLine).toHaveBeenCalledTimes(1);
+    expect(addLine.mock.calls[0]?.[0]).toMatchObject({ quantity: 1 });
+  });
+
+  it("runSearch préfixe quantité sur code à lettres (2*AB-12) : le code seul est cherché", async () => {
+    const row: SearchRow = {
+      id: 6,
+      name: "Produit AB-12",
+      selling_price_minor: 4000,
+      purchase_price_minor: 2000,
+      quantity: 10,
+      unit_code: "PIECE",
+      primary_barcode: "AB-12",
+    };
+    mockApi.productByBarcode.mockResolvedValueOnce({ product: null });
+    mockApi.productByBarcode.mockResolvedValueOnce({ product: row });
+    const { d, addLine } = fakeDeps();
+    await runSearch(d, "2*AB-12");
+    expect(mockApi.productByBarcode).toHaveBeenNthCalledWith(1, { barcode: "2*AB-12" });
+    expect(mockApi.productByBarcode).toHaveBeenNthCalledWith(2, { barcode: "AB-12" });
+    expect(addLine.mock.calls[0]?.[0]).toMatchObject({ quantity: 2 });
+  });
+
+  it("runSearch scan inconnu alphanumérique (rafale) : message FR + champ vidé", async () => {
+    mockApi.productByBarcode.mockResolvedValue({ product: null });
+    mockApi.productSearch.mockResolvedValue({ rows: [] });
+    const { d, notifs, queries } = fakeDeps();
+    d.scanBurstRef.current = true;
+    await runSearch(d, "AB-999");
+    expect(notifs.map((n) => n.msg)).toEqual([
+      "Code-barres inconnu : vérifiez la fiche produit (Catalogue).",
+    ]);
+    // Vidé : le scan suivant ne se concatène pas au code inconnu.
+    expect(queries).toContain("");
+  });
+
+  it("runSearch saisie humaine inconnue à lettres : ni message ni vidage intempestif", async () => {
+    mockApi.productByBarcode.mockResolvedValue({ product: null });
+    mockApi.productSearch.mockResolvedValue({ rows: [] });
+    const { d, notifs, queries } = fakeDeps();
+    await runSearch(d, "AB-999");
+    expect(notifs).toEqual([]);
+    expect(queries).not.toContain("");
   });
 
   it("runSearch saisie partielle ou texte sans résultat : silence", async () => {
