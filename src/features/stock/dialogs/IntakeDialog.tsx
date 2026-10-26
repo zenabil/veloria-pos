@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { PackagePlus, Search } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
-import { formatDzd } from "@domain/money/money.ts";
+import { formatDzd, minorToInput } from "@domain/money/money.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { todayUtcDate } from "@shared/dates/dates.ts";
 
@@ -54,7 +54,53 @@ interface IntakeLine {
   }[];
 }
 
+/** Ligne d'une réception existante, préremplie après annulation (ADR-139). */
+export interface StockIntakeInitialLine {
+  productId: number | null;
+  productName: string;
+  unitCode: string;
+  quantityReceived: number;
+  quantityDamaged: number;
+  /** Prix d'achat par UNITÉ D'ACHAT (carton ou pièce), hors fret. */
+  purchasePriceMinor: number;
+  packagingId: number | null;
+  packagingLabel: string | null;
+  packagingFactor: number | null;
+  purchaseUnit: "piece" | "carton";
+}
+
+export interface StockIntakeInitial {
+  supplierId: number | null;
+  supplierName: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  shippingMinor: number;
+  notes: string;
+  lines: StockIntakeInitialLine[];
+}
+
 let intakeKey = 1;
+
+function initialIntakeLine(l: StockIntakeInitialLine): IntakeLine {
+  intakeKey += 1;
+  return {
+    key: intakeKey,
+    productId: l.productId,
+    productName: l.productName,
+    unit: l.unitCode || "PIECE",
+    received: String(l.quantityReceived),
+    damaged: String(l.quantityDamaged),
+    price: minorToInput(Math.max(0, l.purchasePriceMinor)),
+    selling: "",
+    search: "",
+    packagingId: l.packagingId,
+    packagingFactor: l.packagingFactor,
+    packagingLabel: l.packagingLabel,
+    packagingPurchasePriceMinor: null,
+    purchaseUnit: l.purchaseUnit,
+    results: [],
+  };
+}
 
 function emptyIntakeLine(): IntakeLine {
   intakeKey += 1;
@@ -81,23 +127,32 @@ export function StockIntakeDialog({
   onClose,
   onSaved,
   notify,
+  initial,
 }: {
   onClose: () => void;
   onSaved: () => void;
   notify: Notify;
+  /** Réédition d'une facture annulée : valeurs d'origine préremplies. */
+  initial?: StockIntakeInitial;
 }): React.JSX.Element {
-  const [supplierId, setSupplierId] = useState<number | null>(null);
-  const [supplierLabel, setSupplierLabel] = useState("");
+  const [supplierId, setSupplierId] = useState<number | null>(initial?.supplierId ?? null);
+  const [supplierLabel, setSupplierLabel] = useState(initial?.supplierName ?? "");
   const [supplierQ, setSupplierQ] = useState("");
   const [supplierResults, setSupplierResults] = useState<
     { id: number; name: string; code: string | null }[]
   >([]);
   const supplierTimer = useDebouncedTimer();
-  const [invoiceNumber, setInvoiceNumber] = useState("");
-  const [invoiceDate, setInvoiceDate] = useState(todayUtcDate());
-  const [shipping, setShipping] = useState("");
-  const [notes, setNotes] = useState("");
-  const [lines, setLines] = useState<IntakeLine[]>([emptyIntakeLine()]);
+  const [invoiceNumber, setInvoiceNumber] = useState(initial?.invoiceNumber ?? "");
+  const [invoiceDate, setInvoiceDate] = useState(initial?.invoiceDate || todayUtcDate());
+  const [shipping, setShipping] = useState(
+    initial != null && initial.shippingMinor > 0 ? minorToInput(initial.shippingMinor) : "",
+  );
+  const [notes, setNotes] = useState(initial?.notes ?? "");
+  const [lines, setLines] = useState<IntakeLine[]>(() =>
+    initial != null && initial.lines.length > 0
+      ? initial.lines.map(initialIntakeLine)
+      : [emptyIntakeLine()],
+  );
   const [busy, setBusy] = useState(false);
   // Création inline : modale par-dessus, réception conservée.
   const [supplierQuickOpen, setSupplierQuickOpen] = useState(false);
@@ -650,8 +705,8 @@ export function StockIntakeDialog({
             </Button>
           </div>
           <p className="text-xs text-slate-500">
-            Réception atomique : stock + mouvements + dette fournisseur + audit. La correction se
-            fait depuis « Ajustement » ou « Inventaire ».
+            Réception atomique : stock + mouvements + dette fournisseur + audit. Une facture
+            fournisseur se corrige depuis « Réceptions » (annuler puis recréer).
           </p>
         </div>
       </Modal>

@@ -923,17 +923,39 @@ export function cancelSaleAtomic(saleId: number, now: string, operationId: strin
     // ENCAISSEMENT ANNULÉ (E-25) : la promesse UI est « le stock sera restauré
     // ET l'encaissement annulé ». Les lignes de paiement de la vente sont donc
     // supprimées (l'encaissement n'a jamais eu lieu) et la vente est remise à
-    // zéro encaissé / reste = total. Le solde client ci-dessus n'est PAS
-    // touché par ce mouvement : le paiement avait déjà réduit le solde de
-    // `amount_paid`, et le reliquat non encaissé (remaining) est restitué ici.
+    // zéro encaissé / reste = total pour une vente à crédit autorisée. Le
+    // solde client ci-dessus n'est PAS touché par ce mouvement : le paiement
+    // avait déjà réduit le solde de `amount_paid`, et le reliquat non encaissé
+    // (remaining) est restitué ici.
     const paidMinor = Number(sale["amount_paid_minor"] ?? 0);
     if (paidMinor > 0) {
       db.prepare(`DELETE FROM sale_payments WHERE sale_id = ?`).run(saleId);
     }
     const totalMinor = Number(sale["total_minor"] ?? 0);
-    db.prepare(
-      `UPDATE sales SET is_cancelled = 1, cancelled_at = ?, amount_paid_minor = 0, remaining_balance_minor = ?, payment_status = 'unpaid', updated_at = ? WHERE id = ?`,
-    ).run(now, totalMinor, now, saleId);
+    // Le garde SQL 0051 interdit une créance (`remaining > 0`) sans client
+    // `credit_allowed = 1`. Pour une vente sans client (ou client non autorisé),
+    // le miroir « 0 encaissé / reste = total » était refusé par le trigger :
+    // la vente annulée est donc soldée (aucune créance possible), et les
+    // paiements restent supprimés. Ventes à crédit : miroir E-25 inchangé.
+    const creditAllowed =
+      customerId != null
+        ? Number(
+            (
+              db.prepare(`SELECT credit_allowed FROM customers WHERE id = ?`).get(customerId) as
+                | { credit_allowed: number }
+                | undefined
+            )?.credit_allowed ?? 0,
+          ) === 1
+        : false;
+    if (creditAllowed) {
+      db.prepare(
+        `UPDATE sales SET is_cancelled = 1, cancelled_at = ?, amount_paid_minor = 0, remaining_balance_minor = ?, payment_status = 'unpaid', updated_at = ? WHERE id = ?`,
+      ).run(now, totalMinor, now, saleId);
+    } else {
+      db.prepare(
+        `UPDATE sales SET is_cancelled = 1, cancelled_at = ?, amount_paid_minor = ?, remaining_balance_minor = 0, payment_status = 'paid', updated_at = ? WHERE id = ?`,
+      ).run(now, totalMinor, now, saleId);
+    }
     if (customerId != null && remaining !== 0) {
       // E-30 : le statut du client est recalculé APRÈS l'annulation de la
       // vente (une vente annulée n'est plus « ouverte » : le client ne peut
@@ -964,6 +986,262 @@ export function cancelSaleAtomic(saleId: number, now: string, operationId: strin
       /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
     ) {
       return;
+    }
+    throw err;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ADR-139 — « Modifier une vente » = annuler + rééditer (jamais de mutation
+// d'une facture historique : stock, couches FIFO, soldes et paiements passent
+// par l'annulation existante, puis les lignes sont rechargées dans un panier).
+// ---------------------------------------------------------------------------
+
+export interface SaleReopenLine {
+  productId: number | null;
+  productName: string;
+  unitCode: string;
+  originalUnitPriceMinor: number;
+  unitPriceMinor: number;
+  purchasePriceMinor: number;
+  quantity: number;
+  billedTotalMinor: number | null;
+  packagingId: number | null;
+  packagingLabelFr: string | null;
+  packagingFactor: number | null;
+  packagingSellingPriceMinor: number | null;
+  packagingAutoCartonPricing: boolean;
+  packagingPriceOverridden: boolean;
+  stockQty: number | null;
+}
+
+export interface SaleReopenDraft {
+  invoiceNumber: string;
+  customerId: number | null;
+  customerLabel: string;
+  deliveryFeeMinor: number;
+  lines: SaleReopenLine[];
+}
+
+interface ReopenProductRow {
+  id: number;
+  name: string;
+  unit_code: string;
+  quantity: number;
+  selling_price_minor: number;
+  is_active: number;
+  fifo_next: number | null;
+}
+
+/** Lignes actuelles d'une vente → panier caisse (cartons + pièces). */
+function buildReopenDraft(
+  db: ReturnType<typeof getDb>,
+  sale: Record<string, unknown>,
+): SaleReopenDraft {
+  const saleId = Number(sale["id"]);
+  const items = db
+    .prepare(`SELECT * FROM sale_items WHERE sale_id = ? ORDER BY id ASC`)
+    .all(saleId) as Record<string, unknown>[];
+  if (items.length === 0) throw new Error("Vente sans ligne : rien à rééditer.");
+  const productIds = [
+    ...new Set(
+      items
+        .map((i) => i["product_id"])
+        .filter((v): v is number => typeof v === "number" && Number.isInteger(v)),
+    ),
+  ];
+  const products = new Map<number, ReopenProductRow>();
+  if (productIds.length > 0) {
+    const rows = db
+      .prepare(
+        `SELECT p.id, p.name, p.unit_code, p.quantity, p.selling_price_minor, p.is_active,
+           (SELECT l.unit_cost_minor FROM inventory_layers l
+             WHERE l.product_id = p.id AND l.remaining_quantity > 0
+             ORDER BY l.id ASC LIMIT 1) AS fifo_next
+         FROM products p WHERE p.id IN (${productIds.map(() => "?").join(",")})`,
+      )
+      .all(...productIds) as ReopenProductRow[];
+    for (const r of rows) products.set(Number(r.id), r);
+  }
+  for (const it of items) {
+    if (it["product_id"] == null) continue;
+    const p = products.get(Number(it["product_id"]));
+    if (!p) throw new Error(`Produit introuvable pour « ${String(it["product_name_snapshot"])} ».`);
+    if (Number(p.is_active) !== 1) {
+      throw new Error(`Produit « ${p.name} » archivé : réactivez-le avant de modifier la vente.`);
+    }
+  }
+  // Prix unitaire de base connu via une ligne pièce du même produit (pour
+  // reconstruire le tarif carton sans dépendre du prix catalogue actuel).
+  const piecePrice = new Map<number, number>();
+  for (const it of items) {
+    const factor = Number(it["unit_factor"] ?? 1);
+    if (it["product_id"] != null && factor <= 1) {
+      const pid = Number(it["product_id"]);
+      if (!piecePrice.has(pid)) piecePrice.set(pid, Number(it["unit_price_minor"]));
+    }
+  }
+  const packagingIds = [
+    ...new Set(
+      items
+        .map((i) => i["packaging_id"])
+        .filter((v): v is number => typeof v === "number" && Number.isInteger(v)),
+    ),
+  ];
+  const packagings = new Map<number, { label_fr: string; factor: number }>();
+  if (packagingIds.length > 0) {
+    const rows = db
+      .prepare(
+        `SELECT id, label_fr, factor FROM product_packagings WHERE id IN (${packagingIds.map(() => "?").join(",")})`,
+      )
+      .all(...packagingIds) as { id: number; label_fr: string; factor: number }[];
+    for (const r of rows) packagings.set(Number(r.id), r);
+  }
+  // L'annulation restaure le stock APRÈS la projection : le panier doit voir
+  // la quantité disponible finale (sinon une vente ayant vidé le stock
+  // réapparaîtrait « en rupture » et bloquerait toute augmentation).
+  const restoredByProduct = new Map<number, number>();
+  for (const it of items) {
+    if (it["product_id"] == null) continue;
+    const pid = Number(it["product_id"]);
+    const factorRaw = Number(it["unit_factor"] ?? 1);
+    const factor = Number.isInteger(factorRaw) && factorRaw > 0 ? factorRaw : 1;
+    restoredByProduct.set(
+      pid,
+      round3((restoredByProduct.get(pid) ?? 0) + Number(it["quantity"]) * factor),
+    );
+  }
+  const lines: SaleReopenLine[] = items.map((it) => {
+    const pid = it["product_id"] == null ? null : Number(it["product_id"]);
+    const prod = pid == null ? undefined : products.get(pid);
+    const qty = Number(it["quantity"]);
+    const factorRaw = Number(it["unit_factor"] ?? 1);
+    const factor = Number.isInteger(factorRaw) && factorRaw > 0 ? factorRaw : 1;
+    const unit = Number(it["unit_price_minor"]);
+    const original = Number(it["original_unit_price_minor"]) || unit;
+    const total = Number(it["line_total_minor"]);
+    const fifo = prod?.fifo_next == null ? null : Number(prod.fifo_next);
+    // `sale_items.purchase_price_minor` = COGS par UNITÉ VENDUE (carton ou
+    // pièce) : le ramener par unité de base pour le panier.
+    const purchasePerBase =
+      fifo ?? Math.max(0, Math.round(Number(it["purchase_price_minor"]) / factor));
+    const base: Omit<SaleReopenLine, "quantity" | "billedTotalMinor"> = {
+      productId: pid,
+      productName: String(it["product_name_snapshot"]),
+      // L'unité de base du produit (la ligne carton reste portée par les
+      // métadonnées packaging, comme dans la caisse).
+      unitCode: prod?.unit_code ?? String(it["unit_code"]),
+      originalUnitPriceMinor: original,
+      unitPriceMinor: unit,
+      purchasePriceMinor: purchasePerBase,
+      packagingId: null,
+      packagingLabelFr: null,
+      packagingFactor: null,
+      packagingSellingPriceMinor: null,
+      packagingAutoCartonPricing: false,
+      packagingPriceOverridden: false,
+      stockQty: prod
+        ? round3(Number(prod.quantity) + (restoredByProduct.get(pid as number) ?? 0))
+        : null,
+    };
+    if (factor > 1 && it["packaging_id"] != null) {
+      // Ligne carton vendue (quantité = cartons) : le panier raisonne en
+      // unités de base + métadonnées carton, comme la caisse.
+      const pack = packagings.get(Number(it["packaging_id"]));
+      let basePrice =
+        piecePrice.get(pid as number) ?? (prod ? Number(prod.selling_price_minor) : 0);
+      const packTotal = Math.round(basePrice * factor);
+      const cartonAdvantageous = unit < packTotal && unit >= Math.round(basePrice * (factor - 1));
+      if (!cartonAdvantageous) {
+        // Tarif carton historique non dérivable du prix actuel : choisir un
+        // prix pièce qui rend le tarif carton applicable et conserve le total.
+        basePrice = Math.max(0, Math.floor(unit / (factor - 1)));
+      }
+      return {
+        ...base,
+        quantity: round3(qty * factor),
+        originalUnitPriceMinor: basePrice,
+        unitPriceMinor: basePrice,
+        billedTotalMinor: null,
+        packagingId: Number(it["packaging_id"]),
+        packagingLabelFr: pack?.label_fr ?? `Carton de ${factor}`,
+        packagingFactor: factor,
+        packagingSellingPriceMinor: unit,
+        packagingAutoCartonPricing: true,
+      };
+    }
+    // Mode « Montant » (ADR-114) : le total facturé différait de prix × qté.
+    const billed = total === Math.round(unit * qty) ? null : total;
+    return { ...base, quantity: qty, billedTotalMinor: billed };
+  });
+  const customerId = sale["customer_id"] == null ? null : Number(sale["customer_id"]);
+  let customerLabel = "Client de passage";
+  if (customerId != null) {
+    const c = db.prepare(`SELECT search_name FROM customers WHERE id = ?`).get(customerId) as
+      | { search_name: string }
+      | undefined;
+    customerLabel = c?.search_name ?? customerLabel;
+  }
+  return {
+    invoiceNumber: String(sale["invoice_number"]),
+    customerId,
+    customerLabel,
+    deliveryFeeMinor: Number(sale["delivery_fee_minor"] ?? 0),
+    lines,
+  };
+}
+
+/**
+ * Annule la vente puis renvoie son panier de réédition. Transaction unique :
+ * une erreur (retours, produit archivé, etc.) ne laisse ni annulation ni
+ * écriture partielle. Rejouer le même operationId renvoie le même panier.
+ */
+export function reopenSaleAtomic(
+  saleId: number,
+  now: string,
+  operationId: string,
+  staffUserId: number | null = null,
+): SaleReopenDraft {
+  const db = getDb();
+  const fast = peekIdempotency<SaleReopenDraft>(operationId, "sales.reopen");
+  if (fast) return fast;
+  const tx = db.transaction(() => {
+    claimIdempotency(operationId, "sales.reopen", now);
+    const sale = db.prepare(`SELECT * FROM sales WHERE id = ?`).get(saleId) as
+      | Record<string, unknown>
+      | undefined;
+    if (!sale) throw new Error("Vente introuvable.");
+    // Même périmètre auteur que la lecture du détail (0046) : un utilisateur
+    // ne réédite que ses ventes (gérant = null = tout).
+    if (staffUserId != null && sale["staff_user_id"] !== staffUserId) {
+      throw new Error("Action non autorisée pour cet utilisateur.");
+    }
+    if (sale["is_cancelled"] === 1) throw new Error("Vente déjà annulée.");
+    // Projection AVANT annulation : un produit archivé doit refuser sans
+    // annuler la vente (l'annulation exige ses propres écritures).
+    const draft = buildReopenDraft(db, sale);
+    cancelSaleAtomic(saleId, now, `${operationId}:cancel`);
+    db.prepare(
+      `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at) VALUES (?, 'sale.reopened', 'sale', ?, ?, ?, ?)`,
+    ).run(
+      randomUUID(),
+      String(saleId),
+      operationId,
+      JSON.stringify({ invoice: sale["invoice_number"], lines: draft.lines.length }),
+      now,
+    );
+    storeIdempotencyResult(operationId, draft);
+    return draft;
+  });
+  try {
+    return (tx as unknown as () => SaleReopenDraft)();
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
+    ) {
+      const retry = peekIdempotency<SaleReopenDraft>(operationId, "sales.reopen");
+      if (retry) return retry;
     }
     throw err;
   }

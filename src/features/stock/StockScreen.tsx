@@ -39,6 +39,7 @@ import {
   StockIntakeDialog,
   StockIntakesDrawer,
   StockMovementHistoryDrawer,
+  type StockIntakeInitial,
 } from "./StockDialogs.tsx";
 import { OcrImportDialog } from "./OcrImportDialog.tsx";
 import {
@@ -101,6 +102,8 @@ export function StockScreen({ notify }: { notify: Notify }): React.JSX.Element {
   const [historyFor, setHistoryFor] = useState<StockRow | null>(null);
   const [inventoryFor, setInventoryFor] = useState<InventoryPreset[] | null>(null);
   const [intakeOpen, setIntakeOpen] = useState(false);
+  // ADR-139 : correction d'une facture annulée = formulaire prérempli.
+  const [intakeInitial, setIntakeInitial] = useState<StockIntakeInitial | null>(null);
   const [intakesOpen, setIntakesOpen] = useState(false);
   const [ocrOpen, setOcrOpen] = useState(false);
   const queryTimer = useDebouncedTimer();
@@ -382,7 +385,10 @@ export function StockScreen({ notify }: { notify: Notify }): React.JSX.Element {
               ) : null}
             </div>
             <Button
-              onClick={() => setIntakeOpen(true)}
+              onClick={() => {
+                setIntakeInitial(null);
+                setIntakeOpen(true);
+              }}
               title="Réception fournisseur (facture + livraison)"
             >
               <PackagePlus size={16} aria-hidden="true" /> Nouveau Bon Réception
@@ -713,17 +719,32 @@ export function StockScreen({ notify }: { notify: Notify }): React.JSX.Element {
       {/* Réception fournisseur (facture + livraison + coût unitaire) */}
       {intakeOpen ? (
         <StockIntakeDialog
-          onClose={() => setIntakeOpen(false)}
+          onClose={() => {
+            setIntakeOpen(false);
+            setIntakeInitial(null);
+          }}
           onSaved={() => {
             setIntakeOpen(false);
+            setIntakeInitial(null);
             refresh();
           }}
           notify={notify}
+          {...(intakeInitial == null ? null : { initial: intakeInitial })}
         />
       ) : null}
 
-      {/* Factures fournisseurs */}
-      {intakesOpen ? <StockIntakesDrawer onClose={() => setIntakesOpen(false)} /> : null}
+      {/* Factures fournisseurs : détail + annulation/correction (ADR-139) */}
+      {intakesOpen ? (
+        <StockIntakesDrawer
+          onClose={() => setIntakesOpen(false)}
+          notify={notify}
+          onCorrect={(initial) => {
+            setIntakesOpen(false);
+            setIntakeInitial(initial);
+            setIntakeOpen(true);
+          }}
+        />
+      ) : null}
 
       {/* Import OCR local (relecture obligatoire avant stock.intake) */}
       {ocrOpen ? (

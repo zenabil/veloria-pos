@@ -52,7 +52,13 @@ interface Stats {
   paymentsAmountMinor: number;
 }
 
-export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element {
+export function HistoryScreen({
+  notify,
+  onNavigate,
+}: {
+  notify: Notify;
+  onNavigate?: (module: "sell") => void;
+}): React.JSX.Element {
   const [query, setQuery] = useState("");
   const [op, setOp] = useState<HistoryOpFilter>("all");
   const [page, setPage] = useState(1);
@@ -652,6 +658,7 @@ export function HistoryScreen({ notify }: { notify: Notify }): React.JSX.Element
           onClose={() => setDrawer(null)}
           onChanged={refresh}
           notify={notify}
+          {...(onNavigate == null ? null : { onNavigate })}
         />
       ) : null}
     </div>

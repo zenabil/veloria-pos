@@ -4,6 +4,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useCartsStore, type ActiveCart, type CartTab } from "../cart-store.ts";
 import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
+import { usePendingSaleEdit } from "@shared/sales/pending-sale-edit.ts";
+import { fetchCustomerCredit } from "./sell-search.ts";
+import type { Notify } from "@shared/ui/primitives.tsx";
 import {
   MAX_MINOR_SINGLE,
   minorToInput,
@@ -31,7 +34,7 @@ export interface SellTotals {
 export type SellState = ReturnType<typeof useSellState>;
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type -- retour inféré à dessein (70+ champs) : le type de sortie est `SellState` ci-dessus, toute annotation manuelle divergerait.
-export function useSellState(cart: ActiveCart) {
+export function useSellState(cart: ActiveCart, notify: Notify) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchRow[]>([]);
   const [searching, setSearching] = useState(false);
@@ -152,8 +155,47 @@ export function useSellState(cart: ActiveCart) {
   }, [activeId]);
 
   // P4 : brouillons persistés (SQLite, jamais de LocalStorage métier).
+  // ADR-139 : le panier de réédition (vente annulée depuis l'Historique) est
+  // appliqué APRÈS l'hydratation — sinon le hydrate écraserait ce panier.
   useEffect(() => {
     let cancelled = false;
+    const applyPendingEdit = (): void => {
+      const pending = usePendingSaleEdit.getState().take();
+      if (pending == null) return;
+      const opened = cart.openTabWith({
+        name: `Modif. ${pending.invoiceNumber}`,
+        lines: pending.lines,
+        customerId: pending.customerId,
+        customerLabel: pending.customerLabel,
+        deliveryFeeMinor: pending.deliveryFeeMinor,
+      });
+      if (!opened) {
+        // Ne jamais perdre le brouillon si la limite de paniers est atteinte.
+        usePendingSaleEdit.getState().set(pending);
+        notify(
+          "Impossible d'ouvrir le panier de modification (limite de paniers atteinte).",
+          "err",
+        );
+        return;
+      }
+      // Même contexte client que `selectCustomer` : sans ces drapeaux, le
+      // dialogue d'encaissement traiterait le crédit comme inconnu.
+      if (pending.customerId != null) {
+        void fetchCustomerCredit(pending.customerId).then((c) => {
+          setCustomerCredit(c.allowed);
+          setCustomerBalance(c.balance);
+          setCustomerCreditLimit(c.limit);
+          setLimitOverride(false);
+          setCreditUnknown(c.allowed == null);
+        });
+      } else {
+        setCustomerCredit(null);
+        setCustomerBalance(null);
+        setCustomerCreditLimit(null);
+        setLimitOverride(false);
+        setCreditUnknown(false);
+      }
+    };
     api
       .cartsLoad()
       .then((r) => {
@@ -169,7 +211,10 @@ export function useSellState(cart: ActiveCart) {
           setDeliveryText(fee > 0 ? minorToInput(fee) : "");
         }
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) applyPendingEdit();
+      });
     return () => {
       cancelled = true;
     };

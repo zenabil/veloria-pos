@@ -77,6 +77,18 @@ export function registerStockChannels(): void {
   handle(IPC_CHANNELS["stock.intakes"], V.paginationSchema, (input) =>
     Inventory.listIntakes(input.page, input.pageSize),
   );
+  handle(IPC_CHANNELS["stock.intakeDetail"], V.idSchema, (input) =>
+    Inventory.getStockIntakeDetail(input.id),
+  );
+  // ADR-139 : annulation d'une facture fournisseur intacte (garde stock/fournisseur).
+  handle(IPC_CHANNELS["stock.intakeCancel"], V.idempotentIdSchema, (input) =>
+    Inventory.cancelStockIntakeAtomic({
+      id: input.id,
+      now: new Date().toISOString(),
+      operationId: input.operationId,
+      staffUserId: getCurrentStaffUser(),
+    }),
+  );
 
   // ---- Phase 6 : fournisseurs ----
   handle(IPC_CHANNELS["suppliers.search"], V.supplierSearchSchema, (input) =>

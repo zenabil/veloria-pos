@@ -56,7 +56,7 @@ import type { SearchRow } from "./sell/sell-types.ts";
 
 export function SellScreen({ notify }: { notify: Notify }): React.JSX.Element {
   const cart = useCart();
-  const s = useSellState(cart);
+  const s = useSellState(cart, notify);
   // Fiche entreprise : source unique partagée (imprimés caisse + devis).
   const { company } = useCompany();
   // Confirmation non bloquante (modale applicative).

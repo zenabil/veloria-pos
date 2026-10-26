@@ -516,6 +516,355 @@ export function listIntakes(page: number, pageSize: number): { rows: unknown[]; 
   return { rows, total };
 }
 
+// ---------------------------------------------------------------------------
+// ADR-139 — annulation d'une facture fournisseur (réception). La réception
+// reste immuable ligne à ligne ; seule son annulation est tracée (statut +
+// mouvement inverse), et uniquement si rien n'en a été consommé.
+// ---------------------------------------------------------------------------
+
+export interface StockIntakeDetailItem {
+  id: number;
+  product_id: number | null;
+  product_name_snapshot: string;
+  unit_code: string | null;
+  packaging_id: number | null;
+  packaging_label_fr: string | null;
+  unit_factor: number;
+  quantity_received: number;
+  quantity_damaged: number;
+  /** Quantité nette reçue en unités de base. */
+  quantity_net: number;
+  purchase_price_minor: number;
+  landing_cost_minor: number;
+  line_total_minor: number;
+}
+
+export interface StockIntakeDetail {
+  intake: Record<string, unknown>;
+  items: StockIntakeDetailItem[];
+  canCancel: boolean;
+  cancelBlockedReason: string | null;
+}
+
+const roundQty3 = (v: number): number => Math.round(v * 1000) / 1000;
+
+/** Colonne SQLite `unknown` → texte (jamais « [object Object] »). */
+function asText(v: unknown): string | null {
+  if (typeof v === "string") return v;
+  if (typeof v === "number") return String(v);
+  return null;
+}
+
+interface IntakeCancelContext {
+  items: {
+    id: number;
+    product_id: number | null;
+    productName: string;
+    net: number;
+    /** Coût d'achat par unité de base. */
+    cost: number;
+  }[];
+  layers: {
+    id: number;
+    product_id: number;
+    original_quantity: number;
+    remaining_quantity: number;
+  }[];
+  reason: string | null;
+}
+
+/**
+ * Gardes d'annulation (lecture seule), réutilisées par le détail et par la
+ * mutation. Retourne la première raison de refus en français.
+ */
+function intakeCancelContext(
+  db: ReturnType<typeof getDb>,
+  intake: Record<string, unknown>,
+): IntakeCancelContext {
+  const id = Number(intake["id"]);
+  const rows = db
+    .prepare(`SELECT * FROM stock_intake_items WHERE stock_intake_id = ? ORDER BY id ASC`)
+    .all(id) as Record<string, unknown>[];
+  const items = rows.map((r) => {
+    const factorRaw = Number(r["unit_factor"] ?? 1);
+    const factor = Number.isInteger(factorRaw) && factorRaw > 0 ? factorRaw : 1;
+    const received = Number(r["quantity_received"]);
+    const damaged = Number(r["quantity_damaged"]);
+    return {
+      id: Number(r["id"]),
+      product_id: r["product_id"] == null ? null : Number(r["product_id"]),
+      productName: String(r["product_name_snapshot"]),
+      net: roundQty3(received * factor - damaged),
+      cost: Number(r["purchase_price_minor"]),
+    };
+  });
+  const layers = db
+    .prepare(
+      `SELECT id, product_id, original_quantity, remaining_quantity
+       FROM inventory_layers WHERE stock_intake_id = ? ORDER BY id ASC`,
+    )
+    .all(id) as IntakeCancelContext["layers"];
+
+  let reason: string | null = null;
+  if (String(intake["status"]) !== "committed") {
+    reason =
+      String(intake["status"]) === "cancelled"
+        ? "Facture fournisseur déjà annulée."
+        : "Réception non validée : annulation impossible.";
+  }
+  if (reason == null) {
+    const liveReturns = db
+      .prepare(
+        `SELECT COUNT(*) AS n FROM supplier_returns WHERE stock_intake_id = ? AND status != 'cancelled'`,
+      )
+      .get(id) as { n: number };
+    if (Number(liveReturns.n) > 0) {
+      reason = "Réception avec retours fournisseur : annulez d'abord le(s) retour(s).";
+    }
+  }
+  if (reason == null) {
+    if (layers.length === 0) {
+      reason =
+        "Réception historique sans couches FIFO : utilisez un ajustement ou un retour fournisseur.";
+    } else if (
+      layers.some(
+        (l) => Math.abs(Number(l.remaining_quantity) - Number(l.original_quantity)) > 1e-9,
+      )
+    ) {
+      reason =
+        "Stock de cette réception déjà consommé (vente, retour ou ajustement) : utilisez un retour fournisseur ou un ajustement.";
+    } else {
+      const netByProduct = new Map<number, number>();
+      for (const it of items) {
+        if (it.product_id == null || it.net <= 0) continue;
+        netByProduct.set(it.product_id, (netByProduct.get(it.product_id) ?? 0) + it.net);
+      }
+      const layerByProduct = new Map<number, number>();
+      for (const l of layers) {
+        const pid = Number(l.product_id);
+        layerByProduct.set(pid, (layerByProduct.get(pid) ?? 0) + Number(l.remaining_quantity));
+      }
+      const mismatch = [...netByProduct].some(
+        ([pid, net]) => Math.abs((layerByProduct.get(pid) ?? 0) - net) > 1e-9,
+      );
+      if (mismatch) {
+        reason =
+          "Couches FIFO incohérentes avec cette réception : utilisez un ajustement ou un retour fournisseur.";
+      }
+    }
+  }
+  if (reason == null && intake["supplier_id"] != null) {
+    const supplierId = Number(intake["supplier_id"]);
+    const sup = db
+      .prepare(`SELECT outstanding_balance_minor FROM suppliers WHERE id = ?`)
+      .get(supplierId) as { outstanding_balance_minor: number } | undefined;
+    if (!sup) {
+      reason = "Fournisseur introuvable.";
+    } else if (Number(sup.outstanding_balance_minor) < Number(intake["total_minor"])) {
+      reason =
+        "Facture fournisseur déjà réglée (solde fournisseur insuffisant) : utilisez un retour fournisseur ou un avoir.";
+    }
+    const invoiceNumber = asText(intake["invoice_number"]);
+    if (reason == null && invoiceNumber != null && invoiceNumber.trim() !== "") {
+      const po = db
+        .prepare(
+          `SELECT order_number FROM purchase_orders
+           WHERE supplier_id = ? AND order_number = ? AND status IN ('received','partially_received')
+           LIMIT 1`,
+        )
+        .get(supplierId, invoiceNumber) as { order_number: string } | undefined;
+      if (po) {
+        reason = `Réception liée au bon de commande ${po.order_number} : utilisez un retour fournisseur.`;
+      }
+    }
+  }
+  return { items, layers, reason };
+}
+
+export function getStockIntakeDetail(id: number): StockIntakeDetail {
+  const db = getDb();
+  const intake = db
+    .prepare(
+      `SELECT si.*, s.name AS supplier_name FROM stock_intakes si
+       LEFT JOIN suppliers s ON s.id = si.supplier_id WHERE si.id = ?`,
+    )
+    .get(id) as Record<string, unknown> | undefined;
+  if (!intake) throw new Error("Réception introuvable.");
+  const rows = db
+    .prepare(
+      `SELECT ii.*, p.unit_code AS unit_code, pk.label_fr AS packaging_label_fr
+       FROM stock_intake_items ii
+       LEFT JOIN products p ON p.id = ii.product_id
+       LEFT JOIN product_packagings pk ON pk.id = ii.packaging_id
+       WHERE ii.stock_intake_id = ? ORDER BY ii.id ASC`,
+    )
+    .all(id) as Record<string, unknown>[];
+  const ctx = intakeCancelContext(db, intake);
+  return {
+    intake,
+    items: rows.map((r) => {
+      const factorRaw = Number(r["unit_factor"] ?? 1);
+      const factor = Number.isInteger(factorRaw) && factorRaw > 0 ? factorRaw : 1;
+      return {
+        id: Number(r["id"]),
+        product_id: r["product_id"] == null ? null : Number(r["product_id"]),
+        product_name_snapshot: String(r["product_name_snapshot"]),
+        unit_code: asText(r["unit_code"]),
+        packaging_id: r["packaging_id"] == null ? null : Number(r["packaging_id"]),
+        packaging_label_fr: asText(r["packaging_label_fr"]),
+        unit_factor: factor,
+        quantity_received: Number(r["quantity_received"]),
+        quantity_damaged: Number(r["quantity_damaged"]),
+        quantity_net: roundQty3(
+          Number(r["quantity_received"]) * factor - Number(r["quantity_damaged"]),
+        ),
+        purchase_price_minor: Number(r["purchase_price_minor"]),
+        landing_cost_minor: Number(r["landing_cost_minor"]),
+        line_total_minor: Number(r["line_total_minor"]),
+      };
+    }),
+    canCancel: ctx.reason == null,
+    cancelBlockedReason: ctx.reason,
+  };
+}
+
+/**
+ * Annule une réception fournisseur intacte : retire le stock, neutralise ses
+ * couches FIFO, mouvemente la sortie, réduit la dette fournisseur et trace
+ * l'audit — une seule transaction. Refus FR si le stock a été consommé, si un
+ * retour fournisseur existe, si la facture est réglée ou si elle vient d'un
+ * bon de commande (correction via retour fournisseur).
+ */
+export function cancelStockIntakeAtomic(args: {
+  id: number;
+  now: string;
+  operationId: string;
+  staffUserId?: number | null;
+}): { cancelled: true } {
+  const db = getDb();
+  const fast = peekIdempotency<{ cancelled: true }>(args.operationId, "stock.intakeCancel");
+  if (fast) return fast;
+  const tx = db.transaction(() => {
+    claimIdempotency(args.operationId, "stock.intakeCancel", args.now);
+    const intake = db.prepare(`SELECT * FROM stock_intakes WHERE id = ?`).get(args.id) as
+      | Record<string, unknown>
+      | undefined;
+    if (!intake) throw new Error("Réception introuvable.");
+    const ctx = intakeCancelContext(db, intake);
+    if (ctx.reason != null) throw new Error(ctx.reason);
+    // Quantité nette + coût à sortir, agrégés par produit (une réception peut
+    // contenir deux lignes du même produit, ex. cartons + pièces).
+    const byProduct = new Map<number, { net: number; costSum: number; name: string }>();
+    for (const it of ctx.items) {
+      if (it.product_id == null || it.net <= 0) continue;
+      const cur = byProduct.get(it.product_id) ?? { net: 0, costSum: 0, name: it.productName };
+      cur.net = roundQty3(cur.net + it.net);
+      cur.costSum += Math.round(it.cost * it.net);
+      byProduct.set(it.product_id, cur);
+    }
+    for (const [pid, agg] of byProduct) {
+      const prod = db.prepare(`SELECT quantity FROM products WHERE id = ?`).get(pid) as
+        | { quantity: number }
+        | undefined;
+      if (!prod) throw new Error(`Produit introuvable pour « ${agg.name} ».`);
+      const after = roundQty3(Number(prod.quantity) - agg.net);
+      if (after < -1e-9) {
+        throw new Error(
+          `Stock incohérent pour « ${agg.name} » : annulation refusée, utilisez un ajustement.`,
+        );
+      }
+      db.prepare(
+        `UPDATE products SET quantity = ?, stock_status = ${STOCK_STATUS_CASE}, updated_at = ? WHERE id = ?`,
+      ).run(after, after, after, args.now, pid);
+      const unitCost = agg.net > 0 ? Math.round(agg.costSum / agg.net) : 0;
+      db.prepare(
+        `INSERT INTO stock_movements (uuid, product_id, movement_type, quantity_delta, quantity_after, unit_cost_minor, related_entity_type, related_entity_id, reason, reference, staff_user_id, created_at)
+         VALUES (?, ?, 'adjust_out', ?, ?, ?, 'intake_cancel', ?, 'Annulation facture fournisseur', ?, ?, ?)`,
+      ).run(
+        randomUUID(),
+        pid,
+        -agg.net,
+        after,
+        unitCost,
+        String(args.id),
+        asText(intake["invoice_number"]),
+        args.staffUserId ?? null,
+        args.now,
+      );
+    }
+    // Couches vérifiées intactes : les neutraliser (jamais les supprimer, la
+    // trace de réception reste lisible) puis recaler le dernier coût d'achat.
+    db.prepare(`UPDATE inventory_layers SET remaining_quantity = 0 WHERE stock_intake_id = ?`).run(
+      args.id,
+    );
+    for (const pid of byProduct.keys()) {
+      const latest = db
+        .prepare(
+          `SELECT unit_cost_minor FROM inventory_layers
+           WHERE product_id = ? AND remaining_quantity > 0 ORDER BY id DESC LIMIT 1`,
+        )
+        .get(pid) as { unit_cost_minor: number } | undefined;
+      if (latest) {
+        db.prepare(`UPDATE products SET purchase_price_minor = ? WHERE id = ?`).run(
+          Number(latest.unit_cost_minor),
+          pid,
+        );
+      }
+    }
+    if (intake["supplier_id"] != null) {
+      const upd = db
+        .prepare(
+          `UPDATE suppliers SET outstanding_balance_minor = outstanding_balance_minor - ?, updated_at = ?
+           WHERE id = ? AND outstanding_balance_minor >= ?`,
+        )
+        .run(
+          Number(intake["total_minor"]),
+          args.now,
+          Number(intake["supplier_id"]),
+          Number(intake["total_minor"]),
+        );
+      if (Number(upd.changes) !== 1) {
+        throw new Error(
+          "Facture fournisseur déjà réglée (solde fournisseur insuffisant) : utilisez un retour fournisseur ou un avoir.",
+        );
+      }
+    }
+    const closed = db
+      .prepare(
+        `UPDATE stock_intakes SET status = 'cancelled', updated_at = ? WHERE id = ? AND status = 'committed'`,
+      )
+      .run(args.now, args.id);
+    if (Number(closed.changes) !== 1) throw new Error("Facture fournisseur déjà annulée.");
+    db.prepare(
+      `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at)
+       VALUES (?, 'stock.intake_cancelled', 'intake', ?, ?, ?, ?)`,
+    ).run(
+      randomUUID(),
+      String(args.id),
+      args.operationId,
+      JSON.stringify({
+        invoice: intake["invoice_number"],
+        total: intake["total_minor"],
+        supplierId: intake["supplier_id"],
+      }),
+      args.now,
+    );
+    storeIdempotencyResult(args.operationId, { cancelled: true });
+  });
+  try {
+    return (tx as unknown as () => { cancelled: true })();
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
+    ) {
+      const retry = peekIdempotency<{ cancelled: true }>(args.operationId, "stock.intakeCancel");
+      if (retry) return retry;
+    }
+    throw err;
+  }
+}
+
 export type StockStatus = "all" | "in_stock" | "low_stock" | "out_of_stock";
 export type StockMovementKind =
   | "all"

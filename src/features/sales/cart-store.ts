@@ -4,6 +4,7 @@
 // supprime jamais les précédents.
 import { create } from "zustand";
 import { roundQuantity } from "@domain/common/quantity.ts";
+import { newOperationId } from "@domain/common/ids.ts";
 import { isBilledByAmount } from "@domain/sales/sale-rules.ts";
 import type { CartLine } from "@/application/sales/create-sale.ts";
 
@@ -26,11 +27,25 @@ export interface CartTab {
 
 type TotalsPatch = Partial<Pick<CartTab, "amountPaidMinor" | "paymentMethod" | "deliveryFeeMinor">>;
 
+/** Panier de réédition (vente annulée) : lignes déjà validées côté main. */
+export interface CartOpenDraft {
+  name?: string;
+  lines: Omit<CartLine, "key">[];
+  customerId: number | null;
+  customerLabel: string;
+  deliveryFeeMinor: number;
+}
+
 interface CartsStore {
   tabs: CartTab[];
   activeId: number;
   /** Ouvre un nouvel onglet panier (les autres sont conservés). */
   newTab: () => void;
+  /**
+   * Ouvre un panier prérempli (réédition d'une vente annulée). Réutilise
+   * l'onglet actif s'il est vide ; `false` = limite d'onglets/lignes atteinte.
+   */
+  openTabWith: (draft: CartOpenDraft) => boolean;
   switchTab: (id: number) => void;
   /** Ferme un onglet ; si c'est le dernier, il est réinitialisé. */
   closeTab: (id: number) => void;
@@ -102,6 +117,56 @@ export const useCartsStore = create<CartsStore>((set) => ({
       const tab = makeTab(nextTabName());
       return { tabs: [...s.tabs, tab], activeId: tab.id };
     }),
+  openTabWith: (draft) => {
+    if (draft.lines.length === 0 || draft.lines.length > MAX_CART_LINES) return false;
+    let opened = false;
+    set((s) => {
+      const lines = draft.lines.map((l) => ({ ...l, key: `l-${newOperationId()}` }));
+      const active = s.tabs.find((t) => t.id === s.activeId);
+      const reusable =
+        active != null &&
+        active.lines.length === 0 &&
+        active.customerId == null &&
+        active.amountPaidMinor === 0 &&
+        active.deliveryFeeMinor === 0;
+      if (reusable) {
+        opened = true;
+        return {
+          tabs: s.tabs.map((t) =>
+            t.id === s.activeId
+              ? {
+                  ...t,
+                  name: (draft.name ?? t.name).slice(0, 40),
+                  lines,
+                  customerId: draft.customerId,
+                  customerLabel: draft.customerLabel,
+                  amountPaidMinor: 0,
+                  paymentMethod: "cash",
+                  deliveryFeeMinor: draft.deliveryFeeMinor,
+                  saleOperationId: null,
+                }
+              : t,
+          ),
+        };
+      }
+      if (s.tabs.length >= MAX_CART_TABS) return {};
+      tabSeq += 1;
+      const tab: CartTab = {
+        id: tabSeq,
+        name: (draft.name ?? `Panier ${tabSeq}`).slice(0, 40),
+        lines,
+        customerId: draft.customerId,
+        customerLabel: draft.customerLabel,
+        amountPaidMinor: 0,
+        paymentMethod: "cash",
+        deliveryFeeMinor: draft.deliveryFeeMinor,
+        saleOperationId: null,
+      };
+      opened = true;
+      return { tabs: [...s.tabs, tab], activeId: tab.id };
+    });
+    return opened;
+  },
   switchTab: (id) => set((s) => (s.tabs.some((t) => t.id === id) ? { activeId: id } : {})),
   closeTab: (id) =>
     set((s) => {
@@ -312,6 +377,7 @@ export function useCart(): ActiveCart {
     tabs: store.tabs,
     activeId: store.activeId,
     newTab: store.newTab,
+    openTabWith: store.openTabWith,
     switchTab: store.switchTab,
     closeTab: store.closeTab,
     addLine: store.addLine,

@@ -96,7 +96,8 @@ export function SupplierDetailsDrawer({
           {formatDzd(s.outstanding_balance_minor)}
         </div>
         <div className="mt-1 text-xs text-slate-500">
-          Achats : {formatDzd(totalPurchases(statement))} · {statement.intakes.length} entrée(s)
+          Achats : {formatDzd(totalPurchases(statement))} ·{" "}
+          {statement.intakes.filter((i) => i.status !== "cancelled").length} entrée(s)
         </div>
       </Card>
 

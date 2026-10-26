@@ -100,6 +100,8 @@ const api = {
     adjust: (p: unknown) => invoke(IPC_CHANNELS["stock.adjust"], p),
     intake: (p: unknown) => invoke(IPC_CHANNELS["stock.intake"], p),
     intakes: (p: unknown) => invoke(IPC_CHANNELS["stock.intakes"], p),
+    intakeDetail: (p: unknown) => invoke(IPC_CHANNELS["stock.intakeDetail"], p),
+    intakeCancel: (p: unknown) => invoke(IPC_CHANNELS["stock.intakeCancel"], p),
   },
   suppliers: {
     search: (p: unknown) => invoke(IPC_CHANNELS["suppliers.search"], p),
@@ -167,6 +169,7 @@ const api = {
     get: (p: unknown) => invoke(IPC_CHANNELS["sales.get"], p),
     history: (p: unknown) => invoke(IPC_CHANNELS["sales.history"], p),
     cancel: (p: unknown) => invoke(IPC_CHANNELS["sales.cancel"], p),
+    reopen: (p: unknown) => invoke(IPC_CHANNELS["sales.reopen"], p),
     setDueDate: (p: unknown) => invoke(IPC_CHANNELS["sales.setDueDate"], p),
   },
   carts: {

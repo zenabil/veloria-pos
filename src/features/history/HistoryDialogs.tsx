@@ -1,13 +1,14 @@
 // Veloria PoS — Historique : tiroir détail + aperçu ticket (ventes).
 // Branché sur le bridge window.veloria (jamais de SQLite côté renderer).
 import { useState } from "react";
-import { Printer, ReceiptText, X } from "lucide-react";
+import { Pencil, Printer, ReceiptText, X } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { useCompany } from "@shared/company/use-company.ts";
 import { formatDzd } from "@domain/money/money.ts";
 import { formatDateFr } from "@shared/formatters/format.ts";
 import { newOperationId } from "@domain/common/ids.ts";
+import { usePendingSaleEdit, type PendingSaleEdit } from "@shared/sales/pending-sale-edit.ts";
 import { buildSaleTicketPayload } from "@shared/documents/sale-ticket.ts";
 import { Badge, Button, Card, Drawer, InfoRow } from "@shared/ui/primitives.tsx";
 import { DocumentPreviewModal } from "@shared/documents/DocumentPreviewModal.tsx";
@@ -22,11 +23,13 @@ export function HistoryDetailsDrawer({
   onClose,
   onChanged,
   notify,
+  onNavigate,
 }: {
   detail: HistoryDetail;
   onClose: () => void;
   onChanged: () => void;
   notify: Notify;
+  onNavigate?: (module: "sell") => void;
 }): React.JSX.Element {
   const [ticket, setTicket] = useState<{
     text80: string;
@@ -43,6 +46,7 @@ export function HistoryDetailsDrawer({
   } | null>(null);
   const [deliveryBusy, setDeliveryBusy] = useState(false);
   const [cancelBusy, setCancelBusy] = useState(false);
+  const [reopenBusy, setReopenBusy] = useState(false);
   const confirmAsync = useConfirm();
   // Fiche entreprise : source unique partagée (ticket).
   const { record: companyRecord } = useCompany();
@@ -173,6 +177,40 @@ export function HistoryDetailsDrawer({
     }
   }
 
+  /**
+   * ADR-139 — Modifier = annuler la vente (miroir stock/soldes/paiements) puis
+   * recharger ses lignes dans un nouveau panier. La facture d'origine reste
+   * tracée ; la réédition produit un nouveau numéro à l'encaissement.
+   */
+  async function modifySale(): Promise<void> {
+    if (detail.ticketSaleId == null || reopenBusy || cancelBusy) return;
+    if (
+      !(await confirmAsync(
+        `Modifier la vente ${detail.reference} ? Elle sera annulée (stock, soldes et paiements restaurés), puis ses lignes rechargées dans un nouveau panier.`,
+      ))
+    )
+      return;
+    setReopenBusy(true);
+    try {
+      const draft = (await api.saleReopen({
+        id: detail.ticketSaleId,
+        operationId: newOperationId(),
+      })) as PendingSaleEdit;
+      usePendingSaleEdit.getState().set(draft);
+      notify(
+        `Vente ${detail.reference} annulée : lignes rechargées dans la caisse, vérifiez puis encaissez.`,
+        "ok",
+      );
+      onChanged();
+      onClose();
+      onNavigate?.("sell");
+    } catch (e) {
+      notify(frError(e, "Modification impossible."), "err");
+    } finally {
+      setReopenBusy(false);
+    }
+  }
+
   return (
     <>
       <Drawer
@@ -253,14 +291,25 @@ export function HistoryDetailsDrawer({
           </Button>
         ) : null}
         {detail.kind === "sale" && detail.ticketSaleId != null && detail.status !== "Annulée" ? (
-          <Button
-            variant="secondary"
-            onClick={() => void cancelSale()}
-            disabled={cancelBusy}
-            className="w-full"
-          >
-            {cancelBusy ? "Annulation…" : "Annuler la vente (stock et soldes restaurés)"}
-          </Button>
+          <>
+            <Button
+              onClick={() => void modifySale()}
+              disabled={reopenBusy || cancelBusy}
+              className="w-full"
+              title="Annuler la vente et recharger ses lignes dans un nouveau panier"
+            >
+              <Pencil size={15} aria-hidden="true" />{" "}
+              {reopenBusy ? "Préparation…" : "Modifier la vente (annuler et rééditer)"}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => void cancelSale()}
+              disabled={cancelBusy || reopenBusy}
+              className="w-full"
+            >
+              {cancelBusy ? "Annulation…" : "Annuler la vente (stock et soldes restaurés)"}
+            </Button>
+          </>
         ) : null}
         <Button variant="secondary" onClick={onClose} className="w-full">
           <X size={15} aria-hidden="true" /> Fermer

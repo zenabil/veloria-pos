@@ -62,8 +62,8 @@ function assertCodeUnique(
 const SEARCH_SELECT = `SELECT s.*,
   COALESCE((SELECT SUM(total_minor) FROM stock_intakes WHERE supplier_id = s.id AND status != 'cancelled'), 0) AS total_purchases_minor,
   COALESCE((SELECT SUM(amount_minor) FROM supplier_payments WHERE supplier_id = s.id), 0) AS total_paid_minor,
-  (SELECT MAX(created_at) FROM stock_intakes WHERE supplier_id = s.id) AS last_intake_at,
-  (SELECT COUNT(*) FROM stock_intakes WHERE supplier_id = s.id) AS intake_count
+  (SELECT MAX(created_at) FROM stock_intakes WHERE supplier_id = s.id AND status != 'cancelled') AS last_intake_at,
+  (SELECT COUNT(*) FROM stock_intakes WHERE supplier_id = s.id AND status != 'cancelled') AS intake_count
 FROM suppliers s`;
 
 export function searchSuppliers(

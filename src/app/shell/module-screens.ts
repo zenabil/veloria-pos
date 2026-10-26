@@ -4,7 +4,11 @@
 import { lazy, type ComponentType } from "react";
 import type { ModuleId, Notify } from "./shell-types.ts";
 
-export type NotifyScreen = ComponentType<{ notify: Notify }>;
+export type NotifyScreen = ComponentType<{
+  notify: Notify;
+  /** Modules autorisés à renvoyer l'opérateur vers la caisse (ADR-139). */
+  onNavigate?: (module: "sell") => void;
+}>;
 
 const ProductsScreen = lazy(() =>
   import("@features/products/ProductsScreen.tsx").then((m) => ({ default: m.ProductsScreen })),

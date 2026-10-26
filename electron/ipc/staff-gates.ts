@@ -22,6 +22,7 @@ const STAFF_CHANNEL_PERMISSION: Record<string, string> = {
   [IPC_CHANNELS["sales.get"]]: "sales",
   [IPC_CHANNELS["sales.history"]]: "sales",
   [IPC_CHANNELS["sales.cancel"]]: "cancel",
+  [IPC_CHANNELS["sales.reopen"]]: "cancel",
   [IPC_CHANNELS["sales.setDueDate"]]: "cancel",
   // Stock
   [IPC_CHANNELS["stock.overview"]]: "stock",
@@ -31,6 +32,8 @@ const STAFF_CHANNEL_PERMISSION: Record<string, string> = {
   [IPC_CHANNELS["stock.adjust"]]: "stock",
   [IPC_CHANNELS["stock.intake"]]: "stock",
   [IPC_CHANNELS["stock.intakes"]]: "stock",
+  [IPC_CHANNELS["stock.intakeDetail"]]: "stock",
+  [IPC_CHANNELS["stock.intakeCancel"]]: "stock",
   // Dettes et encaissements clients
   [IPC_CHANNELS["debts.list"]]: "debts",
   [IPC_CHANNELS["debts.detail"]]: "debts",

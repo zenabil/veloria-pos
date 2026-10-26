@@ -97,6 +97,8 @@ interface Window {
       adjust(p: unknown): Promise<VeloriaOutcome>;
       intake(p: unknown): Promise<VeloriaOutcome>;
       intakes(p: unknown): Promise<VeloriaOutcome>;
+      intakeDetail(p: unknown): Promise<VeloriaOutcome>;
+      intakeCancel(p: unknown): Promise<VeloriaOutcome>;
     };
     suppliers: {
       search(p: unknown): Promise<VeloriaOutcome>;
@@ -164,6 +166,7 @@ interface Window {
       get(p: unknown): Promise<VeloriaOutcome>;
       history(p: unknown): Promise<VeloriaOutcome>;
       cancel(p: unknown): Promise<VeloriaOutcome>;
+      reopen(p: unknown): Promise<VeloriaOutcome>;
       setDueDate(p: unknown): Promise<VeloriaOutcome>;
     };
     carts: {

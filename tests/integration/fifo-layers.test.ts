@@ -405,13 +405,17 @@ describe("FIFO cost layers (SQL invariants)", () => {
     db.close();
   });
 
-  it("Tests 10+11 : factures immuables (aucun canal update/delete) + operationId UNIQUE", () => {
+  it("Tests 10+11 : factures immuables (annulation seule, pas d'update/delete) + operationId UNIQUE", () => {
     const names = Object.keys(IPC_CHANNELS);
+    // ADR-139 : la réception reste immuable ligne à ligne ; seules la lecture
+    // détaillée et l'annulation (stock rendu si intact) sont ajoutées.
     expect(names.filter((k) => k.startsWith("stock.intake"))).toEqual([
       "stock.intake",
       "stock.intakes",
+      "stock.intakeDetail",
+      "stock.intakeCancel",
     ]);
-    expect(names.some((k) => /intake\.(update|delete|remove|cancel)/.test(k))).toBe(false);
+    expect(names.some((k) => /intake\.(update|delete|remove)/.test(k))).toBe(false);
     const db = openMigrated(tmp, "t1011.sqlite");
     const sup = seedSupplier(db);
     const pid = seedProduct(db, "p1011", 0, 2000, 2500);

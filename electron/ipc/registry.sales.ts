@@ -104,6 +104,17 @@ export function registerSalesChannels(): void {
     enqueueSaleRefresh(input.id);
     return { cancelled: true };
   });
+  // ADR-139 : « Modifier » = annuler + renvoyer le panier de réédition.
+  handle(IPC_CHANNELS["sales.reopen"], V.idempotentIdSchema, (input) => {
+    const draft = Sales.reopenSaleAtomic(
+      input.id,
+      new Date().toISOString(),
+      input.operationId,
+      staffScope(),
+    );
+    enqueueSaleRefresh(input.id);
+    return draft;
+  });
   handle(IPC_CHANNELS["sales.get"], V.idSchema, (input) =>
     Sales.getSaleDetail(input.id, staffScope()),
   );

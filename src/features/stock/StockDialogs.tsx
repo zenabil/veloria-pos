@@ -5,4 +5,5 @@ export { StockAdjustmentDialog } from "./dialogs/AdjustmentDialog.tsx";
 export { StockMovementHistoryDrawer } from "./dialogs/HistoryDrawer.tsx";
 export { InventoryDialog } from "./dialogs/InventoryDialog.tsx";
 export { StockIntakeDialog } from "./dialogs/IntakeDialog.tsx";
+export type { StockIntakeInitial } from "./dialogs/IntakeDialog.tsx";
 export { StockIntakesDrawer } from "./dialogs/IntakesDrawer.tsx";

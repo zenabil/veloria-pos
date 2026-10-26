@@ -72,6 +72,8 @@ export const IPC_CHANNELS = {
   "stock.adjust": "stock.adjust",
   "stock.intake": "stock.intake",
   "stock.intakes": "stock.intakes",
+  "stock.intakeDetail": "stock.intakeDetail",
+  "stock.intakeCancel": "stock.intakeCancel",
   // suppliers (Phase 6)
   "suppliers.search": "suppliers.search",
   "suppliers.create": "suppliers.create",
@@ -121,6 +123,7 @@ export const IPC_CHANNELS = {
   "sales.get": "sales.get",
   "sales.history": "sales.history",
   "sales.cancel": "sales.cancel",
+  "sales.reopen": "sales.reopen",
   "sales.setDueDate": "sales.setDueDate",
   // carts (P4 : brouillons paniers, jamais de LocalStorage métier)
   "carts.save": "carts.save",
