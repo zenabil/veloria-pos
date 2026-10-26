@@ -98,6 +98,22 @@ export function splitFullName(raw: string): { firstName: string; lastName: strin
   return { firstName: parts.slice(0, -1).join(" "), lastName: last };
 }
 
+/**
+ * Nom à enregistrer : un nom existant non modifié garde ses deux champs
+ * d'origine (un nom de famille composé ne doit pas être redécoupé quand on
+ * change seulement le téléphone). Une saisie explicite repasse par le split.
+ */
+export function resolveCustomerName(
+  customer: Pick<Customer, "first_name" | "last_name"> | null,
+  full: string,
+  nameEdited: boolean,
+): { firstName: string; lastName: string } {
+  if (customer != null && !nameEdited) {
+    return { firstName: customer.first_name, lastName: customer.last_name };
+  }
+  return splitFullName(full);
+}
+
 /** Relevé client (canal `customers.statement`) : fiche + ventes + paiements. */
 export interface CustomerStatement {
   customer: Customer;

@@ -19,7 +19,7 @@ import {
   cn,
 } from "@shared/ui/primitives.tsx";
 import { FormSection } from "@shared/ui/form-section.tsx";
-import { fullName, splitFullName } from "../types.ts";
+import { fullName, resolveCustomerName } from "../types.ts";
 import type { ClientFormDialogProps } from "./types.ts";
 
 /** Formulaire client (création + édition). */
@@ -31,6 +31,7 @@ export function ClientFormDialog({
 }: ClientFormDialogProps): React.JSX.Element {
   const editing = customer != null;
   const [full, setFull] = useState(customer ? fullName(customer) : "");
+  const [nameEdited, setNameEdited] = useState(false);
   const [phone, setPhone] = useState(customer?.phone ?? "");
   const [address, setAddress] = useState(customer?.address ?? "");
   const [creditAllowed, setCreditAllowed] = useState(customer?.credit_allowed === 1);
@@ -69,7 +70,10 @@ export function ClientFormDialog({
       .catch(() => undefined);
   }, []);
 
-  const { firstName, lastName } = splitFullName(full);
+  // Un nom existant n'est découpé qu'après une modification explicite : un nom
+  // de famille composé (« Ben Ali ») ne doit pas être réinterprété en éditant
+  // seulement le téléphone.
+  const { firstName, lastName } = resolveCustomerName(customer, full, nameEdited);
 
   async function save(): Promise<void> {
     if (busy) return;
@@ -186,7 +190,10 @@ export function ClientFormDialog({
               <Field label="Nom complet" hint="Prénom + nom (le dernier mot = nom de famille).">
                 <TextInput
                   value={full}
-                  onChange={(e) => setFull(e.target.value)}
+                  onChange={(e) => {
+                    setFull(e.target.value);
+                    setNameEdited(true);
+                  }}
                   placeholder="Ex. : Amine Benali"
                   aria-label="Nom complet"
                   autoComplete="name"

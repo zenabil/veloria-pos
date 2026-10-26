@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { fullName, splitFullName } from "@/features/customers/types.ts";
+import { fullName, resolveCustomerName, splitFullName } from "@/features/customers/types.ts";
 import { CLIENT_TABS, clientTabLabel, historyKindOf } from "@/features/customers/dialogs/types.ts";
 import * as Barrel from "@/features/customers/ClientDialogs.tsx";
 import { ClientDetailsDrawer } from "@/features/customers/dialogs/ClientDetailsDrawer.tsx";
@@ -87,6 +87,22 @@ describe("Découpage ClientDialogs (compatibilité)", () => {
     expect(
       fullName({ first_name: firstName, last_name: lastName } as Parameters<typeof fullName>[0]),
     ).toBe("Amine Benali");
+  });
+
+  it("helpers : un nom existant non modifié garde ses champs (nom composé)", () => {
+    const existing = { first_name: "Amine", last_name: "Ben Ali" };
+    expect(resolveCustomerName(existing, "Amine Ben Ali", false)).toEqual({
+      firstName: "Amine",
+      lastName: "Ben Ali",
+    });
+    expect(resolveCustomerName(existing, "Amine Benali", true)).toEqual({
+      firstName: "Amine",
+      lastName: "Benali",
+    });
+    expect(resolveCustomerName(null, "Solo", false)).toEqual({
+      firstName: "Solo",
+      lastName: "Solo",
+    });
   });
 
   it("chaque module de dialogs expose son composant (fonction définie)", () => {
