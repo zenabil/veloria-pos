@@ -4,6 +4,17 @@
 // prennent effet à l'impression (thermique 58/80 mm, A4 devis uniquement,
 // gabarits étiquettes). Un réglage masqué serait de toute façon neutralisé
 // à la fusion : la matrice est la source de vérité, pas l'écran.
+import { useState } from "react";
+import {
+  Calculator,
+  ChevronDown,
+  FileText,
+  Image,
+  PenLine,
+  QrCode,
+  SlidersHorizontal,
+} from "lucide-react";
+
 import {
   applicableSettings,
   type TemplateSettingKey,
@@ -13,9 +24,9 @@ import {
   type TemplateDocType,
   type TemplateSettings,
 } from "@domain/print/template-rules.ts";
-import { Card, Field, Select, TextInput } from "@shared/ui/primitives.tsx";
+import { Card, Field, Select, Switch, TextInput, cn } from "@shared/ui/primitives.tsx";
 
-function Toggle({
+function ToggleRow({
   label,
   hint,
   value,
@@ -27,10 +38,7 @@ function Toggle({
   onChange: (v: boolean) => void;
 }): React.JSX.Element {
   return (
-    <label
-      className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm"
-      title={hint}
-    >
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2.5 text-sm">
       <span className="min-w-0">
         <span className="block font-semibold text-slate-200">{label}</span>
         {hint ? (
@@ -39,30 +47,59 @@ function Toggle({
           </span>
         ) : null}
       </span>
-      <input
-        type="checkbox"
-        checked={value}
-        onChange={(e) => onChange(e.target.checked)}
-        aria-label={label}
-        className="h-4 w-4 shrink-0 accent-amber-400"
-      />
-    </label>
+      <Switch checked={value} onChange={onChange} ariaLabel={label} />
+    </div>
   );
 }
 
 function Group({
   title,
+  summary,
+  icon,
+  defaultOpen = true,
   children,
 }: {
   title: string;
+  summary?: string;
+  icon: React.ReactNode;
+  defaultOpen?: boolean;
   children: React.ReactNode;
 }): React.JSX.Element {
+  const [open, setOpen] = useState(defaultOpen);
   return (
-    <section className="space-y-2">
-      <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">{title}</h3>
-      {children}
+    <section className="overflow-hidden rounded-xl border border-white/10 bg-black/15">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="flex min-h-[46px] w-full items-center gap-2 px-3.5 py-2.5 text-left transition-colors hover:bg-white/[0.04]"
+      >
+        <span className="shrink-0 text-amber-300">{icon}</span>
+        <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-300">
+          {title}
+        </h3>
+        {summary ? (
+          <span className="ml-auto hidden truncate text-[11px] text-slate-500 sm:block">
+            {summary}
+          </span>
+        ) : null}
+        <ChevronDown
+          size={15}
+          aria-hidden="true"
+          className={cn(
+            "shrink-0 text-slate-400 transition-transform",
+            open && "rotate-180",
+            summary ? "" : "ml-auto",
+          )}
+        />
+      </button>
+      {open ? <div className="space-y-3 border-t border-white/[0.07] p-3.5">{children}</div> : null}
     </section>
   );
+}
+
+function onOff(value: boolean): string {
+  return value ? "activé" : "désactivé";
 }
 
 export function TemplateSettingsPanel({
@@ -78,17 +115,32 @@ export function TemplateSettingsPanel({
   const has = (key: TemplateSettingKey): boolean => caps.includes(key);
   const set = (patch: Partial<TemplateSettings>): void => onEdit(patch);
   const thermal = has("thermalFontPx");
+  const headVisible = has("showLogo") || has("showIdentity") || has("headerText");
+  const amountsVisible = has("showTva") || has("showPrice") || has("showDiscountZero");
+  const codesVisible = has("showQr") || has("showCodes") || has("showProductName");
+  const colophonVisible = has("showSignatures") || has("showWatermark") || has("footerText");
+
   return (
-    <Card className="space-y-4 p-4">
-      <div>
-        <div className="text-[15px] font-bold text-[#ffe1a7]">Réglages du modèle</div>
-        <p className="mt-1 text-xs text-slate-500">
-          Seuls les réglages utiles à ce document sont affichés — ils s'appliquent réellement à
-          l'aperçu, à l'impression test et aux impressions.
-        </p>
+    <Card className="space-y-3 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <div className="text-[15px] font-bold text-slate-100">Réglages du modèle</div>
+          <p className="mt-1 text-xs text-slate-500">
+            Seuls les réglages utiles à ce document sont affichés — ils s'appliquent réellement à
+            l'aperçu, à l'impression test et aux impressions.
+          </p>
+        </div>
+        <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-black/25 px-2.5 py-1 text-[11px] font-bold text-slate-400">
+          <SlidersHorizontal size={12} aria-hidden="true" />
+          {caps.length} options
+        </span>
       </div>
 
-      <Group title="Papier & exemplaires">
+      <Group
+        title="Papier & exemplaires"
+        summary={`${draft.paper} · ${draft.copies} exemplaire${draft.copies > 1 ? "s" : ""}`}
+        icon={<FileText size={14} aria-hidden="true" />}
+      >
         <Field
           label="Papier / format"
           {...(docType === "proforma" ? { hint: "Le devis sort en A4 uniquement." } : {})}
@@ -152,8 +204,12 @@ export function TemplateSettingsPanel({
         </div>
       </Group>
 
-      {has("showLogo") || has("showIdentity") || has("headerText") ? (
-        <Group title="En-tête & identité">
+      {headVisible ? (
+        <Group
+          title="En-tête & identité"
+          summary={`Logo ${onOff(draft.showLogo)} · Identité ${onOff(draft.showIdentity)}`}
+          icon={<Image size={14} aria-hidden="true" />}
+        >
           {has("logoSize") ? (
             <Field label="Taille du logo" hint="S'applique au logo imprimé (noir & blanc).">
               <Select
@@ -169,7 +225,7 @@ export function TemplateSettingsPanel({
           ) : null}
           <div className="grid gap-2 sm:grid-cols-2">
             {has("showLogo") ? (
-              <Toggle
+              <ToggleRow
                 label="Logo entreprise"
                 hint="Tête du document — noir & blanc."
                 value={draft.showLogo}
@@ -177,7 +233,7 @@ export function TemplateSettingsPanel({
               />
             ) : null}
             {has("showIdentity") ? (
-              <Toggle
+              <ToggleRow
                 label="RC / NIF / NIS"
                 hint="Mentions légales sous l'en-tête."
                 value={draft.showIdentity}
@@ -199,11 +255,15 @@ export function TemplateSettingsPanel({
         </Group>
       ) : null}
 
-      {has("showTva") || has("showPrice") || has("showDiscountZero") ? (
-        <Group title="Montants">
+      {amountsVisible ? (
+        <Group
+          title="Montants"
+          summary={`TVA ${onOff(draft.showTva)} · Prix ${onOff(draft.showPrice)}`}
+          icon={<Calculator size={14} aria-hidden="true" />}
+        >
           <div className="grid gap-2 sm:grid-cols-2">
             {has("showTva") ? (
-              <Toggle
+              <ToggleRow
                 label="TVA"
                 hint="Lignes HT / TVA selon le taux configuré."
                 value={draft.showTva}
@@ -211,7 +271,7 @@ export function TemplateSettingsPanel({
               />
             ) : null}
             {has("showPrice") ? (
-              <Toggle
+              <ToggleRow
                 label="Prix affichés"
                 hint={
                   docType === "etiquette"
@@ -223,7 +283,7 @@ export function TemplateSettingsPanel({
               />
             ) : null}
             {has("showDiscountZero") ? (
-              <Toggle
+              <ToggleRow
                 label="Lignes à zéro"
                 hint="Afficher la remise même nulle."
                 value={draft.showDiscountZero}
@@ -234,11 +294,16 @@ export function TemplateSettingsPanel({
         </Group>
       ) : null}
 
-      {has("showQr") || has("showCodes") || has("showProductName") ? (
-        <Group title="Codes & étiquettes">
+      {codesVisible ? (
+        <Group
+          title="Codes & étiquettes"
+          summary={`QR ${onOff(draft.showQr)} · Code-barres ${onOff(draft.showCodes)}`}
+          icon={<QrCode size={14} aria-hidden="true" />}
+          defaultOpen={false}
+        >
           <div className="grid gap-2 sm:grid-cols-2">
             {has("showQr") ? (
-              <Toggle
+              <ToggleRow
                 label="QR"
                 hint={
                   docType === "etiquette"
@@ -250,7 +315,7 @@ export function TemplateSettingsPanel({
               />
             ) : null}
             {has("showCodes") ? (
-              <Toggle
+              <ToggleRow
                 label="Code-barres"
                 hint="Code 39 du numéro de document."
                 value={draft.showCodes}
@@ -258,7 +323,7 @@ export function TemplateSettingsPanel({
               />
             ) : null}
             {has("showProductName") ? (
-              <Toggle
+              <ToggleRow
                 label="Nom du produit"
                 hint="Opt-in : les petits gabarits n'ont pas toujours la place."
                 value={draft.showProductName}
@@ -269,11 +334,16 @@ export function TemplateSettingsPanel({
         </Group>
       ) : null}
 
-      {has("showSignatures") || has("showWatermark") || has("footerText") ? (
-        <Group title="Signatures & mentions">
+      {colophonVisible ? (
+        <Group
+          title="Signatures & mentions"
+          summary={`Signatures ${onOff(draft.showSignatures)} · Filigrane ${onOff(draft.showWatermark)}`}
+          icon={<PenLine size={14} aria-hidden="true" />}
+          defaultOpen={false}
+        >
           <div className="grid gap-2 sm:grid-cols-2">
             {has("showSignatures") ? (
-              <Toggle
+              <ToggleRow
                 label="Signatures"
                 hint="Lignes de signature en pied (livreur, client…)."
                 value={draft.showSignatures}
@@ -281,7 +351,7 @@ export function TemplateSettingsPanel({
               />
             ) : null}
             {has("showWatermark") ? (
-              <Toggle
+              <ToggleRow
                 label="Filigrane"
                 hint="Bandeau encadré — pas de transparence sur rouleau."
                 value={draft.showWatermark}

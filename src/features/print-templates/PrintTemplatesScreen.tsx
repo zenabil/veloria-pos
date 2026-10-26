@@ -3,7 +3,25 @@
 // TVA/remise/QR/codes/signatures/filigrane — N&B strict conservé.
 // Aperçu live sur données démo (jamais de données métier) + impression test.
 import { useEffect, useRef, useState } from "react";
-import { Copy, FileDown, FileUp, Printer, RotateCcw, Trash2 } from "lucide-react";
+import {
+  BadgeCheck,
+  Check,
+  Copy,
+  FileDown,
+  FileText,
+  FileUp,
+  Loader2,
+  Printer,
+  ReceiptText,
+  RotateCcw,
+  Save,
+  Tags,
+  Trash2,
+  Truck,
+  Undo2,
+  type LucideIcon,
+} from "lucide-react";
+
 import { api } from "@shared/types/ipc-client.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import {
@@ -16,25 +34,26 @@ import { TemplateSettingsPanel } from "./TemplateSettingsPanel.tsx";
 import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
 import { PrinterCard } from "@shared/printer/PrinterCard.tsx";
 import {
+  Badge,
   Button,
   Card,
   EmptyState,
   Field,
   PageHeader,
-  Select,
   TextInput,
+  cn,
   type Notify,
 } from "@shared/ui/primitives.tsx";
 import { frError } from "@shared/errors/fr-map.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 
-const DOC_TYPES: { type: TemplateDocType; label: string }[] = [
-  { type: "ticket", label: "Ticket 58/80" },
-  { type: "proforma", label: "Devis A4" },
-  { type: "bon_livraison", label: "Bon de livraison" },
-  { type: "recu", label: "Reçu de règlement" },
-  { type: "avoir", label: "Bon de retour" },
-  { type: "etiquette", label: "Étiquettes" },
+const DOC_TYPES: { type: TemplateDocType; label: string; icon: LucideIcon }[] = [
+  { type: "ticket", label: "Ticket 58/80", icon: ReceiptText },
+  { type: "proforma", label: "Devis A4", icon: FileText },
+  { type: "bon_livraison", label: "Bon de livraison", icon: Truck },
+  { type: "recu", label: "Reçu de règlement", icon: BadgeCheck },
+  { type: "avoir", label: "Bon de retour", icon: Undo2 },
+  { type: "etiquette", label: "Étiquettes", icon: Tags },
 ];
 
 interface TemplateView {
@@ -47,6 +66,343 @@ interface TemplateView {
   is_factory: number;
   is_active: number;
   updated_at: string;
+}
+
+function DocTypeTabs({
+  docType,
+  activeTemplate,
+  onChange,
+}: {
+  docType: TemplateDocType;
+  activeTemplate: TemplateView | null;
+  onChange: (type: TemplateDocType) => void;
+}): React.JSX.Element {
+  return (
+    <Card className="flex flex-col gap-2 p-2.5 xl:flex-row xl:items-center">
+      <div
+        role="tablist"
+        aria-label="Type de document"
+        className="flex min-w-0 flex-1 gap-1 overflow-x-auto pb-1 xl:pb-0"
+      >
+        {DOC_TYPES.map((d) => {
+          const Icon = d.icon;
+          const selected = docType === d.type;
+          return (
+            <button
+              key={d.type}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              onClick={() => onChange(d.type)}
+              className={cn(
+                "inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold transition-colors",
+                selected
+                  ? "bg-amber-400 text-[#1a1206] shadow"
+                  : "text-slate-300 hover:bg-white/[0.06] hover:text-white",
+              )}
+            >
+              <Icon size={14} aria-hidden="true" />
+              {d.label}
+            </button>
+          );
+        })}
+      </div>
+      <div className="flex shrink-0 items-center gap-2 self-start rounded-lg border border-white/10 bg-black/20 px-3 py-1.5 xl:self-auto">
+        <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">
+          Modèle actif
+        </span>
+        <span className="max-w-[180px] truncate text-xs font-bold text-slate-200">
+          {activeTemplate?.name ?? "Aucun"}
+        </span>
+        {activeTemplate ? (
+          <Badge tone="green">v{activeTemplate.version}</Badge>
+        ) : (
+          <Badge tone="amber">À créer</Badge>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function TemplateManager({
+  docType,
+  templates,
+  selected,
+  selectedId,
+  draftName,
+  dirty,
+  loading,
+  error,
+  busy,
+  onPick,
+  onNameChange,
+  onSave,
+  onActivate,
+  onDuplicate,
+  onRemove,
+  onReset,
+  onExport,
+  onImport,
+}: {
+  docType: TemplateDocType;
+  templates: TemplateView[];
+  selected: TemplateView | null;
+  selectedId: number | null;
+  draftName: string;
+  dirty: boolean;
+  loading: boolean;
+  error: string;
+  busy: boolean;
+  onPick: (id: number) => void;
+  onNameChange: (name: string) => void;
+  onSave: () => void;
+  onActivate: () => void;
+  onDuplicate: () => void;
+  onRemove: () => void;
+  onReset: () => void;
+  onExport: () => void;
+  onImport: () => void;
+}): React.JSX.Element {
+  const docLabel = DOC_TYPES.find((d) => d.type === docType)?.label ?? docType;
+  return (
+    <Card className="space-y-3 p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <div className="text-[15px] font-bold text-slate-100">Modèles du document</div>
+          <p className="mt-0.5 text-xs text-slate-500">
+            {templates.length} modèle{templates.length > 1 ? "s" : ""} · {docLabel}
+          </p>
+        </div>
+        <Badge tone={dirty ? "amber" : "green"}>{dirty ? "Modifié" : "À jour"}</Badge>
+      </div>
+
+      {error ? (
+        <p
+          role="alert"
+          className="rounded-lg border border-rose-400/40 bg-rose-400/10 px-3 py-2 text-xs text-rose-200"
+        >
+          {error} — réessayez ou réinitialisez l'usine.
+        </p>
+      ) : null}
+
+      {loading ? (
+        <p
+          role="status"
+          className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs text-slate-400"
+        >
+          Chargement des modèles…
+        </p>
+      ) : templates.length === 0 ? (
+        <div className="space-y-2 rounded-lg border border-dashed border-white/15 bg-black/15 p-3">
+          <EmptyState
+            title="Aucun modèle pour ce document"
+            hint="Réinitialisez le modèle d'usine pour repartir des réglages par défaut."
+          />
+          <Button type="button" variant="secondary" onClick={onReset} disabled={busy}>
+            <RotateCcw size={14} aria-hidden="true" /> Restaurer l'usine
+          </Button>
+        </div>
+      ) : (
+        <ul aria-label="Modèles du document" className="max-h-52 space-y-1 overflow-auto">
+          {templates.map((t) => (
+            <li key={t.id}>
+              <button
+                type="button"
+                aria-pressed={selectedId === t.id}
+                onClick={() => onPick(t.id)}
+                className={cn(
+                  "flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-colors",
+                  selectedId === t.id
+                    ? "border-amber-400/40 bg-amber-400/10"
+                    : "border-transparent hover:border-white/10 hover:bg-white/[0.05]",
+                )}
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold text-slate-200">
+                    {t.name}
+                  </span>
+                  <span className="block text-[11px] text-slate-500">
+                    v{t.version}
+                    {t.is_factory === 1 ? " · usine" : ""}
+                  </span>
+                </span>
+                {t.is_active === 1 ? <Badge tone="green">Actif</Badge> : null}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <Field label="Nom du modèle">
+        <TextInput
+          value={draftName}
+          onChange={(e) => onNameChange(e.target.value)}
+          aria-label="Nom du modèle"
+          maxLength={100}
+        />
+      </Field>
+
+      <div className="flex gap-2">
+        <Button type="button" onClick={onSave} disabled={busy || loading} className="flex-1">
+          <Save size={15} aria-hidden="true" />
+          {busy ? "Enregistrement…" : "Enregistrer"}
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={onActivate}
+          disabled={busy || loading || selected?.is_active === 1 || selectedId == null}
+          title="Appliquer ce modèle aux impressions"
+        >
+          {selected?.is_active === 1 ? "Actif" : "Activer"}
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-1.5">
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={onDuplicate}
+          disabled={busy || loading}
+          title="Dupliquer"
+        >
+          <Copy size={14} aria-hidden="true" /> Dupliquer
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={onRemove}
+          disabled={
+            busy ||
+            loading ||
+            selectedId == null ||
+            selected?.is_factory === 1 ||
+            selected?.is_active === 1
+          }
+          title="Supprimer (hors usine et actif)"
+        >
+          <Trash2 size={14} aria-hidden="true" /> Supprimer
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onReset}
+          disabled={busy || loading}
+          title="Restaurer le modèle d'usine"
+          className="col-span-2"
+        >
+          <RotateCcw size={14} aria-hidden="true" /> Restaurer l'usine
+        </Button>
+      </div>
+
+      <div className="flex flex-wrap gap-1.5 border-t border-white/10 pt-2">
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onExport}
+          disabled={busy}
+          title="Exporter en JSON"
+        >
+          <FileDown size={14} aria-hidden="true" /> Exporter
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onImport}
+          disabled={busy}
+          title="Importer un JSON"
+        >
+          <FileUp size={14} aria-hidden="true" /> Importer
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+function PreviewPanel({
+  docType,
+  preview,
+  previewBusy,
+  dirty,
+  busy,
+  onTestPrint,
+}: {
+  docType: TemplateDocType;
+  preview: { text80: string; html80: string; htmlA4: string } | null;
+  previewBusy: boolean;
+  dirty: boolean;
+  busy: boolean;
+  onTestPrint: () => void;
+}): React.JSX.Element {
+  const note =
+    docType === "proforma"
+      ? "Devis : A4 uniquement — jamais de ticket."
+      : docType === "etiquette"
+        ? "Étiquettes : gabarit thermique — jamais A4."
+        : "Ticket 58/80 mm uniquement — jamais A4 (choix 58/80 via le papier).";
+  const extraNote =
+    docType !== "proforma" &&
+    docType !== "etiquette" &&
+    docType !== "ticket" &&
+    preview?.html80 === ""
+      ? " Le logo et le filigrane (si activés) sortent à l'impression — l'aperçu texte ne les montre pas."
+      : "";
+  return (
+    <Card className="space-y-3 p-4 xl:sticky xl:top-4 xl:self-start">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <div className="text-[15px] font-bold text-slate-100">Aperçu</div>
+          <p className="mt-0.5 text-xs text-slate-500">Données démo, sans valeur fiscale</p>
+        </div>
+        <span
+          role="status"
+          className={cn(
+            "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold",
+            previewBusy
+              ? "border-amber-400/30 bg-amber-400/10 text-amber-200"
+              : "border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
+          )}
+        >
+          {previewBusy ? (
+            <Loader2 size={12} className="animate-spin" aria-hidden="true" />
+          ) : (
+            <Check size={12} aria-hidden="true" />
+          )}
+          {previewBusy ? "Mise à jour…" : "À jour"}
+        </span>
+      </div>
+      <p className="text-[11px] leading-relaxed text-slate-500">
+        {note}
+        {extraNote}
+      </p>
+      <div className="rounded-xl border border-white/10 bg-[#0a1420] p-2">
+        {preview?.htmlA4 || preview?.html80 ? (
+          <iframe
+            sandbox=""
+            srcDoc={preview.htmlA4 || preview.html80}
+            title="Aperçu modèle"
+            className="h-[560px] w-full rounded-lg border border-white/10 bg-white"
+          />
+        ) : preview?.text80 ? (
+          <pre className="max-h-[560px] overflow-auto whitespace-pre-wrap rounded-lg bg-black/40 p-4 font-mono text-xs leading-relaxed text-slate-200">
+            {preview.text80}
+          </pre>
+        ) : (
+          <p className="p-6 text-center text-sm text-slate-500">
+            Modifiez un réglage pour lancer l'aperçu…
+          </p>
+        )}
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-[11px] text-slate-500">
+          {dirty ? "Modifications non enregistrées." : "Prêt à imprimer."}
+        </span>
+        <Button type="button" onClick={onTestPrint} disabled={busy}>
+          <Printer size={15} aria-hidden="true" /> Impression test
+        </Button>
+      </div>
+    </Card>
+  );
 }
 
 export function PrintTemplatesScreen({ notify }: { notify: Notify }): React.JSX.Element {
@@ -68,13 +424,16 @@ export function PrintTemplatesScreen({ notify }: { notify: Notify }): React.JSX.
     html80: string;
     htmlA4: string;
   } | null>(null);
+  const [previewBusy, setPreviewBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
   const previewTimer = useDebouncedTimer();
+  const previewSeq = useRef(0);
   const fileRef = useRef<HTMLInputElement>(null);
   const confirmAsync = useConfirm();
 
   const selected_ = templates.find((t) => t.id === selectedId) ?? null;
   const typeTemplates = templates.filter((t) => t.doc_type === docType);
+  const activeTemplate = typeTemplates.find((t) => t.is_active === 1) ?? null;
 
   // Chargement initial + rechargement à chaque changement de type document.
   // (Fix racine P0 : trois useEffect dupliqués appelaient loadTemplates 3×
@@ -118,6 +477,7 @@ export function PrintTemplatesScreen({ notify }: { notify: Notify }): React.JSX.
     } catch (e) {
       const message = frError(e, "Modèles indisponibles.");
       setError(message);
+      setPreviewBusy(false);
       notify(message, "err");
     } finally {
       setLoading(false);
@@ -126,6 +486,8 @@ export function PrintTemplatesScreen({ notify }: { notify: Notify }): React.JSX.
 
   // Aperçu live (données démo, 500 ms après la dernière modification).
   function schedulePreview(next: TemplateSettings): void {
+    const seq = (previewSeq.current += 1);
+    setPreviewBusy(true);
     previewTimer.schedule(500, () => {
       void (async () => {
         try {
@@ -133,6 +495,7 @@ export function PrintTemplatesScreen({ notify }: { notify: Notify }): React.JSX.
             docType,
             settings: next,
           })) as { text80?: unknown; html80?: unknown; htmlA4?: unknown };
+          if (seq !== previewSeq.current) return;
           setPreview({
             text80: typeof r.text80 === "string" ? r.text80 : "",
             html80: typeof r.html80 === "string" ? r.html80 : "",
@@ -140,6 +503,8 @@ export function PrintTemplatesScreen({ notify }: { notify: Notify }): React.JSX.
           });
         } catch {
           /* l'aperçu suit la prochaine frappe valide */
+        } finally {
+          if (seq === previewSeq.current) setPreviewBusy(false);
         }
       })();
     });
@@ -333,187 +698,72 @@ export function PrintTemplatesScreen({ notify }: { notify: Notify }): React.JSX.
         title="Studio d'impression"
         module="MODÈLES SQLITE · APERÇU DÉMO · N&B"
         period="Chaque document a son modèle actif — aperçu sur données démo, sans valeur fiscale."
+        actions={
+          <Badge tone={dirty ? "amber" : "green"}>
+            {dirty ? "Modifications non enregistrées" : "Modèle à jour"}
+          </Badge>
+        }
       />
 
-      <div className="grid gap-3 xl:grid-cols-2">
-        <PrinterCard notify={notify} showTestPage />
+      <DocTypeTabs
+        docType={docType}
+        activeTemplate={activeTemplate}
+        onChange={(type) => setDocType(type)}
+      />
 
-        <Card className="space-y-2 p-4">
-          <div className="text-[15px] font-bold text-[#ffe1a7]">Modèles du document</div>
-          <div className="flex flex-wrap gap-2" role="tablist" aria-label="Type de document">
-            {DOC_TYPES.map((d) => (
-              <button
-                key={d.type}
-                type="button"
-                role="tab"
-                aria-selected={docType === d.type}
-                onClick={() => setDocType(d.type)}
-                className={
-                  docType === d.type
-                    ? "rounded-xl border border-amber-400/50 bg-amber-400/10 px-3 py-1.5 text-sm font-bold text-amber-200"
-                    : "rounded-xl border border-white/10 bg-white/[0.03] px-3 py-1.5 text-sm font-semibold text-slate-300 hover:bg-white/[0.06]"
-                }
-              >
-                {d.label}
-              </button>
-            ))}
-          </div>
-          {error ? (
-            <p
-              role="alert"
-              className="rounded-xl border border-rose-400/40 bg-rose-400/10 px-3 py-2 text-sm text-rose-200"
-            >
-              {error} — réessayez ou réinitialisez l'usine.
-            </p>
-          ) : null}
-          {loading ? (
-            <p role="status" className="text-sm text-slate-400">
-              Chargement des modèles…
-            </p>
-          ) : typeTemplates.length > 0 ? (
-            <Field label="Modèle">
-              <Select
-                value={selectedId ?? 0}
-                onChange={(e) => pick(Number(e.target.value))}
-                aria-label="Modèle actif"
-                disabled={busy}
-              >
-                {typeTemplates.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                    {t.is_active === 1 ? " (actif)" : ""} · v{t.version}
-                    {t.is_factory === 1 ? " · usine" : ""}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-          ) : (
-            <EmptyState
-              title="Aucun modèle pour ce document"
-              hint="Réinitialisez le modèle d'usine pour repartir des réglages par défaut."
-            />
-          )}
-          <Field label="Nom du modèle">
-            <TextInput
-              value={draftName}
-              onChange={(e) => {
-                setDraftName(e.target.value);
-                setDirty(true);
-              }}
-              aria-label="Nom du modèle"
-              maxLength={100}
-            />
-          </Field>
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => void save()} disabled={busy} className="flex-1">
-              Enregistrer{dirty ? " *" : ""}
-              {selected_ ? ` (v${selected_.version + 1})` : ""}
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => void activate()}
-              disabled={busy || selected_?.is_active === 1}
-              title="Appliquer ce modèle aux impressions"
-            >
-              Activer
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => void duplicate()}
-              disabled={busy}
-              title="Dupliquer"
-            >
-              <Copy size={15} aria-hidden="true" />
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => void remove()}
-              disabled={busy || selected_?.is_factory === 1 || selected_?.is_active === 1}
-              title="Supprimer (hors usine et actif)"
-            >
-              <Trash2 size={15} aria-hidden="true" />
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => void resetFactory()}
-              disabled={busy}
-              title="Restaurer le modèle d'usine"
-            >
-              <RotateCcw size={15} aria-hidden="true" /> Usine
-            </Button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="secondary"
-              onClick={() => void testPrint()}
-              disabled={busy}
-              className="flex-1"
-            >
-              <Printer size={15} aria-hidden="true" /> Impression test
-            </Button>
-            <Button variant="ghost" onClick={exportJson} disabled={busy} title="Exporter en JSON">
-              <FileDown size={15} aria-hidden="true" /> Export
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => fileRef.current?.click()}
-              disabled={busy}
-              title="Importer un JSON"
-            >
-              <FileUp size={15} aria-hidden="true" /> Import
-            </Button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="application/json,.json"
-              className="hidden"
-              aria-label="Importer un modèle JSON"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                e.target.value = "";
-                if (f) void importJson(f);
-              }}
-            />
-          </div>
-        </Card>
+      <div className="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)]">
+        <aside className="space-y-4">
+          <TemplateManager
+            docType={docType}
+            templates={typeTemplates}
+            selected={selected_}
+            selectedId={selectedId}
+            draftName={draftName}
+            dirty={dirty}
+            loading={loading}
+            error={error}
+            busy={busy}
+            onPick={pick}
+            onNameChange={(name) => {
+              setDraftName(name);
+              setDirty(true);
+            }}
+            onSave={() => void save()}
+            onActivate={() => void activate()}
+            onDuplicate={() => void duplicate()}
+            onRemove={() => void remove()}
+            onReset={() => void resetFactory()}
+            onExport={exportJson}
+            onImport={() => fileRef.current?.click()}
+          />
+          <PrinterCard notify={notify} showTestPage />
+        </aside>
+
+        <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+          <TemplateSettingsPanel docType={docType} draft={draft} onEdit={edit} />
+          <PreviewPanel
+            docType={docType}
+            preview={preview}
+            previewBusy={previewBusy}
+            dirty={dirty}
+            busy={busy}
+            onTestPrint={() => void testPrint()}
+          />
+        </div>
       </div>
 
-      <div className="grid gap-3 xl:grid-cols-[1fr_1.2fr]">
-        <TemplateSettingsPanel docType={docType} draft={draft} onEdit={edit} />
-
-        <Card className="space-y-2 p-4">
-          <div className="text-[15px] font-bold text-[#ffe1a7]">
-            Aperçu live (données démo, sans valeur fiscale)
-          </div>
-          <p className="text-xs text-slate-500">
-            {docType === "proforma"
-              ? "Devis : A4 uniquement — jamais de ticket."
-              : docType === "etiquette"
-                ? "Étiquettes : gabarit thermique — jamais A4."
-                : "Ticket 58/80 mm uniquement — jamais A4 (choix 58/80 via le papier)."}
-            {docType !== "proforma" &&
-            docType !== "etiquette" &&
-            docType !== "ticket" &&
-            preview?.html80 === ""
-              ? " Le logo et le filigrane (si activés) sortent à l'impression — l'aperçu texte ne les montre pas."
-              : ""}
-          </p>
-          {preview?.htmlA4 || preview?.html80 ? (
-            <iframe
-              sandbox=""
-              srcDoc={preview.htmlA4 || preview.html80}
-              title="Aperçu modèle"
-              className="h-[560px] w-full rounded-xl border border-white/10 bg-white"
-            />
-          ) : preview?.text80 ? (
-            <pre className="max-h-[560px] overflow-auto whitespace-pre-wrap rounded-xl bg-black/40 p-4 font-mono text-xs leading-relaxed text-slate-200">
-              {preview.text80}
-            </pre>
-          ) : (
-            <p className="text-sm text-slate-500">Modifiez un réglage pour lancer l'aperçu…</p>
-          )}
-        </Card>
-      </div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/json,.json"
+        className="hidden"
+        aria-label="Importer un modèle JSON"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          e.target.value = "";
+          if (f) void importJson(f);
+        }}
+      />
     </div>
   );
 }
