@@ -1,13 +1,33 @@
 // Veloria PoS — Stock : réception + détail + ajustement + historique + inventaire.
 // Branchés sur le bridge window.veloria (jamais de SQLite côté renderer).
 import { useEffect, useState } from "react";
-import { PackagePlus, Search } from "lucide-react";
+import {
+  ChevronDown,
+  PackagePlus,
+  Plus,
+  ReceiptText,
+  StickyNote,
+  Trash2,
+  Truck,
+  X,
+} from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { formatDzd, minorToInput } from "@domain/money/money.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { todayUtcDate } from "@shared/dates/dates.ts";
+import { unitLabel } from "@domain/units/units.ts";
 
-import { Button, Card, Field, Modal, TextArea, TextInput } from "@shared/ui/primitives.tsx";
+import {
+  Badge,
+  Button,
+  Card,
+  Field,
+  Modal,
+  SearchField,
+  TextArea,
+  TextInput,
+  cn,
+} from "@shared/ui/primitives.tsx";
 import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
 import { SupplierQuickCreateDialog } from "@features/suppliers/dialogs/FormDialog.tsx";
 
@@ -36,6 +56,8 @@ interface IntakeLine {
   /** Prix de vente par ligne (DZD, saisie FR) : vide = conserver l'actuel. */
   selling: string;
   search: string;
+  /** Ligne libre : crée un produit au catalogue avec le nom saisi. */
+  freeMode: boolean;
   packagingId: number | null;
   packagingFactor: number | null;
   packagingLabel: string | null;
@@ -93,6 +115,7 @@ function initialIntakeLine(l: StockIntakeInitialLine): IntakeLine {
     price: minorToInput(Math.max(0, l.purchasePriceMinor)),
     selling: "",
     search: "",
+    freeMode: l.productId == null && l.productName.trim() !== "",
     packagingId: l.packagingId,
     packagingFactor: l.packagingFactor,
     packagingLabel: l.packagingLabel,
@@ -114,6 +137,7 @@ function emptyIntakeLine(): IntakeLine {
     price: "",
     selling: "",
     search: "",
+    freeMode: false,
     packagingId: null,
     packagingFactor: null,
     packagingLabel: null,
@@ -121,6 +145,53 @@ function emptyIntakeLine(): IntakeLine {
     purchaseUnit: "piece",
     results: [],
   };
+}
+
+/** Ligne réellement touchée par l'utilisateur (une ligne neuve ne bloque pas). */
+function hasIntakeInput(l: IntakeLine): boolean {
+  return (
+    l.productId != null ||
+    l.freeMode ||
+    l.search.trim() !== "" ||
+    l.productName.trim() !== "" ||
+    l.price.trim() !== "" ||
+    l.selling.trim() !== "" ||
+    l.received.trim() !== "1" ||
+    l.damaged.trim() !== "0"
+  );
+}
+
+function IntakeSection({
+  icon,
+  title,
+  hint,
+  action,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  hint?: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <section className="rounded-xl border border-white/[0.08] bg-black/20 p-3.5">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span
+          aria-hidden="true"
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-amber-400/10 text-amber-300"
+        >
+          {icon}
+        </span>
+        <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-300">
+          {title}
+        </h3>
+        {hint ? <span className="text-[11px] text-slate-500">{hint}</span> : null}
+        {action ? <div className="ml-auto">{action}</div> : null}
+      </div>
+      <div className="space-y-3">{children}</div>
+    </section>
+  );
 }
 
 export function StockIntakeDialog({
@@ -156,6 +227,10 @@ export function StockIntakeDialog({
   const [busy, setBusy] = useState(false);
   // Création inline : modale par-dessus, réception conservée.
   const [supplierQuickOpen, setSupplierQuickOpen] = useState(false);
+  // Fournisseur replié par défaut (optionnel) : la recherche n'occupe
+  // l'espace que lorsque l'utilisateur la demande.
+  const [supplierPickerOpen, setSupplierPickerOpen] = useState(false);
+  const [notesOpen, setNotesOpen] = useState((initial?.notes ?? "").trim() !== "");
   // Clé d'idempotence stable par facture (générée à l'ouverture) : un double-clic
   // ou un retry IPC rejoue le même operationId → la réception n'est créée qu'une fois.
   const [operationId, setOperationId] = useState<string>(() => newOperationId());
@@ -211,6 +286,16 @@ export function StockIntakeDialog({
     }
   }
 
+  function toggleSupplierPicker(): void {
+    const next = !supplierPickerOpen;
+    setSupplierPickerOpen(next);
+    // La liste a pu être vidée par une sélection précédente : on la recharge
+    // à l'ouverture, sinon le panneau afficherait « aucun fournisseur » à tort.
+    if (next && supplierResults.length === 0 && supplierQ.trim() === "") {
+      void searchSuppliers("");
+    }
+  }
+
   function onSupplierCreated(s: { id: number; name: string; code: string | null }): void {
     setSupplierQuickOpen(false);
     pickSupplier(s);
@@ -237,6 +322,28 @@ export function StockIntakeDialog({
 
   function patchLine(key: number, patch: Partial<IntakeLine>): void {
     setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+  }
+
+  function focusIntakeLine(key: number): void {
+    document
+      .querySelector<HTMLElement>(`[data-intake-line="${key}"]`)
+      ?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }
+
+  function selectProduct(key: number, r: IntakeLine["results"][number]): void {
+    patchLine(key, {
+      productId: r.id,
+      productName: r.name,
+      unit: r.unit_code,
+      packagingId: r.packaging_id ?? null,
+      packagingFactor: r.packaging_factor ?? null,
+      packagingLabel: r.packaging_label_fr ?? null,
+      packagingPurchasePriceMinor: r.packaging_purchase_price_minor ?? null,
+      purchaseUnit: "piece",
+      results: [],
+      search: "",
+      freeMode: false,
+    });
   }
 
   // P1-5 : parse strict (bornes H-1, jamais NaN). Invalide → -1 sentinelle :
@@ -313,6 +420,11 @@ export function StockIntakeDialog({
     const landing = Math.round((l.lineTotal + share) / (l.net as number));
     return { ...l, share, landing };
   });
+  const touchedInvalidCount = withLanding.filter((l, i) => {
+    const raw = lines[i];
+    return raw != null && hasIntakeInput(raw) && !l.valid;
+  }).length;
+  const showTotal = shippingOk && touchedInvalidCount === 0 && withLanding.some((l) => l.valid);
 
   async function save(): Promise<void> {
     if (busy) return;
@@ -324,9 +436,28 @@ export function StockIntakeDialog({
       notify("Frais de livraison invalides.", "err");
       return;
     }
-    const badSelling = withLanding.find((l) => l.valid && !l.sellingOk);
+    const badSelling = withLanding.find((l, i) => {
+      const raw = lines[i];
+      return raw != null && hasIntakeInput(raw) && !l.sellingOk;
+    });
     if (badSelling) {
+      focusIntakeLine(badSelling.key);
       notify("Prix de vente invalide (montant >= 0 ou vide).", "err");
+      return;
+    }
+    // Ne jamais ignorer silencieusement une ligne commencée mais incomplète :
+    // l'utilisateur croirait qu'elle a été réceptionnée.
+    const incomplete = withLanding
+      .map((l, i) => ({ l, raw: lines[i], n: i + 1 }))
+      .filter(({ l, raw }) => raw != null && hasIntakeInput(raw) && !l.valid);
+    if (incomplete.length > 0) {
+      const nums = incomplete.map(({ n }) => n).join(", ");
+      const first = incomplete[0];
+      if (first != null) focusIntakeLine(first.l.key);
+      notify(
+        `Ligne(s) ${nums} incomplète(s) : produit, quantité > 0 et prix d'achat sont requis.`,
+        "err",
+      );
       return;
     }
     const clean = withLanding.filter((l) => l.valid);
@@ -372,342 +503,560 @@ export function StockIntakeDialog({
     <>
       <Modal
         label="Réception fournisseur"
-        title="Réception — facture directe"
+        title="Réception fournisseur"
         onClose={onClose}
-        wide
+        extraWide
       >
-        <div className="space-y-4">
-          <Field label="Fournisseur" hint="Optionnel (alimente sa dette).">
-            {supplierId != null ? (
-              <div className="flex items-center justify-between gap-3 rounded-xl bg-black/25 px-4 py-2.5 text-sm">
-                <span className="truncate font-semibold">{supplierLabel}</span>
-                <div className="flex shrink-0 items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSupplierQuickOpen(true)}
-                    title="Créer un fournisseur sans perdre la réception"
-                    className="text-xs font-semibold text-amber-300 hover:text-amber-200"
-                  >
-                    + Nouveau fournisseur
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSupplierId(null);
-                      setSupplierLabel("");
-                    }}
-                    className="shrink-0 text-xs font-semibold text-slate-400 hover:text-white"
-                  >
-                    Retirer
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <TextInput
-                      value={supplierQ}
-                      onChange={(e) => onSupplierQChange(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          void searchSuppliers(supplierQ);
-                        }
+        <div className="space-y-3.5 [&_input]:scroll-mb-24 [&_select]:scroll-mb-24 [&_textarea]:scroll-mb-24">
+          <p className="text-[11px] text-slate-500">
+            Stock, mouvements, dette fournisseur et audit sont mis à jour en une seule transaction.
+            Une facture se corrige depuis « Réceptions ».
+          </p>
+
+          <IntakeSection
+            icon={<ReceiptText size={14} aria-hidden="true" />}
+            title="Facture fournisseur"
+          >
+            <div>
+              <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                Fournisseur
+              </span>
+              {supplierId != null ? (
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-emerald-400/20 bg-emerald-400/[0.06] px-3 py-2 text-sm">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <Truck size={15} className="shrink-0 text-emerald-300" aria-hidden="true" />
+                    <span className="truncate font-semibold">{supplierLabel}</span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSupplierId(null);
+                        setSupplierLabel("");
+                        setSupplierPickerOpen(true);
+                        void searchSuppliers("");
                       }}
-                      placeholder="Rechercher… (liste affichée par défaut)"
-                      aria-label="Rechercher un fournisseur"
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => void searchSuppliers(supplierQ)}
-                    aria-label="Rechercher un fournisseur"
-                    title="Rechercher un fournisseur"
-                  >
-                    <Search size={15} aria-hidden="true" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => setSupplierQuickOpen(true)}
-                    title="Créer un fournisseur sans perdre la réception"
-                  >
-                    + Nouveau
-                  </Button>
+                      className="text-xs font-semibold text-amber-300 hover:text-amber-200"
+                    >
+                      Changer
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Retirer le fournisseur"
+                      title="Retirer le fournisseur"
+                      onClick={() => {
+                        setSupplierId(null);
+                        setSupplierLabel("");
+                        setSupplierPickerOpen(false);
+                      }}
+                      className="rounded p-1 text-slate-400 transition-colors hover:bg-red-500/15 hover:text-red-300"
+                    >
+                      <X size={14} aria-hidden="true" />
+                    </button>
+                  </span>
                 </div>
-                {supplierResults.length > 0 ? (
-                  <ul className="mt-2 max-h-28 divide-y divide-white/[0.06] overflow-auto rounded-xl border border-white/10">
-                    {supplierResults.map((s) => (
-                      <li key={s.id}>
-                        <button
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    aria-expanded={supplierPickerOpen}
+                    aria-controls="intake-supplier-picker"
+                    onClick={toggleSupplierPicker}
+                    className="flex w-full items-center gap-2 rounded-lg border border-dashed border-white/15 bg-black/15 px-3 py-2.5 text-left transition-colors hover:border-amber-400/40 hover:bg-white/[0.03]"
+                  >
+                    <Truck size={15} className="shrink-0 text-slate-500" aria-hidden="true" />
+                    <span className="min-w-0 flex-1 truncate text-sm text-slate-400">
+                      Aucun fournisseur sélectionné
+                    </span>
+                    <span className="shrink-0 text-xs font-semibold text-amber-300">
+                      {supplierPickerOpen ? "Fermer" : "Choisir"}
+                    </span>
+                  </button>
+                  {supplierPickerOpen ? (
+                    <div
+                      id="intake-supplier-picker"
+                      className="mt-2 space-y-2 rounded-lg border border-white/10 bg-black/20 p-2.5"
+                    >
+                      <div className="flex gap-2">
+                        <SearchField
+                          value={supplierQ}
+                          onChange={onSupplierQChange}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              const first = supplierResults[0];
+                              if (supplierQ.trim().length >= 2 && first != null)
+                                pickSupplier(first);
+                              else void searchSuppliers(supplierQ);
+                            }
+                          }}
+                          placeholder="Rechercher un fournisseur…"
+                          ariaLabel="Rechercher un fournisseur"
+                          className="min-w-0 flex-1"
+                        />
+                        <Button
                           type="button"
-                          onClick={() => pickSupplier(s)}
-                          className="w-full px-3 py-2 text-left text-sm font-semibold transition-colors hover:bg-amber-400/10"
+                          variant="secondary"
+                          onClick={() => setSupplierQuickOpen(true)}
+                          aria-label="Créer un fournisseur"
+                          title="Créer un fournisseur sans perdre la réception"
+                          className="shrink-0 px-3"
                         >
-                          {s.name}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : supplierQ.trim().length >= 2 ? (
-                  <p className="mt-2 text-xs text-slate-400">
-                    Aucun fournisseur trouvé — créez-le dans « Fournisseurs ».
-                  </p>
-                ) : null}
-              </>
-            )}
-          </Field>
-          <div className="grid grid-cols-3 gap-3">
-            <Field label="N° facture" hint="Optionnel (suggéré au choix du fournisseur).">
-              <TextInput
-                value={invoiceNumber}
-                onChange={(e) => setInvoiceNumber(e.target.value)}
-                placeholder="Ex. : FAC-FOU-001"
-                aria-label="Numéro de facture"
-              />
-            </Field>
-            <Field label="Date facture *">
-              <TextInput
-                type="date"
-                value={invoiceDate}
-                onChange={(e) => setInvoiceDate(e.target.value)}
-                aria-label="Date de facture"
-              />
-            </Field>
-            <Field label="Livraison (DZD) *" hint="Répartie au prorata.">
-              <TextInput
-                value={shipping}
-                onChange={(e) => setShipping(e.target.value)}
-                inputMode="decimal"
-                placeholder="0,00"
-                aria-label="Frais de livraison"
-              />
-            </Field>
-          </div>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-extrabold">Lignes ({lines.length})</h4>
+                          <Plus size={15} aria-hidden="true" />
+                          <span className="hidden sm:inline">Nouveau</span>
+                        </Button>
+                      </div>
+                      {supplierResults.length > 0 ? (
+                        <ul className="max-h-40 divide-y divide-white/[0.06] overflow-auto rounded-lg border border-white/10">
+                          {supplierResults.map((s) => (
+                            <li key={s.id}>
+                              <button
+                                type="button"
+                                onClick={() => pickSupplier(s)}
+                                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-amber-400/10"
+                              >
+                                <span className="truncate font-semibold">{s.name}</span>
+                                {s.code ? (
+                                  <span className="shrink-0 font-mono text-[10px] text-slate-500">
+                                    {s.code}
+                                  </span>
+                                ) : null}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : supplierQ.trim().length >= 2 ? (
+                        <p className="text-xs text-slate-400">
+                          Aucun fournisseur trouvé — créez-le ici.
+                        </p>
+                      ) : (
+                        <p className="text-xs text-slate-500">Aucun fournisseur enregistré.</p>
+                      )}
+                    </div>
+                  ) : null}
+                </>
+              )}
+              <p className="mt-1.5 text-[11px] text-slate-500">
+                Optionnel — alimente la dette fournisseur.
+              </p>
+            </div>
+            <div className="grid gap-2.5 sm:grid-cols-3">
+              <Field label="N° facture" hint="Suggéré au choix du fournisseur.">
+                <TextInput
+                  value={invoiceNumber}
+                  onChange={(e) => setInvoiceNumber(e.target.value)}
+                  placeholder="Ex. : FAC-FOU-001"
+                  aria-label="Numéro de facture"
+                  className="font-mono"
+                />
+              </Field>
+              <Field label="Date facture *">
+                <TextInput
+                  type="date"
+                  value={invoiceDate}
+                  onChange={(e) => setInvoiceDate(e.target.value)}
+                  aria-label="Date de facture"
+                />
+              </Field>
+              <Field label="Livraison (DZD) *" hint="Répartie au prorata.">
+                <TextInput
+                  value={shipping}
+                  onChange={(e) => setShipping(e.target.value)}
+                  inputMode="decimal"
+                  placeholder="0,00"
+                  aria-label="Frais de livraison"
+                  className="font-mono tabular-nums"
+                />
+              </Field>
+            </div>
+          </IntakeSection>
+          <IntakeSection
+            icon={<PackagePlus size={14} aria-hidden="true" />}
+            title="Articles reçus"
+            hint={`${lines.length} ligne${lines.length > 1 ? "s" : ""}`}
+            action={
               <Button
                 type="button"
                 variant="secondary"
                 onClick={() => setLines((p) => [...p, emptyIntakeLine()])}
+                className="px-3 py-1.5 text-xs"
               >
-                <PackagePlus size={15} aria-hidden="true" /> Ligne
+                <Plus size={14} aria-hidden="true" /> Ajouter une ligne
+              </Button>
+            }
+          >
+            {withLanding.map((l, idx) => {
+              const raw = lines[idx];
+              const touched = raw != null && hasIntakeInput(raw);
+              const invalid = touched && !l.valid;
+              const unitFr = unitLabel(l.unit);
+              const unitShort = l.unit === "PIECE" ? "pièce" : l.unit.toLowerCase();
+              const priceUnit = l.purchaseUnit === "carton" ? "carton" : unitShort;
+              return (
+                <Card
+                  key={l.key}
+                  className={cn("overflow-hidden p-0", invalid && "border-amber-400/35")}
+                >
+                  <div
+                    data-intake-line={l.key}
+                    className="flex flex-wrap items-center gap-2 border-b border-white/[0.07] px-3 py-2"
+                  >
+                    <span className="rounded bg-[#1c2b3c] px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-slate-300">
+                      Ligne {idx + 1}
+                    </span>
+                    {l.productId != null ? (
+                      <span className="min-w-0 flex-1 truncate text-xs text-slate-400">
+                        {unitFr}
+                        {l.packagingFactor != null
+                          ? ` · ${l.packagingLabel ?? `Carton de ${l.packagingFactor}`}`
+                          : ""}
+                      </span>
+                    ) : (
+                      <span className="flex-1" />
+                    )}
+                    {invalid ? <Badge tone="amber">À compléter</Badge> : null}
+                    {lines.length > 1 ? (
+                      <button
+                        type="button"
+                        aria-label={`Retirer la ligne ${idx + 1}`}
+                        title="Retirer la ligne"
+                        onClick={() => setLines((p) => p.filter((x) => x.key !== l.key))}
+                        className="rounded p-1 text-slate-500 transition-colors hover:bg-red-500/15 hover:text-red-300"
+                      >
+                        <Trash2 size={15} aria-hidden="true" />
+                      </button>
+                    ) : null}
+                  </div>
+                  <div className="space-y-2.5 p-3">
+                    {l.productId != null ? (
+                      <div className="flex items-center justify-between gap-3 rounded-lg border border-emerald-400/20 bg-emerald-400/[0.06] px-3 py-2 text-sm">
+                        <span className="flex min-w-0 items-center gap-2">
+                          <PackagePlus
+                            size={15}
+                            className="shrink-0 text-emerald-300"
+                            aria-hidden="true"
+                          />
+                          <span className="truncate font-semibold">{l.productName}</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            patchLine(l.key, {
+                              productId: null,
+                              productName: "",
+                              search: "",
+                              freeMode: false,
+                              unit: "PIECE",
+                              received: "1",
+                              damaged: "0",
+                              price: "",
+                              selling: "",
+                              packagingId: null,
+                              packagingFactor: null,
+                              packagingLabel: null,
+                              packagingPurchasePriceMinor: null,
+                              purchaseUnit: "piece",
+                              results: [],
+                            })
+                          }
+                          className="shrink-0 text-xs font-semibold text-slate-400 hover:text-white"
+                        >
+                          Changer
+                        </button>
+                      </div>
+                    ) : l.freeMode ? (
+                      <div className="space-y-2">
+                        <Field
+                          label="Nom du nouveau produit"
+                          hint="Sera créé au catalogue (unité Pièce)."
+                        >
+                          <TextInput
+                            value={lines[idx]?.productName ?? ""}
+                            onChange={(e) => patchLine(l.key, { productName: e.target.value })}
+                            placeholder="Ex. : Sac de riz 5 kg"
+                            aria-label={`Produit ligne ${idx + 1}`}
+                          />
+                        </Field>
+                        <button
+                          type="button"
+                          onClick={() => patchLine(l.key, { freeMode: false, productName: "" })}
+                          className="text-xs font-semibold text-amber-300 hover:text-amber-200"
+                        >
+                          ← Rechercher un produit existant
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <span className="block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                          Produit *
+                        </span>
+                        <SearchField
+                          value={l.search}
+                          onChange={(v) => {
+                            patchLine(l.key, { search: v });
+                            void searchProducts(l.key, v);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              const first = l.results[0];
+                              if (first != null) selectProduct(l.key, first);
+                            }
+                          }}
+                          placeholder="Nom ou code-barres…"
+                          ariaLabel={`Rechercher produit ligne ${idx + 1}`}
+                        />
+                        {l.results.length > 0 ? (
+                          <ul className="max-h-40 divide-y divide-white/[0.06] overflow-auto rounded-lg border border-white/10">
+                            {l.results.map((r) => (
+                              <li key={r.id}>
+                                <button
+                                  type="button"
+                                  onClick={() => selectProduct(l.key, r)}
+                                  className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-amber-400/10"
+                                >
+                                  <span className="truncate font-semibold">{r.name}</span>
+                                  <span className="shrink-0 font-mono text-[10px] tabular-nums text-slate-400">
+                                    {r.quantity} {unitLabel(r.unit_code)}
+                                  </span>
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : l.search.trim().length >= 2 ? (
+                          <p className="text-xs text-slate-400">
+                            Aucun produit trouvé — utilisez « Nouveau produit par nom ».
+                          </p>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            patchLine(l.key, { freeMode: true, search: "", results: [] })
+                          }
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-amber-300 hover:text-amber-200"
+                        >
+                          <Plus size={13} aria-hidden="true" /> Nouveau produit par nom
+                        </button>
+                      </div>
+                    )}
+                    {l.packagingId != null && l.packagingFactor != null ? (
+                      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-emerald-400/20 bg-emerald-400/[0.06] px-3 py-2">
+                        <span className="text-xs font-semibold text-slate-300">
+                          Unité d'achat :
+                        </span>
+                        <div role="group" aria-label="Unité d'achat" className="flex gap-1.5">
+                          <Button
+                            type="button"
+                            variant={l.purchaseUnit === "carton" ? "primary" : "secondary"}
+                            aria-pressed={l.purchaseUnit === "carton"}
+                            onClick={() => {
+                              patchLine(l.key, {
+                                purchaseUnit: "carton",
+                                price:
+                                  (lines[idx]?.price ?? "").trim() === "" &&
+                                  l.packagingPurchasePriceMinor != null
+                                    ? (l.packagingPurchasePriceMinor / 100)
+                                        .toFixed(2)
+                                        .replace(".", ",")
+                                    : (lines[idx]?.price ?? ""),
+                              });
+                            }}
+                            title={l.packagingLabel ?? `Carton de ${l.packagingFactor}`}
+                            className="px-2.5 py-1.5 text-xs"
+                          >
+                            {l.packagingLabel ?? `Carton de ${l.packagingFactor}`}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={l.purchaseUnit === "piece" ? "primary" : "secondary"}
+                            aria-pressed={l.purchaseUnit === "piece"}
+                            onClick={() => patchLine(l.key, { purchaseUnit: "piece" })}
+                            className="px-2.5 py-1.5 text-xs"
+                          >
+                            {unitFr}
+                          </Button>
+                        </div>
+                        <span className="text-[11px] text-slate-400">
+                          1 carton = {l.packagingFactor} {unitShort}
+                          {l.unit === "PIECE" ? "(s)" : ""}
+                        </span>
+                      </div>
+                    ) : null}
+                    <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+                      <Field
+                        label={`Reçue *${
+                          l.purchaseUnit === "carton" ? " (cartons)" : ` (${unitShort})`
+                        }`}
+                      >
+                        <TextInput
+                          value={lines[idx]?.received ?? ""}
+                          onChange={(e) => patchLine(l.key, { received: e.target.value })}
+                          inputMode="decimal"
+                          aria-label={`Quantité reçue ligne ${idx + 1}`}
+                          className="font-mono tabular-nums"
+                        />
+                      </Field>
+                      <Field
+                        label={`Abîmée (${unitShort})`}
+                        {...(l.purchaseUnit === "carton" ? { hint: "Entier requis." } : {})}
+                      >
+                        <TextInput
+                          value={lines[idx]?.damaged ?? ""}
+                          onChange={(e) => patchLine(l.key, { damaged: e.target.value })}
+                          inputMode="decimal"
+                          aria-label={`Quantité abîmée ligne ${idx + 1}`}
+                          className="font-mono tabular-nums"
+                        />
+                      </Field>
+                      <Field label={`Prix achat / ${priceUnit} *`}>
+                        <TextInput
+                          value={lines[idx]?.price ?? ""}
+                          onChange={(e) => patchLine(l.key, { price: e.target.value })}
+                          inputMode="decimal"
+                          placeholder="0,00"
+                          aria-label={`Prix achat ligne ${idx + 1}`}
+                          className="font-mono tabular-nums"
+                        />
+                      </Field>
+                      <Field
+                        label={`Prix de vente / ${unitShort}`}
+                        hint={l.freeMode ? "Vide = 0 DZD." : "Vide = conserver."}
+                      >
+                        <TextInput
+                          value={lines[idx]?.selling ?? ""}
+                          onChange={(e) => patchLine(l.key, { selling: e.target.value })}
+                          inputMode="decimal"
+                          placeholder="—"
+                          aria-label={`Prix de vente ligne ${idx + 1}`}
+                          className="font-mono tabular-nums"
+                        />
+                      </Field>
+                    </div>
+                    {l.valid ? (
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg bg-black/20 px-3 py-2 text-[11px] text-slate-400">
+                        <span>
+                          Net{" "}
+                          <strong className="font-mono text-slate-200">
+                            {l.net} {unitShort}
+                          </strong>
+                        </span>
+                        <span>
+                          Total ligne{" "}
+                          <strong className="font-mono text-slate-200">
+                            {formatDzd(l.lineTotal)}
+                          </strong>
+                        </span>
+                        {l.share > 0 ? (
+                          <span>
+                            Frais{" "}
+                            <strong className="font-mono text-slate-200">
+                              {formatDzd(l.share)}
+                            </strong>
+                          </span>
+                        ) : null}
+                        <span className="text-amber-200">
+                          Coût rendu / {unitShort}{" "}
+                          <strong className="font-mono">{formatDzd(l.landing)}</strong>
+                        </span>
+                        {l.selling != null ? (
+                          <span className="text-emerald-200">
+                            Nouveau prix{" "}
+                            <strong className="font-mono">{formatDzd(l.selling)}</strong>
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : touched ? (
+                      <p className="rounded-lg border border-amber-400/20 bg-amber-400/[0.06] px-3 py-2 text-[11px] font-semibold text-amber-200">
+                        Ligne à compléter — produit, quantité &gt; 0 et prix d'achat requis.
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-slate-500">
+                        Choisissez un produit existant ou créez-le par son nom, puis saisissez la
+                        quantité et le prix d'achat.
+                      </p>
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
+          </IntakeSection>
+          <div className="rounded-xl border border-white/[0.08] bg-black/20">
+            <button
+              type="button"
+              aria-expanded={notesOpen}
+              aria-controls="intake-notes"
+              onClick={() => setNotesOpen((o) => !o)}
+              className="flex min-h-[48px] w-full items-center gap-2 rounded-xl px-3.5 py-2.5 text-left transition-colors hover:bg-white/[0.04]"
+            >
+              <span
+                aria-hidden="true"
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white/[0.06] text-slate-400"
+              >
+                <StickyNote size={14} />
+              </span>
+              <span className="text-sm font-bold text-slate-200">Notes de réception</span>
+              <span className="ml-auto text-[11px] text-slate-500">
+                {notes.trim() === "" ? "Optionnel" : "Note saisie"}
+              </span>
+              <ChevronDown
+                size={16}
+                aria-hidden="true"
+                className={cn(
+                  "shrink-0 text-slate-400 transition-transform",
+                  notesOpen && "rotate-180",
+                )}
+              />
+            </button>
+            {notesOpen ? (
+              <div id="intake-notes" className="border-t border-white/[0.08] p-3.5">
+                <TextArea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Précisez le motif ou une information utile…"
+                  aria-label="Notes de réception"
+                />
+              </div>
+            ) : null}
+          </div>
+          <div className="sticky bottom-0 z-10 -mx-6 flex flex-col gap-3 border-t border-white/10 bg-[#122131]/95 px-6 py-3.5 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex items-baseline gap-2">
+                <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                  Total réception
+                </span>
+                <strong
+                  className={cn(
+                    "font-mono text-xl font-extrabold tabular-nums",
+                    shippingOk ? "text-amber-300" : "text-red-300",
+                  )}
+                >
+                  {showTotal ? formatDzd(total) : "—"}
+                </strong>
+              </div>
+              <p className="text-[11px] tabular-nums text-slate-500">
+                Sous-total {formatDzd(subtotal)} · Livraison{" "}
+                {shippingOk ? formatDzd(shippingMinor) : "invalide"}
+                {touchedInvalidCount > 0 ? ` · ${touchedInvalidCount} ligne(s) à compléter` : ""}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={onClose}
+                className="flex-1 sm:flex-none sm:min-w-[108px]"
+              >
+                Annuler
+              </Button>
+              <Button
+                onClick={() => void save()}
+                disabled={busy}
+                className="flex-[2] sm:flex-none sm:min-w-[190px]"
+              >
+                {busy ? "Enregistrement…" : "Valider la réception"}
               </Button>
             </div>
-            {withLanding.map((l, idx) => (
-              <Card key={l.key} className="space-y-2.5 p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <strong className="text-sm">Ligne {idx + 1}</strong>
-                  {lines.length > 1 ? (
-                    <button
-                      type="button"
-                      onClick={() => setLines((p) => p.filter((x) => x.key !== l.key))}
-                      className="text-xs font-semibold text-red-300 hover:text-red-200"
-                    >
-                      Retirer
-                    </button>
-                  ) : null}
-                </div>
-                {l.productId == null ? (
-                  <>
-                    <TextInput
-                      value={l.search}
-                      onChange={(e) => {
-                        patchLine(l.key, { search: e.target.value });
-                        void searchProducts(l.key, e.target.value);
-                      }}
-                      placeholder="Rechercher un produit… ou saisir un nom libre ci-dessous"
-                      aria-label={`Rechercher produit ligne ${idx + 1}`}
-                    />
-                    {l.results.length > 0 ? (
-                      <ul className="max-h-28 divide-y divide-white/[0.06] overflow-auto rounded-xl border border-white/10">
-                        {l.results.map((r) => (
-                          <li key={r.id}>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                patchLine(l.key, {
-                                  productId: r.id,
-                                  productName: r.name,
-                                  unit: r.unit_code,
-                                  packagingId: r.packaging_id ?? null,
-                                  packagingFactor: r.packaging_factor ?? null,
-                                  packagingLabel: r.packaging_label_fr ?? null,
-                                  packagingPurchasePriceMinor:
-                                    r.packaging_purchase_price_minor ?? null,
-                                  purchaseUnit: "piece",
-                                  results: [],
-                                  search: "",
-                                })
-                              }
-                              className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-amber-400/10"
-                            >
-                              <span className="truncate font-semibold">{r.name}</span>
-                              <span className="shrink-0 text-xs tabular-nums text-slate-400">
-                                {r.quantity} {r.unit_code}
-                              </span>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </>
-                ) : (
-                  <div className="flex items-center justify-between gap-3 rounded-xl bg-black/25 px-3 py-2 text-sm">
-                    <span className="min-w-0 truncate font-semibold">{l.productName}</span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        patchLine(l.key, { productId: null, productName: "", search: "" })
-                      }
-                      className="shrink-0 text-xs font-semibold text-slate-400 hover:text-white"
-                    >
-                      Changer
-                    </button>
-                  </div>
-                )}
-                <Field label="Produit (libre si besoin)">
-                  <TextInput
-                    value={lines[idx]?.productName ?? ""}
-                    onChange={(e) => patchLine(l.key, { productName: e.target.value })}
-                    placeholder="Nom du produit"
-                    aria-label={`Produit ligne ${idx + 1}`}
-                    disabled={l.productId != null}
-                  />
-                </Field>
-                {l.packagingId != null && l.packagingFactor != null ? (
-                  <div className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] px-3 py-2">
-                    <span className="text-xs font-semibold text-slate-300">Unité d'achat :</span>
-                    <Button
-                      type="button"
-                      variant={l.purchaseUnit === "carton" ? "primary" : "secondary"}
-                      onClick={() => {
-                        patchLine(l.key, {
-                          purchaseUnit: "carton",
-                          price:
-                            (lines[idx]?.price ?? "").trim() === "" &&
-                            l.packagingPurchasePriceMinor != null
-                              ? (l.packagingPurchasePriceMinor / 100).toFixed(2).replace(".", ",")
-                              : (lines[idx]?.price ?? ""),
-                        });
-                      }}
-                      title={l.packagingLabel ?? `Carton de ${l.packagingFactor}`}
-                    >
-                      {l.packagingLabel ?? `Carton de ${l.packagingFactor}`}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={l.purchaseUnit === "piece" ? "primary" : "secondary"}
-                      onClick={() => patchLine(l.key, { purchaseUnit: "piece" })}
-                    >
-                      Pièce
-                    </Button>
-                    <span className="text-[11px] text-slate-400">
-                      1 carton = {l.packagingFactor} pièces
-                    </span>
-                  </div>
-                ) : null}
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  <Field label={`Reçue *${l.purchaseUnit === "carton" ? " (cartons)" : ""}`}>
-                    <TextInput
-                      value={lines[idx]?.received ?? ""}
-                      onChange={(e) => patchLine(l.key, { received: e.target.value })}
-                      inputMode="decimal"
-                      aria-label={`Quantité reçue ligne ${idx + 1}`}
-                    />
-                  </Field>
-                  <Field label="Abîmée (pièces)">
-                    <TextInput
-                      value={lines[idx]?.damaged ?? ""}
-                      onChange={(e) => patchLine(l.key, { damaged: e.target.value })}
-                      inputMode="decimal"
-                      aria-label={`Quantité abîmée ligne ${idx + 1}`}
-                    />
-                  </Field>
-                  <Field
-                    label={`Prix achat / ${l.purchaseUnit === "carton" ? "carton" : "pièce"} *`}
-                  >
-                    <TextInput
-                      value={lines[idx]?.price ?? ""}
-                      onChange={(e) => patchLine(l.key, { price: e.target.value })}
-                      inputMode="decimal"
-                      placeholder="0,00"
-                      aria-label={`Prix achat ligne ${idx + 1}`}
-                    />
-                  </Field>
-                  <Field label="Prix de vente / pièce" hint="Vide = conserver.">
-                    <TextInput
-                      value={lines[idx]?.selling ?? ""}
-                      onChange={(e) => patchLine(l.key, { selling: e.target.value })}
-                      inputMode="decimal"
-                      placeholder="—"
-                      aria-label={`Prix de vente ligne ${idx + 1}`}
-                    />
-                  </Field>
-                </div>
-                <p className="text-xs tabular-nums text-slate-400">
-                  {l.net != null
-                    ? `${l.net} pièce(s) — coût/pièce : ${formatDzd(l.net > 0 ? Math.round((l.lineTotal + l.share) / l.net) : 0)}`
-                    : "Quantités invalides"}{" "}
-                  · Ligne : {formatDzd(l.valid ? l.lineTotal : 0)} · Livraison :{" "}
-                  {formatDzd(l.share)} ·{" "}
-                  <strong
-                    className="text-amber-200"
-                    title="Estimation informative : la valorisation FIFO répartit le total payé au centime près"
-                  >
-                    Coût rendu estimé : {formatDzd(l.landing)}
-                  </strong>{" "}
-                  · Vente :{" "}
-                  {l.selling == null ? (
-                    <span title="Prix actuel conservé">conservé</span>
-                  ) : (
-                    <strong className="text-emerald-200">{formatDzd(l.selling)}</strong>
-                  )}
-                </p>
-              </Card>
-            ))}
           </div>
-          <dl className="space-y-1.5 rounded-xl bg-black/25 p-4 text-sm">
-            <div className="flex justify-between text-slate-300">
-              <dt>Sous-total</dt>
-              <dd className="font-bold tabular-nums">{formatDzd(subtotal)}</dd>
-            </div>
-            <div className="flex justify-between text-slate-300">
-              <dt>Livraison</dt>
-              <dd className="font-bold tabular-nums">
-                {shippingOk ? formatDzd(shippingMinor) : "—"}
-              </dd>
-            </div>
-            <div className="flex items-baseline justify-between border-t border-white/10 pt-2">
-              <dt className="font-extrabold">Total réception</dt>
-              <dd className="text-xl font-extrabold tabular-nums text-amber-300">
-                {formatDzd(total)}
-              </dd>
-            </div>
-          </dl>
-          <Field label="Notes" hint="Optionnel.">
-            <TextArea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Précisez le motif…"
-              aria-label="Notes de réception"
-            />
-          </Field>
-          <div className="flex gap-2">
-            <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
-              Annuler
-            </Button>
-            <Button onClick={() => void save()} disabled={busy} className="flex-[2]">
-              {busy ? "Enregistrement…" : "Valider la réception"}
-            </Button>
-          </div>
-          <p className="text-xs text-slate-500">
-            Réception atomique : stock + mouvements + dette fournisseur + audit. Une facture
-            fournisseur se corrige depuis « Réceptions » (annuler puis recréer).
-          </p>
         </div>
       </Modal>
       {supplierQuickOpen ? (

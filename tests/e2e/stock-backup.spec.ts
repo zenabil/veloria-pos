@@ -61,6 +61,18 @@ test("réception fournisseur : le stock augmente", async () => {
   expect(await stockQtyOf(name)).toMatch(/11 PIECE/);
 });
 
+test("réception : une ligne commencée mais incomplète bloque la validation", async () => {
+  const { page } = ctx;
+  await gotoModule(page, "Stock");
+  await page.locator('button[title="Réception fournisseur (facture + livraison)"]').click();
+  const dialog = page.getByRole("dialog", { name: /Réception/ });
+  await dialog.getByLabel("Rechercher produit ligne 1", { exact: true }).fill("zzz");
+  await dialog.getByRole("button", { name: "Valider la réception" }).click();
+  await page.locator('[role="alert"]', { hasText: /incomplète/ }).waitFor();
+  // La réception reste ouverte : rien n'a été enregistré en ignorant la ligne.
+  await expect(dialog).toBeVisible();
+});
+
 test("sauvegarde manuelle : copie créée et listée", async () => {
   const { page } = ctx;
   await gotoModule(page, "Paramètres");

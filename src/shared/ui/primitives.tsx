@@ -382,12 +382,14 @@ export function Modal({
   onClose,
   children,
   wide,
+  extraWide,
 }: {
   label: string;
   title: ReactNode;
   onClose: () => void;
   children: ReactNode;
   wide?: boolean;
+  extraWide?: boolean;
 }): ReactNode {
   const boxRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -432,7 +434,10 @@ export function Modal({
       <div
         ref={boxRef}
         onClick={(e) => e.stopPropagation()}
-        className={cn("w-full", wide === true ? "max-w-[680px]" : "max-w-[500px]")}
+        className={cn(
+          "w-full",
+          extraWide === true ? "max-w-[960px]" : wide === true ? "max-w-[680px]" : "max-w-[500px]",
+        )}
       >
         <Card className="veloria-dialog-in max-h-[90vh] space-y-4 overflow-auto rounded-[18px] border-[#28395d] p-6 shadow-[0_24px_48px_-12px_rgba(2,6,13,0.85)]">
           <div className="flex items-center justify-between gap-3">
