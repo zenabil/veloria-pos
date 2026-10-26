@@ -22,6 +22,7 @@ import {
   Button,
   Card,
   Field,
+  Kbd,
   Modal,
   SearchField,
   TextArea,
@@ -507,7 +508,33 @@ export function StockIntakeDialog({
         onClose={onClose}
         extraWide
       >
-        <div className="space-y-3.5 [&_input]:scroll-mb-24 [&_select]:scroll-mb-24 [&_textarea]:scroll-mb-24">
+        <form
+          className="space-y-3.5 [&_input]:scroll-mb-24 [&_select]:scroll-mb-24 [&_textarea]:scroll-mb-24"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void save();
+          }}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter") return;
+            const target = e.target as HTMLElement | null;
+            const tag = target?.tagName ?? "";
+            const withCtrl = e.ctrlKey || e.metaKey;
+            // Zone de texte : Entrée = nouvelle ligne ; Ctrl+Entrée = valider.
+            if (tag === "TEXTAREA") {
+              if (withCtrl) {
+                e.preventDefault();
+                void save();
+              }
+              return;
+            }
+            // Boutons/liens : laisser l'activation clavier native.
+            if (tag === "BUTTON" || tag === "A") return;
+            // Aucun envoi implicite depuis un champ (réception = action
+            // irréversible) : seul Ctrl+Entrée valide.
+            e.preventDefault();
+            if (withCtrl) void save();
+          }}
+        >
           <p className="text-[11px] text-slate-500">
             Stock, mouvements, dette fournisseur et audit sont mis à jour en une seule transaction.
             Une facture se corrige depuis « Réceptions ».
@@ -1039,25 +1066,33 @@ export function StockIntakeDialog({
                 {touchedInvalidCount > 0 ? ` · ${touchedInvalidCount} ligne(s) à compléter` : ""}
               </p>
             </div>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={onClose}
-                className="flex-1 sm:flex-none sm:min-w-[108px]"
-              >
-                Annuler
-              </Button>
-              <Button
-                onClick={() => void save()}
-                disabled={busy}
-                className="flex-[2] sm:flex-none sm:min-w-[190px]"
-              >
-                {busy ? "Enregistrement…" : "Valider la réception"}
-              </Button>
+            <div className="flex items-center gap-3">
+              <span className="hidden items-center gap-1 text-[11px] text-slate-500 lg:flex">
+                <Kbd>Ctrl</Kbd>
+                <span>+</span>
+                <Kbd>Entrée</Kbd>
+              </span>
+              <div className="flex flex-1 gap-2 sm:flex-none">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={onClose}
+                  className="flex-1 sm:flex-none sm:min-w-[108px]"
+                >
+                  Annuler
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={busy}
+                  title="Valider la réception (Ctrl+Entrée)"
+                  className="flex-[2] sm:flex-none sm:min-w-[190px]"
+                >
+                  {busy ? "Enregistrement…" : "Valider la réception"}
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
+        </form>
       </Modal>
       {supplierQuickOpen ? (
         <SupplierQuickCreateDialog

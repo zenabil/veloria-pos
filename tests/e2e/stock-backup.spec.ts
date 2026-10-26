@@ -61,11 +61,18 @@ test("réception fournisseur : le stock augmente", async () => {
   expect(await stockQtyOf(name)).toMatch(/11 PIECE/);
 });
 
-test("réception : une ligne commencée mais incomplète bloque la validation", async () => {
+test("réception : Entrée ne valide pas et une ligne incomplète bloque", async () => {
   const { page } = ctx;
   await gotoModule(page, "Stock");
   await page.locator('button[title="Réception fournisseur (facture + livraison)"]').click();
   const dialog = page.getByRole("dialog", { name: /Réception/ });
+
+  // Entrée dans un champ ne doit jamais déclencher la validation globale.
+  await dialog.getByLabel("Numéro de facture", { exact: true }).fill("FAC-TEST");
+  await dialog.getByLabel("Numéro de facture", { exact: true }).press("Enter");
+  await page.waitForTimeout(400);
+  await expect(page.locator('[role="alert"]')).toHaveCount(0);
+
   await dialog.getByLabel("Rechercher produit ligne 1", { exact: true }).fill("zzz");
   await dialog.getByRole("button", { name: "Valider la réception" }).click();
   await page.locator('[role="alert"]', { hasText: /incomplète/ }).waitFor();
