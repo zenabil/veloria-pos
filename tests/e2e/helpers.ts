@@ -131,6 +131,8 @@ export async function issueTestLicense(
     // refuseraient par conception.
     features: [
       "advanced-reports",
+      "barcode-scanner",
+      "excel-export",
       "multi-printer",
       "ocr",
       "receipt-80mm",

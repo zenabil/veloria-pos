@@ -1,6 +1,7 @@
 // Veloria PoS — Tests : helpers catalogue (tri + statuts, purs).
 import { describe, it, expect } from "vitest";
 import {
+  labelTargets,
   sortProducts,
   stockLabel,
   stockTone,
@@ -55,5 +56,22 @@ describe("Catalogue helpers", () => {
   it("labels units in French with fallback", () => {
     expect(unitLabel("KG")).toBe("Kilogramme");
     expect(unitLabel("??")).toBe("??");
+  });
+
+  it("builds label targets for the selection across ALL pages", () => {
+    // Régression : la sélection survit aux changements de page ; les
+    // étiquettes ne doivent pas se limiter aux lignes de la page affichée.
+    const page1 = [
+      makeProduct({ id: 1, name: "Café", selling_price_minor: 12000, primary_barcode: "CAFE-1" }),
+      makeProduct({ id: 2, name: "Thé", selling_price_minor: 8000 }),
+    ];
+    const page2 = [
+      makeProduct({ id: 3, name: "Sucre", selling_price_minor: 6000, primary_barcode: "SUCRE-3" }),
+    ];
+    expect(labelTargets([...page1, ...page2])).toEqual([
+      { name: "Café", priceMinor: 12000, barcode: "CAFE-1" },
+      { name: "Sucre", priceMinor: 6000, barcode: "SUCRE-3" },
+    ]);
+    expect(labelTargets([makeProduct({ id: 2, name: "Thé" })])).toEqual([]);
   });
 });

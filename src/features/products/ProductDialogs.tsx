@@ -4,4 +4,5 @@
 // MovementsDialog Catalogue (doublon faible) est supprimé.
 export { ProductDetailsDrawer } from "./dialogs/DetailsDrawer.tsx";
 export { ProductFormDialog } from "./dialogs/FormDialog.tsx";
-export { LabelsDialog, type LabelTarget } from "./dialogs/LabelsDialog.tsx";
+export { LabelsDialog } from "./dialogs/LabelsDialog.tsx";
+export type { LabelTarget } from "./types.ts";

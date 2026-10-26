@@ -40,21 +40,18 @@ import {
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
 import { downloadCsv } from "@shared/export/csv.ts";
 import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
-import {
-  ProductDetailsDrawer,
-  ProductFormDialog,
-  LabelsDialog,
-  type LabelTarget,
-} from "./ProductDialogs.tsx";
+import { ProductDetailsDrawer, ProductFormDialog, LabelsDialog } from "./ProductDialogs.tsx";
 import { StockMovementHistoryDrawer } from "@features/stock/dialogs/HistoryDrawer.tsx";
 import {
   isArchived,
   sortProducts,
   productCsvRows,
   productImportCsvRows,
+  labelTargets,
   stockLabel,
   stockTone,
   type Category,
+  type LabelTarget,
   type Product,
   type ProductSort,
   type StockFilter,
@@ -88,7 +85,9 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
   const [loadError, setLoadError] = useState("");
   const [stats, setStats] = useState<Stats>({ total: 0, available: 0, low: 0, out: 0 });
   const [categories, setCategories] = useState<Category[]>([]);
-  const [selection, setSelection] = useState<Set<number>>(new Set());
+  // La sélection porte la fiche complète : elle survit aux changements de
+  // page, et les étiquettes couvrent TOUTES les pages sélectionnées.
+  const [selection, setSelection] = useState<Map<number, Product>>(new Map());
   // A-15 : état de lot (concurrence bornée + progression affichée).
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkLabel, setBulkLabel] = useState("");
@@ -207,7 +206,7 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
     const next = !includeArchived;
     setIncludeArchived(next);
     setPage(1);
-    setSelection(new Set());
+    setSelection(new Map());
     void load(query, categoryId, status, next, 1);
   }
 
@@ -217,7 +216,7 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
   }
 
   function refresh(): void {
-    setSelection(new Set());
+    setSelection(new Map());
     void loadStats();
     void loadCategories();
     void load(query, categoryId, status, includeArchived, page);
@@ -229,7 +228,7 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
     setStatus("all");
     setIncludeArchived(false);
     setPage(1);
-    setSelection(new Set());
+    setSelection(new Map());
     void load("", "", "all", false, 1);
   }
 
@@ -244,21 +243,21 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
     setFormOpen(true);
   }
 
-  function toggleSelect(id: number): void {
+  function toggleSelect(p: Product): void {
     setSelection((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      const next = new Map(prev);
+      if (next.has(p.id)) next.delete(p.id);
+      else next.set(p.id, p);
       return next;
     });
   }
 
   function toggleSelectPage(): void {
     setSelection((prev) => {
-      const next = new Set(prev);
+      const next = new Map(prev);
       const allSelected = rows.length > 0 && rows.every((r) => next.has(r.id));
       if (allSelected) rows.forEach((r) => next.delete(r.id));
-      else rows.forEach((r) => next.add(r.id));
+      else rows.forEach((r) => next.set(r.id, r));
       return next;
     });
   }
@@ -303,7 +302,7 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
     // A-15 : lot à concurrence bornée + progression (200 archives
     // séquentielles = plusieurs minutes sans aucun retour visuel).
     const res = await runBulk(
-      [...selection],
+      [...selection.keys()],
       async (id) => {
         await api.productArchive({ id, operationId: newOperationId() });
       },
@@ -323,13 +322,9 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
   }
 
   function openLabelsSelection(): void {
-    const items: LabelTarget[] = rows
-      .filter((p) => selection.has(p.id) && p.primary_barcode)
-      .map((p) => ({
-        name: p.name,
-        priceMinor: p.selling_price_minor,
-        barcode: p.primary_barcode as string,
-      }));
+    // Toutes les pages confondues : la sélection porte les fiches, pas
+    // seulement les lignes de la page affichée.
+    const items: LabelTarget[] = labelTargets(selection.values());
     if (items.length === 0) {
       notify("Aucun produit sélectionné avec code-barres.", "err");
       return;
@@ -628,7 +623,7 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
           </Button>
           <button
             type="button"
-            onClick={() => setSelection(new Set())}
+            onClick={() => setSelection(new Map())}
             className="text-xs font-semibold text-slate-400 hover:text-white"
           >
             Tout désélectionner
@@ -688,7 +683,7 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
                       <input
                         type="checkbox"
                         checked={selection.has(p.id)}
-                        onChange={() => toggleSelect(p.id)}
+                        onChange={() => toggleSelect(p)}
                         aria-label={`Sélectionner ${p.name}`}
                         className="h-4 w-4 accent-amber-400"
                       />

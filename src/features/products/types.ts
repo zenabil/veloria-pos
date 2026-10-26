@@ -27,6 +27,31 @@ export interface Category {
   name: string;
 }
 
+/** Cible d'impression d'étiquette (aperçu thermique). */
+export interface LabelTarget {
+  name: string;
+  priceMinor: number;
+  barcode: string;
+}
+
+/**
+ * Étiquettes des produits SÉLECTIONNÉS, toutes pages confondues.
+ * Les produits sans code-barres sont ignorés (rien d'imprimable).
+ */
+export function labelTargets(products: Iterable<Product>): LabelTarget[] {
+  const items: LabelTarget[] = [];
+  for (const p of products) {
+    if (p.primary_barcode) {
+      items.push({
+        name: p.name,
+        priceMinor: p.selling_price_minor,
+        barcode: p.primary_barcode,
+      });
+    }
+  }
+  return items;
+}
+
 export type StockFilter = "all" | "in_stock" | "low_stock" | "out_of_stock";
 
 export type ProductSort =

@@ -10,16 +10,12 @@ import type { Notify } from "@shared/ui/primitives.tsx";
 import { frError } from "@shared/errors/fr-map.ts";
 import { playSound } from "@shared/sound/sound.ts";
 
+import type { LabelTarget } from "../types.ts";
+
 // ---------------------------------------------------------------------------
 // Étiquettes code-barres : aperçu gabarit thermique + impression.
 // L'A4 est banni pour les étiquettes (politique opération → format).
 // ---------------------------------------------------------------------------
-
-export interface LabelTarget {
-  name: string;
-  priceMinor: number;
-  barcode: string;
-}
 
 type LabelFormatUi = "30x20" | "45x20" | "50x30" | "58x30" | "58x40" | "custom";
 
