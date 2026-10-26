@@ -14,6 +14,12 @@ describe("recherche paramètres", () => {
     expect(hits.some((h) => h.kind === "card" && h.id === "customers")).toBe(true);
   });
 
+  it("les réglages fusionnés restent trouvables (sons, fournisseurs, stock)", () => {
+    expect(searchSettings("sons").some((h) => h.id === "sales")).toBe(true);
+    expect(searchSettings("fournisseur").some((h) => h.id === "customers")).toBe(true);
+    expect(searchSettings("stock").some((h) => h.id === "products")).toBe(true);
+  });
+
   it("retrouve une rubrique par son libellé", () => {
     const hits = searchSettings("donnees");
     expect(hits.some((h) => h.kind === "section" && h.id === "data")).toBe(true);

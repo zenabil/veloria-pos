@@ -31,9 +31,6 @@ import {
   CustomersSection,
   ProductsSection,
   SalesSection,
-  SoundSection,
-  StockSection,
-  SuppliersSection,
 } from "./SettingsSectionsA.tsx";
 import {
   AboutSection,
@@ -332,14 +329,8 @@ export function SettingsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
                 <CardAnchor id="sales">
                   <SalesSection notify={notify} />
                 </CardAnchor>
-                <CardAnchor id="sound">
-                  <SoundSection notify={notify} />
-                </CardAnchor>
                 <CardAnchor id="customers">
                   <CustomersSection notify={notify} goSales={() => setSection("commerce")} />
-                </CardAnchor>
-                <CardAnchor id="suppliers">
-                  <SuppliersSection notify={notify} />
                 </CardAnchor>
                 <CardAnchor id="announcement">
                   <AnnouncementSection notify={notify} />
@@ -347,14 +338,9 @@ export function SettingsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
               </>
             ) : null}
             {section === "catalogue" ? (
-              <>
-                <CardAnchor id="products">
-                  <ProductsSection notify={notify} />
-                </CardAnchor>
-                <CardAnchor id="stock">
-                  <StockSection notify={notify} />
-                </CardAnchor>
-              </>
+              <CardAnchor id="products">
+                <ProductsSection notify={notify} />
+              </CardAnchor>
             ) : null}
             {section === "documents" ? (
               <>

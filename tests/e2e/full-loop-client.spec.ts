@@ -60,7 +60,7 @@ test("boucle locale : client + vente à crédit + miroir poussé", async () => {
   await gotoModule(page, "Paramètres");
   await page.getByRole("button", { name: /Données/ }).click();
   await expect(page.getByRole("heading", { name: "Miroir Android" })).toBeVisible();
-  const preMirror = page.getByRole("heading", { name: "Miroir Android" }).locator("xpath=../..");
+  const preMirror = page.locator('[data-settings-card="sync"]');
   await preMirror.getByLabel("Adresse du serveur (URL)", { exact: true }).fill(RELAY);
   await preMirror.getByLabel("Clé anon Supabase", { exact: true }).fill(E2E_ANON_KEY);
   await preMirror.getByRole("button", { name: "Enregistrer" }).click();
@@ -142,7 +142,7 @@ test("boucle locale : client + vente à crédit + miroir poussé", async () => {
   await gotoModule(page, "Paramètres");
   await page.getByRole("button", { name: /Données/ }).click();
   await expect(page.getByRole("heading", { name: "Miroir Android" })).toBeVisible();
-  const mirror = page.getByRole("heading", { name: "Miroir Android" }).locator("xpath=../..");
+  const mirror = page.locator('[data-settings-card="sync"]');
   await mirror.getByLabel("Adresse du serveur (URL)", { exact: true }).fill(RELAY);
   await mirror
     .getByLabel("Clé service Supabase", { exact: true })

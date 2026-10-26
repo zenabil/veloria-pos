@@ -1,5 +1,14 @@
 // Veloria PoS — Paramètres : sections Documents → Système (unifiées).
 import { useEffect, useState } from "react";
+import {
+  DatabaseBackup,
+  HandCoins,
+  HardDrive,
+  Info,
+  ReceiptText,
+  ShieldCheck,
+  Smartphone,
+} from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { useLoadSeq } from "@shared/ui/use-load-seq.ts";
 import { strictOrNeg } from "@shared/money/parse.ts";
@@ -18,7 +27,7 @@ import { useCompany } from "@shared/company/use-company.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { saveAppSettings, useAppSettings } from "@shared/settings/use-app-settings.ts";
 import { confirmDeletesEnabled, setConfirmDeletesEnabled } from "@shared/ui/confirm.ts";
-import { SaveBar, Section, SwitchRow, useBusyFlag } from "./bits.tsx";
+import { SaveBar, Section, SettingsGroup, SwitchRow, useBusyFlag } from "./bits.tsx";
 
 import { InfoRow, type Notify } from "@shared/ui/primitives.tsx";
 import { useDensity, useTheme } from "@shared/ui/theme-density.ts";
@@ -127,74 +136,83 @@ export function InvoiceSection({ notify }: { notify: Notify }): React.JSX.Elemen
   }
 
   return (
-    <Section title="Facturation" hint="Contenu des factures et tickets (aperçu immédiat).">
-      <SwitchRow
-        label="Logo sur les documents"
-        hint="Depuis la fiche entreprise."
-        checked={form.showLogo}
-        onChange={(v) => setForm((f) => ({ ...f, showLogo: v }))}
-        ariaLabel="Logo sur les documents"
-      />
-      <SwitchRow
-        label="Afficher le solde client"
-        hint="Solde actuel sur ticket/facture."
-        checked={form.showCustomerBalance}
-        onChange={(v) => setForm((f) => ({ ...f, showCustomerBalance: v }))}
-        ariaLabel="Afficher le solde client"
-      />
-      <SwitchRow
-        label="Afficher le solde précédent"
-        hint="Ticket 80mm uniquement."
-        checked={form.showPreviousBalance}
-        onChange={(v) => setForm((f) => ({ ...f, showPreviousBalance: v }))}
-        ariaLabel="Afficher le solde précédent"
-      />
-      <Field
-        label="Taux TVA % (0 = sans TVA)"
-        hint="Appliqué aux documents. 0 = montants hors TVA."
-      >
-        <TextInput
-          type="number"
-          min={0}
-          max={100}
-          step="0.5"
-          value={String(form.vatRate)}
-          onChange={(e) => {
-            const v = Number(e.target.value);
-            setForm((f) => ({ ...f, vatRate: v, tvaRatePercent: v }));
-          }}
-          aria-label="Taux TVA en pourcent"
+    <Section
+      icon={<ReceiptText size={16} aria-hidden="true" />}
+      title="Facturation"
+      hint="Contenu des factures et tickets."
+      badge={form.vatRate > 0 ? `TVA ${form.vatRate} %` : "Hors TVA"}
+    >
+      <SettingsGroup title="Affichage">
+        <SwitchRow
+          label="Logo sur les documents"
+          hint="Depuis la fiche entreprise."
+          checked={form.showLogo}
+          onChange={(v) => setForm((f) => ({ ...f, showLogo: v }))}
+          ariaLabel="Logo sur les documents"
         />
-      </Field>
-      <Field label="Vendeur par défaut" hint="100 caractères maximum.">
-        <TextInput
-          value={form.defaultSeller}
-          maxLength={100}
-          onChange={(e) => {
-            const v = e.target.value.slice(0, 100);
-            setForm((f) => ({ ...f, defaultSeller: v, sellerDefault: v }));
-          }}
-          placeholder="Nom du vendeur"
-          aria-label="Vendeur par défaut"
+        <SwitchRow
+          label="Afficher le solde client"
+          hint="Solde actuel sur ticket/facture."
+          checked={form.showCustomerBalance}
+          onChange={(v) => setForm((f) => ({ ...f, showCustomerBalance: v }))}
+          ariaLabel="Afficher le solde client"
         />
-      </Field>
-      <Field label="Pied de page (A4)" hint="Vide = mentions légales seules.">
-        <TextInput
-          value={form.footerText}
-          onChange={(e) => setForm((f) => ({ ...f, footerText: e.target.value }))}
-          aria-label="Pied de page"
+        <SwitchRow
+          label="Afficher le solde précédent"
+          hint="Ticket 80mm uniquement."
+          checked={form.showPreviousBalance}
+          onChange={(v) => setForm((f) => ({ ...f, showPreviousBalance: v }))}
+          ariaLabel="Afficher le solde précédent"
         />
-      </Field>
-      <Field label="Message de remerciement" hint="Vide = texte par défaut.">
-        <TextInput
-          value={form.thankYouMessage}
-          onChange={(e) => setForm((f) => ({ ...f, thankYouMessage: e.target.value }))}
-          aria-label="Message de remerciement"
-        />
-      </Field>
-      <p className="text-xs text-slate-500">
-        Montant en lettres et signatures toujours imprimés. Montants à 2 décimales.
-      </p>
+      </SettingsGroup>
+
+      <SettingsGroup title="Contenu & textes" collapsible>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Taux TVA % (0 = sans TVA)" hint="0 = montants hors TVA.">
+            <TextInput
+              type="number"
+              min={0}
+              max={100}
+              step="0.5"
+              value={String(form.vatRate)}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                setForm((f) => ({ ...f, vatRate: v, tvaRatePercent: v }));
+              }}
+              aria-label="Taux TVA en pourcent"
+            />
+          </Field>
+          <Field label="Vendeur par défaut" hint="100 caractères maximum.">
+            <TextInput
+              value={form.defaultSeller}
+              maxLength={100}
+              onChange={(e) => {
+                const v = e.target.value.slice(0, 100);
+                setForm((f) => ({ ...f, defaultSeller: v, sellerDefault: v }));
+              }}
+              placeholder="Nom du vendeur"
+              aria-label="Vendeur par défaut"
+            />
+          </Field>
+        </div>
+        <Field label="Pied de page (A4)" hint="Vide = mentions légales seules.">
+          <TextInput
+            value={form.footerText}
+            onChange={(e) => setForm((f) => ({ ...f, footerText: e.target.value }))}
+            aria-label="Pied de page"
+          />
+        </Field>
+        <Field label="Message de remerciement" hint="Vide = texte par défaut.">
+          <TextInput
+            value={form.thankYouMessage}
+            onChange={(e) => setForm((f) => ({ ...f, thankYouMessage: e.target.value }))}
+            aria-label="Message de remerciement"
+          />
+        </Field>
+        <p className="text-xs text-slate-500">
+          Montant en lettres et signatures toujours imprimés. Montants à 2 décimales.
+        </p>
+      </SettingsGroup>
       <SaveBar busy={busy} onSave={save} label="Enregistrer la facturation" />
     </Section>
   );
@@ -495,111 +513,116 @@ export function BackupSection({ notify }: { notify: Notify }): React.JSX.Element
   }
 
   return (
-    <Section title="Sauvegarde" hint="Copies VACUUM INTO (.vposdb), rotation paramétrable.">
-      <dl className="space-y-2.5">
+    <Section
+      icon={<DatabaseBackup size={16} aria-hidden="true" />}
+      title="Sauvegarde"
+      hint="Copies VACUUM INTO (.vposdb), rotation paramétrable."
+      badge={status ? `${status.count} copie${status.count > 1 ? "s" : ""}` : "Lecture…"}
+    >
+      <dl className="grid gap-2 rounded-lg border border-white/10 bg-black/20 p-3 sm:grid-cols-3">
         <InfoRow
           label="Dernière"
           value={status?.lastAt ? status.lastAt.slice(0, 16).replace("T", " ") : "—"}
         />
         <InfoRow label="Copies" value={String(status?.count ?? 0)} />
-        <InfoRow label="Dossier" value="Données de l'application (fixe)" />
+        <InfoRow label="Dossier" value="Données de l'application" />
       </dl>
       {staleAlert ? (
         <p
           role="alert"
-          className="rounded-xl border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs font-semibold text-amber-200"
+          className="rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs font-semibold text-amber-200"
         >
           {staleAlert}
         </p>
       ) : null}
-      <SwitchRow
-        label="Sauvegarde automatique"
-        hint="Au démarrage si la fréquence est dépassée."
-        checked={status?.auto.enabled ?? false}
-        onChange={toggleAuto}
-        ariaLabel="Sauvegarde automatique"
-        disabled={status === null}
-      />
-      <Field label="Fréquence" hint="Durée modifiable : sauvegarde auto au démarrage si dépassée.">
-        <Select
-          value={frequency}
-          onChange={(e) => changeFrequency(e.target.value as BackupFrequency)}
-          aria-label="Fréquence de sauvegarde"
-        >
-          {BACKUP_FREQUENCIES.map((f) => (
-            <option key={f.value} value={f.value}>
-              {f.label}
-            </option>
-          ))}
-        </Select>
-      </Field>
-      {frequency === "custom" ? (
-        <Field
-          label="Fréquence personnalisée (minutes, 5 – 10080)"
-          hint="Ex. 90 = toutes les 90 minutes."
-        >
-          <TextInput
-            value={customMinutes}
-            onChange={(e) => changeCustomMinutes(e.target.value)}
-            inputMode="numeric"
-            placeholder="60"
-            aria-label="Fréquence personnalisée en minutes"
-          />
-        </Field>
-      ) : null}
-      <Field
-        label="Rétention (copies conservées, 1 – 100)"
-        hint="Les plus anciennes sont supprimées au-delà."
-      >
-        <TextInput
-          value={retention}
-          onChange={(e) => changeRetention(e.target.value)}
-          inputMode="numeric"
-          placeholder="30"
-          aria-label="Rétention des sauvegardes"
+
+      <SettingsGroup title="Automatique" hint="Appliqué immédiatement">
+        <SwitchRow
+          label="Sauvegarde automatique"
+          hint="Au démarrage si la fréquence est dépassée."
+          checked={status?.auto.enabled ?? false}
+          onChange={toggleAuto}
+          ariaLabel="Sauvegarde automatique"
+          disabled={status === null}
         />
-      </Field>
-      <div className="flex flex-wrap gap-2">
-        <SaveBar busy={busy} onSave={backupNow} label="Sauvegarder maintenant" />
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={openFolder}
-          className="rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-white/5"
-        >
-          Ouvrir le dossier
-        </button>
-        <button
-          type="button"
-          onClick={exportLast}
-          className="rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-white/5"
-        >
-          Exporter la dernière sauvegarde
-        </button>
-      </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Fréquence" hint="Sauvegarde auto au démarrage si dépassée.">
+            <Select
+              value={frequency}
+              onChange={(e) => changeFrequency(e.target.value as BackupFrequency)}
+              aria-label="Fréquence de sauvegarde"
+            >
+              {BACKUP_FREQUENCIES.map((f) => (
+                <option key={f.value} value={f.value}>
+                  {f.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Rétention (1 – 100)" hint="Les plus anciennes sont supprimées au-delà.">
+            <TextInput
+              value={retention}
+              onChange={(e) => changeRetention(e.target.value)}
+              inputMode="numeric"
+              placeholder="30"
+              aria-label="Rétention des sauvegardes"
+            />
+          </Field>
+        </div>
+        {frequency === "custom" ? (
+          <Field
+            label="Fréquence personnalisée (minutes, 5 – 10080)"
+            hint="Ex. 90 = toutes les 90 minutes."
+          >
+            <TextInput
+              value={customMinutes}
+              onChange={(e) => changeCustomMinutes(e.target.value)}
+              inputMode="numeric"
+              placeholder="60"
+              aria-label="Fréquence personnalisée en minutes"
+            />
+          </Field>
+        ) : null}
+      </SettingsGroup>
+
+      <SettingsGroup title="Actions">
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" onClick={backupNow} disabled={busy}>
+            Sauvegarder maintenant
+          </Button>
+          <Button type="button" variant="secondary" onClick={openFolder} disabled={busy}>
+            Ouvrir le dossier
+          </Button>
+          <Button type="button" variant="secondary" onClick={exportLast} disabled={busy}>
+            Exporter la dernière sauvegarde
+          </Button>
+        </div>
+      </SettingsGroup>
+
       {list.length > 0 ? (
-        <ul className="max-h-44 divide-y divide-white/[0.06] overflow-auto rounded-xl border border-white/10 text-sm">
-          {list.map((b) => (
-            <li key={b.file} className="flex items-center justify-between gap-2 px-3 py-2">
-              <span className="min-w-0">
-                <span className="block truncate font-mono text-xs">
-                  {b.file.split(/[/\\]/).pop()}
+        <SettingsGroup title="Historique" hint={`${list.length} copie(s)`}>
+          <ul className="max-h-44 divide-y divide-white/[0.06] overflow-auto rounded-lg border border-white/10 text-sm">
+            {list.map((b) => (
+              <li key={b.file} className="flex items-center justify-between gap-2 px-3 py-2">
+                <span className="min-w-0">
+                  <span className="block truncate font-mono text-xs">
+                    {b.file.split(/[/\\]/).pop()}
+                  </span>
+                  <span className="text-xs tabular-nums text-slate-500">
+                    {b.createdAt.slice(0, 16).replace("T", " ")} · {(b.size / 1024).toFixed(0)} Ko
+                  </span>
                 </span>
-                <span className="text-xs tabular-nums text-slate-500">
-                  {b.createdAt.slice(0, 16).replace("T", " ")} · {(b.size / 1024).toFixed(0)} Ko
-                </span>
-              </span>
-              <button
-                type="button"
-                onClick={() => restore(b.file)}
-                className="shrink-0 rounded-lg px-2.5 py-1 text-xs font-bold text-amber-200 hover:bg-amber-400/10"
-              >
-                Restaurer
-              </button>
-            </li>
-          ))}
-        </ul>
+                <button
+                  type="button"
+                  onClick={() => restore(b.file)}
+                  className="shrink-0 rounded-lg px-2.5 py-1 text-xs font-bold text-amber-200 hover:bg-amber-400/10"
+                >
+                  Restaurer
+                </button>
+              </li>
+            ))}
+          </ul>
+        </SettingsGroup>
       ) : null}
     </Section>
   );
@@ -707,10 +730,14 @@ export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Ele
 
   return (
     <Section
+      icon={<Smartphone size={16} aria-hidden="true" />}
       title="Miroir Android"
       hint="Application clients (lecture seule) : file locale → Supabase."
+      badge={enabled ? "Activé" : "Désactivé"}
+      collapsible
+      summary="Connexion, automatisation, clés Supabase et état de la file."
     >
-      <dl className="space-y-2.5">
+      <dl className="grid gap-2 rounded-lg border border-white/10 bg-black/20 p-3 sm:grid-cols-2">
         <InfoRow
           label="Dernière poussée"
           value={view?.lastPushAt ? view.lastPushAt.slice(0, 16).replace("T", " ") : "—"}
@@ -728,63 +755,74 @@ export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Ele
           <InfoRow label="Dernière erreur" value={frError(view.lastError, "Poussée impossible.")} />
         ) : null}
       </dl>
-      <SwitchRow
-        label="Synchronisation activée"
-        hint="Poussée auto toutes les N minutes + après chaque vente/paiement (file)."
-        checked={enabled}
-        onChange={setEnabled}
-        ariaLabel="Synchronisation miroir"
-      />
-      <Field label="Adresse du serveur (URL)" hint="Ex. https://xxx.supabase.co">
-        <TextInput
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          inputMode="url"
-          placeholder="https://xxx.supabase.co"
-          aria-label="Adresse du serveur (URL)"
+
+      <SettingsGroup title="Connexion">
+        <Field label="Adresse du serveur (URL)" hint="Ex. https://xxx.supabase.co">
+          <TextInput
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            inputMode="url"
+            placeholder="https://xxx.supabase.co"
+            aria-label="Adresse du serveur (URL)"
+          />
+        </Field>
+        <Field
+          label="Clé de service (rôle service)"
+          hint="Collée une fois, jamais réaffichée. Vide = conserver."
+        >
+          <TextInput
+            value={secret}
+            onChange={(e) => setSecret(e.target.value)}
+            placeholder={view?.hasKey ? "•••••••• (conserver)" : "Collez la clé…"}
+            aria-label="Clé service Supabase"
+          />
+        </Field>
+        <Field
+          label="Clé anon (publique)"
+          hint="Projet Supabase → Settings → API → anon public. Embarquée dans le QR V2. Vide = conserver."
+        >
+          <TextInput
+            value={anon}
+            onChange={(e) => setAnon(e.target.value)}
+            placeholder={view?.hasAnonKey ? "•••••••• (conserver)" : "Collez la clé anon…"}
+            aria-label="Clé anon Supabase"
+          />
+        </Field>
+      </SettingsGroup>
+
+      <SettingsGroup title="Automatisation">
+        <SwitchRow
+          label="Synchronisation activée"
+          hint="Poussée auto toutes les N minutes + après chaque vente/paiement (file)."
+          checked={enabled}
+          onChange={setEnabled}
+          ariaLabel="Synchronisation miroir"
         />
-      </Field>
-      <Field
-        label="Clé de service (rôle service)"
-        hint="Collée une fois, jamais réaffichée. Vide = conserver."
-      >
-        <TextInput
-          value={secret}
-          onChange={(e) => setSecret(e.target.value)}
-          placeholder={view?.hasKey ? "•••••••• (conserver)" : "Collez la clé…"}
-          aria-label="Clé service Supabase"
-        />
-      </Field>
-      <Field
-        label="Clé anon (publique)"
-        hint="Projet Supabase → Settings → API → anon public. Embarquée dans le QR V2 (un seul APK pour tous les magasins). Vide = conserver."
-      >
-        <TextInput
-          value={anon}
-          onChange={(e) => setAnon(e.target.value)}
-          placeholder={view?.hasAnonKey ? "•••••••• (conserver)" : "Collez la clé anon…"}
-          aria-label="Clé anon Supabase"
-        />
-      </Field>
-      <Field
-        label="Cadence auto (minutes, 5 – 1440)"
-        hint="15 = toutes les 15 minutes (quota gratuit)."
-      >
-        <TextInput
-          value={interval}
-          onChange={(e) => setInterval(e.target.value)}
-          inputMode="numeric"
-          placeholder="15"
-          aria-label="Cadence de poussée"
-        />
-      </Field>
-      <div className="grid grid-cols-2 gap-2">
-        <SaveBar busy={busy} onSave={save} label="Enregistrer" />
-        <SaveBar busy={busy} onSave={pushNow} label="Pousser maintenant" />
-      </div>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="min-w-[180px] flex-1">
+            <Field
+              label="Cadence auto (minutes, 5 – 1440)"
+              hint="15 = toutes les 15 minutes (quota gratuit)."
+            >
+              <TextInput
+                value={interval}
+                onChange={(e) => setInterval(e.target.value)}
+                inputMode="numeric"
+                placeholder="15"
+                aria-label="Cadence de poussée"
+              />
+            </Field>
+          </div>
+          <Button type="button" variant="secondary" onClick={pushNow} disabled={busy}>
+            Pousser maintenant
+          </Button>
+        </div>
+      </SettingsGroup>
+
       <p className="text-xs text-slate-500">
         SQLite reste le master. Le miroir est jetable et reconstructible (file rejouée).
       </p>
+      <SaveBar busy={busy} onSave={save} label="Enregistrer" />
     </Section>
   );
 }
@@ -911,8 +949,13 @@ export function DatabaseSection({ notify }: { notify: Notify }): React.JSX.Eleme
   }
 
   return (
-    <Section title="Base de données" hint="SQLite locale, source unique de vérité.">
-      <dl className="space-y-2.5">
+    <Section
+      icon={<HardDrive size={16} aria-hidden="true" />}
+      title="Base de données"
+      hint="SQLite locale, source unique de vérité."
+      badge={health ? `Schéma v${health.schemaVersion}` : "Lecture…"}
+    >
+      <dl className="grid gap-2 rounded-lg border border-white/10 bg-black/20 p-3 sm:grid-cols-2">
         <InfoRow label="Emplacement" value={location?.path ?? "—"} />
         <InfoRow label="Taille" value={size == null ? "—" : formatBytes(size)} />
         <InfoRow label="Moteur" value={sqliteVersion ? `SQLite ${sqliteVersion} · WAL` : "—"} />
@@ -928,27 +971,45 @@ export function DatabaseSection({ notify }: { notify: Notify }): React.JSX.Eleme
           }
         />
       </dl>
-      <div className="grid grid-cols-2 gap-2">
-        <SaveBar busy={busy} onSave={check} label="Vérifier" />
-        <SaveBar busy={busy} onSave={optimize} label="Optimiser" />
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <SaveBar busy={busy} onSave={relocate} label="Déplacer…" />
-      </div>
-      <p className="text-xs text-slate-500">
-        Optimiser = VACUUM + ANALYZE (compacte, ne supprime rien). Déplacer = copie vérifiée puis
-        bascule.
-      </p>
-      <div className="rounded-xl border border-red-500/40 bg-[#1c1113] p-4">
-        <div className="text-sm font-extrabold text-red-200">Zone dangereuse</div>
-        <p className="mt-1 text-xs text-slate-400">
-          Réinitialiser efface TOUTES les données courantes (base vierge). Les sauvegardes *.vposdb
-          sont conservées.
-        </p>
-        <div className="mt-2">
-          <SaveBar busy={busy} onSave={() => setResetOpen(true)} label="Réinitialiser…" danger />
+
+      <SettingsGroup title="Maintenance" hint="Sans suppression de données">
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="secondary" onClick={check} disabled={busy}>
+            Vérifier
+          </Button>
+          <Button type="button" variant="secondary" onClick={optimize} disabled={busy}>
+            Optimiser
+          </Button>
+          <Button type="button" variant="secondary" onClick={relocate} disabled={busy}>
+            Déplacer…
+          </Button>
         </div>
-      </div>
+        <p className="text-xs text-slate-500">
+          Optimiser = VACUUM + ANALYZE (compacte, ne supprime rien). Déplacer = copie vérifiée puis
+          bascule.
+        </p>
+      </SettingsGroup>
+
+      <SettingsGroup title="Zone dangereuse" hint="Action irréversible">
+        <div className="rounded-lg border border-red-500/40 bg-[#1c1113] p-4">
+          <div className="text-sm font-extrabold text-red-200">Réinitialisation d'usine</div>
+          <p className="mt-1 text-xs text-slate-400">
+            Efface TOUTES les données courantes (base vierge). Les sauvegardes *.vposdb sont
+            conservées.
+          </p>
+          <div className="mt-3">
+            <Button
+              type="button"
+              onClick={() => setResetOpen(true)}
+              disabled={busy}
+              className="border-red-500/50 bg-red-500/10 font-bold text-red-200 hover:bg-red-500/20"
+            >
+              Réinitialiser…
+            </Button>
+          </div>
+        </div>
+      </SettingsGroup>
+
       {resetOpen ? (
         <Modal
           label="Réinitialisation d'usine"
@@ -1027,34 +1088,44 @@ export function SecuritySection({ notify }: { notify: Notify }): React.JSX.Eleme
 
   return (
     <Section
+      icon={<ShieldCheck size={16} aria-hidden="true" />}
       title="Sécurité et affichage"
-      hint="Garde-fous destructifs, préférences du poste et état réel."
+      hint="Garde-fous destructifs et préférences du poste."
+      badge={confirm ? "Confirmations" : "Mode rapide"}
     >
-      <SwitchRow
-        label="Confirmer avant suppression"
-        hint="Annulations et suppressions définitives."
-        checked={confirm}
-        onChange={toggle}
-        ariaLabel="Confirmer avant suppression"
-      />
-      <SwitchRow
-        label="Mode clair"
-        hint="Sombre par défaut (repos visuel en caisse)."
-        checked={theme === "light"}
-        onChange={() => toggleTheme()}
-        ariaLabel="Basculer en mode clair ou sombre"
-      />
-      <SwitchRow
-        label="Affichage compact"
-        hint="Resserre les tableaux (confortable par défaut)."
-        checked={density === "compact"}
-        onChange={() => toggleDensity()}
-        ariaLabel="Basculer en affichage compact ou confortable"
-      />
-      <dl className="space-y-2.5">
-        <InfoRow label="Intégrité base" value={integrity ?? "—"} />
-        <InfoRow label="Données" value="SQLite locale + sauvegardes .vposdb" />
-      </dl>
+      <SettingsGroup title="Garde-fous">
+        <SwitchRow
+          label="Confirmer avant suppression"
+          hint="Annulations et suppressions définitives."
+          checked={confirm}
+          onChange={toggle}
+          ariaLabel="Confirmer avant suppression"
+        />
+      </SettingsGroup>
+
+      <SettingsGroup title="Affichage">
+        <SwitchRow
+          label="Mode clair"
+          hint="Sombre par défaut (repos visuel en caisse)."
+          checked={theme === "light"}
+          onChange={() => toggleTheme()}
+          ariaLabel="Basculer en mode clair ou sombre"
+        />
+        <SwitchRow
+          label="Affichage compact"
+          hint="Resserre les tableaux (confortable par défaut)."
+          checked={density === "compact"}
+          onChange={() => toggleDensity()}
+          ariaLabel="Basculer en affichage compact ou confortable"
+        />
+      </SettingsGroup>
+
+      <SettingsGroup title="État du poste">
+        <dl className="grid gap-2 rounded-lg border border-white/10 bg-black/20 p-3 sm:grid-cols-2">
+          <InfoRow label="Intégrité base" value={integrity ?? "—"} />
+          <InfoRow label="Données" value="SQLite locale + sauvegardes .vposdb" />
+        </dl>
+      </SettingsGroup>
     </Section>
   );
 }
@@ -1119,48 +1190,55 @@ export function ZakatSettingsSection({ notify }: { notify: Notify }): React.JSX.
   }
 
   return (
-    <Section title="Zakat" hint="Paramètres du calcul (l'écran Zakat garde calcul + historique).">
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Taux (%) *">
-          <TextInput
-            value={rate}
-            onChange={(e) => setRate(e.target.value)}
-            inputMode="decimal"
-            placeholder="2,5"
-            aria-label="Taux zakat"
-          />
-        </Field>
-        <Field label="Nisab (DZD)">
-          <TextInput
-            value={nisab}
-            onChange={(e) => setNisab(e.target.value)}
-            inputMode="decimal"
-            placeholder="0,00"
-            aria-label="Nisab"
-          />
-        </Field>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Date du Hawl" hint="Début de l'année lunaire.">
-          <TextInput
-            type="date"
-            value={hawl}
-            onChange={(e) => setHawl(e.target.value)}
-            aria-label="Date du Hawl"
-          />
-        </Field>
-        <Field label="Méthode du nisab">
-          <Select
-            value={method}
-            onChange={(e) => setMethod(e.target.value)}
-            aria-label="Méthode du nisab"
-          >
-            <option value="gold">Or</option>
-            <option value="silver">Argent</option>
-            <option value="other">Autre</option>
-          </Select>
-        </Field>
-      </div>
+    <Section
+      icon={<HandCoins size={16} aria-hidden="true" />}
+      title="Zakat"
+      hint="Paramètres du calcul (l'écran Zakat garde calcul + historique)."
+      badge={`${rate} %`}
+    >
+      <SettingsGroup title="Paramètres du calcul">
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Taux (%) *">
+            <TextInput
+              value={rate}
+              onChange={(e) => setRate(e.target.value)}
+              inputMode="decimal"
+              placeholder="2,5"
+              aria-label="Taux zakat"
+            />
+          </Field>
+          <Field label="Nisab (DZD)">
+            <TextInput
+              value={nisab}
+              onChange={(e) => setNisab(e.target.value)}
+              inputMode="decimal"
+              placeholder="0,00"
+              aria-label="Nisab"
+            />
+          </Field>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Date du Hawl" hint="Début de l'année lunaire.">
+            <TextInput
+              type="date"
+              value={hawl}
+              onChange={(e) => setHawl(e.target.value)}
+              aria-label="Date du Hawl"
+            />
+          </Field>
+          <Field label="Méthode du nisab">
+            <Select
+              value={method}
+              onChange={(e) => setMethod(e.target.value)}
+              aria-label="Méthode du nisab"
+            >
+              <option value="gold">Or</option>
+              <option value="silver">Argent</option>
+              <option value="other">Autre</option>
+            </Select>
+          </Field>
+        </div>
+      </SettingsGroup>
       <SaveBar busy={busy} onSave={save} label="Enregistrer la zakat" />
     </Section>
   );
@@ -1211,54 +1289,65 @@ export function AboutSection({ notify }: { notify: Notify }): React.JSX.Element 
   }
 
   return (
-    <Section title="À propos" hint="Produit, base, système et développeur.">
-      <dl className="space-y-2.5">
-        <InfoRow label="Application" value={`Veloria POS ${String(diag?.["version"] ?? "—")}`} />
-        <InfoRow
-          label="Base"
-          value={diag ? `v${String(diag["schemaVersion"])} · ${String(diag["integrity"])}` : "—"}
-        />
-        <InfoRow
-          label="Taille base"
-          value={
-            typeof diag?.["dbSize"] === "number" ? `${(diag["dbSize"] / 1024).toFixed(1)} Ko` : "—"
-          }
-        />
-        <InfoRow label="Electron" value={String(diag?.["electron"] ?? "—")} />
-        <InfoRow label="Système" value={String(diag?.["os"] ?? "—")} />
-        <InfoRow label="Licence" value={licenseInfoLabel(diag?.["license"])} />
-      </dl>
-      <dl className="space-y-2.5 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] p-4">
-        <InfoRow label="Produit" value="Veloria POS V 1.0.0" />
-        <InfoRow
-          label="Présentation"
-          value="Caisse enregistreuse pour commerces de détail : ventes, stock, clients, fournisseurs, dettes et rapports — simple, rapide et 100 % hors-ligne."
-        />
-        <InfoRow
-          label="Base de données"
-          value="SQLite — fichier local unique, sans serveur ni internet"
-        />
-        <InfoRow label="Développeur" value="zenagui bilal" />
-        <InfoRow
-          label="Téléphone"
-          // A-28 : plus de numéro FIGÉ dans l'application — c'est la fiche
-          // entreprise (réglable dans « Entreprise ») qui fait foi. Un numéro
-          // codé en dur ne peut pas être corrigé par le commerçant.
-          value={company.phone.trim() === "" ? "Non renseigné" : company.phone}
-        />
-        <InfoRow
-          label="E-mail"
-          value={company.email.trim() === "" ? "Non renseigné" : company.email}
-        />
-        <InfoRow
-          label="Support"
-          value="Sauvegarde .vposdb + journaux (ci-dessous) avant tout signalement"
-        />
-      </dl>
-      <div className="grid grid-cols-2 gap-2">
-        <SaveBar busy={busy} onSave={openData} label="Dossier données" />
-        <SaveBar busy={busy} onSave={openLogs} label="Journaux" />
-      </div>
+    <Section
+      icon={<Info size={16} aria-hidden="true" />}
+      title="À propos"
+      hint="Produit, base, système et développeur."
+      badge={`v${String(diag?.["version"] ?? "—")}`}
+      collapsible
+      summary="Versions, licence, coordonnées et dossiers de données."
+    >
+      <SettingsGroup title="Système">
+        <dl className="grid gap-2 rounded-lg border border-white/10 bg-black/20 p-3 sm:grid-cols-2">
+          <InfoRow label="Application" value={`Veloria POS ${String(diag?.["version"] ?? "—")}`} />
+          <InfoRow
+            label="Base"
+            value={diag ? `v${String(diag["schemaVersion"])} · ${String(diag["integrity"])}` : "—"}
+          />
+          <InfoRow
+            label="Taille base"
+            value={
+              typeof diag?.["dbSize"] === "number"
+                ? `${(diag["dbSize"] / 1024).toFixed(1)} Ko`
+                : "—"
+            }
+          />
+          <InfoRow label="Electron" value={String(diag?.["electron"] ?? "—")} />
+          <InfoRow label="Système" value={String(diag?.["os"] ?? "—")} />
+          <InfoRow label="Licence" value={licenseInfoLabel(diag?.["license"])} />
+        </dl>
+      </SettingsGroup>
+
+      <SettingsGroup title="Contact & support">
+        <dl className="grid gap-2 rounded-lg border border-amber-400/25 bg-amber-400/[0.06] p-3 sm:grid-cols-2">
+          <InfoRow label="Produit" value="Veloria POS V 1.0.0" />
+          <InfoRow label="Développeur" value="zenagui bilal" />
+          <InfoRow
+            label="Téléphone"
+            value={company.phone.trim() === "" ? "Non renseigné" : company.phone}
+          />
+          <InfoRow
+            label="E-mail"
+            value={company.email.trim() === "" ? "Non renseigné" : company.email}
+          />
+        </dl>
+        <p className="text-xs text-slate-500">
+          Caisse enregistreuse pour commerces de détail : ventes, stock, clients, fournisseurs,
+          dettes et rapports — simple, rapide et 100 % hors-ligne. Sauvegarde .vposdb + journaux
+          avant tout signalement.
+        </p>
+      </SettingsGroup>
+
+      <SettingsGroup title="Dossiers">
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="secondary" onClick={openData} disabled={busy}>
+            Dossier données
+          </Button>
+          <Button type="button" variant="secondary" onClick={openLogs} disabled={busy}>
+            Journaux
+          </Button>
+        </div>
+      </SettingsGroup>
     </Section>
   );
 }

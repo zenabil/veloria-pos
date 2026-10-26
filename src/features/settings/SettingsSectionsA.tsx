@@ -1,22 +1,36 @@
 // Veloria PoS — Paramètres : sections Général → Fournisseurs.
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, FileText } from "lucide-react";
+import {
+  Boxes,
+  Building2,
+  ChevronDown,
+  CreditCard,
+  FileText,
+  Megaphone,
+  Package,
+  ShoppingCart,
+  Truck,
+  UsersRound,
+  Volume2,
+  Wallet,
+} from "lucide-react";
+
 import { api } from "@shared/types/ipc-client.ts";
 import { strictOrNeg } from "@shared/money/parse.ts";
 import { minorToInput } from "@domain/money/money.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { assertValidAnnouncement } from "@domain/customer/client-access.ts";
-import { Field, Select, TextArea, TextInput } from "@shared/ui/primitives.tsx";
+import { Button, Field, Select, TextArea, TextInput } from "@shared/ui/primitives.tsx";
 import { saveAppSettings, useAppSettings } from "@shared/settings/use-app-settings.ts";
-import { SaveBar, Section, SettingsGroup, SwitchRow, useBusyFlag } from "./bits.tsx";
+import { SaveBar, Section, Segmented, SettingsGroup, SwitchRow, useBusyFlag } from "./bits.tsx";
 import {
   clampVolume,
   getSoundVolume,
   isSoundEnabled,
   persistSoundEnabled,
   playSound,
-  setSoundEnabled,
-  setSoundVolume,
+  setSoundEnabled as applySoundEnabled,
+  setSoundVolume as applySoundVolume,
 } from "@shared/sound/sound.ts";
 import type { Notify } from "@shared/ui/primitives.tsx";
 import { frError } from "@shared/errors/fr-map.ts";
@@ -146,7 +160,12 @@ export function CompanySection({ notify }: { notify: Notify }): React.JSX.Elemen
   }
 
   return (
-    <Section title="Entreprise" hint="Reprise sur les factures, tickets et rapports.">
+    <Section
+      icon={<Building2 size={16} aria-hidden="true" />}
+      title="Entreprise"
+      hint="Reprise sur les factures, tickets et rapports."
+      badge={form.name.trim() === "" ? "À compléter" : "Fiche prête"}
+    >
       <SettingsGroup title="Identité" hint="Raison sociale">
         <div className="grid grid-cols-2 gap-3">
           <Field label="Nom (raison sociale) *">
@@ -194,20 +213,15 @@ export function CompanySection({ notify }: { notify: Notify }): React.JSX.Elemen
         </div>
       </SettingsGroup>
 
-      <div className="rounded-xl border border-white/[0.08] bg-black/20">
+      <div className="rounded-lg border border-white/10 bg-black/20">
         <button
           type="button"
           aria-expanded={fiscalOpen}
           aria-controls="company-fiscal"
           onClick={() => setFiscalOpen((o) => !o)}
-          className="flex min-h-[48px] w-full items-center gap-2 rounded-xl px-3.5 py-2.5 text-left transition-colors hover:bg-white/[0.04]"
+          className="flex min-h-[46px] w-full items-center gap-2 rounded-lg px-3.5 py-2.5 text-left transition-colors hover:bg-white/[0.04]"
         >
-          <span
-            aria-hidden="true"
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white/[0.06] text-slate-400"
-          >
-            <FileText size={14} />
-          </span>
+          <FileText size={14} aria-hidden="true" className="shrink-0 text-slate-400" />
           <span className="text-sm font-bold text-slate-200">Informations fiscales</span>
           <span className="ml-auto text-[11px] text-slate-500">
             {[form.nif, form.rc, form.nis, form.article].filter((v) => v.trim() !== "").length > 0
@@ -276,7 +290,7 @@ export function CompanySection({ notify }: { notify: Notify }): React.JSX.Elemen
                     type="button"
                     onClick={chooseLogo}
                     disabled={busy}
-                    className="rounded-xl border border-white/15 bg-white/[0.06] px-3 py-1.5 text-xs font-bold text-slate-100 transition-colors hover:border-amber-400/40 hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded-lg border border-white/15 bg-white/[0.06] px-3 py-1.5 text-xs font-bold text-slate-100 transition-colors hover:border-amber-400/40 hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Choisir un fichier…
                   </button>
@@ -285,7 +299,7 @@ export function CompanySection({ notify }: { notify: Notify }): React.JSX.Elemen
                       type="button"
                       onClick={removeLogo}
                       disabled={busy}
-                      className="rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-400 transition-colors hover:bg-red-500/15 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-400 transition-colors hover:bg-red-500/15 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Retirer
                     </button>
@@ -302,7 +316,7 @@ export function CompanySection({ notify }: { notify: Notify }): React.JSX.Elemen
 }
 
 // ---------------------------------------------------------------------------
-// Vente : défauts caisse + interrupteur crédit + préfixe.
+// Vente : caisse, crédit, impression et sons du poste.
 // ---------------------------------------------------------------------------
 
 interface SalesForm {
@@ -311,96 +325,49 @@ interface SalesForm {
   autoPrintInvoice: boolean;
 }
 
+const PAYMENT_OPTIONS: { value: SalesForm["defaultPaymentMethod"]; label: string }[] = [
+  { value: "cash", label: "Espèces" },
+  { value: "cheque", label: "Chèque" },
+  { value: "transfer", label: "Virement" },
+];
+
 export function SalesSection({ notify }: { notify: Notify }): React.JSX.Element {
   const { value } = useAppSettings<SalesForm>("sales");
+  const { value: soundValue } = useAppSettings<{ enabled: boolean; volume?: number }>("sound");
   const [form, setForm] = useState<SalesForm>({
     defaultPaymentMethod: "cash",
     allowCreditSales: true,
     autoPrintInvoice: false,
   });
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => isSoundEnabled());
+  const [volume, setVolume] = useState<number>(() => getSoundVolume());
   const { busy, run } = useBusyFlag();
 
   useEffect(() => {
     if (value) setForm(value);
   }, [value]);
 
-  function save(): void {
-    void run(async () => {
-      try {
-        await saveAppSettings("sales", form);
-        notify("Réglages vente enregistrés.", "ok");
-      } catch (e) {
-        notify(frError(e, "Enregistrement impossible."), "err");
-      }
-    });
-  }
-
-  return (
-    <Section title="Vente" hint="Défauts de la caisse et garde-fou crédit.">
-      <Field label="Moyen de paiement par défaut">
-        <Select
-          value={form.defaultPaymentMethod}
-          onChange={(e) =>
-            setForm((f) => ({
-              ...f,
-              defaultPaymentMethod: e.target.value as SalesForm["defaultPaymentMethod"],
-            }))
-          }
-          aria-label="Moyen de paiement par défaut"
-        >
-          <option value="cash">Espèces</option>
-          <option value="cheque">Chèque</option>
-          <option value="transfer">Virement</option>
-        </Select>
-      </Field>
-      <SwitchRow
-        label="Autoriser les ventes à crédit"
-        hint="Coupé = tout impayé refusé, même client autorisé."
-        checked={form.allowCreditSales}
-        onChange={(v) => setForm((f) => ({ ...f, allowCreditSales: v }))}
-        ariaLabel="Autoriser les ventes à crédit"
-      />
-      <SwitchRow
-        label="Impression auto après vente"
-        hint="Ticket/facture envoyé sans aperçu."
-        checked={form.autoPrintInvoice}
-        onChange={(v) => setForm((f) => ({ ...f, autoPrintInvoice: v }))}
-        ariaLabel="Impression auto après vente"
-      />
-      <SaveBar busy={busy} onSave={save} label="Enregistrer la vente" />
-    </Section>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Sons : interrupteur global des sons d'interface (WebAudio, aucun asset).
-// ---------------------------------------------------------------------------
-
-export function SoundSection({ notify }: { notify: Notify }): React.JSX.Element {
-  const { value } = useAppSettings<{ enabled: boolean; volume?: number }>("sound");
-  const [enabled, setEnabled] = useState<boolean>(() => isSoundEnabled());
-  const [volume, setVolume] = useState<number>(() => getSoundVolume());
-  const { busy, run } = useBusyFlag();
-
   useEffect(() => {
-    // Lecture seule au chargement (pas d'écriture/audit : le SaveBar persiste).
-    if (value && typeof value.enabled === "boolean") {
-      setEnabled(value.enabled);
-      setSoundEnabled(value.enabled);
+    if (soundValue && typeof soundValue.enabled === "boolean") {
+      setSoundEnabled(soundValue.enabled);
+      applySoundEnabled(soundValue.enabled);
     }
-    if (value && value.volume !== undefined) {
-      const v = clampVolume(value.volume);
+    if (soundValue?.volume !== undefined) {
+      const v = clampVolume(soundValue.volume);
       setVolume(v);
-      setSoundVolume(v);
+      applySoundVolume(v);
     }
-  }, [value]);
+  }, [soundValue]);
 
   function save(): void {
     void run(async () => {
       try {
-        await persistSoundEnabled(enabled, volume);
-        if (enabled) playSound("success");
-        notify("Sons enregistrés.", "ok");
+        await Promise.all([
+          saveAppSettings("sales", form),
+          persistSoundEnabled(soundEnabled, volume),
+        ]);
+        if (soundEnabled) playSound("success");
+        notify("Réglages vente et sons enregistrés.", "ok");
       } catch (e) {
         notify(frError(e, "Enregistrement impossible."), "err");
       }
@@ -408,123 +375,128 @@ export function SoundSection({ notify }: { notify: Notify }): React.JSX.Element 
   }
 
   return (
-    <Section title="Sons" hint="Bips de caisse (vente, encaissement, erreurs).">
-      <SwitchRow
-        label="Activer les sons"
-        hint="Coupé = caisse silencieuse."
-        checked={enabled}
-        onChange={(v) => {
-          setEnabled(v);
-          if (v) playSound("blip");
-        }}
-        ariaLabel="Activer les sons"
-      />
-      <div className="space-y-1.5">
-        <div className="flex items-baseline justify-between gap-3">
-          <label
-            htmlFor="son-volume"
-            className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-          >
-            Volume
-          </label>
-          <span
-            aria-hidden="true"
-            className="font-mono text-xs font-bold tabular-nums text-slate-300"
-          >
-            {volume} %
-          </span>
-        </div>
-        <input
-          id="son-volume"
-          type="range"
-          min={0}
-          max={100}
-          step={1}
-          value={volume}
-          disabled={!enabled}
-          aria-label={`Volume des sons, ${volume} pour cent`}
-          onChange={(e) => {
-            const v = clampVolume(Number(e.target.value));
-            setVolume(v);
-            setSoundVolume(v);
-            // Aperçu immédiat (bridé anti-spam côté moteur).
-            if (enabled) playSound("blip");
-          }}
-          className="w-full accent-[#fbbf24] disabled:opacity-40"
+    <Section
+      icon={<ShoppingCart size={16} aria-hidden="true" />}
+      title="Vente"
+      hint="Caisse, garde-fou crédit et bips du poste."
+      badge={form.allowCreditSales ? "Crédit actif" : "Comptant"}
+    >
+      <SettingsGroup title="Caisse" icon={<CreditCard size={13} aria-hidden="true" />}>
+        <Field label="Moyen de paiement par défaut">
+          <Segmented
+            value={form.defaultPaymentMethod}
+            options={PAYMENT_OPTIONS}
+            onChange={(v) => setForm((f) => ({ ...f, defaultPaymentMethod: v }))}
+            ariaLabel="Moyen de paiement par défaut"
+          />
+        </Field>
+        <SwitchRow
+          label="Impression auto après vente"
+          hint="Ticket/facture envoyé sans aperçu."
+          checked={form.autoPrintInvoice}
+          onChange={(v) => setForm((f) => ({ ...f, autoPrintInvoice: v }))}
+          ariaLabel="Impression auto après vente"
         />
-        <p className="text-xs text-slate-500">0 = muet (l'interrupteur reste actif).</p>
-      </div>
-      <SaveBar busy={busy} onSave={save} label="Enregistrer les sons" />
+      </SettingsGroup>
+
+      <SettingsGroup title="Crédit" icon={<Wallet size={13} aria-hidden="true" />}>
+        <SwitchRow
+          label="Autoriser les ventes à crédit"
+          hint="Coupé = tout impayé refusé, même client autorisé."
+          checked={form.allowCreditSales}
+          onChange={(v) => setForm((f) => ({ ...f, allowCreditSales: v }))}
+          ariaLabel="Autoriser les ventes à crédit"
+        />
+        <p className="text-xs text-slate-500">
+          Le plafond par défaut des nouveaux clients se règle dans la carte « Clients ».
+        </p>
+      </SettingsGroup>
+
+      <SettingsGroup title="Sons" icon={<Volume2 size={13} aria-hidden="true" />}>
+        <SwitchRow
+          label="Activer les sons"
+          hint="Coupé = caisse silencieuse."
+          checked={soundEnabled}
+          onChange={(v) => {
+            setSoundEnabled(v);
+            applySoundEnabled(v);
+            if (v) playSound("blip");
+          }}
+          ariaLabel="Activer les sons"
+        />
+        <div className="space-y-1.5">
+          <div className="flex items-baseline justify-between gap-3">
+            <label
+              htmlFor="son-volume"
+              className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
+            >
+              Volume
+            </label>
+            <span className="font-mono text-xs font-bold tabular-nums text-slate-300">
+              {volume} %
+            </span>
+          </div>
+          <input
+            id="son-volume"
+            type="range"
+            min={0}
+            max={100}
+            step={1}
+            value={volume}
+            disabled={!soundEnabled}
+            aria-label={`Volume des sons, ${volume} pour cent`}
+            onChange={(e) => {
+              const v = clampVolume(Number(e.target.value));
+              setVolume(v);
+              applySoundVolume(v);
+              if (soundEnabled) playSound("blip");
+            }}
+            className="w-full accent-[#fbbf24] disabled:opacity-40"
+          />
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs text-slate-500">0 = muet (l'interrupteur reste actif).</span>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={!soundEnabled || busy}
+            onClick={() => playSound("success")}
+            className="px-3 py-1.5 text-xs"
+          >
+            Tester
+          </Button>
+        </div>
+      </SettingsGroup>
+      <SaveBar busy={busy} onSave={save} label="Enregistrer la vente et les sons" />
     </Section>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Produits : unité par défaut des nouvelles fiches.
+// Produits & stock : défauts des nouvelles fiches et garde-fous d'inventaire.
 // ---------------------------------------------------------------------------
 
 const UNITS = ["PIECE", "KG", "G", "L", "ML", "M", "CARTON", "PAQUET", "AUTRE"];
 
 export function ProductsSection({ notify }: { notify: Notify }): React.JSX.Element {
-  const { value } = useAppSettings<{ defaultUnit: string }>("products");
+  const { value: productsValue } = useAppSettings<{ defaultUnit: string }>("products");
+  const { value: inventoryValue } = useAppSettings<{
+    allowNegativeStock: boolean;
+    defaultMinStock: number;
+  }>("inventory");
   const [unit, setUnit] = useState("PIECE");
-  const { busy, run } = useBusyFlag();
-
-  useEffect(() => {
-    if (value) setUnit(value.defaultUnit);
-  }, [value]);
-
-  function save(): void {
-    void run(async () => {
-      try {
-        await saveAppSettings("products", { defaultUnit: unit });
-        notify("Unité par défaut enregistrée.", "ok");
-      } catch (e) {
-        notify(frError(e, "Enregistrement impossible."), "err");
-      }
-    });
-  }
-
-  return (
-    <Section title="Produits" hint="Défauts des nouvelles fiches catalogue.">
-      <Field label="Unité par défaut">
-        <Select
-          value={unit}
-          onChange={(e) => setUnit(e.target.value)}
-          aria-label="Unité par défaut"
-        >
-          {UNITS.map((u) => (
-            <option key={u} value={u}>
-              {u}
-            </option>
-          ))}
-        </Select>
-      </Field>
-      <p className="text-xs text-slate-500">
-        Codes-barres uniques garantis par la base. Quantités décimales toujours acceptées (kg,
-        litres).
-      </p>
-      <SaveBar busy={busy} onSave={save} label="Enregistrer les produits" />
-    </Section>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Stock : seuil par défaut + stock négatif.
-// ---------------------------------------------------------------------------
-
-export function StockSection({ notify }: { notify: Notify }): React.JSX.Element {
-  const { value } = useAppSettings<{ allowNegativeStock: boolean; defaultMinStock: number }>(
-    "inventory",
-  );
   const [minStock, setMinStock] = useState("");
   const { busy, run } = useBusyFlag();
 
   useEffect(() => {
-    if (value) {
-      setMinStock(value.defaultMinStock > 0 ? String(value.defaultMinStock) : "");
+    if (productsValue) setUnit(productsValue.defaultUnit);
+  }, [productsValue]);
+
+  useEffect(() => {
+    if (inventoryValue) {
+      setMinStock(inventoryValue.defaultMinStock > 0 ? String(inventoryValue.defaultMinStock) : "");
     }
-  }, [value]);
+  }, [inventoryValue]);
 
   function save(): void {
     const min = minStock.trim() === "" ? 0 : Number(minStock.replace(",", "."));
@@ -534,12 +506,15 @@ export function StockSection({ notify }: { notify: Notify }): React.JSX.Element 
     }
     void run(async () => {
       try {
-        await saveAppSettings("inventory", {
-          // Le stock négatif est refusé par le trigger 0037 : on fige false.
-          allowNegativeStock: false,
-          defaultMinStock: min,
-        });
-        notify("Réglages stock enregistrés.", "ok");
+        await Promise.all([
+          saveAppSettings("products", { defaultUnit: unit }),
+          saveAppSettings("inventory", {
+            // Le stock négatif est refusé par le trigger 0037 : on fige false.
+            allowNegativeStock: false,
+            defaultMinStock: min,
+          }),
+        ]);
+        notify("Réglages catalogue et stock enregistrés.", "ok");
       } catch (e) {
         notify(frError(e, "Enregistrement impossible."), "err");
       }
@@ -547,27 +522,60 @@ export function StockSection({ notify }: { notify: Notify }): React.JSX.Element 
   }
 
   return (
-    <Section title="Stock" hint="Garde-fous et défauts d'inventaire.">
-      <Field label="Seuil bas par défaut" hint="Pré-rempli sur les nouvelles fiches.">
-        <TextInput
-          value={minStock}
-          onChange={(e) => setMinStock(e.target.value)}
-          inputMode="decimal"
-          placeholder="0"
-          aria-label="Seuil bas par défaut"
-        />
-      </Field>
-      <p className="text-xs text-slate-500">
-        Le stock négatif est interdit par la base de données (vente refusée).
-      </p>
-      <SaveBar busy={busy} onSave={save} label="Enregistrer le stock" />
+    <Section
+      icon={<Package size={16} aria-hidden="true" />}
+      title="Produits"
+      hint="Défauts des nouvelles fiches et garde-fous de stock."
+      badge={unit}
+    >
+      <SettingsGroup title="Catalogue" icon={<Package size={13} aria-hidden="true" />}>
+        <Field label="Unité par défaut">
+          <Select
+            value={unit}
+            onChange={(e) => setUnit(e.target.value)}
+            aria-label="Unité par défaut"
+          >
+            {UNITS.map((u) => (
+              <option key={u} value={u}>
+                {u}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <p className="text-xs text-slate-500">
+          Codes-barres uniques garantis par la base. Quantités décimales toujours acceptées (kg,
+          litres).
+        </p>
+      </SettingsGroup>
+
+      <SettingsGroup title="Stock" icon={<Boxes size={13} aria-hidden="true" />}>
+        <Field label="Seuil bas par défaut" hint="Pré-rempli sur les nouvelles fiches.">
+          <TextInput
+            value={minStock}
+            onChange={(e) => setMinStock(e.target.value)}
+            inputMode="decimal"
+            placeholder="0"
+            aria-label="Seuil bas par défaut"
+          />
+        </Field>
+        <p className="text-xs text-slate-500">
+          Le stock négatif est interdit par la base de données (vente refusée).
+        </p>
+      </SettingsGroup>
+      <SaveBar busy={busy} onSave={save} label="Enregistrer le catalogue et le stock" />
     </Section>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Clients : plafond par défaut (+ interrupteur global en Vente).
+// Clients & fournisseurs : crédit par défaut et règlements fournisseurs.
 // ---------------------------------------------------------------------------
+
+const SUPPLIER_PAYMENT_OPTIONS: { value: SalesForm["defaultPaymentMethod"]; label: string }[] = [
+  { value: "cash", label: "Espèces" },
+  { value: "cheque", label: "Chèque" },
+  { value: "transfer", label: "Virement" },
+];
 
 export function CustomersSection({
   notify,
@@ -576,15 +584,23 @@ export function CustomersSection({
   notify: Notify;
   goSales: () => void;
 }): React.JSX.Element {
-  const { value } = useAppSettings<{ defaultCreditLimitMinor: number }>("customers");
+  const { value: customerValue } = useAppSettings<{ defaultCreditLimitMinor: number }>("customers");
+  const { value: supplierValue } = useAppSettings<{
+    defaultPaymentMethod: SalesForm["defaultPaymentMethod"];
+  }>("suppliers");
   const [limit, setLimit] = useState("");
+  const [method, setMethod] = useState<SalesForm["defaultPaymentMethod"]>("cash");
   const { busy, run } = useBusyFlag();
 
   useEffect(() => {
-    if (value && value.defaultCreditLimitMinor > 0) {
-      setLimit(minorToInput(value.defaultCreditLimitMinor));
+    if (customerValue && customerValue.defaultCreditLimitMinor > 0) {
+      setLimit(minorToInput(customerValue.defaultCreditLimitMinor));
     }
-  }, [value]);
+  }, [customerValue]);
+
+  useEffect(() => {
+    if (supplierValue) setMethod(supplierValue.defaultPaymentMethod);
+  }, [supplierValue]);
 
   function save(): void {
     void run(async () => {
@@ -595,8 +611,11 @@ export function CustomersSection({
           notify("Plafond invalide.", "err");
           return;
         }
-        await saveAppSettings("customers", { defaultCreditLimitMinor: minor });
-        notify("Plafond par défaut enregistré.", "ok");
+        await Promise.all([
+          saveAppSettings("customers", { defaultCreditLimitMinor: minor }),
+          saveAppSettings("suppliers", { defaultPaymentMethod: method }),
+        ]);
+        notify("Réglages clients et fournisseurs enregistrés.", "ok");
       } catch (e) {
         notify(frError(e, "Enregistrement impossible."), "err");
       }
@@ -604,28 +623,50 @@ export function CustomersSection({
   }
 
   return (
-    <Section title="Clients" hint="Défauts des nouvelles fiches clients.">
-      <Field label="Plafond de crédit par défaut (DZD)" hint="Pré-rempli à la création.">
-        <TextInput
-          value={limit}
-          onChange={(e) => setLimit(e.target.value)}
-          inputMode="decimal"
-          placeholder="0,00"
-          aria-label="Plafond par défaut"
-        />
-      </Field>
-      <p className="text-xs text-slate-500">
-        L'interrupteur général du crédit se trouve dans{" "}
-        <button
-          type="button"
-          onClick={goSales}
-          className="font-bold text-amber-200 hover:text-amber-100"
-        >
-          Vente
-        </button>
-        . Les relances se consultent dans Dettes.
-      </p>
-      <SaveBar busy={busy} onSave={save} label="Enregistrer les clients" />
+    <Section
+      icon={<UsersRound size={16} aria-hidden="true" />}
+      title="Clients"
+      hint="Crédit client et moyen de règlement fournisseur."
+      badge={limit.trim() === "" ? "Sans plafond" : "Plafond défini"}
+    >
+      <SettingsGroup title="Crédit client" icon={<Wallet size={13} aria-hidden="true" />}>
+        <Field label="Plafond de crédit par défaut (DZD)" hint="Pré-rempli à la création.">
+          <TextInput
+            value={limit}
+            onChange={(e) => setLimit(e.target.value)}
+            inputMode="decimal"
+            placeholder="0,00"
+            aria-label="Plafond par défaut"
+          />
+        </Field>
+        <p className="text-xs text-slate-500">
+          L'interrupteur général du crédit se trouve dans{" "}
+          <button
+            type="button"
+            onClick={goSales}
+            className="font-bold text-amber-200 hover:text-amber-100"
+          >
+            Vente
+          </button>
+          . Les relances se consultent dans Dettes.
+        </p>
+      </SettingsGroup>
+
+      <SettingsGroup title="Fournisseurs" icon={<Truck size={13} aria-hidden="true" />}>
+        <Field label="Moyen de paiement par défaut">
+          <Segmented
+            value={method}
+            options={SUPPLIER_PAYMENT_OPTIONS}
+            onChange={setMethod}
+            ariaLabel="Moyen de paiement par défaut"
+          />
+        </Field>
+        <p className="text-xs text-slate-500">
+          Les codes fournisseurs (FOU-…) sont dérivés et stables. Les relances se consultent dans
+          Dettes.
+        </p>
+      </SettingsGroup>
+      <SaveBar busy={busy} onSave={save} label="Enregistrer les clients et fournisseurs" />
     </Section>
   );
 }
@@ -679,8 +720,10 @@ export function AnnouncementSection({ notify }: { notify: Notify }): React.JSX.E
 
   return (
     <Section
+      icon={<Megaphone size={16} aria-hidden="true" />}
       title="Annonce magasin"
       hint="Message affiché en haut de l'application client (APK). 120 caractères maximum."
+      badge={loading ? "Lecture…" : text.trim() === "" ? "Vide" : "Publiée"}
     >
       <Field label="Annonce" hint={loading ? "Lecture…" : `${text.trim().length}/120 caractères`}>
         <TextArea
@@ -694,54 +737,6 @@ export function AnnouncementSection({ notify }: { notify: Notify }): React.JSX.E
         />
       </Field>
       <SaveBar busy={busy} onSave={save} label="Enregistrer l'annonce" disabled={loading} />
-    </Section>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Fournisseurs : moyen de paiement par défaut des règlements.
-// ---------------------------------------------------------------------------
-
-export function SuppliersSection({ notify }: { notify: Notify }): React.JSX.Element {
-  const { value } = useAppSettings<{ defaultPaymentMethod: "cash" | "cheque" | "transfer" }>(
-    "suppliers",
-  );
-  const [method, setMethod] = useState<"cash" | "cheque" | "transfer">("cash");
-  const { busy, run } = useBusyFlag();
-
-  useEffect(() => {
-    if (value) setMethod(value.defaultPaymentMethod);
-  }, [value]);
-
-  function save(): void {
-    void run(async () => {
-      try {
-        await saveAppSettings("suppliers", { defaultPaymentMethod: method });
-        notify("Moyen par défaut enregistré.", "ok");
-      } catch (e) {
-        notify(frError(e, "Enregistrement impossible."), "err");
-      }
-    });
-  }
-
-  return (
-    <Section title="Fournisseurs" hint="Défauts des règlements fournisseurs.">
-      <Field label="Moyen de paiement par défaut">
-        <Select
-          value={method}
-          onChange={(e) => setMethod(e.target.value as "cash" | "cheque" | "transfer")}
-          aria-label="Moyen de paiement par défaut"
-        >
-          <option value="cash">Espèces</option>
-          <option value="cheque">Chèque</option>
-          <option value="transfer">Virement</option>
-        </Select>
-      </Field>
-      <p className="text-xs text-slate-500">
-        Les codes fournisseurs (FOU-…) sont dérivés et stables. Les relances se consultent dans
-        Dettes.
-      </p>
-      <SaveBar busy={busy} onSave={save} label="Enregistrer les fournisseurs" />
     </Section>
   );
 }

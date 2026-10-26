@@ -147,8 +147,15 @@ export function PrinterCard({
   }
 
   return (
-    <Card className="space-y-3 p-4">
-      <div className="text-[15px] font-bold text-[#ffe1a7]">Imprimante active</div>
+    <Card className="relative space-y-3 overflow-hidden p-4">
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/40 to-transparent"
+      />
+      <div className="flex items-center gap-2 text-base font-extrabold tracking-tight">
+        <Printer size={16} aria-hidden="true" className="text-amber-300" />
+        Imprimante active
+      </div>
       <Field label="Imprimante">
         <Select
           value={selected}
