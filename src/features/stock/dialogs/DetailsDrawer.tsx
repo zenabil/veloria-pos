@@ -53,7 +53,11 @@ export function StockDetailsDrawer({
           num
           strong
         />
-        <InfoRow label="Prix d'achat" value={formatDzd(row.purchase_price_minor)} num />
+        <InfoRow
+          label="Coût d'achat (livraison incluse)"
+          value={formatDzd(row.purchase_price_minor)}
+          num
+        />
         <InfoRow label="Seuil minimum" value={String(row.min_stock_level)} num />
         <InfoRow label="Stock maximum" value={maxStockLabel(row.max_stock_level)} num />
         <InfoRow label="Statut" value={stockStatusLabel(row.stock_status)} />

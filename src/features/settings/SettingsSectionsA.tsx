@@ -1,5 +1,6 @@
 // Veloria PoS — Paramètres : sections Général → Fournisseurs.
 import { useEffect, useRef, useState } from "react";
+import { ChevronDown, FileText } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { strictOrNeg } from "@shared/money/parse.ts";
 import { minorToInput } from "@domain/money/money.ts";
@@ -7,7 +8,7 @@ import { newOperationId } from "@domain/common/ids.ts";
 import { assertValidAnnouncement } from "@domain/customer/client-access.ts";
 import { Field, Select, TextArea, TextInput } from "@shared/ui/primitives.tsx";
 import { saveAppSettings, useAppSettings } from "@shared/settings/use-app-settings.ts";
-import { SaveBar, Section, SwitchRow, useBusyFlag } from "./bits.tsx";
+import { SaveBar, Section, SettingsGroup, SwitchRow, useBusyFlag } from "./bits.tsx";
 import {
   clampVolume,
   getSoundVolume,
@@ -58,6 +59,7 @@ export function CompanySection({ notify }: { notify: Notify }): React.JSX.Elemen
   });
   /** Aperçu du logo (data URL fournie par le main, jamais de lecture fichier renderer). */
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [fiscalOpen, setFiscalOpen] = useState(false);
   const { busy, run } = useBusyFlag();
 
   useEffect(() => {
@@ -83,6 +85,7 @@ export function CompanySection({ notify }: { notify: Notify }): React.JSX.Elemen
           logo: co.logo_path ?? "",
         });
         setLogoPreview(typeof res.logoDataUrl === "string" ? res.logoDataUrl : null);
+        setFiscalOpen(Boolean(co.nif || co.rc_number || co.nis || co.article_imposition));
       })
       .catch(() => undefined);
   }, []);
@@ -144,115 +147,155 @@ export function CompanySection({ notify }: { notify: Notify }): React.JSX.Elemen
 
   return (
     <Section title="Entreprise" hint="Reprise sur les factures, tickets et rapports.">
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Nom (raison sociale) *">
-          <TextInput value={form.name} onChange={set("name")} aria-label="Nom entreprise" />
+      <SettingsGroup title="Identité" hint="Raison sociale">
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Nom (raison sociale) *">
+            <TextInput value={form.name} onChange={set("name")} aria-label="Nom entreprise" />
+          </Field>
+          <Field label="Nom commercial">
+            <TextInput
+              value={form.commercial}
+              onChange={set("commercial")}
+              aria-label="Nom commercial"
+            />
+          </Field>
+        </div>
+      </SettingsGroup>
+
+      <SettingsGroup title="Contact" hint="Coordonnées imprimées">
+        <Field label="Adresse">
+          <TextInput value={form.address} onChange={set("address")} aria-label="Adresse" />
         </Field>
-        <Field label="Nom commercial">
-          <TextInput
-            value={form.commercial}
-            onChange={set("commercial")}
-            aria-label="Nom commercial"
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Wilaya">
+            <TextInput value={form.city} onChange={set("city")} aria-label="Wilaya" />
+          </Field>
+          <Field label="Téléphone">
+            <TextInput
+              value={form.phone}
+              onChange={set("phone")}
+              inputMode="tel"
+              aria-label="Téléphone"
+            />
+          </Field>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="E-mail">
+            <TextInput
+              value={form.email}
+              onChange={set("email")}
+              inputMode="email"
+              aria-label="E-mail"
+            />
+          </Field>
+          <Field label="Site web">
+            <TextInput value={form.website} onChange={set("website")} aria-label="Site web" />
+          </Field>
+        </div>
+      </SettingsGroup>
+
+      <div className="rounded-xl border border-white/[0.08] bg-black/20">
+        <button
+          type="button"
+          aria-expanded={fiscalOpen}
+          aria-controls="company-fiscal"
+          onClick={() => setFiscalOpen((o) => !o)}
+          className="flex min-h-[48px] w-full items-center gap-2 rounded-xl px-3.5 py-2.5 text-left transition-colors hover:bg-white/[0.04]"
+        >
+          <span
+            aria-hidden="true"
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white/[0.06] text-slate-400"
+          >
+            <FileText size={14} />
+          </span>
+          <span className="text-sm font-bold text-slate-200">Informations fiscales</span>
+          <span className="ml-auto text-[11px] text-slate-500">
+            {[form.nif, form.rc, form.nis, form.article].filter((v) => v.trim() !== "").length > 0
+              ? "Renseignées"
+              : "Optionnel"}
+          </span>
+          <ChevronDown
+            size={16}
+            aria-hidden="true"
+            className={`shrink-0 text-slate-400 transition-transform ${fiscalOpen ? "rotate-180" : ""}`}
           />
-        </Field>
-      </div>
-      <Field label="Adresse">
-        <TextInput value={form.address} onChange={set("address")} aria-label="Adresse" />
-      </Field>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Wilaya">
-          <TextInput value={form.city} onChange={set("city")} aria-label="Wilaya" />
-        </Field>
-        <Field label="Téléphone">
-          <TextInput
-            value={form.phone}
-            onChange={set("phone")}
-            inputMode="tel"
-            aria-label="Téléphone"
-          />
-        </Field>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="E-mail">
-          <TextInput
-            value={form.email}
-            onChange={set("email")}
-            inputMode="email"
-            aria-label="E-mail"
-          />
-        </Field>
-        <Field label="Site web">
-          <TextInput value={form.website} onChange={set("website")} aria-label="Site web" />
-        </Field>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="NIF">
-          <TextInput value={form.nif} onChange={set("nif")} aria-label="NIF" />
-        </Field>
-        <Field label="Registre de commerce">
-          <TextInput value={form.rc} onChange={set("rc")} aria-label="Registre de commerce" />
-        </Field>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="NIS" hint="N° d'identification statistique (facture).">
-          <TextInput value={form.nis} onChange={set("nis")} aria-label="NIS" />
-        </Field>
-        <Field label="Article d'imposition" hint="Article fiscal (facture).">
-          <TextInput
-            value={form.article}
-            onChange={set("article")}
-            aria-label="Article d'imposition"
-          />
-        </Field>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Préfixe factures" hint="Ex. FAC (factures suivantes).">
-          <TextInput value={form.prefix} onChange={set("prefix")} aria-label="Préfixe factures" />
-        </Field>
-        <Field label="Logo" hint="PNG/JPEG ≤ 400 Ko, copié dans les données de l'application.">
-          <div className="flex items-center gap-3">
-            {logoPreview ? (
-              <img
-                src={logoPreview}
-                alt="Aperçu du logo"
-                className="h-14 w-14 shrink-0 rounded-xl border border-white/10 bg-white object-contain p-1"
-                draggable={false}
-              />
-            ) : (
-              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-dashed border-white/15 text-xs text-slate-500">
-                Aucun
-              </span>
-            )}
-            <div className="min-w-0 flex-1 space-y-1.5">
-              {form.logo !== "" ? (
-                <p className="truncate font-mono text-[11px] text-slate-500" title={form.logo}>
-                  {form.logo.split(/[/\\]/).pop()}
-                </p>
-              ) : null}
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={chooseLogo}
-                  disabled={busy}
-                  className="rounded-xl border border-white/15 bg-white/[0.06] px-3 py-1.5 text-xs font-bold text-slate-100 transition-colors hover:border-amber-400/40 hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Choisir un fichier…
-                </button>
-                {form.logo !== "" ? (
-                  <button
-                    type="button"
-                    onClick={removeLogo}
-                    disabled={busy}
-                    className="rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-400 transition-colors hover:bg-red-500/15 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Retirer
-                  </button>
-                ) : null}
-              </div>
+        </button>
+        {fiscalOpen ? (
+          <div id="company-fiscal" className="space-y-3 border-t border-white/[0.08] p-3.5">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="NIF">
+                <TextInput value={form.nif} onChange={set("nif")} aria-label="NIF" />
+              </Field>
+              <Field label="Registre de commerce">
+                <TextInput value={form.rc} onChange={set("rc")} aria-label="Registre de commerce" />
+              </Field>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="NIS" hint="N° d'identification statistique (facture).">
+                <TextInput value={form.nis} onChange={set("nis")} aria-label="NIS" />
+              </Field>
+              <Field label="Article d'imposition" hint="Article fiscal (facture).">
+                <TextInput
+                  value={form.article}
+                  onChange={set("article")}
+                  aria-label="Article d'imposition"
+                />
+              </Field>
             </div>
           </div>
-        </Field>
+        ) : null}
       </div>
+
+      <SettingsGroup title="Documents & logo" hint="Factures et identité visuelle">
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Préfixe factures" hint="Ex. FAC (factures suivantes).">
+            <TextInput value={form.prefix} onChange={set("prefix")} aria-label="Préfixe factures" />
+          </Field>
+          <Field label="Logo" hint="PNG/JPEG ≤ 400 Ko, copié dans les données de l'application.">
+            <div className="flex items-center gap-3">
+              {logoPreview ? (
+                <img
+                  src={logoPreview}
+                  alt="Aperçu du logo"
+                  className="h-14 w-14 shrink-0 rounded-xl border border-white/10 bg-white object-contain p-1"
+                  draggable={false}
+                />
+              ) : (
+                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-dashed border-white/15 text-xs text-slate-500">
+                  Aucun
+                </span>
+              )}
+              <div className="min-w-0 flex-1 space-y-1.5">
+                {form.logo !== "" ? (
+                  <p className="truncate font-mono text-[11px] text-slate-500" title={form.logo}>
+                    {form.logo.split(/[/\\]/).pop()}
+                  </p>
+                ) : null}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={chooseLogo}
+                    disabled={busy}
+                    className="rounded-xl border border-white/15 bg-white/[0.06] px-3 py-1.5 text-xs font-bold text-slate-100 transition-colors hover:border-amber-400/40 hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Choisir un fichier…
+                  </button>
+                  {form.logo !== "" ? (
+                    <button
+                      type="button"
+                      onClick={removeLogo}
+                      disabled={busy}
+                      className="rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-400 transition-colors hover:bg-red-500/15 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Retirer
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          </Field>
+        </div>
+      </SettingsGroup>
       <SaveBar busy={busy} onSave={save} label="Enregistrer l'entreprise" />
     </Section>
   );

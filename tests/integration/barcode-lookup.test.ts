@@ -23,7 +23,11 @@ vi.mock("../../electron/services/logger", () => ({
   getLogFile: () => "",
 }));
 
-import { getProductByBarcode, searchProducts } from "../../electron/ipc/handlers/products.repo";
+import {
+  createProduct,
+  getProductByBarcode,
+  searchProducts,
+} from "../../electron/ipc/handlers/products.repo";
 
 const NOW = "2026-10-25T10:00:00.000Z";
 
@@ -38,6 +42,27 @@ function openMigrated(dir: string): DatabaseSync {
     db.exec(fs.readFileSync(path.join(migDir, f), "utf-8"));
   }
   return db;
+}
+
+/** node:sqlite n'a pas l'API `transaction` de better-sqlite3 : adaptateur test. */
+function withTransactions(api: DatabaseSync): DatabaseSync {
+  return {
+    prepare: (sql: string) => api.prepare(sql),
+    exec: (sql: string) => {
+      api.exec(sql);
+    },
+    transaction: (fn: () => unknown) => () => {
+      api.exec("BEGIN");
+      try {
+        const out = fn();
+        api.exec("COMMIT");
+        return out;
+      } catch (e) {
+        api.exec("ROLLBACK");
+        throw e;
+      }
+    },
+  } as unknown as DatabaseSync;
 }
 
 function seedProduct(db: DatabaseSync, uuid: string, name: string, barcode: string): number {
@@ -86,6 +111,35 @@ describe("Recherche code-barres insensible à la casse", () => {
     const res = searchProducts({ query: "ABC-123", page: 1, pageSize: 12 });
     expect(res.total).toBe(1);
     expect(res.rows[0]?.id).toBe(pid);
+  });
+
+  it("normalise le code-barres en majuscules à la création", () => {
+    (repoDb as { current: unknown }).current = withTransactions(db);
+    try {
+      const id = createProduct({
+        uuid: "norm-barcode-1",
+        operationId: "11111111-1111-4111-8111-111111111111",
+        name: "Produit normalisé",
+        categoryId: null,
+        unitCode: "PIECE",
+        purchasePriceMinor: 1000,
+        sellingPriceMinor: 2000,
+        quantity: 0,
+        minStockLevel: 0,
+        maxStockLevel: 0,
+        expirationDate: null,
+        supplierId: null,
+        barcodes: ["ab-42x"],
+        now: NOW,
+      });
+      const stored = db
+        .prepare("SELECT barcode FROM product_barcodes WHERE product_id = ?")
+        .get(id) as { barcode: string };
+      expect(stored.barcode).toBe("AB-42X");
+      expect(getProductByBarcode("ab-42x")?.id).toBe(id);
+    } finally {
+      (repoDb as { current: unknown }).current = db;
+    }
   });
 
   it("à casse identique, la fiche exacte garde la priorité", () => {

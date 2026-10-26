@@ -32,6 +32,7 @@ import {
 } from "@shared/ui/primitives.tsx";
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
 import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
+import { uppercaseBarcodeInput } from "@shared/ui/barcode-input.ts";
 import {
   InventoryDialog,
   StockAdjustmentDialog,
@@ -204,7 +205,8 @@ export function StockScreen({ notify }: { notify: Notify }): React.JSX.Element {
     void load(query, categoryId, statusFilter, movementFilter, sort, p);
   }
 
-  function onQueryChange(q: string): void {
+  function onQueryChange(raw: string): void {
+    const q = uppercaseBarcodeInput(raw);
     setQuery(q);
     setPage(1);
     queryTimer.schedule(250, () => {

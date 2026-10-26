@@ -6,6 +6,7 @@ import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
 import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./idempotency";
 import { createLayer } from "./fifo";
+import { normalizeBarcodeText } from "./barcode-text";
 import { assertPhoneAvailable, digitsOnly, normCustomerSearch } from "./customers.repo";
 
 /** Miroir main de la règle domaine : chiffres + séparateurs usuels, ≥ 6 chiffres.
@@ -155,7 +156,9 @@ export function importProductsAtomic(
     const seen = new Set<string>();
     // W8 : statements préparés UNE SEULE FOIS (hors boucle) — la
     // compilation du SQL était refaite pour chaque ligne importée.
-    const barcodeExistsStmt = db.prepare(`SELECT id FROM product_barcodes WHERE barcode = ?`);
+    const barcodeExistsStmt = db.prepare(
+      `SELECT id FROM product_barcodes WHERE barcode = ? COLLATE NOCASE`,
+    );
     for (const [i, r] of rows.entries()) {
       const line = i + 1;
       if (r.name.trim().length < 2) throw new Error(`Ligne ${line} : nom requis.`);
@@ -169,7 +172,7 @@ export function importProductsAtomic(
       if (!Number.isFinite(r.quantity) || r.quantity < 0) {
         throw new Error(`Ligne ${line} : quantité invalide.`);
       }
-      const code = r.barcode.trim();
+      const code = normalizeBarcodeText(r.barcode);
       if (code) {
         if (seen.has(code)) throw new Error(`Ligne ${line} : code-barres dupliqué.`);
         seen.add(code);
@@ -201,7 +204,7 @@ export function importProductsAtomic(
         now,
       );
       const pid = Number(ins.lastInsertRowid);
-      const codeIns = r.barcode.trim();
+      const codeIns = normalizeBarcodeText(r.barcode);
       if (codeIns) {
         insertBarcodeStmt.run(pid, codeIns, now);
       }

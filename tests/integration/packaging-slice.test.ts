@@ -463,7 +463,8 @@ describe("Packaging slice (production repos)", () => {
       )
       .get() as { quantity: number; purchase_price_minor: number; selling_price_minor: number };
     expect(Number(product.quantity)).toBe(34);
-    expect(product.purchase_price_minor).toBe(1941);
+    // Coût rendu : (3 × 22 000 + 1 000 de livraison) / 34 unités nettes = 1 971.
+    expect(product.purchase_price_minor).toBe(1971);
     expect(product.selling_price_minor).toBe(2500);
 
     const item = db

@@ -324,6 +324,8 @@ export function receiveStockAtomic(args: {
     prepared.forEach((p, i) => {
       p.shippingShare = shippingShares[i] ?? 0;
       const landedTotal = p.lineTotal + p.shippingShare;
+      // Le coût produit affiché (catalogue, marge, formulaire) est le coût
+      // RENDU : il inclut la part de livraison, comme les couches FIFO.
       p.landingUnit = p.net > 0 ? Math.round(landedTotal / p.net) : p.cost;
       p.tiers = allocateUnitCostLayers(landedTotal, p.net);
     });
@@ -362,7 +364,7 @@ export function receiveStockAtomic(args: {
           .run(
             randomUUID(),
             p.name,
-            p.cost,
+            p.landingUnit,
             p.selling ?? 0,
             p.net,
             args.supplierId,
@@ -438,7 +440,7 @@ export function receiveStockAtomic(args: {
           const nextSelling = p.selling ?? Number(prod.selling_price_minor);
           db.prepare(
             `UPDATE products SET quantity = ?, purchase_price_minor = ?, selling_price_minor = ?, stock_status = ${STOCK_STATUS_CASE}, updated_at = ? WHERE id = ?`,
-          ).run(after, p.cost, nextSelling, after, after, args.now, pid);
+          ).run(after, p.landingUnit, nextSelling, after, after, args.now, pid);
           if (args.supplierId != null) {
             db.prepare(
               `INSERT OR IGNORE INTO product_suppliers (product_id, supplier_id, created_at) VALUES (?, ?, ?)`,

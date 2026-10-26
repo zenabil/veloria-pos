@@ -221,7 +221,11 @@ export function ProductDetailsDrawer({
                   : "—"
             }
           />
-          <InfoRow label="Prix d'achat" value={formatDzd(product.purchase_price_minor)} num />
+          <InfoRow
+            label="Coût d'achat (livraison incluse)"
+            value={formatDzd(product.purchase_price_minor)}
+            num
+          />
           <InfoRow label="Prix de vente" value={formatDzd(product.selling_price_minor)} num />
           <InfoRow label="Marge unitaire" value={marginLabel} num />
         </Card>

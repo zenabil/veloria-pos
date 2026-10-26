@@ -22,6 +22,7 @@ import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { formatDzd } from "@domain/money/money.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { runBulk } from "@shared/ui/bulk-actions.ts";
+import { uppercaseBarcodeInput } from "@shared/ui/barcode-input.ts";
 import {
   ErrorState,
   Badge,
@@ -182,7 +183,8 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
     void load("", "", "all", false, 1);
   }, []);
 
-  function onQueryChange(q: string): void {
+  function onQueryChange(raw: string): void {
+    const q = uppercaseBarcodeInput(raw);
     setQuery(q);
     setPage(1);
     queryTimer.schedule(250, () => {
@@ -662,7 +664,7 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
                   <th className="px-3 py-2.5">Produit</th>
                   <th className="px-3 py-2.5">Code-barres</th>
                   <th className="px-3 py-2.5">Catégorie</th>
-                  <th className="px-3 py-2.5 text-right">P. achat</th>
+                  <th className="px-3 py-2.5 text-right">Coût</th>
                   <th className="px-3 py-2.5 text-right">P. vente</th>
                   <th className="px-3 py-2.5 text-right">Stock</th>
                   <th className="px-3 py-2.5">Statut</th>

@@ -8,6 +8,7 @@ import { parseDzdInputStrict } from "@domain/money/money.ts";
 import { MAX_QUANTITY, formatQuantityFr, roundQuantity } from "@domain/common/quantity.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { frError } from "@shared/errors/fr-map.ts";
+import { uppercaseBarcodeInput } from "@shared/ui/barcode-input.ts";
 import { api } from "@shared/types/ipc-client.ts";
 import { needsQuantityDialog } from "./sell-weight.ts";
 import { MAX_CART_LINES, type ActiveCart } from "../cart-store.ts";
@@ -210,7 +211,10 @@ export interface SellSearchDeps {
   setQuantityFor: (v: SearchRow | null) => void;
 }
 
-export function onQueryChange(d: SellSearchDeps, q: string): void {
+export function onQueryChange(d: SellSearchDeps, raw: string): void {
+  // Douchette sans Verr. Maj : le code doit s'afficher en majuscules, comme
+  // les étiquettes Code 39. Les accents restent intacts pour la recherche FR.
+  const q = uppercaseBarcodeInput(raw);
   d.setQuery(q);
   const trimmed = q.trim();
   // Cadence machine (douchette HID : frappes ≤ 60 ms) : idle court dès que le

@@ -2,6 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
+import { normalizeBarcodeText } from "./barcode-text";
 import { consumeLayers, createLayer } from "./fifo";
 import {
   auditOperationId,
@@ -221,7 +222,7 @@ export function createProduct(input: {
     input.barcodes.forEach((b, i) => {
       db.prepare(
         `INSERT INTO product_barcodes (product_id, barcode, is_primary, created_at) VALUES (?, ?, ?, ?)`,
-      ).run(productId, b.trim(), i === 0 ? 1 : 0, input.now);
+      ).run(productId, normalizeBarcodeText(b), i === 0 ? 1 : 0, input.now);
     });
     // Jonction N-N : le principal doit exister aussi dans product_suppliers
     // (sinon la fiche fournisseur ne liste pas ce produit).
@@ -338,7 +339,7 @@ export function updateProduct(input: {
     input.barcodes.forEach((b, i) => {
       db.prepare(
         `INSERT INTO product_barcodes (product_id, barcode, is_primary, created_at) VALUES (?, ?, ?, ?)`,
-      ).run(input.id, b.trim(), i === 0 ? 1 : 0, input.now);
+      ).run(input.id, normalizeBarcodeText(b), i === 0 ? 1 : 0, input.now);
     });
     // Jonction N-N : garde le principal synchronisé avec la jonction.
     // (setProductSuppliers reste la voie complète multi-fournisseurs.)

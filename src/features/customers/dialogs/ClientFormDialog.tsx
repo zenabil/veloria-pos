@@ -2,11 +2,23 @@
 // Extrait de `ClientDialogs.tsx` (découpage sans changement de comportement).
 // Branché sur le bridge window.veloria (jamais de SQLite côté renderer).
 import { useEffect, useState } from "react";
+import { ChevronDown, MapPin, StickyNote, TriangleAlert, UserRound, Wallet } from "lucide-react";
+
 import { api } from "@shared/types/ipc-client.ts";
 import { minorToInput, parseDzdInputStrict } from "@domain/money/money.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import { newOperationId } from "@domain/common/ids.ts";
-import { Button, Field, Modal, Switch, TextArea, TextInput } from "@shared/ui/primitives.tsx";
+import {
+  Button,
+  Field,
+  Kbd,
+  Modal,
+  Switch,
+  TextArea,
+  TextInput,
+  cn,
+} from "@shared/ui/primitives.tsx";
+import { FormSection } from "@shared/ui/form-section.tsx";
 import { fullName, splitFullName } from "../types.ts";
 import type { ClientFormDialogProps } from "./types.ts";
 
@@ -31,6 +43,7 @@ export function ClientFormDialog({
   const [notes, setNotes] = useState(customer?.notes ?? "");
   const [busy, setBusy] = useState(false);
   const [creditOpen, setCreditOpen] = useState(true);
+  const [notesOpen, setNotesOpen] = useState((customer?.notes ?? "").trim() !== "");
   // Idempotence (migration 0022) : un UUID par dialogue de création, régénéré
   // après succès — rejouer le même UUID retrouve le client existant.
   const [operationId, setOperationId] = useState<string>(() => newOperationId());
@@ -56,8 +69,10 @@ export function ClientFormDialog({
       .catch(() => undefined);
   }, []);
 
+  const { firstName, lastName } = splitFullName(full);
+
   async function save(): Promise<void> {
-    const { firstName, lastName } = splitFullName(full);
+    if (busy) return;
     if (firstName.length < 1 || lastName.length < 1) {
       notify("Nom complet requis (prénom + nom).", "err");
       return;
@@ -144,95 +159,213 @@ export function ClientFormDialog({
       wide
     >
       <form
-        className="space-y-4"
+        className="space-y-3.5 [&_input]:scroll-mb-24 [&_textarea]:scroll-mb-24"
         onSubmit={(e) => {
           e.preventDefault();
           void save();
         }}
+        onKeyDown={(e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+            e.preventDefault();
+            void save();
+          }
+        }}
       >
-        <Field label="Nom complet" hint="Prénom + nom (le dernier mot = nom de famille).">
-          <TextInput
-            value={full}
-            onChange={(e) => setFull(e.target.value)}
-            placeholder="Ex. : Amine Benali"
-            aria-label="Nom complet"
-          />
-        </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Téléphone">
-            <TextInput
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              inputMode="tel"
-              placeholder="Ex. : 0550 12 34 56"
-              aria-label="Téléphone"
-            />
-          </Field>
-          <Field label="Adresse">
-            <TextInput
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Ex. : Alger centre"
-              aria-label="Adresse"
-            />
-          </Field>
+        <p className="text-[11px] leading-relaxed text-slate-500">
+          Seul le <span className="font-semibold text-slate-300">nom complet</span> est obligatoire
+          — téléphone, adresse et crédit peuvent être complétés plus tard.
+        </p>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="space-y-3">
+            <FormSection
+              icon={<UserRound size={14} aria-hidden="true" />}
+              title="Identité & contact"
+              hint="Nom, téléphone"
+            >
+              <Field label="Nom complet" hint="Prénom + nom (le dernier mot = nom de famille).">
+                <TextInput
+                  value={full}
+                  onChange={(e) => setFull(e.target.value)}
+                  placeholder="Ex. : Amine Benali"
+                  aria-label="Nom complet"
+                  autoComplete="name"
+                />
+              </Field>
+              <div aria-live="polite" className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                <span className="rounded-md border border-white/10 bg-black/25 px-2 py-1 text-slate-400">
+                  Prénom :{" "}
+                  <strong className="font-semibold text-slate-200">{firstName || "—"}</strong>
+                </span>
+                <span className="rounded-md border border-white/10 bg-black/25 px-2 py-1 text-slate-400">
+                  Nom : <strong className="font-semibold text-slate-200">{lastName || "—"}</strong>
+                </span>
+              </div>
+              <Field label="Téléphone" hint="Optionnel — 30 caractères max.">
+                <TextInput
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  inputMode="tel"
+                  placeholder="Ex. : 0550 12 34 56"
+                  aria-label="Téléphone"
+                  autoComplete="tel"
+                  maxLength={30}
+                />
+              </Field>
+            </FormSection>
+
+            <FormSection
+              icon={<MapPin size={14} aria-hidden="true" />}
+              title="Adresse"
+              hint="Optionnel"
+            >
+              <Field label="Adresse">
+                <TextInput
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Ex. : Alger centre"
+                  aria-label="Adresse"
+                  autoComplete="street-address"
+                  maxLength={300}
+                />
+              </Field>
+            </FormSection>
+          </div>
+
+          <div className="space-y-3">
+            <FormSection
+              icon={<Wallet size={14} aria-hidden="true" />}
+              title="Crédit & règlement"
+              hint={creditAllowed ? "Crédit autorisé" : "Comptant"}
+            >
+              <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/25 px-3 py-2.5 text-sm font-semibold">
+                <span>
+                  Crédit autorisé
+                  <span className="block text-xs font-normal text-slate-500">
+                    Autorise les impayés (vente à crédit). Sans plafond, tout impayé reste possible.
+                  </span>
+                  {!creditOpen ? (
+                    <span className="mt-1 flex items-center gap-1 text-xs font-bold text-red-300">
+                      <TriangleAlert size={12} aria-hidden="true" />
+                      Crédit général coupé (Paramètres → Vente).
+                    </span>
+                  ) : null}
+                </span>
+                <Switch
+                  checked={creditAllowed}
+                  onChange={() => setCreditAllowed((a) => !a)}
+                  ariaLabel="Crédit autorisé"
+                />
+              </label>
+              {creditAllowed ? (
+                <div className="grid grid-cols-2 gap-2.5">
+                  <Field label="Plafond de crédit (DZD)" hint="Alerte au-delà.">
+                    <TextInput
+                      value={creditLimit}
+                      onChange={(e) => setCreditLimit(e.target.value)}
+                      inputMode="decimal"
+                      placeholder="0,00"
+                      aria-label="Plafond de crédit"
+                      className="font-mono tabular-nums"
+                    />
+                  </Field>
+                  <Field label="Jour de règlement" hint="1 – 31 · vide = libre.">
+                    <TextInput
+                      value={settleDay}
+                      onChange={(e) => setSettleDay(e.target.value)}
+                      inputMode="numeric"
+                      placeholder="—"
+                      aria-label="Jour de règlement mensuel"
+                      className="font-mono tabular-nums"
+                    />
+                  </Field>
+                </div>
+              ) : (
+                <Field
+                  label="Jour de règlement (1 – 31)"
+                  hint="Ex. 14 = paie chaque 14. Vide = sans échéance."
+                >
+                  <TextInput
+                    value={settleDay}
+                    onChange={(e) => setSettleDay(e.target.value)}
+                    inputMode="numeric"
+                    placeholder="—"
+                    aria-label="Jour de règlement mensuel"
+                    className="font-mono tabular-nums"
+                  />
+                </Field>
+              )}
+            </FormSection>
+
+            <div className="rounded-xl border border-white/[0.08] bg-black/20">
+              <button
+                type="button"
+                aria-expanded={notesOpen}
+                aria-controls="client-notes"
+                onClick={() => setNotesOpen((o) => !o)}
+                className="flex min-h-[48px] w-full items-center gap-2 rounded-xl px-3.5 py-2.5 text-left transition-colors hover:bg-white/[0.04]"
+              >
+                <span
+                  aria-hidden="true"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white/[0.06] text-slate-400"
+                >
+                  <StickyNote size={14} />
+                </span>
+                <span className="text-sm font-bold text-slate-200">Notes</span>
+                <span className="ml-auto text-[11px] text-slate-500">
+                  {notes.trim() === "" ? "Optionnel" : `${notes.length} / 500`}
+                </span>
+                <ChevronDown
+                  size={16}
+                  aria-hidden="true"
+                  className={cn(
+                    "shrink-0 text-slate-400 transition-transform",
+                    notesOpen && "rotate-180",
+                  )}
+                />
+              </button>
+              {notesOpen ? (
+                <div id="client-notes" className="border-t border-white/[0.08] p-3.5">
+                  <TextArea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Ex. : paie en fin de mois…"
+                    aria-label="Notes"
+                    maxLength={500}
+                  />
+                  <p className="mt-1 text-right font-mono text-[11px] text-slate-500">
+                    {notes.length} / 500
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          </div>
         </div>
-        <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-sm font-semibold">
-          <span>
-            Crédit autorisé
-            <span className="block text-xs font-normal text-slate-500">
-              Autorise les impayés (vente à crédit). Sans plafond, tout impayé reste possible.
-            </span>
-            {!creditOpen ? (
-              <span className="block text-xs font-bold text-red-300">
-                Crédit général coupé (Paramètres → Vente).
-              </span>
-            ) : null}
-          </span>
-          <Switch
-            checked={creditAllowed}
-            onChange={() => setCreditAllowed((a) => !a)}
-            ariaLabel="Crédit autorisé"
-          />
-        </label>
-        {creditAllowed ? (
-          <Field label="Plafond de crédit (DZD)" hint="Alerte dépassement au-delà.">
-            <TextInput
-              value={creditLimit}
-              onChange={(e) => setCreditLimit(e.target.value)}
-              inputMode="decimal"
-              placeholder="0,00"
-              aria-label="Plafond de crédit"
-            />
-          </Field>
-        ) : null}
-        <Field
-          label="Jour de règlement (1 – 31)"
-          hint="Ex. 14 = paie chaque 14. Vide = sans échéance."
-        >
-          <TextInput
-            value={settleDay}
-            onChange={(e) => setSettleDay(e.target.value)}
-            inputMode="numeric"
-            placeholder="—"
-            aria-label="Jour de règlement mensuel"
-          />
-        </Field>
-        <Field label="Notes" hint="Optionnel (500 caractères max).">
-          <TextArea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Ex. : paie en fin de mois…"
-            aria-label="Notes"
-          />
-        </Field>
-        <div className="flex gap-2">
-          <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
-            Annuler
-          </Button>
-          <Button type="submit" disabled={busy} className="flex-[2]">
-            {busy ? "Enregistrement…" : editing ? "Enregistrer" : "Créer le client"}
-          </Button>
+
+        <div className="sticky bottom-0 z-10 -mx-6 flex flex-col-reverse gap-3 border-t border-white/10 bg-[#122131]/95 px-6 py-3.5 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+          <p className="flex items-center gap-1 text-[11px] text-slate-500">
+            <Kbd>Ctrl</Kbd>
+            <span>+</span>
+            <Kbd>Entrée</Kbd>
+            <span className="ml-1">pour enregistrer</span>
+          </p>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={onClose}
+              className="flex-1 sm:flex-none sm:min-w-[108px]"
+            >
+              Annuler
+            </Button>
+            <Button
+              type="submit"
+              disabled={busy}
+              className="flex-[2] sm:flex-none sm:min-w-[170px]"
+            >
+              {busy ? "Enregistrement…" : editing ? "Enregistrer" : "Créer le client"}
+            </Button>
+          </div>
         </div>
       </form>
     </Modal>

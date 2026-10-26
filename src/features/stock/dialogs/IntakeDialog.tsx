@@ -30,6 +30,7 @@ import {
   cn,
 } from "@shared/ui/primitives.tsx";
 import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
+import { uppercaseBarcodeInput } from "@shared/ui/barcode-input.ts";
 import { SupplierQuickCreateDialog } from "@features/suppliers/dialogs/FormDialog.tsx";
 
 import { parseQuantityInput } from "@domain/common/quantity.ts";
@@ -685,7 +686,7 @@ export function StockIntakeDialog({
                   aria-label="Date de facture"
                 />
               </Field>
-              <Field label="Livraison (DZD) *" hint="Répartie au prorata.">
+              <Field label="Livraison (DZD) *" hint="Répartie sur chaque produit, au prorata.">
                 <TextInput
                   value={shipping}
                   onChange={(e) => setShipping(e.target.value)}
@@ -820,8 +821,9 @@ export function StockIntakeDialog({
                         <SearchField
                           value={l.search}
                           onChange={(v) => {
-                            patchLine(l.key, { search: v });
-                            void searchProducts(l.key, v);
+                            const query = uppercaseBarcodeInput(v);
+                            patchLine(l.key, { search: query });
+                            void searchProducts(l.key, query);
                           }}
                           onKeyDown={(e) => {
                             if (e.key === "Enter") {
@@ -935,7 +937,7 @@ export function StockIntakeDialog({
                           className="font-mono tabular-nums"
                         />
                       </Field>
-                      <Field label={`Prix achat / ${priceUnit} *`}>
+                      <Field label={`Prix d'achat / ${priceUnit} *`} hint="Hors livraison.">
                         <TextInput
                           value={lines[idx]?.price ?? ""}
                           onChange={(e) => patchLine(l.key, { price: e.target.value })}
@@ -982,7 +984,7 @@ export function StockIntakeDialog({
                           </span>
                         ) : null}
                         <span className="text-amber-200">
-                          Coût rendu / {unitShort}{" "}
+                          Coût rendu / {unitShort} (livraison incluse){" "}
                           <strong className="font-mono">{formatDzd(l.landing)}</strong>
                         </span>
                         {l.selling != null ? (
@@ -1006,6 +1008,45 @@ export function StockIntakeDialog({
                 </Card>
               );
             })}
+            {shippingMinor > 0 && shippingOk && withLanding.some((l) => l.valid) ? (
+              <div className="rounded-xl border border-amber-400/20 bg-amber-400/[0.05] p-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-amber-200">
+                    Répartition de la livraison
+                  </p>
+                  <p className="font-mono text-[11px] tabular-nums text-slate-400">
+                    {formatDzd(shippingMinor)} · {withLanding.filter((l) => l.valid).length}{" "}
+                    produit(s)
+                  </p>
+                </div>
+                <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
+                  {withLanding
+                    .filter((l) => l.valid)
+                    .map((l) => {
+                      const unitShort = l.unit === "PIECE" ? "pièce" : l.unit.toLowerCase();
+                      return (
+                        <li
+                          key={`share-${l.key}`}
+                          className="flex items-center justify-between gap-2 rounded-lg bg-black/20 px-2.5 py-1.5 text-[11px]"
+                        >
+                          <span className="min-w-0 truncate font-semibold text-slate-200">
+                            {l.productName}
+                          </span>
+                          <span className="shrink-0 font-mono tabular-nums text-slate-400">
+                            +{formatDzd(l.share)} →{" "}
+                            <strong className="text-amber-200">
+                              {formatDzd(l.landing)}/{unitShort}
+                            </strong>
+                          </span>
+                        </li>
+                      );
+                    })}
+                </ul>
+                <p className="mt-2 text-[11px] text-slate-500">
+                  Chaque produit enregistre ce coût rendu (livraison incluse) dans sa fiche.
+                </p>
+              </div>
+            ) : null}
           </IntakeSection>
           <div className="rounded-xl border border-white/[0.08] bg-black/20">
             <button

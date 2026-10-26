@@ -13,13 +13,40 @@ export function Section({
   children: React.ReactNode;
 }): React.JSX.Element {
   return (
-    <Card className="space-y-4 p-5">
+    <Card className="relative space-y-4 overflow-hidden p-5">
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/40 to-transparent"
+      />
       <div>
         <h3 className="text-base font-extrabold tracking-tight">{title}</h3>
         {hint ? <p className="mt-0.5 text-xs text-slate-500">{hint}</p> : null}
       </div>
       {children}
     </Card>
+  );
+}
+
+/** Sous-groupe de champs : garde une seule carte tout en créant des sections lisibles. */
+export function SettingsGroup({
+  title,
+  hint,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  children: React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <div className="space-y-3 border-t border-white/[0.06] pt-3 first:border-t-0 first:pt-0">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h4 className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
+          {title}
+        </h4>
+        {hint ? <span className="text-[11px] text-slate-500">{hint}</span> : null}
+      </div>
+      {children}
+    </div>
   );
 }
 

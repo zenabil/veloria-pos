@@ -1,6 +1,6 @@
 // Veloria PoS — Catalogue : tiroir détail + formulaire + ajustement de stock.
 // Branchés sur le bridge window.veloria (jamais de SQLite côté renderer).
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Banknote,
   Boxes,
@@ -21,6 +21,7 @@ import { newOperationId } from "@domain/common/ids.ts";
 import { normalizeUnitCode, validateProductDraft } from "@domain/product/product-rules.ts";
 import { evaluateMargin } from "@domain/pricing/price-rules.ts";
 import type { Packaging } from "@domain/packaging/types.ts";
+import { cartonPriceFromUnit, unitPriceFromCarton } from "@domain/packaging/carton-price-sync.ts";
 
 import {
   Button,
@@ -32,12 +33,14 @@ import {
   TextInput,
   cn,
 } from "@shared/ui/primitives.tsx";
+import { FormSection } from "@shared/ui/form-section.tsx";
 import { formatDzdSigned } from "@shared/formatters/format.ts";
 import { SupplierQuickCreateDialog } from "@features/suppliers/dialogs/FormDialog.tsx";
 import { UNIT_OPTIONS, isArchived, unitLabel, type Category, type Product } from "../types.ts";
 
 import type { Notify } from "@shared/ui/primitives.tsx";
 import { frError } from "@shared/errors/fr-map.ts";
+import { normalizeBarcodeValue, uppercaseBarcodeInput } from "@shared/ui/barcode-input.ts";
 import { parseQuantityInput } from "@domain/common/quantity.ts";
 import { parseMoney } from "./common.ts";
 
@@ -68,37 +71,6 @@ function emptyPackaging(): PackagingDraft {
 }
 
 const MARGIN_PCT_FR = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });
-
-/** Bloc de formulaire : un seul niveau visuel pour lire la fiche d'un coup d'œil. */
-function FormSection({
-  icon,
-  title,
-  hint,
-  children,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  hint?: string;
-  children: React.ReactNode;
-}): React.JSX.Element {
-  return (
-    <section className="rounded-xl border border-white/[0.08] bg-black/20 p-3.5">
-      <div className="mb-3 flex items-center gap-2">
-        <span
-          aria-hidden="true"
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-amber-400/10 text-amber-300"
-        >
-          {icon}
-        </span>
-        <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-300">
-          {title}
-        </h3>
-        {hint ? <span className="ml-auto text-[11px] text-slate-500">{hint}</span> : null}
-      </div>
-      <div className="space-y-3">{children}</div>
-    </section>
-  );
-}
 
 export function ProductFormDialog({
   product,
@@ -141,6 +113,12 @@ export function ProductFormDialog({
   );
   const [unit, setUnit] = useState(product?.unit_code ?? "PIECE");
   const [packaging, setPackaging] = useState<PackagingDraft>(() => emptyPackaging());
+  // Prix saisis manuellement : un prix manuel n'est jamais écrasé par la
+  // conversion automatique (un tarif carton peut être une remise volontaire).
+  const sellUnitManual = useRef(product != null);
+  const sellCartonManual = useRef(false);
+  const costUnitManual = useRef(product != null);
+  const costCartonManual = useRef(false);
   // P3 : péremption (colonne expiration_date — fini le `null` systématique).
   const [expiration, setExpiration] = useState(product?.expiration_date ?? "");
   const [active, setActive] = useState(product ? !isArchived(product) : true);
@@ -175,7 +153,7 @@ export function ProductFormDialog({
       .productBarcodes({ id: product.id })
       .then((r) => {
         const rows = (r as { rows?: { barcode: string }[] }).rows ?? [];
-        if (rows.length > 0) setBarcodes(rows.map((b) => b.barcode));
+        if (rows.length > 0) setBarcodes(rows.map((b) => normalizeBarcodeValue(b.barcode)));
       })
       .catch(() => undefined);
     api
@@ -211,6 +189,8 @@ export function ProductFormDialog({
           purchase: minorToInput(loaded.purchasePriceMinor),
           auto: loaded.autoCartonPricing,
         });
+        sellCartonManual.current = true;
+        costCartonManual.current = true;
       })
       .catch(() => undefined);
   }, []);
@@ -279,10 +259,166 @@ export function ProductFormDialog({
       .join(" · ") || (editing ? "Fournisseurs, stock max, archivage" : "Fournisseurs, stock max");
 
   function addBarcode(): void {
-    const value = barcodeInput.trim();
+    const value = normalizeBarcodeValue(barcodeInput);
     if (value === "") return;
     setBarcodes((prev) => (prev.includes(value) ? prev : [...prev, value]));
     setBarcodeInput("");
+  }
+
+  function parseFactorFrom(raw: string): number | null {
+    const n = Number(raw.trim());
+    return Number.isInteger(n) && n > 1 ? n : null;
+  }
+
+  // Conversion pièce ↔ carton : le côté encore vide (ou calculé) se met à
+  // jour ; un prix saisi manuellement reste prioritaire. Un tarif carton peut
+  // être une remise volontaire (650 DZD) sans écraser le prix pièce (25 DZD).
+  function changeUnitSelling(raw: string): void {
+    setSelling(raw);
+    sellUnitManual.current = raw.trim() !== "";
+    if (!packaging.enabled) return;
+    if (raw.trim() === "") {
+      if (!sellCartonManual.current) setPackaging((p) => ({ ...p, selling: "" }));
+      return;
+    }
+    if (sellCartonManual.current) return;
+    const factor = parseFactorFrom(packaging.factor);
+    const unitMinor = parseMoney(raw);
+    if (factor == null || unitMinor == null) return;
+    const carton = cartonPriceFromUnit(unitMinor, factor);
+    if (carton != null) setPackaging((p) => ({ ...p, selling: minorToInput(carton) }));
+  }
+
+  function changeUnitPurchase(raw: string): void {
+    setPurchase(raw);
+    costUnitManual.current = raw.trim() !== "";
+    if (!packaging.enabled) return;
+    if (raw.trim() === "") {
+      if (!costCartonManual.current) setPackaging((p) => ({ ...p, purchase: "" }));
+      return;
+    }
+    if (costCartonManual.current) return;
+    const factor = parseFactorFrom(packaging.factor);
+    const unitMinor = parseMoney(raw);
+    if (factor == null || unitMinor == null) return;
+    const carton = cartonPriceFromUnit(unitMinor, factor);
+    if (carton != null) setPackaging((p) => ({ ...p, purchase: minorToInput(carton) }));
+  }
+
+  function changeCartonSelling(raw: string): void {
+    setPackaging((p) => ({ ...p, selling: raw }));
+    sellCartonManual.current = raw.trim() !== "";
+    if (raw.trim() === "") {
+      if (!sellUnitManual.current) setSelling("");
+      return;
+    }
+    if (sellUnitManual.current) return;
+    const factor = parseFactorFrom(packaging.factor);
+    const cartonMinor = parseMoney(raw);
+    if (factor == null || cartonMinor == null) return;
+    const unit = unitPriceFromCarton(cartonMinor, factor);
+    if (unit != null) setSelling(minorToInput(unit));
+  }
+
+  function changeCartonPurchase(raw: string): void {
+    setPackaging((p) => ({ ...p, purchase: raw }));
+    costCartonManual.current = raw.trim() !== "";
+    if (raw.trim() === "") {
+      if (!costUnitManual.current) setPurchase("");
+      return;
+    }
+    if (costUnitManual.current) return;
+    const factor = parseFactorFrom(packaging.factor);
+    const cartonMinor = parseMoney(raw);
+    if (factor == null || cartonMinor == null) return;
+    const unit = unitPriceFromCarton(cartonMinor, factor);
+    if (unit != null) setPurchase(minorToInput(unit));
+  }
+
+  function changePackagingFactor(raw: string): void {
+    const factor = parseFactorFrom(raw);
+    setPackaging((p) => ({ ...p, factor: raw }));
+    if (!packaging.enabled || factor == null) return;
+    // Vente : le côté pièce sert de référence tant que le carton n'a pas été
+    // saisi manuellement ; sinon on dérive le prix pièce du carton.
+    if (!sellCartonManual.current && selling.trim() !== "") {
+      const unitSell = parseMoney(selling);
+      if (unitSell != null) {
+        const carton = cartonPriceFromUnit(unitSell, factor);
+        if (carton != null) setPackaging((p) => ({ ...p, selling: minorToInput(carton) }));
+      }
+    } else if (!sellUnitManual.current && packaging.selling.trim() !== "") {
+      const cartonSell = parseMoney(packaging.selling);
+      if (cartonSell != null) {
+        const unit = unitPriceFromCarton(cartonSell, factor);
+        if (unit != null) setSelling(minorToInput(unit));
+      }
+    }
+    // Coût : même règle, indépendamment des prix de vente.
+    if (!costCartonManual.current && purchase.trim() !== "") {
+      const unitPurchase = parseMoney(purchase);
+      if (unitPurchase != null) {
+        const carton = cartonPriceFromUnit(unitPurchase, factor);
+        if (carton != null) setPackaging((p) => ({ ...p, purchase: minorToInput(carton) }));
+      }
+    } else if (!costUnitManual.current && packaging.purchase.trim() !== "") {
+      const cartonPurchase = parseMoney(packaging.purchase);
+      if (cartonPurchase != null) {
+        const unit = unitPriceFromCarton(cartonPurchase, factor);
+        if (unit != null) setPurchase(minorToInput(unit));
+      }
+    }
+  }
+
+  function togglePackaging(): void {
+    setPackaging((p) => {
+      const enabled = !p.enabled;
+      if (!enabled) return { ...p, enabled };
+      const factor = parseFactorFrom(p.factor);
+      const next = { ...p, enabled };
+      if (factor == null) return next;
+      if (next.label.trim() === "") next.label = `Carton de ${factor}`;
+      if (!sellCartonManual.current && selling.trim() !== "") {
+        const unit = parseMoney(selling);
+        if (unit != null) {
+          const carton = cartonPriceFromUnit(unit, factor);
+          if (carton != null) next.selling = minorToInput(carton);
+        }
+      }
+      if (!costCartonManual.current && purchase.trim() !== "") {
+        const unit = parseMoney(purchase);
+        if (unit != null) {
+          const carton = cartonPriceFromUnit(unit, factor);
+          if (carton != null) next.purchase = minorToInput(carton);
+        }
+      }
+      return next;
+    });
+  }
+
+  /** Action explicite : réécrit les deux prix carton depuis les prix pièce. */
+  function recalculateCarton(): void {
+    const factor = parseFactorFrom(packaging.factor);
+    if (factor == null) {
+      notify("Taille du carton invalide (entier supérieur à 1).", "err");
+      return;
+    }
+    const unitSell = parseMoney(selling);
+    if (selling.trim() !== "" && unitSell != null) {
+      const carton = cartonPriceFromUnit(unitSell, factor);
+      if (carton != null) {
+        setPackaging((p) => ({ ...p, selling: minorToInput(carton) }));
+        sellCartonManual.current = false;
+      }
+    }
+    const unitPurchase = parseMoney(purchase);
+    if (purchase.trim() !== "" && unitPurchase != null) {
+      const carton = cartonPriceFromUnit(unitPurchase, factor);
+      if (carton != null) {
+        setPackaging((p) => ({ ...p, purchase: minorToInput(carton) }));
+        costCartonManual.current = false;
+      }
+    }
   }
 
   async function addCategory(): Promise<void> {
@@ -346,10 +482,10 @@ export function ProductFormDialog({
     }
     // Le code scanné mais non validé par Entrée ne doit pas être perdu au
     // clic sur « Créer » : il rejoint la liste au moment d'enregistrer.
-    const pendingBarcode = barcodeInput.trim();
+    const pendingBarcode = normalizeBarcodeValue(barcodeInput);
     const cleaned = [
       ...new Set([
-        ...barcodes.map((b) => b.trim()).filter((b) => b !== ""),
+        ...barcodes.map((b) => normalizeBarcodeValue(b)).filter((b) => b !== ""),
         ...(pendingBarcode === "" ? [] : [pendingBarcode]),
       ]),
     ];
@@ -535,7 +671,7 @@ export function ProductFormDialog({
                     <div className="flex gap-2">
                       <TextInput
                         value={barcodeInput}
-                        onChange={(e) => setBarcodeInput(e.target.value)}
+                        onChange={(e) => setBarcodeInput(uppercaseBarcodeInput(e.target.value))}
                         onKeyDown={(e) => {
                           if (e.key === "Enter") {
                             e.preventDefault();
@@ -545,6 +681,9 @@ export function ProductFormDialog({
                         placeholder="Scannez ou saisissez…"
                         aria-label="Ajouter un code-barres"
                         className="min-w-0 flex-1 font-mono"
+                        autoCapitalize="characters"
+                        autoCorrect="off"
+                        spellCheck={false}
                       />
                       <Button
                         type="button"
@@ -619,89 +758,51 @@ export function ProductFormDialog({
                 </Field>
               </FormSection>
 
-              <FormSection icon={<Layers size={14} aria-hidden="true" />} title="Conditionnement">
-                <label className="flex cursor-pointer items-center justify-between gap-3 text-xs font-semibold">
-                  <span>
-                    Activer le conditionnement
-                    <span className="block text-[11px] font-normal text-slate-500">
-                      Stock et FIFO restent en pièces.
-                    </span>
-                  </span>
-                  <Switch
-                    checked={packaging.enabled}
-                    onChange={() => setPackaging((p) => ({ ...p, enabled: !p.enabled }))}
-                    ariaLabel="Activer le conditionnement"
+              <FormSection icon={<Boxes size={14} aria-hidden="true" />} title="Stock & seuils">
+                <div className="grid grid-cols-2 gap-2.5">
+                  <Field label={editing ? "Stock actuel" : "Stock initial"}>
+                    <TextInput
+                      value={qty}
+                      onChange={(e) => setQty(e.target.value)}
+                      inputMode="decimal"
+                      placeholder="0"
+                      aria-label="Stock"
+                      className="font-mono tabular-nums"
+                    />
+                  </Field>
+                  <Field label="Seuil minimum" hint="Alerte stock bas.">
+                    <TextInput
+                      value={minStock}
+                      onChange={(e) => setMinStock(e.target.value)}
+                      inputMode="decimal"
+                      placeholder="0"
+                      aria-label="Seuil minimum"
+                      className="font-mono tabular-nums"
+                    />
+                  </Field>
+                </div>
+                <Field label="Péremption" hint="Vide = sans date.">
+                  <TextInput
+                    type="date"
+                    value={expiration}
+                    onChange={(e) => setExpiration(e.target.value)}
+                    aria-label="Date de péremption"
                   />
-                </label>
-                {packaging.enabled ? (
-                  <>
-                    <div className="grid grid-cols-2 gap-2.5">
-                      <Field label="Libellé">
-                        <TextInput
-                          value={packaging.label}
-                          onChange={(e) => setPackaging((p) => ({ ...p, label: e.target.value }))}
-                          placeholder="Carton de 12"
-                          aria-label="Libellé du conditionnement"
-                        />
-                      </Field>
-                      <Field label="Pièces par carton" hint="Entier > 1.">
-                        <TextInput
-                          value={packaging.factor}
-                          onChange={(e) => setPackaging((p) => ({ ...p, factor: e.target.value }))}
-                          inputMode="numeric"
-                          placeholder="12"
-                          aria-label="Taille du carton"
-                          className="font-mono tabular-nums"
-                        />
-                      </Field>
-                      <Field label="Prix carton (DZD)">
-                        <TextInput
-                          value={packaging.selling}
-                          onChange={(e) => setPackaging((p) => ({ ...p, selling: e.target.value }))}
-                          inputMode="decimal"
-                          placeholder="0,00"
-                          aria-label="Prix du carton"
-                          className="font-mono tabular-nums"
-                        />
-                      </Field>
-                      <Field label="Achat carton (DZD)">
-                        <TextInput
-                          value={packaging.purchase}
-                          onChange={(e) =>
-                            setPackaging((p) => ({ ...p, purchase: e.target.value }))
-                          }
-                          inputMode="decimal"
-                          placeholder="0,00"
-                          aria-label="Prix d'achat du carton"
-                          className="font-mono tabular-nums"
-                        />
-                      </Field>
-                    </div>
-                    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/15 px-3 py-2 text-xs font-semibold">
-                      <span>
-                        Tarif carton automatique
-                        <span className="block text-[11px] font-normal text-slate-500">
-                          Dès que la quantité atteint la taille du carton.
-                        </span>
-                      </span>
-                      <Switch
-                        checked={packaging.auto}
-                        onChange={() => setPackaging((p) => ({ ...p, auto: !p.auto }))}
-                        ariaLabel="Tarif carton automatique"
-                      />
-                    </label>
-                  </>
-                ) : null}
+                </Field>
               </FormSection>
             </div>
 
             <div className="space-y-3">
-              <FormSection icon={<Banknote size={14} aria-hidden="true" />} title="Prix" hint="DZD">
+              <FormSection
+                icon={<Banknote size={14} aria-hidden="true" />}
+                title="Prix & coût"
+                hint="DZD"
+              >
                 <div className="grid grid-cols-2 gap-2.5">
-                  <Field label="Prix d'achat">
+                  <Field label="Coût d'achat" hint="Livraison incluse après réception.">
                     <TextInput
                       value={purchase}
-                      onChange={(e) => setPurchase(e.target.value)}
+                      onChange={(e) => changeUnitPurchase(e.target.value)}
                       inputMode="decimal"
                       placeholder="0,00"
                       aria-label="Prix d'achat"
@@ -711,7 +812,7 @@ export function ProductFormDialog({
                   <Field label="Prix de vente">
                     <TextInput
                       value={selling}
-                      onChange={(e) => setSelling(e.target.value)}
+                      onChange={(e) => changeUnitSelling(e.target.value)}
                       inputMode="decimal"
                       placeholder="0,00"
                       aria-label="Prix de vente"
@@ -750,37 +851,92 @@ export function ProductFormDialog({
                 </div>
               </FormSection>
 
-              <FormSection icon={<Boxes size={14} aria-hidden="true" />} title="Stock & seuils">
-                <div className="grid grid-cols-2 gap-2.5">
-                  <Field label={editing ? "Stock actuel" : "Stock initial"}>
-                    <TextInput
-                      value={qty}
-                      onChange={(e) => setQty(e.target.value)}
-                      inputMode="decimal"
-                      placeholder="0"
-                      aria-label="Stock"
-                      className="font-mono tabular-nums"
-                    />
-                  </Field>
-                  <Field label="Seuil minimum" hint="Alerte stock bas.">
-                    <TextInput
-                      value={minStock}
-                      onChange={(e) => setMinStock(e.target.value)}
-                      inputMode="decimal"
-                      placeholder="0"
-                      aria-label="Seuil minimum"
-                      className="font-mono tabular-nums"
-                    />
-                  </Field>
-                </div>
-                <Field label="Péremption" hint="Vide = sans date.">
-                  <TextInput
-                    type="date"
-                    value={expiration}
-                    onChange={(e) => setExpiration(e.target.value)}
-                    aria-label="Date de péremption"
+              <FormSection icon={<Layers size={14} aria-hidden="true" />} title="Conditionnement">
+                <label className="flex cursor-pointer items-center justify-between gap-3 text-xs font-semibold">
+                  <span>
+                    Activer le conditionnement
+                    <span className="block text-[11px] font-normal text-slate-500">
+                      Stock et FIFO restent en pièces.
+                    </span>
+                  </span>
+                  <Switch
+                    checked={packaging.enabled}
+                    onChange={togglePackaging}
+                    ariaLabel="Activer le conditionnement"
                   />
-                </Field>
+                </label>
+                {packaging.enabled ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <Field label="Libellé">
+                        <TextInput
+                          value={packaging.label}
+                          onChange={(e) => setPackaging((p) => ({ ...p, label: e.target.value }))}
+                          placeholder="Carton de 12"
+                          aria-label="Libellé du conditionnement"
+                        />
+                      </Field>
+                      <Field label="Pièces par carton" hint="Entier > 1 · synchronise les prix.">
+                        <TextInput
+                          value={packaging.factor}
+                          onChange={(e) => changePackagingFactor(e.target.value)}
+                          inputMode="numeric"
+                          placeholder="12"
+                          aria-label="Taille du carton"
+                          className="font-mono tabular-nums"
+                        />
+                      </Field>
+                      <Field label="Prix carton (DZD)" hint="Lié au prix pièce.">
+                        <TextInput
+                          value={packaging.selling}
+                          onChange={(e) => changeCartonSelling(e.target.value)}
+                          inputMode="decimal"
+                          placeholder="0,00"
+                          aria-label="Prix du carton"
+                          className="font-mono tabular-nums"
+                        />
+                      </Field>
+                      <Field label="Achat carton (DZD)" hint="Lié au coût pièce.">
+                        <TextInput
+                          value={packaging.purchase}
+                          onChange={(e) => changeCartonPurchase(e.target.value)}
+                          inputMode="decimal"
+                          placeholder="0,00"
+                          aria-label="Prix d'achat du carton"
+                          className="font-mono tabular-nums"
+                        />
+                      </Field>
+                    </div>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-[11px] leading-relaxed text-slate-500">
+                        Le côté non saisi se calcule automatiquement. Un prix saisi reste
+                        prioritaire (tarif carton = remise volontaire).
+                      </p>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={recalculateCarton}
+                        title="Recalculer les prix carton depuis les prix pièce"
+                        className="shrink-0 px-2 py-1 text-[11px]"
+                      >
+                        Recalculer
+                      </Button>
+                    </div>
+                    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/15 px-3 py-2 text-xs font-semibold">
+                      <span>
+                        Tarif carton automatique
+                        <span className="block text-[11px] font-normal text-slate-500">
+                          Dès que la quantité atteint la taille du carton.
+                        </span>
+                      </span>
+                      <Switch
+                        checked={packaging.auto}
+                        onChange={() => setPackaging((p) => ({ ...p, auto: !p.auto }))}
+                        ariaLabel="Tarif carton automatique"
+                      />
+                    </label>
+                  </>
+                ) : null}
               </FormSection>
             </div>
           </div>
