@@ -1,6 +1,18 @@
 // Veloria PoS — Catalogue : tiroir détail + formulaire + ajustement de stock.
 // Branchés sur le bridge window.veloria (jamais de SQLite côté renderer).
 import { useEffect, useState } from "react";
+import {
+  Banknote,
+  Boxes,
+  ChevronDown,
+  Layers,
+  Package,
+  Plus,
+  Settings2,
+  TriangleAlert,
+  Truck,
+  X,
+} from "lucide-react";
 
 import { api } from "@shared/types/ipc-client.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
@@ -10,7 +22,17 @@ import { normalizeUnitCode, validateProductDraft } from "@domain/product/product
 import { evaluateMargin } from "@domain/pricing/price-rules.ts";
 import type { Packaging } from "@domain/packaging/types.ts";
 
-import { Button, Field, Modal, Select, Switch, TextInput } from "@shared/ui/primitives.tsx";
+import {
+  Button,
+  Field,
+  Kbd,
+  Modal,
+  Select,
+  Switch,
+  TextInput,
+  cn,
+} from "@shared/ui/primitives.tsx";
+import { formatDzdSigned } from "@shared/formatters/format.ts";
 import { SupplierQuickCreateDialog } from "@features/suppliers/dialogs/FormDialog.tsx";
 import { UNIT_OPTIONS, isArchived, unitLabel, type Category, type Product } from "../types.ts";
 
@@ -43,6 +65,39 @@ function emptyPackaging(): PackagingDraft {
     purchase: "",
     auto: true,
   };
+}
+
+const MARGIN_PCT_FR = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });
+
+/** Bloc de formulaire : un seul niveau visuel pour lire la fiche d'un coup d'œil. */
+function FormSection({
+  icon,
+  title,
+  hint,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  hint?: string;
+  children: React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <section className="rounded-xl border border-white/[0.08] bg-black/20 p-3.5">
+      <div className="mb-3 flex items-center gap-2">
+        <span
+          aria-hidden="true"
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-amber-400/10 text-amber-300"
+        >
+          {icon}
+        </span>
+        <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-300">
+          {title}
+        </h3>
+        {hint ? <span className="ml-auto text-[11px] text-slate-500">{hint}</span> : null}
+      </div>
+      <div className="space-y-3">{children}</div>
+    </section>
+  );
 }
 
 export function ProductFormDialog({
@@ -90,6 +145,11 @@ export function ProductFormDialog({
   const [expiration, setExpiration] = useState(product?.expiration_date ?? "");
   const [active, setActive] = useState(product ? !isArchived(product) : true);
   const [newCategory, setNewCategory] = useState("");
+  const [categoryCreateOpen, setCategoryCreateOpen] = useState(false);
+  const [supplierQuery, setSupplierQuery] = useState("");
+  // Rendu conditionnel (pas de `hidden`) : le piège de focus de `Modal` ne
+  // doit jamais cibler un champ présent dans le DOM mais invisible.
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   // Création inline : modale par-dessus, saisie produit conservée.
   const [supplierQuickOpen, setSupplierQuickOpen] = useState(false);
@@ -176,6 +236,55 @@ export function ProductFormDialog({
       .catch(() => undefined);
   }, []);
 
+  // Aperçu de marge : uniquement quand les DEUX prix sont saisis (sinon un
+  // prix vide = 0 ferait clignoter une fausse « vente à perte »).
+  const purchasePreview = parseMoney(purchase);
+  const sellingPreview = parseMoney(selling);
+  let marginPreview: ReturnType<typeof evaluateMargin> | null = null;
+  if (
+    purchase.trim() !== "" &&
+    selling.trim() !== "" &&
+    purchasePreview != null &&
+    sellingPreview != null
+  ) {
+    try {
+      marginPreview = evaluateMargin(purchasePreview, sellingPreview);
+    } catch {
+      marginPreview = null;
+    }
+  }
+  const marginText =
+    marginPreview == null
+      ? "—"
+      : marginPreview.marginPct == null
+        ? formatDzdSigned(marginPreview.marginMinor)
+        : `${formatDzdSigned(marginPreview.marginMinor)} · ${MARGIN_PCT_FR.format(marginPreview.marginPct)} %`;
+
+  const supplierNeedle = supplierQuery.trim().toLocaleLowerCase("fr-FR");
+  const visibleSuppliers =
+    supplierNeedle === ""
+      ? supplierOptions
+      : supplierOptions.filter((s) => s.name.toLocaleLowerCase("fr-FR").includes(supplierNeedle));
+
+  const advancedSummary =
+    [
+      supplierIds.length > 0
+        ? `${supplierIds.length} fournisseur${supplierIds.length > 1 ? "s" : ""}`
+        : null,
+      maxStock.trim() !== "" ? "Stock max" : null,
+      packaging.enabled ? "Conditionnement" : null,
+      editing && !active ? "Inactif" : null,
+    ]
+      .filter((v): v is string => v != null)
+      .join(" · ") || (editing ? "Fournisseurs, stock max, archivage" : "Fournisseurs, stock max");
+
+  function addBarcode(): void {
+    const value = barcodeInput.trim();
+    if (value === "") return;
+    setBarcodes((prev) => (prev.includes(value) ? prev : [...prev, value]));
+    setBarcodeInput("");
+  }
+
   async function addCategory(): Promise<void> {
     const label = newCategory.trim();
     if (label.length < 2) {
@@ -185,6 +294,7 @@ export function ProductFormDialog({
     try {
       const res = (await api.categoryCreate({ name: label })) as { id: number };
       setNewCategory("");
+      setCategoryCreateOpen(false);
       onCategoryCreated();
       setCategoryId(String(res.id));
       notify(`Catégorie « ${label} » créée.`, "ok");
@@ -211,6 +321,7 @@ export function ProductFormDialog({
   }
 
   async function save(): Promise<void> {
+    if (busy) return;
     const cleanName = name.trim();
     if (cleanName.length < 2) {
       notify("Nom du produit requis (2 lettres min.).", "err");
@@ -233,7 +344,15 @@ export function ProductFormDialog({
       notify("Stock / seuils invalides (0 – 1 000 000).", "err");
       return;
     }
-    const cleaned = [...new Set(barcodes.map((b) => b.trim()).filter((b) => b !== ""))];
+    // Le code scanné mais non validé par Entrée ne doit pas être perdu au
+    // clic sur « Créer » : il rejoint la liste au moment d'enregistrer.
+    const pendingBarcode = barcodeInput.trim();
+    const cleaned = [
+      ...new Set([
+        ...barcodes.map((b) => b.trim()).filter((b) => b !== ""),
+        ...(pendingBarcode === "" ? [] : [pendingBarcode]),
+      ]),
+    ];
     if (cleaned.some((b) => b.length > 64)) {
       notify("Code-barres trop long (64 max).", "err");
       return;
@@ -362,288 +481,463 @@ export function ProductFormDialog({
         wide
       >
         <form
-          className="space-y-4"
+          className="space-y-3.5 [&_input]:scroll-mb-24 [&_select]:scroll-mb-24 [&_textarea]:scroll-mb-24"
           onSubmit={(e) => {
             e.preventDefault();
             void save();
           }}
+          onKeyDown={(e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+              e.preventDefault();
+              void save();
+            }
+          }}
         >
-          <Field label="Nom du produit">
-            <TextInput
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Ex. : Lait Candia 1L"
-              aria-label="Nom du produit"
-            />
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field
-              label="Codes-barres"
-              hint="Plusieurs possibles (le 1er = principal). Entrée = ajouter."
-            >
-              <div className="space-y-2">
-                {barcodes.length > 0 ? (
-                  <ul className="space-y-1">
-                    {barcodes.map((b, i) => (
-                      <li
-                        key={`${b}-${i}`}
-                        className="flex items-center justify-between gap-2 rounded-lg bg-black/25 px-3 py-1.5 font-mono text-xs"
-                      >
-                        <span className="min-w-0 truncate">
-                          {b} {i === 0 ? <span className="text-amber-300">(principal)</span> : null}
-                        </span>
-                        <button
-                          type="button"
-                          aria-label={`Retirer ${b}`}
-                          onClick={() => setBarcodes((prev) => prev.filter((_, j) => j !== i))}
-                          className="shrink-0 rounded-lg px-2 py-0.5 text-slate-500 transition-colors hover:bg-red-500/15 hover:text-red-300"
-                        >
-                          ✕
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-                <TextInput
-                  value={barcodeInput}
-                  onChange={(e) => setBarcodeInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      const v = barcodeInput.trim();
-                      if (v !== "" && !barcodes.includes(v)) setBarcodes((prev) => [...prev, v]);
-                      setBarcodeInput("");
-                    }
-                  }}
-                  placeholder="Scannez ou saisissez… (Entrée)"
-                  aria-label="Ajouter un code-barres"
-                  className="font-mono"
-                />
-              </div>
-            </Field>
-            <Field label="Unité">
-              <Select value={unit} onChange={(e) => setUnit(e.target.value)} aria-label="Unité">
-                {UNIT_OPTIONS.map((u) => (
-                  <option key={u} value={u}>
-                    {unitLabel(u)}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="Péremption" hint="Vide = sans date.">
-              <TextInput
-                type="date"
-                value={expiration}
-                onChange={(e) => setExpiration(e.target.value)}
-                aria-label="Date de péremption"
-              />
-            </Field>
-          </div>
-          <Field label="Fournisseurs liés" hint="Le 1er coché = principal.">
-            <div className="mb-2 flex justify-end">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setSupplierQuickOpen(true)}
-                title="Créer un fournisseur sans quitter la fiche produit"
-              >
-                + Nouveau fournisseur
-              </Button>
-            </div>
-            {supplierOptions.length === 0 ? (
-              <p className="text-xs text-slate-500">Aucun fournisseur (créez-en un d'abord).</p>
-            ) : (
-              <ul className="max-h-32 space-y-1 overflow-auto rounded-xl border border-white/10 p-2">
-                {supplierOptions.map((s) => (
-                  <li key={s.id}>
-                    <label className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-white/[0.06]">
-                      <input
-                        type="checkbox"
-                        checked={supplierIds.includes(s.id)}
-                        onChange={() =>
-                          setSupplierIds((prev) =>
-                            prev.includes(s.id) ? prev.filter((x) => x !== s.id) : [...prev, s.id],
-                          )
-                        }
-                        aria-label={`Lier ${s.name}`}
-                        className="h-4 w-4 accent-amber-400"
+          <p className="text-[11px] leading-relaxed text-slate-500">
+            Seul le <span className="font-semibold text-slate-300">nom</span> est obligatoire —
+            prix, stock et options peuvent être complétés plus tard.
+          </p>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-3">
+              <FormSection icon={<Package size={14} aria-hidden="true" />} title="Identification">
+                <Field label="Nom du produit">
+                  <TextInput
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Ex. : Lait Candia 1L"
+                    aria-label="Nom du produit"
+                  />
+                </Field>
+                <Field label="Codes-barres" hint="Entrée = ajouter · le 1er = principal">
+                  <div className="space-y-2">
+                    {barcodes.length > 0 ? (
+                      <ul className="flex max-h-24 flex-wrap gap-1.5 overflow-auto">
+                        {barcodes.map((b, i) => (
+                          <li
+                            key={`${b}-${i}`}
+                            className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-black/30 py-1 pl-2 pr-1 font-mono text-[11px]"
+                          >
+                            <span className="max-w-[170px] truncate">{b}</span>
+                            {i === 0 ? <span className="text-amber-300">principal</span> : null}
+                            <button
+                              type="button"
+                              aria-label={`Retirer ${b}`}
+                              onClick={() => setBarcodes((prev) => prev.filter((_, j) => j !== i))}
+                              className="shrink-0 rounded p-0.5 text-slate-500 transition-colors hover:bg-red-500/15 hover:text-red-300"
+                            >
+                              <X size={12} aria-hidden="true" />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                    <div className="flex gap-2">
+                      <TextInput
+                        value={barcodeInput}
+                        onChange={(e) => setBarcodeInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addBarcode();
+                          }
+                        }}
+                        placeholder="Scannez ou saisissez…"
+                        aria-label="Ajouter un code-barres"
+                        className="min-w-0 flex-1 font-mono"
                       />
-                      <span className="min-w-0 flex-1 truncate">{s.name}</span>
-                      {supplierIds[0] === s.id ? (
-                        <span className="text-[11px] font-bold text-amber-300">(principal)</span>
-                      ) : null}
-                    </label>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Field>
-          <Field label="Catégorie">
-            <Select
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              aria-label="Catégorie"
-            >
-              <option value="">Sans catégorie</option>
-              {categories.map((c) => (
-                <option key={c.id} value={String(c.id)}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <TextInput
-                value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value)}
-                placeholder="Nouvelle catégorie…"
-                aria-label="Nouvelle catégorie"
-              />
-            </div>
-            <Button type="button" variant="secondary" onClick={() => void addCategory()}>
-              + Catégorie
-            </Button>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Prix d'achat (DZD)">
-              <TextInput
-                value={purchase}
-                onChange={(e) => setPurchase(e.target.value)}
-                inputMode="decimal"
-                placeholder="0,00"
-                aria-label="Prix d'achat"
-              />
-            </Field>
-            <Field label="Prix de vente (DZD)">
-              <TextInput
-                value={selling}
-                onChange={(e) => setSelling(e.target.value)}
-                inputMode="decimal"
-                placeholder="0,00"
-                aria-label="Prix de vente"
-              />
-            </Field>
-            <Field label={editing ? "Stock actuel" : "Stock initial"}>
-              <TextInput
-                value={qty}
-                onChange={(e) => setQty(e.target.value)}
-                inputMode="decimal"
-                placeholder="0"
-                aria-label="Stock"
-              />
-            </Field>
-            <Field label="Seuil minimum" hint="Alerte stock bas en dessous.">
-              <TextInput
-                value={minStock}
-                onChange={(e) => setMinStock(e.target.value)}
-                inputMode="decimal"
-                placeholder="0"
-                aria-label="Seuil minimum"
-              />
-            </Field>
-            <Field label="Stock maximum" hint="Vide = aucun plafond.">
-              <TextInput
-                value={maxStock}
-                onChange={(e) => setMaxStock(e.target.value)}
-                inputMode="decimal"
-                placeholder="0"
-                aria-label="Stock maximum"
-              />
-            </Field>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-            <label className="flex cursor-pointer items-center justify-between gap-3 text-sm font-semibold">
-              <span>
-                Conditionnement
-                <span className="block text-xs font-normal text-slate-500">
-                  Vente à la pièce avec tarif carton automatique. Stock et FIFO restent en pièces.
-                </span>
-              </span>
-              <Switch
-                checked={packaging.enabled}
-                onChange={() => setPackaging((p) => ({ ...p, enabled: !p.enabled }))}
-                ariaLabel="Activer le conditionnement"
-              />
-            </label>
-            {packaging.enabled ? (
-              <div className="mt-3 space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Libellé">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={addBarcode}
+                        aria-label="Ajouter le code-barres"
+                        title="Ajouter le code-barres (Entrée)"
+                        className="px-3"
+                      >
+                        <Plus size={16} aria-hidden="true" />
+                      </Button>
+                    </div>
+                  </div>
+                </Field>
+                <Field label="Catégorie">
+                  <div className="flex gap-2">
+                    <Select
+                      value={categoryId}
+                      onChange={(e) => setCategoryId(e.target.value)}
+                      aria-label="Catégorie"
+                      className="min-w-0 flex-1"
+                    >
+                      <option value="">Sans catégorie</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={String(c.id)}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => setCategoryCreateOpen((o) => !o)}
+                      aria-expanded={categoryCreateOpen}
+                      aria-label="Créer une catégorie"
+                      title="Créer une catégorie"
+                      className="px-3"
+                    >
+                      <Plus size={16} aria-hidden="true" />
+                    </Button>
+                  </div>
+                </Field>
+                {categoryCreateOpen ? (
+                  <div className="flex gap-2">
                     <TextInput
-                      value={packaging.label}
-                      onChange={(e) => setPackaging((p) => ({ ...p, label: e.target.value }))}
-                      placeholder="Carton de 12"
-                      aria-label="Libellé du conditionnement"
+                      autoFocus
+                      value={newCategory}
+                      onChange={(e) => setNewCategory(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          void addCategory();
+                        }
+                      }}
+                      placeholder="Nom de la nouvelle catégorie"
+                      aria-label="Nouvelle catégorie"
+                      className="min-w-0 flex-1"
                     />
-                  </Field>
-                  <Field label="Taille du carton" hint="Nombre de pièces (entier > 1).">
-                    <TextInput
-                      value={packaging.factor}
-                      onChange={(e) => setPackaging((p) => ({ ...p, factor: e.target.value }))}
-                      inputMode="numeric"
-                      placeholder="12"
-                      aria-label="Taille du carton"
-                    />
-                  </Field>
-                  <Field label="Prix du carton (DZD)">
-                    <TextInput
-                      value={packaging.selling}
-                      onChange={(e) => setPackaging((p) => ({ ...p, selling: e.target.value }))}
-                      inputMode="decimal"
-                      placeholder="0,00"
-                      aria-label="Prix du carton"
-                    />
-                  </Field>
-                  <Field label="Prix d'achat du carton (DZD)">
-                    <TextInput
-                      value={packaging.purchase}
-                      onChange={(e) => setPackaging((p) => ({ ...p, purchase: e.target.value }))}
-                      inputMode="decimal"
-                      placeholder="0,00"
-                      aria-label="Prix d'achat du carton"
-                    />
-                  </Field>
-                </div>
-                <label className="flex cursor-pointer items-center justify-between gap-3 text-sm font-semibold">
+                    <Button type="button" variant="secondary" onClick={() => void addCategory()}>
+                      Créer
+                    </Button>
+                  </div>
+                ) : null}
+                <Field label="Unité">
+                  <Select value={unit} onChange={(e) => setUnit(e.target.value)} aria-label="Unité">
+                    {UNIT_OPTIONS.map((u) => (
+                      <option key={u} value={u}>
+                        {unitLabel(u)}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              </FormSection>
+
+              <FormSection icon={<Layers size={14} aria-hidden="true" />} title="Conditionnement">
+                <label className="flex cursor-pointer items-center justify-between gap-3 text-xs font-semibold">
                   <span>
-                    Appliquer automatiquement le tarif carton
-                    <span className="block text-xs font-normal text-slate-500">
-                      Dès que la quantité atteint la taille du carton (prix manuel = règle
-                      désactivée).
+                    Activer le conditionnement
+                    <span className="block text-[11px] font-normal text-slate-500">
+                      Stock et FIFO restent en pièces.
                     </span>
                   </span>
                   <Switch
-                    checked={packaging.auto}
-                    onChange={() => setPackaging((p) => ({ ...p, auto: !p.auto }))}
-                    ariaLabel="Tarif carton automatique"
+                    checked={packaging.enabled}
+                    onChange={() => setPackaging((p) => ({ ...p, enabled: !p.enabled }))}
+                    ariaLabel="Activer le conditionnement"
                   />
                 </label>
+                {packaging.enabled ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <Field label="Libellé">
+                        <TextInput
+                          value={packaging.label}
+                          onChange={(e) => setPackaging((p) => ({ ...p, label: e.target.value }))}
+                          placeholder="Carton de 12"
+                          aria-label="Libellé du conditionnement"
+                        />
+                      </Field>
+                      <Field label="Pièces par carton" hint="Entier > 1.">
+                        <TextInput
+                          value={packaging.factor}
+                          onChange={(e) => setPackaging((p) => ({ ...p, factor: e.target.value }))}
+                          inputMode="numeric"
+                          placeholder="12"
+                          aria-label="Taille du carton"
+                          className="font-mono tabular-nums"
+                        />
+                      </Field>
+                      <Field label="Prix carton (DZD)">
+                        <TextInput
+                          value={packaging.selling}
+                          onChange={(e) => setPackaging((p) => ({ ...p, selling: e.target.value }))}
+                          inputMode="decimal"
+                          placeholder="0,00"
+                          aria-label="Prix du carton"
+                          className="font-mono tabular-nums"
+                        />
+                      </Field>
+                      <Field label="Achat carton (DZD)">
+                        <TextInput
+                          value={packaging.purchase}
+                          onChange={(e) =>
+                            setPackaging((p) => ({ ...p, purchase: e.target.value }))
+                          }
+                          inputMode="decimal"
+                          placeholder="0,00"
+                          aria-label="Prix d'achat du carton"
+                          className="font-mono tabular-nums"
+                        />
+                      </Field>
+                    </div>
+                    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/15 px-3 py-2 text-xs font-semibold">
+                      <span>
+                        Tarif carton automatique
+                        <span className="block text-[11px] font-normal text-slate-500">
+                          Dès que la quantité atteint la taille du carton.
+                        </span>
+                      </span>
+                      <Switch
+                        checked={packaging.auto}
+                        onChange={() => setPackaging((p) => ({ ...p, auto: !p.auto }))}
+                        ariaLabel="Tarif carton automatique"
+                      />
+                    </label>
+                  </>
+                ) : null}
+              </FormSection>
+            </div>
+
+            <div className="space-y-3">
+              <FormSection icon={<Banknote size={14} aria-hidden="true" />} title="Prix" hint="DZD">
+                <div className="grid grid-cols-2 gap-2.5">
+                  <Field label="Prix d'achat">
+                    <TextInput
+                      value={purchase}
+                      onChange={(e) => setPurchase(e.target.value)}
+                      inputMode="decimal"
+                      placeholder="0,00"
+                      aria-label="Prix d'achat"
+                      className="font-mono tabular-nums"
+                    />
+                  </Field>
+                  <Field label="Prix de vente">
+                    <TextInput
+                      value={selling}
+                      onChange={(e) => setSelling(e.target.value)}
+                      inputMode="decimal"
+                      placeholder="0,00"
+                      aria-label="Prix de vente"
+                      className="font-mono tabular-nums"
+                    />
+                  </Field>
+                </div>
+                <div
+                  aria-live="polite"
+                  className={cn(
+                    "flex items-center justify-between gap-2 rounded-lg border px-3 py-2",
+                    marginPreview?.belowCost
+                      ? "border-red-400/30 bg-red-500/[0.08]"
+                      : "border-white/10 bg-black/20",
+                  )}
+                >
+                  <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                    Marge
+                  </span>
+                  <span
+                    className={cn(
+                      "flex items-center gap-1 font-mono text-xs font-bold",
+                      marginPreview == null
+                        ? "text-slate-500"
+                        : marginPreview.belowCost
+                          ? "text-red-300"
+                          : "text-emerald-300",
+                    )}
+                  >
+                    {marginPreview?.belowCost ? (
+                      <TriangleAlert size={13} aria-hidden="true" />
+                    ) : null}
+                    {marginText}
+                    {marginPreview?.belowCost ? " · vente à perte" : ""}
+                  </span>
+                </div>
+              </FormSection>
+
+              <FormSection icon={<Boxes size={14} aria-hidden="true" />} title="Stock & seuils">
+                <div className="grid grid-cols-2 gap-2.5">
+                  <Field label={editing ? "Stock actuel" : "Stock initial"}>
+                    <TextInput
+                      value={qty}
+                      onChange={(e) => setQty(e.target.value)}
+                      inputMode="decimal"
+                      placeholder="0"
+                      aria-label="Stock"
+                      className="font-mono tabular-nums"
+                    />
+                  </Field>
+                  <Field label="Seuil minimum" hint="Alerte stock bas.">
+                    <TextInput
+                      value={minStock}
+                      onChange={(e) => setMinStock(e.target.value)}
+                      inputMode="decimal"
+                      placeholder="0"
+                      aria-label="Seuil minimum"
+                      className="font-mono tabular-nums"
+                    />
+                  </Field>
+                </div>
+                <Field label="Péremption" hint="Vide = sans date.">
+                  <TextInput
+                    type="date"
+                    value={expiration}
+                    onChange={(e) => setExpiration(e.target.value)}
+                    aria-label="Date de péremption"
+                  />
+                </Field>
+              </FormSection>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-white/[0.08] bg-black/20">
+            <button
+              type="button"
+              aria-expanded={advancedOpen}
+              aria-controls="product-advanced-options"
+              onClick={() => setAdvancedOpen((o) => !o)}
+              className="flex min-h-[48px] w-full items-center gap-2 rounded-xl px-3.5 py-2.5 text-left transition-colors hover:bg-white/[0.04]"
+            >
+              <span
+                aria-hidden="true"
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white/[0.06] text-slate-400"
+              >
+                <Settings2 size={14} />
+              </span>
+              <span className="text-sm font-bold text-slate-200">Options avancées</span>
+              <span className="ml-auto hidden truncate text-[11px] text-slate-500 sm:block">
+                {advancedSummary}
+              </span>
+              <ChevronDown
+                size={16}
+                aria-hidden="true"
+                className={cn(
+                  "shrink-0 text-slate-400 transition-transform",
+                  advancedOpen && "rotate-180",
+                )}
+              />
+            </button>
+            {advancedOpen ? (
+              <div
+                id="product-advanced-options"
+                className="space-y-3 border-t border-white/[0.08] p-3.5"
+              >
+                <div>
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                      <Truck size={13} aria-hidden="true" /> Fournisseurs liés
+                    </span>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => setSupplierQuickOpen(true)}
+                      title="Créer un fournisseur sans quitter la fiche produit"
+                      className="px-2.5 py-1.5 text-xs"
+                    >
+                      <Plus size={14} aria-hidden="true" /> Nouveau fournisseur
+                    </Button>
+                  </div>
+                  {supplierOptions.length === 0 ? (
+                    <p className="text-xs text-slate-500">
+                      Aucun fournisseur — créez-en un sans quitter la fiche.
+                    </p>
+                  ) : (
+                    <>
+                      {supplierOptions.length > 6 ? (
+                        <TextInput
+                          value={supplierQuery}
+                          onChange={(e) => setSupplierQuery(e.target.value)}
+                          placeholder="Rechercher un fournisseur…"
+                          aria-label="Rechercher un fournisseur"
+                          className="mb-2"
+                        />
+                      ) : null}
+                      <ul className="max-h-40 space-y-0.5 overflow-auto rounded-lg border border-white/10 bg-black/15 p-1.5">
+                        {visibleSuppliers.map((s) => (
+                          <li key={s.id}>
+                            <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-white/[0.06]">
+                              <input
+                                type="checkbox"
+                                checked={supplierIds.includes(s.id)}
+                                onChange={() =>
+                                  setSupplierIds((prev) =>
+                                    prev.includes(s.id)
+                                      ? prev.filter((x) => x !== s.id)
+                                      : [...prev, s.id],
+                                  )
+                                }
+                                aria-label={`Lier ${s.name}`}
+                                className="h-4 w-4 accent-amber-400"
+                              />
+                              <span className="min-w-0 flex-1 truncate">{s.name}</span>
+                              {supplierIds[0] === s.id ? (
+                                <span className="text-[11px] font-bold text-amber-300">
+                                  principal
+                                </span>
+                              ) : null}
+                            </label>
+                          </li>
+                        ))}
+                        {visibleSuppliers.length === 0 ? (
+                          <li className="px-2 py-2 text-xs text-slate-500">
+                            Aucun fournisseur ne correspond.
+                          </li>
+                        ) : null}
+                      </ul>
+                    </>
+                  )}
+                  <p className="mt-1.5 text-[11px] text-slate-500">
+                    Le 1er coché devient le fournisseur principal.
+                  </p>
+                </div>
+                <Field label="Stock maximum" hint="Vide = aucun plafond.">
+                  <TextInput
+                    value={maxStock}
+                    onChange={(e) => setMaxStock(e.target.value)}
+                    inputMode="decimal"
+                    placeholder="0"
+                    aria-label="Stock maximum"
+                    className="font-mono tabular-nums"
+                  />
+                </Field>
+                {editing ? (
+                  <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 text-xs font-semibold">
+                    <span>
+                      Produit actif
+                      <span className="block text-[11px] font-normal text-slate-500">
+                        Inactif = archivé (restaurable).
+                      </span>
+                    </span>
+                    <Switch
+                      checked={active}
+                      onChange={() => setActive((a) => !a)}
+                      ariaLabel="Produit actif"
+                    />
+                  </label>
+                ) : null}
               </div>
             ) : null}
           </div>
-          {editing ? (
-            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-sm font-semibold">
-              <span>
-                Produit actif
-                <span className="block text-xs font-normal text-slate-500">
-                  Inactif = archivé (restaurable).
-                </span>
-              </span>
-              <Switch
-                checked={active}
-                onChange={() => setActive((a) => !a)}
-                ariaLabel="Produit actif"
-              />
-            </label>
-          ) : null}
-          <div className="flex gap-2">
-            <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
-              Annuler
-            </Button>
-            <Button type="submit" disabled={busy} className="flex-[2]">
-              {busy ? "Enregistrement…" : editing ? "Enregistrer" : "Créer le produit"}
-            </Button>
+
+          <div className="sticky bottom-0 z-10 -mx-6 mt-1 flex flex-col-reverse gap-3 border-t border-white/10 bg-[#122131]/95 px-6 py-3.5 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+            <p className="flex items-center gap-1 text-[11px] text-slate-500">
+              <Kbd>Ctrl</Kbd>
+              <span>+</span>
+              <Kbd>Entrée</Kbd>
+              <span className="ml-1">pour enregistrer</span>
+            </p>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={onClose}
+                className="flex-1 sm:flex-none sm:min-w-[108px]"
+              >
+                Annuler
+              </Button>
+              <Button
+                type="submit"
+                disabled={busy}
+                className="flex-[2] sm:flex-none sm:min-w-[170px]"
+              >
+                {busy ? "Enregistrement…" : editing ? "Enregistrer" : "Créer le produit"}
+              </Button>
+            </div>
           </div>
         </form>
       </Modal>
