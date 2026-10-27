@@ -116,7 +116,7 @@ export function ProformaDetailsDrawer({
         lines: data.items.map((l) => ({
           name: String(l.product_name_snapshot),
           qty: Number(l.quantity),
-          unit: "",
+          unit: String(l.unit_code ?? "PIECE"),
           unitPriceMinor: Number(l.unit_price_minor),
           lineTotalMinor: Number(l.line_total_minor),
           ref:
@@ -206,7 +206,15 @@ export function ProformaDetailsDrawer({
                   key={`${typeof l.product_id === "number" ? l.product_id : "m"}-${idx}`}
                   className="border-t border-white/[0.06]"
                 >
-                  <td className="py-1 pr-2">{l.product_name_snapshot}</td>
+                  <td className="py-1 pr-2">
+                    {l.product_name_snapshot}
+                    {Number(l.unit_factor ?? 1) > 1 ? (
+                      <span className="block text-[10px] font-semibold text-emerald-300/80">
+                        {l.unit_code ?? `Carton de ${Number(l.unit_factor)}`} ×{" "}
+                        {Number(l.unit_factor)}
+                      </span>
+                    ) : null}
+                  </td>
                   <td className="py-1 pr-2 text-right tabular-nums">{Number(l.quantity)}</td>
                   <td className="py-1 pr-2 text-right tabular-nums">
                     {formatDzdSafe(l.unit_price_minor)}
@@ -309,6 +317,12 @@ interface FormLine {
   name: string;
   unitPriceMinor: number;
   qty: string;
+  /** Snapshot d'unité (carton ou unité de base). */
+  unitCode: string;
+  packagingId: number | null;
+  unitFactor: number;
+  /** Montant saisi (ADR-114) conservé tant que qté/prix ne changent pas. */
+  billedTotalMinor: number | null;
 }
 
 let lineSeq = 0;
@@ -337,17 +351,37 @@ export function ProformaFormDialog({
     source?.proforma.due_date ? String(source.proforma.due_date).slice(0, 10) : "",
   );
   const [lines, setLines] = useState<FormLine[]>(
-    (source?.items ?? []).map((l) => ({
-      key: `l${(lineSeq += 1)}`,
-      productId: typeof l.product_id === "number" ? l.product_id : null,
-      name: String(l.product_name_snapshot),
-      unitPriceMinor: Number(l.unit_price_minor),
-      qty: String(Number(l.quantity)),
-    })),
+    (source?.items ?? []).map((l) => {
+      const unitPriceMinor = Number(l.unit_price_minor);
+      const quantity = Number(l.quantity);
+      const lineTotal = Number(l.line_total_minor);
+      const factorRaw = Number(l.unit_factor ?? 1);
+      return {
+        key: `l${(lineSeq += 1)}`,
+        productId: typeof l.product_id === "number" ? l.product_id : null,
+        name: String(l.product_name_snapshot),
+        unitPriceMinor,
+        qty: String(quantity),
+        unitCode: String(l.unit_code ?? "PIECE"),
+        packagingId: l.packaging_id ?? null,
+        unitFactor: Number.isInteger(factorRaw) && factorRaw > 1 ? factorRaw : 1,
+        // Mode « Montant » : total différent de prix × qté = montant saisi.
+        billedTotalMinor: lineTotal !== Math.round(unitPriceMinor * quantity) ? lineTotal : null,
+      };
+    }),
   );
   const [productQ, setProductQ] = useState("");
   const [productResults, setProductResults] = useState<
-    { id: number; name: string; price: number; unit: string }[]
+    {
+      id: number;
+      name: string;
+      price: number;
+      unit: string;
+      packagingId: number | null;
+      packagingLabel: string | null;
+      packagingFactor: number | null;
+      packagingPrice: number | null;
+    }[]
   >([]);
   const [discountText, setDiscountText] = useState(
     source && Number(source.proforma.discount_amount_minor) > 0
@@ -386,7 +420,16 @@ export function ProformaFormDialog({
     if (productQ.trim().length < 2) return;
     try {
       const res = (await api.productSearch({ query: productQ.trim(), page: 1, pageSize: 8 })) as {
-        rows: { id: number; name: string; selling_price_minor: number; unit_code: string }[];
+        rows: {
+          id: number;
+          name: string;
+          selling_price_minor: number;
+          unit_code: string;
+          packaging_id?: number | null;
+          packaging_label_fr?: string | null;
+          packaging_factor?: number | null;
+          packaging_selling_price_minor?: number | null;
+        }[];
       };
       setProductResults(
         res.rows.map((p) => ({
@@ -394,6 +437,10 @@ export function ProformaFormDialog({
           name: p.name,
           price: p.selling_price_minor,
           unit: p.unit_code,
+          packagingId: p.packaging_id ?? null,
+          packagingLabel: p.packaging_label_fr ?? null,
+          packagingFactor: p.packaging_factor ?? null,
+          packagingPrice: p.packaging_selling_price_minor ?? null,
         })),
       );
     } catch {
@@ -401,15 +448,35 @@ export function ProformaFormDialog({
     }
   }
 
-  function addProduct(p: { id: number; name: string; price: number }): void {
+  function addProduct(
+    p: {
+      id: number;
+      name: string;
+      price: number;
+      unit: string;
+      packagingId: number | null;
+      packagingLabel: string | null;
+      packagingFactor: number | null;
+      packagingPrice: number | null;
+    },
+    carton = false,
+  ): void {
+    const useCarton =
+      carton && p.packagingId != null && (p.packagingFactor ?? 0) > 1 && p.packagingPrice != null;
     setLines((prev) => [
       ...prev,
       {
         key: `l${(lineSeq += 1)}`,
         productId: p.id,
         name: p.name,
-        unitPriceMinor: p.price,
+        unitPriceMinor: useCarton ? (p.packagingPrice as number) : p.price,
         qty: "1",
+        unitCode: useCarton
+          ? (p.packagingLabel ?? `Carton de ${p.packagingFactor}`)
+          : p.unit || "PIECE",
+        packagingId: useCarton ? p.packagingId : null,
+        unitFactor: useCarton ? (p.packagingFactor as number) : 1,
+        billedTotalMinor: null,
       },
     ]);
     setProductQ("");
@@ -417,7 +484,10 @@ export function ProformaFormDialog({
   }
 
   function setLineQty(key: string, v: string): void {
-    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, qty: v } : l)));
+    // Le montant saisi n'est plus représentable dès que la quantité change.
+    setLines((prev) =>
+      prev.map((l) => (l.key === key ? { ...l, qty: v, billedTotalMinor: null } : l)),
+    );
   }
 
   function removeLine(key: string): void {
@@ -427,9 +497,12 @@ export function ProformaFormDialog({
   const parsed = lines.map((l) => {
     const n = Number(l.qty.replace(",", ".").trim());
     const q = l.qty.trim() === "" ? 0 : Math.round(n * 1000) / 1000;
-    return { ...l, wanted: Number.isFinite(q) && q > 0 ? q : 0 };
+    const wanted = Number.isFinite(q) && q > 0 ? q : 0;
+    const lineTotal =
+      l.billedTotalMinor != null ? l.billedTotalMinor : computeLineTotal(l.unitPriceMinor, wanted);
+    return { ...l, wanted, lineTotal };
   });
-  const subtotal = parsed.reduce((a, l) => a + computeLineTotal(l.unitPriceMinor, l.wanted), 0);
+  const subtotal = parsed.reduce((a, l) => a + l.lineTotal, 0);
   // P1-5 : strict (bornes H-1, jamais NaN) ; invalide → -1 = refusé par les gardes.
   const discount = strictOrNeg(discountText, "Remise");
   const total = Math.max(0, subtotal - (Number.isInteger(discount) ? discount : 0));
@@ -441,6 +514,13 @@ export function ProformaFormDialog({
     }
     if (!parsed.some((l) => l.wanted > 0)) {
       notify("Ajoutez au moins un article.", "err");
+      return;
+    }
+    const badCarton = parsed.find(
+      (l) => l.wanted > 0 && l.unitFactor > 1 && !Number.isInteger(l.wanted),
+    );
+    if (badCarton) {
+      notify(`Nombre de cartons entier requis pour « ${badCarton.name} ».`, "err");
       return;
     }
     if (!Number.isInteger(discount) || discount < 0 || discount > subtotal) {
@@ -461,6 +541,10 @@ export function ProformaFormDialog({
           productName: l.name.trim(),
           unitPriceMinor: l.unitPriceMinor,
           quantity: l.wanted,
+          billedTotalMinor: l.billedTotalMinor,
+          unitCode: l.unitCode,
+          packagingId: l.packagingId,
+          unitFactor: l.unitFactor,
         })),
       discountMinor: discount,
       deliveryMinor: 0,
@@ -620,17 +704,30 @@ export function ProformaFormDialog({
           {productResults.length > 0 ? (
             <ul className="mt-2 max-h-32 divide-y divide-white/[0.06] overflow-auto rounded-xl border border-white/10">
               {productResults.map((p) => (
-                <li key={p.id}>
+                <li key={p.id} className="flex items-stretch">
                   <button
                     type="button"
                     onClick={() => addProduct(p)}
-                    className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-amber-400/10"
+                    className="flex min-w-0 flex-1 items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-amber-400/10"
                   >
                     <span className="truncate font-semibold">{p.name}</span>
                     <span className="shrink-0 text-xs tabular-nums text-slate-400">
                       {formatDzd(p.price)}
                     </span>
                   </button>
+                  {p.packagingId != null &&
+                  (p.packagingFactor ?? 0) > 1 &&
+                  p.packagingPrice != null ? (
+                    <button
+                      type="button"
+                      onClick={() => addProduct(p, true)}
+                      title={`Ajouter ${p.packagingLabel ?? `un carton de ${p.packagingFactor}`}`}
+                      className="shrink-0 border-l border-white/10 px-3 py-2 text-xs font-semibold text-emerald-300 tabular-nums transition-colors hover:bg-emerald-400/10"
+                    >
+                      {p.packagingLabel ?? `Carton de ${p.packagingFactor}`} ·{" "}
+                      {formatDzd(p.packagingPrice)}
+                    </button>
+                  ) : null}
                 </li>
               ))}
             </ul>
@@ -652,7 +749,14 @@ export function ProformaFormDialog({
               <tbody>
                 {parsed.map((l) => (
                   <tr key={l.key} className="border-t border-white/[0.06]">
-                    <td className="max-w-[180px] truncate px-3 py-2">{l.name}</td>
+                    <td className="max-w-[180px] px-3 py-2">
+                      <span className="block truncate">{l.name}</span>
+                      {l.unitFactor > 1 ? (
+                        <span className="block text-[10px] font-semibold text-emerald-300/80">
+                          {l.unitCode} × {l.unitFactor}
+                        </span>
+                      ) : null}
+                    </td>
                     <td className="px-3 py-2 text-right tabular-nums text-slate-400">
                       {formatDzd(l.unitPriceMinor)}
                     </td>
@@ -667,7 +771,7 @@ export function ProformaFormDialog({
                       />
                     </td>
                     <td className="px-3 py-2 text-right font-bold tabular-nums">
-                      {formatDzd(computeLineTotal(l.unitPriceMinor, l.wanted))}
+                      {formatDzd(l.lineTotal)}
                     </td>
                     <td className="px-3 py-2 text-right">
                       <button

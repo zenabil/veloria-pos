@@ -4,7 +4,7 @@
 > l avancement en `reports/PHASE_*.md`. Ne jamais ecrire de rapport a la racine.
 > Conventions : `AGENTS.md` + `docs/STRUCTURE.md` (carte maintenance).
 
-## Decisions (ADR-001 a ADR-135 — tous saries, jamais supprimes)
+## Decisions (ADR-001 a ADR-141 — tous saries, jamais supprimes)
 
 - [ADR-001](./ADR-001-vite-renderer.md) Renderer Vite
 - [ADR-002](./ADR-002-native-versions.md) Versions natives
@@ -143,6 +143,10 @@
 - [ADR-135](./ADR-135-export-donnees-reimportable-csv.md) Export de données CSV réimportable (deuxième bouton « Données CSV » à côté du rapport)
 - [ADR-136](./ADR-136-conditionnement-carton.md) Conditionnement « carton » : tarif automatique monotone, stock/FIFO en unités de base, achat et retours (migration 0054)
 - [ADR-137](./ADR-137-cout-fifo-caisse.md) Coût FIFO en caisse : le stock ancien garde son coût jusqu'à la vente, alerte et audit sous-coût sur le COGS réel
+- [ADR-138](./ADR-138-retours-dette-d-abord.md) Retours clients : imputation automatique sur la dette d'abord, espèces pour l'excédent (migration 0055)
+- [ADR-139](./ADR-139-annulation-correction-factures.md) Annulation et correction des factures de vente et d'achat : annuler + rééditer, gardes stock/fournisseur/bon de commande
+- [ADR-140](./ADR-140-carton-devis-retours-fournisseur.md) Carton : devis convertibles (snapshot), retours fournisseur stock/abîmées et correctif d'annulation (migration 0056)
+- [ADR-141](./ADR-141-tarif-gros-carton-plancher.md) Tarif de gros carton : suppression du plancher (facteur−1), seul le plafond « plein au prix pièce » reste
 
 ## Ou ecrire quoi
 

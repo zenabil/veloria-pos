@@ -14,6 +14,10 @@ export const returnCreateSchema = z.object({
   items: z
     .array(
       z.object({
+        /** Ligne vendue exacte (prix net) — optionnel pour compatibilité. */
+        saleItemId: z.number().int().positive().nullable().optional(),
+        /** Ligne d'achat exacte (retour fournisseur) — prix de CETTE ligne. */
+        intakeItemId: z.number().int().positive().nullable().optional(),
         productId: z.number().int().nullable(),
         quantity,
         restocked: z.boolean().default(true),
@@ -25,6 +29,7 @@ export const returnCreateSchema = z.object({
     .min(1)
     .max(200),
   refundMinor: moneyMinor.default(0),
+  /** @deprecated ignoré : l'avoir est calculé automatiquement (dette d'abord). */
   creditMinor: moneyMinor.default(0),
   refundMethod: z.enum(["cash", "cheque", "transfer"]).nullable().optional(),
   reason: z.string().min(2).max(300),
@@ -72,6 +77,10 @@ export const proformaCreateSchema = z.object({
         quantity,
         // Mode « Montant » (ADR-114) : montant facturé EXACT de la ligne.
         billedTotalMinor: moneyMinorPositive.nullable().optional(),
+        // Snapshot conditionnement (facteur relu/validé en DB côté main).
+        unitCode: z.string().max(40).optional(),
+        packagingId: z.number().int().positive().nullable().optional(),
+        unitFactor: z.number().int().positive().max(1_000_000).default(1),
       }),
     )
     .min(1)
@@ -120,6 +129,10 @@ export const proformaUpdateSchema = z.object({
         quantity,
         // Mode « Montant » (ADR-114) : montant facturé EXACT de la ligne.
         billedTotalMinor: moneyMinorPositive.nullable().optional(),
+        // Snapshot conditionnement (facteur relu/validé en DB côté main).
+        unitCode: z.string().max(40).optional(),
+        packagingId: z.number().int().positive().nullable().optional(),
+        unitFactor: z.number().int().positive().max(1_000_000).default(1),
       }),
     )
     .min(1)

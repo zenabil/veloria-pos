@@ -1633,6 +1633,117 @@ console.log("OK  0026 credit-revocation policy (refused with debt, allowed when 
   console.log(`OK  pureté de l'argent (toutes les colonnes *_minor sont INTEGER)`);
 }
 
+// 0055 : imputation automatique des retours sur la dette du client.
+{
+  const saleCols = db
+    .prepare("SELECT name FROM pragma_table_info('sales')")
+    .all()
+    .map((r) => r.name);
+  if (!saleCols.includes("credit_applied_minor")) {
+    console.error("FAIL: 0055 sales.credit_applied_minor missing");
+    process.exit(1);
+  }
+  const allocCols = db
+    .prepare("SELECT name FROM pragma_table_info('customer_credit_allocations')")
+    .all()
+    .map((r) => r.name);
+  for (const col of ["return_id", "customer_id", "sale_id", "amount_minor"]) {
+    if (!allocCols.includes(col)) {
+      console.error(`FAIL: 0055 customer_credit_allocations.${col} missing`);
+      process.exit(1);
+    }
+  }
+  const trg55 = db
+    .prepare(
+      "SELECT COUNT(*) AS c FROM sqlite_master WHERE type = 'trigger' AND name IN ('trg_sales_credit_applied_bounds_ins','trg_sales_credit_applied_bounds_upd','trg_credit_alloc_party_ins','trg_credit_alloc_total_ins')",
+    )
+    .get();
+  if (trg55.c !== 4) {
+    console.error(`FAIL: 0055 credit guards missing (found ${trg55.c}/4)`);
+    process.exit(1);
+  }
+  let creditRejected = false;
+  try {
+    db.prepare(
+      "INSERT INTO sales (uuid, invoice_number, customer_id, subtotal_minor, total_minor, amount_paid_minor, remaining_balance_minor, payment_status, created_at, updated_at, credit_applied_minor) VALUES ('u55bad','FAC-2026-0055B',1,1000,1000,500,500,'partial','2026-04-02','2026-04-02',600)",
+    ).run();
+  } catch {
+    creditRejected = true;
+  }
+  if (!creditRejected) {
+    console.error("FAIL: 0055 credit > paid accepted");
+    process.exit(1);
+  }
+  db.prepare(
+    "INSERT INTO sales (uuid, invoice_number, customer_id, subtotal_minor, total_minor, amount_paid_minor, remaining_balance_minor, payment_status, created_at, updated_at, credit_applied_minor) VALUES ('u55','FAC-2026-0055',1,1000,1000,500,500,'partial','2026-04-01','2026-04-01',200)",
+  ).run();
+  const day55 = db.prepare("SELECT paid_minor FROM v_daily_sales WHERE day = '2026-04-01'").get();
+  if (Number(day55.paid_minor) !== 300) {
+    console.error(`FAIL: 0055 v_daily_sales paid_minor=${day55.paid_minor} (expected 300)`);
+    process.exit(1);
+  }
+  console.log("OK  0055 imputation retour (colonne + journal + gardes + vue nette)");
+}
+
+// 0056 : snapshot carton des devis + répartition stock/abîmées des retours
+// fournisseur (les pièces abîmées ne sortent pas du stock).
+{
+  const proCols = db
+    .prepare("SELECT name FROM pragma_table_info('proforma_items')")
+    .all()
+    .map((r) => r.name);
+  for (const col of ["packaging_id", "unit_factor", "unit_code"]) {
+    if (!proCols.includes(col)) {
+      console.error(`FAIL: 0056 proforma_items.${col} missing`);
+      process.exit(1);
+    }
+  }
+  const sriCols = db
+    .prepare("SELECT name FROM pragma_table_info('supplier_return_items')")
+    .all()
+    .map((r) => r.name);
+  for (const col of ["quantity_stock", "quantity_damaged"]) {
+    if (!sriCols.includes(col)) {
+      console.error(`FAIL: 0056 supplier_return_items.${col} missing`);
+      process.exit(1);
+    }
+  }
+  // Backfill historique : tout était sorti du stock.
+  db.prepare(
+    "INSERT INTO stock_intakes (uuid, subtotal_minor, total_minor, created_at, updated_at) VALUES ('si56', 300, 300, '2026-05-01', '2026-05-01')",
+  ).run();
+  db.prepare(
+    "INSERT INTO supplier_returns (uuid, return_number, stock_intake_id, total_return_value_minor, status, created_at, updated_at) VALUES ('sr56','RET-S-00056',(SELECT id FROM stock_intakes WHERE uuid = 'si56'),100,'validated','2026-05-01','2026-05-01')",
+  ).run();
+  db.prepare(
+    "INSERT INTO supplier_return_items (supplier_return_id, product_id, product_name_snapshot, quantity, unit_price_minor, purchase_price_minor, line_total_minor, quantity_stock, quantity_damaged) VALUES ((SELECT id FROM supplier_returns WHERE uuid = 'sr56'), 1, 'Test', 3, 100, 100, 300, 2, 1)",
+  ).run();
+  const split = db
+    .prepare(
+      "SELECT quantity, quantity_stock, quantity_damaged FROM supplier_return_items WHERE supplier_return_id = (SELECT id FROM supplier_returns WHERE uuid = 'sr56')",
+    )
+    .get();
+  if (split.quantity_stock !== 2 || split.quantity_damaged !== 1) {
+    console.error(
+      `FAIL: 0056 supplier return split (stock=${split.quantity_stock}, damaged=${split.quantity_damaged})`,
+    );
+    process.exit(1);
+  }
+  let negStockRejected = false;
+  try {
+    db.prepare(
+      "INSERT INTO supplier_return_items (supplier_return_id, product_id, product_name_snapshot, quantity, unit_price_minor, purchase_price_minor, line_total_minor, quantity_stock) VALUES ((SELECT id FROM supplier_returns WHERE uuid = 'sr56'), 1, 'Test', 1, 100, 100, 100, -1)",
+    ).run();
+  } catch {
+    negStockRejected = true;
+  }
+  if (!negStockRejected) {
+    console.error("FAIL: 0056 negative quantity_stock accepted");
+    process.exit(1);
+  }
+  console.log("OK  0056 devis carton (snapshot) + retours fournisseur stock/abîmées");
+}
+
 // Integrity
 const ic = db.prepare("PRAGMA integrity_check").get();
 const fk = db.prepare("PRAGMA foreign_key_check").all();

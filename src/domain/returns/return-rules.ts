@@ -159,3 +159,60 @@ export function assertRefundSplit(
     );
   }
 }
+
+export interface ReturnSettlementInput {
+  totalReturnMinor: number;
+  /** Solde dû du client au moment du retour (0 = aucune dette). */
+  outstandingMinor: number;
+  /** Espèces demandées par l'opérateur. */
+  requestedRefundMinor: number;
+}
+
+export interface ReturnSettlement {
+  /** Part imputée automatiquement à la dette du client. */
+  creditAppliedMinor: number;
+  /** Espèces effectivement autorisées (le reste non imputé). */
+  cashRefundMinor: number;
+  /** Plafond espèces = valeur retour − part imputée. */
+  maxCashRefundMinor: number;
+  /** Part ni imputée ni remboursée (règlement complémentaire ultérieur). */
+  unsettledMinor: number;
+}
+
+/**
+ * Politique propriétaire : la valeur du retour éteint d'abord la dette du
+ * client, puis les espèces ne peuvent couvrir que l'excédent. Un solde
+ * négatif (avoir historique) ne crée aucune dette imputable.
+ *
+ * Miroir main : `electron/ipc/handlers/return-settlement.ts` (electron/ ne
+ * peut pas importer src/) — parité prouvée par
+ * `tests/unit/main-domain-parity.test.ts`.
+ */
+export function computeReturnSettlement(input: ReturnSettlementInput): ReturnSettlement {
+  asReturnError(
+    () => assertSafeTotal(input.totalReturnMinor, "Valeur de retour invalide"),
+    "Valeur de retour invalide.",
+  );
+  asReturnError(
+    () => assertSafeTotal(input.requestedRefundMinor, "Remboursement invalide"),
+    "Remboursement invalide.",
+  );
+  if (!Number.isSafeInteger(input.outstandingMinor)) {
+    throw new DomainError("RETURN_ERROR", "Solde client invalide.");
+  }
+  const outstanding = Math.max(0, input.outstandingMinor);
+  const creditAppliedMinor = Math.min(input.totalReturnMinor, outstanding);
+  const maxCashRefundMinor = input.totalReturnMinor - creditAppliedMinor;
+  if (input.requestedRefundMinor > maxCashRefundMinor) {
+    throw new DomainError(
+      "RETURN_ERROR",
+      "Remboursement en espèces supérieur au montant non imputé à la dette du client.",
+    );
+  }
+  return {
+    creditAppliedMinor,
+    cashRefundMinor: input.requestedRefundMinor,
+    maxCashRefundMinor,
+    unsettledMinor: input.totalReturnMinor - creditAppliedMinor - input.requestedRefundMinor,
+  };
+}

@@ -29,7 +29,11 @@ import {
   validateSupplierDraft,
 } from "../../src/domain/suppliers/supplier-rules.ts";
 import { computeAdjustmentNewStock } from "../../src/domain/inventory/stock-rules.ts";
-import { computeReturnStatus, formatReturnNumber } from "../../src/domain/returns/return-rules.ts";
+import {
+  computeReturnSettlement,
+  computeReturnStatus,
+  formatReturnNumber,
+} from "../../src/domain/returns/return-rules.ts";
 import { formatExpenseNumber } from "../../src/domain/expenses/expense-rules.ts";
 
 function assert(cond: boolean, msg: string): void {
@@ -203,6 +207,28 @@ assert(
   computeReturnStatus(1000, 1000) === "refunded" && computeReturnStatus(1000, 0) === "validated",
   "return status derived",
 );
+const settlement = computeReturnSettlement({
+  totalReturnMinor: 10000,
+  outstandingMinor: 6000,
+  requestedRefundMinor: 4000,
+});
+assert(
+  settlement.creditAppliedMinor === 6000 &&
+    settlement.cashRefundMinor === 4000 &&
+    settlement.unsettledMinor === 0,
+  "return settlement: debt 6000 first, cash 4000",
+);
+let settlementRejected = false;
+try {
+  computeReturnSettlement({
+    totalReturnMinor: 10000,
+    outstandingMinor: 6000,
+    requestedRefundMinor: 4001,
+  });
+} catch {
+  settlementRejected = true;
+}
+assert(settlementRejected, "return settlement: cash above non-debt part rejected");
 assert(formatExpenseNumber(7) === "DEP-00007", "expense number DEP-00007");
 
 // ---------------------------------------------------------------------------

@@ -221,7 +221,7 @@ export function createDailyClosingAtomic(args: {
     // effet sur le total.
     const cash = db
       .prepare(
-        `SELECT COALESCE(SUM(amount_paid_minor),0) AS p FROM sales
+        `SELECT COALESCE(SUM(amount_paid_minor - credit_applied_minor),0) AS p FROM sales
          WHERE substr(created_at,1,10) = ? AND is_cancelled = 0
            AND COALESCE(payment_method, 'cash') = 'cash'`,
       )
@@ -395,7 +395,7 @@ export function getZakatSources(): Record<string, unknown> {
   const db = getDb();
   const cash = db
     .prepare(
-      `SELECT COALESCE(SUM(amount_paid_minor),0) AS paid, COALESCE(SUM(total_minor),0) AS total FROM sales WHERE is_cancelled = 0`,
+      `SELECT COALESCE(SUM(amount_paid_minor - credit_applied_minor),0) AS paid, COALESCE(SUM(total_minor),0) AS total FROM sales WHERE is_cancelled = 0`,
     )
     .get();
   const inventory = { v: fifoValuation() };

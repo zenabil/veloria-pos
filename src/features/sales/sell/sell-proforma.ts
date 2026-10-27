@@ -9,6 +9,7 @@ import { proformaOperationKey } from "../proforma-op.ts";
 import { enrichCustomer, type CustomerStatement } from "../../customers/types.ts";
 import { fetchCustomerCredit } from "./sell-search.ts";
 import { buildProformaLines } from "./sell-totals.ts";
+import { expandSaleLines } from "@/application/sales/packaging-lines.ts";
 import { clearSaleForm, type SellFlowDeps } from "./sell-finalize.ts";
 
 export async function createProforma(d: SellFlowDeps): Promise<void> {
@@ -26,13 +27,18 @@ export async function createProforma(d: SellFlowDeps): Promise<void> {
     const res = (await api.proformaCreate({
       operationId: proformaOperationId,
       customerId: d.cart.customerId,
-      lines: d.cart.lines.map((l) => ({
+      // Le devis enregistre EXACTEMENT les lignes facturables (cartons +
+      // reste), sinon le total imprimé et le total stocké divergent.
+      lines: expandSaleLines(d.cart.lines).map((l) => ({
         productId: l.productId,
         productName: l.productName,
+        unitCode: l.unitCode,
         unitPriceMinor: l.unitPriceMinor,
         quantity: l.quantity,
         // Mode « Montant » (ADR-114) : le devis garde le montant SAISI.
         billedTotalMinor: l.billedTotalMinor ?? null,
+        packagingId: l.packagingId,
+        unitFactor: l.unitFactor,
       })),
       discountMinor: 0,
       deliveryMinor: 0,

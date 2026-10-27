@@ -22,12 +22,21 @@ import { playSound } from "@shared/sound/sound.ts";
 // ---------------------------------------------------------------------------
 
 interface IntakeLine {
+  id: number;
   product_id: number | null;
   product_name_snapshot: string;
   purchase_price_minor: number;
   quantity_received: number;
+  quantity_damaged: number;
+  quantity_net: number;
+  unit_factor: number;
+  unit_code?: string | null;
+  packaging_label_fr?: string | null;
   already_returned: number;
+  /** Éligible = stock disponible + abîmées non encore retournées (unités de base). */
   eligible: number;
+  stock_eligible: number;
+  damaged_eligible: number;
   product_primary_barcode?: string | null;
   product_barcodes?: string[] | null;
   product_barcode?: string | null;
@@ -193,6 +202,7 @@ export function SupplierReturnDialog({
         kind: "supplier",
         intakeId,
         items: chosen.map((l) => ({
+          intakeItemId: l.id,
           productId: l.product_id,
           quantity: l.wanted,
           restocked: false,
@@ -310,7 +320,7 @@ export function SupplierReturnDialog({
                 <tr>
                   <th className="px-3 py-2">Produit</th>
                   <th className="px-3 py-2 text-right">Reçu</th>
-                  <th className="px-3 py-2 text-right">Qté retour</th>
+                  <th className="px-3 py-2 text-right">Qté retour (pcs)</th>
                   <th className="px-3 py-2 text-right">Total</th>
                   <th className="px-3 py-2">État</th>
                 </tr>
@@ -321,10 +331,25 @@ export function SupplierReturnDialog({
                     key={`${l.product_id ?? "x"}-${l.product_name_snapshot}`}
                     className="border-t border-white/[0.06]"
                   >
-                    <td className="max-w-[180px] truncate px-3 py-2">{l.product_name_snapshot}</td>
+                    <td className="max-w-[200px] px-3 py-2">
+                      <span className="block truncate">{l.product_name_snapshot}</span>
+                      {l.unit_factor > 1 ? (
+                        <span className="block text-[11px] font-semibold text-emerald-300/80">
+                          {l.packaging_label_fr ?? l.unit_code ?? `Carton de ${l.unit_factor}`} ×{" "}
+                          {l.unit_factor}
+                        </span>
+                      ) : null}
+                    </td>
                     <td className="px-3 py-2 text-right tabular-nums text-slate-400">
-                      {l.quantity_received}{" "}
-                      <span className="text-[11px]">(restant {l.eligible})</span>
+                      <span className="block">
+                        {l.unit_factor > 1
+                          ? `${l.quantity_received} carton(s) = ${l.quantity_net + l.quantity_damaged} pcs`
+                          : `${l.quantity_received} ${l.unit_code ?? "pcs"}`}
+                      </span>
+                      <span className="block text-[11px]">
+                        stock {l.stock_eligible} + abîmées {l.damaged_eligible} = restant{" "}
+                        {l.eligible}
+                      </span>
                     </td>
                     <td className="w-24 px-3 py-2">
                       <TextInput
@@ -332,7 +357,7 @@ export function SupplierReturnDialog({
                         onChange={(e) => setLineQty(i, e.target.value)}
                         inputMode="decimal"
                         placeholder="0"
-                        aria-label={`Quantité ${l.product_name_snapshot}`}
+                        aria-label={`Quantité en pièces ${l.product_name_snapshot}`}
                         className={cn("py-1.5 text-right", l.over && "border-red-400/60")}
                       />
                     </td>
@@ -355,6 +380,12 @@ export function SupplierReturnDialog({
               </tbody>
             </table>
           </div>
+
+          <p className="rounded-xl bg-black/25 px-4 py-2 text-xs text-slate-400">
+            Les quantités se saisissent en <strong>pièces (unités de base)</strong>. Les pièces
+            abîmées à la réception n'ont jamais été stockées : elles restent retournables au
+            fournisseur sans sortir du stock.
+          </p>
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Motif">

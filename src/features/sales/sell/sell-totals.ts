@@ -200,7 +200,9 @@ export function buildPrintPayload(
 
 /** Charge devis (lignes + totaux, coordonnées client complétées ensuite). */
 export function buildProformaLines(cart: ActiveCart): PreviewLine[] {
-  return cart.lines.map((l) => ({
+  // Même projection que la vente : un devis pour 15 pièces affiche
+  // « 1 carton + 3 pièces » et le total au tarif carton, jamais 15 × prix pièce.
+  return expandSaleLines(cart.lines).map((l) => ({
     name: l.productName,
     qty: l.quantity,
     unit: l.unitCode,

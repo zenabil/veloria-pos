@@ -79,11 +79,11 @@ export function splitQuantityByCarton(qty: number, factor: number): QuantitySpli
  * - `quantity = nombre de cartons`, `unitFactor = facteur`.
  * Le reste éventuel est facturé au prix pièce.
  *
- * Le tarif carton n'est appliqué QUE s'il est avantageux et qu'il ne fait pas
- * baisser le total quand la quantité franchit le seuil : `(factor−1) × prix
- * pièce ≤ prix carton < factor × prix pièce`. Hors de cette zone (prix
- * incohérent ou majoration), la ligne reste au prix pièce — jamais de total
- * qui diminue en achetant une unité de plus.
+ * Le tarif carton s'applique dès que la quantité atteint le facteur et que le
+ * carton est STRICTEMENT moins cher que `factor × prix pièce`. L'ancien
+ * plancher `(factor−1) × prix pièce` est supprimé (ADR-141) : un tarif de gros
+ * réel peut créer une baisse au seuil (ex. 29 pièces = 725 DZD, 1 carton de 30
+ * = 650 DZD). Un carton plus cher qu'un plein au prix pièce reste ignoré.
  */
 export function priceSaleLine(input: {
   qty: number;
@@ -111,9 +111,9 @@ export function priceSaleLine(input: {
     isCarton: false,
   };
   const packTotalMinor = multiplyMinorByQuantity(input.unitPriceMinor, input.factor);
-  const cartonAdvantageous =
-    input.cartonPriceMinor < packTotalMinor &&
-    input.cartonPriceMinor >= multiplyMinorByQuantity(input.unitPriceMinor, input.factor - 1);
+  // Seule borne conservée : le carton doit être une remise sur le plein au
+  // prix pièce. Le plancher (facteur−1) est volontairement retiré (ADR-141).
+  const cartonAdvantageous = input.cartonPriceMinor < packTotalMinor;
   if (!input.auto || qty < input.factor || !cartonAdvantageous) {
     return {
       lines: [pieceLine],

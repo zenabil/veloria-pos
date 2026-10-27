@@ -17,9 +17,31 @@ export function enforceCreditGates(
   // EL-24: mêmes gates pour les workflows qui créent du crédit sans
   // passer par sales.create (returns crédit, conversions).
   if (channel === IPC_CHANNELS["returns.create"]) {
-    const rc = input as { creditMinor?: unknown };
-    if (typeof rc.creditMinor === "number" && rc.creditMinor > 0) {
-      requireLicensedFeature(deps, "debt-management");
+    // Depuis 0055, l'avoir est imputé automatiquement à la dette du client :
+    // le gate ne peut plus dépendre du champ `creditMinor` (ignoré). On lit
+    // la dette réelle de la vente ; une vente au passage n'en crée aucune.
+    const rc = input as { kind?: unknown; saleId?: unknown };
+    if (rc.kind === "customer" && typeof rc.saleId === "number") {
+      let debt = 0;
+      try {
+        const row = getDb()
+          .prepare(
+            `SELECT c.outstanding_balance_minor AS debt
+             FROM sales s JOIN customers c ON c.id = s.customer_id
+             WHERE s.id = ? AND s.is_cancelled = 0`,
+          )
+          .get(rc.saleId) as { debt: number } | undefined;
+        debt = row ? Number(row.debt) : 0;
+      } catch (err) {
+        // Fail-closed : sans lecture fiable de la dette, impossible de savoir
+        // si le retour consomme la capability debt-management.
+        log("ERROR", "ipc", "license.gate_debt_read_failed", {
+          channel,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        throw new Error("Vérification de la licence impossible : réessayez.");
+      }
+      if (debt > 0) requireLicensedFeature(deps, "debt-management");
     }
   }
   // Conversions : le total vient de la DB (devis/commande) — on le charge

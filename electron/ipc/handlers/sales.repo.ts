@@ -183,6 +183,14 @@ export interface CreateSaleInput {
   lineDiscounts?: number[];
   now: string;
   allowNegativeStock: boolean;
+  /**
+   * Conversion INTERNE d'un devis : le facteur et le prix carton viennent de
+   * `proforma_items` (snapshot validé à la création du devis), jamais du
+   * renderer. Le main ne relit donc pas le conditionnement courant — un devis
+   * reste convertible même si le tarif carton a changé depuis. Ce champ n'est
+   * pas exposé par le schéma IPC.
+   */
+  trustedPackagingSnapshot?: boolean;
   /** Auteur de la vente (session main, 0046) — NULL = historique pré-0046. */
   staffUserId?: number | null;
 }
@@ -490,35 +498,42 @@ export function createSaleAtomic(input: CreateSaleInput): {
       }
       if (line.packagingId != null) {
         const pack = packagingById.get(line.packagingId);
-        if (!pack || !pack.active) {
-          throw new Error(
-            `Conditionnement indisponible pour « ${line.productName} » : retirez la ligne du panier.`,
-          );
+        // Même une conversion de devis exige une ligne de conditionnement
+        // existante : la FK historique garantit que la snapshot reste lisible.
+        if (!pack) {
+          throw new Error(`Conditionnement introuvable pour « ${line.productName} ».`);
         }
         if (pack.productId !== line.productId) {
           throw new Error(`Conditionnement incohérent pour « ${line.productName} ».`);
         }
-        if (pack.factor !== factor) {
-          throw new Error(
-            `Taille du carton modifiée pour « ${line.productName} » : rafraîchissez le panier.`,
-          );
-        }
-        if (!pack.auto) {
-          throw new Error(`Tarif carton désactivé pour « ${line.productName} ».`);
-        }
         if (!Number.isInteger(line.quantity) || line.quantity <= 0) {
           throw new Error(`Nombre de cartons invalide pour « ${line.productName} ».`);
         }
-        if (line.unitPriceMinor !== pack.sellingPriceMinor) {
-          throw new Error(
-            `Tarif carton modifié pour « ${line.productName} » : rafraîchissez le panier.`,
-          );
-        }
-        const expectedOriginal = round3((sellingById.get(line.productId) ?? 0) * pack.factor);
-        if (line.originalUnitPriceMinor !== expectedOriginal) {
-          throw new Error(
-            `Prix du produit modifié pour « ${line.productName} » : rafraîchissez le panier.`,
-          );
+        if (!input.trustedPackagingSnapshot) {
+          if (!pack.active) {
+            throw new Error(
+              `Conditionnement indisponible pour « ${line.productName} » : retirez la ligne du panier.`,
+            );
+          }
+          if (pack.factor !== factor) {
+            throw new Error(
+              `Taille du carton modifiée pour « ${line.productName} » : rafraîchissez le panier.`,
+            );
+          }
+          if (!pack.auto) {
+            throw new Error(`Tarif carton désactivé pour « ${line.productName} ».`);
+          }
+          if (line.unitPriceMinor !== pack.sellingPriceMinor) {
+            throw new Error(
+              `Tarif carton modifié pour « ${line.productName} » : rafraîchissez le panier.`,
+            );
+          }
+          const expectedOriginal = round3((sellingById.get(line.productId) ?? 0) * pack.factor);
+          if (line.originalUnitPriceMinor !== expectedOriginal) {
+            throw new Error(
+              `Prix du produit modifié pour « ${line.productName} » : rafraîchissez le panier.`,
+            );
+          }
         }
       } else if (factor !== 1) {
         throw new Error(`Facteur de conditionnement incohérent pour « ${line.productName} ».`);
@@ -1151,11 +1166,13 @@ function buildReopenDraft(
       let basePrice =
         piecePrice.get(pid as number) ?? (prod ? Number(prod.selling_price_minor) : 0);
       const packTotal = Math.round(basePrice * factor);
-      const cartonAdvantageous = unit < packTotal && unit >= Math.round(basePrice * (factor - 1));
-      if (!cartonAdvantageous) {
-        // Tarif carton historique non dérivable du prix actuel : choisir un
-        // prix pièce qui rend le tarif carton applicable et conserve le total.
-        basePrice = Math.max(0, Math.floor(unit / (factor - 1)));
+      // ADR-141 : plus de plancher (facteur−1) — un tarif de gros réel peut
+      // être sous ce seuil. On garantit seulement que le carton reste moins
+      // cher que le plein au prix pièce pour que la projection le rejoue.
+      if (unit >= packTotal) {
+        // Tarif carton historique supérieur au plein actuel : choisir un prix
+        // pièce qui rend le tarif carton applicable tout en conservant le total.
+        basePrice = Math.max(1, Math.floor(unit / factor) + 1);
       }
       return {
         ...base,

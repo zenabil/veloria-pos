@@ -1,10 +1,10 @@
 // Veloria PoS — Retours : tiroir détail + création (client/fournisseur) + remboursement.
 // Branchés sur le bridge window.veloria (jamais de SQLite côté renderer).
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 
-import { formatDzd, multiplyMinorByQuantitySafe } from "@domain/money/money.ts";
+import { formatDzd, minorToInput } from "@domain/money/money.ts";
 import { formatDzdSafe } from "@shared/formatters/format.ts";
 import { strictOrNeg } from "@shared/money/parse.ts";
 import { useOperationId } from "@shared/ui/use-operation-id.ts";
@@ -26,6 +26,19 @@ import type { Notify } from "@shared/ui/primitives.tsx";
 import { frError } from "@shared/errors/fr-map.ts";
 import { playSound } from "@shared/sound/sound.ts";
 
+/** Valeur NETTE retournée d'une ligne (après remise), au prorata de la qté. */
+function netLineReturnMinor(line: SaleLine, wanted: number): number {
+  const soldQty = Number(line.quantity);
+  const soldLineTotal = Number(line.line_total_minor);
+  if (!(soldQty > 0) || !Number.isSafeInteger(soldLineTotal) || soldLineTotal < 0) {
+    return Math.max(0, Math.round(Number(line.unit_price_minor) * wanted));
+  }
+  const partTh = Math.round(wanted * 1000);
+  const wholeTh = Math.round(soldQty * 1000);
+  if (!(wholeTh > 0)) return 0;
+  return partTh >= wholeTh ? soldLineTotal : Math.round((soldLineTotal * partTh) / wholeTh);
+}
+
 // ---------------------------------------------------------------------------
 // Retour client (depuis une facture).
 // ---------------------------------------------------------------------------
@@ -35,6 +48,8 @@ interface SaleLine {
   product_id: number | null;
   product_name_snapshot: string;
   unit_price_minor: number;
+  /** Total facturé NET de la ligne (après remise) — base du retour. */
+  line_total_minor: number;
   quantity: number;
   already_returned: number;
   eligible: number;
@@ -60,11 +75,12 @@ export function CustomerReturnDialog({
   const [invoice, setInvoice] = useState("");
   const [sale, setSale] = useState<Record<string, string | number | null> | null>(null);
   const [customerName, setCustomerName] = useState<string | null>(null);
+  const [customerOutstandingMinor, setCustomerOutstandingMinor] = useState<number | null>(null);
   const [lines, setLines] = useState<(SaleLine & { qty: string; condition: ItemCondition })[]>([]);
   const [itemQuery, setItemQuery] = useState("");
   const [restockAll, setRestockAll] = useState(true);
   const [refundText, setRefundText] = useState("");
-  const [creditText, setCreditText] = useState("");
+  const [refundTouched, setRefundTouched] = useState(false);
   const [method, setMethod] = useState<"cash" | "cheque" | "transfer">("cash");
   const [reason, setReason] = useState<string>(RETURN_REASONS[0] as string);
   const [notes, setNotes] = useState("");
@@ -96,10 +112,14 @@ export function CustomerReturnDialog({
       const det = (await api.returnSaleItems({ id: Number(found["id"]) })) as {
         sale: Record<string, string | number | null>;
         customerName: string | null;
+        customerOutstandingMinor?: number | null;
         items: SaleLine[];
       };
       setSale(det.sale);
       setCustomerName(det.customerName);
+      setCustomerOutstandingMinor(det.customerOutstandingMinor ?? null);
+      setRefundText("");
+      setRefundTouched(false);
       setLines(det.items.map((l) => ({ ...l, qty: "", condition: "good" as ItemCondition })));
     } catch (e) {
       notify(frError(e, "Recherche impossible."), "err");
@@ -119,10 +139,14 @@ export function CustomerReturnDialog({
   const parsed = lines.map((l) => {
     const n = Number(l.qty.replace(",", ".").trim());
     const q = l.qty.trim() === "" ? 0 : Math.round(n * 1000) / 1000;
+    const factor = l.unit_factor ?? 1;
     return {
       ...l,
       wanted: Number.isFinite(q) && q > 0 ? Math.min(q, l.eligible) : 0,
       over: Number.isFinite(q) && q > l.eligible,
+      // Un carton se retourne entier : le serveur refuse aussi, mais l'UI
+      // doit le dire avant l'envoi.
+      partialCarton: factor > 1 && Number.isFinite(q) && q > 0 && !Number.isInteger(q),
     };
   });
   const qItem = itemQuery.trim().toLowerCase();
@@ -144,15 +168,20 @@ export function CustomerReturnDialog({
       return name.includes(qItem) || codes.some((c) => c.includes(qItem));
     });
   const chosen = parsed.filter((l) => l.wanted > 0);
-  // W7 (D-05) : multiplication gardée (règle financière unique) — plus de
-  // `Math.round(prix * qté)` sans garde de capacité.
-  const total = chosen.reduce(
-    (a, l) => a + multiplyMinorByQuantitySafe(l.unit_price_minor, l.wanted),
-    0,
-  );
+  // Valeur NETTE (après remise), identique au calcul serveur.
+  const total = chosen.reduce((a, l) => a + netLineReturnMinor(l, l.wanted), 0);
+  // Politique propriétaire : la dette d'abord, puis les espèces pour l'excédent.
+  const outstanding = Math.max(0, customerOutstandingMinor ?? 0);
+  const autoCredit = customerOutstandingMinor == null ? 0 : Math.min(total, outstanding);
+  const maxRefund = total - autoCredit;
+  const outstandingAfter = customerOutstandingMinor == null ? null : outstanding - autoCredit;
   // P1-5 : strict (bornes H-1, jamais NaN) ; invalide → -1 = refusé par les gardes.
   const refund = strictOrNeg(refundText, "Remboursement");
-  const credit = strictOrNeg(creditText, "Avoir");
+  useEffect(() => {
+    // Téléphone l'excédent tant que l'opérateur n'a pas modifié le champ.
+    if (refundTouched) return;
+    setRefundText(maxRefund > 0 ? minorToInput(maxRefund) : "");
+  }, [maxRefund, refundTouched]);
 
   async function save(): Promise<void> {
     if (!sale) {
@@ -167,12 +196,19 @@ export function CustomerReturnDialog({
       notify("Quantité supérieure à l'éligible.", "err");
       return;
     }
-    if (!Number.isInteger(refund) || refund < 0 || !Number.isInteger(credit) || credit < 0) {
+    if (parsed.some((l) => l.partialCarton)) {
+      notify("Retour partiel d'un carton impossible : saisissez des cartons entiers.", "err");
+      return;
+    }
+    if (!Number.isInteger(refund) || refund < 0) {
       notify("Montants invalides.", "err");
       return;
     }
-    if (refund + credit > total) {
-      notify("Remboursement + avoir supérieurs au retour.", "err");
+    if (refund > maxRefund) {
+      notify(
+        `Remboursement en espèces limité à ${formatDzdSafe(maxRefund)} : la part restante couvre la dette du client.`,
+        "err",
+      );
       return;
     }
     setBusy(true);
@@ -182,6 +218,7 @@ export function CustomerReturnDialog({
         kind: "customer",
         saleId: Number(sale["id"]),
         items: chosen.map((l) => ({
+          saleItemId: l.id,
           productId: l.product_id,
           quantity: l.wanted,
           restocked: restockAll && l.condition === "good",
@@ -189,13 +226,21 @@ export function CustomerReturnDialog({
           unitFactor: l.unit_factor ?? 1,
         })),
         refundMinor: refund,
-        creditMinor: credit,
         refundMethod: refund > 0 ? method : null,
         reason,
         notes: notes.trim() === "" ? null : notes.trim(),
         returnDate: date,
-      })) as { number: string };
-      notify(`Retour ${res.number} enregistré.`, "ok");
+      })) as {
+        number: string;
+        creditAppliedMinor?: number;
+        cashRefundMinor?: number;
+      };
+      const applied = Number(res.creditAppliedMinor ?? 0);
+      const cash = Number(res.cashRefundMinor ?? 0);
+      const parts = [`Retour ${res.number} enregistré.`];
+      if (applied > 0) parts.push(`${formatDzd(applied)} imputé à la dette.`);
+      if (cash > 0) parts.push(`${formatDzd(cash)} remboursé.`);
+      notify(parts.join(" "), "ok");
       // P5 : retour créé = succès.
       playSound("success");
       onSaved();
@@ -249,6 +294,14 @@ export function CustomerReturnDialog({
               <dt className="text-slate-500">Total facture</dt>
               <dd className="font-bold tabular-nums">{formatDzdSafe(sale["total_minor"] ?? 0)}</dd>
             </div>
+            <div className="mt-1 flex justify-between border-t border-white/10 pt-1">
+              <dt className="text-slate-500">Dette actuelle</dt>
+              <dd className="font-bold tabular-nums text-amber-300">
+                {customerOutstandingMinor == null
+                  ? "Passage"
+                  : formatDzdSafe(customerOutstandingMinor)}
+              </dd>
+            </div>
           </dl>
 
           <TextInput
@@ -295,7 +348,7 @@ export function CustomerReturnDialog({
                       />
                     </td>
                     <td className="px-3 py-2 text-right font-bold tabular-nums">
-                      {formatDzd(multiplyMinorByQuantitySafe(l.unit_price_minor, l.wanted))}
+                      {formatDzd(netLineReturnMinor(l, l.wanted))}
                     </td>
                     <td className="px-3 py-2">
                       <Select
@@ -343,10 +396,21 @@ export function CustomerReturnDialog({
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Remboursé (DZD)" hint="Espèces rendues.">
+            <Field
+              label="Remboursé (DZD)"
+              hint={
+                autoCredit > 0
+                  ? `Max ${formatDzdSafe(maxRefund)} · ${formatDzdSafe(autoCredit)} imputé à la dette.`
+                  : `Max ${formatDzdSafe(maxRefund)} (aucune dette à imputer).`
+              }
+            >
               <TextInput
                 value={refundText}
-                onChange={(e) => setRefundText(e.target.value)}
+                onChange={(e) => {
+                  setRefundTouched(true);
+                  setRefundText(e.target.value);
+                }}
+                disabled={maxRefund <= 0}
                 inputMode="decimal"
                 placeholder="0,00"
                 aria-label="Montant remboursé"
@@ -364,15 +428,22 @@ export function CustomerReturnDialog({
               </Select>
             </Field>
           </div>
-          <Field label="Avoir client (DZD)" hint="Réduit la dette du client.">
-            <TextInput
-              value={creditText}
-              onChange={(e) => setCreditText(e.target.value)}
-              inputMode="decimal"
-              placeholder="0,00"
-              aria-label="Avoir client"
-            />
-          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl border border-white/10 bg-black/25 px-4 py-3">
+              <p className="text-xs text-slate-500">Imputé automatiquement à la dette</p>
+              <p className="text-lg font-extrabold tabular-nums text-amber-300">
+                {formatDzdSafe(autoCredit)}
+              </p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-black/25 px-4 py-3">
+              <p className="text-xs text-slate-500">Dette après retour</p>
+              <p className="text-lg font-extrabold tabular-nums text-emerald-300">
+                {outstandingAfter == null
+                  ? "Passage"
+                  : formatDzdSafe(Math.max(0, outstandingAfter))}
+              </p>
+            </div>
+          </div>
           <Field label="Notes" hint="Optionnel.">
             <TextInput
               value={notes}

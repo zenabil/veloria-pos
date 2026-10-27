@@ -7,6 +7,8 @@ import { isRealCalendarDate as mainIsRealCalendarDate } from "../../electron/ipc
 import { isRealCalendarDate as domainIsRealCalendarDate } from "@/domain/common/dates.ts";
 import { isRealCalendarDate as sharedIsRealCalendarDate } from "@/shared/dates/dates.ts";
 import { assertValidQuantity } from "@/domain/common/quantity.ts";
+import { computeReturnSettlement } from "@/domain/returns/return-rules.ts";
+import { splitReturnSettlement } from "../../electron/ipc/handlers/return-settlement.ts";
 import { saleItemSchema, closingCreateSchema } from "../../electron/ipc/validators.ts";
 
 const DATES = [
@@ -91,6 +93,53 @@ describe("P2 : parité quantité main/domaine", () => {
       }
       expect(domainOk, `domain:${q}`).toBe(ok);
       expect(mainOk, `main:${q}`).toBe(ok);
+    }
+  });
+});
+
+const SETTLEMENTS: Array<{
+  total: number;
+  outstanding: number;
+  requested: number;
+}> = [
+  { total: 10000, outstanding: 6000, requested: 4000 },
+  { total: 5000, outstanding: 12000, requested: 0 },
+  { total: 7000, outstanding: 0, requested: 7000 },
+  { total: 7000, outstanding: 0, requested: 2000 },
+  { total: 10000, outstanding: 6000, requested: 4001 },
+  { total: 0, outstanding: 0, requested: 0 },
+  { total: 1000, outstanding: -500, requested: 1000 },
+  { total: -1, outstanding: 0, requested: 0 },
+];
+
+describe("P2 : parité règlement de retour main/domaine", () => {
+  it("mêmes montants et mêmes refus", () => {
+    for (const v of SETTLEMENTS) {
+      let domainResult: unknown = null;
+      let domainError = false;
+      try {
+        domainResult = computeReturnSettlement({
+          totalReturnMinor: v.total,
+          outstandingMinor: v.outstanding,
+          requestedRefundMinor: v.requested,
+        });
+      } catch {
+        domainError = true;
+      }
+      let mainResult: unknown = null;
+      let mainError = false;
+      try {
+        mainResult = splitReturnSettlement({
+          totalReturnMinor: v.total,
+          outstandingMinor: v.outstanding,
+          requestedRefundMinor: v.requested,
+        });
+      } catch {
+        mainError = true;
+      }
+      const label = JSON.stringify(v);
+      expect(mainError, `main:${label}`).toBe(domainError);
+      if (!domainError) expect(mainResult, `main:${label}`).toEqual(domainResult);
     }
   });
 });

@@ -24,6 +24,23 @@ export interface ProformaLineInput {
   quantity: number;
   /** Montant facturé EXACT (mode « Montant » ADR-114) — absent = prix × qté. */
   billedTotalMinor?: number | null;
+  /** Libellé d'unité figé (ex. « Carton de 12 »). */
+  unitCode?: string;
+  /** Conditionnement du devis (snapshot) — null = unité de base. */
+  packagingId?: number | null;
+  /** Nombre d'unités de base par unité de ligne (1 = pièce). */
+  unitFactor?: number;
+}
+
+interface PreparedProformaLine {
+  pid: number | null;
+  name: string;
+  price: number;
+  qty: number;
+  total: number;
+  unitCode: string;
+  packagingId: number | null;
+  unitFactor: number;
 }
 
 /**
@@ -43,6 +60,95 @@ function proformaLineTotal(l: ProformaLineInput): number {
     throw new Error("Montant facturé de ligne incohérent avec le prix et la quantité.");
   }
   return billed;
+}
+
+/**
+ * Valide et prépare les lignes d'un devis. Le conditionnement est relu en DB :
+ * le renderer ne fixe ni le facteur ni le libellé d'unité. Le prix reste libre
+ * (un devis peut remiser le carton) ; la conversion honore ce prix snapshot.
+ */
+function prepareProformaLines(
+  db: ReturnType<typeof getDb>,
+  lines: ProformaLineInput[],
+): { prepared: PreparedProformaLine[]; subtotal: number } {
+  const packagingIds = [
+    ...new Set(lines.filter((l) => l.packagingId != null).map((l) => Number(l.packagingId))),
+  ].filter((id) => Number.isInteger(id) && id > 0);
+  const packagings = new Map<number, { productId: number; labelFr: string; factor: number }>();
+  if (packagingIds.length > 0) {
+    const placeholders = packagingIds.map(() => "?").join(",");
+    const rows = db
+      .prepare(
+        `SELECT id, product_id, label_fr, factor FROM product_packagings WHERE id IN (${placeholders})`,
+      )
+      .all(...packagingIds) as {
+      id: number;
+      product_id: number;
+      label_fr: string;
+      factor: number;
+    }[];
+    for (const row of rows) {
+      packagings.set(Number(row.id), {
+        productId: Number(row.product_id),
+        labelFr: String(row.label_fr),
+        factor: Number(row.factor),
+      });
+    }
+  }
+  const prepared: PreparedProformaLine[] = [];
+  let subtotal = 0;
+  for (const l of lines) {
+    if (l.productName.trim().length === 0) throw new Error("Ligne sans nom.");
+    if (!(l.quantity > 0)) throw new Error("Quantité de ligne invalide.");
+    if (!Number.isInteger(l.unitPriceMinor) || l.unitPriceMinor < 0) {
+      throw new Error("Prix de ligne invalide.");
+    }
+    const factor = l.unitFactor ?? 1;
+    if (!Number.isInteger(factor) || factor <= 0 || factor > 1_000_000) {
+      throw new Error("Facteur de conditionnement du devis invalide.");
+    }
+    const packagingId = l.packagingId ?? null;
+    let unitCode: string;
+    if (packagingId != null) {
+      if (!Number.isInteger(packagingId) || packagingId <= 0) {
+        throw new Error("Conditionnement du devis invalide.");
+      }
+      const pack = packagings.get(packagingId);
+      if (!pack) throw new Error("Conditionnement du devis introuvable.");
+      if (l.productId == null || pack.productId !== l.productId) {
+        throw new Error("Conditionnement du devis incohérent avec le produit.");
+      }
+      if (pack.factor !== factor) {
+        throw new Error("Taille du carton incohérente avec le conditionnement du devis.");
+      }
+      if (!Number.isInteger(l.quantity)) {
+        throw new Error("Nombre de cartons invalide (entier requis).");
+      }
+      if (l.billedTotalMinor != null) {
+        throw new Error("Ligne carton incompatible avec un montant saisi.");
+      }
+      unitCode = (l.unitCode?.trim() || pack.labelFr).slice(0, 40);
+    } else {
+      if (factor !== 1) {
+        throw new Error("Facteur de conditionnement sans conditionnement dans le devis.");
+      }
+      unitCode = (l.unitCode?.trim() || "PIECE").slice(0, 40);
+    }
+    const total = proformaLineTotal(l);
+    subtotal += total;
+    prepared.push({
+      pid: l.productId,
+      name: l.productName.trim(),
+      price: l.unitPriceMinor,
+      qty: l.quantity,
+      total,
+      unitCode,
+      packagingId,
+      unitFactor: factor,
+    });
+  }
+  if (prepared.length === 0) throw new Error("Devis vide.");
+  return { prepared, subtotal };
 }
 
 function allocateNumber(prefix: string, key: string, now: string): string {
@@ -77,31 +183,7 @@ export function createProformaAtomic(args: {
   if (fast) return fast;
   const tx = db.transaction(() => {
     claimIdempotency(args.operationId, "proformas.create", args.now);
-    let subtotal = 0;
-    const prepared: {
-      pid: number | null;
-      name: string;
-      price: number;
-      qty: number;
-      total: number;
-    }[] = [];
-    for (const l of args.lines) {
-      if (l.productName.trim().length === 0) throw new Error("Ligne sans nom.");
-      if (!(l.quantity > 0)) throw new Error("Quantité de ligne invalide.");
-      if (!Number.isInteger(l.unitPriceMinor) || l.unitPriceMinor < 0) {
-        throw new Error("Prix de ligne invalide.");
-      }
-      const total = proformaLineTotal(l);
-      subtotal += total;
-      prepared.push({
-        pid: l.productId,
-        name: l.productName.trim(),
-        price: l.unitPriceMinor,
-        qty: l.quantity,
-        total,
-      });
-    }
-    if (prepared.length === 0) throw new Error("Devis vide.");
+    const { prepared, subtotal } = prepareProformaLines(db, args.lines);
     if (args.discountMinor > subtotal) throw new Error("La remise dépasse le sous-total.");
     const total = subtotal - args.discountMinor + args.deliveryMinor;
     const number = allocateNumber("PRO", "proforma", args.now);
@@ -127,8 +209,9 @@ export function createProformaAtomic(args: {
     const id = Number(r.lastInsertRowid);
     for (const p of prepared) {
       db.prepare(
-        `INSERT INTO proforma_items (proforma_id, product_id, product_name_snapshot, unit_price_minor, quantity, line_total_minor) VALUES (?, ?, ?, ?, ?, ?)`,
-      ).run(id, p.pid, p.name, p.price, p.qty, p.total);
+        `INSERT INTO proforma_items (proforma_id, product_id, product_name_snapshot, unit_price_minor, quantity, line_total_minor, unit_code, packaging_id, unit_factor)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run(id, p.pid, p.name, p.price, p.qty, p.total, p.unitCode, p.packagingId, p.unitFactor);
     }
     db.prepare(
       `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at) VALUES (?, 'proforma.created', 'proforma', ?, ?, ?, ?)`,
@@ -348,31 +431,7 @@ export function updateProformaAtomic(args: {
       | undefined;
     if (!row) throw new Error("Proforma introuvable.");
     if (row.status !== "draft") throw new Error("Seul un brouillon est modifiable.");
-    let subtotal = 0;
-    const prepared: {
-      pid: number | null;
-      name: string;
-      price: number;
-      qty: number;
-      total: number;
-    }[] = [];
-    for (const l of args.lines) {
-      if (l.productName.trim().length === 0) throw new Error("Ligne sans nom.");
-      if (!(l.quantity > 0)) throw new Error("Quantité de ligne invalide.");
-      if (!Number.isInteger(l.unitPriceMinor) || l.unitPriceMinor < 0) {
-        throw new Error("Prix de ligne invalide.");
-      }
-      const total = proformaLineTotal(l);
-      subtotal += total;
-      prepared.push({
-        pid: l.productId,
-        name: l.productName.trim(),
-        price: l.unitPriceMinor,
-        qty: l.quantity,
-        total,
-      });
-    }
-    if (prepared.length === 0) throw new Error("Devis vide.");
+    const { prepared, subtotal } = prepareProformaLines(db, args.lines);
     if (args.discountMinor > subtotal) throw new Error("La remise dépasse le sous-total.");
     const total = subtotal - args.discountMinor + args.deliveryMinor;
     db.prepare(
@@ -392,8 +451,19 @@ export function updateProformaAtomic(args: {
     db.prepare(`DELETE FROM proforma_items WHERE proforma_id = ?`).run(args.id);
     for (const p of prepared) {
       db.prepare(
-        `INSERT INTO proforma_items (proforma_id, product_id, product_name_snapshot, unit_price_minor, quantity, line_total_minor) VALUES (?, ?, ?, ?, ?, ?)`,
-      ).run(args.id, p.pid, p.name, p.price, p.qty, p.total);
+        `INSERT INTO proforma_items (proforma_id, product_id, product_name_snapshot, unit_price_minor, quantity, line_total_minor, unit_code, packaging_id, unit_factor)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run(
+        args.id,
+        p.pid,
+        p.name,
+        p.price,
+        p.qty,
+        p.total,
+        p.unitCode,
+        p.packagingId,
+        p.unitFactor,
+      );
     }
     // P8: modification tracée — audit déterministe.
     db.prepare(
@@ -484,13 +554,16 @@ export function convertProformaToSaleAtomic(args: {
     if (pro["status"] === "converted") throw new Error("Proforma déjà convertie.");
     if (pro["status"] === "cancelled") throw new Error("Proforma annulée.");
     const items = db
-      .prepare(`SELECT * FROM proforma_items WHERE proforma_id = ?`)
+      .prepare(`SELECT * FROM proforma_items WHERE proforma_id = ? ORDER BY id`)
       .all(args.proformaId) as {
       product_id: number | null;
       product_name_snapshot: string;
       unit_price_minor: number;
       quantity: number;
       line_total_minor: number;
+      packaging_id: number | null;
+      unit_factor: number;
+      unit_code: string | null;
     }[];
     if (items.length === 0) throw new Error("Proforma sans lignes.");
     const subtotal = Number(pro["subtotal_minor"]);
@@ -537,16 +610,20 @@ export function convertProformaToSaleAtomic(args: {
         items.map((it) => Number(it.line_total_minor)),
         discount,
       ),
-      lines: items.map((it) => ({
-        productId: it.product_id,
-        productName: it.product_name_snapshot,
-        unitCode: "PIECE",
-        // Pas de remise à la conversion : origine = facturé (devis).
-        originalUnitPriceMinor: it.unit_price_minor,
-        unitPriceMinor: it.unit_price_minor,
-        // Coût réel au jour de la conversion (marges rapports) ; 0 si
-        // article libre ou produit supprimé depuis le devis.
-        purchasePriceMinor:
+      lines: items.map((it) => {
+        const factorRaw = Number(it.unit_factor);
+        const factor =
+          Number.isInteger(factorRaw) && factorRaw > 0 && factorRaw <= 1_000_000 ? factorRaw : 1;
+        const packagingId = it.packaging_id == null ? null : Number(it.packaging_id);
+        if (factor > 1 && packagingId == null) {
+          throw new Error(
+            `Ligne carton du devis sans conditionnement : « ${it.product_name_snapshot} ».`,
+          );
+        }
+        // Coût de référence par UNITÉ DE BASE (le main le remplace par le COGS
+        // FIFO réel de la ligne). Pour un carton, la ligne porte le coût du
+        // carton ; le fallback serveur le ramène par pièce.
+        const purchasePerBase =
           it.product_id == null
             ? 0
             : Number(
@@ -555,12 +632,27 @@ export function convertProformaToSaleAtomic(args: {
                     .prepare(`SELECT purchase_price_minor FROM products WHERE id = ?`)
                     .get(it.product_id) as { purchase_price_minor: number } | undefined
                 )?.purchase_price_minor ?? 0,
-              ),
-        quantity: Number(it.quantity),
-      })),
+              );
+        return {
+          productId: it.product_id,
+          productName: it.product_name_snapshot,
+          unitCode: (it.unit_code?.trim() || "PIECE").slice(0, 20),
+          // Pas de remise à la conversion : origine = facturé (devis).
+          originalUnitPriceMinor: it.unit_price_minor,
+          unitPriceMinor: it.unit_price_minor,
+          purchasePriceMinor: Math.round(purchasePerBase * factor),
+          quantity: Number(it.quantity),
+          billedTotalMinor: null,
+          packagingId,
+          unitFactor: factor,
+        };
+      }),
       lineTotals: items.map((it) => it.line_total_minor),
       now: args.now,
       allowNegativeStock: settings.allowNegativeStock,
+      // Le devis est une snapshot validée : un changement de tarif carton
+      // depuis la création ne doit pas bloquer la conversion ni son total.
+      trustedPackagingSnapshot: true,
     });
     // Garde WHERE : la conversion n'écrit que l'état non-final vu en tx.
     const updConv = db

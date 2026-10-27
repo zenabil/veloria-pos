@@ -41,6 +41,11 @@ rend le ticket lisible sans jointure sur une configuration qui peut changer.
 
 ## Décision 4 — Tarif carton automatique monotone
 
+> **Révisée par ADR-141 (2026-10-26)** : le plancher
+> `(facteur−1) × prix pièce` est supprimé. Seule reste la borne
+> `prix carton < facteur × prix pièce` ; une baisse au seuil (tarif de gros
+> réel) est acceptée.
+
 `priceSaleLine` découpe la quantité en cartons complets + reste. Une ligne
 carton porte :
 

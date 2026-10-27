@@ -73,6 +73,9 @@ export interface ProformaDetailData {
     unit_price_minor: number;
     quantity: number;
     line_total_minor: number;
+    unit_code?: string | null;
+    packaging_id?: number | null;
+    unit_factor?: number | null;
   }[];
 }
 

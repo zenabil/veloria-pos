@@ -100,3 +100,51 @@ test("retour client : remboursement partiel depuis une facture", async () => {
   // Le retour apparaît dans le journal (référence = facture d'origine).
   await expect(page.getByRole("row", { name: new RegExp(invoice) }).first()).toBeVisible();
 });
+
+test("retour sur vente à crédit : la dette baisse automatiquement", async () => {
+  const { page } = ctx;
+  const tag = uniqueTag("E2E");
+  const product = `CreditRet${tag}`;
+  await createProduct(product, "100", "50");
+  const client = await createCreditClient(`E2Eret${tag}`, `Nom${tag}`);
+
+  await gotoModule(page, "Caisse");
+  await page.getByLabel("Rechercher un client", { exact: true }).fill(`E2Eret${tag}`);
+  await page
+    .getByRole("button", { name: new RegExp(client) })
+    .first()
+    .click();
+  await page.getByLabel("Recherche produit", { exact: true }).fill(product);
+  await page
+    .getByRole("option", { name: new RegExp(product) })
+    .first()
+    .click();
+  await page.getByRole("button", { name: `Augmenter ${product}` }).click();
+  await page.getByRole("button", { name: "Encaisser", exact: true }).click();
+  // Vente 200 entièrement à crédit.
+  await settlePayment(page, "0", true);
+  const toast = await readSuccessToast(page, /Vente .* enregistrée/);
+  const invoice = /FAC-\S+/.exec(toast)?.[0] ?? "";
+  expect(invoice).toMatch(/FAC-/);
+
+  await gotoModule(page, "Retours");
+  await page.locator('button[title="Nouveau retour [F2]"]').click();
+  await page.getByPlaceholder(/N° facture ou scan/).fill(invoice);
+  await page.getByRole("button", { name: "Chercher" }).click();
+  await page.getByLabel(`Quantité ${product}`, { exact: true }).fill("1");
+  // Dette 200, retour 100 ⇒ 100 imputés, aucun cash possible.
+  await expect(page.getByText("Imputé automatiquement à la dette")).toBeVisible();
+  await expect(page.getByText("Dette après retour")).toBeVisible();
+  await expect(page.getByLabel("Montant remboursé", { exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: /Valider le retour/ }).click();
+  const retToast = await readSuccessToast(page, /Retour .* enregistré/);
+  expect(retToast).toMatch(/imputé à la dette/);
+
+  // Le détail du retour porte l'avoir réellement imputé.
+  await page
+    .getByRole("button", { name: /^Voir RET-C-/ })
+    .first()
+    .click();
+  await expect(page.getByText("Avoir client").first()).toBeVisible();
+  await expect(page.getByText(/100,00/).first()).toBeVisible();
+});

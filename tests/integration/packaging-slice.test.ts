@@ -80,7 +80,9 @@ vi.mock("../../electron/services/logger", () => ({
 import { createSaleAtomic, type SaleLineInput } from "../../electron/ipc/handlers/sales.repo";
 import { receiveStockAtomic } from "../../electron/ipc/handlers/inventory.repo";
 import {
+  cancelReturnAtomic,
   createReturnAtomic,
+  createSupplierReturnAtomic,
   getReturnableIntakeItems,
   getReturnableSaleItems,
 } from "../../electron/ipc/handlers/returns.repo";
@@ -364,7 +366,6 @@ describe("Packaging slice (production repos)", () => {
       originalSaleId: sale.saleId,
       items: [{ productId: 1, quantity: 1, restocked: true, condition: "good", unitFactor: 12 }],
       refundMinor: 22000,
-      creditMinor: 0,
       refundMethod: "cash",
       reason: "Test carton",
       notes: null,
@@ -398,7 +399,6 @@ describe("Packaging slice (production repos)", () => {
           { productId: 1, quantity: 0.5, restocked: true, condition: "good", unitFactor: 12 },
         ],
         refundMinor: 0,
-        creditMinor: 0,
         refundMethod: null,
         reason: "Test",
         notes: null,
@@ -412,7 +412,6 @@ describe("Packaging slice (production repos)", () => {
       originalSaleId: sale.saleId,
       items: [{ productId: 1, quantity: 3, restocked: true, condition: "good", unitFactor: 1 }],
       refundMinor: 6000,
-      creditMinor: 0,
       refundMethod: "cash",
       reason: "Test pièces",
       notes: null,
@@ -430,6 +429,46 @@ describe("Packaging slice (production repos)", () => {
       id: number;
     }[];
     expect(eligible.every((i) => i.eligible === 0)).toBe(true);
+  });
+
+  it("annule un retour client non remboursé : stock et mouvement restaurés", () => {
+    const sale = createSaleAtomic(saleInput());
+    const returned = createReturnAtomic({
+      operationId: "22222222-2222-4222-8222-222222222231",
+      originalSaleId: sale.saleId,
+      items: [{ productId: 1, quantity: 1, restocked: true, condition: "good", unitFactor: 12 }],
+      refundMinor: 0,
+      refundMethod: null,
+      reason: "Annulation test",
+      notes: null,
+      createdAt: NOW,
+      now: NOW,
+    });
+    let stock = db.prepare("SELECT quantity FROM products WHERE id = 1").get() as {
+      quantity: number;
+    };
+    expect(Number(stock.quantity)).toBe(97);
+
+    cancelReturnAtomic({
+      kind: "customer",
+      id: returned.id,
+      now: NOW,
+      operationId: "22222222-2222-4222-8222-222222222232",
+    });
+    stock = db.prepare("SELECT quantity FROM products WHERE id = 1").get() as {
+      quantity: number;
+    };
+    expect(Number(stock.quantity)).toBe(85);
+    const move = db
+      .prepare(
+        "SELECT quantity_delta FROM stock_movements WHERE related_entity_type = 'return_cancel' ORDER BY id DESC LIMIT 1",
+      )
+      .get() as { quantity_delta: number };
+    expect(Number(move.quantity_delta)).toBe(-12);
+    const status = db.prepare("SELECT status FROM returns WHERE id = ?").get(returned.id) as {
+      status: string;
+    };
+    expect(status.status).toBe("cancelled");
   });
 
   it("achète 3 cartons (2 pièces abîmées) : 34 unités de base, couches exactes", () => {
@@ -529,5 +568,197 @@ describe("Packaging slice (production repos)", () => {
         now: NOW,
       }),
     ).toThrow(/Taille du carton/);
+  });
+
+  it("retourne au fournisseur 3 cartons dont 2 abîmées : 34 sortent du stock, 2 non", () => {
+    seedProduct(db, 3, "Eau 5L", 0, 2500, 1200);
+    const packagingId = seedPackaging(db, 3, 12, 26000, 22000);
+    const intake = receiveStockAtomic({
+      supplierId: null,
+      invoiceNumber: "F-DMG",
+      invoiceDate: "2026-10-25",
+      shippingMinor: 0,
+      notes: null,
+      lines: [
+        {
+          productId: 3,
+          productName: "Eau 5L",
+          quantityReceived: 3,
+          quantityDamaged: 2,
+          purchasePriceMinor: 22000,
+          sellingPriceMinor: null,
+          packagingId,
+          unitFactor: 12,
+        },
+      ],
+      operationId: "33333333-3333-4333-8333-333333333341",
+      now: NOW,
+    });
+
+    const before = getReturnableIntakeItems(intake.intakeId).items as {
+      eligible: number;
+      stock_eligible: number;
+      damaged_eligible: number;
+    }[];
+    expect(before[0]).toMatchObject({
+      eligible: 36,
+      stock_eligible: 34,
+      damaged_eligible: 2,
+    });
+
+    const returned = createSupplierReturnAtomic({
+      operationId: "44444444-4444-4444-8444-444444444441",
+      intakeId: intake.intakeId,
+      items: [{ productId: 3, quantity: 36, condition: "good" }],
+      recoverMinor: 0,
+      recoverMethod: null,
+      reason: "Retour carton abîmé",
+      notes: null,
+      createdAt: NOW,
+      now: NOW,
+    });
+
+    const item = db
+      .prepare(
+        "SELECT quantity, quantity_stock, quantity_damaged FROM supplier_return_items WHERE supplier_return_id = ?",
+      )
+      .get(returned.id) as {
+      quantity: number;
+      quantity_stock: number;
+      quantity_damaged: number;
+    };
+    expect(item).toEqual({ quantity: 36, quantity_stock: 34, quantity_damaged: 2 });
+
+    let stock = db.prepare("SELECT quantity FROM products WHERE id = 3").get() as {
+      quantity: number;
+    };
+    expect(Number(stock.quantity)).toBe(0);
+    let layers = db
+      .prepare(
+        "SELECT COALESCE(SUM(remaining_quantity),0) AS q FROM inventory_layers WHERE product_id = 3",
+      )
+      .get() as { q: number };
+    expect(Number(layers.q)).toBe(0);
+    expect(
+      (getReturnableIntakeItems(intake.intakeId).items as { eligible: number }[])[0]?.eligible,
+    ).toBe(0);
+
+    cancelReturnAtomic({
+      kind: "supplier",
+      id: returned.id,
+      now: NOW,
+      operationId: "44444444-4444-4444-8444-444444444442",
+    });
+    stock = db.prepare("SELECT quantity FROM products WHERE id = 3").get() as {
+      quantity: number;
+    };
+    expect(Number(stock.quantity)).toBe(34);
+    layers = db
+      .prepare(
+        "SELECT COALESCE(SUM(remaining_quantity),0) AS q FROM inventory_layers WHERE product_id = 3",
+      )
+      .get() as { q: number };
+    expect(Number(layers.q)).toBe(34);
+    expect(
+      (getReturnableIntakeItems(intake.intakeId).items as { eligible: number }[])[0]?.eligible,
+    ).toBe(36);
+  });
+
+  it("annule un retour fournisseur à deux lignes du même produit sans rejouer le journal", () => {
+    seedProduct(db, 4, "Sucre", 0, 2500, 1200);
+    const packagingId = seedPackaging(db, 4, 12, 26000, 22000);
+    const intake = receiveStockAtomic({
+      supplierId: null,
+      invoiceNumber: "F-MULTI",
+      invoiceDate: "2026-10-25",
+      shippingMinor: 0,
+      notes: null,
+      lines: [
+        {
+          productId: 4,
+          productName: "Sucre",
+          quantityReceived: 1,
+          quantityDamaged: 0,
+          purchasePriceMinor: 22000,
+          sellingPriceMinor: null,
+          packagingId,
+          unitFactor: 12,
+        },
+        {
+          productId: 4,
+          productName: "Sucre",
+          quantityReceived: 6,
+          quantityDamaged: 0,
+          purchasePriceMinor: 2000,
+          sellingPriceMinor: null,
+          packagingId: null,
+          unitFactor: 1,
+        },
+      ],
+      operationId: "33333333-3333-4333-8333-333333333351",
+      now: NOW,
+    });
+    const intakeItems = db
+      .prepare("SELECT id FROM stock_intake_items WHERE stock_intake_id = ? ORDER BY id")
+      .all(intake.intakeId) as { id: number }[];
+    const returned = createSupplierReturnAtomic({
+      operationId: "44444444-4444-4444-8444-444444444451",
+      intakeId: intake.intakeId,
+      items: [
+        {
+          intakeItemId: intakeItems[0]?.id ?? null,
+          productId: 4,
+          quantity: 12,
+          condition: "good",
+        },
+        {
+          intakeItemId: intakeItems[1]?.id ?? null,
+          productId: 4,
+          quantity: 6,
+          condition: "good",
+        },
+      ],
+      recoverMinor: 0,
+      recoverMethod: null,
+      reason: "Retour multi-lignes",
+      notes: null,
+      createdAt: NOW,
+      now: NOW,
+    });
+    // Chaque ligne est valorisée à SON prix d'achat (carton 22000 / pièce 2000),
+    // jamais au prix de la première ligne du produit.
+    const returnItems = db
+      .prepare(
+        "SELECT line_total_minor FROM supplier_return_items WHERE supplier_return_id = ? ORDER BY id",
+      )
+      .all(returned.id) as { line_total_minor: number }[];
+    expect(returnItems.map((i) => Number(i.line_total_minor))).toEqual([21996, 12000]);
+    let stock = db.prepare("SELECT quantity FROM products WHERE id = 4").get() as {
+      quantity: number;
+    };
+    expect(Number(stock.quantity)).toBe(0);
+
+    cancelReturnAtomic({
+      kind: "supplier",
+      id: returned.id,
+      now: NOW,
+      operationId: "44444444-4444-4444-8444-444444444452",
+    });
+    stock = db.prepare("SELECT quantity FROM products WHERE id = 4").get() as {
+      quantity: number;
+    };
+    expect(Number(stock.quantity)).toBe(18);
+    const layers = db
+      .prepare(
+        "SELECT COALESCE(SUM(remaining_quantity),0) AS q FROM inventory_layers WHERE product_id = 4",
+      )
+      .get() as { q: number };
+    expect(Number(layers.q)).toBe(18);
+    const movements = db
+      .prepare(
+        "SELECT COALESCE(SUM(quantity_delta),0) AS d FROM stock_movements WHERE product_id = 4 AND related_entity_type IN ('supplier_return','return_cancel')",
+      )
+      .get() as { d: number };
+    expect(Number(movements.d)).toBe(0);
   });
 });

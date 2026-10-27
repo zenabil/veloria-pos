@@ -1,11 +1,9 @@
-// Veloria PoS — E-23 / E-24 / E-25 : avoirs, dette du client et annulation de
-// vente (exécutés sur le repo RÉEL, base migrée temporaire).
+// Veloria PoS — E-23 / E-24 / E-25 : imputation automatique des retours sur la
+// dette, et annulation de vente (exécutés sur le repo RÉEL, base migrée).
 //
-// E-23 : un avoir supérieur au solde du client ne doit PLUS provoquer un
-//        ABORT technique (trigger 0023) : le solde est plafonné et l'excédent
-//        est reporté (crédit client en cours).
-// E-24 : un avoir réduit AUSSI le reste à payer du sien de vente ⇒ le compte
-//        client et le document ne peuvent plus diverger.
+// Depuis 0055 (décision propriétaire) : la valeur du retour éteint d'abord la
+// dette du client ; les espèces ne couvrent que l'excédent. Le crédit est
+// alloué à la vente d'origine puis aux autres ventes ouvertes.
 // E-25 : l'annulation d'une vente encaisée annule ENCORE l'encaissement
 //        (la promesse UI « l'encaissement annulé »).
 // E-26 : une correction de quantité depuis la fiche produit journalise un
@@ -164,7 +162,7 @@ describe("E-23/E-24/E-25/E-26/E-27 — avoirs, dette, annulation, journal, fret"
     const productId = Number(p.lastInsertRowid);
     db.prepare(
       `INSERT INTO sale_items (sale_id, product_id, product_name_snapshot, unit_code, original_unit_price_minor, unit_price_minor, purchase_price_minor, quantity, line_total_minor, discount_minor)
-       VALUES (?, ?, 'Article', 'PIECE', ?, ?, 100, 2, ?, 0)`,
+       VALUES (?, ?, 'Article', 'PIECE', ?, ?, 100, 1, ?, 0)`,
     ).run(saleId, productId, opts.total, opts.total, opts.total);
     return saleId;
   }
@@ -176,7 +174,7 @@ describe("E-23/E-24/E-25/E-26/E-27 — avoirs, dette, annulation, journal, fret"
     return row.product_id;
   }
 
-  it("E-23 : avoir > solde du client ⇒ solde plafonné, excédent reporté (pas d'ABORT)", () => {
+  it("impute automatiquement la dette avant les espèces (plafond = solde)", () => {
     const customerId = seedCustomer(1000);
     const saleId = seedSale({ customerId, total: 5000, paid: 0 });
     const res = createReturnAtomic({
@@ -184,55 +182,126 @@ describe("E-23/E-24/E-25/E-26/E-27 — avoirs, dette, annulation, journal, fret"
       originalSaleId: saleId,
       items: [{ productId: productOf(saleId), quantity: 1, restocked: false, condition: "good" }],
       refundMinor: 0,
-      // Avoir SUPÉRIEUR au solde (1000) : le cas « vente payée + avoir ».
-      creditMinor: 2500,
       refundMethod: null,
-      reason: "Test avoir",
+      reason: "Test imputation",
       notes: null,
       createdAt: NOW,
       now: NOW,
     });
-    expect(res.creditExcessMinor).toBe(1500);
+    expect(res.creditAppliedMinor).toBe(1000);
+    expect(res.cashRefundMinor).toBe(0);
+    expect(res.unallocatedCreditMinor).toBe(0);
+    expect(res.customerOutstandingAfterMinor).toBe(0);
     const cust = db
       .prepare("SELECT outstanding_balance_minor FROM customers WHERE id = ?")
       .get(customerId) as { outstanding_balance_minor: number };
-    // Solde ramené à 0 (jamais négatif ⇒ jamais d'ABORT du trigger 0023).
     expect(cust.outstanding_balance_minor).toBe(0);
+    const sale = db
+      .prepare(
+        "SELECT remaining_balance_minor, amount_paid_minor, credit_applied_minor FROM sales WHERE id = ?",
+      )
+      .get(saleId) as {
+      remaining_balance_minor: number;
+      amount_paid_minor: number;
+      credit_applied_minor: number;
+    };
+    // 5000 − 1000 imputés = 4000 ; le CHECK (reste = total − payé) tient.
+    expect(sale.remaining_balance_minor).toBe(4000);
+    expect(sale.amount_paid_minor).toBe(1000);
+    expect(sale.credit_applied_minor).toBe(1000);
+    const ret = db
+      .prepare("SELECT credit_to_customer_minor FROM returns WHERE id = ?")
+      .get(res.id) as { credit_to_customer_minor: number };
+    expect(ret.credit_to_customer_minor).toBe(1000);
   });
 
-  it("E-24 : l'avoir réduit le reste du sien de vente (source de vérité unique)", () => {
+  it("solde la dette ET le document quand la valeur couvre le solde", () => {
     const customerId = seedCustomer(5000);
     const saleId = seedSale({ customerId, total: 5000, paid: 0 });
-    createReturnAtomic({
+    const res = createReturnAtomic({
       operationId: crypto.randomUUID(),
       originalSaleId: saleId,
       items: [{ productId: productOf(saleId), quantity: 1, restocked: false, condition: "good" }],
       refundMinor: 0,
-      creditMinor: 2000,
       refundMethod: null,
-      reason: "Test avoir",
+      reason: "Test solde",
       notes: null,
       createdAt: NOW,
       now: NOW,
     });
+    expect(res.creditAppliedMinor).toBe(5000);
+    expect(res.cashRefundMinor).toBe(0);
+    expect(res.unallocatedCreditMinor).toBe(0);
     const sale = db
       .prepare(
-        "SELECT total_minor, amount_paid_minor, remaining_balance_minor FROM sales WHERE id = ?",
+        "SELECT total_minor, amount_paid_minor, remaining_balance_minor, credit_applied_minor FROM sales WHERE id = ?",
       )
       .get(saleId) as {
       total_minor: number;
       amount_paid_minor: number;
       remaining_balance_minor: number;
+      credit_applied_minor: number;
     };
-    // 5000 − 2000 (avoir) = 3000 à payer, et le CHECK reste respecté.
-    expect(sale.remaining_balance_minor).toBe(3000);
-    expect(sale.amount_paid_minor).toBe(2000);
+    expect(sale.remaining_balance_minor).toBe(0);
+    expect(sale.amount_paid_minor).toBe(5000);
+    expect(sale.credit_applied_minor).toBe(5000);
     expect(sale.remaining_balance_minor).toBe(sale.total_minor - sale.amount_paid_minor);
     const cust = db
       .prepare("SELECT outstanding_balance_minor FROM customers WHERE id = ?")
       .get(customerId) as { outstanding_balance_minor: number };
-    // Compte client ET document : la même valeur (plus de divergence).
-    expect(cust.outstanding_balance_minor).toBe(3000);
+    expect(cust.outstanding_balance_minor).toBe(0);
+  });
+
+  it("ne rembourse en espèces que l'excédent après imputation de la dette", () => {
+    const customerId = seedCustomer(3000);
+    const saleId = seedSale({ customerId, total: 5000, paid: 0 });
+    const res = createReturnAtomic({
+      operationId: crypto.randomUUID(),
+      originalSaleId: saleId,
+      items: [{ productId: productOf(saleId), quantity: 1, restocked: false, condition: "good" }],
+      refundMinor: 2000,
+      refundMethod: "cash",
+      reason: "Test excédent",
+      notes: null,
+      createdAt: NOW,
+      now: NOW,
+    });
+    expect(res.creditAppliedMinor).toBe(3000);
+    expect(res.cashRefundMinor).toBe(2000);
+    expect(res.unallocatedCreditMinor).toBe(0);
+    const sale = db
+      .prepare("SELECT remaining_balance_minor, amount_paid_minor FROM sales WHERE id = ?")
+      .get(saleId) as { remaining_balance_minor: number; amount_paid_minor: number };
+    expect(sale.remaining_balance_minor).toBe(2000);
+    expect(sale.amount_paid_minor).toBe(3000);
+    const cust = db
+      .prepare("SELECT outstanding_balance_minor FROM customers WHERE id = ?")
+      .get(customerId) as { outstanding_balance_minor: number };
+    expect(cust.outstanding_balance_minor).toBe(0);
+  });
+
+  it("refuse un remboursement espèces qui empiète sur la dette (rollback)", () => {
+    const customerId = seedCustomer(5000);
+    const saleId = seedSale({ customerId, total: 5000, paid: 0 });
+    expect(() =>
+      createReturnAtomic({
+        operationId: crypto.randomUUID(),
+        originalSaleId: saleId,
+        items: [{ productId: productOf(saleId), quantity: 1, restocked: true, condition: "good" }],
+        refundMinor: 1,
+        refundMethod: "cash",
+        reason: "Test refus",
+        notes: null,
+        createdAt: NOW,
+        now: NOW,
+      }),
+    ).toThrow(/non imputé/);
+    const count = db.prepare("SELECT COUNT(*) AS c FROM returns").get() as { c: number };
+    expect(count.c).toBe(0);
+    const sale = db
+      .prepare("SELECT remaining_balance_minor, amount_paid_minor FROM sales WHERE id = ?")
+      .get(saleId) as { remaining_balance_minor: number; amount_paid_minor: number };
+    expect(sale).toEqual({ remaining_balance_minor: 5000, amount_paid_minor: 0 });
   });
 
   it("garde : annulation refusée tant qu'un retour non annulé existe", () => {
@@ -243,7 +312,6 @@ describe("E-23/E-24/E-25/E-26/E-27 — avoirs, dette, annulation, journal, fret"
       originalSaleId: saleId,
       items: [{ productId: productOf(saleId), quantity: 1, restocked: true, condition: "good" }],
       refundMinor: 0,
-      creditMinor: 0,
       refundMethod: null,
       reason: "Garde",
       notes: null,
@@ -267,7 +335,6 @@ describe("E-23/E-24/E-25/E-26/E-27 — avoirs, dette, annulation, journal, fret"
         originalSaleId: saleId,
         items: [{ productId: productOf(saleId), quantity: 1, restocked: false, condition: "good" }],
         refundMinor: 0,
-        creditMinor: 0,
         refundMethod: null,
         reason: "Garde",
         notes: null,

@@ -13,6 +13,7 @@ import {
   saleLineTotal,
 } from "@/application/sales/packaging-lines.ts";
 import type { CartLine } from "@/application/sales/create-sale.ts";
+import { proformaOperationKey } from "@features/sales/proforma-op.ts";
 
 function cartLine(over: Partial<CartLine> = {}): CartLine {
   return {
@@ -133,33 +134,57 @@ describe("priceSaleLine", () => {
     expect(equal.totalMinor).toBe(30000);
   });
 
-  it("monotonicité : le total ne baisse jamais quand la quantité augmente", () => {
-    for (const cartonPrice of [22000, 10000, 24000]) {
-      let previous = 0;
-      for (let qty = 1; qty <= 40; qty += 1) {
-        const total = priceSaleLine({
-          qty,
-          unitPriceMinor: 2000,
-          cartonPriceMinor: cartonPrice,
-          factor: 12,
-          auto: true,
-        }).totalMinor;
-        expect(total, `qty=${qty} carton=${cartonPrice}`).toBeGreaterThanOrEqual(previous);
-        previous = total;
-      }
-    }
-  });
-
-  it("un prix carton trop bas (sous factor−1 pièces) est ignoré", () => {
-    const r = priceSaleLine({
-      qty: 12,
-      unitPriceMinor: 2000,
-      cartonPriceMinor: 10000,
-      factor: 12,
+  it("tarif de gros réel sous (facteur−1) × pièce : appliqué (ADR-141)", () => {
+    // Cas propriétaire : œufs 25 DZD/pièce, carton de 30 à 650 DZD.
+    // 29 pièces = 725 DZD, mais 30 pièces = 650 DZD : la baisse au seuil est
+    // le tarif de gros voulu, pas une anomalie.
+    const at29 = priceSaleLine({
+      qty: 29,
+      unitPriceMinor: 2500,
+      cartonPriceMinor: 65000,
+      factor: 30,
       auto: true,
     });
-    expect(r.cartonApplied).toBe(false);
-    expect(r.totalMinor).toBe(24000);
+    expect(at29.cartonApplied).toBe(false);
+    expect(at29.totalMinor).toBe(72500);
+
+    const at30 = priceSaleLine({
+      qty: 30,
+      unitPriceMinor: 2500,
+      cartonPriceMinor: 65000,
+      factor: 30,
+      auto: true,
+    });
+    expect(at30.cartonApplied).toBe(true);
+    expect(at30.cartons).toBe(1);
+    expect(at30.pieces).toBe(0);
+    expect(at30.totalMinor).toBe(65000);
+    expect(at30.savingsMinor).toBe(10000);
+
+    const at34 = priceSaleLine({
+      qty: 34,
+      unitPriceMinor: 2500,
+      cartonPriceMinor: 65000,
+      factor: 30,
+      auto: true,
+    });
+    expect(at34.cartonApplied).toBe(true);
+    expect(at34.totalMinor).toBe(75000); // 650 + 4 × 25
+    expect(at34.savingsMinor).toBe(10000); // vs 34 × 25 = 850
+  });
+
+  it("un carton aussi cher ou plus cher qu'un plein au prix pièce est ignoré", () => {
+    for (const cartonPrice of [24000, 25000]) {
+      const r = priceSaleLine({
+        qty: 12,
+        unitPriceMinor: 2000,
+        cartonPriceMinor: cartonPrice,
+        factor: 12,
+        auto: true,
+      });
+      expect(r.cartonApplied, `carton=${cartonPrice}`).toBe(false);
+      expect(r.totalMinor).toBe(24000);
+    }
   });
 });
 
@@ -251,5 +276,20 @@ describe("projection caisse (packaging-lines)", () => {
   it("sous le seuil : une seule ligne pièce", () => {
     expect(expandSaleLine(cartLine({ quantity: 5 }))).toHaveLength(1);
     expect(saleLineTotal(cartLine({ quantity: 5 }))).toBe(10000);
+  });
+});
+
+describe("proformaOperationKey", () => {
+  it("change dès qu'un réglage carton change (jamais de devis périmé rejoué)", () => {
+    const base = cartLine();
+    const same = proformaOperationKey(null, [cartLine()]);
+    expect(proformaOperationKey(null, [base])).toBe(same);
+    expect(proformaOperationKey(null, [cartLine({ packagingSellingPriceMinor: 23000 })])).not.toBe(
+      same,
+    );
+    expect(proformaOperationKey(null, [cartLine({ packagingFactor: 6 })])).not.toBe(same);
+    expect(proformaOperationKey(null, [cartLine({ packagingPriceOverridden: true })])).not.toBe(
+      same,
+    );
   });
 });

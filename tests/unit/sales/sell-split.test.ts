@@ -572,6 +572,36 @@ describe("sell-finalize : clichés + totaux", () => {
       },
     ]);
   });
+  it("buildProformaLines : éclate le carton avec son tarif (jamais 15 × prix pièce)", () => {
+    const carton = line({
+      quantity: 15,
+      unitCode: "PIECE",
+      unitPriceMinor: 2000,
+      originalUnitPriceMinor: 2000,
+      purchasePriceMinor: 1500,
+      packagingId: 7,
+      packagingLabelFr: "Carton de 12",
+      packagingFactor: 12,
+      packagingSellingPriceMinor: 22000,
+      packagingAutoCartonPricing: true,
+      packagingPriceOverridden: false,
+    });
+    const lines = buildProformaLines(tab({ lines: [carton] }) as never);
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toMatchObject({
+      qty: 1,
+      unit: "Carton de 12",
+      unitPriceMinor: 22000,
+      lineTotalMinor: 22000,
+      billedTotalMinor: null,
+    });
+    expect(lines[1]).toMatchObject({
+      qty: 3,
+      unit: "PIÈCE",
+      unitPriceMinor: 2000,
+      lineTotalMinor: 6000,
+    });
+  });
   it("buildPrintPayload : mentions entreprise + timbre espèces uniquement", () => {
     const base = {
       invoice: "F-1",

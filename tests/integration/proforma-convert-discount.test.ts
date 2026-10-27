@@ -82,7 +82,10 @@ vi.mock("../../electron/services/logger", () => ({
   getLogFile: () => "",
 }));
 
-import { convertProformaToSaleAtomic } from "../../electron/ipc/handlers/proformas.repo";
+import {
+  convertProformaToSaleAtomic,
+  createProformaAtomic,
+} from "../../electron/ipc/handlers/proformas.repo";
 
 const NOW = "2026-10-19T09:00:00.000Z";
 
@@ -271,5 +274,133 @@ describe("E-20 : conversion d'un devis remisé → vente au montant exact", () =
       .get(res.saleId) as { total_minor: number; discount_amount_minor: number };
     expect(sale.discount_amount_minor).toBe(1);
     expect(sale.total_minor).toBe(2999);
+  });
+
+  it("devis carton : total carton, conversion même si le tarif a changé, stock en unités de base", () => {
+    const product = db
+      .prepare(
+        `INSERT INTO products (uuid, name, unit_code, purchase_price_minor, selling_price_minor, quantity, min_stock_level, stock_status, created_at, updated_at)
+         VALUES (?, 'Coca 1L', 'PIECE', 1500, 2000, 100, 0, 'in_stock', ?, ?)`,
+      )
+      .run(crypto.randomUUID(), NOW, NOW);
+    const productId = Number(product.lastInsertRowid);
+    db.prepare(
+      `INSERT INTO inventory_layers (uuid, product_id, original_quantity, remaining_quantity, unit_cost_minor, purchase_date, reason, created_at)
+       VALUES (?, ?, 100, 100, 1500, '2026-10-01', 'opening', ?)`,
+    ).run(crypto.randomUUID(), productId, NOW);
+    const pack = db
+      .prepare(
+        `INSERT INTO product_packagings (product_id, label_fr, factor, selling_price_minor, purchase_price_minor, auto_carton_pricing, is_active, created_at, updated_at)
+         VALUES (?, 'Carton de 12', 12, 22000, 18000, 1, 1, ?, ?)`,
+      )
+      .run(productId, NOW, NOW);
+    const packagingId = Number(pack.lastInsertRowid);
+
+    const created = createProformaAtomic({
+      customerId: null,
+      lines: [
+        {
+          productId,
+          productName: "Coca 1L",
+          unitCode: "Carton de 12",
+          unitPriceMinor: 22000,
+          quantity: 1,
+          packagingId,
+          unitFactor: 12,
+        },
+        {
+          productId,
+          productName: "Coca 1L",
+          unitCode: "PIECE",
+          unitPriceMinor: 2000,
+          quantity: 3,
+          packagingId: null,
+          unitFactor: 1,
+        },
+      ],
+      discountMinor: 0,
+      deliveryMinor: 0,
+      dueDate: null,
+      notes: null,
+      terms: null,
+      operationId: crypto.randomUUID(),
+      now: NOW,
+    });
+
+    const quote = db
+      .prepare("SELECT subtotal_minor, total_minor FROM proforma_invoices WHERE id = ?")
+      .get(created.id) as { subtotal_minor: number; total_minor: number };
+    expect(quote).toEqual({ subtotal_minor: 28000, total_minor: 28000 });
+    const quoteItems = db
+      .prepare(
+        "SELECT quantity, unit_price_minor, unit_factor, packaging_id, unit_code FROM proforma_items WHERE proforma_id = ? ORDER BY id",
+      )
+      .all(created.id) as {
+      quantity: number;
+      unit_price_minor: number;
+      unit_factor: number;
+      packaging_id: number | null;
+      unit_code: string;
+    }[];
+    expect(quoteItems).toHaveLength(2);
+    expect(quoteItems[0]).toMatchObject({
+      quantity: 1,
+      unit_price_minor: 22000,
+      unit_factor: 12,
+      packaging_id: packagingId,
+      unit_code: "Carton de 12",
+    });
+
+    // Le devis est une snapshot : tarif/désactivation ultérieurs ne changent
+    // ni le total ni la conversion (stock déduit avec le facteur du devis).
+    db.prepare(
+      "UPDATE product_packagings SET selling_price_minor = 99999, is_active = 0 WHERE id = ?",
+    ).run(packagingId);
+
+    const res = convertProformaToSaleAtomic({
+      proformaId: created.id,
+      amountPaidMinor: 28000,
+      paymentMethod: "cash",
+      operationId: crypto.randomUUID(),
+      now: NOW,
+    });
+    const sale = db
+      .prepare("SELECT subtotal_minor, discount_amount_minor, total_minor FROM sales WHERE id = ?")
+      .get(res.saleId) as {
+      subtotal_minor: number;
+      discount_amount_minor: number;
+      total_minor: number;
+    };
+    expect(sale).toEqual({ subtotal_minor: 28000, discount_amount_minor: 0, total_minor: 28000 });
+    const saleItems = db
+      .prepare(
+        "SELECT quantity, unit_factor, packaging_id, unit_price_minor, unit_code FROM sale_items WHERE sale_id = ? ORDER BY id",
+      )
+      .all(res.saleId) as {
+      quantity: number;
+      unit_factor: number;
+      packaging_id: number | null;
+      unit_price_minor: number;
+      unit_code: string;
+    }[];
+    expect(saleItems).toHaveLength(2);
+    expect(saleItems[0]).toMatchObject({
+      quantity: 1,
+      unit_factor: 12,
+      packaging_id: packagingId,
+      unit_price_minor: 22000,
+      unit_code: "Carton de 12",
+    });
+    expect(saleItems[1]).toMatchObject({ quantity: 3, unit_factor: 1, unit_price_minor: 2000 });
+    const stock = db.prepare("SELECT quantity FROM products WHERE id = ?").get(productId) as {
+      quantity: number;
+    };
+    expect(Number(stock.quantity)).toBe(85);
+    const movement = db
+      .prepare(
+        "SELECT COALESCE(SUM(quantity_delta),0) AS d FROM stock_movements WHERE related_entity_type = 'sale' AND related_entity_id = ?",
+      )
+      .get(String(res.saleId)) as { d: number };
+    expect(Number(movement.d)).toBe(-15);
   });
 });

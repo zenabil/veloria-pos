@@ -14,8 +14,11 @@ import {
   deductIntakeLayers,
   restoreToLayers,
 } from "./fifo";
+import { splitReturnSettlement } from "./return-settlement";
 
 export interface ReturnItemInput {
+  /** Ligne vendue exacte (prix net après remise) — optionnel pour compat. */
+  saleItemId?: number | null;
   productId: number | null;
   /** Quantité dans l'unité de la ligne vendue (carton ou pièce). */
   quantity: number;
@@ -35,7 +38,20 @@ export type ReturnStatusFilter =
 export type ReturnTypeFilter = "all" | "customer" | "supplier";
 export type ReturnSort = "date_desc" | "date_asc" | "amount_desc" | "amount_asc";
 
+interface ReturnSaleLineRow {
+  id: number;
+  product_id: number | null;
+  product_name_snapshot: string;
+  unit_price_minor: number;
+  purchase_price_minor: number;
+  quantity: number;
+  line_total_minor: number;
+  category_id: number | null;
+  unit_factor: number;
+}
+
 const txt = (v: unknown): string => (typeof v === "string" ? v : "");
+const round3 = (v: number): number => Math.round(v * 1000) / 1000;
 
 function returnStatus(total: number, settled: number): string {
   if (total > 0 && settled >= total) return "refunded";
@@ -118,12 +134,17 @@ export interface CustomerReturnResult {
   id: number;
   number: string;
   totalReturnMinor: number;
+  /** Part imputée automatiquement à la dette du client. */
+  creditAppliedMinor: number;
+  /** Espèces effectivement remboursées. */
+  cashRefundMinor: number;
   /**
-   * Excédent d'avoir : l'avoir demandé dépasse le solde dû par le client
-   * (trigger 0023 : le solde ne peut pas devenir négatif) ⇒ ce reliquat est
-   * un CRÉDIT CLIENT en cours, porté par le retour (credit_to_customer_minor).
+   * Crédit qui n'a pas pu être affecté à une vente ouverte (journée close,
+   * dette d'ouverture) : il reste porté par le compte client.
    */
-  creditExcessMinor: number;
+  unallocatedCreditMinor: number;
+  /** Solde client après imputation (null = vente au passage). */
+  customerOutstandingAfterMinor: number | null;
 }
 
 export interface ReturnResult {
@@ -136,8 +157,8 @@ export function createReturnAtomic(args: {
   operationId: string;
   originalSaleId: number;
   items: ReturnItemInput[];
+  /** Espèces demandées : plafonnées au retour − dette imputée. */
   refundMinor: number;
-  creditMinor: number;
   refundMethod: string | null;
   reason: string;
   notes: string | null;
@@ -169,8 +190,13 @@ export function createReturnAtomic(args: {
     // mêmes couches, éligibilité sur le TOTAL vendu en UNITÉS DE BASE.
     const requestedByProduct = new Map<string, number>();
     const plannedRestoreByProduct = new Map<string, number>();
+    // Ligne vendue exacte : éligibilité ET valeur nette (après remise) par
+    // ligne, pour éviter le prix de la première ligne du produit.
+    const requestedBySaleItem = new Map<number, number>();
+    const requestedValueBySaleItem = new Map<number, number>();
     const keyOf = (pid: number | null): string => (pid == null ? "null" : `p${pid}`);
     const prepared: {
+      saleItemId: number | null;
       productId: number | null;
       name: string;
       qty: number;
@@ -185,70 +211,136 @@ export function createReturnAtomic(args: {
       cogsMinor: number;
     }[] = [];
     for (const item of args.items) {
-      const unitFactor = item.unitFactor ?? 1;
+      let unitFactor = item.unitFactor ?? 1;
       if (!Number.isInteger(unitFactor) || unitFactor <= 0) {
         throw new Error("Facteur de conditionnement du retour invalide.");
+      }
+      // Ligne exacte fournie par l'UI ; sinon ancienne sélection produit+unité
+      // (compatibilité des appels antérieurs).
+      let sold: ReturnSaleLineRow | undefined;
+      if (item.saleItemId != null) {
+        sold = db
+          .prepare(
+            `SELECT id, product_id, product_name_snapshot, unit_price_minor, purchase_price_minor, quantity, line_total_minor, category_id, unit_factor FROM sale_items WHERE id = ? AND sale_id = ?`,
+          )
+          .get(item.saleItemId, args.originalSaleId) as ReturnSaleLineRow | undefined;
+        if (!sold) throw new Error("Ligne de vente introuvable pour ce retour.");
+        const lineFactor = Number(sold.unit_factor);
+        if (!Number.isInteger(lineFactor) || lineFactor <= 0) {
+          throw new Error("Conditionnement de la ligne vendue invalide.");
+        }
+        if (item.unitFactor != null && item.unitFactor !== lineFactor) {
+          throw new Error("Conditionnement de retour incohérent avec la ligne vendue.");
+        }
+        unitFactor = lineFactor;
+        if (item.productId != null && sold.product_id !== item.productId) {
+          throw new Error("Produit du retour incohérent avec la ligne vendue.");
+        }
+      } else {
+        // Prix/coût de référence : la ligne vendue DANS LA MÊME UNITÉ (carton
+        // ou pièce) — jamais le prix d'une autre unité du même produit.
+        sold = db
+          .prepare(
+            `SELECT id, product_id, product_name_snapshot, unit_price_minor, purchase_price_minor, quantity, line_total_minor, category_id, unit_factor FROM sale_items WHERE sale_id = ? AND (product_id IS ? OR product_id = ?) AND unit_factor = ? ORDER BY id ASC LIMIT 1`,
+          )
+          .get(args.originalSaleId, item.productId, item.productId, unitFactor) as
+          | ReturnSaleLineRow
+          | undefined;
+        if (!sold) throw new Error("Ligne de vente introuvable pour ce retour.");
       }
       if (unitFactor > 1 && !Number.isInteger(item.quantity)) {
         throw new Error("Retour partiel d'un carton impossible (cartons complets uniquement).");
       }
+      if (!(item.quantity > 0)) throw new Error("Quantité retournée invalide.");
+      const productId = sold.product_id;
       // Total vendu agrégé sur TOUTES les lignes, converti en unités de base.
       const soldAgg = db
         .prepare(
           `SELECT COALESCE(SUM(quantity * unit_factor),0) AS qty FROM sale_items WHERE sale_id = ? AND (product_id IS ? OR product_id = ?)`,
         )
-        .get(args.originalSaleId, item.productId, item.productId) as { qty: number } | undefined;
+        .get(args.originalSaleId, productId, productId) as { qty: number } | undefined;
       const soldBase = Number(soldAgg?.qty ?? 0);
       if (!(soldBase > 0)) throw new Error("Ligne de vente introuvable pour ce retour.");
-      // Prix/coût de référence : la ligne vendue DANS LA MÊME UNITÉ (carton
-      // ou pièce) — jamais le prix d'une autre unité du même produit.
-      const sold = db
-        .prepare(
-          `SELECT product_id, product_name_snapshot, unit_price_minor, purchase_price_minor, quantity, category_id, unit_factor FROM sale_items WHERE sale_id = ? AND (product_id IS ? OR product_id = ?) AND unit_factor = ? ORDER BY id ASC LIMIT 1`,
-        )
-        .get(args.originalSaleId, item.productId, item.productId, unitFactor) as
-        | {
-            product_id: number | null;
-            product_name_snapshot: string;
-            unit_price_minor: number;
-            purchase_price_minor: number;
-            quantity: number;
-            category_id: number | null;
-            unit_factor: number;
-          }
-        | undefined;
-      if (!sold) throw new Error("Ligne de vente introuvable pour ce retour.");
       const alreadyBase = (
         db
           .prepare(
             `SELECT COALESCE(SUM(ri.quantity * ri.unit_factor),0) AS q FROM return_items ri JOIN returns r ON r.id = ri.return_id WHERE r.original_sale_id = ? AND r.status != 'cancelled' AND (ri.product_id IS ? OR ri.product_id = ?)`,
           )
-          .get(args.originalSaleId, item.productId, item.productId) as { q: number }
+          .get(args.originalSaleId, productId, productId) as { q: number }
       ).q;
       const baseQty = Math.round(item.quantity * unitFactor * 1000) / 1000;
       // Éligible sur le TOTAL (SUM) moins déjà-retourné moins déjà-demandé
       // dans cette requête (2 lignes même produit).
-      const inRequestBase = requestedByProduct.get(keyOf(item.productId)) ?? 0;
+      const inRequestBase = requestedByProduct.get(keyOf(productId)) ?? 0;
       const eligibleBase = Number(soldBase) - Number(alreadyBase) - inRequestBase;
-      if (!(item.quantity > 0)) throw new Error("Quantité retournée invalide.");
       if (baseQty > eligibleBase) {
         throw new Error(
           `Quantité retournée supérieure à l'éligible (${eligibleBase} unités de base) pour « ${sold.product_name_snapshot} ».`,
         );
       }
-      requestedByProduct.set(keyOf(item.productId), inRequestBase + baseQty);
+      // Ligne précise : jamais plus que la quantité restante de CETTE ligne.
+      let alreadyLineValue = 0;
+      let maxLineValue = Number.POSITIVE_INFINITY;
+      if (item.saleItemId != null) {
+        const alreadyLine = db
+          .prepare(
+            `SELECT COALESCE(SUM(ri.quantity),0) AS q, COALESCE(SUM(ri.line_total_minor),0) AS v
+             FROM return_items ri JOIN returns r ON r.id = ri.return_id
+             WHERE r.original_sale_id = ? AND r.status != 'cancelled' AND ri.sale_item_id = ?`,
+          )
+          .get(args.originalSaleId, item.saleItemId) as { q: number; v: number };
+        const inRequestLine = requestedBySaleItem.get(item.saleItemId) ?? 0;
+        const lineEligible = Number(sold.quantity) - Number(alreadyLine.q) - inRequestLine;
+        if (Math.round(item.quantity * 1000) > Math.round(lineEligible * 1000)) {
+          throw new Error(
+            `Quantité retournée supérieure à l'éligible de la ligne (${lineEligible}) pour « ${sold.product_name_snapshot} ».`,
+          );
+        }
+        requestedBySaleItem.set(item.saleItemId, inRequestLine + item.quantity);
+        alreadyLineValue = Number(alreadyLine.v);
+        if (!Number.isSafeInteger(alreadyLineValue) || alreadyLineValue < 0) {
+          throw new Error("Valeur déjà retournée invalide pour cette ligne.");
+        }
+      }
+      requestedByProduct.set(keyOf(productId), inRequestBase + baseQty);
       if (
         !Number.isSafeInteger(sold.unit_price_minor) ||
         sold.unit_price_minor < 0 ||
         sold.unit_price_minor > 1_000_000_000
       )
         throw new Error("Prix unitaire invalide.");
-      const lineTotal = Math.round(sold.unit_price_minor * item.quantity);
+      // Valeur NETTE de la ligne (après remise) au prorata de la quantité
+      // retournée : jamais le prix catalogue avant remise.
+      const soldQty = Number(sold.quantity);
+      const soldLineTotal = Number(sold.line_total_minor);
+      if (
+        !(soldQty > 0) ||
+        !Number.isSafeInteger(soldLineTotal) ||
+        soldLineTotal < 0 ||
+        soldLineTotal > 100_000_000_000
+      ) {
+        throw new Error("Valeur de la ligne vendue invalide.");
+      }
+      const partTh = Math.round(item.quantity * 1000);
+      const wholeTh = Math.round(soldQty * 1000);
+      if (!(wholeTh > 0)) throw new Error("Quantité vendue invalide.");
+      const proportional =
+        partTh >= wholeTh ? soldLineTotal : Math.round((soldLineTotal * partTh) / wholeTh);
+      if (item.saleItemId != null) {
+        const inRequestValue = requestedValueBySaleItem.get(item.saleItemId) ?? 0;
+        maxLineValue = Math.max(0, soldLineTotal - alreadyLineValue - inRequestValue);
+        requestedValueBySaleItem.set(
+          item.saleItemId,
+          inRequestValue + Math.min(proportional, maxLineValue),
+        );
+      }
+      const lineTotal = Math.min(proportional, maxLineValue);
       if (!Number.isSafeInteger(lineTotal) || lineTotal < 0 || lineTotal > 100_000_000_000)
         throw new Error("Montant de ligne invalide.");
       totalReturn += lineTotal;
       prepared.push({
-        productId: sold.product_id,
+        saleItemId: item.saleItemId ?? null,
+        productId,
         name: sold.product_name_snapshot,
         qty: item.quantity,
         unitFactor,
@@ -263,15 +355,23 @@ export function createReturnAtomic(args: {
       });
     }
     if (prepared.length === 0) throw new Error("Aucune ligne à retourner.");
-    if (args.refundMinor + args.creditMinor > totalReturn) {
-      throw new Error("Remboursement + avoir supérieurs à la valeur du retour.");
-    }
-    // Un avoir sans client (vente au passage) serait silencieusement perdu :
-    // refus explicite (l'avoir réduit la dette d'un client identifié).
-    if (args.creditMinor > 0 && sale.customer_id == null) {
-      throw new Error("Avoir impossible : la vente d'origine est au passage (sans client).");
-    }
-    if (args.refundMinor > 0 && args.refundMethod == null) {
+    // Politique propriétaire : la valeur du retour éteint d'abord la dette du
+    // client ; les espèces ne couvrent que l'excédent (jamais un remboursement
+    // en espèces d'un montant encore dû).
+    const customer =
+      sale.customer_id == null
+        ? undefined
+        : (db
+            .prepare(`SELECT outstanding_balance_minor FROM customers WHERE id = ?`)
+            .get(sale.customer_id) as { outstanding_balance_minor: number } | undefined);
+    if (sale.customer_id != null && !customer) throw new Error("Client introuvable.");
+    const outstandingBefore = customer ? Number(customer.outstanding_balance_minor) : 0;
+    const settlement = splitReturnSettlement({
+      totalReturnMinor: totalReturn,
+      outstandingMinor: outstandingBefore,
+      requestedRefundMinor: args.refundMinor,
+    });
+    if (settlement.cashRefundMinor > 0 && args.refundMethod == null) {
       throw new Error("Moyen de remboursement requis.");
     }
     // P0/0024: numéro pré-alloué AVANT l'INSERT (séquence) — l'INSERT
@@ -289,12 +389,12 @@ export function createReturnAtomic(args: {
         sale.invoice_number,
         sale.customer_id,
         totalReturn,
-        args.refundMinor,
-        args.creditMinor,
-        args.refundMethod,
+        settlement.cashRefundMinor,
+        settlement.creditAppliedMinor,
+        settlement.cashRefundMinor > 0 ? args.refundMethod : null,
         args.reason || null,
         args.notes?.trim() || null,
-        returnStatus(totalReturn, args.refundMinor + args.creditMinor),
+        returnStatus(totalReturn, settlement.cashRefundMinor + settlement.creditAppliedMinor),
         args.staffUserId ?? null,
         args.createdAt,
         args.now,
@@ -367,10 +467,11 @@ export function createReturnAtomic(args: {
         );
       }
       db.prepare(
-        `INSERT INTO return_items (return_id, product_id, product_name_snapshot, quantity, unit_price_minor, purchase_price_minor, restocked, condition, stock_before, stock_after, line_total_minor, category_id, cogs_minor, unit_factor)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO return_items (return_id, sale_item_id, product_id, product_name_snapshot, quantity, unit_price_minor, purchase_price_minor, restocked, condition, stock_before, stock_after, line_total_minor, category_id, cogs_minor, unit_factor)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         returnId,
+        p.saleItemId,
         p.productId,
         p.name,
         p.qty,
@@ -386,51 +487,101 @@ export function createReturnAtomic(args: {
         p.unitFactor,
       );
     }
-    // AVOIR : le solde du client ne peut pas devenir négatif (trigger 0023
-    // `trg_customers_outstanding_nonneg` → ABORT + message technique brut).
-    // L'avoir demandé est plafonné au solde réellement dû ; lExcédent reste un
-    // CRÉDIT CLIENT (avoir en cours) porté par le retour lui-même
-    // (`returns.credit_to_customer_minor`), tracé dans l'audit.
-    // SOURCE DE VÉRITÉ (E-24) : le retour réduit AUSSI le sien de vente
-    // (`sales.remaining_balance_minor`) ⇒ le solde du compte et le reste des
-    // documents ne peuvent plus diverger (UI : « Dette actuelle » vs
-    // « Reste des documents »).
-    let creditExcessMinor = 0;
-    if (args.creditMinor > 0 && sale.customer_id != null) {
-      const cust = db
-        .prepare(`SELECT outstanding_balance_minor FROM customers WHERE id = ?`)
-        .get(sale.customer_id) as { outstanding_balance_minor: number } | undefined;
-      const outstanding = Number(cust?.outstanding_balance_minor ?? 0);
-      const applied = Math.min(args.creditMinor, Math.max(0, outstanding));
-      creditExcessMinor = args.creditMinor - applied;
-      // Le sien de vente porte le reste à payer APRÈS avoir : même source de
-      // vérité que le compte client (sinon deux chiffres pour un même client).
-      // L'avoir vaut encaissement pour le sien : `amount_paid_minor` augmente,
-      // `remaining_balance_minor` baisse (CHECK 0001:152 respecté).
-      const saleRest = Number(sale.remaining_balance_minor);
-      if (saleRest > 0) {
-        const appliedOnSale = Math.min(applied, saleRest);
-        const paid = Number(sale.amount_paid_minor);
-        const total = Number(sale.total_minor);
-        const newPaid = paid + appliedOnSale;
-        const newRest = total - newPaid;
-        const newStatus = newRest <= 0 ? "paid" : newPaid > 0 ? "partial" : "unpaid";
+    // ── Imputation automatique sur la dette ────────────────────────────────
+    // La valeur du retour éteint la dette : la vente d'origine en priorité,
+    // puis les autres ventes ouvertes du client (les plus anciennes). Une
+    // vente d'une journée déjà clôturée n'est JAMAIS modifiée (trigger 0048) :
+    // sa part devient un crédit non affecté porté par le compte client.
+    let unallocatedCredit = 0;
+    const allocations: { saleId: number | null; amountMinor: number }[] = [];
+    if (settlement.creditAppliedMinor > 0 && sale.customer_id != null) {
+      let remainingCredit = settlement.creditAppliedMinor;
+      const candidates = db
+        .prepare(
+          `SELECT s.id, s.remaining_balance_minor
+           FROM sales s
+           WHERE s.customer_id = ? AND s.is_cancelled = 0 AND s.remaining_balance_minor > 0
+             AND NOT EXISTS (
+               SELECT 1 FROM daily_closings dc
+               WHERE dc.business_date = substr(s.created_at, 1, 10)
+             )
+           ORDER BY CASE WHEN s.id = ? THEN 0 ELSE 1 END, s.created_at ASC, s.id ASC`,
+        )
+        .all(sale.customer_id, args.originalSaleId) as {
+        id: number;
+        remaining_balance_minor: number;
+      }[];
+      for (const row of candidates) {
+        if (remainingCredit <= 0) break;
+        const take = Math.min(remainingCredit, Number(row.remaining_balance_minor));
+        if (!(take > 0)) continue;
+        let updated = 0;
+        try {
+          const upd = db
+            .prepare(
+              `UPDATE sales SET
+                 amount_paid_minor = amount_paid_minor + ?,
+                 remaining_balance_minor = remaining_balance_minor - ?,
+                 credit_applied_minor = credit_applied_minor + ?,
+                 payment_status = CASE
+                   WHEN remaining_balance_minor - ? = 0 THEN 'paid'
+                   WHEN amount_paid_minor + ? = 0 THEN 'unpaid'
+                   ELSE 'partial'
+                 END,
+                 updated_at = ?
+               WHERE id = ? AND remaining_balance_minor >= ?`,
+            )
+            .run(take, take, take, take, take, args.now, row.id, take);
+          updated = Number(upd.changes);
+        } catch (err) {
+          // Course avec une clôture : la vente est devenue immuable. Sa part
+          // passera en crédit non affecté au lieu de faire échouer le retour.
+          if (err instanceof Error && /Journée déjà clôturée/i.test(err.message)) continue;
+          throw err;
+        }
+        if (updated !== 1) {
+          throw new Error("Imputation de crédit impossible : la vente a changé. Réessayez.");
+        }
         db.prepare(
-          `UPDATE sales SET amount_paid_minor = ?, remaining_balance_minor = ?, payment_status = ?, updated_at = ? WHERE id = ?`,
-        ).run(newPaid, newRest, newStatus, args.now, args.originalSaleId);
+          `INSERT INTO customer_credit_allocations (uuid, return_id, customer_id, sale_id, amount_minor, created_at)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+        ).run(randomUUID(), returnId, sale.customer_id, row.id, take, args.now);
+        allocations.push({ saleId: row.id, amountMinor: take });
+        remainingCredit -= take;
       }
-      if (applied > 0) {
-        // E-30 : le statut du client est recalculé APRÈS le mouvement de la
-        // vente (le statut « en retard » dépend du reste dû de la vente :
-        // il doit être lu dans l'état FINAL de la transaction).
+      if (remainingCredit > 0) {
+        // Aucune vente ouverte imputable (journée close / dette d'ouverture).
         db.prepare(
+          `INSERT INTO customer_credit_allocations (uuid, return_id, customer_id, sale_id, amount_minor, created_at)
+           VALUES (?, ?, ?, NULL, ?, ?)`,
+        ).run(randomUUID(), returnId, sale.customer_id, remainingCredit, args.now);
+        allocations.push({ saleId: null, amountMinor: remainingCredit });
+        unallocatedCredit = remainingCredit;
+      }
+      // E-30 : statut recalculé APRÈS les mouvements de ventes (échéances).
+      const custUpd = db
+        .prepare(
           `UPDATE customers SET outstanding_balance_minor = outstanding_balance_minor - ?,
             debt_status = ${debtStatusSql("outstanding_balance_minor - ?", "id")},
             is_over_limit = CASE WHEN credit_limit_minor > 0 AND outstanding_balance_minor - ? > credit_limit_minor THEN 1 ELSE 0 END,
-            updated_at = ? WHERE id = ?`,
-        ).run(applied, applied, applied, applied, args.now, sale.customer_id);
+            updated_at = ?
+          WHERE id = ? AND outstanding_balance_minor >= ?`,
+        )
+        .run(
+          settlement.creditAppliedMinor,
+          settlement.creditAppliedMinor,
+          settlement.creditAppliedMinor,
+          settlement.creditAppliedMinor,
+          args.now,
+          sale.customer_id,
+          settlement.creditAppliedMinor,
+        );
+      if (Number(custUpd.changes) !== 1) {
+        throw new Error("Solde client incohérent : imputation impossible. Réessayez.");
       }
     }
+    const customerOutstandingAfter =
+      customer == null ? null : outstandingBefore - settlement.creditAppliedMinor;
     db.prepare(
       `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at, actor_user_id) VALUES (?, 'return.created', 'return', ?, ?, ?, ?, ?)`,
     ).run(
@@ -440,21 +591,24 @@ export function createReturnAtomic(args: {
       JSON.stringify({
         sale: args.originalSaleId,
         total: totalReturn,
-        refunded: args.refundMinor,
-        credit: args.creditMinor,
-        // Excédent d'avoir : crédit client en cours (le solde ne peut pas
-        // devenir négatif — trigger 0023).
-        creditExcess: creditExcessMinor,
+        refunded: settlement.cashRefundMinor,
+        creditApplied: settlement.creditAppliedMinor,
+        unallocatedCredit,
+        customerOutstandingBefore: customer == null ? null : outstandingBefore,
+        customerOutstandingAfter,
+        allocations,
       }),
       args.now,
       args.staffUserId ?? null,
     );
-    const result = {
+    const result: CustomerReturnResult = {
       id: returnId,
       number,
       totalReturnMinor: totalReturn,
-      // > 0 : l'avoir dépasse le solde du client ⇒ crédit restant à imputer.
-      creditExcessMinor,
+      creditAppliedMinor: settlement.creditAppliedMinor,
+      cashRefundMinor: settlement.cashRefundMinor,
+      unallocatedCreditMinor: unallocatedCredit,
+      customerOutstandingAfterMinor: customerOutstandingAfter,
     };
     storeIdempotencyResult(args.operationId, result);
     return result;
@@ -495,6 +649,8 @@ export function createReturnAtomic(args: {
 }
 
 export interface SupplierReturnItemInput {
+  /** Ligne d'achat exacte : son prix unitaire fait foi pour la valeur rendue. */
+  intakeItemId?: number | null;
   productId: number | null;
   quantity: number;
   condition: "good" | "defective";
@@ -526,55 +682,113 @@ export function createSupplierReturnAtomic(args: {
     let totalReturn = 0;
     // FIX-P1-01 : cumul demandé par produit DANS cette requête (miroir du
     // retour client : 2 lignes même produit ne doivent pas dépasser l'éligible).
-    const requestedByProduct = new Map<string, number>();
+    const requestedStockByProduct = new Map<string, number>();
+    const requestedDamagedByProduct = new Map<string, number>();
     const keyOf = (pid: number | null): string => (pid == null ? "null" : `p${pid}`);
     const prepared: {
       productId: number | null;
       name: string;
       qty: number;
+      /** Part réellement sortie du stock (unités de base). */
+      stockQty: number;
+      /** Part abîmée non stockée rendue au fournisseur (unités de base). */
+      damagedQty: number;
       unitPrice: number;
       purchase: number;
       condition: string;
       lineTotal: number;
     }[] = [];
     for (const item of args.items) {
-      const bought = db
-        .prepare(
-          `SELECT product_id, product_name_snapshot, purchase_price_minor, quantity_received, unit_factor FROM stock_intake_items WHERE stock_intake_id = ? AND (product_id IS ? OR product_id = ?) LIMIT 1`,
-        )
-        .get(args.intakeId, item.productId, item.productId) as
+      if (!(item.quantity > 0)) throw new Error("Quantité retournée invalide.");
+      const bought = (
+        item.intakeItemId != null
+          ? db
+              .prepare(
+                `SELECT product_id, product_name_snapshot, purchase_price_minor, quantity_received, quantity_damaged, unit_factor
+                 FROM stock_intake_items
+                 WHERE id = ? AND stock_intake_id = ? AND (product_id IS ? OR product_id = ?)`,
+              )
+              .get(item.intakeItemId, args.intakeId, item.productId, item.productId)
+          : db
+              .prepare(
+                `SELECT product_id, product_name_snapshot, purchase_price_minor, quantity_received, quantity_damaged, unit_factor
+                 FROM stock_intake_items
+                 WHERE stock_intake_id = ? AND (product_id IS ? OR product_id = ?) ORDER BY id LIMIT 1`,
+              )
+              .get(args.intakeId, item.productId, item.productId)
+      ) as
         | {
             product_id: number | null;
             product_name_snapshot: string;
             purchase_price_minor: number;
             quantity_received: number;
+            quantity_damaged: number;
             unit_factor: number;
           }
         | undefined;
       if (!bought) throw new Error("Ligne d'achat introuvable pour ce retour.");
-      const already = (
-        db
+      const boughtLines = db
+        .prepare(
+          `SELECT quantity_received, quantity_damaged, unit_factor FROM stock_intake_items WHERE stock_intake_id = ? AND (product_id IS ? OR product_id = ?)`,
+        )
+        .all(args.intakeId, bought.product_id, bought.product_id) as {
+        quantity_received: number;
+        quantity_damaged: number;
+        unit_factor: number;
+      }[];
+      const damagedTotal = round3(boughtLines.reduce((a, l) => a + Number(l.quantity_damaged), 0));
+      const netTotal = round3(
+        boughtLines.reduce((a, l) => {
+          const f = Number(l.unit_factor) > 0 ? Number(l.unit_factor) : 1;
+          return a + Number(l.quantity_received) * f - Number(l.quantity_damaged);
+        }, 0),
+      );
+      const already = db
+        .prepare(
+          `SELECT COALESCE(SUM(sri.quantity),0) AS total,
+                  COALESCE(SUM(sri.quantity_stock),0) AS stock,
+                  COALESCE(SUM(sri.quantity_damaged),0) AS damaged
+           FROM supplier_return_items sri
+           JOIN supplier_returns sr ON sr.id = sri.supplier_return_id
+           WHERE sr.stock_intake_id = ? AND sr.status != 'cancelled'
+             AND (sri.product_id IS ? OR sri.product_id = ?)`,
+        )
+        .get(args.intakeId, bought.product_id, bought.product_id) as {
+        total: number;
+        stock: number;
+        damaged: number;
+      };
+      const key = keyOf(item.productId);
+      let stockEligible = 0;
+      if (bought.product_id != null) {
+        const layers = db
           .prepare(
-            `SELECT COALESCE(SUM(sri.quantity),0) AS q FROM supplier_return_items sri JOIN supplier_returns sr ON sr.id = sri.supplier_return_id WHERE sr.stock_intake_id = ? AND sr.status != 'cancelled' AND (sri.product_id IS ? OR sri.product_id = ?)`,
+            `SELECT COALESCE(SUM(remaining_quantity),0) AS q, COUNT(*) AS n
+             FROM inventory_layers WHERE stock_intake_id = ? AND product_id = ?`,
           )
-          .get(args.intakeId, item.productId, item.productId) as { q: number }
-      ).q;
-      const purchasedBase =
-        Number(bought.quantity_received) *
-        (Number.isInteger(bought.unit_factor) && Number(bought.unit_factor) > 0
-          ? Number(bought.unit_factor)
-          : 1);
-      const eligible =
-        purchasedBase - Number(already) - (requestedByProduct.get(keyOf(item.productId)) ?? 0);
-      if (!(item.quantity > 0)) throw new Error("Quantité retournée invalide.");
-      if (item.quantity > eligible) {
+          .get(args.intakeId, bought.product_id) as { q: number; n: number };
+        stockEligible =
+          Number(layers.n) > 0
+            ? Math.max(0, round3(Number(layers.q)))
+            : Math.max(0, round3(netTotal - Number(already.stock)));
+      }
+      stockEligible = Math.max(0, round3(stockEligible - (requestedStockByProduct.get(key) ?? 0)));
+      const damagedEligible = Math.max(
+        0,
+        round3(damagedTotal - Number(already.damaged) - (requestedDamagedByProduct.get(key) ?? 0)),
+      );
+      const eligible = round3(stockEligible + damagedEligible);
+      if (round3(item.quantity) > eligible) {
         throw new Error(
-          `Quantité retournée supérieure à l'éligible (${eligible}) pour « ${bought.product_name_snapshot} ».`,
+          `Quantité retournée supérieure à l'éligible (${eligible} unités de base) pour « ${bought.product_name_snapshot} ».`,
         );
       }
-      requestedByProduct.set(
-        keyOf(item.productId),
-        (requestedByProduct.get(keyOf(item.productId)) ?? 0) + item.quantity,
+      const stockQty = Math.min(round3(item.quantity), stockEligible);
+      const damagedQty = Math.max(0, round3(item.quantity - stockQty));
+      requestedStockByProduct.set(key, round3((requestedStockByProduct.get(key) ?? 0) + stockQty));
+      requestedDamagedByProduct.set(
+        key,
+        round3((requestedDamagedByProduct.get(key) ?? 0) + damagedQty),
       );
       const lineTotal = (() => {
         if (
@@ -592,7 +806,9 @@ export function createSupplierReturnAtomic(args: {
       prepared.push({
         productId: bought.product_id,
         name: bought.product_name_snapshot,
-        qty: item.quantity,
+        qty: round3(item.quantity),
+        stockQty,
+        damagedQty,
         unitPrice: bought.purchase_price_minor,
         purchase: bought.purchase_price_minor,
         condition: item.condition,
@@ -643,43 +859,51 @@ export function createSupplierReturnAtomic(args: {
           quantity: number;
         };
         before = Number(prod.quantity);
-        after = before - p.qty;
+        after = before - p.stockQty;
         if (after < 0) {
           throw new Error(`Stock insuffisant pour retourner « ${p.name} » (${before} dispo).`);
         }
-        // FIFO : la quantité repart des couches de CETTE facture d'achat
-        // (jamais d'une couche arbitraire). Refus si déjà vendue/ajustée.
-        const deductions = deductIntakeLayers({
-          productId: p.productId,
-          intakeId: args.intakeId,
-          qty: p.qty,
-        });
-        layersTrace.push({ productId: p.productId, deductions });
-        db.prepare(
-          `UPDATE products SET quantity = ?, stock_status = CASE WHEN ? <= 0 THEN 'out_of_stock' WHEN ? <= min_stock_level THEN 'low_stock' ELSE 'in_stock' END, updated_at = ? WHERE id = ?`,
-        ).run(after, after, after, args.now, p.productId);
-        db.prepare(
-          `INSERT INTO stock_movements (uuid, product_id, movement_type, quantity_delta, quantity_after, unit_cost_minor, related_entity_type, related_entity_id, reason, reference, created_at)
-           VALUES (?, ?, 'adjust_out', ?, ?, ?, 'supplier_return', ?, 'Retour fournisseur', ?, ?)`,
-        ).run(
-          randomUUID(),
-          p.productId,
-          -p.qty,
-          after,
-          p.purchase,
-          String(returnId),
-          number,
-          args.now,
-        );
+        if (p.stockQty > 0) {
+          // FIFO : la quantité repart des couches de CETTE facture d'achat
+          // (jamais d'une couche arbitraire). Refus si déjà vendue/ajustée.
+          const deductions = deductIntakeLayers({
+            productId: p.productId,
+            intakeId: args.intakeId,
+            qty: p.stockQty,
+          });
+          // Une seule entrée par produit : l'annulation restaure le journal
+          // une fois, même si la réception/le retour porte 2 lignes.
+          const traceEntry = layersTrace.find((t) => t.productId === p.productId);
+          if (traceEntry) traceEntry.deductions.push(...deductions);
+          else layersTrace.push({ productId: p.productId, deductions });
+          db.prepare(
+            `UPDATE products SET quantity = ?, stock_status = CASE WHEN ? <= 0 THEN 'out_of_stock' WHEN ? <= min_stock_level THEN 'low_stock' ELSE 'in_stock' END, updated_at = ? WHERE id = ?`,
+          ).run(after, after, after, args.now, p.productId);
+          db.prepare(
+            `INSERT INTO stock_movements (uuid, product_id, movement_type, quantity_delta, quantity_after, unit_cost_minor, related_entity_type, related_entity_id, reason, reference, created_at)
+             VALUES (?, ?, 'adjust_out', ?, ?, ?, 'supplier_return', ?, 'Retour fournisseur', ?, ?)`,
+          ).run(
+            randomUUID(),
+            p.productId,
+            -p.stockQty,
+            after,
+            p.purchase,
+            String(returnId),
+            number,
+            args.now,
+          );
+        }
       }
       db.prepare(
-        `INSERT INTO supplier_return_items (supplier_return_id, product_id, product_name_snapshot, quantity, unit_price_minor, purchase_price_minor, line_total_minor, condition, stock_before, stock_after)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO supplier_return_items (supplier_return_id, product_id, product_name_snapshot, quantity, quantity_stock, quantity_damaged, unit_price_minor, purchase_price_minor, line_total_minor, condition, stock_before, stock_after)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         returnId,
         p.productId,
         p.name,
         p.qty,
+        p.stockQty,
+        p.damagedQty,
         p.unitPrice,
         p.purchase,
         p.lineTotal,
@@ -790,7 +1014,7 @@ export function listReturnsUnified(
       sr.total_return_value_minor AS total_minor,
       sr.amount_recovered_minor AS settled_minor,
       sr.status AS status,
-      (SELECT COALESCE(SUM(quantity), 0) FROM supplier_return_items WHERE supplier_return_id = sr.id) AS stock_qty
+      (SELECT COALESCE(SUM(quantity_stock), 0) FROM supplier_return_items WHERE supplier_return_id = sr.id) AS stock_qty
     FROM supplier_returns sr LEFT JOIN suppliers s ON s.id = sr.supplier_id`);
   }
   const union = branches.join("\nUNION ALL\n");
@@ -868,6 +1092,8 @@ export function getReturnsStats(): {
 export function getReturnableSaleItems(saleId: number): {
   sale: unknown;
   customerName: string | null;
+  /** Solde dû actuel : l'UI affiche l'imputation automatique avant validation. */
+  customerOutstandingMinor: number | null;
   items: unknown[];
 } {
   const db = getDb();
@@ -903,6 +1129,20 @@ export function getReturnableSaleItems(saleId: number): {
   for (const r of alreadyRows) {
     alreadyBase.set(keyOf(r.pid), Number(r.q));
   }
+  // Éligibilité PAR LIGNE (nouveaux retours) : une ligne ne peut pas être
+  // retournée deux fois même si le produit a plusieurs lignes.
+  const alreadyLineRows = db
+    .prepare(
+      `SELECT ri.sale_item_id AS sid, COALESCE(SUM(ri.quantity),0) AS q
+       FROM return_items ri JOIN returns r ON r.id = ri.return_id
+       WHERE r.original_sale_id = ? AND r.status != 'cancelled' AND ri.sale_item_id IS NOT NULL
+       GROUP BY ri.sale_item_id`,
+    )
+    .all(saleId) as { sid: number; q: number }[];
+  const alreadyLine = new Map<number, number>();
+  for (const r of alreadyLineRows) {
+    alreadyLine.set(Number(r.sid), Number(r.q));
+  }
   const out = items.map((it) => {
     const factor = Number(it["unit_factor"] ?? 1) > 0 ? Number(it["unit_factor"] ?? 1) : 1;
     const k = keyOf(it["product_id"]);
@@ -910,10 +1150,15 @@ export function getReturnableSaleItems(saleId: number): {
       0,
       Math.round(((soldBase.get(k) ?? 0) - (alreadyBase.get(k) ?? 0)) * 1000) / 1000,
     );
-    const eligible =
+    const productEligible =
       factor > 1
         ? Math.min(Number(it["quantity"]), Math.floor(remainingBase / factor + 1e-9))
         : Math.min(Number(it["quantity"]), remainingBase);
+    const lineEligible = Math.max(
+      0,
+      Number(it["quantity"]) - (alreadyLine.get(Number(it["id"])) ?? 0),
+    );
+    const eligible = Math.max(0, Math.min(productEligible, lineEligible));
     const already = Math.max(0, Number(it["quantity"]) - eligible);
     const barcodes =
       it["product_id"] != null
@@ -940,11 +1185,18 @@ export function getReturnableSaleItems(saleId: number): {
   });
   const cust =
     sale["customer_id"] != null
-      ? (db.prepare(`SELECT search_name FROM customers WHERE id = ?`).get(sale["customer_id"]) as
-          | { search_name: string }
+      ? (db
+          .prepare(`SELECT search_name, outstanding_balance_minor FROM customers WHERE id = ?`)
+          .get(sale["customer_id"]) as
+          | { search_name: string; outstanding_balance_minor: number }
           | undefined)
       : undefined;
-  return { sale, customerName: cust?.search_name ?? null, items: out };
+  return {
+    sale,
+    customerName: cust?.search_name ?? null,
+    customerOutstandingMinor: cust ? Number(cust.outstanding_balance_minor) : null,
+    items: out,
+  };
 }
 
 export function getReturnableIntakeItems(intakeId: number): {
@@ -959,36 +1211,77 @@ export function getReturnableIntakeItems(intakeId: number): {
   if (!intake) throw new Error("Bon d'achat introuvable.");
   if (intake["status"] === "cancelled") throw new Error("Bon d'achat annulé : retour impossible.");
   const items = db
-    .prepare(`SELECT * FROM stock_intake_items WHERE stock_intake_id = ? ORDER BY id`)
+    .prepare(
+      `SELECT ii.*, p.unit_code AS unit_code, pk.label_fr AS packaging_label_fr
+       FROM stock_intake_items ii
+       LEFT JOIN products p ON p.id = ii.product_id
+       LEFT JOIN product_packagings pk ON pk.id = ii.packaging_id
+       WHERE ii.stock_intake_id = ? ORDER BY ii.id`,
+    )
     .all(intakeId) as Record<string, unknown>[];
   const out = items.map((it) => {
-    const already = (
-      db
+    const productId = it["product_id"] == null ? null : Number(it["product_id"]);
+    const factorRaw = Number(it["unit_factor"] ?? 1);
+    const factor = Number.isInteger(factorRaw) && factorRaw > 0 ? factorRaw : 1;
+    const purchasedBase = round3(Number(it["quantity_received"]) * factor);
+    const damaged = round3(Number(it["quantity_damaged"]));
+    const net = round3(purchasedBase - damaged);
+    // Retours déjà enregistrés : total repris par le fournisseur + part
+    // réellement sortie du stock (les abîmées ne sortent jamais du stock).
+    const already = db
+      .prepare(
+        `SELECT COALESCE(SUM(sri.quantity),0) AS total,
+                COALESCE(SUM(sri.quantity_stock),0) AS stock,
+                COALESCE(SUM(sri.quantity_damaged),0) AS damaged
+         FROM supplier_return_items sri
+         JOIN supplier_returns sr ON sr.id = sri.supplier_return_id
+         WHERE sr.stock_intake_id = ? AND sr.status != 'cancelled'
+           AND (sri.product_id IS ? OR sri.product_id = ?)`,
+      )
+      .get(intakeId, productId, productId) as {
+      total: number;
+      stock: number;
+      damaged: number;
+    };
+    // Éligibilité STOCK = couches FIFO encore présentes dans CETTE réception
+    // (une vente/ajustement a pu consommer la marchandise). Repli historique
+    // (facture antérieure aux couches) : quantité nette moins déjà retournée.
+    let stockEligible = 0;
+    if (productId != null) {
+      const layers = db
         .prepare(
-          `SELECT COALESCE(SUM(sri.quantity),0) AS q FROM supplier_return_items sri JOIN supplier_returns sr ON sr.id = sri.supplier_return_id WHERE sr.stock_intake_id = ? AND sr.status != 'cancelled' AND (sri.product_id IS ? OR sri.product_id = ?)`,
+          `SELECT COALESCE(SUM(remaining_quantity),0) AS q, COUNT(*) AS n
+           FROM inventory_layers WHERE stock_intake_id = ? AND product_id = ?`,
         )
-        .get(intakeId, it["product_id"], it["product_id"]) as { q: number }
-    ).q;
+        .get(intakeId, productId) as { q: number; n: number };
+      stockEligible =
+        Number(layers.n) > 0
+          ? Math.max(0, round3(Number(layers.q)))
+          : Math.max(0, round3(net - Number(already.stock)));
+    }
+    // Les pièces abîmées n'ont jamais été mises en stock : elles restent
+    // retournables au fournisseur tant qu'elles n'ont pas déjà été retournées.
+    const damagedEligible = Math.max(0, round3(damaged - Number(already.damaged)));
     const barcodes =
-      it["product_id"] != null
+      productId != null
         ? (
             db
               .prepare(
                 `SELECT barcode FROM product_barcodes WHERE product_id = ? ORDER BY is_primary DESC, id`,
               )
-              .all(it["product_id"]) as { barcode: string }[]
+              .all(productId) as { barcode: string }[]
           ).map((b) => b.barcode)
         : [];
     const primary = barcodes.length > 0 ? (barcodes[0] ?? null) : null;
-    const factor =
-      Number.isInteger(Number(it["unit_factor"])) && Number(it["unit_factor"]) > 0
-        ? Number(it["unit_factor"])
-        : 1;
-    const purchasedBase = Number(it["quantity_received"]) * factor;
     return {
       ...it,
-      already_returned: Number(already),
-      eligible: purchasedBase - Number(already),
+      unit_factor: factor,
+      quantity_net: net,
+      stock_eligible: stockEligible,
+      damaged_eligible: damagedEligible,
+      already_returned: round3(Number(already.total)),
+      // Éligible = stock disponible + abîmées encore non retournées.
+      eligible: round3(stockEligible + damagedEligible),
       product_primary_barcode: primary,
       product_barcodes: barcodes,
       product_barcode: primary,
@@ -1168,7 +1461,7 @@ export function cancelReturnAtomic(args: {
           });
           db.prepare(
             `INSERT INTO stock_movements (uuid, product_id, movement_type, quantity_delta, quantity_after, related_entity_type, related_entity_id, reason, reference, created_at)
-             VALUES (?, ?, 'adjust_out', ?, ?, ?, 'return_cancel', ?, 'Annulation retour', ?, ?)`,
+             VALUES (?, ?, 'adjust_out', ?, ?, 'return_cancel', ?, 'Annulation retour', ?, ?)`,
           ).run(
             randomUUID(),
             it["product_id"],
@@ -1196,38 +1489,49 @@ export function cancelReturnAtomic(args: {
       const items = db
         .prepare(`SELECT * FROM supplier_return_items WHERE supplier_return_id = ?`)
         .all(args.id) as Record<string, unknown>[];
+      // Le journal est agrégé par produit : il est restauré UNE fois, même
+      // quand le retour contient deux lignes du même produit (cartons+pièces).
+      const traceRestored = new Set<number>();
       for (const it of items) {
-        if (it["product_id"] != null) {
+        // Seule la part réellement sortie du stock revient (les abîmées
+        // n'ont jamais été stockées).
+        const stockQty =
+          it["quantity_stock"] == null ? Number(it["quantity"]) : Number(it["quantity_stock"]);
+        if (it["product_id"] != null && stockQty > 0) {
           const prod = db
             .prepare(`SELECT quantity FROM products WHERE id = ?`)
             .get(it["product_id"]) as {
             quantity: number;
           };
-          const after = Number(prod.quantity) + Number(it["quantity"]);
+          const after = Number(prod.quantity) + stockQty;
           db.prepare(
             `UPDATE products SET quantity = ?, stock_status = CASE WHEN ? <= 0 THEN 'out_of_stock' WHEN ? <= min_stock_level THEN 'low_stock' ELSE 'in_stock' END, updated_at = ? WHERE id = ?`,
           ).run(after, after, after, args.now, it["product_id"]);
           // DB-09: reversal miroir exact via layers_json (0023). Fallback
           // legacy (première couche ASC) uniquement si journal absent
           // (retours créés avant 0023).
-          let restoredExact = false;
-          try {
-            const traceRaw = r["layers_json"];
-            if (typeof traceRaw === "string" && traceRaw.length > 0) {
-              const trace = JSON.parse(traceRaw) as {
-                productId: number | null;
-                deductions: { layerId: number; quantity: number }[];
-              }[];
-              const entry = trace.find((t) => t.productId === it["product_id"]);
-              if (entry && entry.deductions.length > 0) {
-                restoreToLayers(
-                  entry.deductions.map((d) => ({ layerId: d.layerId, quantity: d.quantity })),
-                );
-                restoredExact = true;
+          const tracePid = Number(it["product_id"]);
+          let restoredExact = traceRestored.has(tracePid);
+          if (!restoredExact) {
+            try {
+              const traceRaw = r["layers_json"];
+              if (typeof traceRaw === "string" && traceRaw.length > 0) {
+                const trace = JSON.parse(traceRaw) as {
+                  productId: number | null;
+                  deductions: { layerId: number; quantity: number }[];
+                }[];
+                const entry = trace.find((t) => t.productId === tracePid);
+                if (entry && entry.deductions.length > 0) {
+                  restoreToLayers(
+                    entry.deductions.map((d) => ({ layerId: d.layerId, quantity: d.quantity })),
+                  );
+                  restoredExact = true;
+                  traceRestored.add(tracePid);
+                }
               }
+            } catch {
+              restoredExact = false;
             }
-          } catch {
-            restoredExact = false;
           }
           if (!restoredExact) {
             // FIFO : la quantité revient dans les couches de la facture d'origine
@@ -1246,7 +1550,7 @@ export function cancelReturnAtomic(args: {
               original_quantity: number;
             }[];
             if (intakeLayers.length > 0) {
-              let need = Number(it["quantity"]);
+              let need = stockQty;
               for (const layer of intakeLayers) {
                 if (!(need > 0)) break;
                 const capacity = Number(layer.original_quantity) - Number(layer.remaining_quantity);
@@ -1271,7 +1575,7 @@ export function cancelReturnAtomic(args: {
               createLayer({
                 productId: Number(it["product_id"]),
                 intakeId: Number(r["stock_intake_id"]),
-                qty: Number(it["quantity"]),
+                qty: stockQty,
                 unitCostMinor: Math.max(0, Math.round(Number(it["purchase_price_minor"] ?? 0))),
                 reason: "legacy",
                 now: args.now,
@@ -1280,11 +1584,11 @@ export function cancelReturnAtomic(args: {
           }
           db.prepare(
             `INSERT INTO stock_movements (uuid, product_id, movement_type, quantity_delta, quantity_after, related_entity_type, related_entity_id, reason, reference, created_at)
-             VALUES (?, ?, 'adjust_in', ?, ?, ?, 'return_cancel', ?, 'Annulation retour', ?, ?)`,
+             VALUES (?, ?, 'adjust_in', ?, ?, 'return_cancel', ?, 'Annulation retour', ?, ?)`,
           ).run(
             randomUUID(),
             it["product_id"],
-            Number(it["quantity"]),
+            stockQty,
             after,
             String(args.id),
             txt(r["return_number"]),
