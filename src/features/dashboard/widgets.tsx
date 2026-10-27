@@ -5,14 +5,19 @@ import { Card } from "@shared/ui/primitives.tsx";
 
 export function RecentCard({
   title,
+  icon,
   children,
 }: {
   title: string;
+  icon?: React.ReactNode;
   children: React.ReactNode;
 }): React.JSX.Element {
   return (
     <Card className="space-y-1 p-4">
-      <h3 className="text-sm font-extrabold">{title}</h3>
+      <div className="flex items-center gap-2">
+        {icon ? <span className="shrink-0 text-amber-300">{icon}</span> : null}
+        <h3 className="text-sm font-extrabold">{title}</h3>
+      </div>
       {children}
     </Card>
   );
