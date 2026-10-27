@@ -17,6 +17,11 @@ export interface SearchRow {
   packaging_factor?: number | null;
   packaging_selling_price_minor?: number | null;
   packaging_auto_carton_pricing?: number | null;
+  /**
+   * Renseigné seulement par un scan : conditionnement lié au CODE scanné. Posé
+   * lorsque le code est déclaré « carton » ⇒ le scan ajoute un carton entier.
+   */
+  barcode_packaging_id?: number | null;
 }
 
 export interface CustomerRow {

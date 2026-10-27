@@ -1,10 +1,12 @@
 // Veloria PoS — Retours : tiroir détail + création (client/fournisseur) + remboursement.
 // Branchés sur le bridge window.veloria (jamais de SQLite côté renderer).
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 
 import { formatDzd, minorToInput } from "@domain/money/money.ts";
+import { cartonScanUnits } from "@domain/packaging/carton-barcodes.ts";
+import { normalizeBarcodeValue, uppercaseBarcodeInput } from "@shared/ui/barcode-input.ts";
 import { formatDzdSafe } from "@shared/formatters/format.ts";
 import { strictOrNeg } from "@shared/money/parse.ts";
 import { useOperationId } from "@shared/ui/use-operation-id.ts";
@@ -67,6 +69,13 @@ interface SaleLine {
   barcode?: string | null;
   primary_barcode?: string | null;
   barcodes?: string[] | null;
+}
+
+/** Champs de `products.getByBarcode` que le scan d'un retour exploite. */
+interface ScannedProduct {
+  id: number;
+  barcode_packaging_id?: number | null;
+  packaging_factor?: number | null;
 }
 
 export function CustomerReturnDialog({
@@ -197,6 +206,60 @@ export function CustomerReturnDialog({
     setRefundText(maxRefund > 0 ? minorToInput(maxRefund) : "");
   }, [maxRefund, refundTouched]);
 
+  const lastScanRef = useRef("");
+
+  /**
+   * Scan d'un code-barres : le code désigne la ligne à retourner. Un code
+   * déclaré « carton » rend un carton entier — une unité de la ligne carton, ou
+   * à défaut `factor` pièces sur une ligne d'unité de base ; un code pièce
+   * ajoute une pièce. Les gardes du serveur (carton entier, éligibilité en
+   * unités de base) restent la borne haute.
+   */
+  async function applyBarcodeScan(code: string): Promise<void> {
+    let hit: ScannedProduct | null = null;
+    try {
+      const res = (await api.productByBarcode({ barcode: code })) as {
+        product: ScannedProduct | null;
+      };
+      hit = res.product ?? null;
+    } catch (e) {
+      // Scan en arrière-plan (la boîte sert aussi de filtre) : journal seul,
+      // jamais de toast qui bruirait la saisie du nom d'un produit.
+      console.error("[Veloria] retour : code-barres illisible", e);
+      return;
+    }
+    if (hit == null) return;
+    const pid = hit.id;
+    const units = cartonScanUnits({
+      barcodePackagingId: hit.barcode_packaging_id,
+      packagingFactor: hit.packaging_factor,
+    });
+    setLines((prev) => {
+      const ofProduct = prev.filter((l) => l.product_id === pid);
+      const carton = units > 1 ? ofProduct.find((l) => (l.unit_factor ?? 1) === units) : undefined;
+      const target = carton ?? ofProduct.find((l) => (l.unit_factor ?? 1) === 1);
+      if (target == null) return prev;
+      // Un carton scanné sur une facture vendue en pièces rend `units` pièces.
+      const step = units > 1 && carton == null ? units : 1;
+      const current = Math.max(0, Number(target.qty.replace(",", ".")) || 0);
+      const next = Math.min(target.eligible, current + step);
+      if (next <= 0 || next === current) return prev;
+      return prev.map((l) => (l.id === target.id ? { ...l, qty: String(next) } : l));
+    });
+  }
+
+  /** Boîte de recherche des lignes : filtre au clavier, scan à l'Entrée. */
+  function onItemQueryChange(raw: string): void {
+    setItemQuery(raw);
+    if (lines.length === 0) return;
+    const code = normalizeBarcodeValue(raw);
+    // Une douchette sans Verr. Maj émet des minuscules : la valeur affichée
+    // reste celle de l'opérateur, seule la correspondance est normalisée.
+    if (code.length < 2 || /\s/.test(code) || code === lastScanRef.current) return;
+    lastScanRef.current = code;
+    void applyBarcodeScan(code);
+  }
+
   async function save(): Promise<void> {
     if (!sale) {
       notify("Recherchez d'abord la facture.", "err");
@@ -320,10 +383,22 @@ export function CustomerReturnDialog({
 
           <TextInput
             value={itemQuery}
-            onChange={(e) => setItemQuery(e.target.value)}
+            onChange={(e) => onItemQueryChange(uppercaseBarcodeInput(e.target.value))}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              e.preventDefault();
+              const code = normalizeBarcodeValue(itemQuery);
+              if (code.length < 2 || /\s/.test(code)) return;
+              // Entrée = scan répété : un deuxième carton s'ajoute au premier.
+              lastScanRef.current = code;
+              void applyBarcodeScan(code);
+            }}
             placeholder="Rechercher un produit (nom ou code-barres)…"
             aria-label="Rechercher un produit dans la facture"
             className="mb-2"
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
           />
 
           <div className="max-h-56 overflow-auto rounded-xl border border-white/10">

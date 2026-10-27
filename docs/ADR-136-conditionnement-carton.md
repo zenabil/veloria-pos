@@ -107,3 +107,11 @@ Les retours partiels de carton et les code-barres carton restent en Phase 3.
   abîmés).
 - Hors périmètre Phase 1 : code-barres carton, retour partiel de carton,
   plusieurs niveaux de carton, prix de gros client.
+
+## Révision ultérieure
+
+- **ADR-141 (2026-10-26)** : plancher du tarif carton supprimé (décision 4).
+- **ADR-149 (2026-10-27)** : **code-barres carton livré** (la Phase 3 de la
+  décision 7 et du hors-périmètre) — liaison `product_barcodes.packaging_id`,
+  tarif automatique rendu obligatoire. Le retour _partiel_ de carton et les
+  niveaux multiples de carton restent hors périmètre.

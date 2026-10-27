@@ -22,6 +22,11 @@ import { normalizeUnitCode, validateProductDraft } from "@domain/product/product
 import { evaluateMargin } from "@domain/pricing/price-rules.ts";
 import type { Packaging } from "@domain/packaging/types.ts";
 import { cartonPriceFromUnit, unitPriceFromCarton } from "@domain/packaging/carton-price-sync.ts";
+import {
+  CARTON_BARCODE_MAX,
+  normalizeCartonBarcodes,
+  validateCartonBarcodes,
+} from "@domain/packaging/carton-barcodes.ts";
 
 import {
   Button,
@@ -96,6 +101,12 @@ export function ProductFormDialog({
     product?.primary_barcode ? [product.primary_barcode] : [],
   );
   const [barcodeInput, setBarcodeInput] = useState("");
+  /**
+   * Codes-barres déclarés « carton » : liés au conditionnement actif à
+   * l'enregistrement (le facteur et le prix restent sur le conditionnement).
+   */
+  const [cartonCodes, setCartonCodes] = useState<string[]>([]);
+  const [cartonCodeInput, setCartonCodeInput] = useState("");
   /** Fournisseurs liés (jonction) ; le premier devient le principal. */
   const [supplierIds, setSupplierIds] = useState<number[]>([]);
   const [supplierOptions, setSupplierOptions] = useState<{ id: number; name: string }[]>([]);
@@ -152,8 +163,12 @@ export function ProductFormDialog({
     api
       .productBarcodes({ id: product.id })
       .then((r) => {
-        const rows = (r as { rows?: { barcode: string }[] }).rows ?? [];
+        const rows =
+          (r as { rows?: { barcode: string; packaging_id?: number | null }[] }).rows ?? [];
         if (rows.length > 0) setBarcodes(rows.map((b) => normalizeBarcodeValue(b.barcode)));
+        setCartonCodes(
+          normalizeCartonBarcodes(rows.filter((b) => b.packaging_id != null).map((b) => b.barcode)),
+        );
       })
       .catch(() => undefined);
     api
@@ -265,6 +280,28 @@ export function ProductFormDialog({
     setBarcodeInput("");
   }
 
+  /**
+   * Code « carton » : il doit déjà figurer sur la fiche (la section
+   * Codes-barres reste la seule voie d'ajout d'un code). Le tarif carton
+   * automatique suit — un scan qui facturerait le prix pièce serait un écart
+   * d'encaissement.
+   */
+  function addCartonCode(): void {
+    const value = normalizeBarcodeValue(cartonCodeInput);
+    if (value === "") return;
+    if (!barcodes.map((b) => normalizeBarcodeValue(b)).includes(value)) {
+      notify("Code-barres absent de la fiche : ajoutez-le d'abord dans « Codes-barres ».", "err");
+      return;
+    }
+    if (!cartonCodes.includes(value) && cartonCodes.length >= CARTON_BARCODE_MAX) {
+      notify(`${CARTON_BARCODE_MAX} codes-barres de carton maximum.`, "err");
+      return;
+    }
+    setCartonCodes((prev) => (prev.includes(value) ? prev : [...prev, value]));
+    setPackaging((p) => (p.auto ? p : { ...p, auto: true }));
+    setCartonCodeInput("");
+  }
+
   function parseFactorFrom(raw: string): number | null {
     const n = Number(raw.trim());
     return Number.isInteger(n) && n > 1 ? n : null;
@@ -371,6 +408,8 @@ export function ProductFormDialog({
   }
 
   function togglePackaging(): void {
+    // Conditionnement coupé : plus aucun code ne peut prétendre au carton.
+    if (packaging.enabled) setCartonCodes([]);
     setPackaging((p) => {
       const enabled = !p.enabled;
       if (!enabled) return { ...p, enabled };
@@ -532,6 +571,26 @@ export function ProductFormDialog({
         autoCartonPricing: packaging.auto,
       };
     }
+    // Le jeton de carton scanné mais non validé par Entrée rejoint la liste,
+    // comme pour les codes-barres simples.
+    const pendingCartonCode = normalizeBarcodeValue(cartonCodeInput);
+    const cartonList = normalizeCartonBarcodes([
+      ...cartonCodes,
+      ...(pendingCartonCode === "" ? [] : [pendingCartonCode]),
+    ]);
+    if (packagingInput != null && cartonList.length > 0) {
+      try {
+        validateCartonBarcodes(cartonList);
+      } catch (e) {
+        notify(frError(e, "Codes-barres du carton invalides."), "err");
+        return;
+      }
+      const missing = cartonList.filter((c) => !cleaned.includes(c));
+      if (missing.length > 0) {
+        notify(`Code-barres du carton absent de la fiche : ${missing.join(", ")}.`, "err");
+        return;
+      }
+    }
     const payload = {
       name: cleanName,
       categoryId: categoryId === "" ? null : Number(categoryId),
@@ -587,6 +646,7 @@ export function ProductFormDialog({
             operationId: newOperationId(),
             productId: savedProductId,
             ...packagingInput,
+            cartonBarcodes: cartonList,
           });
         } else if (packaging.id != null) {
           await api.productPackagingDelete({
@@ -656,10 +716,19 @@ export function ProductFormDialog({
                           >
                             <span className="max-w-[170px] truncate">{b}</span>
                             {i === 0 ? <span className="text-amber-300">principal</span> : null}
+                            {cartonCodes.includes(normalizeBarcodeValue(b)) ? (
+                              <span className="text-emerald-300">carton</span>
+                            ) : null}
                             <button
                               type="button"
                               aria-label={`Retirer ${b}`}
-                              onClick={() => setBarcodes((prev) => prev.filter((_, j) => j !== i))}
+                              onClick={() => {
+                                const removed = normalizeBarcodeValue(b);
+                                setBarcodes((prev) => prev.filter((_, j) => j !== i));
+                                // Le code retiré de la fiche perd son statut de
+                                // carton (la ligne `product_barcodes` disparaît).
+                                setCartonCodes((prev) => prev.filter((c) => c !== removed));
+                              }}
                               className="shrink-0 rounded p-0.5 text-slate-500 transition-colors hover:bg-red-500/15 hover:text-red-300"
                             >
                               <X size={12} aria-hidden="true" />
@@ -933,8 +1002,81 @@ export function ProductFormDialog({
                         checked={packaging.auto}
                         onChange={() => setPackaging((p) => ({ ...p, auto: !p.auto }))}
                         ariaLabel="Tarif carton automatique"
+                        disabled={cartonCodes.length > 0}
                       />
                     </label>
+                    {cartonCodes.length > 0 ? (
+                      <p className="text-[11px] leading-relaxed text-slate-500">
+                        Tarif automatique imposé par les codes-barres du carton : un scan doit
+                        facturer le prix carton, jamais le prix pièce.
+                      </p>
+                    ) : null}
+                    <Field
+                      label="Codes-barres du carton"
+                      hint={`Entrée = ajouter · ${CARTON_BARCODE_MAX} maximum · codes déjà sur la fiche`}
+                    >
+                      <div className="space-y-2">
+                        {cartonCodes.length > 0 ? (
+                          <ul className="flex max-h-24 flex-wrap gap-1.5 overflow-auto">
+                            {cartonCodes.map((c) => (
+                              <li
+                                key={c}
+                                className="inline-flex items-center gap-1.5 rounded-md border border-emerald-400/25 bg-emerald-500/10 py-1 pl-2 pr-1 font-mono text-[11px]"
+                              >
+                                <span className="max-w-[170px] truncate">{c}</span>
+                                <button
+                                  type="button"
+                                  aria-label={`Retirer le carton ${c}`}
+                                  onClick={() =>
+                                    setCartonCodes((prev) => prev.filter((x) => x !== c))
+                                  }
+                                  className="shrink-0 rounded p-0.5 text-slate-500 transition-colors hover:bg-red-500/15 hover:text-red-300"
+                                >
+                                  <X size={12} aria-hidden="true" />
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                        <div className="flex gap-2">
+                          <TextInput
+                            value={cartonCodeInput}
+                            onChange={(e) =>
+                              setCartonCodeInput(uppercaseBarcodeInput(e.target.value))
+                            }
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                addCartonCode();
+                              }
+                            }}
+                            placeholder="Scannez le code du carton…"
+                            aria-label="Ajouter un code-barres de carton"
+                            className="min-w-0 flex-1 font-mono"
+                            autoCapitalize="characters"
+                            autoCorrect="off"
+                            spellCheck={false}
+                          />
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={addCartonCode}
+                            aria-label="Ajouter le code-barres de carton"
+                            title="Ajouter le code-barres du carton (Entrée)"
+                            className="px-3"
+                          >
+                            <Plus size={16} aria-hidden="true" />
+                          </Button>
+                        </div>
+                        <p className="text-[11px] leading-relaxed text-slate-500">
+                          À la caisse, ce code ajoute un carton entier
+                          {packaging.factor.trim() === ""
+                            ? ""
+                            : ` (${packaging.factor.trim()} pièces)`}{" "}
+                          et facture le prix du carton. Le stock et le FIFO restent en pièces.
+                        </p>
+                      </div>
+                    </Field>
                   </>
                 ) : null}
               </FormSection>

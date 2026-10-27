@@ -5,6 +5,7 @@
 import type { RefObject } from "react";
 import { playSound } from "@shared/sound/sound.ts";
 import { parseDzdInputStrict } from "@domain/money/money.ts";
+import { cartonScanUnits } from "@domain/packaging/carton-barcodes.ts";
 import { MAX_QUANTITY, formatQuantityFr, roundQuantity } from "@domain/common/quantity.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { frError } from "@shared/errors/fr-map.ts";
@@ -91,6 +92,25 @@ export function parseQtyPrefix(trimmed: string): QtyPrefix {
 // W7 (D-03) : le formatage de quantité passe par la source unique
 // (`formatQuantityFr`) — l'ancienne copie locale affichait « 1.5 »
 // (point décimal) au lieu de « 1,5 ».
+
+/**
+ * Scan d'un code-barres : un code déclaré « carton » ajoute un carton entier
+ * (`factor` unités de base) alors qu'un code pièce ajoute 1 unité. La quantité
+ * du panier reste en unités de base — c'est la projection (ADR-136) qui
+ * découpe cartons + pièces et applique le tarif carton exact.
+ *
+ * La quantité issue d'un scan de carton est « donnée » (`explicit`) : le
+ * dialogue « quantité vendue » n'a plus lieu d'être, l'objet scanné fixe la
+ * quantité.
+ */
+export function scanPrefix(row: SearchRow, prefix: QtyPrefix): QtyPrefix {
+  const units = cartonScanUnits({
+    barcodePackagingId: row.barcode_packaging_id,
+    packagingFactor: row.packaging_factor,
+  });
+  if (units <= 1) return prefix;
+  return { quantity: roundQuantity(prefix.quantity * units), code: prefix.code, explicit: true };
+}
 
 /**
  * Garde stock précoce (UX) : le main retranche de toute façon (survente
@@ -263,7 +283,11 @@ export async function runSearch(d: SellSearchDeps, trimmed: string): Promise<voi
       if (seq !== d.searchSeq.current) return;
       if (full.product) {
         // ADR-114 : unité continue → dialogue quantité (quantité 1 par défaut).
-        addProductOrAskQuantity(d, full.product, { quantity: 1, code: trimmed, explicit: false });
+        addProductOrAskQuantity(
+          d,
+          full.product,
+          scanPrefix(full.product, { quantity: 1, code: trimmed, explicit: false }),
+        );
         d.setQuery("");
         d.setResults([]);
         d.setSearching(false);
@@ -278,7 +302,7 @@ export async function runSearch(d: SellSearchDeps, trimmed: string): Promise<voi
       };
       if (seq !== d.searchSeq.current) return;
       if (hit.product) {
-        addProductOrAskQuantity(d, hit.product, prefix);
+        addProductOrAskQuantity(d, hit.product, scanPrefix(hit.product, prefix));
         d.setQuery("");
         d.setResults([]);
         d.setSearching(false);

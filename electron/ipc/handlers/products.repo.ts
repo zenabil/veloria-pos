@@ -34,6 +34,11 @@ export interface ProductRow {
   primary_barcode: string | null;
   /** Prochaine couche FIFO à sortir (null = aucune couche restante). */
   fifo_next_unit_cost_minor: number | null;
+  /**
+   * Conditionnement lié au code-barres SCANNÉ (nul pour une recherche par nom).
+   * Posé seulement quand le code pointe le conditionnement actif du produit.
+   */
+  barcode_packaging_id?: number | null;
 }
 
 export function searchProducts(args: {
@@ -92,28 +97,30 @@ export function getProductByBarcode(barcode: string): ProductRow | null {
   // Casse ignorée : les étiquettes Code 39 sont imprimées en majuscules alors
   // que la fiche peut stocker des minuscules — le scan doit retrouver la fiche.
   // À casse identique, la correspondance exacte passe devant.
+  // Le code scanné porte sa propre liaison : `barcode_packaging_id` n'est posé
+  // que si ce code est déclaré comme carton du conditionnement ACTIF.
   const row = db
     .prepare(
       `SELECT p.*, c.name AS category_name,
-        (SELECT b.barcode FROM product_barcodes b WHERE b.product_id = p.id ORDER BY b.is_primary DESC, b.id LIMIT 1) AS primary_barcode,
+        (SELECT b2.barcode FROM product_barcodes b2 WHERE b2.product_id = p.id ORDER BY b2.is_primary DESC, b2.id LIMIT 1) AS primary_barcode,
         pk.id AS packaging_id,
         pk.label_fr AS packaging_label_fr,
         pk.factor AS packaging_factor,
         pk.selling_price_minor AS packaging_selling_price_minor,
         pk.purchase_price_minor AS packaging_purchase_price_minor,
         pk.auto_carton_pricing AS packaging_auto_carton_pricing,
+        bp.id AS barcode_packaging_id,
         (SELECT l.unit_cost_minor FROM inventory_layers l
           WHERE l.product_id = p.id AND l.remaining_quantity > 0
           ORDER BY l.id ASC LIMIT 1) AS fifo_next_unit_cost_minor
-       FROM products p LEFT JOIN categories c ON c.id = p.category_id
+       FROM product_barcodes b
+       JOIN products p ON p.id = b.product_id AND p.is_active = 1
+       LEFT JOIN categories c ON c.id = p.category_id
        LEFT JOIN product_packagings pk ON pk.product_id = p.id AND pk.is_active = 1
-       WHERE p.id = (
-         SELECT product_id FROM product_barcodes
-         WHERE barcode = ? COLLATE NOCASE
-         ORDER BY (barcode = ?) DESC, is_primary DESC, id ASC
-         LIMIT 1
-       )
-       AND p.is_active = 1 LIMIT 1`,
+       LEFT JOIN product_packagings bp ON bp.id = b.packaging_id AND bp.product_id = p.id AND bp.is_active = 1
+       WHERE b.barcode = ? COLLATE NOCASE
+       ORDER BY (b.barcode = ?) DESC, b.is_primary DESC, b.id ASC
+       LIMIT 1`,
     )
     .get(barcode, barcode) as ProductRow | undefined;
   return row ?? null;
@@ -152,13 +159,15 @@ export function matchProductsBatch(items: ProductMatchBatchItem[]): ProductMatch
 }
 
 /** Tous les codes-barres (principal d'abord) pour l'éditeur multi-barcodes. */
-export function getProductBarcodes(id: number): { barcode: string; is_primary: number }[] {
+export function getProductBarcodes(
+  id: number,
+): { barcode: string; is_primary: number; packaging_id: number | null }[] {
   const db = getDb();
   return db
     .prepare(
-      `SELECT barcode, is_primary FROM product_barcodes WHERE product_id = ? ORDER BY is_primary DESC, id`,
+      `SELECT barcode, is_primary, packaging_id FROM product_barcodes WHERE product_id = ? ORDER BY is_primary DESC, id`,
     )
-    .all(id) as { barcode: string; is_primary: number }[];
+    .all(id) as { barcode: string; is_primary: number; packaging_id: number | null }[];
 }
 
 export function createProduct(input: {
@@ -335,11 +344,22 @@ export function updateProduct(input: {
       input.now,
       input.id,
     );
+    // Les lignes sont remplacées, pas modifiées : les liaisons carton existantes
+    // sont donc rejouées sur les codes qui survivent à la réécriture.
+    const boundBefore = db
+      .prepare(`SELECT barcode, packaging_id FROM product_barcodes WHERE product_id = ?`)
+      .all(input.id) as { barcode: string; packaging_id: number | null }[];
+    const bindingByCode = new Map(
+      boundBefore
+        .filter((r) => r.packaging_id != null)
+        .map((r) => [normalizeBarcodeText(r.barcode), Number(r.packaging_id)]),
+    );
     db.prepare(`DELETE FROM product_barcodes WHERE product_id = ?`).run(input.id);
     input.barcodes.forEach((b, i) => {
+      const code = normalizeBarcodeText(b);
       db.prepare(
-        `INSERT INTO product_barcodes (product_id, barcode, is_primary, created_at) VALUES (?, ?, ?, ?)`,
-      ).run(input.id, normalizeBarcodeText(b), i === 0 ? 1 : 0, input.now);
+        `INSERT INTO product_barcodes (product_id, barcode, is_primary, created_at, packaging_id) VALUES (?, ?, ?, ?, ?)`,
+      ).run(input.id, code, i === 0 ? 1 : 0, input.now, bindingByCode.get(code) ?? null);
     });
     // Jonction N-N : garde le principal synchronisé avec la jonction.
     // (setProductSuppliers reste la voie complète multi-fournisseurs.)

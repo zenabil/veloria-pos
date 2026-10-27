@@ -4,6 +4,7 @@
 
 import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
+import { normalizeBarcodeText } from "./barcode-text";
 import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./idempotency";
 
 export interface PackagingRow {
@@ -24,6 +25,8 @@ function validate(input: {
   factor: number;
   sellingPriceMinor: number;
   purchasePriceMinor: number;
+  autoCartonPricing: boolean;
+  cartonBarcodes: string[];
 }): void {
   if (input.labelFr.trim().length < 2 || input.labelFr.trim().length > 40) {
     throw new Error("Libellé du conditionnement requis (2 à 40 caractères).");
@@ -38,6 +41,44 @@ function validate(input: {
     if (!Number.isInteger(value) || value < 0 || value > 1_000_000_000) {
       throw new Error(`${label} invalide.`);
     }
+  }
+  // Un code de carton scanné à la caisse facture le tarif carton : sans tarif
+  // automatique, le même scan sortirait le prix pièce (écart d'encaissement).
+  if (input.cartonBarcodes.length > 0 && !input.autoCartonPricing) {
+    throw new Error("Un code-barres de carton exige le tarif carton automatique.");
+  }
+}
+
+/**
+ * Lie les codes de carton au conditionnement `packagingId` et retire les
+ * liaisons précédentes. Chaque code doit déjà exister sur CE produit : la
+ * fiche reste la seule voie d'ajout d'un code-barres (pas de création
+ * silencieuse depuis la section conditionnement).
+ */
+function bindCartonBarcodes(
+  db: ReturnType<typeof getDb>,
+  input: { productId: number; packagingId: number; cartonBarcodes: string[] },
+): void {
+  db.prepare(`UPDATE product_barcodes SET packaging_id = NULL WHERE packaging_id = ?`).run(
+    input.packagingId,
+  );
+  for (const raw of input.cartonBarcodes) {
+    const code = normalizeBarcodeText(raw);
+    const row = db
+      .prepare(`SELECT id, product_id FROM product_barcodes WHERE barcode = ? COLLATE NOCASE`)
+      .get(code) as { id: number; product_id: number } | undefined;
+    if (!row) {
+      throw new Error(
+        `Code-barres du carton introuvable : ajoutez « ${code} » aux codes-barres du produit.`,
+      );
+    }
+    if (Number(row.product_id) !== input.productId) {
+      throw new Error(`Code-barres « ${code} » déjà utilisé par un autre produit.`);
+    }
+    db.prepare(`UPDATE product_barcodes SET packaging_id = ? WHERE id = ?`).run(
+      input.packagingId,
+      Number(row.id),
+    );
   }
 }
 
@@ -59,6 +100,7 @@ export function saveProductPackagingAtomic(input: {
   sellingPriceMinor: number;
   purchasePriceMinor: number;
   autoCartonPricing: boolean;
+  cartonBarcodes: string[];
   now: string;
   staffUserId?: number | null;
 }): { id: number } {
@@ -115,6 +157,11 @@ export function saveProductPackagingAtomic(input: {
         );
       id = Number(r.lastInsertRowid);
     }
+    bindCartonBarcodes(db, {
+      productId: input.productId,
+      packagingId: id,
+      cartonBarcodes: input.cartonBarcodes,
+    });
     db.prepare(
       `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at, actor_user_id)
        VALUES (?, 'product.packaging_saved', 'product', ?, ?, ?, ?, ?)`,
@@ -129,6 +176,7 @@ export function saveProductPackagingAtomic(input: {
         selling: input.sellingPriceMinor,
         purchase: input.purchasePriceMinor,
         auto: input.autoCartonPricing ? 1 : 0,
+        cartonBarcodes: input.cartonBarcodes,
       }),
       input.now,
       input.staffUserId ?? null,
@@ -184,6 +232,12 @@ export function deleteProductPackagingAtomic(input: {
     db.prepare(
       `UPDATE product_packagings SET is_active = 0, updated_at = ? WHERE product_id = ? AND is_active = 1`,
     ).run(input.now, input.productId);
+    // Les codes de carton suivent le conditionnement : une liaison laissée en
+    // base ressusciterait au prochain enregistrement (la ligne est réutilisée).
+    db.prepare(
+      `UPDATE product_barcodes SET packaging_id = NULL
+       WHERE packaging_id IN (SELECT id FROM product_packagings WHERE product_id = ?)`,
+    ).run(input.productId);
     db.prepare(
       `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at, actor_user_id)
        VALUES (?, 'product.packaging_deleted', 'product', ?, ?, ?, ?, ?)`,

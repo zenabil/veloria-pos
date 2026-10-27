@@ -147,6 +147,14 @@
 - [ADR-139](./ADR-139-annulation-correction-factures.md) Annulation et correction des factures de vente et d'achat : annuler + rééditer, gardes stock/fournisseur/bon de commande
 - [ADR-140](./ADR-140-carton-devis-retours-fournisseur.md) Carton : devis convertibles (snapshot), retours fournisseur stock/abîmées et correctif d'annulation (migration 0056)
 - [ADR-141](./ADR-141-tarif-gros-carton-plancher.md) Tarif de gros carton : suppression du plancher (facteur−1), seul le plafond « plein au prix pièce » reste
+- [ADR-142](./ADR-142-cout-rendu-produit-livraison.md) Coût rendu par produit après réception (livraison répartie au prorata exact)
+- [ADR-143](./ADR-143-parametres-navigation-recherche.md) Paramètres : navigation groupée, recherche indexée et sous-navigation
+- [ADR-144](./ADR-144-formulaires-et-codebarres.md) Formulaires produit/client et saisie code-barres (majuscules douchette)
+- [ADR-145](./ADR-145-parametres-composants-regroupes.md) Paramètres : composants unifiés (`Section`, `Segmented`, `SwitchRow`) et sections regroupées
+- [ADR-146](./ADR-146-studio-impression-espace-travail.md) Studio d'impression : espace de travail unifié
+- [ADR-147](./ADR-147-tableau-de-bord-hierarchie.md) Tableau de bord : hiérarchie de KPI et détails par onglets
+- [ADR-148](./ADR-148-refonte-visuelle-transversale.md) Refonte visuelle transversale : hiérarchie, densité et cohérence (aucune règle métier touchée)
+- [ADR-149](./ADR-149-code-barres-carton.md) Code-barres carton (Phase 3 d'ADR-136) : le code désigne le conditionnement, jamais le facteur ni le prix
 
 ## Ou ecrire quoi
 

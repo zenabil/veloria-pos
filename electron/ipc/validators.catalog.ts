@@ -76,6 +76,8 @@ export const packagingListSchema = z.object({
   productId: z.number().int().positive(),
 });
 
+// Codes-barres de carton : le code désigne le conditionnement, il ne porte ni
+// le facteur ni le prix (lus en base à l'encaissement).
 export const packagingSaveSchema = z.object({
   operationId: z.string().uuid(),
   productId: z.number().int().positive(),
@@ -84,6 +86,7 @@ export const packagingSaveSchema = z.object({
   sellingPriceMinor: moneyMinor,
   purchasePriceMinor: moneyMinor.default(0),
   autoCartonPricing: z.boolean().default(true),
+  cartonBarcodes: z.array(z.string().min(1).max(64)).max(20).default([]),
 });
 
 export const packagingDeleteSchema = z.object({

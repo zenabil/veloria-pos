@@ -52,7 +52,11 @@ export function ProductDetailsDrawer({
       .productBarcodes({ id: product.id })
       .then((r) => {
         if (!alive) return;
-        setAllBarcodes(((r as { rows?: { barcode: string }[] }).rows ?? []).map((b) => b.barcode));
+        setAllBarcodes(
+          ((r as { rows?: { barcode: string; packaging_id?: number | null }[] }).rows ?? []).map(
+            (b) => (b.packaging_id != null ? `${b.barcode} (carton)` : b.barcode),
+          ),
+        );
       })
       .catch(() => {
         if (alive) setAllBarcodes([]);

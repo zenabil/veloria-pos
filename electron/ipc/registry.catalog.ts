@@ -108,6 +108,7 @@ export function registerCatalogChannels(): void {
       sellingPriceMinor: input.sellingPriceMinor,
       purchasePriceMinor: input.purchasePriceMinor,
       autoCartonPricing: input.autoCartonPricing,
+      cartonBarcodes: input.cartonBarcodes,
       now: new Date().toISOString(),
       staffUserId: getCurrentStaffUser(),
     }),
