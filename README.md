@@ -24,7 +24,8 @@ npm run typecheck          # renderer + tests
 npm run typecheck:electron # main/preload (strict + noUncheckedIndexedAccess)
 npm run typecheck:manager  # License Manager (outil vendor)
 npm run lint
-npm run test               # ~550 tests / ~90 fichiers (unitaires + intégration/base SQLite)
+npm run test               # 171 fichiers / ~1 188 tests (domaine pur, contrats
+                           # IPC, intégration SQLite réel via node:sqlite)
 npm run test:db
 node scripts/database/integrity.js        # base réelle, lecture seule
 npm run verify:migrations
@@ -38,8 +39,15 @@ npm run verify:perf        # garde-fous perf (requêtes N+1, listes non paginée
 ```powershell
 npm run build              # renderer requis par l'app empaquetée en test
 npm run build:electron     # main/preload requis
-npm run test:e2e           # 10 scénarios, ~3 min, 1 worker
+npm run test:e2e           # 24 specs / 50 tests, 1 worker (~30 min la suite)
 ```
+
+- **Piège de shell** : un shell qui exporte `ELECTRON_RUN_AS_NODE=1` (terminal
+  intégré de certains éditeurs) fait planter tout lancement Electron. Lancer avec
+  `env -u ELECTRON_RUN_AS_NODE npx playwright test …` (ou `npx electron .`).
+- Sous `test:e2e`, une spec ciblée se relance seule :
+  `npx playwright test tests/e2e/carton-barcode.spec.ts` (création fiche +
+  carton + codes-barres, scans caisse, preuve SQLite des `sale_items`).
 
 - Chaque test démarre la vraie application avec une base **vierge**
   (`PROGRAMDATA` + `userData` temporaires par test) : aucune donnée de
@@ -51,7 +59,9 @@ npm run test:e2e           # 10 scénarios, ~3 min, 1 worker
 - Couvert : ouverture, création produit, panier + quantités + totaux, vente
   comptant, historique, stock après vente, aperçu d'impression (80mm, sans
   imprimante), vente à crédit, retour client, réception fournisseur,
-  sauvegarde, restauration, redémarrage avec persistance.
+  sauvegarde, restauration, redémarrage avec persistance, **conditionnement
+  carton** (vente mixte carton + pièces, tarif de gros, devis, retours
+  fournisseur) et **scan d'un code-barres de carton** (ADR-149).
 - Non couvert : impression physique (aucune imprimante en test), dialogues
   natifs hors `confirm`, mise à jour/packaging, multi-fenêtres.
 - Pas de `sleep` arbitraire (attentes Playwright + seuls polls justifiés :
@@ -86,6 +96,8 @@ npm run license:scan       # garde-fou : aucun secret dans le POS
 
 ## Spécification
 
-`docs/specs-archive/` est la source of truth.
-Décisions d'ingénierie : `docs/ADR-*.md`. Avancement : `docs/reports/PHASE_X_REPORT.md`.
+`docs/specs-archive/` est la source of truth figée.
+Décisions d'ingénierie : `docs/ADR-*.md` (001→149, indexées dans `docs/INDEX.md`).
+Avancement : `docs/reports/PHASE_X_REPORT.md` + `handoff.md` (continuité entre
+sessions — à lire en premier après `AGENTS.md`).
 Carte maintenance : `docs/STRUCTURE.md`. Archives : `docs/archive/` (`root-legacy/`, `stitch/`).

@@ -6,15 +6,18 @@
 
 ## 1. Racine (volontairement maigre)
 
-| Chemin                                                | Rôle                                                                              | Ne jamais y mettre                    |
-| ----------------------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------- |
-| `README.md`, `AGENTS.md`                              | Entrée projet + règles contributeurs                                              | Rapports de phase (→ `docs/reports/`) |
-| `package.json`                                        | Scripts uniques (`dev`, `build*`, `typecheck*`, `test*`, `verify:*`, `package:*`) | Logique métier                        |
-| `index.html`, `vite.config.ts`, `public/`             | Renderer POS (Vite, `base ./`)                                                    | Données métier                        |
-| `electron-builder.yml`                                | Packaging POS (`release/`, `appId com.veloria.pos`)                               | Clés privées                          |
-| `electron-builder.license-manager.yml`                | Packaging Manager (outil vendor)                                                  | Base POS                              |
-| `tsconfig.json` / `.electron.json` / `.manager.json`  | POS+tests / main-preload / Manager                                                | —                                     |
-| `eslint.config.mjs`, `.prettierrc`, `.prettierignore` | Garde-fous (renderer isolé, FR, centimes)                                         | —                                     |
+| Chemin                                                                  | Rôle                                                                              | Ne jamais y mettre                            |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------- | --------------------------------------------- |
+| `README.md`, `AGENTS.md`                                                | Entrée projet + règles contributeurs                                              | Rapports de phase (→ `docs/reports/`)         |
+| `package.json`                                                          | Scripts uniques (`dev`, `build*`, `typecheck*`, `test*`, `verify:*`, `package:*`) | Logique métier                                |
+| `index.html`, `vite.config.ts`, `public/`                               | Renderer POS (Vite, `base ./`)                                                    | Données métier                                |
+| `electron-builder.yml`                                                  | Packaging POS (`release/`, `appId com.veloria.pos`)                               | Clés privées                                  |
+| `electron-builder.license-manager.yml`                                  | Packaging Manager (outil vendor)                                                  | Base POS                                      |
+| `tsconfig.json` / `.electron.json` / `.manager.json`                    | POS+tests / main-preload / Manager                                                | —                                             |
+| `eslint.config.mjs`, `.prettierrc`, `.prettierignore`                   | Garde-fous (renderer isolé, FR, centimes)                                         | —                                             |
+| `vitest.config.ts`, `vitest.features.config.ts`, `playwright.config.ts` | Portes de test (unit/integration/database, écrans, E2E Electron réel)             | Scénarios métier dans le config               |
+| `knip.json`, `opencode.jsonc`, `skills-lock.json`, `CLAUDE.md`          | Outillage mort-code + skills projet (`AGENTS.md` lie les deux)                    | Dépendance runtime                            |
+| `handoff.md`                                                            | Continuité entre sessions (§1 = état courant, une section par session)            | Duplication de l'ADR (pointe, ne recopie pas) |
 
 ## 2. Runtime POS (le seul qui compte en prod)
 
@@ -24,12 +27,14 @@ src/features/<domaine>/ Écrans + dialogs/ + types.ts (FR uniquement)
 src/shared/             ui/, types/ipc-*, errors/fr-map, money/parse,
                         formatters/, documents/, dates, company, settings, sound, export/csv
 src/domain/             Pur, framework-free (money, sales, customers, inventory,
-                        suppliers, returns, proforma, closings, expenses, ocr, …)
-src/application/        Use-cases fins (sales/create-sale, customers/client-access)
+                        suppliers, returns, proforma, closings, expenses,
+                        packaging (carton), barcode, units, ocr, …)
+src/application/        Use-cases fins (sales/create-sale, sales/packaging-lines,
+                        customers/client-access)
 electron/               main/, ipc/{channels,validators,registry + handlers/*.repo.ts},
                         database/, preload/ (seul pont window.veloria),
                         licensing/, printing/, ocr/, backup/, sync/, security/
-database/migrations/    0001..0049 IMMUABLES — tout changement = NOUVELLE migration
+database/migrations/    0001..0056 IMMUABLES — tout changement = NOUVELLE migration
                         + `npm run verify:migrations` vert
 ```
 
@@ -55,21 +60,23 @@ Règles dures (voir `AGENTS.md`) :
 
 ## 4. Docs (où écrire quoi)
 
-| Dossier                   | Quoi                                                                             |
-| ------------------------- | -------------------------------------------------------------------------------- |
-| `docs/ADR-*.md`           | Décisions d'ingénierie (001→125, séquentiel, jamais réécrit)                     |
-| `docs/reports/PHASE_*.md` | Avancement par phase (canonique — la racine n'en contient plus)                  |
-| `docs/archive/`           | `root-legacy/` (anciens rapports racine) + `stitch/` (maquettes) — lecture seule |
-| `docs/licensing/`         | `CAPABILITIES.md`, `ACTIVATION.md`, … (détail licences)                          |
-| `docs/specs-archive/`     | Spec source of truth (figée)                                                     |
-| `docs/STRUCTURE.md`       | Ce fichier (carte maintenance)                                                   |
+| Dossier                   | Quoi                                                                                                            |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `docs/ADR-*.md`           | Décisions d'ingénierie (001→149, séquentiel, jamais réécrit — une révision = un nouvel ADR qui pointe l'ancien) |
+| `docs/INDEX.md`           | Index des ADR + Où écrire quoi (pointe, ne duplique pas)                                                        |
+| `handoff.md` (racine)     | État courant + une section par session — la doc vivante du chantier                                             |
+| `docs/reports/PHASE_*.md` | Avancement par phase (canonique — la racine n'en contient plus)                                                 |
+| `docs/archive/`           | `root-legacy/` (anciens rapports racine) + `stitch/` (maquettes) — lecture seule                                |
+| `docs/licensing/`         | `CAPABILITIES.md`, `ACTIVATION.md`, … (détail licences)                                                         |
+| `docs/specs-archive/`     | Spec source of truth (figée)                                                                                    |
+| `docs/STRUCTURE.md`       | Ce fichier (carte maintenance)                                                                                  |
 
 ## 5. Tests (portes vertes)
 
 ```
 tests/unit/         Règles domaine pures + contrats IPC + bridge-shape
 tests/integration/  Tranches atomiques SQLite réel (ventes, FIFO, carts, sync…)
-tests/database/     Migrations + invariants racine (0001..0049 rejouées)
+tests/database/     Migrations + invariants racine (0001..0056 rejouées)
 tests/e2e/          Playwright + Electron réel, base vierge par test (1 worker)
 ```
 
@@ -97,6 +104,16 @@ interface), `verify:migrations`, `verify:domain`, `verify:perf`,
 - Maquettes Stitch à la racine → `docs/archive/stitch/` (ADR-033/035/036/055).
 - `dist*/`, `release/`, `*.tsbuildinfo`, `*.log` : artefacts ignorés, jamais committés
   (`npm run clean` + `clean:logs` pour purger le poste).
+- Scratch de session (`check_like.py`, `full-inventory.txt`) : git-ignorés **par
+  nom** (`.gitignore`), purgés le 2026-10-27 (session 57) — ne pas les réécrire
+  à la racine, écrire sous `docs/reports/` ou dans un dossier de script.
+- À ne **jamais** supprimer sans ordre explicite du propriétaire : `private/`
+  (clés vendor + `.vlic`), `mobile/veloria-release.keystore`, `release/*.exe`
+  et `release/_prev-*` (binaires livrés), `.opencode/` (skills liés par
+  `AGENTS.md` §13), `graphify-out/` (graphe vivant) et tout `docs/` suivi par
+  git (rapports d'audit cités noir sur blanc dans `handoff.md`). Un artefact
+  peut être **verrouillé par l'antivirus** (`app.asar` : « Device or resource
+  busy ») — ne jamais forcer le `rm`, il part au redémarrage.
 - `signAndEditExecutable: false` dans les 2 `electron-builder*.yml` = TEMP-BUILD
   2026-10-02 (sans privilège symlink) — À REVERTIR dès que possible.
 - `mobile/android|ios`, `*.keystore`, `.expo/` : locaux, jamais committés.
@@ -118,7 +135,7 @@ src/domain/               pur, framework-free (jamais react/electron/sqlite)
 src/shared/               ui/, formatters/, money/parse, errors/fr-map, …
 electron/                 main/, ipc/channels+validators+registry+handlers,
                           database/, preload/ (seul pont window.veloria)
-database/migrations/      0001..0049 IMMUABLES (+ verify-migrations vert)
+database/migrations/      0001..0056 IMMUABLES (+ verify-migrations vert)
 mobile/src + cloud/       satellites isolés (aucun import vers src/electron)
 ```
 
