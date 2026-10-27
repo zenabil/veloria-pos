@@ -11,7 +11,6 @@ import {
   Pencil,
   Plus,
   Search,
-  SlidersHorizontal,
   Trash2,
   X,
 } from "lucide-react";
@@ -26,13 +25,14 @@ import {
   Button,
   Card,
   EmptyState,
-  Kpi,
   PageHeader,
   Pager,
   RowAction,
   SearchField,
   Select,
+  StatsStrip,
   TextInput,
+  Toolbar,
   cn,
 } from "@shared/ui/primitives.tsx";
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
@@ -88,7 +88,6 @@ export function ProformasScreen({ notify }: { notify: Notify }): React.JSX.Eleme
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [sort, setSort] = useState<ProformaSort>("date_desc");
-  const [toolbarOpen, setToolbarOpen] = useState(true);
   const [page, setPage] = useState(1);
   // P4 : menu d'actions par ligne (une seule icône, le reste en overflow).
   const [menuFor, setMenuFor] = useState<number | null>(null);
@@ -357,7 +356,7 @@ export function ProformasScreen({ notify }: { notify: Notify }): React.JSX.Eleme
       {/* En-tête Stitch : Factures Proforma & Devis · Mode Émission Ouvert */}
       <PageHeader
         title="Devis (proformas)"
-        module="Mode Émission Ouvert"
+        module="Devis · propositions commerciales"
         period={`${total} devis · ${stats.pending} en attente/négociation · ${stats.converted} converti(s) en vente`}
         actions={
           <>
@@ -367,16 +366,8 @@ export function ProformasScreen({ notify }: { notify: Notify }): React.JSX.Eleme
               placeholder="N° Devis PRF-… [F3]"
               ariaLabel="Rechercher un devis"
               inputRef={searchRef}
-              className="w-full max-w-xs"
+              className="w-full sm:w-64"
             />
-            <Button
-              variant="secondary"
-              onClick={() => setToolbarOpen((o) => !o)}
-              aria-expanded={toolbarOpen}
-              title="Afficher / masquer les filtres"
-            >
-              <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
-            </Button>
             <Button
               onClick={() => {
                 setEditing(null);
@@ -387,189 +378,136 @@ export function ProformasScreen({ notify }: { notify: Notify }): React.JSX.Eleme
             >
               <Plus size={16} aria-hidden="true" /> Nouvelle Proforma
             </Button>
-            <Button variant="secondary" onClick={exportCsv} title="Exporter la liste (CSV)">
-              <Download size={16} aria-hidden="true" /> CSV
-            </Button>
           </>
         }
       />
 
-      {/* Cartes statistiques Stitch */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi
-          label="Proformas du Mois"
-          value={String(stats.total)}
-          sub="Devis émis"
-          accent="#fbbf24"
-        />
-        <Kpi
-          label="En Attente / Négociation"
-          value={String(stats.pending)}
-          sub="Relances requises"
-          accent="#8ed0ff"
-        />
-        <Kpi
-          label="Converties en Vente"
-          value={String(stats.converted)}
-          sub="Devenues factures"
-          accent="#4edea3"
-        />
-        <Kpi label="Brouillons" value={String(stats.draft)} sub="Modifiables" accent="#cde8ff" />
-      </div>
+      <StatsStrip
+        items={[
+          { label: "Devis émis", value: String(stats.total), sub: "Ce mois" },
+          {
+            label: "En attente",
+            value: String(stats.pending),
+            sub: "Relances requises",
+            tone: stats.pending > 0 ? "amber" : "default",
+          },
+          {
+            label: "Converties en vente",
+            value: String(stats.converted),
+            sub: "Devenues factures",
+            tone: stats.converted > 0 ? "green" : "default",
+          },
+          { label: "Brouillons", value: String(stats.draft), sub: "Modifiables" },
+        ]}
+      />
 
-      {/* Barre d'outils */}
-      {toolbarOpen ? (
-        <Card className="flex flex-wrap items-end gap-3 p-4">
-          <div className="min-w-[220px] flex-1">
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="proformas-search"
-            >
-              Recherche
-            </label>
-            <TextInput
-              id="proformas-search"
-              value={query}
-              onChange={(e) => onQueryChange(e.target.value)}
-              placeholder="Numéro ou client…"
-              aria-label="Recherche devis"
-            />
-          </div>
-          <div className="min-w-[200px]">
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="proformas-customer"
-            >
-              Client
-            </label>
-            {customerId != null ? (
-              <div className="flex items-center justify-between gap-2 rounded-xl bg-black/25 px-3 py-2.5 text-sm">
-                <span className="truncate font-semibold">{customerName}</span>
-                <button
-                  type="button"
-                  onClick={() => pickCustomer(null, "")}
-                  className="shrink-0 text-slate-400 hover:text-white"
-                  aria-label="Retirer le filtre client"
-                >
-                  <X size={13} aria-hidden="true" />
-                </button>
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                <TextInput
-                  id="proformas-customer"
-                  value={customerQ}
-                  onChange={(e) => setCustomerQ(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      void searchCustomers();
-                    }
-                  }}
-                  placeholder="Nom…"
-                  aria-label="Filtrer par client"
-                />
-                <Button type="button" variant="secondary" onClick={() => void searchCustomers()}>
-                  <Search size={15} aria-hidden="true" />
-                </Button>
-              </div>
-            )}
-            {customerResults.length > 0 ? (
-              <ul className="mt-2 max-h-28 divide-y divide-white/[0.06] overflow-auto rounded-xl border border-white/10">
-                {customerResults.map((c) => (
-                  <li key={c.id}>
-                    <button
-                      type="button"
-                      onClick={() => pickCustomer(c.id, c.name)}
-                      className="w-full px-3 py-1.5 text-left text-sm hover:bg-amber-400/10"
-                    >
-                      {c.name}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            {/* Slot à hauteur constante (pas de saut de mise en page). */}
-            <p className="mt-1 min-h-[1rem] text-xs font-semibold text-slate-500" role="status">
-              {customerTotal > customerResults.length
-                ? `+${customerTotal - customerResults.length} autre(s) — affinez la recherche.`
-                : ""}
-            </p>
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="proformas-status"
-            >
-              Statut
-            </label>
-            <Select
-              id="proformas-status"
-              value={statusFilter}
-              onChange={(e) => changeStatus(e.target.value as ProformaStatusFilter)}
-              aria-label="Filtre statut"
-            >
-              <option value="all">Tous</option>
-              <option value="draft">Brouillons</option>
-              <option value="sent">Envoyés</option>
-              <option value="converted">Convertis</option>
-              <option value="cancelled">Annulés</option>
-            </Select>
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="proformas-from"
-            >
-              Du
-            </label>
-            <TextInput
-              id="proformas-from"
-              type="date"
-              value={from}
-              onChange={(e) => changeRange(e.target.value, to)}
-              aria-label="Du"
-            />
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="proformas-to"
-            >
-              Au
-            </label>
-            <TextInput
-              id="proformas-to"
-              type="date"
-              value={to}
-              onChange={(e) => changeRange(from, e.target.value)}
-              aria-label="Au"
-            />
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="proformas-sort"
-            >
-              Tri
-            </label>
-            <Select
-              id="proformas-sort"
-              value={sort}
-              onChange={(e) => changeSort(e.target.value as ProformaSort)}
-              aria-label="Tri"
-            >
-              <option value="date_desc">Date décroissante</option>
-              <option value="date_asc">Date croissante</option>
-              <option value="amount_desc">Montant décroissant</option>
-              <option value="amount_asc">Montant croissant</option>
-            </Select>
-          </div>
-          <Button variant="ghost" onClick={resetFilters} title="Réinitialiser les filtres">
-            <X size={15} aria-hidden="true" /> Réinitialiser
+      <Toolbar>
+        <div className="min-w-[190px]">
+          {customerId != null ? (
+            <div className="flex h-[42px] items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/20 px-3 text-sm">
+              <span className="truncate font-semibold">{customerName}</span>
+              <button
+                type="button"
+                onClick={() => pickCustomer(null, "")}
+                className="shrink-0 text-slate-400 hover:text-white"
+                aria-label="Retirer le filtre client"
+              >
+                <X size={13} aria-hidden="true" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <TextInput
+                id="proformas-customer"
+                value={customerQ}
+                onChange={(e) => setCustomerQ(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void searchCustomers();
+                  }
+                }}
+                placeholder="Filtrer par client…"
+                aria-label="Filtrer par client"
+                className="min-w-[150px]"
+              />
+              <Button type="button" variant="secondary" onClick={() => void searchCustomers()}>
+                <Search size={15} aria-hidden="true" />
+              </Button>
+            </div>
+          )}
+          {customerResults.length > 0 ? (
+            <ul className="mt-2 max-h-28 divide-y divide-white/[0.06] overflow-auto rounded-xl border border-white/10">
+              {customerResults.map((c) => (
+                <li key={c.id}>
+                  <button
+                    type="button"
+                    onClick={() => pickCustomer(c.id, c.name)}
+                    className="w-full px-3 py-1.5 text-left text-sm hover:bg-amber-400/10"
+                  >
+                    {c.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {/* Slot à hauteur constante (pas de saut de mise en page). */}
+          <p className="mt-1 min-h-[1rem] text-xs font-semibold text-slate-500" role="status">
+            {customerTotal > customerResults.length
+              ? `+${customerTotal - customerResults.length} autre(s) — affinez la recherche.`
+              : ""}
+          </p>
+        </div>
+        <Select
+          id="proformas-status"
+          value={statusFilter}
+          onChange={(e) => changeStatus(e.target.value as ProformaStatusFilter)}
+          aria-label="Filtre statut"
+          className="w-auto"
+        >
+          <option value="all">Tous les statuts</option>
+          <option value="draft">Brouillons</option>
+          <option value="sent">Envoyés</option>
+          <option value="converted">Convertis</option>
+          <option value="cancelled">Annulés</option>
+        </Select>
+        <TextInput
+          id="proformas-from"
+          type="date"
+          value={from}
+          onChange={(e) => changeRange(e.target.value, to)}
+          aria-label="Du"
+          className="w-auto"
+        />
+        <TextInput
+          id="proformas-to"
+          type="date"
+          value={to}
+          onChange={(e) => changeRange(from, e.target.value)}
+          aria-label="Au"
+          className="w-auto"
+        />
+        <Select
+          id="proformas-sort"
+          value={sort}
+          onChange={(e) => changeSort(e.target.value as ProformaSort)}
+          aria-label="Tri"
+          className="w-auto"
+        >
+          <option value="date_desc">Tri : date décroissante</option>
+          <option value="date_asc">Tri : date croissante</option>
+          <option value="amount_desc">Tri : montant décroissant</option>
+          <option value="amount_asc">Tri : montant croissant</option>
+        </Select>
+        <Button variant="ghost" onClick={resetFilters} title="Réinitialiser les filtres">
+          <X size={15} aria-hidden="true" /> Réinitialiser
+        </Button>
+        <div className="ml-auto">
+          <Button variant="ghost" onClick={exportCsv} title="Exporter la liste (CSV)">
+            <Download size={15} aria-hidden="true" /> Exporter
           </Button>
-        </Card>
-      ) : null}
+        </div>
+      </Toolbar>
 
       {/* Sélection multiple → suppression */}
       {selection.size > 0 ? (
