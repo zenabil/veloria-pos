@@ -79,6 +79,10 @@ La base vit dans `%PROGRAMDATA%\Veloria PoS\Data\Veloria POS DB.sqlite`
 (repli `userData` si non inscriptible), jamais dans `Program Files`/`app.asar`.
 Sauvegardes via `VACUUM INTO` (`.vposdb`), restauration avec snapshot de sécurité.
 
+Livrables : `release/` = installateurs + portables POS et Manager (+
+`SHA256SUMS.txt`) ; `release/apk-android/` = APK Android signé (`dz.veloria.client`)
+avec son hash — `mobile/android/**` est régénérable, pas ce dossier.
+
 ## Licences (offline-first, par client)
 
 Chaque poste s'active par fichier `.vlic` signé (Ed25519, clé privée vendor

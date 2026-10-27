@@ -114,6 +114,16 @@ interface), `verify:migrations`, `verify:domain`, `verify:perf`,
   git (rapports d'audit cités noir sur blanc dans `handoff.md`). Un artefact
   peut être **verrouillé par l'antivirus** (`app.asar` : « Device or resource
   busy ») — ne jamais forcer le `rm`, il part au redémarrage.
+- `mobile/android/**` (git-ignoré, ~442 Mo) : **jetable** — `npx expo prebuild`
+  - Gradle régénèrent tout (`app/build/intermediates`, `.gradle`, dumps de crash
+    JVM). **SaUF** `app/build/outputs/apk/`, qui portait le seul APK réel du poste
+    : `app-release.apk` (88,5 Mo, 2026-10-05, `dz.veloria.client` 1.0.0) déplacé
+    le 2026-10-27 sous **`release/apk-android/`** avec `output-metadata.json` et
+    son `SHA256SUMS.txt`. `mobile/veloria-release.keystore` est la clé qui signe
+    cet APK — perdu, il ne se re-signera plus.
+- `release/` : les `.exe` + `.blockmap` + `SHA256SUMS.txt` **courants** et
+  `apk-android/` sont des livrables ; `win-unpacked/` et `builder-debug.yml`
+  sont des intermédiaires de `electron-builder` (régénérés à chaque package).
 - `signAndEditExecutable: false` dans les 2 `electron-builder*.yml` = TEMP-BUILD
   2026-10-02 (sans privilège symlink) — À REVERTIR dès que possible.
 - `mobile/android|ios`, `*.keystore`, `.expo/` : locaux, jamais committés.
