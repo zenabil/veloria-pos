@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { computeDebtStatus, applyPaymentToBalance } from "@/domain/customer/debt-rules.ts";
 import { applyStockDelta, assertReturnQuantity } from "@/domain/inventory/stock-rules.ts";
 import { validateProductDraft } from "@/domain/product/product-rules.ts";
-import { assertRefundSplit, computeReturnSettlement } from "@/domain/returns/return-rules.ts";
+import { computeReturnSettlement } from "@/domain/returns/return-rules.ts";
 
 describe("Debt rules", () => {
   it("flags over-limit", () => {
@@ -24,14 +24,6 @@ describe("Stock rules", () => {
   it("validates return eligibility", () => {
     expect(() => assertReturnQuantity(5, 2, 4)).toThrow();
     expect(() => assertReturnQuantity(5, 2, 3)).not.toThrow();
-  });
-});
-
-describe("Return split", () => {
-  it("caps refund + credit at return value", () => {
-    expect(() => assertRefundSplit(10000, 6000, 4000)).not.toThrow();
-    expect(() => assertRefundSplit(10000, 6000, 5000)).toThrow();
-    expect(() => assertRefundSplit(10000, -1, 0)).toThrow();
   });
 });
 

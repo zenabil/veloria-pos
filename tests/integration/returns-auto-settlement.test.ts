@@ -455,4 +455,40 @@ describe("Retours 0055 — dette d'abord", () => {
     };
     expect(alloc.c).toBe(1);
   });
+
+  // A17 (audit 2026-10-27) — le contrat rend `saleItemId` optionnel. Sur ce
+  // chemin, le dépôt prenait la PREMIÈRE ligne du produit comme référence de
+  // valeur : avec deux lignes du même produit dont une remisée, deux retours
+  // couvrant chacun leur quantité créditaient 2 × la valeur de la ligne 1, soit
+  // plus que le net réellement vendu (10 000 + 6 000 attendus, 20 000 donnés).
+  it("A17 : chemin sans ligne exacte plafonné à la valeur nette agrégée du produit", () => {
+    const customerId = seedCustomer(0);
+    const saleId = seedSale({
+      customerId,
+      paid: 0,
+      lines: [
+        { productId, quantity: 2, unitPrice: 5000, lineTotal: 10000 },
+        { productId, quantity: 2, unitPrice: 5000, lineTotal: 6000 },
+      ],
+    });
+    const res = createReturn({
+      saleId,
+      items: [
+        { productId, quantity: 2, restocked: false },
+        { productId, quantity: 2, restocked: false },
+      ],
+      refundMinor: 0,
+    });
+    expect(res.totalReturnMinor).toBe(16000);
+    const stored = db
+      .prepare("SELECT total_return_value_minor AS t FROM returns WHERE id = ?")
+      .get(res.id) as { t: number };
+    expect(Number(stored.t)).toBe(16000);
+    // Le net vendu par produit est le plafond : jamais plus que ce qui a été
+    // facturé au client pour ce produit sur cette vente.
+    const items = db
+      .prepare("SELECT line_total_minor AS v FROM return_items WHERE return_id = ? ORDER BY id")
+      .all(res.id) as { v: number }[];
+    expect(items.map((i) => Number(i.v))).toEqual([10000, 6000]);
+  });
 });

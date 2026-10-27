@@ -59,7 +59,20 @@ describe("Return Zod schemas", () => {
       reason: "Défectueux",
     });
     expect(c.kind).toBe("customer");
-    expect(c.creditMinor).toBe(0);
+    // A16 (audit 2026-10-27) : `creditMinor` a quitté le contrat (ADR-138 impute
+    // l'avoir automatiquement). Une charge héritée qui l'envoie encore est
+    // stripped par Zod, jamais réinjectée dans le payload validé.
+    expect("creditMinor" in c).toBe(false);
+    const legacy = returnCreateSchema.parse({
+      operationId: op,
+      kind: "customer",
+      saleId: 1,
+      items: [{ productId: 2, quantity: 1, restocked: true, condition: "good" }],
+      refundMinor: 100,
+      creditMinor: 99,
+      reason: "Défectueux",
+    });
+    expect("creditMinor" in legacy).toBe(false);
     const s = returnCreateSchema.parse({
       operationId: op,
       kind: "supplier",

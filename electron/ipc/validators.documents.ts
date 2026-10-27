@@ -29,8 +29,6 @@ export const returnCreateSchema = z.object({
     .min(1)
     .max(200),
   refundMinor: moneyMinor.default(0),
-  /** @deprecated ignoré : l'avoir est calculé automatiquement (dette d'abord). */
-  creditMinor: moneyMinor.default(0),
   refundMethod: z.enum(["cash", "cheque", "transfer"]).nullable().optional(),
   reason: z.string().min(2).max(300),
   notes: z.string().max(500).nullable().optional(),

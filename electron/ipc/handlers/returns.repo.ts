@@ -4,8 +4,10 @@
 
 import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
+import { log } from "../../services/logger";
 import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./idempotency";
 import { assertOrderClause } from "./sql-guard";
+import { MONEY_MAX_SINGLE_MINOR, MONEY_MAX_TOTAL_MINOR } from "../money-guard";
 import { debtStatusSql } from "./debt-status";
 import {
   consumptionsOfSale,
@@ -14,7 +16,7 @@ import {
   deductIntakeLayers,
   restoreToLayers,
 } from "./fifo";
-import { splitReturnSettlement } from "./return-settlement";
+import { deriveReturnStatus, netReturnLineValue, splitReturnSettlement } from "./return-settlement";
 
 export interface ReturnItemInput {
   /** Ligne vendue exacte (prix net après remise) — optionnel pour compat. */
@@ -52,12 +54,6 @@ interface ReturnSaleLineRow {
 
 const txt = (v: unknown): string => (typeof v === "string" ? v : "");
 const round3 = (v: number): number => Math.round(v * 1000) / 1000;
-
-function returnStatus(total: number, settled: number): string {
-  if (total > 0 && settled >= total) return "refunded";
-  if (settled > 0) return "partially_refunded";
-  return "validated";
-}
 
 /**
  * Plan de restauration FIFO d'un retour client : on rend aux couches d'origine
@@ -125,9 +121,60 @@ function bumpReturnSequence(kind: ReturnKind, now: string): void {
     db.prepare(
       `UPDATE number_sequences SET next_value = next_value + 1, updated_at = ? WHERE sequence_key = ?`,
     ).run(now, key);
-  } catch {
-    /* avancement best-effort */
+  } catch (err) {
+    // A8 (audit 2026-10-27) : best-effort ASSUMÉ, mais le `catch {}` muet
+    // rendait l'échec invisible — or le réessai du appel suivant rejouera la
+    // MEME séquence et échouera encore sur l'UNIQUE(return_number).
+    log("ERROR", "returns", "sequence.bump_failed", {
+      key,
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
+}
+
+/**
+ * A3 (audit 2026-10-27) — journal des couches débitées par un retour
+ * fournisseur, lu et VALIDÉ **avant** toute écriture d'annulation.
+ *
+ * - `null` : aucun journal (retour antérieur à 0023) ⇒ le repli « legacy » est
+ *   légitime.
+ * - contenu présent mais mal formé : LÈVE un message FR. L'ancien `catch {}`
+ *   permettait un demi-miroir : `restoreToLayers` levait-il en cours de boucle
+ *   (trigger 0023) que les couches déjà rendues restaient écrites, puis le repli
+ *   rendait la MÊME quantité une seconde fois ⇒ couches et stock gonflés, sans
+ *   aucune trace. Un illisible se refuse, il ne se contourne pas.
+ */
+function readLayerTrace(raw: unknown): Map<number, { layerId: number; quantity: number }[]> | null {
+  if (typeof raw !== "string" || raw.trim().length === 0) return null;
+  const malformed = new Error("Annulation impossible : journal des couches illisible.");
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw malformed;
+  }
+  if (!Array.isArray(parsed)) throw malformed;
+  const trace = new Map<number, { layerId: number; quantity: number }[]>();
+  for (const entry of parsed) {
+    if (typeof entry !== "object" || entry === null) throw malformed;
+    const e = entry as { productId?: unknown; deductions?: unknown };
+    if (e.productId === null || e.productId === undefined) continue;
+    if (typeof e.productId !== "number" || !Array.isArray(e.deductions)) throw malformed;
+    const slices: { layerId: number; quantity: number }[] = [];
+    for (const d of e.deductions) {
+      if (typeof d !== "object" || d === null) throw malformed;
+      const { layerId, quantity } = d as { layerId?: unknown; quantity?: unknown };
+      if (typeof layerId !== "number" || typeof quantity !== "number" || !(quantity > 0)) {
+        throw malformed;
+      }
+      slices.push({ layerId, quantity });
+    }
+    // Deux entrées du même produit (2 lignes d'une même réception) : le
+    // journal est restauré UNE fois, les parts sont donc agrégées.
+    const previous = trace.get(e.productId);
+    trace.set(e.productId, previous ? [...previous, ...slices] : slices);
+  }
+  return trace;
 }
 
 export interface CustomerReturnResult {
@@ -194,6 +241,9 @@ export function createReturnAtomic(args: {
     // ligne, pour éviter le prix de la première ligne du produit.
     const requestedBySaleItem = new Map<number, number>();
     const requestedValueBySaleItem = new Map<number, number>();
+    // A17 : cumul des valeurs déjà sollicitées pour ce produit DANS la requête
+    // (le plafond agrégé ne marche que si les 2 lignes se voient).
+    const requestedValueByProduct = new Map<string, number>();
     const keyOf = (pid: number | null): string => (pid == null ? "null" : `p${pid}`);
     const prepared: {
       saleItemId: number | null;
@@ -237,8 +287,10 @@ export function createReturnAtomic(args: {
           throw new Error("Produit du retour incohérent avec la ligne vendue.");
         }
       } else {
-        // Prix/coût de référence : la ligne vendue DANS LA MÊME UNITÉ (carton
-        // ou pièce) — jamais le prix d'une autre unité du même produit.
+        // Chemin « sans ligne exacte » (le contrat rend `saleItemId` optionnel).
+        // Prix/coût de référence : la ligne vendue DANS LA MÊME UNITÉ (carton ou
+        // pièce) — jamais le prix d'une autre unité du même produit. Sa valeur
+        // est plafonnée par `productCap` ci-dessous (A17, audit 2026-10-27).
         sold = db
           .prepare(
             `SELECT id, product_id, product_name_snapshot, unit_price_minor, purchase_price_minor, quantity, line_total_minor, category_id, unit_factor FROM sale_items WHERE sale_id = ? AND (product_id IS ? OR product_id = ?) AND unit_factor = ? ORDER BY id ASC LIMIT 1`,
@@ -253,21 +305,23 @@ export function createReturnAtomic(args: {
       }
       if (!(item.quantity > 0)) throw new Error("Quantité retournée invalide.");
       const productId = sold.product_id;
-      // Total vendu agrégé sur TOUTES les lignes, converti en unités de base.
+      // Total vendu agrégé sur TOUTES les lignes, converti en unités de base,
+      // avec sa VALEUR nette (plafond agrégé du chemin sans ligne exacte, A17).
       const soldAgg = db
         .prepare(
-          `SELECT COALESCE(SUM(quantity * unit_factor),0) AS qty FROM sale_items WHERE sale_id = ? AND (product_id IS ? OR product_id = ?)`,
+          `SELECT COALESCE(SUM(quantity * unit_factor),0) AS qty, COALESCE(SUM(line_total_minor),0) AS v FROM sale_items WHERE sale_id = ? AND (product_id IS ? OR product_id = ?)`,
         )
-        .get(args.originalSaleId, productId, productId) as { qty: number } | undefined;
+        .get(args.originalSaleId, productId, productId) as { qty: number; v: number } | undefined;
       const soldBase = Number(soldAgg?.qty ?? 0);
+      const soldNetValue = Number(soldAgg?.v ?? 0);
       if (!(soldBase > 0)) throw new Error("Ligne de vente introuvable pour ce retour.");
-      const alreadyBase = (
-        db
-          .prepare(
-            `SELECT COALESCE(SUM(ri.quantity * ri.unit_factor),0) AS q FROM return_items ri JOIN returns r ON r.id = ri.return_id WHERE r.original_sale_id = ? AND r.status != 'cancelled' AND (ri.product_id IS ? OR ri.product_id = ?)`,
-          )
-          .get(args.originalSaleId, productId, productId) as { q: number }
-      ).q;
+      const alreadyAgg = db
+        .prepare(
+          `SELECT COALESCE(SUM(ri.quantity * ri.unit_factor),0) AS q, COALESCE(SUM(ri.line_total_minor),0) AS v FROM return_items ri JOIN returns r ON r.id = ri.return_id WHERE r.original_sale_id = ? AND r.status != 'cancelled' AND (ri.product_id IS ? OR ri.product_id = ?)`,
+        )
+        .get(args.originalSaleId, productId, productId) as { q: number; v: number };
+      const alreadyBase = Number(alreadyAgg.q);
+      const alreadyNetValue = Number(alreadyAgg.v);
       const baseQty = Math.round(item.quantity * unitFactor * 1000) / 1000;
       // Éligible sur le TOTAL (SUM) moins déjà-retourné moins déjà-demandé
       // dans cette requête (2 lignes même produit).
@@ -306,36 +360,39 @@ export function createReturnAtomic(args: {
       if (
         !Number.isSafeInteger(sold.unit_price_minor) ||
         sold.unit_price_minor < 0 ||
-        sold.unit_price_minor > 1_000_000_000
+        sold.unit_price_minor > MONEY_MAX_SINGLE_MINOR
       )
         throw new Error("Prix unitaire invalide.");
       // Valeur NETTE de la ligne (après remise) au prorata de la quantité
-      // retournée : jamais le prix catalogue avant remise.
+      // retournée : jamais le prix catalogue avant remise. Règle unique du main
+      // partagée avec l'aperçu caisse (A20, audit 2026-10-27).
       const soldQty = Number(sold.quantity);
       const soldLineTotal = Number(sold.line_total_minor);
-      if (
-        !(soldQty > 0) ||
-        !Number.isSafeInteger(soldLineTotal) ||
-        soldLineTotal < 0 ||
-        soldLineTotal > 100_000_000_000
-      ) {
-        throw new Error("Valeur de la ligne vendue invalide.");
-      }
-      const partTh = Math.round(item.quantity * 1000);
-      const wholeTh = Math.round(soldQty * 1000);
-      if (!(wholeTh > 0)) throw new Error("Quantité vendue invalide.");
-      const proportional =
-        partTh >= wholeTh ? soldLineTotal : Math.round((soldLineTotal * partTh) / wholeTh);
+      const proportional = netReturnLineValue({
+        soldLineTotalMinor: soldLineTotal,
+        soldQuantity: soldQty,
+        returnedQuantity: item.quantity,
+      });
+      // Plafonds de valeur (A17, audit 2026-10-27). Deux guards distinctes :
+      // 1) `maxLineValue` — la valeur nette de LA ligne vendue, déjà retournée/
+      //    sollicitée déduite ; 2) `productCap` — la valeur nette du PRODUIT dans
+      //    la vente. Le chemin « sans ligne exacte » valorisait tout sur la
+      //    première ligne du produit : avec deux lignes à remises différentes, le
+      //    cumul dépassait la valeur réellement vendue (crédit/espèces surévalués).
+      //    Le plafond agrégé le refuse désormais, quel que soit le chemin.
+      const inRequestProductValue = requestedValueByProduct.get(keyOf(productId)) ?? 0;
+      const productCap = Math.max(0, soldNetValue - alreadyNetValue - inRequestProductValue);
       if (item.saleItemId != null) {
         const inRequestValue = requestedValueBySaleItem.get(item.saleItemId) ?? 0;
         maxLineValue = Math.max(0, soldLineTotal - alreadyLineValue - inRequestValue);
         requestedValueBySaleItem.set(
           item.saleItemId,
-          inRequestValue + Math.min(proportional, maxLineValue),
+          inRequestValue + Math.min(proportional, maxLineValue, productCap),
         );
       }
-      const lineTotal = Math.min(proportional, maxLineValue);
-      if (!Number.isSafeInteger(lineTotal) || lineTotal < 0 || lineTotal > 100_000_000_000)
+      const lineTotal = Math.min(proportional, maxLineValue, productCap);
+      requestedValueByProduct.set(keyOf(productId), inRequestProductValue + lineTotal);
+      if (!Number.isSafeInteger(lineTotal) || lineTotal < 0 || lineTotal > MONEY_MAX_TOTAL_MINOR)
         throw new Error("Montant de ligne invalide.");
       totalReturn += lineTotal;
       prepared.push({
@@ -394,7 +451,7 @@ export function createReturnAtomic(args: {
         settlement.cashRefundMinor > 0 ? args.refundMethod : null,
         args.reason || null,
         args.notes?.trim() || null,
-        returnStatus(totalReturn, settlement.cashRefundMinor + settlement.creditAppliedMinor),
+        deriveReturnStatus(totalReturn, settlement.cashRefundMinor + settlement.creditAppliedMinor),
         args.staffUserId ?? null,
         args.createdAt,
         args.now,
@@ -684,6 +741,8 @@ export function createSupplierReturnAtomic(args: {
     // retour client : 2 lignes même produit ne doivent pas dépasser l'éligible).
     const requestedStockByProduct = new Map<string, number>();
     const requestedDamagedByProduct = new Map<string, number>();
+    // A17 : valeur déjà sollicitée pour ce produit DANS la présente requête.
+    const requestedValueByProduct = new Map<string, number>();
     const keyOf = (pid: number | null): string => (pid == null ? "null" : `p${pid}`);
     const prepared: {
       productId: number | null;
@@ -700,6 +759,9 @@ export function createSupplierReturnAtomic(args: {
     }[] = [];
     for (const item of args.items) {
       if (!(item.quantity > 0)) throw new Error("Quantité retournée invalide.");
+      // Chemin « sans ligne exacte » (`intakeItemId` optionnel au contrat) : la
+      // première ligne de la réception sert de référence de prix, et la valeur
+      // est plafonnée par `productCap` (A17, audit 2026-10-27).
       const bought = (
         item.intakeItemId != null
           ? db
@@ -729,13 +791,17 @@ export function createSupplierReturnAtomic(args: {
       if (!bought) throw new Error("Ligne d'achat introuvable pour ce retour.");
       const boughtLines = db
         .prepare(
-          `SELECT quantity_received, quantity_damaged, unit_factor FROM stock_intake_items WHERE stock_intake_id = ? AND (product_id IS ? OR product_id = ?)`,
+          `SELECT quantity_received, quantity_damaged, unit_factor, line_total_minor FROM stock_intake_items WHERE stock_intake_id = ? AND (product_id IS ? OR product_id = ?)`,
         )
         .all(args.intakeId, bought.product_id, bought.product_id) as {
         quantity_received: number;
         quantity_damaged: number;
         unit_factor: number;
+        line_total_minor: number;
       }[];
+      // Ce qui a été PAYÉ pour ce produit sur cette facture (fret inclus) :
+      // plafond agrégé du chemin sans ligne exacte (A17).
+      const paidValueTotal = boughtLines.reduce((a, l) => a + Number(l.line_total_minor), 0);
       const damagedTotal = round3(boughtLines.reduce((a, l) => a + Number(l.quantity_damaged), 0));
       const netTotal = round3(
         boughtLines.reduce((a, l) => {
@@ -747,7 +813,8 @@ export function createSupplierReturnAtomic(args: {
         .prepare(
           `SELECT COALESCE(SUM(sri.quantity),0) AS total,
                   COALESCE(SUM(sri.quantity_stock),0) AS stock,
-                  COALESCE(SUM(sri.quantity_damaged),0) AS damaged
+                  COALESCE(SUM(sri.quantity_damaged),0) AS damaged,
+                  COALESCE(SUM(sri.line_total_minor),0) AS paid
            FROM supplier_return_items sri
            JOIN supplier_returns sr ON sr.id = sri.supplier_return_id
            WHERE sr.stock_intake_id = ? AND sr.status != 'cancelled'
@@ -757,6 +824,7 @@ export function createSupplierReturnAtomic(args: {
         total: number;
         stock: number;
         damaged: number;
+        paid: number;
       };
       const key = keyOf(item.productId);
       let stockEligible = 0;
@@ -794,13 +862,21 @@ export function createSupplierReturnAtomic(args: {
         if (
           !Number.isSafeInteger(bought.purchase_price_minor) ||
           bought.purchase_price_minor < 0 ||
-          bought.purchase_price_minor > 1_000_000_000
+          bought.purchase_price_minor > MONEY_MAX_SINGLE_MINOR
         )
           throw new Error("Prix d'achat invalide.");
         const out = Math.round(bought.purchase_price_minor * item.quantity);
-        if (!Number.isSafeInteger(out) || out < 0 || out > 100_000_000_000)
+        if (!Number.isSafeInteger(out) || out < 0 || out > MONEY_MAX_TOTAL_MINOR)
           throw new Error("Montant de ligne invalide.");
-        return out;
+        // A17 (audit 2026-10-27) : plafond agrégé par produit. Le chemin « sans
+        // ligne exacte » applique le prix de la PREMIÈRE ligne à des quantités
+        // agrégées : sans ce plafond, le cumul rendu pouvait dépasser ce qui a
+        // réellement été payé pour ce produit sur cette facture.
+        const inRequestValue = requestedValueByProduct.get(key) ?? 0;
+        const productCap = Math.max(0, paidValueTotal - Number(already.paid) - inRequestValue);
+        const capped = Math.min(out, productCap);
+        requestedValueByProduct.set(key, inRequestValue + capped);
+        return capped;
       })();
       totalReturn += lineTotal;
       prepared.push({
@@ -840,7 +916,7 @@ export function createSupplierReturnAtomic(args: {
         args.recoverMethod,
         args.reason || null,
         args.notes?.trim() || null,
-        returnStatus(totalReturn, args.recoverMinor),
+        deriveReturnStatus(totalReturn, args.recoverMinor),
         args.staffUserId ?? null,
         args.createdAt,
         args.now,
@@ -914,17 +990,15 @@ export function createSupplierReturnAtomic(args: {
     }
     // La dette envers le fournisseur diminue de la valeur retournée
     // (soustraction exacte : un excédent devient un avoir explicite).
-    // DB-09: persiste le journal des couches (colonnes 0023, best-effort sur
-    // bases pré-0023 où la colonne peut manquer → catch silencieux + fallback
-    // ASC legacy à l'annulation).
-    try {
-      db.prepare(`UPDATE supplier_returns SET layers_json = ? WHERE id = ?`).run(
-        JSON.stringify(layersTrace),
-        returnId,
-      );
-    } catch {
-      /* base pré-0023 : annulation par fallback */
-    }
+    // DB-09 + A4 (audit 2026-10-27) : le journal des couches est écrit SANS
+    // filet. La colonne existe depuis 0023 et `verify:migrations` applique les
+    // 56 migrations : le `catch {}` « base pré-0023 » était une branche morte
+    // qui perdait le journal en silence et poussait l'annulation vers un repli
+    // non miroir (voir A3 dans cancelReturnAtomic).
+    db.prepare(`UPDATE supplier_returns SET layers_json = ? WHERE id = ?`).run(
+      JSON.stringify(layersTrace),
+      returnId,
+    );
     if (intake.supplier_id != null) {
       db.prepare(
         `UPDATE suppliers SET outstanding_balance_minor = outstanding_balance_minor - ? WHERE id = ?`,
@@ -1034,7 +1108,13 @@ export function listReturnsUnified(
   }
   const q = query.trim();
   if (q) {
-    conds.push(`(number LIKE ? ESCAPE '\\' OR ref LIKE ? ESCAPE '\\' OR party_name LIKE ?)`);
+    // A5 (audit 2026-10-27) : le motif est échappé pour `%`, `_` et `\`, donc
+    // les TROIS prédicats doivent déclarer la même clause ESCAPE. Sans elle,
+    // SQLite traite `\` comme un caractère littéral : « 100% » ne remontait
+    // plus rien (ou pire, les `_` de `Passage` devenaient des jokers).
+    conds.push(
+      `(number LIKE ? ESCAPE '\\' OR ref LIKE ? ESCAPE '\\' OR party_name LIKE ? ESCAPE '\\')`,
+    );
     const like = `%${q.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
     params.push(like, like, like);
   }
@@ -1087,6 +1167,38 @@ export function getReturnsStats(): {
     supplierReturns: s.n,
     totalAmountMinor: c.s + s.s,
   };
+}
+
+/**
+ * A7 (audit 2026-10-27) : codes-barres de PLUSIEURS produits en UNE requête.
+ * La lecture était faite par ligne d'article ⇒ une requête par article (le même
+ * N+1 que W8 J-01 avait corrigé à la création). `ORDER BY is_primary DESC, id`
+ * étant global, le premier code de chaque produit reste bien son primaire.
+ */
+function barcodesByProducts(productIds: number[]): Map<number, string[]> {
+  if (productIds.length === 0) return new Map();
+  const placeholders = productIds.map(() => "?").join(",");
+  const rows = getDb()
+    .prepare(
+      `SELECT product_id AS pid, barcode FROM product_barcodes WHERE product_id IN (${placeholders}) ORDER BY is_primary DESC, id`,
+    )
+    .all(...productIds) as { pid: number; barcode: string }[];
+  const map = new Map<number, string[]>();
+  for (const row of rows) {
+    const list = map.get(Number(row.pid));
+    if (list) list.push(row.barcode);
+    else map.set(Number(row.pid), [row.barcode]);
+  }
+  return map;
+}
+
+/** Liste des identifiants produit non nuls, dédupliqués. */
+function productIdsOf(rows: Record<string, unknown>[]): number[] {
+  const ids = new Set<number>();
+  for (const row of rows) {
+    if (row["product_id"] != null) ids.add(Number(row["product_id"]));
+  }
+  return [...ids];
 }
 
 export function getReturnableSaleItems(saleId: number): {
@@ -1143,6 +1255,8 @@ export function getReturnableSaleItems(saleId: number): {
   for (const r of alreadyLineRows) {
     alreadyLine.set(Number(r.sid), Number(r.q));
   }
+  // A7 : une seule requête de codes-barres pour toute la vente.
+  const barcodesByProduct = barcodesByProducts(productIdsOf(items));
   const out = items.map((it) => {
     const factor = Number(it["unit_factor"] ?? 1) > 0 ? Number(it["unit_factor"] ?? 1) : 1;
     const k = keyOf(it["product_id"]);
@@ -1161,15 +1275,7 @@ export function getReturnableSaleItems(saleId: number): {
     const eligible = Math.max(0, Math.min(productEligible, lineEligible));
     const already = Math.max(0, Number(it["quantity"]) - eligible);
     const barcodes =
-      it["product_id"] != null
-        ? (
-            db
-              .prepare(
-                `SELECT barcode FROM product_barcodes WHERE product_id = ? ORDER BY is_primary DESC, id`,
-              )
-              .all(it["product_id"]) as { barcode: string }[]
-          ).map((b) => b.barcode)
-        : [];
+      it["product_id"] != null ? (barcodesByProduct.get(Number(it["product_id"])) ?? []) : [];
     const primary = barcodes.length > 0 ? (barcodes[0] ?? null) : null;
     return {
       ...it,
@@ -1219,6 +1325,47 @@ export function getReturnableIntakeItems(intakeId: number): {
        WHERE ii.stock_intake_id = ? ORDER BY ii.id`,
     )
     .all(intakeId) as Record<string, unknown>[];
+  // A7 (audit 2026-10-27) : les trois lectures qui étaient faites PAR ARTICLE
+  // (déjà retourné, couches FIFO restantes, codes-barres) deviennent trois
+  // requêtes agrégées pour toute la réception. `GROUP BY product_id` regroupe
+  // aussi les lignes libres (product_id NULL), comme le faisait le
+  // `(product_id IS ? OR product_id = ?)` répété.
+  const alreadyRows = db
+    .prepare(
+      `SELECT sri.product_id AS pid,
+              COALESCE(SUM(sri.quantity),0) AS total,
+              COALESCE(SUM(sri.quantity_stock),0) AS stock,
+              COALESCE(SUM(sri.quantity_damaged),0) AS damaged
+       FROM supplier_return_items sri
+       JOIN supplier_returns sr ON sr.id = sri.supplier_return_id
+       WHERE sr.stock_intake_id = ? AND sr.status != 'cancelled'
+       GROUP BY sri.product_id`,
+    )
+    .all(intakeId) as { pid: number | null; total: number; stock: number; damaged: number }[];
+  const alreadyByProduct = new Map<
+    number | null,
+    { total: number; stock: number; damaged: number }
+  >();
+  for (const row of alreadyRows) {
+    const pid = row.pid == null ? null : Number(row.pid);
+    alreadyByProduct.set(pid, {
+      total: Number(row.total),
+      stock: Number(row.stock),
+      damaged: Number(row.damaged),
+    });
+  }
+  const layerRows = db
+    .prepare(
+      `SELECT product_id AS pid, COALESCE(SUM(remaining_quantity),0) AS q, COUNT(*) AS n
+       FROM inventory_layers WHERE stock_intake_id = ? GROUP BY product_id`,
+    )
+    .all(intakeId) as { pid: number; q: number; n: number }[];
+  const layersByProduct = new Map<number, { q: number; n: number }>();
+  for (const row of layerRows) {
+    layersByProduct.set(Number(row.pid), { q: Number(row.q), n: Number(row.n) });
+  }
+  const barcodesByProduct = barcodesByProducts(productIdsOf(items));
+  const emptyAlready = { total: 0, stock: 0, damaged: 0 };
   const out = items.map((it) => {
     const productId = it["product_id"] == null ? null : Number(it["product_id"]);
     const factorRaw = Number(it["unit_factor"] ?? 1);
@@ -1228,50 +1375,22 @@ export function getReturnableIntakeItems(intakeId: number): {
     const net = round3(purchasedBase - damaged);
     // Retours déjà enregistrés : total repris par le fournisseur + part
     // réellement sortie du stock (les abîmées ne sortent jamais du stock).
-    const already = db
-      .prepare(
-        `SELECT COALESCE(SUM(sri.quantity),0) AS total,
-                COALESCE(SUM(sri.quantity_stock),0) AS stock,
-                COALESCE(SUM(sri.quantity_damaged),0) AS damaged
-         FROM supplier_return_items sri
-         JOIN supplier_returns sr ON sr.id = sri.supplier_return_id
-         WHERE sr.stock_intake_id = ? AND sr.status != 'cancelled'
-           AND (sri.product_id IS ? OR sri.product_id = ?)`,
-      )
-      .get(intakeId, productId, productId) as {
-      total: number;
-      stock: number;
-      damaged: number;
-    };
+    const already = alreadyByProduct.get(productId) ?? emptyAlready;
     // Éligibilité STOCK = couches FIFO encore présentes dans CETTE réception
     // (une vente/ajustement a pu consommer la marchandise). Repli historique
     // (facture antérieure aux couches) : quantité nette moins déjà retournée.
     let stockEligible = 0;
     if (productId != null) {
-      const layers = db
-        .prepare(
-          `SELECT COALESCE(SUM(remaining_quantity),0) AS q, COUNT(*) AS n
-           FROM inventory_layers WHERE stock_intake_id = ? AND product_id = ?`,
-        )
-        .get(intakeId, productId) as { q: number; n: number };
+      const layers = layersByProduct.get(productId);
       stockEligible =
-        Number(layers.n) > 0
-          ? Math.max(0, round3(Number(layers.q)))
-          : Math.max(0, round3(net - Number(already.stock)));
+        layers && layers.n > 0
+          ? Math.max(0, round3(layers.q))
+          : Math.max(0, round3(net - already.stock));
     }
     // Les pièces abîmées n'ont jamais été mises en stock : elles restent
     // retournables au fournisseur tant qu'elles n'ont pas déjà été retournées.
     const damagedEligible = Math.max(0, round3(damaged - Number(already.damaged)));
-    const barcodes =
-      productId != null
-        ? (
-            db
-              .prepare(
-                `SELECT barcode FROM product_barcodes WHERE product_id = ? ORDER BY is_primary DESC, id`,
-              )
-              .all(productId) as { barcode: string }[]
-          ).map((b) => b.barcode)
-        : [];
+    const barcodes = productId != null ? (barcodesByProduct.get(productId) ?? []) : [];
     const primary = barcodes.length > 0 ? (barcodes[0] ?? null) : null;
     return {
       ...it,
@@ -1362,7 +1481,7 @@ export function recordReturnRefundAtomic(args: {
       const next = settled + args.amountMinor;
       db.prepare(
         `UPDATE returns SET amount_refunded_minor = amount_refunded_minor + ?, refund_method = ?, status = ?, updated_at = ? WHERE id = ?`,
-      ).run(args.amountMinor, args.method, returnStatus(total, next), args.now, args.id);
+      ).run(args.amountMinor, args.method, deriveReturnStatus(total, next), args.now, args.id);
     } else {
       const r = db.prepare(`SELECT * FROM supplier_returns WHERE id = ?`).get(args.id) as
         | Record<string, unknown>
@@ -1381,7 +1500,7 @@ export function recordReturnRefundAtomic(args: {
       const next = settled + args.amountMinor;
       db.prepare(
         `UPDATE supplier_returns SET amount_recovered_minor = amount_recovered_minor + ?, recovery_method = ?, status = ?, updated_at = ? WHERE id = ?`,
-      ).run(args.amountMinor, args.method, returnStatus(total, next), args.now, args.id);
+      ).run(args.amountMinor, args.method, deriveReturnStatus(total, next), args.now, args.id);
     }
     db.prepare(
       `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at) VALUES (?, 'return.refunded', 'return', ?, ?, ?, ?)`,
@@ -1491,6 +1610,9 @@ export function cancelReturnAtomic(args: {
         .all(args.id) as Record<string, unknown>[];
       // Le journal est agrégé par produit : il est restauré UNE fois, même
       // quand le retour contient deux lignes du même produit (cartons+pièces).
+      // A3 : lu et validé AVANT la première écriture — un journal illisible
+      // refuse l'annulation (rollback total) au lieu de basculer en repli.
+      const layerTrace = readLayerTrace(r["layers_json"]);
       const traceRestored = new Set<number>();
       for (const it of items) {
         // Seule la part réellement sortie du stock revient (les abîmées
@@ -1507,30 +1629,18 @@ export function cancelReturnAtomic(args: {
           db.prepare(
             `UPDATE products SET quantity = ?, stock_status = CASE WHEN ? <= 0 THEN 'out_of_stock' WHEN ? <= min_stock_level THEN 'low_stock' ELSE 'in_stock' END, updated_at = ? WHERE id = ?`,
           ).run(after, after, after, args.now, it["product_id"]);
-          // DB-09: reversal miroir exact via layers_json (0023). Fallback
-          // legacy (première couche ASC) uniquement si journal absent
-          // (retours créés avant 0023).
+          // DB-09: reversal miroir exact via layers_json (0023). Le repli
+          // legacy (première couche ASC) n'est pris que lorsque le journal est
+          // ABSENT (retours créés avant 0023) — jamais sur un journal illisible,
+          // qui a déjà fait refuser l'annulation en `readLayerTrace`.
           const tracePid = Number(it["product_id"]);
           let restoredExact = traceRestored.has(tracePid);
           if (!restoredExact) {
-            try {
-              const traceRaw = r["layers_json"];
-              if (typeof traceRaw === "string" && traceRaw.length > 0) {
-                const trace = JSON.parse(traceRaw) as {
-                  productId: number | null;
-                  deductions: { layerId: number; quantity: number }[];
-                }[];
-                const entry = trace.find((t) => t.productId === tracePid);
-                if (entry && entry.deductions.length > 0) {
-                  restoreToLayers(
-                    entry.deductions.map((d) => ({ layerId: d.layerId, quantity: d.quantity })),
-                  );
-                  restoredExact = true;
-                  traceRestored.add(tracePid);
-                }
-              }
-            } catch {
-              restoredExact = false;
+            const deductions = layerTrace?.get(tracePid);
+            if (deductions && deductions.length > 0) {
+              restoreToLayers(deductions);
+              restoredExact = true;
+              traceRestored.add(tracePid);
             }
           }
           if (!restoredExact) {

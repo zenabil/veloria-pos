@@ -9,7 +9,11 @@ import { formatDzdSafe } from "@shared/formatters/format.ts";
 import { strictOrNeg } from "@shared/money/parse.ts";
 import { useOperationId } from "@shared/ui/use-operation-id.ts";
 
-import { RETURN_REASONS } from "@domain/returns/return-rules.ts";
+import {
+  RETURN_REASONS,
+  netReturnLineValueSafe,
+  previewReturnSettlement,
+} from "@domain/returns/return-rules.ts";
 import { todayUtcDate } from "@shared/dates/dates.ts";
 import {
   Button,
@@ -26,17 +30,19 @@ import type { Notify } from "@shared/ui/primitives.tsx";
 import { frError } from "@shared/errors/fr-map.ts";
 import { playSound } from "@shared/sound/sound.ts";
 
-/** Valeur NETTE retournée d'une ligne (après remise), au prorata de la qté. */
+/**
+ * Valeur NETTE retournée d'une ligne (après remise), au prorata de la quantité :
+ * la RÈGLE DU DOMAINE, au même endroit que le calcul du serveur (A20, audit
+ * 2026-10-27). L'ancienne copie locale retombait sur « prix catalogue × qté »
+ * quand la donnée lui semblait illisible — une valeur que le main refuse, donc
+ * un aperçu mensonger. Illisible ⇒ 0 (échec sûr au rendu, doctrine A-01).
+ */
 function netLineReturnMinor(line: SaleLine, wanted: number): number {
-  const soldQty = Number(line.quantity);
-  const soldLineTotal = Number(line.line_total_minor);
-  if (!(soldQty > 0) || !Number.isSafeInteger(soldLineTotal) || soldLineTotal < 0) {
-    return Math.max(0, Math.round(Number(line.unit_price_minor) * wanted));
-  }
-  const partTh = Math.round(wanted * 1000);
-  const wholeTh = Math.round(soldQty * 1000);
-  if (!(wholeTh > 0)) return 0;
-  return partTh >= wholeTh ? soldLineTotal : Math.round((soldLineTotal * partTh) / wholeTh);
+  return netReturnLineValueSafe({
+    soldLineTotalMinor: Number(line.line_total_minor),
+    soldQuantity: Number(line.quantity),
+    returnedQuantity: wanted,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -171,9 +177,17 @@ export function CustomerReturnDialog({
   // Valeur NETTE (après remise), identique au calcul serveur.
   const total = chosen.reduce((a, l) => a + netLineReturnMinor(l, l.wanted), 0);
   // Politique propriétaire : la dette d'abord, puis les espèces pour l'excédent.
+  // A14 (audit 2026-10-27) : l'aperçu passe par la règle du domaine (la même que
+  // celle du main) au lieu de la recopier — un écart promettait au caissier un
+  // plafond d'espèces que le serveur refusait.
   const outstanding = Math.max(0, customerOutstandingMinor ?? 0);
-  const autoCredit = customerOutstandingMinor == null ? 0 : Math.min(total, outstanding);
-  const maxRefund = total - autoCredit;
+  const settlement = previewReturnSettlement({
+    totalReturnMinor: total,
+    outstandingMinor: customerOutstandingMinor ?? 0,
+    requestedRefundMinor: 0,
+  });
+  const autoCredit = settlement.creditAppliedMinor;
+  const maxRefund = settlement.maxCashRefundMinor;
   const outstandingAfter = customerOutstandingMinor == null ? null : outstanding - autoCredit;
   // P1-5 : strict (bornes H-1, jamais NaN) ; invalide → -1 = refusé par les gardes.
   const refund = strictOrNeg(refundText, "Remboursement");

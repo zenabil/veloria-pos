@@ -3,6 +3,7 @@ import { DomainError } from "../common/errors.ts";
 import {
   assertSafeMinor,
   assertSafeTotal,
+  MAX_MINOR_TOTAL,
   MoneyError,
   multiplyMinorByQuantity,
   sumSafeMinors,
@@ -133,30 +134,52 @@ export function validateReturnLines(lines: ReturnLineInput[]): number {
   }
 }
 
-/** Remboursement espèces + avoir client : bornés par la valeur du retour. */
-export function assertRefundSplit(
-  totalReturnMinor: number,
-  refundMinor: number,
-  creditMinor: number,
-): void {
-  asReturnError(
-    () => assertSafeTotal(totalReturnMinor, "Valeur de retour invalide"),
-    "Valeur de retour invalide.",
-  );
-  for (const [label, v] of [
-    ["remboursement", refundMinor],
-    ["avoir", creditMinor],
-  ] as const) {
-    asReturnError(
-      () => assertSafeMinor(v, { label: `Montant de ${label} invalide` }),
-      `Montant de ${label} invalide.`,
-    );
+/**
+ * Valeur NETTE rendue d'une ligne de retour (après remise), au prorata de la
+ * quantité retournée. `soldLineTotalMinor` (le `line_total_minor` de la ligne
+ * vendue) fait foi — JAMAIS le prix catalogue.
+ *
+ * A20 (audit 2026-10-27) — RÈGLE UNIQUE : cette valeur vivait en deux copies
+ * divergentes (aperçu caisse d'un côté, main de l'autre : le renderer retombait
+ * sur `prix catalogue × qté` quand la donnée lui semblait illisible, valeur que
+ * le serveur refuse). La variante stricte s'applique au main, la variante SÛRE
+ * sert au rendu (doctrine A-01 : une exception au rendu tue l'écran du caissier),
+ * et `main-domain-parity.test.ts` prouve qu'elles calculent identiquement.
+ */
+export function netReturnLineValue(args: {
+  soldLineTotalMinor: number;
+  soldQuantity: number;
+  returnedQuantity: number;
+}): number {
+  const { soldLineTotalMinor, soldQuantity, returnedQuantity } = args;
+  if (
+    !(soldQuantity > 0) ||
+    !Number.isSafeInteger(soldLineTotalMinor) ||
+    soldLineTotalMinor < 0 ||
+    soldLineTotalMinor > MAX_MINOR_TOTAL
+  ) {
+    throw new DomainError("RETURN_ERROR", "Valeur de la ligne vendue invalide.");
   }
-  if (refundMinor + creditMinor > totalReturnMinor) {
-    throw new DomainError(
-      "RETURN_ERROR",
-      "Remboursement + avoir supérieurs à la valeur du retour.",
-    );
+  const partTh = Math.round(returnedQuantity * 1000);
+  const wholeTh = Math.round(soldQuantity * 1000);
+  if (!(wholeTh > 0)) {
+    throw new DomainError("RETURN_ERROR", "Quantité vendue invalide.");
+  }
+  return partTh >= wholeTh
+    ? soldLineTotalMinor
+    : Math.round((soldLineTotalMinor * partTh) / wholeTh);
+}
+
+/** Variante d'aperçu renderer : jamais d'exception (A-01), donnée illisible ⇒ 0. */
+export function netReturnLineValueSafe(args: {
+  soldLineTotalMinor: number;
+  soldQuantity: number;
+  returnedQuantity: number;
+}): number {
+  try {
+    return netReturnLineValue(args);
+  } catch {
+    return 0;
   }
 }
 
@@ -215,4 +238,24 @@ export function computeReturnSettlement(input: ReturnSettlementInput): ReturnSet
     maxCashRefundMinor,
     unsettledMinor: input.totalReturnMinor - creditAppliedMinor - input.requestedRefundMinor,
   };
+}
+
+/**
+ * A14 (audit 2026-10-27) — aperçu du règlement d'un retour : même politique que
+ * `computeReturnSettlement` (la dette d'abord, les espèces pour l'excédent),
+ * mais **jamais d'exception au rendu** (doctrine A-01) : une valeur illisible
+ * donne un plafond à 0, donc le caissier voit un plafond refusé plutôt qu'un
+ * plafond inventé. Le main garde la version stricte, autoritaire.
+ */
+export function previewReturnSettlement(input: ReturnSettlementInput): ReturnSettlement {
+  try {
+    return computeReturnSettlement(input);
+  } catch {
+    return {
+      creditAppliedMinor: 0,
+      cashRefundMinor: 0,
+      maxCashRefundMinor: 0,
+      unsettledMinor: 0,
+    };
+  }
 }

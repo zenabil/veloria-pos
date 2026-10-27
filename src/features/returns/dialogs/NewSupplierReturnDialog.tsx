@@ -209,7 +209,6 @@ export function SupplierReturnDialog({
           condition: l.condition,
         })),
         refundMinor: recover,
-        creditMinor: 0,
         refundMethod: recover > 0 ? method : null,
         reason,
         notes: notes.trim() === "" ? null : notes.trim(),

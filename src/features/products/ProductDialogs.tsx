@@ -5,4 +5,3 @@
 export { ProductDetailsDrawer } from "./dialogs/DetailsDrawer.tsx";
 export { ProductFormDialog } from "./dialogs/FormDialog.tsx";
 export { LabelsDialog } from "./dialogs/LabelsDialog.tsx";
-export type { LabelTarget } from "./types.ts";

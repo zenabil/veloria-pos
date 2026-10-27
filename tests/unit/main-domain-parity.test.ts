@@ -7,8 +7,16 @@ import { isRealCalendarDate as mainIsRealCalendarDate } from "../../electron/ipc
 import { isRealCalendarDate as domainIsRealCalendarDate } from "@/domain/common/dates.ts";
 import { isRealCalendarDate as sharedIsRealCalendarDate } from "@/shared/dates/dates.ts";
 import { assertValidQuantity } from "@/domain/common/quantity.ts";
-import { computeReturnSettlement } from "@/domain/returns/return-rules.ts";
-import { splitReturnSettlement } from "../../electron/ipc/handlers/return-settlement.ts";
+import {
+  computeReturnSettlement,
+  computeReturnStatus,
+  netReturnLineValue,
+} from "@/domain/returns/return-rules.ts";
+import {
+  deriveReturnStatus,
+  netReturnLineValue as netReturnLineValueMain,
+  splitReturnSettlement,
+} from "../../electron/ipc/handlers/return-settlement.ts";
 import { saleItemSchema, closingCreateSchema } from "../../electron/ipc/validators.ts";
 
 const DATES = [
@@ -140,6 +148,89 @@ describe("P2 : parité règlement de retour main/domaine", () => {
       const label = JSON.stringify(v);
       expect(mainError, `main:${label}`).toBe(domainError);
       if (!domainError) expect(mainResult, `main:${label}`).toEqual(domainResult);
+    }
+  });
+});
+
+const STATUSES: Array<{ total: number; settled: number }> = [
+  { total: 10000, settled: 0 },
+  { total: 10000, settled: 1 },
+  { total: 10000, settled: 5000 },
+  { total: 10000, settled: 9999 },
+  { total: 10000, settled: 10000 },
+  { total: 10000, settled: 10001 },
+  { total: 0, settled: 0 },
+  { total: 0, settled: 1 },
+  { total: -1, settled: 0 },
+  { total: 10000, settled: -1 },
+  { total: 100_000_000_000, settled: 100_000_000_000 },
+  { total: 100_000_000_001, settled: 0 },
+];
+
+// A6 (audit 2026-10-27) : le statut d'un retour était dérivé une seconde fois
+// dans `returns.repo.ts`, sans les gardes du domaine et donc sans preuve.
+describe("P3 : parité statut de retour main/domaine", () => {
+  it("mêmes statuts et mêmes refus", () => {
+    for (const v of STATUSES) {
+      let domainResult: unknown = null;
+      let domainError = false;
+      try {
+        domainResult = computeReturnStatus(v.total, v.settled);
+      } catch {
+        domainError = true;
+      }
+      let mainResult: unknown = null;
+      let mainError = false;
+      try {
+        mainResult = deriveReturnStatus(v.total, v.settled);
+      } catch {
+        mainError = true;
+      }
+      const label = JSON.stringify(v);
+      expect(mainError, `main:${label}`).toBe(domainError);
+      if (!domainError) expect(mainResult, `main:${label}`).toEqual(domainResult);
+    }
+  });
+});
+
+// A20 (audit 2026-10-27) : la valeur nette d'une ligne retournée était calculée
+// deux fois, avec des replis différents (l'aperçu caisse retombait sur le prix
+// catalogue). Les deux appels désormais partagent une règle, la parité est prouvée.
+const LINE_VALUES = [
+  { soldLineTotalMinor: 10000, soldQuantity: 5, returnedQuantity: 5 },
+  { soldLineTotalMinor: 10000, soldQuantity: 5, returnedQuantity: 2 },
+  { soldLineTotalMinor: 9999, soldQuantity: 3, returnedQuantity: 1 },
+  { soldLineTotalMinor: 10000, soldQuantity: 0.5, returnedQuantity: 0.25 },
+  { soldLineTotalMinor: 10000, soldQuantity: 3, returnedQuantity: 0.333 },
+  { soldLineTotalMinor: 0, soldQuantity: 5, returnedQuantity: 1 },
+  { soldLineTotalMinor: 10000, soldQuantity: 5, returnedQuantity: 0 },
+  { soldLineTotalMinor: 10000, soldQuantity: 0, returnedQuantity: 1 },
+  { soldLineTotalMinor: -1, soldQuantity: 5, returnedQuantity: 1 },
+  { soldLineTotalMinor: 1000.5, soldQuantity: 5, returnedQuantity: 1 },
+  { soldLineTotalMinor: 100_000_000_000, soldQuantity: 1, returnedQuantity: 1 },
+  { soldLineTotalMinor: 100_000_000_001, soldQuantity: 1, returnedQuantity: 1 },
+];
+
+describe("P4 : parité valeur nette d'une ligne retournée main/domaine", () => {
+  it("mêmes centimes et mêmes refus", () => {
+    for (const v of LINE_VALUES) {
+      let domainResult: unknown = null;
+      let domainError = false;
+      try {
+        domainResult = netReturnLineValue(v);
+      } catch {
+        domainError = true;
+      }
+      let mainResult: unknown = null;
+      let mainError = false;
+      try {
+        mainResult = netReturnLineValueMain(v);
+      } catch {
+        mainError = true;
+      }
+      const label = JSON.stringify(v);
+      expect(mainError, `main:${label}`).toBe(domainError);
+      if (!domainError) expect(mainResult, `main:${label}`).toBe(domainResult);
     }
   });
 });

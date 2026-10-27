@@ -3,7 +3,9 @@
 
 import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
+import { log } from "../../services/logger";
 import { assertOrderClause } from "./sql-guard";
+import { assertTotalMinor, priceLine } from "../money-guard";
 import { createSaleAtomic } from "./sales.repo";
 import { allocateAmountByWeights } from "./amount-allocation";
 import { formatProformaNumber } from "./numbers";
@@ -45,21 +47,21 @@ interface PreparedProformaLine {
 
 /**
  * Montant de ligne (devis) : le montant SAISI s'il est fourni (mode
- * « Montant » ADR-114), sinon prix × quantité. La borne d'arrondi de la
- * quantité est respectée (le renderer ne peut pas gonfler un devis).
+ * « Montant » ADR-114), sinon prix × quantité.
+ *
+ * A10 (audit 2026-10-27) : la règle était RECopiée ici (3ᵉ exemplaire, après
+ * `src/domain/sales/sale-rules.ts` et `money-guard.priceLine`) et sans ses
+ * gardes : un devis pouvait porter un total hors `MAX_MINOR_TOTAL` — voire un
+ * entier non sûr (200 lignes × 1e9 × 1e6) — que la vente refuserait. On délègue
+ * à la règle unique du main : mêmes bornes, même tolérance, même message FR.
  */
 function proformaLineTotal(l: ProformaLineInput): number {
-  const billed = l.billedTotalMinor;
-  if (billed == null) return Math.round(l.unitPriceMinor * l.quantity);
-  if (!Number.isSafeInteger(billed) || billed <= 0) {
-    throw new Error("Montant facturé de ligne invalide.");
-  }
-  const reference = Math.round(l.unitPriceMinor * l.quantity);
-  const tolerance = Math.ceil(l.unitPriceMinor * 0.0005) + 1;
-  if (Math.abs(billed - reference) > tolerance) {
-    throw new Error("Montant facturé de ligne incohérent avec le prix et la quantité.");
-  }
-  return billed;
+  return priceLine({
+    unitPriceMinor: l.unitPriceMinor,
+    originalUnitPriceMinor: l.unitPriceMinor,
+    quantity: l.quantity,
+    billedTotalMinor: l.billedTotalMinor ?? null,
+  }).charged;
 }
 
 /**
@@ -136,6 +138,9 @@ function prepareProformaLines(
     }
     const total = proformaLineTotal(l);
     subtotal += total;
+    // Un sous-total est un TOTAL : même plafond que la vente (1e11 centimes),
+    // sinon 200 lignes extrêmes donnaient un entier non sûr stocké en base.
+    assertTotalMinor(subtotal, "Sous-total du devis invalide.");
     prepared.push({
       pid: l.productId,
       name: l.productName.trim(),
@@ -155,7 +160,11 @@ function allocateNumber(prefix: string, key: string, now: string): string {
   const db = getDb();
   const row = db
     .prepare(`SELECT prefix, next_value FROM number_sequences WHERE sequence_key = ?`)
-    .get(key) as { prefix: string; next_value: number };
+    .get(key) as { prefix: string; next_value: number } | undefined;
+  // Sans garde, une séquence absente levait un `TypeError` brut (lecture de
+  // `row.prefix` sur `undefined`) — message technique, pas un refus FR (R5).
+  // Miroir de `allocateReturnNumber`, qui refuse déjà proprement.
+  if (!row) throw new Error("Séquence de numérotation introuvable.");
   const year = Number(String(now).slice(0, 4)) || new Date().getFullYear();
   const num = formatProformaNumber(prefix || row.prefix, year, row.next_value);
   db.prepare(
@@ -186,6 +195,7 @@ export function createProformaAtomic(args: {
     const { prepared, subtotal } = prepareProformaLines(db, args.lines);
     if (args.discountMinor > subtotal) throw new Error("La remise dépasse le sous-total.");
     const total = subtotal - args.discountMinor + args.deliveryMinor;
+    assertTotalMinor(total, "Total du devis invalide.");
     const number = allocateNumber("PRO", "proforma", args.now);
     const r = db
       .prepare(
@@ -242,8 +252,13 @@ export function createProformaAtomic(args: {
         db.prepare(
           `UPDATE number_sequences SET next_value = next_value + 1, updated_at = ? WHERE sequence_key = 'proforma'`,
         ).run(args.now);
-      } catch {
-        /* best-effort */
+      } catch (err) {
+        // Best-effort ASSUMÉ, mais pas muet : sans avance de la séquence, le
+        // rejoue ci-dessous retombait sur le MÊME numéro et l'échec suivant
+        // était illisible en journal.
+        log("ERROR", "proformas", "sequence.bump_failed", {
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
       return (tx as unknown as () => { id: number; number: string })();
     }
@@ -434,6 +449,7 @@ export function updateProformaAtomic(args: {
     const { prepared, subtotal } = prepareProformaLines(db, args.lines);
     if (args.discountMinor > subtotal) throw new Error("La remise dépasse le sous-total.");
     const total = subtotal - args.discountMinor + args.deliveryMinor;
+    assertTotalMinor(total, "Total du devis invalide.");
     db.prepare(
       `UPDATE proforma_invoices SET customer_id = ?, subtotal_minor = ?, discount_amount_minor = ?, delivery_fee_minor = ?, total_minor = ?, due_date = ?, notes = ?, terms = ?, updated_at = ? WHERE id = ?`,
     ).run(
@@ -566,6 +582,22 @@ export function convertProformaToSaleAtomic(args: {
       unit_code: string | null;
     }[];
     if (items.length === 0) throw new Error("Proforma sans lignes.");
+    // Coûts de référence lus en UNE requête : la conversion faisait un
+    // `SELECT purchase_price_minor` PAR ligne de devis (N+1, même antisèche que
+    // W8 J-01 corrigé à la création de vente).
+    const purchaseByProduct = new Map<number, number>();
+    const priceIds = [
+      ...new Set(items.map((it) => it.product_id).filter((id): id is number => id !== null)),
+    ];
+    if (priceIds.length > 0) {
+      const placeholders = priceIds.map(() => "?").join(",");
+      const priceRows = db
+        .prepare(`SELECT id, purchase_price_minor FROM products WHERE id IN (${placeholders})`)
+        .all(...priceIds) as { id: number; purchase_price_minor: number }[];
+      for (const r of priceRows) {
+        purchaseByProduct.set(Number(r.id), Number(r.purchase_price_minor));
+      }
+    }
     const subtotal = Number(pro["subtotal_minor"]);
     const discount = Number(pro["discount_amount_minor"]);
     const delivery = Number(pro["delivery_fee_minor"]);
@@ -573,18 +605,6 @@ export function convertProformaToSaleAtomic(args: {
     if (args.amountPaidMinor > total) throw new Error("Le montant payé dépasse le total.");
     const remaining = total - args.amountPaidMinor;
     const status = remaining === 0 ? "paid" : args.amountPaidMinor === 0 ? "unpaid" : "partial";
-    const settings = { allowNegativeStock: false };
-    try {
-      const s = db.prepare(`SELECT value_json FROM app_settings WHERE key = 'inventory'`).get() as
-        | { value_json: string }
-        | undefined;
-      if (s)
-        settings.allowNegativeStock =
-          (JSON.parse(s.value_json) as { allowNegativeStock?: boolean }).allowNegativeStock ===
-          true;
-    } catch {
-      /* défaut */
-    }
     const res = createSaleAtomic({
       operationId: args.operationId,
       uuid: randomUUID(),
@@ -624,15 +644,7 @@ export function convertProformaToSaleAtomic(args: {
         // FIFO réel de la ligne). Pour un carton, la ligne porte le coût du
         // carton ; le fallback serveur le ramène par pièce.
         const purchasePerBase =
-          it.product_id == null
-            ? 0
-            : Number(
-                (
-                  db
-                    .prepare(`SELECT purchase_price_minor FROM products WHERE id = ?`)
-                    .get(it.product_id) as { purchase_price_minor: number } | undefined
-                )?.purchase_price_minor ?? 0,
-              );
+          it.product_id == null ? 0 : (purchaseByProduct.get(Number(it.product_id)) ?? 0);
         return {
           productId: it.product_id,
           productName: it.product_name_snapshot,
@@ -649,7 +661,12 @@ export function convertProformaToSaleAtomic(args: {
       }),
       lineTotals: items.map((it) => it.line_total_minor),
       now: args.now,
-      allowNegativeStock: settings.allowNegativeStock,
+      // Stock négatif interdit par la base (trigger 0037) et réglage
+      // `inventory.allowNegativeStock` FIGÉ à false depuis la session 38 (caisse :
+      // registry.sales.ts, écran Paramètres). La conversion en était le dernier
+      // lecteur, avec un `catch {}` muet : un `true` hérité en base aurait ouvert
+      // le stock négatif par le seul chemin devis → vente.
+      allowNegativeStock: false,
       // Le devis est une snapshot validée : un changement de tarif carton
       // depuis la création ne doit pas bloquer la conversion ni son total.
       trustedPackagingSnapshot: true,

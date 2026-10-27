@@ -5,6 +5,7 @@ import { IPC_CHANNELS } from "./channels";
 import { getDb } from "../database/sqlite.service";
 import { requireLicensedFeature, type LicenseServiceDeps } from "../licensing/license-service";
 import { log } from "../services/logger";
+import { assertTotalMinor, priceLine } from "./money-guard";
 
 export function enforceCreditGates(
   channel: string,
@@ -49,20 +50,26 @@ export function enforceCreditGates(
   if (channel === IPC_CHANNELS["proformas.convert"]) {
     const cc = input as { proformaId?: unknown; amountPaidMinor?: unknown };
     if (typeof cc.proformaId === "number" && typeof cc.amountPaidMinor === "number") {
+      // A1 (audit 2026-10-27) : la lecture etait « best effort » (log WARN puis
+      // on continuait) ⇒ une base verrouilee ouvrait la vente a credit SANS
+      // debt-management. Meme contrat que returns.create ci-dessus : sans
+      // lecture fiable, on refuse (fail-closed).
+      let ptotal: number | null;
       try {
         const prow = getDb()
           .prepare(`SELECT total_minor FROM proforma_invoices WHERE id = ?`)
           .get(cc.proformaId) as { total_minor: number } | undefined;
-        const ptotal = typeof prow?.total_minor === "number" ? prow.total_minor : null;
-        if (ptotal != null && ptotal > 0 && cc.amountPaidMinor < ptotal) {
-          requireLicensedFeature(deps, "debt-management");
-          if (cc.amountPaidMinor > 0) requireLicensedFeature(deps, "partial-payments");
-        }
+        ptotal = typeof prow?.total_minor === "number" ? prow.total_minor : null;
       } catch (err) {
-        log("WARN", "ipc", "license.gate_best_effort", {
+        log("ERROR", "ipc", "license.gate_proforma_total_read_failed", {
           channel,
           error: err instanceof Error ? err.message : String(err),
         });
+        throw new Error("Vérification de la licence impossible : réessayez.");
+      }
+      if (ptotal != null && ptotal > 0 && cc.amountPaidMinor < ptotal) {
+        requireLicensedFeature(deps, "debt-management");
+        if (cc.amountPaidMinor > 0) requireLicensedFeature(deps, "partial-payments");
       }
     }
   }
@@ -83,23 +90,24 @@ export function enforceCreditGates(
     const paid = typeof sale.amountPaidMinor === "number" ? sale.amountPaidMinor : null;
     let total: number | null = typeof sale.totalMinor === "number" ? sale.totalMinor : null;
     if (total == null && Array.isArray(sale.lines)) {
+      // A2 (audit 2026-10-27) : la porte utilise la RÈGLE UNIQUE du main
+      // (`priceLine`, money-guard) au lieu d'un `Math.round(prix × qté)` maison.
+      // Mêmes gardes d'entier monétaire, même tolérance du mode « Montant »
+      // (ADR-114) : le total de porte ne peut plus diverger du total que le
+      // handler écrit en base. Une ligne illisible LÈVE (fail-closed) au lieu
+      // de laisser la porte sans total.
       let charged = 0;
-      let valid = true;
       for (const l of sale.lines) {
-        if (typeof l.unitPriceMinor !== "number" || typeof l.quantity !== "number") {
-          valid = false;
-          break;
-        }
-        // Mode « Montant » (ADR-114) : le montant facturé est celui SAISI.
-        charged +=
-          typeof l.billedTotalMinor === "number"
-            ? l.billedTotalMinor
-            : Math.round(l.unitPriceMinor * l.quantity);
+        charged += priceLine({
+          unitPriceMinor: Number(l.unitPriceMinor),
+          originalUnitPriceMinor: Number(l.originalUnitPriceMinor ?? l.unitPriceMinor),
+          quantity: Number(l.quantity),
+          billedTotalMinor: typeof l.billedTotalMinor === "number" ? l.billedTotalMinor : null,
+        }).charged;
       }
-      if (valid) {
-        const delivery = typeof sale.deliveryFeeMinor === "number" ? sale.deliveryFeeMinor : 0;
-        total = charged + delivery;
-      }
+      const delivery = typeof sale.deliveryFeeMinor === "number" ? sale.deliveryFeeMinor : 0;
+      total = charged + delivery;
+      assertTotalMinor(total, "Total de vente invalide.");
     }
     if (paid != null && total != null && total > 0 && paid < total) {
       requireLicensedFeature(deps, "debt-management");
