@@ -696,7 +696,7 @@ export function PrintTemplatesScreen({ notify }: { notify: Notify }): React.JSX.
     <div className="space-y-4">
       <PageHeader
         title="Studio d'impression"
-        module="MODÈLES SQLITE · APERÇU DÉMO · N&B"
+        module="Impression · modèles et aperçu"
         period="Chaque document a son modèle actif — aperçu sur données démo, sans valeur fiscale."
         actions={
           <Badge tone={dirty ? "amber" : "green"}>

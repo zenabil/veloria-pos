@@ -2,7 +2,7 @@
 // En-tête + 4 cartes stats + barre d'outils + table serveur + pagination +
 // tiroir détail + paiement + échéance.
 import { useEffect, useRef, useState } from "react";
-import { Download, Eye, HandCoins, Pencil, SlidersHorizontal, X } from "lucide-react";
+import { Download, Eye, HandCoins, Pencil, X } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { formatDzd } from "@domain/money/money.ts";
 import { downloadCsv } from "@shared/export/csv.ts";
@@ -12,13 +12,13 @@ import {
   Button,
   Card,
   EmptyState,
-  Kpi,
   PageHeader,
   Pager,
   RowAction,
   SearchField,
   Select,
-  TextInput,
+  StatsStrip,
+  Toolbar,
   cn,
 } from "@shared/ui/primitives.tsx";
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
@@ -74,7 +74,6 @@ export function DebtsScreen({ notify }: { notify: Notify }): React.JSX.Element {
   const [dueFilter, setDueFilter] = useState<DebtDueFilter>("all");
   const [settleFilter, setSettleFilter] = useState<DebtSettleFilter>("all");
   const [sort, setSort] = useState<DebtSort>("due_asc");
-  const [toolbarOpen, setToolbarOpen] = useState(true);
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState<DebtRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -322,173 +321,111 @@ export function DebtsScreen({ notify }: { notify: Notify }): React.JSX.Element {
       {/* En-tête Stitch : Dettes & Créances Globales · SYNCHRONISATION TERMINÉE */}
       <PageHeader
         title="Dettes et créances"
-        module="Registre Consolidé des Engagements"
-        period={`Registre consolidé local · ${total} dette(s) · créances ${formatDzd(stats.customerDebtMinor)} · dettes fourn. ${formatDzd(stats.supplierDebtMinor)} · ${stats.settleOverdue} dépassé(s)`}
+        module="Dettes · engagements clients et fournisseurs"
+        period={`${total} dette(s) · créances ${formatDzd(stats.customerDebtMinor)} · dettes fournisseurs ${formatDzd(stats.supplierDebtMinor)} · ${stats.settleOverdue} dépassé(s)`}
         actions={
-          <>
-            <SearchField
-              value={query}
-              onChange={onQueryChange}
-              placeholder="Rechercher… [F3]"
-              ariaLabel="Rechercher une dette"
-              inputRef={searchRef}
-              className="w-full max-w-xs"
-            />
-            {/* P4 : les selects Statut/Règlement vivent dans la barre d'outils
-                (étiquetés) — fin du doublon d'en-tête. */}
-            <Button
-              variant="secondary"
-              onClick={() => setToolbarOpen((o) => !o)}
-              aria-expanded={toolbarOpen}
-              title="Afficher / masquer les filtres"
-            >
-              <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
-            </Button>
-          </>
+          <SearchField
+            value={query}
+            onChange={onQueryChange}
+            placeholder="Rechercher… [F3]"
+            ariaLabel="Rechercher une dette"
+            inputRef={searchRef}
+            className="w-full sm:w-64"
+          />
         }
       />
 
-      {/* Cartes héros Stitch : créances clients · dettes fournisseurs · recouvrement */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi
-          label="Créances clients"
-          value={formatDzd(stats.customerDebtMinor)}
-          sub={`${stats.debtors} débiteur(s)`}
-          accent="#fbbf24"
-        />
-        <Kpi
-          label="Dettes fournisseurs"
-          value={formatDzd(stats.supplierDebtMinor)}
-          sub="À payer"
-          accent="#8ed0ff"
-        />
-        <Kpi
-          label="Règlements Dépassés"
-          value={String(stats.settleOverdue)}
-          sub="Jour mensuel passé"
-          accent="#ffb4ab"
-        />
-        <Kpi
-          label="Règlements Proches (≤ 7j)"
-          value={String(stats.settleSoon)}
-          sub="À relancer"
-          accent="#4edea3"
-        />
-      </div>
+      <StatsStrip
+        items={[
+          {
+            label: "Créances clients",
+            value: formatDzd(stats.customerDebtMinor),
+            sub: `${stats.debtors} débiteur(s)`,
+            tone: stats.customerDebtMinor > 0 ? "amber" : "default",
+          },
+          {
+            label: "Dettes fournisseurs",
+            value: formatDzd(stats.supplierDebtMinor),
+            sub: "À payer",
+            tone: stats.supplierDebtMinor > 0 ? "blue" : "default",
+          },
+          {
+            label: "Règlements dépassés",
+            value: String(stats.settleOverdue),
+            sub: "Jour mensuel passé",
+            tone: stats.settleOverdue > 0 ? "red" : "default",
+          },
+          {
+            label: "Règlements proches (≤ 7 j)",
+            value: String(stats.settleSoon),
+            sub: "À relancer",
+            tone: stats.settleSoon > 0 ? "green" : "default",
+          },
+        ]}
+      />
 
-      {/* Barre d'outils */}
-      {toolbarOpen ? (
-        <Card className="flex flex-wrap items-end gap-3 p-4">
-          <div className="min-w-[220px] flex-1">
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="debts-search"
-            >
-              Recherche
-            </label>
-            <TextInput
-              id="debts-search"
-              value={query}
-              onChange={(e) => onQueryChange(e.target.value)}
-              placeholder="Référence, nom, téléphone…"
-              aria-label="Recherche dettes"
-            />
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="debts-type"
-            >
-              Type
-            </label>
-            <Select
-              id="debts-type"
-              value={typeFilter}
-              onChange={(e) => changeType(e.target.value as DebtTypeFilter)}
-              aria-label="Filtre type"
-            >
-              <option value="all">Toutes</option>
-              <option value="customer">Clients</option>
-              <option value="supplier">Fournisseurs</option>
-            </Select>
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="debts-status"
-            >
-              Statut
-            </label>
-            <Select
-              id="debts-status"
-              value={statusFilter}
-              onChange={(e) => changeStatus(e.target.value as DebtStatusFilter)}
-              aria-label="Filtre statut"
-            >
-              <option value="all">Tous</option>
-              <option value="overdue">En retard</option>
-              <option value="due">À régler</option>
-            </Select>
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="debts-due"
-            >
-              Échéance
-            </label>
-            <Select
-              id="debts-due"
-              value={dueFilter}
-              onChange={(e) => changeDue(e.target.value as DebtDueFilter)}
-              aria-label="Filtre échéance"
-            >
-              <option value="all">Toutes</option>
-              <option value="today">Aujourd'hui</option>
-              <option value="overdue">Dépassées</option>
-              <option value="upcoming">À venir</option>
-            </Select>
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="debts-settle"
-            >
-              Règlement mensuel
-            </label>
-            <Select
-              id="debts-settle"
-              value={settleFilter}
-              onChange={(e) => changeSettle(e.target.value as DebtSettleFilter)}
-              aria-label="Filtre règlement mensuel"
-            >
-              <option value="all">Tous</option>
-              <option value="watch">À surveiller</option>
-              <option value="overdue">Dépassé</option>
-              <option value="soon">Proche (≤ 7 j)</option>
-            </Select>
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="debts-sort"
-            >
-              Tri
-            </label>
-            <Select
-              id="debts-sort"
-              value={sort}
-              onChange={(e) => changeSort(e.target.value as DebtSort)}
-              aria-label="Tri"
-            >
-              <option value="due_asc">Échéance proche</option>
-              <option value="remaining_desc">Reste décroissant</option>
-              <option value="date_desc">Date décroissante</option>
-            </Select>
-          </div>
-          <Button variant="ghost" onClick={resetFilters} title="Réinitialiser les filtres">
-            <X size={15} aria-hidden="true" /> Réinitialiser
-          </Button>
+      <Toolbar>
+        <Select
+          id="debts-type"
+          value={typeFilter}
+          onChange={(e) => changeType(e.target.value as DebtTypeFilter)}
+          aria-label="Filtre type"
+          className="w-auto"
+        >
+          <option value="all">Tous les types</option>
+          <option value="customer">Clients</option>
+          <option value="supplier">Fournisseurs</option>
+        </Select>
+        <Select
+          id="debts-status"
+          value={statusFilter}
+          onChange={(e) => changeStatus(e.target.value as DebtStatusFilter)}
+          aria-label="Filtre statut"
+          className="w-auto"
+        >
+          <option value="all">Tous les statuts</option>
+          <option value="overdue">En retard</option>
+          <option value="due">À régler</option>
+        </Select>
+        <Select
+          id="debts-due"
+          value={dueFilter}
+          onChange={(e) => changeDue(e.target.value as DebtDueFilter)}
+          aria-label="Filtre échéance"
+          className="w-auto"
+        >
+          <option value="all">Toutes échéances</option>
+          <option value="today">Aujourd'hui</option>
+          <option value="overdue">Dépassées</option>
+          <option value="upcoming">À venir</option>
+        </Select>
+        <Select
+          id="debts-settle"
+          value={settleFilter}
+          onChange={(e) => changeSettle(e.target.value as DebtSettleFilter)}
+          aria-label="Filtre règlement mensuel"
+          className="w-auto"
+        >
+          <option value="all">Tous les règlements</option>
+          <option value="watch">À surveiller</option>
+          <option value="overdue">Dépassé</option>
+          <option value="soon">Proche (≤ 7 j)</option>
+        </Select>
+        <Select
+          id="debts-sort"
+          value={sort}
+          onChange={(e) => changeSort(e.target.value as DebtSort)}
+          aria-label="Tri"
+          className="w-auto"
+        >
+          <option value="due_asc">Tri : échéance proche</option>
+          <option value="remaining_desc">Tri : reste décroissant</option>
+          <option value="date_desc">Tri : date décroissante</option>
+        </Select>
+        <Button variant="ghost" onClick={resetFilters} title="Réinitialiser les filtres">
+          <X size={15} aria-hidden="true" /> Réinitialiser
+        </Button>
+        <div className="ml-auto">
           <Button
             variant="ghost"
             onClick={exportAll}
@@ -497,8 +434,8 @@ export function DebtsScreen({ notify }: { notify: Notify }): React.JSX.Element {
           >
             <Download size={15} aria-hidden="true" /> Tout exporter
           </Button>
-        </Card>
-      ) : null}
+        </div>
+      </Toolbar>
 
       {/* Sélection multiple → export */}
       {selection.size > 0 ? (

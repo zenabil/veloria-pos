@@ -2,7 +2,7 @@
 // En-tête (recherche, période, export) + 4 cartes stats + barre d'outils +
 // table serveur + pagination + tiroir détail + export CSV.
 import { useEffect, useRef, useState } from "react";
-import { Download, Eye, SlidersHorizontal, X } from "lucide-react";
+import { Download, Eye, Printer, X } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { formatDzd } from "@domain/money/money.ts";
 import { downloadCsv } from "@shared/export/csv.ts";
@@ -13,13 +13,14 @@ import {
   Button,
   Card,
   EmptyState,
-  Kpi,
   PageHeader,
   Pager,
   RowAction,
   SearchField,
   Select,
+  StatsStrip,
   TextInput,
+  Toolbar,
   cn,
 } from "@shared/ui/primitives.tsx";
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
@@ -65,7 +66,6 @@ export function HistoryScreen({
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [sort, setSort] = useState<HistorySort>("date_desc");
-  const [toolbarOpen, setToolbarOpen] = useState(true);
   const [rows, setRows] = useState<HistoryRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -349,162 +349,124 @@ export function HistoryScreen({
       {/* En-tête Stitch : Historique des Ventes & Transactions · JOURNAL FIGÉ */}
       <PageHeader
         title="Historique des ventes et transactions"
-        module="Journal des opérations · en temps réel"
+        module="Historique · journal des opérations"
         period={`${total} opération(s) · toutes les activités de la caisse · session active`}
         actions={
-          <>
-            <SearchField
-              value={query}
-              onChange={onQueryChange}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  void searchAndOpen(e.currentTarget.value);
-                }
-              }}
-              placeholder="N° Ticket, Client, Réf, Code-barre… [F3]"
-              ariaLabel="Rechercher dans l'historique (ticket, client, référence ou code-barres)"
-              inputRef={searchRef}
-              className="w-full max-w-xs"
-              inputClassName="pl-9 font-mono"
-            />
-            {/* P4 : les dates Du/Au vivent dans la barre d'outils (étiquetées) —
-                fin du doublon d'en-tête. */}
-            <Button
-              variant="secondary"
-              onClick={() => setToolbarOpen((o) => !o)}
-              aria-expanded={toolbarOpen}
-              title="Afficher / masquer les filtres"
-            >
-              <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => void reprintLast()}
-              disabled={rows.length === 0}
-              title="Réimprimer le dernier ticket [F6]"
-            >
-              Réimprimer le dernier ticket
-            </Button>
-            <Button onClick={() => void exportAll()} disabled={exporting} title="Exporter en CSV">
-              <Download size={16} aria-hidden="true" />{" "}
-              {exporting ? "Export en cours…" : "Exporter tout (CSV)"}
-            </Button>
-          </>
+          <SearchField
+            value={query}
+            onChange={onQueryChange}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void searchAndOpen(e.currentTarget.value);
+              }
+            }}
+            placeholder="N° Ticket, Client, Réf, Code-barre… [F3]"
+            ariaLabel="Rechercher dans l'historique (ticket, client, référence ou code-barres)"
+            inputRef={searchRef}
+            className="w-full sm:w-64"
+            inputClassName="pl-9 font-mono"
+          />
         }
       />
 
-      {/* Cartes statistiques Stitch */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi
-          label="Total des ventes (brut)"
-          value={formatDzd(stats.salesAmountMinor)}
-          sub={`${stats.salesCount} ticket(s)`}
-          accent="#fbbf24"
-        />
-        <Kpi
-          label="Opérations"
-          value={String(stats.totalOperations)}
-          sub="Toutes activités"
-          accent="#cde8ff"
-        />
-        <Kpi
-          label="Achats"
-          value={formatDzd(stats.purchasesAmountMinor)}
-          sub={`${stats.purchasesCount} entrée(s)`}
-          accent="#8ed0ff"
-        />
-        <Kpi
-          label="Répartition des paiements"
-          value={formatDzd(stats.paymentsAmountMinor)}
-          sub="Encaissé + payé"
-          accent="#4edea3"
-        />
-      </div>
+      <StatsStrip
+        items={[
+          {
+            label: "Total des ventes (brut)",
+            value: formatDzd(stats.salesAmountMinor),
+            sub: `${stats.salesCount} ticket(s)`,
+          },
+          {
+            label: "Opérations",
+            value: String(stats.totalOperations),
+            sub: "Toutes activités",
+          },
+          {
+            label: "Achats",
+            value: formatDzd(stats.purchasesAmountMinor),
+            sub: `${stats.purchasesCount} entrée(s)`,
+            tone: stats.purchasesAmountMinor > 0 ? "blue" : "default",
+          },
+          {
+            label: "Répartition des paiements",
+            value: formatDzd(stats.paymentsAmountMinor),
+            sub: "Encaissé + payé",
+            tone: stats.paymentsAmountMinor > 0 ? "green" : "default",
+          },
+        ]}
+      />
 
-      {/* Barre d'outils : un SEUL champ de recherche (en-tête, F3) — fin du
-          doublon name/toolbar sur le même état `query`. */}
-      {toolbarOpen ? (
-        <Card className="flex flex-wrap items-end gap-3 p-4">
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="history-op"
-            >
-              Type d'opération
-            </label>
-            <Select
-              id="history-op"
-              value={op}
-              onChange={(e) => changeOp(e.target.value as HistoryOpFilter)}
-              aria-label="Filtre type"
-            >
-              {OP_FILTERS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="history-from"
-            >
-              Du
-            </label>
-            <TextInput
-              id="history-from"
-              type="date"
-              value={from}
-              onChange={(e) => changeRange(e.target.value, to)}
-              aria-label="Du"
-            />
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="history-to"
-            >
-              Au
-            </label>
-            <TextInput
-              id="history-to"
-              type="date"
-              value={to}
-              onChange={(e) => changeRange(from, e.target.value)}
-              aria-label="Au"
-            />
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="history-sort"
-            >
-              Tri
-            </label>
-            <Select
-              id="history-sort"
-              value={sort}
-              onChange={(e) => {
-                const s = e.target.value as HistorySort;
-                setSort(s);
-                setPage(1);
-                void load(query, op, from, to, s, 1);
-              }}
-              aria-label="Tri"
-            >
-              <option value="date_desc">Date décroissante</option>
-              <option value="date_asc">Date croissante</option>
-              <option value="amount_desc">Montant décroissant</option>
-              <option value="amount_asc">Montant croissant</option>
-            </Select>
-          </div>
-          <Button variant="ghost" onClick={resetFilters} title="Réinitialiser les filtres">
-            <X size={15} aria-hidden="true" /> Réinitialiser
+      <Toolbar>
+        <Select
+          id="history-op"
+          value={op}
+          onChange={(e) => changeOp(e.target.value as HistoryOpFilter)}
+          aria-label="Filtre type"
+          className="w-auto min-w-[170px]"
+        >
+          {OP_FILTERS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </Select>
+        <TextInput
+          id="history-from"
+          type="date"
+          value={from}
+          onChange={(e) => changeRange(e.target.value, to)}
+          aria-label="Du"
+          className="w-auto"
+        />
+        <TextInput
+          id="history-to"
+          type="date"
+          value={to}
+          onChange={(e) => changeRange(from, e.target.value)}
+          aria-label="Au"
+          className="w-auto"
+        />
+        <Select
+          id="history-sort"
+          value={sort}
+          onChange={(e) => {
+            const s = e.target.value as HistorySort;
+            setSort(s);
+            setPage(1);
+            void load(query, op, from, to, s, 1);
+          }}
+          aria-label="Tri"
+          className="w-auto"
+        >
+          <option value="date_desc">Tri : date décroissante</option>
+          <option value="date_asc">Tri : date croissante</option>
+          <option value="amount_desc">Tri : montant décroissant</option>
+          <option value="amount_asc">Tri : montant croissant</option>
+        </Select>
+        <Button variant="ghost" onClick={resetFilters} title="Réinitialiser les filtres">
+          <X size={15} aria-hidden="true" /> Réinitialiser
+        </Button>
+        <div className="ml-auto flex flex-wrap items-center gap-1">
+          <Button
+            variant="ghost"
+            onClick={() => void reprintLast()}
+            disabled={rows.length === 0}
+            title="Réimprimer le dernier ticket [F6]"
+          >
+            <Printer size={15} aria-hidden="true" /> Réimprimer
           </Button>
-        </Card>
-      ) : null}
+          <Button
+            variant="ghost"
+            onClick={() => void exportAll()}
+            disabled={exporting}
+            title="Exporter en CSV"
+          >
+            <Download size={15} aria-hidden="true" />
+            {exporting ? "Export en cours…" : "Exporter tout (CSV)"}
+          </Button>
+        </div>
+      </Toolbar>
 
       {/* Sélection multiple → export */}
       {selection.size > 0 ? (

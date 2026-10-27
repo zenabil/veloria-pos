@@ -36,7 +36,7 @@ test("code-barres : saisie minuscule → majuscules et recherche insensible", as
   await page.getByRole("button", { name: "Créer le produit" }).click();
   await readSuccessToast(page, /créé/);
 
-  const search = page.getByLabel("Recherche catalogue", { exact: true });
+  const search = page.getByLabel("Rechercher un produit", { exact: true });
   await search.fill("abc-42x");
   await expect(search).toHaveValue("ABC-42X");
   await expect(page.getByRole("row", { name: new RegExp(name) })).toBeVisible();

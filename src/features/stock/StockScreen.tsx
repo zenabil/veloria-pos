@@ -9,7 +9,6 @@ import {
   History,
   PackagePlus,
   ReceiptText,
-  SlidersHorizontal,
   Wrench,
   X,
 } from "lucide-react";
@@ -21,13 +20,13 @@ import {
   Button,
   Card,
   EmptyState,
-  Kpi,
   PageHeader,
   Pager,
   RowAction,
   SearchField,
   Select,
-  TextInput,
+  StatsStrip,
+  Toolbar,
   cn,
 } from "@shared/ui/primitives.tsx";
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
@@ -86,7 +85,6 @@ export function StockScreen({ notify }: { notify: Notify }): React.JSX.Element {
   const [statusFilter, setStatusFilter] = useState<StockStatusFilter>("all");
   const [movementFilter, setMovementFilter] = useState<StockMovementFilter>("all");
   const [sort, setSort] = useState<StockSort>("name_asc");
-  const [toolbarOpen, setToolbarOpen] = useState(true);
   // P4 : menu "Actions stock" (Factures/Correction/OCR regroupés).
   const [actionsOpen, setActionsOpen] = useState(false);
   const [page, setPage] = useState(1);
@@ -306,7 +304,7 @@ export function StockScreen({ notify }: { notify: Notify }): React.JSX.Element {
       {/* En-tête Stitch : Gestion des Stocks & Réceptions · Dépôt Central */}
       <PageHeader
         title="Gestion des stocks et réceptions"
-        module="Dépôt central"
+        module="Stock · dépôt central"
         period={`${total} référence(s) tracée(s) · Valeur globale ${formatDzd(stats.value)} · ${stats.low} sous seuil critique`}
         actions={
           <>
@@ -316,16 +314,8 @@ export function StockScreen({ notify }: { notify: Notify }): React.JSX.Element {
               placeholder="Rechercher… [F3]"
               ariaLabel="Rechercher un produit en stock"
               inputRef={searchRef}
-              className="w-full max-w-xs"
+              className="w-full sm:w-64"
             />
-            <Button
-              variant="secondary"
-              onClick={() => setToolbarOpen((o) => !o)}
-              aria-expanded={toolbarOpen}
-              title="Afficher / masquer les filtres"
-            >
-              <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
-            </Button>
             {/* P4 : actions secondaires regroupées (la Réception reste directe). */}
             <div className="relative">
               <Button
@@ -400,131 +390,90 @@ export function StockScreen({ notify }: { notify: Notify }): React.JSX.Element {
         }
       />
 
-      {/* Cartes statistiques Stitch */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi
-          label="Valeur du Stock (FIFO)"
-          value={formatDzd(stats.value)}
-          sub="Valeur globale (achat)"
-          accent="#fbbf24"
-        />
-        <Kpi
-          label="Quantité totale"
-          value={String(stats.qty)}
-          sub="Toutes unités"
-          accent="#4edea3"
-        />
-        <Kpi label="Stock Bas" value={String(stats.low)} sub="Sous le seuil" accent="#8ed0ff" />
-        <Kpi label="Ruptures" value={String(stats.out)} sub="Quantité ≤ 0" accent="#ffb4ab" />
-      </div>
+      <StatsStrip
+        items={[
+          {
+            label: "Valeur du stock (FIFO)",
+            value: formatDzd(stats.value),
+            sub: "Valeur d'achat",
+          },
+          { label: "Quantité totale", value: String(stats.qty), sub: "Toutes unités" },
+          {
+            label: "Stock bas",
+            value: String(stats.low),
+            sub: "Sous le seuil",
+            tone: stats.low > 0 ? "amber" : "default",
+          },
+          {
+            label: "Ruptures",
+            value: String(stats.out),
+            sub: "Quantité ≤ 0",
+            tone: stats.out > 0 ? "red" : "default",
+          },
+        ]}
+      />
 
-      {/* Barre d'outils */}
-      {toolbarOpen ? (
-        <Card className="flex flex-wrap items-end gap-3 p-4">
-          <div className="min-w-[220px] flex-1">
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="stock-search"
-            >
-              Recherche
-            </label>
-            <TextInput
-              id="stock-search"
-              value={query}
-              onChange={(e) => onQueryChange(e.target.value)}
-              placeholder="Nom ou code-barres…"
-              aria-label="Recherche stock"
-            />
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="stock-category"
-            >
-              Catégorie
-            </label>
-            <Select
-              id="stock-category"
-              value={categoryId == null ? "" : String(categoryId)}
-              onChange={(e) => changeCategory(e.target.value)}
-              aria-label="Filtre catégorie"
-            >
-              <option value="">Toutes</option>
-              {categories.map((c) => (
-                <option key={c.id} value={String(c.id)}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="stock-status"
-            >
-              Statut
-            </label>
-            <Select
-              id="stock-status"
-              value={statusFilter}
-              onChange={(e) => changeStatus(e.target.value as StockStatusFilter)}
-              aria-label="Filtre statut"
-            >
-              <option value="all">Tous</option>
-              <option value="in_stock">En stock</option>
-              <option value="low_stock">Stock bas</option>
-              <option value="out_of_stock">Rupture</option>
-            </Select>
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="stock-movement"
-            >
-              Mouvement
-            </label>
-            <Select
-              id="stock-movement"
-              value={movementFilter}
-              onChange={(e) => changeMovement(e.target.value as StockMovementFilter)}
-              aria-label="Filtre mouvement"
-            >
-              <option value="all">Tous</option>
-              <option value="sale_out">Ventes</option>
-              <option value="intake_in">Entrées</option>
-              <option value="adjust_in">Ajustements +</option>
-              <option value="adjust_out">Ajustements −</option>
-              <option value="return_in">Retours</option>
-              <option value="damage_out">Casse</option>
-              <option value="sale_cancel_in">Annulations</option>
-            </Select>
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="stock-sort"
-            >
-              Tri
-            </label>
-            <Select
-              id="stock-sort"
-              value={sort}
-              onChange={(e) => changeSort(e.target.value as StockSort)}
-              aria-label="Tri"
-            >
-              <option value="name_asc">Nom A → Z</option>
-              <option value="name_desc">Nom Z → A</option>
-              <option value="qty_asc">Quantité croissante</option>
-              <option value="qty_desc">Quantité décroissante</option>
-              <option value="value_desc">Valeur décroissante</option>
-              <option value="recent_desc">Mouvements récents</option>
-            </Select>
-          </div>
-          <Button variant="ghost" onClick={resetFilters} title="Réinitialiser les filtres">
-            <X size={15} aria-hidden="true" /> Réinitialiser
-          </Button>
-        </Card>
-      ) : null}
+      <Toolbar>
+        <Select
+          id="stock-category"
+          value={categoryId == null ? "" : String(categoryId)}
+          onChange={(e) => changeCategory(e.target.value)}
+          aria-label="Filtre catégorie"
+          className="w-auto min-w-[150px]"
+        >
+          <option value="">Toutes catégories</option>
+          {categories.map((c) => (
+            <option key={c.id} value={String(c.id)}>
+              {c.name}
+            </option>
+          ))}
+        </Select>
+        <Select
+          id="stock-status"
+          value={statusFilter}
+          onChange={(e) => changeStatus(e.target.value as StockStatusFilter)}
+          aria-label="Filtre statut"
+          className="w-auto"
+        >
+          <option value="all">Tous les statuts</option>
+          <option value="in_stock">En stock</option>
+          <option value="low_stock">Stock bas</option>
+          <option value="out_of_stock">Rupture</option>
+        </Select>
+        <Select
+          id="stock-movement"
+          value={movementFilter}
+          onChange={(e) => changeMovement(e.target.value as StockMovementFilter)}
+          aria-label="Filtre mouvement"
+          className="w-auto"
+        >
+          <option value="all">Tous les mouvements</option>
+          <option value="sale_out">Ventes</option>
+          <option value="intake_in">Entrées</option>
+          <option value="adjust_in">Ajustements +</option>
+          <option value="adjust_out">Ajustements −</option>
+          <option value="return_in">Retours</option>
+          <option value="damage_out">Casse</option>
+          <option value="sale_cancel_in">Annulations</option>
+        </Select>
+        <Select
+          id="stock-sort"
+          value={sort}
+          onChange={(e) => changeSort(e.target.value as StockSort)}
+          aria-label="Tri"
+          className="w-auto"
+        >
+          <option value="name_asc">Tri : nom A → Z</option>
+          <option value="name_desc">Tri : nom Z → A</option>
+          <option value="qty_asc">Tri : quantité croissante</option>
+          <option value="qty_desc">Tri : quantité décroissante</option>
+          <option value="value_desc">Tri : valeur décroissante</option>
+          <option value="recent_desc">Tri : mouvements récents</option>
+        </Select>
+        <Button variant="ghost" onClick={resetFilters} title="Réinitialiser les filtres">
+          <X size={15} aria-hidden="true" /> Réinitialiser
+        </Button>
+      </Toolbar>
 
       {/* Sélection multiple → inventaire */}
       {selection.size > 0 ? (

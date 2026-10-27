@@ -332,7 +332,7 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
       {/* En-tête Stitch : Rapports & Statistiques · Module 12 · v3.8 */}
       <PageHeader
         title="Rapports et statistiques"
-        module="Module 12 · Analyse de performance"
+        module="Rapports · analyse de performance"
         period={
           summary
             ? `Analyse de performance · Exercice ${new Date().getUTCFullYear()} · Du ${formatDateFr(summary.from)} au ${formatDateFr(summary.to)} ${summary.weekly ? "· par semaine" : "· par jour"}`

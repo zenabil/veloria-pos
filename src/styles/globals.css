@@ -311,11 +311,38 @@ select {
 [data-theme="light"] .bg-\[\#1c2b3c\] {
   background-color: #efe9d6;
 }
+[data-theme="light"] .bg-\[\#273647\] {
+  background-color: #e6dfcc;
+}
+[data-theme="light"] .bg-\[\#101f31\] {
+  background-color: #ffffff;
+}
+/* Séparateurs des bandeaux de statistiques (gap-px sur fond clair). */
+[data-theme="light"] .bg-white\/\[0\.06\] {
+  background-color: rgba(20, 32, 46, 0.12);
+}
+[data-theme="light"] .text-white,
+[data-theme="light"] .text-slate-50 {
+  color: #14202e;
+}
 [data-theme="light"] .text-\[\#d4e4fa\] {
   color: #14202e;
 }
 [data-theme="light"] .text-\[\#d3c5ac\] {
   color: #5c5647;
+}
+[data-theme="light"] .text-\[\#c6bba6\] {
+  color: #3d4e63;
+}
+[data-theme="light"] .text-\[\#a99f8c\] {
+  color: #6b6250;
+}
+[data-theme="light"] .hover\:text-\[\#e8eef8\]:hover {
+  color: #14202e;
+}
+/* En-têtes de tableaux : bande distincte sur fond clair. */
+[data-theme="light"] main thead.sticky {
+  background-color: #f4efe3;
 }
 [data-theme="light"] .text-\[\#ffe1a7\] {
   color: #9a6206;
@@ -397,6 +424,15 @@ select {
 [data-theme="light"] .border-white\/\[0\.06\],
 [data-theme="light"] .border-white\/\[0\.07\] {
   border-color: rgba(20, 32, 46, 0.14);
+}
+[data-theme="light"] .border-white\/10,
+[data-theme="light"] .border-white\/15,
+[data-theme="light"] .border-white\/20,
+[data-theme="light"] .border-white\/25 {
+  border-color: rgba(20, 32, 46, 0.18);
+}
+[data-theme="light"] .hover\:border-white\/25:hover {
+  border-color: rgba(20, 32, 46, 0.32);
 }
 
 /* Navigation haute : indicateur actif (répond à la sélection seule). */

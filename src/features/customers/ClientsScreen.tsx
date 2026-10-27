@@ -2,18 +2,7 @@
 // En-tête + 4 cartes stats + barre d'outils + table enrichie (relevés) +
 // pagination + tiroir détail + formulaire + règlement.
 import { useEffect, useRef, useState } from "react";
-import {
-  Download,
-  Eye,
-  FileDown,
-  Pencil,
-  Plus,
-  RotateCcw,
-  SlidersHorizontal,
-  Trash2,
-  Upload,
-  X,
-} from "lucide-react";
+import { Download, Eye, FileDown, Pencil, Plus, RotateCcw, Trash2, Upload, X } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import {
   callChecked,
@@ -31,13 +20,13 @@ import {
   Button,
   Card,
   EmptyState,
-  Kpi,
   PageHeader,
   Pager,
   RowAction,
   SearchField,
   Select,
-  TextInput,
+  StatsStrip,
+  Toolbar,
   cn,
 } from "@shared/ui/primitives.tsx";
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
@@ -84,7 +73,6 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
   const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>("active");
   const [creditFilter, setCreditFilter] = useState<CreditFilter>("all");
   const [sort, setSort] = useState<CustomerSort>("name_asc");
-  const [toolbarOpen, setToolbarOpen] = useState(true);
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState<EnrichedCustomer[]>([]);
   const [total, setTotal] = useState(0);
@@ -487,8 +475,8 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
       {/* En-tête Stitch : Gestion des Clients · Registre Fédéré DZD */}
       <PageHeader
         title="Gestion des clients"
-        module="Registre Fédéré DZD"
-        period={`${total} fiche(s) ${filtersActive ? "affichée(s)" : "active(s)"} · ${stats.credit} compte(s) avec créance · ${formatDzd(stats.debt)} de dettes globales en cours`}
+        module="Clients · soldes et créances"
+        period={`${total} fiche(s) ${filtersActive ? "affichée(s)" : "active(s)"} · ${stats.credit} compte(s) avec créance · ${formatDzd(stats.debt)} de dettes en cours`}
         actions={
           <>
             <SearchField
@@ -497,43 +485,10 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
               placeholder="Rechercher… [F3]"
               ariaLabel="Rechercher un client"
               inputRef={searchRef}
-              className="w-full max-w-xs"
+              className="w-full sm:w-64"
             />
-            <Button
-              variant="secondary"
-              onClick={() => setToolbarOpen((o) => !o)}
-              aria-expanded={toolbarOpen}
-              title="Afficher / masquer les filtres"
-            >
-              <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
-            </Button>
             <Button onClick={openCreate} title="Créer un client">
               <Plus size={16} aria-hidden="true" /> Nouveau client
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => void exportCsv("report")}
-              disabled={bulkBusy}
-              title="Exporter tout le filtre en rapport CSV (lecture seule)"
-            >
-              <Download size={16} aria-hidden="true" />
-              {bulkBusy && exportKind === "report" ? bulkLabel : "Rapport CSV"}
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => void exportCsv("data")}
-              disabled={bulkBusy}
-              title="Exporter tout le filtre en CSV réimportable (prénom;nom;téléphone)"
-            >
-              <FileDown size={16} aria-hidden="true" />
-              {bulkBusy && exportKind === "data" ? bulkLabel : "Données CSV"}
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => csvInputRef.current?.click()}
-              title="Importer un fichier CSV (prénom;nom;téléphone)"
-            >
-              <Upload size={16} aria-hidden="true" /> Import CSV
             </Button>
             <input
               ref={csvInputRef}
@@ -551,114 +506,98 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
         }
       />
 
-      {/* Cartes statistiques Stitch */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi
-          label="Fiches Actives"
-          value={String(stats.total)}
-          sub="Registre fédéré"
-          accent="#fbbf24"
-        />
-        <Kpi
-          label="Clients avec Dette"
-          value={String(stats.credit)}
-          sub="Solde > 0"
-          accent="#ffb4ab"
-        />
-        <Kpi
-          label="Solde global clients"
-          value={formatDzd(stats.debt)}
-          sub="Comptes clients (avoirs inclus)"
-          accent="#cde8ff"
-        />
-        <Kpi
-          label="Encaissé 7 Derniers Jours"
-          value={formatDzd(stats.recent)}
-          sub="Paiements récents"
-          accent="#4edea3"
-        />
-      </div>
+      <StatsStrip
+        items={[
+          { label: "Fiches actives", value: String(stats.total), sub: "Registre clients" },
+          {
+            label: "Clients avec dette",
+            value: String(stats.credit),
+            sub: "Solde > 0",
+            tone: stats.credit > 0 ? "amber" : "default",
+          },
+          {
+            label: "Solde global clients",
+            value: formatDzd(stats.debt),
+            sub: "Avoirs inclus",
+            tone: stats.debt > 0 ? "red" : "default",
+          },
+          {
+            label: "Encaissé 7 jours",
+            value: formatDzd(stats.recent),
+            sub: "Paiements récents",
+            tone: stats.recent > 0 ? "green" : "default",
+          },
+        ]}
+      />
 
-      {/* Barre d'outils */}
-      {toolbarOpen ? (
-        <Card className="flex flex-wrap items-end gap-3 p-4">
-          <div className="min-w-[220px] flex-1">
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="clients-search"
-            >
-              Recherche
-            </label>
-            <TextInput
-              id="clients-search"
-              value={query}
-              onChange={(e) => onQueryChange(e.target.value)}
-              placeholder="Nom ou téléphone…"
-              aria-label="Recherche clients"
-            />
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="clients-status"
-            >
-              Statut
-            </label>
-            <Select
-              id="clients-status"
-              value={archiveFilter}
-              onChange={(e) => changeArchive(e.target.value as ArchiveFilter)}
-              aria-label="Filtre statut"
-            >
-              <option value="active">Actifs</option>
-              <option value="all">Tous (+ archivés)</option>
-              <option value="archived">Archivés</option>
-            </Select>
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="clients-credit"
-            >
-              Crédit
-            </label>
-            <Select
-              id="clients-credit"
-              value={creditFilter}
-              onChange={(e) => changeCredit(e.target.value as CreditFilter)}
-              aria-label="Filtre crédit"
-            >
-              <option value="all">Tous</option>
-              <option value="with_debt">Avec dette</option>
-              <option value="no_debt">Sans dette</option>
-              <option value="over_limit">Dépassement</option>
-            </Select>
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="clients-sort"
-            >
-              Tri
-            </label>
-            <Select
-              id="clients-sort"
-              value={sort}
-              onChange={(e) => changeSort(e.target.value as CustomerSort)}
-              aria-label="Tri"
-            >
-              <option value="name_asc">Nom A → Z</option>
-              <option value="name_desc">Nom Z → A</option>
-              <option value="debt_desc">Dette décroissante</option>
-              <option value="debt_asc">Dette croissante</option>
-              <option value="purchases_desc">Achats décroissants</option>
-            </Select>
-          </div>
-          <Button variant="ghost" onClick={resetFilters} title="Réinitialiser les filtres">
-            <X size={15} aria-hidden="true" /> Réinitialiser
+      <Toolbar>
+        <Select
+          id="clients-status"
+          value={archiveFilter}
+          onChange={(e) => changeArchive(e.target.value as ArchiveFilter)}
+          aria-label="Filtre statut"
+          className="w-auto"
+        >
+          <option value="active">Clients actifs</option>
+          <option value="all">Tous (+ archivés)</option>
+          <option value="archived">Archivés</option>
+        </Select>
+        <Select
+          id="clients-credit"
+          value={creditFilter}
+          onChange={(e) => changeCredit(e.target.value as CreditFilter)}
+          aria-label="Filtre crédit"
+          className="w-auto"
+        >
+          <option value="all">Tous les crédits</option>
+          <option value="with_debt">Avec dette</option>
+          <option value="no_debt">Sans dette</option>
+          <option value="over_limit">Dépassement</option>
+        </Select>
+        <Select
+          id="clients-sort"
+          value={sort}
+          onChange={(e) => changeSort(e.target.value as CustomerSort)}
+          aria-label="Tri"
+          className="w-auto"
+        >
+          <option value="name_asc">Tri : nom A → Z</option>
+          <option value="name_desc">Tri : nom Z → A</option>
+          <option value="debt_desc">Tri : dette décroissante</option>
+          <option value="debt_asc">Tri : dette croissante</option>
+          <option value="purchases_desc">Tri : achats décroissants</option>
+        </Select>
+        <Button variant="ghost" onClick={resetFilters} title="Réinitialiser les filtres">
+          <X size={15} aria-hidden="true" /> Réinitialiser
+        </Button>
+        <div className="ml-auto flex flex-wrap items-center gap-1">
+          <Button
+            variant="ghost"
+            onClick={() => void exportCsv("report")}
+            disabled={bulkBusy}
+            title="Exporter tout le filtre en rapport CSV (lecture seule)"
+          >
+            <Download size={15} aria-hidden="true" />
+            {bulkBusy && exportKind === "report" ? bulkLabel : "Rapport CSV"}
           </Button>
-        </Card>
-      ) : null}
+          <Button
+            variant="ghost"
+            onClick={() => void exportCsv("data")}
+            disabled={bulkBusy}
+            title="Exporter tout le filtre en CSV réimportable (prénom;nom;téléphone)"
+          >
+            <FileDown size={15} aria-hidden="true" />
+            {bulkBusy && exportKind === "data" ? bulkLabel : "Données CSV"}
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => csvInputRef.current?.click()}
+            title="Importer un fichier CSV (prénom;nom;téléphone)"
+          >
+            <Upload size={15} aria-hidden="true" /> Import CSV
+          </Button>
+        </div>
+      </Toolbar>
 
       {/* Sélection multiple */}
       {selection.size > 0 ? (

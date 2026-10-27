@@ -10,7 +10,6 @@ import {
   History,
   Pencil,
   Plus,
-  SlidersHorizontal,
   Trash2,
   X,
 } from "lucide-react";
@@ -24,13 +23,13 @@ import {
   Button,
   Card,
   EmptyState,
-  Kpi,
   PageHeader,
   Pager,
   RowAction,
   SearchField,
   Select,
-  TextInput,
+  StatsStrip,
+  Toolbar,
   cn,
 } from "@shared/ui/primitives.tsx";
 import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
@@ -83,7 +82,6 @@ export function SuppliersScreen({ notify }: { notify: Notify }): React.JSX.Eleme
   const [statusFilter, setStatusFilter] = useState<SupplierStatusFilter>("all");
   const [paymentFilter, setPaymentFilter] = useState<SupplierPaymentFilter>("all");
   const [sort, setSort] = useState<SupplierSort>("name_asc");
-  const [toolbarOpen, setToolbarOpen] = useState(true);
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState<EnrichedSupplier[]>([]);
   const [total, setTotal] = useState(0);
@@ -355,7 +353,7 @@ export function SuppliersScreen({ notify }: { notify: Notify }): React.JSX.Eleme
       {/* En-tête Stitch : Fournisseurs & Approvisionnements · REGISTRE ACHATS DZD */}
       <PageHeader
         title="Fournisseurs et approvisionnements"
-        module="REGISTRE ACHATS DZD"
+        module="Fournisseurs · achats et dettes"
         period={`${total} fournisseur(s) référencé(s) · ${formatDzd(stats.debt)} de dettes à régler`}
         actions={
           <>
@@ -365,133 +363,84 @@ export function SuppliersScreen({ notify }: { notify: Notify }): React.JSX.Eleme
               placeholder="Rechercher… [F3]"
               ariaLabel="Rechercher un fournisseur"
               inputRef={searchRef}
-              className="w-full max-w-xs"
+              className="w-full sm:w-64"
             />
-            <Button
-              variant="secondary"
-              onClick={() => setToolbarOpen((o) => !o)}
-              aria-expanded={toolbarOpen}
-              title="Afficher / masquer les filtres"
-            >
-              <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
-            </Button>
             <Button onClick={openCreate} title="Créer un fournisseur">
               <Plus size={16} aria-hidden="true" /> Nouveau Fournisseur
-            </Button>
-            <Button variant="secondary" onClick={exportCsv} title="Exporter la liste (CSV)">
-              <Download size={16} aria-hidden="true" /> CSV
             </Button>
           </>
         }
       />
 
-      {/* Cartes statistiques Stitch */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi
-          label="Fiches Totales"
-          value={String(stats.total)}
-          sub="Fournisseurs référencés"
-          accent="#fbbf24"
-        />
-        <Kpi
-          label="Avec Dette Fournisseur"
-          value={String(stats.active)}
-          sub="Comptes avec encours"
-          accent="#ffb4ab"
-        />
-        <Kpi
-          label="Total des dettes fournisseurs"
-          value={formatDzd(stats.debt)}
-          sub="À décaisser"
-          accent="#cde8ff"
-        />
-        <Kpi
-          label="Achats cumulés"
-          value={formatDzd(stats.purchases)}
-          sub="Entrées validées"
-          accent="#4edea3"
-        />
-      </div>
+      <StatsStrip
+        items={[
+          { label: "Fiches totales", value: String(stats.total), sub: "Fournisseurs référencés" },
+          {
+            label: "Avec dette",
+            value: String(stats.active),
+            sub: "Comptes avec encours",
+            tone: stats.active > 0 ? "amber" : "default",
+          },
+          {
+            label: "Total dettes fournisseurs",
+            value: formatDzd(stats.debt),
+            sub: "À décaisser",
+            tone: stats.debt > 0 ? "red" : "default",
+          },
+          {
+            label: "Achats cumulés",
+            value: formatDzd(stats.purchases),
+            sub: "Entrées validées",
+            tone: stats.purchases > 0 ? "green" : "default",
+          },
+        ]}
+      />
 
-      {/* Barre d'outils */}
-      {toolbarOpen ? (
-        <Card className="flex flex-wrap items-end gap-3 p-4">
-          <div className="min-w-[220px] flex-1">
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="suppliers-search"
-            >
-              Recherche
-            </label>
-            <TextInput
-              id="suppliers-search"
-              value={query}
-              onChange={(e) => onQueryChange(e.target.value)}
-              placeholder="Nom, code ou téléphone…"
-              aria-label="Recherche fournisseurs"
-            />
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="suppliers-status"
-            >
-              Statut
-            </label>
-            <Select
-              id="suppliers-status"
-              value={statusFilter}
-              onChange={(e) => changeStatus(e.target.value as SupplierStatusFilter)}
-              aria-label="Filtre statut"
-            >
-              <option value="all">Tous</option>
-              <option value="active">Actifs</option>
-              <option value="inactive">Inactifs</option>
-            </Select>
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="suppliers-payment"
-            >
-              Paiement
-            </label>
-            <Select
-              id="suppliers-payment"
-              value={paymentFilter}
-              onChange={(e) => changePayment(e.target.value as SupplierPaymentFilter)}
-              aria-label="Filtre paiement"
-            >
-              <option value="all">Tous</option>
-              <option value="with_debt">Avec dette</option>
-              <option value="settled">Soldés</option>
-            </Select>
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="suppliers-sort"
-            >
-              Tri
-            </label>
-            <Select
-              id="suppliers-sort"
-              value={sort}
-              onChange={(e) => changeSort(e.target.value as SupplierSort)}
-              aria-label="Tri"
-            >
-              <option value="name_asc">Nom A → Z</option>
-              <option value="name_desc">Nom Z → A</option>
-              <option value="purchases_desc">Achats décroissants</option>
-              <option value="debt_desc">Dette décroissante</option>
-              <option value="recent_desc">Achats récents</option>
-            </Select>
-          </div>
-          <Button variant="ghost" onClick={resetFilters} title="Réinitialiser les filtres">
-            <X size={15} aria-hidden="true" /> Réinitialiser
+      <Toolbar>
+        <Select
+          id="suppliers-status"
+          value={statusFilter}
+          onChange={(e) => changeStatus(e.target.value as SupplierStatusFilter)}
+          aria-label="Filtre statut"
+          className="w-auto"
+        >
+          <option value="all">Tous les statuts</option>
+          <option value="active">Actifs</option>
+          <option value="inactive">Inactifs</option>
+        </Select>
+        <Select
+          id="suppliers-payment"
+          value={paymentFilter}
+          onChange={(e) => changePayment(e.target.value as SupplierPaymentFilter)}
+          aria-label="Filtre paiement"
+          className="w-auto"
+        >
+          <option value="all">Tous les paiements</option>
+          <option value="with_debt">Avec dette</option>
+          <option value="settled">Soldés</option>
+        </Select>
+        <Select
+          id="suppliers-sort"
+          value={sort}
+          onChange={(e) => changeSort(e.target.value as SupplierSort)}
+          aria-label="Tri"
+          className="w-auto"
+        >
+          <option value="name_asc">Tri : nom A → Z</option>
+          <option value="name_desc">Tri : nom Z → A</option>
+          <option value="purchases_desc">Tri : achats décroissants</option>
+          <option value="debt_desc">Tri : dette décroissante</option>
+          <option value="recent_desc">Tri : achats récents</option>
+        </Select>
+        <Button variant="ghost" onClick={resetFilters} title="Réinitialiser les filtres">
+          <X size={15} aria-hidden="true" /> Réinitialiser
+        </Button>
+        <div className="ml-auto">
+          <Button variant="ghost" onClick={exportCsv} title="Exporter la liste (CSV)">
+            <Download size={15} aria-hidden="true" /> Exporter
           </Button>
-        </Card>
-      ) : null}
+        </div>
+      </Toolbar>
 
       {/* Sélection multiple */}
       {selection.size > 0 ? (

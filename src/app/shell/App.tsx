@@ -288,38 +288,26 @@ export function App(): React.JSX.Element {
           onToggle={toggleSidebar}
         />
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/[0.06] bg-[#0a0f1c] px-4 py-1.5 text-xs text-slate-300">
-            <p aria-live="polite">
-              Session : <span className="font-bold text-white">{staffSession.displayName}</span>
-              <span className="text-slate-500">
-                {" "}
-                ({staffSession.role === "manager" ? "Gérant" : "Utilisateur"})
-              </span>
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                setRecoveryCode(null);
-                void staffLogout();
-              }}
-              className="min-h-[44px] rounded-lg bg-white/[0.08] px-3 py-1 font-bold text-slate-200"
-            >
-              Changer d&apos;utilisateur
-            </button>
-          </div>
           <div className="shrink-0 border-b border-white/[0.06] bg-[#0a0f1c]">
             <TopBar
               licenseStatus={licenseStatus}
               sqliteVersion={sqliteVersion}
-              currentLabel={current?.label}
-              currentHint={current?.hint}
               notifCount={notifCount}
               licenseExpired={licenseExpired}
+              staffName={staffSession.displayName}
+              staffRole={staffSession.role}
               onOpenNotifications={() => void openNotifications()}
               onGoLicense={() => setActive("license")}
+              onLogout={() => {
+                setRecoveryCode(null);
+                void staffLogout();
+              }}
             />
           </div>
-          <main className="min-h-0 flex-1 overflow-auto p-6" aria-live="polite">
+          <main
+            className="min-h-0 flex-1 overflow-auto bg-[radial-gradient(ellipse_at_top_left,rgba(251,191,36,0.045),transparent_55%)] px-6 py-5"
+            aria-live="polite"
+          >
             {routeBlocked ? (
               <RouteBlocked moduleLabel={current?.label} onGoLicense={() => setActive("license")} />
             ) : (
@@ -342,12 +330,12 @@ export function App(): React.JSX.Element {
           </main>
           {/* Pied de page Stitch : raccourcis RÉELS du module actif (ADR-037). */}
           <footer
-            className="flex items-center gap-1 overflow-x-auto border-t border-white/[0.06] bg-[#0d1c2d] px-4 py-1.5 font-mono text-[10px] font-semibold text-[#d3c5ac]"
+            className="flex items-center gap-1.5 overflow-x-auto border-t border-white/[0.06] bg-[#0a0f1c] px-4 py-1.5 font-mono text-[10px] font-medium text-slate-500"
             aria-label="Raccourcis clavier du module"
           >
             {hintsFor(active).map((h) => (
-              <span key={h.k} className="rounded bg-[#1c2b3c] px-1.5 py-0.5">
-                {h.k} {h.label}
+              <span key={h.k} className="whitespace-nowrap rounded bg-[#122131] px-1.5 py-0.5">
+                <span className="font-semibold text-[#d3c5ac]">{h.k}</span> {h.label}
               </span>
             ))}
           </footer>

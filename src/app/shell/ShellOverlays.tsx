@@ -48,7 +48,7 @@ export function NotificationsModal({
 export function Toasts({ toasts }: { toasts: Toast[] }): React.JSX.Element {
   return (
     <div
-      className="pointer-events-none fixed right-4 top-14 z-50 flex w-[360px] flex-col gap-2"
+      className="pointer-events-none fixed bottom-12 right-4 z-50 flex w-[360px] flex-col-reverse gap-2"
       aria-live="assertive"
     >
       {toasts.map((t) => (

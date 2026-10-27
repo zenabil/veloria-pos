@@ -13,11 +13,11 @@ import {
   Card,
   EmptyState,
   ErrorState,
-  Kpi,
   Modal,
   PageHeader,
   Pager,
   Select,
+  StatsStrip,
 } from "@shared/ui/primitives.tsx";
 import { ZakatCalculationDialog } from "./ZakatDialogs.tsx";
 import { computeZakat } from "@domain/zakat/zakat-rules.ts";
@@ -177,7 +177,7 @@ export function ZakatScreen({ notify }: { notify: Notify }): React.JSX.Element {
       {/* En-tête Stitch : Zakat El-Mal & Décharge Annuelle · REPORTING */}
       <PageHeader
         title="Zakat el-mal et décharge annuelle"
-        module="Module 15 · Reporting annuel · jamais un registre"
+        module="Zakat · reporting annuel"
         period={
           preview_calc && preview_calc.above
             ? `NISAB PROBABLEMENT ATTEINT (estimation hors caisse/banque) · Zakat exigible ≈ ${formatDzd(preview_calc.zakat)} · Rapport ${hijriYear} H`
@@ -216,39 +216,39 @@ export function ZakatScreen({ notify }: { notify: Notify }): React.JSX.Element {
         <span className="text-xs text-slate-500">Réglages : Paramètres → Documents → Zakat</span>
       </Card>
 
-      {/* Cartes résumé Stitch (sources live) */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <Kpi
-          label="Seuil Nisab Or 85g 24K"
-          value={sources ? formatDzd(sources.params.nisabMinor) : "—"}
-          sub="Fixé Min. Aff. Religieuses"
-          accent="#fbbf24"
-        />
-        <Kpi
-          label="Assiette Nette Zakatable (estimation)"
-          value={formatDzd(net)}
-          sub="Partielle : stocks + créances − dettes (caisse/banque à saisir au calcul)"
-          accent="#cde8ff"
-        />
-        <Kpi
-          label={`Zakat Exigible (${sources ? sources.params.ratePercent : "—"} %)`}
-          value={preview_calc ? formatDzd(preview_calc.zakat) : "—"}
-          sub={preview_calc && preview_calc.above ? "Un quart de dixième (1/40e)" : "Sous le nisab"}
-          accent="#4edea3"
-        />
-        <Kpi
-          label="Créances"
-          value={sources ? formatDzd(sources.customerDebts.d) : "—"}
-          sub="Clients"
-          accent="#8ed0ff"
-        />
-        <Kpi
-          label="Dettes"
-          value={sources ? formatDzd(sources.supplierDebts.d) : "—"}
-          sub="Fournisseurs"
-          accent="#ffb4ab"
-        />
-      </div>
+      <StatsStrip
+        columns={5}
+        items={[
+          {
+            label: "Seuil Nisab or 85 g 24K",
+            value: sources ? formatDzd(sources.params.nisabMinor) : "—",
+            sub: "Min. Aff. Religieuses",
+          },
+          {
+            label: "Assiette nette zakatable",
+            value: formatDzd(net),
+            sub: "Stocks + créances − dettes",
+            tone: "blue",
+          },
+          {
+            label: `Zakat exigible (${sources ? sources.params.ratePercent : "—"} %)`,
+            value: preview_calc ? formatDzd(preview_calc.zakat) : "—",
+            sub: preview_calc && preview_calc.above ? "1/40e — nisab atteint" : "Sous le nisab",
+            tone: preview_calc && preview_calc.above ? "green" : "default",
+          },
+          {
+            label: "Créances",
+            value: sources ? formatDzd(sources.customerDebts.d) : "—",
+            sub: "Clients",
+          },
+          {
+            label: "Dettes",
+            value: sources ? formatDzd(sources.supplierDebts.d) : "—",
+            sub: "Fournisseurs",
+            tone: sources && sources.supplierDebts.d > 0 ? "red" : "default",
+          },
+        ]}
+      />
 
       {/* Détail du calcul courant */}
       <Card className="space-y-2.5 p-4 text-sm">

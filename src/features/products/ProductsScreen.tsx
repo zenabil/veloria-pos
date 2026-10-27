@@ -12,7 +12,6 @@ import {
   Pencil,
   Plus,
   RotateCcw,
-  SlidersHorizontal,
   Upload,
   X,
 } from "lucide-react";
@@ -29,13 +28,13 @@ import {
   Button,
   Card,
   EmptyState,
-  Kpi,
   PageHeader,
   Pager,
   RowAction,
   SearchField,
   Select,
-  TextInput,
+  StatsStrip,
+  Toolbar,
   cn,
 } from "@shared/ui/primitives.tsx";
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
@@ -76,7 +75,6 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
   const [status, setStatus] = useState<StockFilter>("all");
   const [sort, setSort] = useState<ProductSort>("name_asc");
   const [includeArchived, setIncludeArchived] = useState(false);
-  const [toolbarOpen, setToolbarOpen] = useState(true);
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
@@ -425,7 +423,7 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
       {/* En-tête Stitch : Catalogue des Produits · INDEX v2.4 */}
       <PageHeader
         title="Catalogue des produits"
-        module="INDEX v2.4"
+        module="Catalogue · références et prix"
         period={`${total} référence(s) active(s) · ${stats.low} en stock bas · ${stats.out} en rupture de stock`}
         actions={
           <>
@@ -435,43 +433,10 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
               placeholder="Rechercher… [F3]"
               ariaLabel="Rechercher un produit"
               inputRef={searchRef}
-              className="w-full max-w-xs"
+              className="w-full sm:w-64"
             />
-            <Button
-              variant="secondary"
-              onClick={() => setToolbarOpen((o) => !o)}
-              aria-expanded={toolbarOpen}
-              title="Afficher / masquer les filtres"
-            >
-              <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
-            </Button>
             <Button onClick={openCreate} title="Créer un produit">
               <Plus size={16} aria-hidden="true" /> Nouveau produit
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => void exportCsv("report")}
-              disabled={bulkBusy}
-              title="Exporter tout le filtre en rapport CSV (lecture seule)"
-            >
-              <Download size={16} aria-hidden="true" />
-              {bulkBusy && exportKind === "report" ? bulkLabel : "Rapport CSV"}
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => void exportCsv("data")}
-              disabled={bulkBusy}
-              title="Exporter tout le filtre en CSV réimportable (nom;vente;achat;quantité[;code-barres])"
-            >
-              <FileDown size={16} aria-hidden="true" />
-              {bulkBusy && exportKind === "data" ? bulkLabel : "Données CSV"}
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => csvInputRef.current?.click()}
-              title="Importer un catalogue CSV (nom;vente;achat;quantité[;code-barres])"
-            >
-              <Upload size={16} aria-hidden="true" /> Import CSV
             </Button>
             <input
               ref={csvInputRef}
@@ -489,128 +454,112 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
         }
       />
 
-      {/* Cartes statistiques Stitch */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi
-          label="Références Actives"
-          value={String(stats.total)}
-          sub="Catalogue indexé"
-          accent="#fbbf24"
-        />
-        <Kpi
-          label="Disponibles en Rayon"
-          value={String(stats.available)}
-          sub="En stock"
-          accent="#4edea3"
-        />
-        <Kpi
-          label="Stock Bas (Seuil Min)"
-          value={String(stats.low)}
-          sub="Sous le seuil"
-          accent="#8ed0ff"
-        />
-        <Kpi
-          label="Ruptures Complètes"
-          value={String(stats.out)}
-          sub="Stock à zéro"
-          accent="#ffb4ab"
-        />
-      </div>
+      <StatsStrip
+        items={[
+          { label: "Références actives", value: String(stats.total), sub: "Catalogue indexé" },
+          {
+            label: "Disponibles",
+            value: String(stats.available),
+            sub: "En stock",
+            tone: stats.available > 0 ? "green" : "default",
+          },
+          {
+            label: "Stock bas",
+            value: String(stats.low),
+            sub: "Sous le seuil",
+            tone: stats.low > 0 ? "amber" : "default",
+          },
+          {
+            label: "Ruptures",
+            value: String(stats.out),
+            sub: "Stock à zéro",
+            tone: stats.out > 0 ? "red" : "default",
+          },
+        ]}
+      />
 
-      {/* Barre d'outils */}
-      {toolbarOpen ? (
-        <Card className="flex flex-wrap items-end gap-3 p-4">
-          <div className="min-w-[220px] flex-1">
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="catalog-search"
-            >
-              Recherche
-            </label>
-            <TextInput
-              id="catalog-search"
-              value={query}
-              onChange={(e) => onQueryChange(e.target.value)}
-              placeholder="Nom ou code-barres…"
-              aria-label="Recherche catalogue"
-            />
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="catalog-category"
-            >
-              Catégorie
-            </label>
-            <Select
-              id="catalog-category"
-              value={categoryId}
-              onChange={(e) => changeCategory(e.target.value)}
-              aria-label="Filtre catégorie"
-            >
-              <option value="">Toutes</option>
-              {categories.map((c) => (
-                <option key={c.id} value={String(c.id)}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="catalog-status"
-            >
-              Statut
-            </label>
-            <Select
-              id="catalog-status"
-              value={status}
-              onChange={(e) => changeStatus(e.target.value as StockFilter)}
-              aria-label="Filtre statut"
-            >
-              <option value="all">Tous</option>
-              <option value="in_stock">En stock</option>
-              <option value="low_stock">Stock bas</option>
-              <option value="out_of_stock">Rupture</option>
-            </Select>
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="catalog-sort"
-            >
-              Tri
-            </label>
-            <Select
-              id="catalog-sort"
-              value={sort}
-              onChange={(e) => setSort(e.target.value as ProductSort)}
-              aria-label="Tri"
-            >
-              <option value="name_asc">Nom A → Z</option>
-              <option value="name_desc">Nom Z → A</option>
-              <option value="price_asc">Prix croissant</option>
-              <option value="price_desc">Prix décroissant</option>
-              <option value="stock_asc">Stock croissant</option>
-              <option value="stock_desc">Stock décroissant</option>
-            </Select>
-          </div>
-          <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-black/25 px-3 py-2.5 text-sm font-semibold">
-            <input
-              type="checkbox"
-              checked={includeArchived}
-              onChange={toggleArchived}
-              aria-label="Afficher les archivés"
-              className="h-4 w-4 accent-amber-400"
-            />
-            Archivés
-          </label>
-          <Button variant="ghost" onClick={resetFilters} title="Réinitialiser les filtres">
-            <X size={15} aria-hidden="true" /> Réinitialiser
+      <Toolbar>
+        <Select
+          id="catalog-category"
+          value={categoryId}
+          onChange={(e) => changeCategory(e.target.value)}
+          aria-label="Filtre catégorie"
+          className="w-auto min-w-[150px]"
+        >
+          <option value="">Toutes catégories</option>
+          {categories.map((c) => (
+            <option key={c.id} value={String(c.id)}>
+              {c.name}
+            </option>
+          ))}
+        </Select>
+        <Select
+          id="catalog-status"
+          value={status}
+          onChange={(e) => changeStatus(e.target.value as StockFilter)}
+          aria-label="Filtre statut"
+          className="w-auto"
+        >
+          <option value="all">Tous les statuts</option>
+          <option value="in_stock">En stock</option>
+          <option value="low_stock">Stock bas</option>
+          <option value="out_of_stock">Rupture</option>
+        </Select>
+        <Select
+          id="catalog-sort"
+          value={sort}
+          onChange={(e) => setSort(e.target.value as ProductSort)}
+          aria-label="Tri"
+          className="w-auto"
+        >
+          <option value="name_asc">Tri : nom A → Z</option>
+          <option value="name_desc">Tri : nom Z → A</option>
+          <option value="price_asc">Tri : prix croissant</option>
+          <option value="price_desc">Tri : prix décroissant</option>
+          <option value="stock_asc">Tri : stock croissant</option>
+          <option value="stock_desc">Tri : stock décroissant</option>
+        </Select>
+        <label className="flex h-[42px] cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-black/25 px-3 text-xs font-semibold text-slate-300">
+          <input
+            type="checkbox"
+            checked={includeArchived}
+            onChange={toggleArchived}
+            aria-label="Afficher les archivés"
+            className="h-4 w-4 accent-amber-400"
+          />
+          Archivés
+        </label>
+        <Button variant="ghost" onClick={resetFilters} title="Réinitialiser les filtres">
+          <X size={15} aria-hidden="true" /> Réinitialiser
+        </Button>
+        <div className="ml-auto flex flex-wrap items-center gap-1">
+          <Button
+            variant="ghost"
+            onClick={() => void exportCsv("report")}
+            disabled={bulkBusy}
+            title="Exporter tout le filtre en rapport CSV (lecture seule)"
+          >
+            <Download size={15} aria-hidden="true" />
+            {bulkBusy && exportKind === "report" ? bulkLabel : "Rapport CSV"}
           </Button>
-        </Card>
-      ) : null}
+          <Button
+            variant="ghost"
+            onClick={() => void exportCsv("data")}
+            disabled={bulkBusy}
+            title="Exporter tout le filtre en CSV réimportable (nom;vente;achat;quantité[;code-barres])"
+          >
+            <FileDown size={15} aria-hidden="true" />
+            {bulkBusy && exportKind === "data" ? bulkLabel : "Données CSV"}
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => csvInputRef.current?.click()}
+            title="Importer un catalogue CSV (nom;vente;achat;quantité[;code-barres])"
+          >
+            <Upload size={15} aria-hidden="true" /> Import CSV
+          </Button>
+        </div>
+      </Toolbar>
 
       {/* Sélection multiple */}
       {selection.size > 0 ? (

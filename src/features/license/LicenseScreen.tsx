@@ -112,7 +112,7 @@ export function LicenseScreen({ notify }: { notify: Notify }): React.JSX.Element
     <div className="mx-auto w-full max-w-3xl space-y-4">
       <PageHeader
         title="Licence et activation de l'appareil"
-        module="Licence · Activation hors-ligne"
+        module="Licence · activation hors-ligne"
         period="Certificat local x509 · Terminaux de caisse autorisés · Garantie et support technique national."
       />
       <Card className="space-y-3 p-5">

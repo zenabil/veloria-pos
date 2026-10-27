@@ -49,15 +49,21 @@ export function Sidebar({
             "relative flex min-h-[44px] w-full min-w-0 flex-1 items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] transition-colors duration-150 focus-visible:outline-none",
             collapsed && "justify-center px-0",
             selected
-              ? "bg-[#fbbf24] font-bold text-[#402d00]"
-              : "font-medium text-[#d3c5ac] hover:bg-[#122131] hover:text-[#d4e4fa]",
+              ? "bg-[#1c2b3c] font-semibold text-slate-50"
+              : "font-medium text-[#c6bba6] hover:bg-[#122131] hover:text-[#e8eef8]",
           )}
         >
+          {selected ? (
+            <span
+              aria-hidden="true"
+              className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-full bg-[#fbbf24]"
+            />
+          ) : null}
           <Icon
-            size={19}
-            strokeWidth={selected ? 2.25 : 2}
+            size={18}
+            strokeWidth={selected ? 2.2 : 1.9}
             aria-hidden="true"
-            className={cn("shrink-0", selected ? "text-[#402d00]" : "text-[#d3c5ac]")}
+            className={cn("shrink-0", selected ? "text-[#fbbf24]" : "text-[#a99f8c]")}
           />
           {collapsed ? null : (
             <span className="min-w-0 flex-1 truncate whitespace-nowrap leading-snug">
@@ -70,14 +76,14 @@ export function Sidebar({
               className={cn(
                 "rounded-full px-1.5 py-0.5 font-mono text-[10px] font-bold",
                 collapsed && "absolute right-1 top-1",
-                selected ? "bg-[#402d00]/15 text-[#402d00]" : "bg-red-500/20 text-red-200",
+                selected ? "bg-[#fbbf24]/15 text-[#ffe1a7]" : "bg-red-500/20 text-red-200",
               )}
             >
               {count > 99 ? "99+" : count}
             </span>
           ) : null}
           {!collapsed && selected && m.kbd ? (
-            <span className="rounded bg-[#402d00]/15 px-1.5 py-0.5 font-mono text-[10px] font-semibold">
+            <span className="rounded bg-[#fbbf24]/12 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[#ffe1a7]">
               {m.kbd}
             </span>
           ) : null}

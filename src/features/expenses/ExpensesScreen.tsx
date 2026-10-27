@@ -2,7 +2,7 @@
 // En-tête + 4 cartes stats + barre d'outils + table serveur + pagination +
 // tiroir détail + formulaire.
 import { useEffect, useRef, useState } from "react";
-import { Eye, Download, Pencil, Plus, SlidersHorizontal, Trash2, X } from "lucide-react";
+import { Eye, Download, Pencil, Plus, Trash2, X } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { formatDzd } from "@domain/money/money.ts";
@@ -15,13 +15,14 @@ import {
   Button,
   Card,
   EmptyState,
-  Kpi,
   PageHeader,
   Pager,
   RowAction,
   SearchField,
   Select,
+  StatsStrip,
   TextInput,
+  Toolbar,
   cn,
 } from "@shared/ui/primitives.tsx";
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
@@ -61,7 +62,6 @@ export function ExpensesScreen({ notify }: { notify: Notify }): React.JSX.Elemen
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [sort, setSort] = useState<ExpenseSort>("date_desc");
-  const [toolbarOpen, setToolbarOpen] = useState(true);
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState<Expense[]>([]);
   const [total, setTotal] = useState(0);
@@ -367,8 +367,8 @@ export function ExpensesScreen({ notify }: { notify: Notify }): React.JSX.Elemen
       {/* En-tête Stitch : Dépenses & Charges d'Exploitation · JOURNAL */}
       <PageHeader
         title="Dépenses et charges d'exploitation"
-        module="Module 10 · Journal des décaissements"
-        period={`${total} dépense(s) · ${formatDzd(stats.totalMinor)} au total · Suivi budgétaire et décaissements · Exercice ${new Date().getFullYear()}`}
+        module="Dépenses · journal des décaissements"
+        period={`${total} dépense(s) · ${formatDzd(stats.totalMinor)} au total · Exercice ${new Date().getFullYear()}`}
         actions={
           <>
             <SearchField
@@ -377,25 +377,8 @@ export function ExpensesScreen({ notify }: { notify: Notify }): React.JSX.Elemen
               placeholder="Rechercher… [F3]"
               ariaLabel="Rechercher une dépense"
               inputRef={searchRef}
-              className="w-full max-w-xs"
+              className="w-full sm:w-64"
             />
-            {/* P4 : les dates Du/Au vivent dans la barre d'outils (étiquetées) —
-                fin du doublon d'en-tête. */}
-            <Button
-              variant="secondary"
-              onClick={() => setToolbarOpen((o) => !o)}
-              aria-expanded={toolbarOpen}
-              title="Afficher / masquer les filtres"
-            >
-              <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => void exportAll()}
-              title="Exporter en CSV [F8]"
-            >
-              <Download size={16} aria-hidden="true" /> Exporter
-            </Button>
             <Button onClick={openCreate} title="Nouvelle dépense">
               <Plus size={16} aria-hidden="true" /> Nouvelle dépense
             </Button>
@@ -403,164 +386,108 @@ export function ExpensesScreen({ notify }: { notify: Notify }): React.JSX.Elemen
         }
       />
 
-      {/* Cartes statistiques Stitch */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi
-          label="Total mois en cours"
-          value={formatDzd(stats.monthlyMinor)}
-          sub="Mois en cours"
-          accent="#fbbf24"
-        />
-        <Kpi
-          label="Total payé"
-          value={formatDzd(stats.paidMinor)}
-          sub="Toutes périodes"
-          accent="#4edea3"
-        />
-        <Kpi
-          label="Charges fixes en attente"
-          value={formatDzd(stats.pendingMinor)}
-          sub="À régler"
-          accent="#ffb4ab"
-        />
-        <Kpi
-          label="Total période filtrée"
-          value={formatDzd(stats.totalMinor)}
-          sub="Toutes périodes"
-          accent="#cde8ff"
-        />
-      </div>
+      <StatsStrip
+        items={[
+          {
+            label: "Total mois en cours",
+            value: formatDzd(stats.monthlyMinor),
+            sub: "Mois en cours",
+          },
+          {
+            label: "Total payé",
+            value: formatDzd(stats.paidMinor),
+            sub: "Toutes périodes",
+            tone: stats.paidMinor > 0 ? "green" : "default",
+          },
+          {
+            label: "Charges en attente",
+            value: formatDzd(stats.pendingMinor),
+            sub: "À régler",
+            tone: stats.pendingMinor > 0 ? "red" : "default",
+          },
+          {
+            label: "Total période filtrée",
+            value: formatDzd(stats.totalMinor),
+            sub: "Toutes périodes",
+          },
+        ]}
+      />
 
-      {/* Barre d'outils */}
-      {toolbarOpen ? (
-        <Card className="flex flex-wrap items-end gap-3 p-4">
-          <div className="min-w-[220px] flex-1">
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="expenses-search"
-            >
-              Recherche
-            </label>
-            <TextInput
-              id="expenses-search"
-              value={query}
-              onChange={(e) => onQueryChange(e.target.value)}
-              placeholder="Description, N° (DEP-…), référence…"
-              aria-label="Recherche dépenses"
-            />
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="expenses-category"
-            >
-              Catégorie
-            </label>
-            <Select
-              id="expenses-category"
-              value={category ?? ""}
-              onChange={(e) => changeCategory(e.target.value === "" ? null : e.target.value)}
-              aria-label="Filtre catégorie"
-            >
-              <option value="">Toutes</option>
-              {stats.categories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="expenses-status"
-            >
-              Statut
-            </label>
-            <Select
-              id="expenses-status"
-              value={statusFilter}
-              onChange={(e) => changeStatus(e.target.value as ExpenseStatusFilter)}
-              aria-label="Filtre statut"
-            >
-              <option value="all">Tous</option>
-              <option value="paid">Payées</option>
-              <option value="pending">En attente</option>
-            </Select>
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="expenses-method"
-            >
-              Paiement
-            </label>
-            <Select
-              id="expenses-method"
-              value={methodFilter}
-              onChange={(e) => changeMethod(e.target.value as ExpenseMethodFilter)}
-              aria-label="Filtre paiement"
-            >
-              <option value="all">Tous</option>
-              <option value="cash">Espèces</option>
-              <option value="cheque">Chèque</option>
-              <option value="transfer">Virement</option>
-            </Select>
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="expenses-from"
-            >
-              Du
-            </label>
-            <TextInput
-              id="expenses-from"
-              type="date"
-              value={from}
-              onChange={(e) => changeRange(e.target.value, to)}
-              aria-label="Du"
-            />
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="expenses-to"
-            >
-              Au
-            </label>
-            <TextInput
-              id="expenses-to"
-              type="date"
-              value={to}
-              onChange={(e) => changeRange(from, e.target.value)}
-              aria-label="Au"
-            />
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="expenses-sort"
-            >
-              Tri
-            </label>
-            <Select
-              id="expenses-sort"
-              value={sort}
-              onChange={(e) => changeSort(e.target.value as ExpenseSort)}
-              aria-label="Tri"
-            >
-              <option value="date_desc">Date décroissante</option>
-              <option value="date_asc">Date croissante</option>
-              <option value="amount_desc">Montant décroissant</option>
-              <option value="amount_asc">Montant croissant</option>
-            </Select>
-          </div>
-          <Button variant="ghost" onClick={resetFilters} title="Réinitialiser les filtres">
-            <X size={15} aria-hidden="true" /> Réinitialiser
+      <Toolbar>
+        <Select
+          id="expenses-category"
+          value={category ?? ""}
+          onChange={(e) => changeCategory(e.target.value === "" ? null : e.target.value)}
+          aria-label="Filtre catégorie"
+          className="w-auto min-w-[150px]"
+        >
+          <option value="">Toutes catégories</option>
+          {stats.categories.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </Select>
+        <Select
+          id="expenses-status"
+          value={statusFilter}
+          onChange={(e) => changeStatus(e.target.value as ExpenseStatusFilter)}
+          aria-label="Filtre statut"
+          className="w-auto"
+        >
+          <option value="all">Tous les statuts</option>
+          <option value="paid">Payées</option>
+          <option value="pending">En attente</option>
+        </Select>
+        <Select
+          id="expenses-method"
+          value={methodFilter}
+          onChange={(e) => changeMethod(e.target.value as ExpenseMethodFilter)}
+          aria-label="Filtre paiement"
+          className="w-auto"
+        >
+          <option value="all">Tous les paiements</option>
+          <option value="cash">Espèces</option>
+          <option value="cheque">Chèque</option>
+          <option value="transfer">Virement</option>
+        </Select>
+        <TextInput
+          id="expenses-from"
+          type="date"
+          value={from}
+          onChange={(e) => changeRange(e.target.value, to)}
+          aria-label="Du"
+          className="w-auto"
+        />
+        <TextInput
+          id="expenses-to"
+          type="date"
+          value={to}
+          onChange={(e) => changeRange(from, e.target.value)}
+          aria-label="Au"
+          className="w-auto"
+        />
+        <Select
+          id="expenses-sort"
+          value={sort}
+          onChange={(e) => changeSort(e.target.value as ExpenseSort)}
+          aria-label="Tri"
+          className="w-auto"
+        >
+          <option value="date_desc">Tri : date décroissante</option>
+          <option value="date_asc">Tri : date croissante</option>
+          <option value="amount_desc">Tri : montant décroissant</option>
+          <option value="amount_asc">Tri : montant croissant</option>
+        </Select>
+        <Button variant="ghost" onClick={resetFilters} title="Réinitialiser les filtres">
+          <X size={15} aria-hidden="true" /> Réinitialiser
+        </Button>
+        <div className="ml-auto">
+          <Button variant="ghost" onClick={() => void exportAll()} title="Exporter en CSV [F8]">
+            <Download size={15} aria-hidden="true" /> Exporter
           </Button>
-        </Card>
-      ) : null}
+        </div>
+      </Toolbar>
 
       {/* Sélection multiple → suppression */}
       {selection.size > 0 ? (

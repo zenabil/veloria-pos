@@ -2,7 +2,7 @@
 // En-tête + 4 cartes stats + barre d'outils + table unifiée (serveur) +
 // pagination + tiroir détail + création + remboursement.
 import { useEffect, useRef, useState } from "react";
-import { Download, Eye, HandCoins, Plus, SlidersHorizontal, Undo2, X } from "lucide-react";
+import { Download, Eye, HandCoins, Plus, Undo2, X } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { newOperationId } from "@domain/common/ids.ts";
@@ -16,13 +16,14 @@ import {
   Card,
   EmptyState,
   Kbd,
-  Kpi,
   PageHeader,
   Pager,
   RowAction,
   SearchField,
   Select,
+  StatsStrip,
   TextInput,
+  Toolbar,
   cn,
 } from "@shared/ui/primitives.tsx";
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
@@ -62,7 +63,6 @@ export function ReturnsScreen({ notify }: { notify: Notify }): React.JSX.Element
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [sort, setSort] = useState<ReturnSort>("date_desc");
-  const [toolbarOpen, setToolbarOpen] = useState(true);
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState<ReturnRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -354,7 +354,7 @@ export function ReturnsScreen({ notify }: { notify: Notify }): React.JSX.Element
       {/* En-tête Stitch : Retours & Avoirs Clients · MODULE 09 · FISCAL V3.2 */}
       <PageHeader
         title="Retours et avoirs"
-        module="Module 09 · Retours clients et fournisseurs"
+        module="Retours · clients et fournisseurs"
         period={`${total} retour(s) · ${formatDzd(stats.totalAmountMinor)} de marchandises retournées`}
         actions={
           <>
@@ -364,184 +364,105 @@ export function ReturnsScreen({ notify }: { notify: Notify }): React.JSX.Element
               placeholder="N° retour / facture / scan… [F3]"
               ariaLabel="Rechercher un retour (numéro, facture ou scan code-barres)"
               inputRef={searchRef}
-              className="w-full max-w-xs"
+              className="w-full sm:w-64"
               inputClassName="pl-9 font-mono"
             />
-            <TextInput
-              type="date"
-              value={from}
-              onChange={(e) => changeRange(e.target.value, to)}
-              aria-label="Du"
-              title="Du"
-            />
-            <TextInput
-              type="date"
-              value={to}
-              onChange={(e) => changeRange(from, e.target.value)}
-              aria-label="Au"
-              title="Au"
-            />
-            <Button
-              variant="secondary"
-              onClick={() => setToolbarOpen((o) => !o)}
-              aria-expanded={toolbarOpen}
-              title="Afficher / masquer les filtres"
-            >
-              <SlidersHorizontal size={16} aria-hidden="true" /> Filtres
-            </Button>
             <Button onClick={() => setCreateOpen(true)} title="Nouveau retour [F2]">
               <Plus size={16} aria-hidden="true" /> Nouveau Retour <Kbd>F2</Kbd>
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => void exportAll()}
-              title="Exporter en CSV [F8]"
-            >
-              <Download size={16} aria-hidden="true" /> Exporter
             </Button>
           </>
         }
       />
 
-      {/* Cartes statistiques Stitch */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi
-          label="Retours du Jour"
-          value={String(stats.totalReturns)}
-          sub="Dossiers traités"
-          accent="#fbbf24"
-        />
-        <Kpi
-          label="Retours Clients"
-          value={String(stats.customerReturns)}
-          sub="Bons d'avoir émis"
-          accent="#cde8ff"
-        />
-        <Kpi
-          label="Retours Fournisseurs"
-          value={String(stats.supplierReturns)}
-          sub="Articles réintégrés"
-          accent="#8ed0ff"
-        />
-        <Kpi
-          label="Valeur retournée"
-          value={formatDzd(stats.totalAmountMinor)}
-          sub="Avoirs + remboursements"
-          accent="#4edea3"
-        />
-      </div>
+      <StatsStrip
+        items={[
+          {
+            label: "Retours (total)",
+            value: String(stats.totalReturns),
+            sub: "Hors annulés",
+          },
+          {
+            label: "Retours clients",
+            value: String(stats.customerReturns),
+            sub: "Bons d'avoir émis",
+            tone: stats.customerReturns > 0 ? "blue" : "default",
+          },
+          {
+            label: "Retours fournisseurs",
+            value: String(stats.supplierReturns),
+            sub: "Articles réintégrés",
+          },
+          {
+            label: "Valeur retournée",
+            value: formatDzd(stats.totalAmountMinor),
+            sub: "Avoirs + remboursements",
+            tone: stats.totalAmountMinor > 0 ? "green" : "default",
+          },
+        ]}
+      />
 
-      {/* Barre d'outils */}
-      {toolbarOpen ? (
-        <Card className="flex flex-wrap items-end gap-3 p-4">
-          <div className="min-w-[220px] flex-1">
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="returns-search"
-            >
-              Recherche
-            </label>
-            <TextInput
-              id="returns-search"
-              value={query}
-              onChange={(e) => onQueryChange(e.target.value)}
-              placeholder="Numéro, N° facture, scan code-barres, client…"
-              aria-label="Recherche retours"
-              className="font-mono"
-            />
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="returns-type"
-            >
-              Type
-            </label>
-            <Select
-              id="returns-type"
-              value={typeFilter}
-              onChange={(e) => changeType(e.target.value as ReturnTypeFilter)}
-              aria-label="Filtre type"
-            >
-              <option value="all">Toutes</option>
-              <option value="customer">Retour client</option>
-              <option value="supplier">Retour fournisseur</option>
-            </Select>
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="returns-status"
-            >
-              Statut
-            </label>
-            <Select
-              id="returns-status"
-              value={statusFilter}
-              onChange={(e) => changeStatus(e.target.value as ReturnStatusFilter)}
-              aria-label="Filtre statut"
-            >
-              <option value="all">Tous</option>
-              <option value="validated">Validé</option>
-              <option value="partially_refunded">Partiellement remboursé</option>
-              <option value="refunded">Remboursé</option>
-              <option value="cancelled">Annulé</option>
-            </Select>
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="returns-from"
-            >
-              Du
-            </label>
-            <TextInput
-              id="returns-from"
-              type="date"
-              value={from}
-              onChange={(e) => changeRange(e.target.value, to)}
-              aria-label="Du"
-            />
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="returns-to"
-            >
-              Au
-            </label>
-            <TextInput
-              id="returns-to"
-              type="date"
-              value={to}
-              onChange={(e) => changeRange(from, e.target.value)}
-              aria-label="Au"
-            />
-          </div>
-          <div>
-            <label
-              className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
-              htmlFor="returns-sort"
-            >
-              Tri
-            </label>
-            <Select
-              id="returns-sort"
-              value={sort}
-              onChange={(e) => changeSort(e.target.value as ReturnSort)}
-              aria-label="Tri"
-            >
-              <option value="date_desc">Date décroissante</option>
-              <option value="date_asc">Date croissante</option>
-              <option value="amount_desc">Montant décroissant</option>
-              <option value="amount_asc">Montant croissant</option>
-            </Select>
-          </div>
-          <Button variant="ghost" onClick={resetFilters} title="Réinitialiser les filtres">
-            <X size={15} aria-hidden="true" /> Réinitialiser
+      <Toolbar>
+        <Select
+          id="returns-type"
+          value={typeFilter}
+          onChange={(e) => changeType(e.target.value as ReturnTypeFilter)}
+          aria-label="Filtre type"
+          className="w-auto"
+        >
+          <option value="all">Tous les types</option>
+          <option value="customer">Retour client</option>
+          <option value="supplier">Retour fournisseur</option>
+        </Select>
+        <Select
+          id="returns-status"
+          value={statusFilter}
+          onChange={(e) => changeStatus(e.target.value as ReturnStatusFilter)}
+          aria-label="Filtre statut"
+          className="w-auto"
+        >
+          <option value="all">Tous les statuts</option>
+          <option value="validated">Validé</option>
+          <option value="partially_refunded">Partiellement remboursé</option>
+          <option value="refunded">Remboursé</option>
+          <option value="cancelled">Annulé</option>
+        </Select>
+        <TextInput
+          id="returns-from"
+          type="date"
+          value={from}
+          onChange={(e) => changeRange(e.target.value, to)}
+          aria-label="Du"
+          className="w-auto"
+        />
+        <TextInput
+          id="returns-to"
+          type="date"
+          value={to}
+          onChange={(e) => changeRange(from, e.target.value)}
+          aria-label="Au"
+          className="w-auto"
+        />
+        <Select
+          id="returns-sort"
+          value={sort}
+          onChange={(e) => changeSort(e.target.value as ReturnSort)}
+          aria-label="Tri"
+          className="w-auto"
+        >
+          <option value="date_desc">Tri : date décroissante</option>
+          <option value="date_asc">Tri : date croissante</option>
+          <option value="amount_desc">Tri : montant décroissant</option>
+          <option value="amount_asc">Tri : montant croissant</option>
+        </Select>
+        <Button variant="ghost" onClick={resetFilters} title="Réinitialiser les filtres">
+          <X size={15} aria-hidden="true" /> Réinitialiser
+        </Button>
+        <div className="ml-auto">
+          <Button variant="ghost" onClick={() => void exportAll()} title="Exporter en CSV [F8]">
+            <Download size={15} aria-hidden="true" /> Exporter
           </Button>
-        </Card>
-      ) : null}
+        </div>
+      </Toolbar>
 
       {/* Sélection multiple → annulation */}
       {selection.size > 0 ? (

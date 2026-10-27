@@ -40,9 +40,9 @@ export function Button({
       className={cn(
         "inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-150 focus-visible:outline-none active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100",
         variant === "primary" &&
-          "bg-[#fbbf24] text-[#402d00] shadow-[0_2px_16px_rgba(251,191,36,0.35),0_1px_0_rgba(255,255,255,0.3)_inset] hover:bg-[#f9bd22] hover:shadow-[0_2px_22px_rgba(251,191,36,0.55)]",
+          "bg-[#fbbf24] text-[#402d00] shadow-[0_1px_0_rgba(255,255,255,0.35)_inset,0_6px_18px_-10px_rgba(251,191,36,0.65)] hover:bg-[#f9bd22] hover:shadow-[0_1px_0_rgba(255,255,255,0.35)_inset,0_8px_22px_-10px_rgba(251,191,36,0.8)]",
         variant === "secondary" &&
-          "border border-white/15 bg-[#1c2b3c] text-[#d4e4fa] shadow-sm hover:border-[#fbbf24]/40 hover:bg-[#273647]",
+          "border border-white/10 bg-[#1c2b3c] text-[#d4e4fa] hover:border-white/20 hover:bg-[#273647]",
         variant === "ghost" &&
           "bg-transparent font-semibold text-[#d3c5ac] hover:bg-white/10 hover:text-white",
         variant === "danger" &&
@@ -62,42 +62,40 @@ export function Kbd({ children }: { children: ReactNode }): ReactNode {
   );
 }
 
-/** En-tête de page Stitch : pastille + H1 + badge poste + tag module + période + actions. */
+/** En-tête de page : sur-titre module, H1, période et actions.
+ *  Volontairement posé à même la page (pas de carte empilée) : la hiérarchie
+ *  reste lisible et les écrans gagnent une ligne utile. */
 export function PageHeader({
   title,
   period,
-  badge = "Poste Principal",
   module,
   actions,
 }: {
   title: string;
   period?: string;
-  badge?: string;
-  /** Tag module Stitch : "MODULE 09 · FISCAL V3.2", "INDEX v2.4"… */
+  /** Sur-titre technique discret (ex. « Catalogue · références »). */
   module?: string;
   actions?: ReactNode;
 }): ReactNode {
   return (
-    <div className="flex flex-col justify-between gap-3 rounded-xl bg-[#0d1c2d] p-4 shadow-md xl:flex-row xl:items-center">
-      <div className="space-y-0.5">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full bg-[#fbbf24] shadow-[0_0_8px_rgba(251,191,36,0.6)]" />
-          <h1 className="font-headline-lg text-[22px] font-bold tracking-tight text-[#d4e4fa]">
-            {title}
-          </h1>
-          <span className="font-mono-kbd rounded bg-[#1c2b3c] px-1.5 py-0.5 uppercase text-[#ffe1a7]">
-            {badge}
-          </span>
-          {module ? (
-            <span className="font-mono-kbd rounded bg-[#122131] px-1.5 py-0.5 uppercase text-[#4edea3]">
-              {module}
-            </span>
-          ) : null}
-        </div>
-        {period ? <p className="font-body-sm text-[12px] text-[#d3c5ac]">{period}</p> : null}
+    <header className="flex flex-col gap-3 border-b border-white/[0.06] pb-4 xl:flex-row xl:items-center xl:justify-between">
+      <div className="min-w-0">
+        {module ? (
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-[#fbbf24]/70">
+            {module}
+          </p>
+        ) : null}
+        <h1 className="mt-0.5 truncate text-[23px] font-semibold leading-tight tracking-tight text-slate-50">
+          {title}
+        </h1>
+        {period ? (
+          <p className="mt-1 max-w-4xl text-[12px] leading-relaxed text-slate-400">{period}</p>
+        ) : null}
       </div>
-      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
-    </div>
+      {actions ? (
+        <div className="flex shrink-0 flex-wrap items-center gap-2 xl:justify-end">{actions}</div>
+      ) : null}
+    </header>
   );
 }
 
@@ -111,13 +109,25 @@ export function Card({
   return (
     <div
       className={cn(
-        "rounded-xl border border-white/[0.07] bg-[#122131] shadow-[0_4px_12px_-2px_rgba(10,15,28,0.45)]",
+        "rounded-2xl border border-white/[0.07] bg-[#101f31] shadow-[0_1px_2px_rgba(2,6,13,0.35)]",
         className,
       )}
     >
       {children}
     </div>
   );
+}
+
+/** Barre de filtres unifiée : une seule rangée compacte, recherche à gauche,
+ *  filtres au centre, actions secondaires à droite. */
+export function Toolbar({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}): ReactNode {
+  return <Card className={cn("flex flex-wrap items-center gap-2 p-3", className)}>{children}</Card>;
 }
 
 /** Interrupteur nu (sans ligne de libellé) : même rendu que le bouton de
@@ -170,8 +180,8 @@ export function SectionTitle({
   return (
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0">
-        <h2 className="text-[17px] font-bold tracking-tight text-slate-100">{title}</h2>
-        {hint ? <p className="mt-0.5 text-xs text-slate-500">{hint}</p> : null}
+        <h2 className="text-[15px] font-semibold tracking-tight text-slate-100">{title}</h2>
+        {hint ? <p className="mt-0.5 text-[11px] text-slate-500">{hint}</p> : null}
       </div>
       {action}
     </div>
@@ -439,9 +449,9 @@ export function Modal({
           extraWide === true ? "max-w-[960px]" : wide === true ? "max-w-[680px]" : "max-w-[500px]",
         )}
       >
-        <Card className="veloria-dialog-in max-h-[90vh] space-y-4 overflow-auto rounded-[18px] border-[#28395d] p-6 shadow-[0_24px_48px_-12px_rgba(2,6,13,0.85)]">
+        <Card className="veloria-dialog-in max-h-[90vh] space-y-4 overflow-auto rounded-2xl border-white/10 bg-[#101f31] p-6 shadow-[0_24px_48px_-12px_rgba(2,6,13,0.85)]">
           <div className="flex items-center justify-between gap-3">
-            <h2 id={titleId} className="text-[17px] font-bold tracking-tight text-slate-100">
+            <h2 id={titleId} className="text-[18px] font-semibold tracking-tight text-slate-100">
               {title}
             </h2>
             <button
@@ -616,16 +626,90 @@ export function Kpi({
   icon?: ReactNode;
 }): ReactNode {
   return (
-    <Card className="relative overflow-hidden p-4 transition-colors hover:bg-[#1c2b3c]">
-      <div className="absolute inset-x-0 top-0 h-1" style={{ background: accent }} />
-      <div className="mb-1 flex items-center justify-between text-[#d3c5ac]">
-        <span className="font-label-field text-[11px] uppercase tracking-wider">{label}</span>
-        {icon}
+    <Card className="p-4 transition-colors hover:border-white/15">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+          {label}
+        </span>
+        {icon ?? (
+          <span
+            aria-hidden="true"
+            className="h-1.5 w-1.5 shrink-0 rounded-full"
+            style={{ background: accent }}
+          />
+        )}
       </div>
-      <div className="font-display-kpi my-1 flex items-baseline gap-1 text-[26px] font-bold tracking-tight text-[#d4e4fa]">
+      <div className="mt-2 font-mono text-[20px] font-bold leading-none tabular-nums text-slate-50">
         {value}
       </div>
-      {sub ? <div className="font-body-sm pt-1 text-[12px] text-[#d3c5ac]">{sub}</div> : null}
+      {sub ? <div className="mt-1.5 text-[11px] leading-snug text-slate-500">{sub}</div> : null}
+    </Card>
+  );
+}
+
+export type StatTone = "default" | "amber" | "green" | "red" | "blue";
+
+const statTones: Record<StatTone, string> = {
+  default: "text-slate-50",
+  amber: "text-amber-300",
+  green: "text-emerald-300",
+  red: "text-red-300",
+  blue: "text-sky-300",
+};
+
+export interface StatItem {
+  label: string;
+  value: string;
+  sub?: string;
+  tone?: StatTone;
+}
+
+/** Bandeau de statistiques unique (2 × 2 mobile, 4 colonnes desktop).
+ *  Remplace l'empilement de quatre cartes : une seule surface, moins de bruit,
+ *  mêmes informations. */
+export function StatsStrip({
+  items,
+  columns = 4,
+  className,
+}: {
+  items: readonly StatItem[];
+  columns?: 2 | 3 | 4 | 5;
+  className?: string;
+}): ReactNode {
+  const columnsClass =
+    columns === 5
+      ? "sm:grid-cols-3 xl:grid-cols-5"
+      : columns === 3
+        ? "sm:grid-cols-3"
+        : columns === 2
+          ? "sm:grid-cols-2"
+          : "sm:grid-cols-4";
+  return (
+    <Card
+      className={cn(
+        "grid grid-cols-2 gap-px overflow-hidden bg-white/[0.06] p-0",
+        columnsClass,
+        className,
+      )}
+    >
+      {items.map((it) => (
+        <div key={it.label} className="min-w-0 bg-[#101f31] px-4 py-3.5">
+          <div className="truncate text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+            {it.label}
+          </div>
+          <div
+            className={cn(
+              "mt-1.5 truncate font-mono text-[18px] font-bold leading-none tabular-nums",
+              statTones[it.tone ?? "default"],
+            )}
+          >
+            {it.value}
+          </div>
+          {it.sub ? (
+            <div className="mt-1 truncate text-[11px] leading-snug text-slate-500">{it.sub}</div>
+          ) : null}
+        </div>
+      ))}
     </Card>
   );
 }
