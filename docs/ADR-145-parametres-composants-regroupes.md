@@ -32,10 +32,10 @@ les libellés/`aria-label`.
 
 Trois regroupements suppriment les cartes d'une seule ligne :
 
-| Avant | Après |
-| --- | --- |
-| Vente + Sons | **Vente** (Caisse, Crédit, Sons) |
-| Produits + Stock | **Produits** (Catalogue, Stock) |
+| Avant                  | Après                                     |
+| ---------------------- | ----------------------------------------- |
+| Vente + Sons           | **Vente** (Caisse, Crédit, Sons)          |
+| Produits + Stock       | **Produits** (Catalogue, Stock)           |
 | Clients + Fournisseurs | **Clients** (Crédit client, Fournisseurs) |
 
 La page Commerce passe de 5 à 3 cartes ; Catalogue de 2 à 1. L'index de
