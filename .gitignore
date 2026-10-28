@@ -74,3 +74,7 @@ mobile/dist-web/
 *.keystore
 *.jks
 local.properties
+
+# Scratch electron-builder du License Manager (régénéré par package:manager ;
+# un app.asar peut y rester verrouillé par le scanneur après une build).
+/release-manager-tmp/

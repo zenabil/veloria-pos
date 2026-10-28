@@ -65,7 +65,6 @@ const STAFF_CHANNEL_PERMISSION: Record<string, string> = {
   [IPC_CHANNELS["settings.get"]]: "settings",
   [IPC_CHANNELS["settings.save"]]: "settings",
   [IPC_CHANNELS["templates.list"]]: "settings",
-  [IPC_CHANNELS["templates.get"]]: "settings",
   [IPC_CHANNELS["templates.save"]]: "settings",
   [IPC_CHANNELS["templates.activate"]]: "settings",
   [IPC_CHANNELS["templates.remove"]]: "settings",

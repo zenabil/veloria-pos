@@ -175,11 +175,9 @@ export const IPC_CHANNELS = {
   "printing.printPO": "printing.printPO",
   "printing.exportReceiptPdf": "printing.exportReceiptPdf",
   "printing.testPage": "printing.testPage",
-  "printer.get": "printer.get",
   "printer.save": "printer.save",
   // print templates studio (C6 : modèles SQLite, un actif par type)
   "templates.list": "templates.list",
-  "templates.get": "templates.get",
   "templates.save": "templates.save",
   "templates.activate": "templates.activate",
   "templates.remove": "templates.remove",

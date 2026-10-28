@@ -150,13 +150,11 @@ const api = {
     save: (p: unknown) => invoke(IPC_CHANNELS["zakat.save"], p),
   },
   printer: {
-    get: () => invoke(IPC_CHANNELS["printer.get"]),
     save: (p: unknown) => invoke(IPC_CHANNELS["printer.save"], p),
     test: () => invoke(IPC_CHANNELS["printing.testPage"]),
   },
   templates: {
     list: () => invoke(IPC_CHANNELS["templates.list"]),
-    get: (p: unknown) => invoke(IPC_CHANNELS["templates.get"], p),
     save: (p: unknown) => invoke(IPC_CHANNELS["templates.save"], p),
     activate: (p: unknown) => invoke(IPC_CHANNELS["templates.activate"], p),
     remove: (p: unknown) => invoke(IPC_CHANNELS["templates.remove"], p),

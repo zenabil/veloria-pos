@@ -108,8 +108,6 @@ export const RAW_UNGUARDED_CHANNELS: Readonly<Record<string, string>> = {
     "Lecture non sensible : nom de fichier de sauvegarde + taille + horodatage (aucun chemin, aucun contenu). Volumétrie d'un seul dossier.",
   [IPC_CHANNELS["backup.status"]]:
     "Lecture non sensible (compteur + dernier nom de fichier + horodatage). Lue par le bandeau global de notifications, y compris AVANT session : la garder fermée perdrait l'alerte « sauvegarde en retard ».",
-  [IPC_CHANNELS["printer.get"]]:
-    "Lecture non sensible : nom de l'imprimante sélectionnée (aucun chemin, aucune adresse IP). Le pairs 'printer.save' (écriture) est gardé 'settings'.",
   [IPC_CHANNELS["recovery.retry"]]:
     "Chemin de reprise APRÈS CRASH : s'exécute avant toute session (base half-migrated, utilisateur incapable de se connecter). Une porte staff rendrait la reprise impossible.",
   [IPC_CHANNELS["recovery.exit"]]:

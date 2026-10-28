@@ -38,7 +38,9 @@ const MODULES = [
 // ADR-130 (2026-10-21) : 121 → 122 (customersImportSchema ajouté avec le
 // canal `customers.import` — import CSV clients).
 // ADR-136 (2026-10-25) : 122 → 125 (packagings produit : list/save/delete).
-const FROZEN_SCHEMA_COUNT = 125;
+// ADR-153 (2026-10-28, lot dead-code A) : 125 → 124 (`templateGetSchema`
+// retiré avec le canal mort `templates.get`).
+const FROZEN_SCHEMA_COUNT = 124;
 const FROZEN_MAX_LINES = 300;
 
 describe("Validators inventory (split guard)", () => {

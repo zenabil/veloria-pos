@@ -147,13 +147,11 @@ interface Window {
       save(p: unknown): Promise<VeloriaOutcome>;
     };
     printer: {
-      get(): Promise<VeloriaOutcome>;
       save(p: unknown): Promise<VeloriaOutcome>;
       test(): Promise<VeloriaOutcome>;
     };
     templates: {
       list(): Promise<VeloriaOutcome>;
-      get(p: unknown): Promise<VeloriaOutcome>;
       save(p: unknown): Promise<VeloriaOutcome>;
       activate(p: unknown): Promise<VeloriaOutcome>;
       remove(p: unknown): Promise<VeloriaOutcome>;

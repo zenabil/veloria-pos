@@ -32,7 +32,6 @@ export default tseslint.config(
             "eslint.config.mjs",
             "scripts/database/integrity.js",
             "scripts/database/verify-migrations.mjs",
-            "scripts/database/probe-sqlite-version.cjs",
             "scripts/database/probe-writable.cjs",
             "scripts/database/relocate-local.cjs",
             "scripts/licensing/secret-scan.mjs",

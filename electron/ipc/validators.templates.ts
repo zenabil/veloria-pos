@@ -55,10 +55,6 @@ export const templateSettingsSchema = z.object({
 /** Réglages fusionnés côté main (capacités du type appliquées). */
 export type ParsedTemplateSettings = z.infer<typeof templateSettingsSchema>;
 
-export const templateGetSchema = z.object({
-  docType: templateDocTypeSchema,
-});
-
 export const templateSaveSchema = z.object({
   operationId: z.string().uuid(),
   id: z.number().int().positive().nullable().optional(),

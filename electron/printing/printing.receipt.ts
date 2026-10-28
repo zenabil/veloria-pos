@@ -102,16 +102,6 @@ export function registerReceiptIpc(getMainWindow: () => BrowserWindow | null): v
     }
   });
 
-  ipcMain.handle(IPC_CHANNELS["printer.get"], (_e, raw: unknown) => {
-    try {
-      emptyPayloadSchema.parse(raw ?? {});
-      return { ok: true, data: { name: getSelectedPrinterName() } };
-    } catch (err) {
-      log("ERROR", "printing", "selectedGet.failed", { error: String(err) });
-      return { ok: false, code: "UNKNOWN_ERROR", message: "Imprimante indisponible." };
-    }
-  });
-
   ipcMain.handle(IPC_CHANNELS["printer.save"], (_e, raw: unknown) => {
     // EL-22: écriture de configuration — même garde que settings.save
     // (poste non activé/expiré ne persiste pas l'imprimante).

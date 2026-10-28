@@ -101,7 +101,9 @@ const ALL_SCHEMA_NAMES: readonly string[] = Object.keys(V)
 // ADR-130 (2026-10-21) : 121 → 122 (customersImportSchema : import CSV
 // clients — mutation de lot, operationId REQUIS).
 // ADR-136 (2026-10-25) : 122 → 125 (3 schémas packaging).
-const FROZEN_SCHEMA_TOTAL = 125;
+// ADR-153 (2026-10-28, dead-code lot A) : 125 → 124 (`templateGetSchema`
+// retiré avec le canal mort `templates.get`).
+const FROZEN_SCHEMA_TOTAL = 124;
 
 function schemaOf(name: string): unknown {
   return (V as unknown as Record<string, unknown>)[name];

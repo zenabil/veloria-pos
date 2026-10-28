@@ -88,10 +88,6 @@ export function registerSystemChannels(): void {
   handle(IPC_CHANNELS["templates.list"], V.emptyPayloadSchema, () => ({
     rows: Templates.listTemplates(),
   }));
-  handle(IPC_CHANNELS["templates.get"], V.templateGetSchema, (input) => {
-    const active = Templates.getActiveTemplate(input.docType);
-    return { template: active };
-  });
   handle(IPC_CHANNELS["templates.save"], V.templateSaveSchema, (input) => {
     const settings: Record<string, unknown> = input.settings;
     if (input.id != null) {

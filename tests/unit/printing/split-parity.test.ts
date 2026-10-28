@@ -251,12 +251,11 @@ describe("receipt-documents : barrel vs direct", () => {
   });
 });
 
-describe("canaux IPC : parite avant/apres decoupe (27 canaux)", () => {
+describe("canaux IPC : parite avant/apres decoupe (26 canaux)", () => {
   const ALL = [
     "printing.listPrinters",
     "printing.printReceipt",
     "printing.preview",
-    "printer.get",
     "printer.save",
     "printing.testPage",
     "printing.previewProforma",
@@ -283,29 +282,29 @@ describe("canaux IPC : parite avant/apres decoupe (27 canaux)", () => {
   ];
   it("chaque module enregistre ses canaux", () => {
     registerReceiptIpc(noDb);
-    for (const c of ALL.slice(0, 6)) {
+    for (const c of ALL.slice(0, 5)) {
       expect(handled(), c).toContain(c);
     }
     mocks.handle.mockClear();
     registerProformaIpc(noDb);
-    for (const c of ALL.slice(6, 8)) expect(handled(), c).toContain(c);
+    for (const c of ALL.slice(5, 7)) expect(handled(), c).toContain(c);
     mocks.handle.mockClear();
     registerReportsLabelsIpc(noDb);
-    for (const c of ALL.slice(8, 12)) expect(handled(), c).toContain(c);
+    for (const c of ALL.slice(7, 11)) expect(handled(), c).toContain(c);
     mocks.handle.mockClear();
     registerPaymentIpc(noDb);
-    for (const c of ALL.slice(12, 14)) expect(handled(), c).toContain(c);
+    for (const c of ALL.slice(11, 13)) expect(handled(), c).toContain(c);
     mocks.handle.mockClear();
     registerLogisticsIpc(noDb);
-    for (const c of ALL.slice(14, 20)) expect(handled(), c).toContain(c);
+    for (const c of ALL.slice(13, 19)) expect(handled(), c).toContain(c);
     mocks.handle.mockClear();
     registerPdfExportsIpc(noDb);
-    for (const c of ALL.slice(20, 25)) expect(handled(), c).toContain(c);
+    for (const c of ALL.slice(19, 24)) expect(handled(), c).toContain(c);
     mocks.handle.mockClear();
     registerStudioIpc(noDb);
-    for (const c of ALL.slice(25)) expect(handled(), c).toContain(c);
+    for (const c of ALL.slice(24)) expect(handled(), c).toContain(c);
   });
-  it("composition : les 27 canaux, aucun ajout ni perte", () => {
+  it("composition : les 26 canaux, aucun ajout ni perte", () => {
     registerPrintingIpc(noDb);
     expect(handled().sort()).toEqual([...ALL].sort());
   });

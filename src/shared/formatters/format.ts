@@ -18,19 +18,19 @@ export function formatDzdSafe(raw: unknown): string {
 /**
  * Format monétaire SIGNÉ pour le rendu React (ne lève jamais).
  * Reports/bilans : marge et résultat net peuvent être négatifs (perte) —
- * `formatDzd` lèverait et crasherait l'écran. Négatif → "-500,00 DZD".
- * Corrompu/NaN/hors bornes → "—".
+ * `formatDzd` rend « — » sur un négatif, donc le signe est posé ici.
+ * Négatif → "-500,00 DZD". Corrompu/NaN/hors bornes → "—".
  */
 export function formatDzdSigned(raw: unknown): string {
   if (raw == null) return "—";
   const n = typeof raw === "number" ? raw : Number(raw);
   if (!Number.isFinite(n)) return "—";
   const r = Math.round(n);
-  try {
-    return r >= 0 ? formatDzd(r) : `-${formatDzd(-r)}`;
-  } catch {
-    return "—";
-  }
+  if (r >= 0) return formatDzd(r);
+  // `formatDzd` ne lève jamais (A-01) : hors bornes il rend « — », et un
+  // négatif hors bornes reste « — » (jamais le préfixe « -— »).
+  const positive = formatDzd(-r);
+  return positive === "—" ? "—" : `-${positive}`;
 }
 
 const frDateTime = new Intl.DateTimeFormat("fr-FR", {

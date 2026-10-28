@@ -191,14 +191,12 @@ function decimalToMinorStrict(value: number): number {
  * transactionnelle, écriture), utiliser `formatDzdStrict` (qui lève). */
 export function formatDzd(minor: number): string {
   if (!Number.isSafeInteger(minor) || minor < 0 || minor > MAX_MINOR_SINGLE) return "—";
-  const sign = minor < 0 ? "-" : "";
-  const abs = Math.abs(minor);
-  const major = Math.trunc(abs / MINOR_PER_MAJOR);
-  const cents = abs % MINOR_PER_MAJOR;
+  const major = Math.trunc(minor / MINOR_PER_MAJOR);
+  const cents = minor % MINOR_PER_MAJOR;
   const grouped = new Intl.NumberFormat("fr-FR", {
     maximumFractionDigits: 0,
   }).format(major);
-  return `${sign}${grouped},${String(cents).padStart(2, "0")} DZD`;
+  return `${grouped},${String(cents).padStart(2, "0")} DZD`;
 }
 
 /**
@@ -233,14 +231,12 @@ export function formatDzdTotalSigned(minor: number): string {
  */
 export function formatDzdStrict(minor: number): string {
   assertMinorInteger(minor);
-  const sign = minor < 0 ? "-" : "";
-  const abs = Math.abs(minor);
-  const major = Math.trunc(abs / MINOR_PER_MAJOR);
-  const cents = abs % MINOR_PER_MAJOR;
+  const major = Math.trunc(minor / MINOR_PER_MAJOR);
+  const cents = minor % MINOR_PER_MAJOR;
   const grouped = new Intl.NumberFormat("fr-FR", {
     maximumFractionDigits: 0,
   }).format(major);
-  return `${sign}${grouped},${String(cents).padStart(2, "0")} DZD`;
+  return `${grouped},${String(cents).padStart(2, "0")} DZD`;
 }
 
 /**
