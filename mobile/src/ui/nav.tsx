@@ -1,10 +1,11 @@
-// Veloria Client — Navigation V3 : barre flottante à 4 onglets (icônes +
-// labels, état actif or) + barre de page (retour circulaire + actions).
+// Veloria Client — Navigation V4 : barre plaquée en bas (filet supérieur,
+// état actif = tiret or) + barre de page plate.
+// Le dock flottant V3 mangeait la dernière ligne des listes : la barre est
+// désormais ancrée, et les écrans réservent `SIZES.dockInset`.
 import { Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { COLORS, GRADIENTS, RADIUS, SHADOW, SPACE, SIZES, tint } from "../tokens.ts";
+import { COLORS, RADIUS, SHADOW, SPACE, SIZES, TYPE } from "../tokens.ts";
 import { flow, Tap, type IconName } from "./kit.tsx";
-import { LinearGradient } from "expo-linear-gradient";
 import type { Lang } from "../i18n.ts";
 
 export type TabId = "home" | "invoices" | "payments" | "account";
@@ -16,7 +17,7 @@ const TAB_ICON: Record<TabId, IconName> = {
   account: "person",
 };
 
-/** Dock flottant navy : icône + label, actif en or, ombre profonde. */
+/** Barre d'onglets pleine largeur : une surface, un filet, un seul accent. */
 export function TabBar(props: {
   lang: Lang;
   active: TabId;
@@ -25,69 +26,75 @@ export function TabBar(props: {
 }): React.JSX.Element {
   const dir = props.lang === "ar" ? "rtl" : "ltr";
   return (
-    // testID → data-testid sur RN web : c'est l'ancre du script E2E
-    // scripts/e2e-mobile-shots.mjs (onglets, libellés partagés avec l'accueil).
+    // testID → data-testid sur RN web : c'est l'ancre du script de captures
+    // (onglets, libellés partagés avec l'accueil).
     <View
       testID="tab-bar"
-      style={{ position: "absolute", bottom: SPACE.lg, left: SPACE.lg, right: SPACE.lg }}
+      style={{
+        position: "absolute",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        flexDirection: flow(dir),
+        backgroundColor: COLORS.cardBg,
+        borderTopWidth: 1,
+        borderTopColor: COLORS.border,
+        paddingHorizontal: SPACE.sm,
+        paddingBottom: SPACE.xs,
+        paddingTop: SPACE.sm,
+        ...SHADOW.nav,
+      }}
     >
-      <LinearGradient
-        colors={GRADIENTS.heroDeep}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{
-          borderRadius: RADIUS.pill,
-          paddingHorizontal: SPACE.xs,
-          paddingVertical: SPACE.xs,
-          flexDirection: flow(dir),
-          ...SHADOW.nav,
-          borderWidth: 1,
-          borderColor: tint(COLORS.white, "1A"),
-        }}
-      >
-        {props.tabs.map((x) => {
-          const active = props.active === x.id;
-          return (
-            <Tap
-              key={x.id}
-              onPress={() => props.onChange(x.id)}
-              accessibilityLabel={x.label}
-              scaleTo={0.94}
+      {props.tabs.map((x) => {
+        const active = props.active === x.id;
+        return (
+          <Tap
+            key={x.id}
+            onPress={() => props.onChange(x.id)}
+            accessibilityLabel={x.label}
+            scaleTo={0.97}
+            style={{
+              flex: 1,
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 3,
+              paddingVertical: SPACE.xs,
+              minHeight: SIZES.tabBar,
+            }}
+          >
+            {/* Le témoin d'onglet actif est un tiret or, pas un halo. */}
+            <View
               style={{
-                flex: 1,
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 2,
-                paddingVertical: 8,
+                width: 22,
+                height: 3,
                 borderRadius: RADIUS.pill,
-                backgroundColor: active ? tint(COLORS.primary, "1F") : "transparent",
-                minHeight: SIZES.tabBar - 8,
+                backgroundColor: active ? COLORS.primary : "transparent",
+                marginBottom: 2,
               }}
+            />
+            <Ionicons
+              name={TAB_ICON[x.id]}
+              size={19}
+              color={active ? COLORS.headerBg : COLORS.inkFaint}
+            />
+            <Text
+              style={{
+                ...TYPE.micro,
+                color: active ? COLORS.headerBg : COLORS.inkFaint,
+                letterSpacing: 0.2,
+              }}
+              numberOfLines={1}
             >
-              <Ionicons
-                name={TAB_ICON[x.id]}
-                size={20}
-                color={active ? COLORS.primary : COLORS.navyMuted}
-              />
-              <Text
-                style={{
-                  color: active ? COLORS.white : COLORS.navyMuted,
-                  fontWeight: active ? "800" : "600",
-                  fontSize: 11,
-                }}
-                numberOfLines={1}
-              >
-                {x.label}
-              </Text>
-            </Tap>
-          );
-        })}
-      </LinearGradient>
+              {x.label}
+            </Text>
+          </Tap>
+        );
+      })}
     </View>
   );
 }
 
-/** Barre de page (détail / sous-page) : retour circulaire + titre + actions.
+/** Barre de page (détail / sous-page) : retour + titre + actions, encre plate.
  * Convention chevrons RTL (ADR-051) : en arabe on lit de droite à gauche —
  * « retour » pointe donc vers la droite (`chevron-forward`), « aller vers le
  * détail » vers la gauche (`chevron-back` dans les listes). */
@@ -101,35 +108,31 @@ export function PageBar(props: {
 }): React.JSX.Element {
   const backIcon = props.dir === "rtl" ? "chevron-forward" : "chevron-back";
   return (
-    <LinearGradient
-      colors={GRADIENTS.heroDeep}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
+    <View
       style={{
         flexDirection: flow(props.dir),
         alignItems: "center",
         gap: SPACE.sm,
         paddingHorizontal: SPACE.md,
         paddingVertical: SPACE.sm,
-        borderBottomWidth: 1,
-        borderBottomColor: tint(COLORS.white, "14"),
+        backgroundColor: COLORS.headerBg,
       }}
     >
       {props.onBack ? (
         <Tap
           onPress={props.onBack}
           accessibilityLabel={props.backLabel}
-          scaleTo={0.9}
+          scaleTo={0.92}
           style={{
             width: SIZES.touchMin,
             height: SIZES.touchMin,
-            borderRadius: SIZES.touchMin / 2,
-            backgroundColor: tint(COLORS.white, "14"),
+            borderRadius: RADIUS.pill,
+            backgroundColor: COLORS.navySoft,
             alignItems: "center",
             justifyContent: "center",
           }}
         >
-          <Ionicons name={backIcon} size={20} color={COLORS.white} />
+          <Ionicons name={backIcon} size={19} color={COLORS.white} />
         </Tap>
       ) : (
         <View style={{ width: SPACE.sm }} />
@@ -140,6 +143,7 @@ export function PageBar(props: {
             color: COLORS.white,
             fontWeight: "800",
             fontSize: 16,
+            lineHeight: 22,
             textAlign: props.dir === "rtl" ? "right" : "left",
           }}
           numberOfLines={1}
@@ -151,6 +155,7 @@ export function PageBar(props: {
             style={{
               color: COLORS.navyMuted,
               fontSize: 11,
+              lineHeight: 15,
               textAlign: props.dir === "rtl" ? "right" : "left",
             }}
             numberOfLines={1}
@@ -160,6 +165,6 @@ export function PageBar(props: {
         ) : null}
       </View>
       {props.right}
-    </LinearGradient>
+    </View>
   );
 }

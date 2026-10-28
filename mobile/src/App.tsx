@@ -3,9 +3,8 @@
 // (expo-sqlite, repli mémoire) : l'appli rouvre sur les dernières données.
 import { useEffect, useRef, useState } from "react";
 import { BackHandler, Image, Linking, Modal, Platform, Pressable, Text, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { COLORS, GRADIENTS, RADIUS, SHADOW, SIZES, SPACE, tint } from "./tokens.ts";
+import { COLORS, RADIUS, SHADOW, SIZES, SPACE, TYPE, tint } from "./tokens.ts";
 import { formatDateFr } from "./format.ts";
 import { t, type Lang } from "./i18n.ts";
 import { SyncError, fetchInvoiceDetail, syncNow } from "./api.ts";
@@ -358,11 +357,14 @@ export function App(): React.JSX.Element {
 
   if (!booted) {
     return (
-      <LinearGradient
-        colors={GRADIENTS.heroDeep}
-        start={{ x: 0.1, y: 0 }}
-        end={{ x: 0.9, y: 1 }}
-        style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: SPACE.md }}
+      <View
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          gap: SPACE.md,
+          backgroundColor: COLORS.headerBg,
+        }}
       >
         <Image
           // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -370,15 +372,22 @@ export function App(): React.JSX.Element {
           style={{
             width: 76,
             height: 76,
-            borderRadius: 24,
+            borderRadius: RADIUS.card,
           }}
           accessibilityLabel="Veloria"
         />
-        <Text style={{ fontSize: 24, fontWeight: "900", color: COLORS.white, letterSpacing: 0.6 }}>
+        <Text
+          style={{
+            ...TYPE.title,
+            color: COLORS.white,
+            fontWeight: "900",
+            letterSpacing: 0.6,
+          }}
+        >
           Veloria
         </Text>
         <Text style={{ color: COLORS.navyMuted, fontSize: 12 }}>{t(lang, "loading")}</Text>
-      </LinearGradient>
+      </View>
     );
   }
 
@@ -421,11 +430,8 @@ export function App(): React.JSX.Element {
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.contentBg, paddingTop: 36 }}>
-      {/* TopAppBar V3 : marque + état synchro + cloche + langue */}
-      <LinearGradient
-        colors={GRADIENTS.heroDeep}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
+      {/* Barre haute V4 plate : marque + état de synchro + cloche. */}
+      <View
         style={{
           flexDirection: flow(lang === "ar" ? "rtl" : "ltr"),
           justifyContent: "space-between",
@@ -433,6 +439,7 @@ export function App(): React.JSX.Element {
           paddingHorizontal: SPACE.lg,
           paddingVertical: SPACE.sm,
           gap: SPACE.sm,
+          backgroundColor: COLORS.headerBg,
         }}
       >
         <View
@@ -445,9 +452,9 @@ export function App(): React.JSX.Element {
         >
           <View
             style={{
-              width: 34,
-              height: 34,
-              borderRadius: 11,
+              width: 30,
+              height: 30,
+              borderRadius: RADIUS.inner,
               overflow: "hidden",
               alignItems: "center",
               justifyContent: "center",
@@ -456,13 +463,13 @@ export function App(): React.JSX.Element {
             <Image
               // eslint-disable-next-line @typescript-eslint/no-require-imports
               source={require("../assets/brand/veloria-customer.png")}
-              style={{ width: 34, height: 34 }}
+              style={{ width: 30, height: 30 }}
               accessibilityLabel="Veloria"
             />
           </View>
           <View style={{ flex: 1 }}>
             <Text
-              style={{ color: COLORS.white, fontWeight: "900", fontSize: 15 }}
+              style={{ color: COLORS.white, fontWeight: "800", fontSize: 15 }}
               numberOfLines={1}
             >
               Veloria Client
@@ -498,8 +505,8 @@ export function App(): React.JSX.Element {
             style={{
               width: SIZES.touchMin,
               height: SIZES.touchMin,
-              borderRadius: SIZES.touchMin / 2,
-              backgroundColor: tint(COLORS.white, "14"),
+              borderRadius: RADIUS.pill,
+              backgroundColor: COLORS.navySoft,
               alignItems: "center",
               justifyContent: "center",
             }}
@@ -511,7 +518,7 @@ export function App(): React.JSX.Element {
             />
           </Tap>
         </View>
-      </LinearGradient>
+      </View>
       <View style={{ flex: 1 }}>
         {detailRow ? (
           <InvoiceDetailScreen
@@ -633,7 +640,9 @@ export function App(): React.JSX.Element {
           style={[
             {
               position: "absolute",
-              bottom: 96,
+              // Le dock étant ancré, le toast se pose juste au-dessus (V3 : 96
+              // flottait sur la dernière ligne des listes).
+              bottom: SIZES.dockInset,
               left: SPACE.lg,
               right: SPACE.lg,
               backgroundColor: COLORS.headerBg,
@@ -645,7 +654,7 @@ export function App(): React.JSX.Element {
               borderWidth: 1,
               borderColor: tint(COLORS.debtOverdue, "66"),
             },
-            SHADOW.nav,
+            SHADOW.raised,
           ]}
         >
           <IconBubble icon="alert-circle" color={COLORS.dangerLight} size={30} />
@@ -716,10 +725,10 @@ export function App(): React.JSX.Element {
 
             <View
               style={{
-                backgroundColor: home.announcement ? tint(COLORS.debtOk, "14") : COLORS.contentBg,
+                backgroundColor: home.announcement ? COLORS.okTone : COLORS.toneBg,
                 borderRadius: RADIUS.cardSm,
                 borderWidth: 1,
-                borderColor: home.announcement ? tint(COLORS.debtOk, "3D") : COLORS.border,
+                borderColor: home.announcement ? tint(COLORS.debtOk, "33") : COLORS.border,
                 padding: SPACE.md,
                 marginTop: SPACE.lg,
                 flexDirection: flow(lang === "ar" ? "rtl" : "ltr"),
@@ -731,6 +740,7 @@ export function App(): React.JSX.Element {
                 icon={home.announcement ? "megaphone" : "checkmark-circle"}
                 color={home.announcement ? COLORS.debtOk : COLORS.cardMuted}
                 size={32}
+                bg={COLORS.cardBg}
               />
               <View style={{ flex: 1 }}>
                 <Text style={{ color: COLORS.cardText, fontWeight: "700", fontSize: 14 }}>
@@ -748,13 +758,17 @@ export function App(): React.JSX.Element {
               onPress={() => setNotifOpen(false)}
               style={{
                 backgroundColor: COLORS.headerBg,
-                borderRadius: RADIUS.pill,
+                borderRadius: RADIUS.button,
+                minHeight: SIZES.touchMin,
                 padding: 14,
                 marginTop: SPACE.lg,
                 alignItems: "center",
+                justifyContent: "center",
               }}
             >
-              <Text style={{ color: COLORS.white, fontWeight: "800" }}>{t(lang, "close")}</Text>
+              <Text style={{ color: COLORS.white, fontWeight: "800", fontSize: 14 }}>
+                {t(lang, "close")}
+              </Text>
             </Pressable>
           </Pressable>
         </Pressable>

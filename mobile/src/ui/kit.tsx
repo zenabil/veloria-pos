@@ -1,21 +1,21 @@
-// Veloria Client — Kit UI V3 « Veloria Fintech ».
-// Composants partagés : pression animée + haptics, cartes à ombre douce,
-// boutons variantés, puces, badges, montants Mono, en-têtes de section.
-// Aucune logique métier ici : purement visuel (voir screens/ pour l'usage).
+// Veloria Client — Kit UI V4 « Daylight plat ».
+// Vocabulaire visuel de la refonte (aligné ADR-148 du POS) : on sépare par un
+// filet, on n'empile plus les surfaces, un seul accent fort (l'or) pour
+// l'action principale. Aucune logique métier ici : purement visuel.
 import { useState } from "react";
 import { Platform, Pressable, Text, TextInput, View } from "react-native";
 import type { StyleProp, TextStyle, ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { COLORS, FONTS, RADIUS, SHADOW, SIZES, SPACE, TYPE, tint } from "../tokens.ts";
+import { COLORS, FONTS, HAIRLINE, RADIUS, SHADOW, SIZES, SPACE, TYPE, tint } from "../tokens.ts";
 import type { Lang } from "../i18n.ts";
 
 export type IconName = React.ComponentProps<typeof Ionicons>["name"];
 export type Flow = "row" | "row-reverse";
 
-const TAP_MIN = 48;
-const CHIP_HEIGHT = SIZES.touchMin;
-const AMOUNT_MD = 18;
+const TAP_MIN = SIZES.touchMin;
+const CHIP_HEIGHT = SIZES.filterChipHeight;
+const AMOUNT_MD = SIZES.amountMd;
 
 /** Sens de flux RTL/LTR (un seul endroit pour la bascule). */
 export function flow(dir: "rtl" | "ltr"): Flow {
@@ -33,7 +33,7 @@ function buzz(): void {
   }
 }
 
-/** Cible tactile (scale 0.97) + retour haptique léger.
+/** Cible tactile (scale 0.98) + retour haptique léger.
 // NOTE crash APK 2026-10-04 : un Animated.Value dans `transform` arrivait
 // natif comme une Map (ReadableNativeMap→double, FATAL au premier rendu).
 // Pression en nombres purs : aucun nœud animé ne traverse le pont. */
@@ -51,7 +51,7 @@ export function Tap(props: {
   testID?: string;
 }): React.JSX.Element {
   const [pressed, setPressed] = useState(false);
-  const to = props.scaleTo ?? 0.96;
+  const to = props.scaleTo ?? 0.98;
   return (
     <Pressable
       accessibilityRole="button"
@@ -74,26 +74,24 @@ export function Tap(props: {
   );
 }
 
-/** Carte blanche : rayon 20, ombre diffuse, filet 1px lisible en plein soleil. */
+/** Surface claire à filet (V4 : la séparation n'est plus une ombre). */
 export function Card(props: {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   tone?: string;
   raised?: boolean;
+  padded?: boolean;
 }): React.JSX.Element {
   return (
     <View
       style={[
         {
-          backgroundColor: COLORS.cardBg,
+          backgroundColor: props.tone ?? COLORS.cardBg,
           borderRadius: RADIUS.card,
-          padding: SPACE.lg,
-          borderWidth: 1,
-          borderColor: tint(COLORS.headerBg, "0D"),
-          ...SHADOW.card,
+          padding: props.padded === false ? 0 : SPACE.lg,
+          ...HAIRLINE,
         },
-        props.raised ? SHADOW.raised : SHADOW.card,
-        props.tone ? { backgroundColor: props.tone } : null,
+        props.raised ? SHADOW.raised : null,
         props.style,
       ]}
     >
@@ -102,18 +100,138 @@ export function Card(props: {
   );
 }
 
-export type ButtonVariant = "gold" | "navy" | "outline" | "ghost" | "danger" | "success";
+/** Groupe de lignes : une surface, des filets internes (plus de carte par ligne). */
+export function Group(props: {
+  children: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
+}): React.JSX.Element {
+  return (
+    <View
+      style={[
+        {
+          backgroundColor: COLORS.cardBg,
+          borderRadius: RADIUS.card,
+          overflow: "hidden",
+          ...HAIRLINE,
+        },
+        props.style,
+      ]}
+    >
+      {props.children}
+    </View>
+  );
+}
+
+/** Filet interne d'un groupe (jamais deux épaissesurs différentes). */
+export function Divider(props: { inset?: number }): React.JSX.Element {
+  return (
+    <View
+      style={{
+        height: 1,
+        backgroundColor: COLORS.divider,
+        marginLeft: props.inset ?? 0,
+      }}
+    />
+  );
+}
+
+/** Ligne de liste tactile : 60 dp, titre + détail, valeur au bord extérieur. */
+export function Row(props: {
+  title: string;
+  caption?: string;
+  value?: string;
+  valueTone?: string;
+  badge?: React.ReactNode;
+  icon?: IconName;
+  iconTone?: string;
+  chevron?: boolean;
+  dir: "rtl" | "ltr";
+  onPress?: () => void;
+  accessibilityLabel?: string;
+  testID?: string;
+}): React.JSX.Element {
+  const rtl = props.dir === "rtl";
+  const body = (
+    <View
+      style={{
+        minHeight: SIZES.rowHeight,
+        paddingHorizontal: SPACE.lg,
+        paddingVertical: SPACE.md,
+        flexDirection: flow(props.dir),
+        alignItems: "center",
+        gap: SPACE.md,
+        backgroundColor: COLORS.cardBg,
+      }}
+    >
+      {props.icon ? <IconBubble icon={props.icon} color={props.iconTone} size={34} /> : null}
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text
+          style={{
+            ...TYPE.headline,
+            color: COLORS.cardText,
+            textAlign: props.dir === "rtl" ? "right" : "left",
+          }}
+          numberOfLines={1}
+        >
+          {props.title}
+        </Text>
+        {props.caption || props.badge ? (
+          <View
+            style={{
+              flexDirection: flow(props.dir),
+              alignItems: "center",
+              gap: SPACE.sm,
+            }}
+          >
+            {props.caption ? (
+              <Text style={{ ...TYPE.caption, color: COLORS.cardMuted }} numberOfLines={1}>
+                {props.caption}
+              </Text>
+            ) : null}
+            {props.badge}
+          </View>
+        ) : null}
+      </View>
+      <View style={{ alignItems: rtl ? "flex-start" : "flex-end" }}>
+        {props.value ? (
+          <Amount text={props.value} tone={props.valueTone} align={farEdge(rtl)} />
+        ) : null}
+      </View>
+      {props.chevron ? (
+        <Ionicons
+          name={props.dir === "rtl" ? "chevron-back" : "chevron-forward"}
+          size={16}
+          color={COLORS.inkFaint}
+        />
+      ) : null}
+    </View>
+  );
+  if (!props.onPress) return body;
+  return (
+    <Tap
+      onPress={props.onPress}
+      accessibilityLabel={props.accessibilityLabel ?? props.title}
+      testID={props.testID}
+      style={{ backgroundColor: COLORS.cardBg }}
+    >
+      {body}
+    </Tap>
+  );
+}
+
+export type ButtonVariant = "gold" | "ink" | "quiet" | "outline" | "ghost" | "danger" | "success";
 
 const BUTTON_SKIN: Record<ButtonVariant, { bg: string; fg: string; border?: string }> = {
   gold: { bg: COLORS.primary, fg: COLORS.primaryText },
-  navy: { bg: COLORS.headerBg, fg: COLORS.white },
+  ink: { bg: COLORS.headerBg, fg: COLORS.white },
+  quiet: { bg: COLORS.toneBg, fg: COLORS.cardText },
   outline: { bg: COLORS.cardBg, fg: COLORS.cardText, border: COLORS.border },
-  ghost: { bg: COLORS.contentBg, fg: COLORS.cardText },
-  danger: { bg: COLORS.dangerBg, fg: COLORS.debtOverdue, border: tint(COLORS.debtOverdue, "40") },
+  ghost: { bg: "transparent", fg: COLORS.cardMuted },
+  danger: { bg: COLORS.dangerTone, fg: COLORS.debtOverdue, border: tint(COLORS.debtOverdue, "33") },
   success: { bg: COLORS.debtOk, fg: COLORS.white },
 };
 
-/** Bouton pilule : variante, icône optionnelle, taille md (48) / lg (56). */
+/** Bouton arrondi-rectangle (V4 : plus de pilule + halo pour les actions). */
 export function Button(props: {
   label: string;
   onPress?: () => void;
@@ -124,6 +242,7 @@ export function Button(props: {
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
+  full?: boolean;
 }): React.JSX.Element {
   const variant = props.variant ?? "gold";
   const skin = BUTTON_SKIN[variant];
@@ -139,16 +258,16 @@ export function Button(props: {
           backgroundColor: skin.bg,
           borderColor: skin.border ?? "transparent",
           borderWidth: skin.border ? 1 : 0,
-          borderRadius: RADIUS.pill,
-          minHeight: lg ? 56 : TAP_MIN,
+          borderRadius: RADIUS.button,
+          minHeight: lg ? 54 : TAP_MIN,
           paddingHorizontal: SPACE.lg,
           alignItems: "center",
           justifyContent: "center",
           flexDirection: "row",
           gap: SPACE.sm,
-          opacity: off ? 0.55 : 1,
+          opacity: off ? 0.5 : 1,
         },
-        variant === "gold" ? SHADOW.gold : variant === "navy" ? SHADOW.raised : null,
+        props.full ? { alignSelf: "stretch" } : null,
         props.style,
       ]}
     >
@@ -156,12 +275,12 @@ export function Button(props: {
         <Text style={{ color: skin.fg, fontWeight: "800" }}>…</Text>
       ) : (
         <>
-          {props.icon ? <Ionicons name={props.icon} size={18} color={skin.fg} /> : null}
+          {props.icon ? <Ionicons name={props.icon} size={17} color={skin.fg} /> : null}
           <Text
             style={{
               color: skin.fg,
               fontWeight: "800",
-              fontSize: lg ? 16 : 14,
+              fontSize: lg ? 15 : 14,
               letterSpacing: 0.2,
             }}
           >
@@ -173,7 +292,7 @@ export function Button(props: {
   );
 }
 
-/** Puce de filtre (sélection : navy, repos : blanc filet). */
+/** Puce de filtre (sélection : encre, repos : blanc à filet). */
 export function Chip(props: {
   label: string;
   active?: boolean;
@@ -197,18 +316,13 @@ export function Chip(props: {
         justifyContent: "center",
         flexDirection: "row",
         gap: 6,
-        ...(active ? SHADOW.card : null),
       }}
     >
       {props.icon && active ? (
-        <Ionicons name={props.icon} size={14} color={COLORS.primary} />
+        <Ionicons name={props.icon} size={13} color={COLORS.primary} />
       ) : null}
       <Text
-        style={{
-          color: active ? COLORS.white : COLORS.cardText,
-          fontWeight: "800",
-          fontSize: 13,
-        }}
+        style={{ color: active ? COLORS.white : COLORS.cardText, fontWeight: "700", fontSize: 13 }}
       >
         {props.label}
       </Text>
@@ -228,38 +342,43 @@ export function Chip(props: {
   );
 }
 
-/** Pastille d'état teintée (statut, méthode, synchronisation). */
+/** Pastille d'état : point + texte teinté (V4), plus de gros fonds colorés. */
 export function Badge(props: {
   label: string;
   color: string;
   icon?: IconName;
+  dot?: boolean;
   style?: StyleProp<ViewStyle>;
 }): React.JSX.Element {
   return (
     <View
       style={[
         {
-          backgroundColor: tint(props.color, "18"),
-          borderRadius: RADIUS.pill,
-          paddingHorizontal: 10,
-          paddingVertical: 5,
           flexDirection: "row",
           alignItems: "center",
-          gap: 4,
+          gap: 5,
           alignSelf: "flex-start",
         },
         props.style,
       ]}
     >
+      {props.dot !== false ? (
+        <View
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: 4,
+            backgroundColor: props.color,
+          }}
+        />
+      ) : null}
       {props.icon ? <Ionicons name={props.icon} size={12} color={props.color} /> : null}
-      <Text style={{ color: props.color, fontWeight: "800", fontSize: 11, letterSpacing: 0.3 }}>
-        {props.label}
-      </Text>
+      <Text style={{ color: props.color, fontWeight: "700", fontSize: 12 }}>{props.label}</Text>
     </View>
   );
 }
 
-/** Pastille circulaire d'icône (tuiles d'action rapide, timeline). */
+/** Pastille circulaire d'icône (groupes, timeline, états vides). */
 export function IconBubble(props: {
   icon: IconName;
   color?: string;
@@ -267,9 +386,9 @@ export function IconBubble(props: {
   size?: number;
   style?: StyleProp<ViewStyle>;
 }): React.JSX.Element {
-  const size = props.size ?? 40;
-  const color = props.color ?? COLORS.headerBg;
-  const bg = props.bg ?? tint(color, "16");
+  const size = props.size ?? 34;
+  const color = props.color ?? COLORS.cardText;
+  const bg = props.bg ?? tint(color, "12");
   return (
     <View
       style={[
@@ -280,7 +399,6 @@ export function IconBubble(props: {
           backgroundColor: bg,
           alignItems: "center",
           justifyContent: "center",
-          ...SHADOW.card,
         },
         props.style,
       ]}
@@ -304,16 +422,24 @@ export function SectionHead(props: {
         flexDirection: flow(props.dir),
         justifyContent: "space-between",
         alignItems: "center",
+        marginTop: SPACE.xl,
         marginBottom: SPACE.sm,
-        marginTop: SPACE.sm,
+        paddingHorizontal: SPACE.xs,
       }}
     >
       <View style={{ flex: 1 }}>
-        <Text style={{ ...TYPE.headline, color: COLORS.cardText, letterSpacing: 0.2 }}>
+        <Text
+          style={{
+            ...TYPE.label,
+            color: COLORS.cardMuted,
+            letterSpacing: 0.6,
+            textAlign: props.dir === "rtl" ? "right" : "left",
+          }}
+        >
           {props.title}
         </Text>
         {props.caption ? (
-          <Text style={{ ...TYPE.caption, color: COLORS.cardMuted, marginTop: 2 }}>
+          <Text style={{ ...TYPE.caption, color: COLORS.inkFaint, marginTop: 2 }}>
             {props.caption}
           </Text>
         ) : null}
@@ -328,15 +454,16 @@ export function SectionHead(props: {
             gap: 2,
             paddingHorizontal: SPACE.xs,
             paddingVertical: SPACE.xs,
+            minHeight: TAP_MIN,
           }}
         >
-          <Text style={{ color: COLORS.cardMuted, fontWeight: "800", fontSize: 13 }}>
+          <Text style={{ color: COLORS.headerBg, fontWeight: "800", fontSize: 13 }}>
             {props.actionLabel}
           </Text>
           <Ionicons
             name={props.dir === "rtl" ? "chevron-back" : "chevron-forward"}
             size={14}
-            color={COLORS.cardMuted}
+            color={COLORS.headerBg}
           />
         </Tap>
       ) : null}
@@ -361,7 +488,7 @@ export function Amount(props: {
           fontSize: props.size ?? AMOUNT_MD,
           color: props.tone ?? COLORS.cardText,
           textAlign: props.align,
-          letterSpacing: 0.3,
+          letterSpacing: 0.2,
         },
         props.style,
       ]}
@@ -373,7 +500,7 @@ export function Amount(props: {
   );
 }
 
-/** Champ libellé (téléphone, recherche) : pilule blanche + préfixe éventuel. */
+/** Champ libellé (téléphone, recherche) : surface en creux, focus au filet. */
 export function Field(props: {
   label?: string;
   value: string;
@@ -399,30 +526,20 @@ export function Field(props: {
       style={{
         flexDirection: flow(rtl ? "rtl" : "ltr"),
         alignItems: "center",
-        backgroundColor: COLORS.cardBg,
-        borderRadius: RADIUS.pill,
+        backgroundColor: focused ? COLORS.cardBg : COLORS.sunkenBg,
+        borderRadius: RADIUS.field,
         borderWidth: 1.5,
-        borderColor: focused ? COLORS.primary : COLORS.border,
+        borderColor: focused ? COLORS.primary : "transparent",
         paddingHorizontal: SPACE.md,
         minHeight: 52,
-        ...(focused ? SHADOW.gold : null),
         gap: SPACE.sm,
       }}
     >
       {props.icon ? <Ionicons name={props.icon} size={18} color={COLORS.cardMuted} /> : null}
       {props.prefix ? (
-        <View
-          style={{
-            backgroundColor: COLORS.contentBg,
-            borderRadius: RADIUS.pill,
-            paddingHorizontal: 10,
-            paddingVertical: 6,
-          }}
-        >
-          <Text style={{ fontWeight: "800", color: COLORS.cardText, fontSize: 14 }}>
-            {props.prefix}
-          </Text>
-        </View>
+        <Text style={{ fontWeight: "800", color: COLORS.cardMuted, fontSize: 14 }}>
+          {props.prefix}
+        </Text>
       ) : null}
       <TextInput
         ref={props.inputRef}
@@ -457,7 +574,8 @@ export function Field(props: {
       <Text
         style={{
           ...TYPE.label,
-          color: COLORS.cardText,
+          color: COLORS.cardMuted,
+          letterSpacing: 0.4,
           marginBottom: 6,
           textAlign: rtl ? "right" : "left",
         }}
@@ -479,7 +597,7 @@ export function Dashed(props: { style?: StyleProp<ViewStyle> }): React.JSX.Eleme
           borderTopColor: COLORS.border,
           borderStyle: "dashed",
           height: 1,
-          opacity: 0.6,
+          opacity: 0.7,
         },
         props.style,
       ]}

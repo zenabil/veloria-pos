@@ -1,10 +1,10 @@
-// Veloria Client — États vides + squelettes de chargement (V3).
+// Veloria Client — États vides + squelettes de chargement (V4 plat).
 // Un écran jamais blanc : squelette statique, vide avec icône + conseil.
 // NOTE crash APK 2026-10-04 : pas de nœud Animated dans les styles
 // (même cause que Tap : Map native au lieu de double) — squelette fixe.
 import { Text, View } from "react-native";
 import type { StyleProp, ViewStyle } from "react-native";
-import { COLORS, RADIUS, SPACE, TYPE, tint } from "../tokens.ts";
+import { COLORS, HAIRLINE, RADIUS, SPACE, TYPE } from "../tokens.ts";
 import { IconBubble, type IconName } from "./kit.tsx";
 
 /** Bloc squelette (fixe, jamais d'écran blanc). */
@@ -18,11 +18,10 @@ export function Skeleton(props: {
     <View
       style={[
         {
-          height: props.height ?? 18,
+          height: props.height ?? 16,
           width: props.width ?? "100%",
-          borderRadius: props.radius ?? 10,
-          backgroundColor: COLORS.border,
-          opacity: 0.5,
+          borderRadius: props.radius ?? RADIUS.inner,
+          backgroundColor: COLORS.gray200,
         },
         props.style,
       ]}
@@ -30,7 +29,7 @@ export function Skeleton(props: {
   );
 }
 
-/** Pile de squelettes (liste factures / paiements). */
+/** Pile de squelettes : une surface à filet (comme les groupes réels). */
 export function SkeletonList(props: {
   count?: number;
   height?: number;
@@ -38,43 +37,36 @@ export function SkeletonList(props: {
   bare?: boolean;
 }): React.JSX.Element {
   const count = props.count ?? 3;
-  if (props.bare === true) {
-    return (
-      <View style={[{ gap: SPACE.sm }, props.style]}>
-        {Array.from({ length: count }, (_, i) => (
-          <View key={i} style={{ gap: SPACE.sm }}>
-            <Skeleton height={14} width="45%" />
-            <Skeleton height={22} width="70%" />
-            <Skeleton height={12} width="30%" />
-          </View>
-        ))}
-      </View>
-    );
-  }
-  return (
-    <View style={[{ gap: SPACE.sm }, props.style]}>
+  const rows = (
+    <View style={{ gap: SPACE.md }}>
       {Array.from({ length: count }, (_, i) => (
-        <View
-          key={i}
-          style={{
-            backgroundColor: COLORS.cardBg,
-            borderRadius: RADIUS.cardSm,
-            padding: SPACE.lg,
-            gap: SPACE.sm,
-            borderWidth: 1,
-            borderColor: tint(COLORS.headerBg, "0D"),
-          }}
-        >
+        <View key={i} style={{ gap: SPACE.sm }}>
           <Skeleton height={14} width="45%" />
-          <Skeleton height={22} width="70%" />
+          <Skeleton height={18} width="70%" />
           <Skeleton height={12} width="30%" />
         </View>
       ))}
     </View>
   );
+  if (props.bare === true) return <View style={props.style}>{rows}</View>;
+  return (
+    <View
+      style={[
+        {
+          backgroundColor: COLORS.cardBg,
+          borderRadius: RADIUS.card,
+          padding: SPACE.lg,
+          ...HAIRLINE,
+        },
+        props.style,
+      ]}
+    >
+      {rows}
+    </View>
+  );
 }
 
-/** État vide : cercle icône + titre + conseil d'action. */
+/** État vide : pastille icône + titre + conseil d'action. */
 export function EmptyState(props: {
   icon: IconName;
   title: string;
@@ -84,15 +76,21 @@ export function EmptyState(props: {
 }): React.JSX.Element {
   const tone = props.tone ?? COLORS.cardMuted;
   return (
-    <View style={{ alignItems: "center", paddingVertical: SPACE.xxl, paddingHorizontal: SPACE.xl }}>
-      <IconBubble icon={props.icon} color={tone} size={64} />
+    <View
+      style={{
+        alignItems: "center",
+        paddingVertical: SPACE.xxl,
+        paddingHorizontal: SPACE.xl,
+        gap: SPACE.sm,
+      }}
+    >
+      <IconBubble icon={props.icon} color={tone} size={56} bg={COLORS.toneBg} />
       <Text
         style={{
           ...TYPE.headline,
           color: COLORS.cardText,
-          marginTop: SPACE.lg,
+          marginTop: SPACE.sm,
           textAlign: "center",
-          letterSpacing: 0.2,
         }}
       >
         {props.title}
@@ -102,8 +100,8 @@ export function EmptyState(props: {
           style={{
             ...TYPE.caption,
             color: COLORS.cardMuted,
-            marginTop: SPACE.xs,
             textAlign: "center",
+            lineHeight: 18,
           }}
         >
           {props.hint}

@@ -1,11 +1,12 @@
-// Veloria Client — Écran 06 : page détail facture V3 (barre de page + ticket
-// 80 mm avec LIGNES produits, totaux sur fond navy, statut, QR, partage).
+// Veloria Client — Écran 06 : page détail facture V4 « Daylight plat ».
+// Ticket 80 mm conservé (Dashed + Mono, parité avec le ticket imprimé), mais
+// plat : monogramme sans dégradé, totaux sur bandeau tonal CLAIR (le bloc navy
+// de la V3 rendait les montants masqués illisibles), statut en pastille à point.
 // Données via `fetchInvoiceDetail` (App : `detail`, `loading`, `error`, `onRetry`).
 import { useState } from "react";
 import { RefreshControl, ScrollView, Text, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { COLORS, GRADIENTS, RADIUS, SHADOW, SPACE, tint } from "../tokens.ts";
+import { COLORS, HAIRLINE, RADIUS, SPACE, tint } from "../tokens.ts";
 import { direction, t, type Lang } from "../i18n.ts";
 import { errorReportText, formatDateFr, formatMinor } from "../format.ts";
 import type { HomeInvoice, InvoiceDetail } from "../views.ts";
@@ -55,8 +56,10 @@ export function InvoiceDetailScreen(props: {
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.contentBg }}>
       <PageBar
-        title={`${t(l, "detailTitle")} · ${s.invoice_number}`}
-        subtitle={props.shopName}
+        // Le numéro passe en sous-titre : en RTL, « titre · FAC-… » faisait
+        // sauter le début du libellé arabe (troncature à gauche).
+        title={t(l, "detailTitle")}
+        subtitle={`${s.invoice_number} · ${props.shopName}`}
         onBack={props.onBack}
         backLabel={t(l, "back")}
         dir={dir}
@@ -66,9 +69,9 @@ export function InvoiceDetailScreen(props: {
             accessibilityLabel={t(l, "shareStatement")}
             style={{
               backgroundColor: COLORS.primary,
-              borderRadius: RADIUS.pill,
+              borderRadius: RADIUS.button,
               paddingHorizontal: SPACE.md,
-              paddingVertical: 9,
+              minHeight: 40,
               flexDirection: flow(dir),
               alignItems: "center",
               justifyContent: "center",
@@ -84,7 +87,12 @@ export function InvoiceDetailScreen(props: {
       />
 
       <ScrollView
-        contentContainerStyle={{ padding: SPACE.md, paddingBottom: 110 }}
+        contentContainerStyle={{
+          padding: SPACE.lg,
+          // Le dock est masqué sur cette page (App : `!detailRow`) : pas besoin
+          // de la réserve de 88 dp, seulement un confort de pouce.
+          paddingBottom: SPACE.xxl,
+        }}
         refreshControl={
           <RefreshControl
             refreshing={spinning}
@@ -95,33 +103,34 @@ export function InvoiceDetailScreen(props: {
           />
         }
       >
-        {/* Ticket 80 mm */}
+        {/* Ticket 80 mm — surface claire à filet, plus d'ombre. */}
         <View
-          style={[
-            { backgroundColor: COLORS.cardBg, borderRadius: RADIUS.card, padding: SPACE.lg },
-            SHADOW.card,
-          ]}
+          style={{
+            backgroundColor: COLORS.cardBg,
+            borderRadius: RADIUS.card,
+            padding: SPACE.lg,
+            ...HAIRLINE,
+          }}
         >
           <View style={{ alignItems: "center", marginBottom: SPACE.md }}>
-            <LinearGradient
-              colors={GRADIENTS.gold}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
+            <View
               style={{
-                width: 56,
-                height: 56,
-                borderRadius: 18,
+                width: 52,
+                height: 52,
+                borderRadius: RADIUS.cardSm,
+                backgroundColor: COLORS.primary,
                 alignItems: "center",
                 justifyContent: "center",
               }}
             >
-              <Text style={{ color: COLORS.headerBg, fontWeight: "900", fontSize: 24 }}>V</Text>
-            </LinearGradient>
+              <Text style={{ color: COLORS.headerBg, fontWeight: "900", fontSize: 22 }}>V</Text>
+            </View>
             <Text
               style={{
                 color: COLORS.cardText,
-                fontWeight: "900",
-                fontSize: 20,
+                fontWeight: "800",
+                fontSize: 19,
+                lineHeight: 25,
                 marginTop: 10,
                 letterSpacing: 0.3,
               }}
@@ -168,10 +177,12 @@ export function InvoiceDetailScreen(props: {
           {/* Lignes produits */}
           <Text
             style={{
-              fontWeight: "900",
+              fontWeight: "800",
+              fontSize: 13,
               marginTop: SPACE.lg,
               marginBottom: SPACE.sm,
-              color: COLORS.cardText,
+              color: COLORS.cardMuted,
+              letterSpacing: 0.4,
             }}
           >
             {t(l, "itemsTitle")}
@@ -189,16 +200,18 @@ export function InvoiceDetailScreen(props: {
                   paddingVertical: SPACE.sm,
                   gap: SPACE.sm,
                   borderTopWidth: i === 0 ? 0 : 1,
-                  borderTopColor: COLORS.border,
+                  borderTopColor: COLORS.divider,
                 }}
               >
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: COLORS.cardText, fontWeight: "700" }}>{it.name}</Text>
+                  <Text style={{ color: COLORS.cardText, fontWeight: "700", fontSize: 14 }}>
+                    {it.name}
+                  </Text>
                   <Text style={{ color: COLORS.cardMuted, fontSize: 11, fontFamily: "monospace" }}>
                     {t(l, "qtyShort")}: {it.quantity} × {amount(it.unitPriceMinor)}
                   </Text>
                 </View>
-                <Amount text={amount(it.lineTotalMinor)} size={15} />
+                <Amount text={amount(it.lineTotalMinor)} size={15} align={farEdge(rtl)} />
               </View>
             ))
           ) : (
@@ -207,11 +220,11 @@ export function InvoiceDetailScreen(props: {
                 flexDirection: flow(dir),
                 alignItems: "center",
                 gap: SPACE.sm,
-                backgroundColor: COLORS.dangerBg,
+                backgroundColor: COLORS.dangerTone,
                 borderRadius: RADIUS.inner,
                 padding: SPACE.md,
                 borderWidth: 1,
-                borderColor: tint(COLORS.debtOverdue, "3D"),
+                borderColor: tint(COLORS.debtOverdue, "33"),
               }}
             >
               <Ionicons name="alert-circle-outline" size={18} color={COLORS.debtOverdue} />
@@ -221,29 +234,30 @@ export function InvoiceDetailScreen(props: {
             </View>
           )}
 
-          {/* Totaux */}
+          {/* Totaux : bandeau tonal CLAIR — sur l'encre de la V3, les montants
+              masqués (« ••• ») n'étaient plus lisibles. */}
           <View
             style={{
               marginTop: SPACE.md,
-              backgroundColor: COLORS.headerBg,
+              backgroundColor: COLORS.toneBg,
               borderRadius: RADIUS.cardSm,
               padding: SPACE.md,
               gap: SPACE.sm,
             }}
           >
             {[
-              { k: t(l, "total"), v: amount(s.total_minor), c: COLORS.white, size: 18 },
+              { k: t(l, "total"), v: amount(s.total_minor), c: COLORS.cardText, size: 17 },
               {
                 k: t(l, "paidAmount"),
                 v: paid != null ? amount(paid) : "—",
-                c: COLORS.headerAccent,
+                c: COLORS.debtOk,
                 size: 14,
               },
               {
                 k: t(l, "remaining"),
                 v: s.is_cancelled === 1 ? t(l, "cancelled") : amount(s.remaining_balance_minor),
-                c: COLORS.primary,
-                size: 18,
+                c: s.remaining_balance_minor > 0 ? COLORS.debtOverdue : COLORS.cardMuted,
+                size: 17,
               },
             ].map((row) => (
               <View
@@ -254,7 +268,7 @@ export function InvoiceDetailScreen(props: {
                   alignItems: "center",
                 }}
               >
-                <Text style={{ color: COLORS.navyMuted, fontSize: 13 }}>{row.k}</Text>
+                <Text style={{ color: COLORS.cardMuted, fontSize: 13 }}>{row.k}</Text>
                 <Amount text={row.v} tone={row.c} size={row.size} align={farEdge(rtl)} />
               </View>
             ))}
@@ -267,12 +281,10 @@ export function InvoiceDetailScreen(props: {
                 flexDirection: flow(dir),
                 alignItems: "center",
                 gap: SPACE.sm,
-                backgroundColor: COLORS.contentBg,
+                backgroundColor: COLORS.sunkenBg,
                 borderRadius: RADIUS.pill,
                 paddingHorizontal: SPACE.lg,
                 paddingVertical: SPACE.sm,
-                borderWidth: 1,
-                borderColor: COLORS.border,
               }}
             >
               <Ionicons name="qr-code-outline" size={18} color={COLORS.headerBg} />
@@ -307,6 +319,7 @@ export function InvoiceDetailScreen(props: {
               label={t(l, "retry")}
               variant="gold"
               size="lg"
+              full
               icon="refresh-outline"
               onPress={props.onRetry}
             />
@@ -314,6 +327,7 @@ export function InvoiceDetailScreen(props: {
           <Button
             label={t(l, "reportError")}
             variant="outline"
+            full
             icon="flag-outline"
             // Rapport d'erreur (format.ts) et NON le reçu : WhatsApp doit
             // recevoir le texte de signalement, comme sur la liste factures.

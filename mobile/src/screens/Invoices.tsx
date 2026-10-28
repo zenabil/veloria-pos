@@ -1,15 +1,28 @@
-// Veloria Client — Écran 03 : factures V3 (en-tête dégradé + recherche pilule,
-// puces de filtre, cartes statut, dépliage ticket puis page détail).
-// Logique inchangée : filterInvoices + pagination 20 + report WhatsApp.
+// Veloria Client — Écran 03 : factures V4 « Daylight plat ».
+// Bandeau d'encre plat (titre + compteur + recherche), puces de filtre à 40 dp
+// jamais rognées aux bords, puis UNE surface : une ligne par facture (icône de
+// statut, numéro Mono, date + statut, reste au bord extérieur, « détails » qui
+// déplie le récapitulatif). Logique inchangée : filterInvoices + pagination 20
+// + report WhatsApp + ancres de texte (script de captures).
 import { useEffect, useRef, useState } from "react";
 import { FlatList, RefreshControl, ScrollView, Text, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { COLORS, GRADIENTS, RADIUS, SPACE, SIZES, tint } from "../tokens.ts";
+import { COLORS, HAIRLINE, RADIUS, SPACE, SIZES } from "../tokens.ts";
 import { direction, t, type Lang } from "../i18n.ts";
 import { errorReportText, formatDateFr, formatMinor } from "../format.ts";
 import { filterInvoices, type HomeInvoice, type InvoiceFilter } from "../views.ts";
-import { Amount, Badge, Button, Card, Chip, Field, Tap, farEdge, flow } from "../ui/kit.tsx";
+import {
+  Amount,
+  Badge,
+  Button,
+  Chip,
+  Divider,
+  Field,
+  IconBubble,
+  Tap,
+  farEdge,
+  flow,
+} from "../ui/kit.tsx";
 import { EmptyState } from "../ui/states.tsx";
 
 const CHIPS: InvoiceFilter[] = ["all", "paid", "partial", "unpaid", "cancelled"];
@@ -85,12 +98,14 @@ export function InvoicesScreen(props: {
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.contentBg }}>
-      {/* En-tête : titre + recherche */}
-      <LinearGradient
-        colors={GRADIENTS.heroDeep}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{ paddingHorizontal: SPACE.md, paddingTop: SPACE.sm, paddingBottom: SPACE.md }}
+      {/* En-tête plat : titre + compteur + recherche. */}
+      <View
+        style={{
+          backgroundColor: COLORS.headerBg,
+          paddingHorizontal: SPACE.lg,
+          paddingTop: SPACE.sm,
+          paddingBottom: SPACE.md,
+        }}
       >
         <View
           style={{
@@ -101,25 +116,25 @@ export function InvoicesScreen(props: {
           }}
         >
           <Text
-            style={{ color: COLORS.white, fontWeight: "900", fontSize: 22, letterSpacing: 0.3 }}
+            style={{ color: COLORS.white, fontWeight: "800", fontSize: 20, letterSpacing: 0.3 }}
           >
             {t(l, "invoices")}
           </Text>
           <View
             style={{
-              backgroundColor: tint(COLORS.primary, "26"),
+              flexDirection: flow(dir),
+              alignItems: "center",
+              gap: 4,
+              backgroundColor: COLORS.navySoft,
               borderRadius: RADIUS.pill,
               paddingHorizontal: 10,
               paddingVertical: 4,
-              flexDirection: flow(dir),
-              gap: 4,
-              alignItems: "center",
             }}
           >
-            <Ionicons name="documents-outline" size={12} color={COLORS.primary} />
+            <Ionicons name="documents-outline" size={12} color={COLORS.navyMuted} />
             <Text
               style={{
-                color: COLORS.primary,
+                color: COLORS.navyMuted,
                 fontWeight: "800",
                 fontSize: 12,
                 fontFamily: "monospace",
@@ -154,9 +169,9 @@ export function InvoicesScreen(props: {
             ) : null
           }
         />
-      </LinearGradient>
+      </View>
 
-      {/* Puces de filtre */}
+      {/* Puces de filtre : 40 dp, marge d'écran conservée aux deux bords. */}
       <ScrollView
         ref={chipsRef}
         horizontal
@@ -165,7 +180,7 @@ export function InvoicesScreen(props: {
         contentContainerStyle={{
           flexDirection: flow(dir),
           gap: SPACE.sm,
-          paddingHorizontal: SPACE.md,
+          paddingHorizontal: SPACE.lg,
           paddingVertical: SPACE.md,
         }}
         style={{ flexGrow: 0 }}
@@ -187,7 +202,10 @@ export function InvoicesScreen(props: {
         </View>
       ) : (
         <FlatList
-          contentContainerStyle={{ paddingHorizontal: SPACE.md, paddingBottom: 110 }}
+          contentContainerStyle={{
+            paddingHorizontal: SPACE.lg,
+            paddingBottom: SIZES.dockInset,
+          }}
           data={rows.slice(0, shown)}
           keyExtractor={(s) => String(s.id)}
           initialNumToRender={20}
@@ -206,26 +224,26 @@ export function InvoicesScreen(props: {
             const open = openId === s.id;
             const tone = sideColor(s);
             return (
-              <Card
+              <View
                 style={{
+                  backgroundColor: COLORS.cardBg,
+                  borderRadius: RADIUS.cardSm,
                   marginBottom: SPACE.sm,
-                  padding: SPACE.md,
-                  opacity: s.is_cancelled === 1 ? 0.78 : 1,
-                  borderLeftWidth: 3,
-                  borderLeftColor: tone,
+                  opacity: s.is_cancelled === 1 ? 0.72 : 1,
+                  ...HAIRLINE,
                 }}
-                raised={open}
               >
                 <View
                   style={{
+                    minHeight: SIZES.rowHeight,
                     flexDirection: flow(dir),
                     alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: SPACE.sm,
+                    gap: SPACE.md,
+                    padding: SPACE.md,
                   }}
                 >
-                  <View style={{ flexDirection: flow(dir), alignItems: "center", gap: 8 }}>
-                    <Ionicons name={statusIcon(s)} size={18} color={tone} />
+                  <IconBubble icon={statusIcon(s)} color={tone} size={32} />
+                  <View style={{ flex: 1, gap: 2 }}>
                     <Text
                       style={{
                         fontFamily: "monospace",
@@ -233,91 +251,61 @@ export function InvoicesScreen(props: {
                         fontWeight: "800",
                         fontSize: 13,
                       }}
+                      numberOfLines={1}
                     >
                       {t(l, "invoiceNo")} {s.invoice_number}
                     </Text>
-                  </View>
-                  <Badge label={invoiceStatusLabel(l, s)} color={tone} />
-                </View>
-
-                <Text style={{ color: COLORS.cardMuted, fontSize: 11, marginTop: 4 }}>
-                  {formatDateFr(s.created_at)}
-                </Text>
-
-                <View
-                  style={{
-                    flexDirection: flow(dir),
-                    justifyContent: "space-between",
-                    marginTop: SPACE.sm,
-                    backgroundColor: COLORS.contentBg,
-                    borderRadius: RADIUS.inner,
-                    padding: SPACE.sm,
-                    gap: SPACE.sm,
-                  }}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: COLORS.cardMuted, fontSize: 11 }}>{t(l, "total")}</Text>
-                    <Amount text={amount(s.total_minor)} size={16} />
-                  </View>
-                  <View style={{ width: 1, backgroundColor: COLORS.border }} />
-                  <View style={{ flex: 1, alignItems: rtl ? "flex-start" : "flex-end" }}>
-                    <Text
+                    <View
                       style={{
-                        color: COLORS.debtOverdue,
-                        fontSize: 11,
-                        textAlign: farEdge(rtl),
+                        flexDirection: flow(dir),
+                        alignItems: "center",
+                        gap: SPACE.sm,
                       }}
                     >
-                      {t(l, "remaining")}
-                    </Text>
+                      <Text style={{ color: COLORS.cardMuted, fontSize: 11 }} numberOfLines={1}>
+                        {formatDateFr(s.created_at)}
+                      </Text>
+                      <Badge label={invoiceStatusLabel(l, s)} color={tone} />
+                    </View>
+                  </View>
+                  <View style={{ alignItems: rtl ? "flex-start" : "flex-end" }}>
                     <Amount
                       text={
                         s.is_cancelled === 1 ? t(l, "cancelled") : amount(s.remaining_balance_minor)
                       }
-                      size={16}
-                      tone={COLORS.debtOverdue}
+                      size={15}
+                      tone={s.remaining_balance_minor > 0 ? tone : COLORS.cardText}
                       align={farEdge(rtl)}
                     />
                   </View>
-                </View>
-
-                <View style={{ flexDirection: flow(dir), marginTop: SPACE.sm, gap: SPACE.sm }}>
-                  <Button
-                    label={t(l, "details")}
-                    variant="outline"
-                    icon={open ? "chevron-up" : "chevron-down"}
+                  {/* L'ancre « détails » reste textuelle (script de captures). */}
+                  <Tap
                     onPress={() => setOpenId(open ? null : s.id)}
-                    style={{ flex: 1 }}
-                  />
-                  <Button
-                    label={t(l, "reportError")}
-                    variant="danger"
-                    icon="flag-outline"
-                    onPress={() =>
-                      props.onReport(
-                        errorReportText({
-                          lang: l,
-                          name: props.customerName,
-                          invoice: s.invoice_number,
-                          amountMinor: s.total_minor,
-                        }),
-                      )
-                    }
-                    style={{ flex: 1.3 }}
-                  />
+                    accessibilityLabel={t(l, "details")}
+                    hitSlop={8}
+                    style={{
+                      flexDirection: flow(dir),
+                      alignItems: "center",
+                      gap: 2,
+                      paddingVertical: 10,
+                      paddingHorizontal: SPACE.xs,
+                    }}
+                  >
+                    <Text style={{ color: COLORS.headerBg, fontWeight: "800", fontSize: 12 }}>
+                      {t(l, "details")}
+                    </Text>
+                    <Ionicons
+                      name={open ? "chevron-up" : "chevron-down"}
+                      size={13}
+                      color={COLORS.headerBg}
+                    />
+                  </Tap>
                 </View>
 
                 {open ? (
-                  <View
-                    style={{
-                      marginTop: SPACE.sm,
-                      paddingTop: SPACE.sm,
-                      borderTopWidth: 1,
-                      borderTopColor: COLORS.border,
-                      gap: SPACE.sm,
-                    }}
-                  >
-                    <View style={{ flexDirection: flow(dir), gap: SPACE.sm }}>
+                  <View style={{ paddingHorizontal: SPACE.md, paddingBottom: SPACE.md }}>
+                    <Divider />
+                    <View style={{ flexDirection: flow(dir), gap: SPACE.sm, marginTop: SPACE.md }}>
                       {[
                         { k: t(l, "total"), v: amount(s.total_minor), c: COLORS.cardText },
                         { k: t(l, "paidAmount"), v: amount(s.amount_paid_minor), c: COLORS.debtOk },
@@ -331,7 +319,7 @@ export function InvoicesScreen(props: {
                           key={cell.k}
                           style={{
                             flex: 1,
-                            backgroundColor: COLORS.contentBg,
+                            backgroundColor: COLORS.toneBg,
                             borderRadius: RADIUS.inner,
                             padding: SPACE.sm,
                             gap: 2,
@@ -342,18 +330,43 @@ export function InvoicesScreen(props: {
                         </View>
                       ))}
                     </View>
-                    <Text style={{ color: COLORS.cardMuted, fontSize: 11 }}>
+                    <Text style={{ color: COLORS.cardMuted, fontSize: 11, marginTop: SPACE.sm }}>
                       {t(l, "status")}: {invoiceStatusLabel(l, s)} · {formatDateFr(s.created_at)}
                     </Text>
-                    <Button
-                      label={t(l, "receipt")}
-                      variant="navy"
-                      icon="receipt-outline"
-                      onPress={() => props.onOpenDetail(s)}
-                    />
+                    <View
+                      style={{
+                        flexDirection: flow(dir),
+                        gap: SPACE.sm,
+                        marginTop: SPACE.md,
+                      }}
+                    >
+                      <Button
+                        label={t(l, "receipt")}
+                        variant="ink"
+                        icon="receipt-outline"
+                        style={{ flex: 1.3 }}
+                        onPress={() => props.onOpenDetail(s)}
+                      />
+                      <Button
+                        label={t(l, "reportError")}
+                        variant="quiet"
+                        icon="flag-outline"
+                        style={{ flex: 1 }}
+                        onPress={() =>
+                          props.onReport(
+                            errorReportText({
+                              lang: l,
+                              name: props.customerName,
+                              invoice: s.invoice_number,
+                              amountMinor: s.total_minor,
+                            }),
+                          )
+                        }
+                      />
+                    </View>
                   </View>
                 ) : null}
-              </Card>
+              </View>
             );
           }}
         />

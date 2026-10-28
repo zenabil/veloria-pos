@@ -1,70 +1,13 @@
-// Veloria Client — Écran 05 : compte V3 (héros profil dégradé, groupe magasin,
-// liste de réglages à icônes + chevrons, actions danger).
+// Veloria Client — Écran 05 : compte V4 « Daylight plat ».
+// Bandeau profil encre plat, chiffre de dette sur surface teintée (lisible),
+// magasin et réglages regroupés en lignes à filet. Plus de carte dans une carte.
 // Logique inchangée : props + appel/WhatsApp + logout/changePin/share/langue.
 import { Linking, ScrollView, Text, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { COLORS, GRADIENTS, RADIUS, SHADOW, SPACE, SIZES, debtColor, tint } from "../tokens.ts";
+import { COLORS, RADIUS, SPACE, SIZES, TYPE, debtColor, debtSurface } from "../tokens.ts";
 import { direction, t, type Lang } from "../i18n.ts";
 import { formatDateFr, formatMinor } from "../format.ts";
-import { Amount, Badge, Button, Card, IconBubble, Tap, flow, type IconName } from "../ui/kit.tsx";
-
-function SettingRow(props: {
-  icon: IconName;
-  label: string;
-  value?: string;
-  danger?: boolean;
-  onPress?: () => void;
-  dir: "rtl" | "ltr";
-  last?: boolean;
-}): React.JSX.Element {
-  const rtl = props.dir === "rtl";
-  const color = props.danger === true ? COLORS.debtOverdue : COLORS.cardText;
-  return (
-    <Tap
-      onPress={props.onPress}
-      disabled={props.onPress === undefined}
-      accessibilityLabel={props.label}
-      style={{
-        flexDirection: flow(props.dir),
-        alignItems: "center",
-        gap: SPACE.md,
-        paddingVertical: SPACE.md,
-        borderBottomWidth: props.last === true ? 0 : 1,
-        borderBottomColor: COLORS.border,
-        opacity: props.onPress === undefined ? 0.85 : 1,
-      }}
-    >
-      <IconBubble
-        icon={props.icon}
-        color={props.danger === true ? COLORS.debtOverdue : COLORS.headerBg}
-        size={36}
-      />
-      <Text style={{ fontWeight: "700", color, flex: 1, textAlign: rtl ? "right" : "left" }}>
-        {props.label}
-      </Text>
-      {props.value ? (
-        <Text
-          style={{
-            color: COLORS.cardMuted,
-            fontSize: 13,
-            maxWidth: 140,
-            textAlign: rtl ? "left" : "right",
-          }}
-          numberOfLines={1}
-        >
-          {props.value}
-        </Text>
-      ) : null}
-      <Ionicons
-        name={rtl ? "chevron-back" : "chevron-forward"}
-        size={16}
-        color={COLORS.cardMuted}
-        style={{ opacity: props.onPress === undefined ? 0 : 1 }}
-      />
-    </Tap>
-  );
-}
+import { Amount, Badge, Button, Card, Divider, Group, Row, SectionHead, flow } from "../ui/kit.tsx";
 
 export function AccountScreen(props: {
   lang: Lang;
@@ -89,6 +32,7 @@ export function AccountScreen(props: {
 }): React.JSX.Element {
   const l = props.lang;
   const dir = direction(l);
+  const rtl = dir === "rtl";
   const tone = debtColor(props.debtStatus, props.overLimit);
   const call = (num: string): void => {
     void Linking.openURL(`tel:${num}`).catch(() => undefined);
@@ -111,178 +55,195 @@ export function AccountScreen(props: {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: COLORS.contentBg }}
-      contentContainerStyle={{ padding: SPACE.md, paddingBottom: 110 }}
+      contentContainerStyle={{ padding: SPACE.lg, paddingBottom: SIZES.dockInset, gap: SPACE.md }}
     >
-      {/* Profil */}
-      <LinearGradient
-        colors={GRADIENTS.hero}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[
-          {
-            borderRadius: RADIUS.card,
-            padding: SPACE.lg,
-            marginBottom: SPACE.md,
-            gap: SPACE.md,
-          },
-          SHADOW.raised,
-        ]}
+      {/* Identité : bandeau encre, aucune donnée financière dedans. */}
+      <View
+        style={{
+          backgroundColor: COLORS.headerBg,
+          borderRadius: RADIUS.card,
+          padding: SPACE.lg,
+        }}
       >
         <View style={{ flexDirection: flow(dir), alignItems: "center", gap: SPACE.md }}>
           <View
             style={{
-              width: 72,
-              height: 72,
-              borderRadius: 36,
-              backgroundColor: tint(COLORS.white, "1A"),
-              borderWidth: 2,
-              borderColor: COLORS.primary,
+              width: 64,
+              height: 64,
+              borderRadius: RADIUS.pill,
+              backgroundColor: COLORS.navySoft,
+              borderWidth: 1,
+              borderColor: COLORS.navyLine,
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <Text style={{ fontSize: 26, fontWeight: "900", color: COLORS.white }}>{initial}</Text>
+            <Text style={{ ...TYPE.title, color: COLORS.white }}>{initial}</Text>
           </View>
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, gap: 2 }}>
             <Text
-              style={{ fontSize: 20, fontWeight: "900", color: COLORS.white, letterSpacing: 0.3 }}
+              style={{
+                ...TYPE.title,
+                color: COLORS.white,
+                textAlign: rtl ? "right" : "left",
+              }}
               numberOfLines={1}
             >
               {props.customerName}
             </Text>
-            <Text style={{ color: COLORS.headerText, marginTop: 2, fontSize: 14 }}>
-              {props.phone}
-            </Text>
-            <Text style={{ color: COLORS.navyMuted, fontSize: 11, marginTop: 2 }}>
+            <Text style={{ ...TYPE.body, color: COLORS.headerText }}>{props.phone}</Text>
+            <Text style={{ ...TYPE.micro, color: COLORS.navyMuted }}>
               {t(l, "lastLogin")}: {props.lastLoginAt ? formatDateFr(props.lastLoginAt) : "—"}
             </Text>
           </View>
-          <Badge label={t(l, "verified")} color={COLORS.headerAccent} icon="shield-checkmark" />
+          <Badge
+            label={t(l, "verified")}
+            color={COLORS.headerAccent}
+            icon="shield-checkmark"
+            dot={false}
+          />
         </View>
+      </View>
 
+      {/* Situation financière : surface teintée, encre lisible, chiffre mono. */}
+      <Card tone={debtSurface(props.debtStatus, props.overLimit)}>
         <View
           style={{
-            backgroundColor: tint(COLORS.white, "14"),
-            borderRadius: RADIUS.cardSm,
-            padding: SPACE.md,
             flexDirection: flow(dir),
             alignItems: "center",
             justifyContent: "space-between",
             gap: SPACE.sm,
           }}
         >
-          <View style={{ flexDirection: flow(dir), alignItems: "center", gap: 6 }}>
-            <Text style={{ color: COLORS.headerText, fontSize: 12 }}>
-              {t(l, "financialSituation")}
-            </Text>
-            <Badge label={situation} color={tone} />
-          </View>
-          <Amount
-            text={props.hidden ? "•••" : formatMinor(props.debtMinor, l)}
-            tone={COLORS.white}
-            size={SIZES.amountMd + 2}
-          />
-        </View>
-
-        <View style={{ flexDirection: flow(dir), gap: SPACE.sm }}>
-          <Button
-            label={t(l, "changePin")}
-            variant="outline"
-            icon="key-outline"
-            onPress={props.onChangePin}
-            style={{ flex: 1 }}
-          />
-          <Button
-            label={t(l, "logout")}
-            variant="danger"
-            icon="log-out-outline"
-            onPress={props.onLogout}
-            style={{ flex: 1 }}
-          />
-        </View>
-      </LinearGradient>
-
-      {/* Magasin */}
-      <Card style={{ marginBottom: SPACE.md, gap: SPACE.sm }}>
-        <View style={{ flexDirection: flow(dir), alignItems: "center", gap: SPACE.sm }}>
-          <IconBubble icon="storefront-outline" color={COLORS.headerBg} size={38} />
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 11, color: COLORS.cardMuted, fontWeight: "700" }}>
-              {t(l, "shop")}
-            </Text>
-            <Text style={{ fontWeight: "900", color: COLORS.cardText, fontSize: 16 }}>
-              {props.shopName}
-            </Text>
-          </View>
-        </View>
-        {props.shopAddress ? (
-          <Text style={{ color: COLORS.cardMuted, fontSize: 13 }}>
-            {t(l, "addressLabel")} : {props.shopAddress}
-          </Text>
-        ) : null}
-        {props.announcement ? (
-          <View
+          <Text
             style={{
-              flexDirection: flow(dir),
-              gap: 6,
-              backgroundColor: tint(COLORS.debtOk, "14"),
-              borderRadius: RADIUS.inner,
-              padding: SPACE.sm,
-              alignItems: "flex-start",
+              ...TYPE.label,
+              color: COLORS.cardMuted,
+              letterSpacing: 0.5,
+              textAlign: rtl ? "right" : "left",
             }}
           >
-            <Ionicons name="megaphone-outline" size={15} color={COLORS.debtOk} />
-            <Text
-              style={{ color: COLORS.announcementText, fontWeight: "700", flex: 1, fontSize: 12 }}
-            >
-              {props.announcement}
-            </Text>
-          </View>
-        ) : null}
-        {props.shopPhone !== "" ? (
-          <View style={{ flexDirection: flow(dir), gap: SPACE.sm, marginTop: SPACE.xs }}>
-            <Button
-              label={t(l, "call")}
-              variant="ghost"
-              icon="call-outline"
-              onPress={() => call(props.shopPhone)}
-              style={{ flex: 1 }}
-            />
-            <Button
-              label={t(l, "whatsapp")}
-              variant="success"
-              icon="logo-whatsapp"
-              onPress={() => whatsapp(props.shopPhone, t(l, "contactShop"))}
-              style={{ flex: 1 }}
-            />
-          </View>
-        ) : null}
+            {t(l, "financialSituation")}
+          </Text>
+          <Badge label={situation} color={tone} />
+        </View>
+        <Amount
+          text={props.hidden ? "•••" : formatMinor(props.debtMinor, l)}
+          tone={tone}
+          size={SIZES.amountLg}
+          align={rtl ? "right" : "left"}
+          style={{ marginTop: SPACE.xs }}
+        />
       </Card>
 
-      {/* Réglages */}
-      <Card style={{ paddingHorizontal: SPACE.md, marginBottom: SPACE.md }}>
-        <SettingRow
+      <View style={{ flexDirection: flow(dir), gap: SPACE.sm }}>
+        <Button
+          label={t(l, "changePin")}
+          variant="quiet"
+          icon="key-outline"
+          onPress={props.onChangePin}
+          style={{ flex: 1 }}
+        />
+        <Button
+          label={t(l, "logout")}
+          variant="danger"
+          icon="log-out-outline"
+          onPress={props.onLogout}
+          style={{ flex: 1 }}
+        />
+      </View>
+
+      {/* Magasin */}
+      <SectionHead title={t(l, "shop")} dir={dir} />
+      <Group>
+        <Row
+          dir={dir}
+          icon="storefront-outline"
+          iconTone={COLORS.headerBg}
+          title={props.shopName}
+          caption={props.shopAddress ? `${t(l, "addressLabel")} : ${props.shopAddress}` : undefined}
+        />
+        {props.shopPhone !== "" ? (
+          <>
+            <Divider />
+            <View style={{ flexDirection: flow(dir), gap: SPACE.sm, padding: SPACE.md }}>
+              <Button
+                label={t(l, "call")}
+                variant="quiet"
+                icon="call-outline"
+                onPress={() => call(props.shopPhone)}
+                style={{ flex: 1 }}
+              />
+              <Button
+                label={t(l, "whatsapp")}
+                variant="success"
+                icon="logo-whatsapp"
+                onPress={() => whatsapp(props.shopPhone, t(l, "contactShop"))}
+                style={{ flex: 1 }}
+              />
+            </View>
+          </>
+        ) : null}
+      </Group>
+
+      {props.announcement ? (
+        <View
+          style={{
+            flexDirection: flow(dir),
+            alignItems: "flex-start",
+            gap: SPACE.sm,
+            backgroundColor: COLORS.okTone,
+            borderRadius: RADIUS.cardSm,
+            padding: SPACE.md,
+          }}
+        >
+          <Ionicons
+            name="megaphone-outline"
+            size={16}
+            color={COLORS.debtOk}
+            style={{ marginTop: 2 }}
+          />
+          <Text
+            style={{
+              ...TYPE.caption,
+              color: COLORS.announcementText,
+              fontWeight: "700",
+              flex: 1,
+              textAlign: rtl ? "right" : "left",
+            }}
+          >
+            {props.announcement}
+          </Text>
+        </View>
+      ) : null}
+
+      {/* Réglages du compte */}
+      <Group>
+        <Row
+          dir={dir}
           icon="language-outline"
-          label={t(l, "language")}
+          title={t(l, "language")}
           value={l === "ar" ? "العربية" : "Français"}
+          chevron
           onPress={props.onToggleLang}
-          dir={dir}
         />
-        <SettingRow
+        <Divider />
+        <Row
+          dir={dir}
           icon="information-circle-outline"
-          label={t(l, "aboutApp")}
+          title={t(l, "aboutApp")}
           value={`v${props.appVersion} · ${props.developer}`}
-          dir={dir}
         />
-        <SettingRow
+        <Divider />
+        <Row
+          dir={dir}
           icon="call-outline"
-          label={t(l, "support")}
+          title={t(l, "support")}
           value={props.supportPhone}
+          chevron={props.supportPhone !== ""}
           onPress={props.supportPhone !== "" ? () => call(props.supportPhone) : undefined}
-          dir={dir}
-          last
         />
-      </Card>
+      </Group>
 
       <Button
         label={t(l, "shareStatement")}
@@ -290,6 +251,7 @@ export function AccountScreen(props: {
         size="lg"
         icon="logo-whatsapp"
         onPress={props.onShare}
+        full
       />
     </ScrollView>
   );

@@ -1,12 +1,13 @@
 // Veloria Client — Bottom-sheet "reçu" partagée (facture + paiement).
 // Design : stitch_veloria_client_mobile_app/invoice_receipt (ticket 80mm,
 // perforations, QR placeholder, partage + WhatsApp). Lecture seule.
-import { Linking, Modal, Pressable, Text, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+// V4 : enveloppe plate à filet + ombre réservée à la feuille superposée ;
+// la trame du ticket (centré, mono, pointillés) est intacte.
+import { Linking, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { COLORS, FONTS, GRADIENTS, RADIUS, SPACE, tint } from "../tokens.ts";
+import { COLORS, FONTS, HAIRLINE, RADIUS, SHADOW, SPACE, TYPE } from "../tokens.ts";
 import { direction, t, type Lang } from "../i18n.ts";
-import { flow } from "../ui/kit.tsx";
+import { Button, Dashed, flow } from "../ui/kit.tsx";
 
 function shareWhatsApp(text: string): void {
   void Linking.openURL(`https://wa.me/?text=${encodeURIComponent(text)}`).catch(() => undefined);
@@ -71,18 +72,30 @@ export function ReceiptSheet(props: {
       >
         <Pressable
           onPress={() => undefined}
-          style={{
-            backgroundColor: COLORS.contentBg,
-            borderTopLeftRadius: RADIUS.sheet,
-            borderTopRightRadius: RADIUS.sheet,
-            padding: 16,
-            maxHeight: "88%",
-          }}
+          style={[
+            {
+              backgroundColor: COLORS.contentBg,
+              borderTopLeftRadius: RADIUS.sheet,
+              borderTopRightRadius: RADIUS.sheet,
+              paddingHorizontal: SPACE.lg,
+              paddingTop: SPACE.sm,
+              paddingBottom: SPACE.lg,
+              maxHeight: "88%",
+              borderTopWidth: 1,
+              borderTopColor: COLORS.border,
+            },
+            SHADOW.raised,
+          ]}
         >
           {/* Poignée + barre (fermeture : bouton « Fermer » en bas) */}
-          <View style={{ alignItems: "center", marginBottom: 8 }}>
+          <View style={{ alignItems: "center", marginBottom: SPACE.sm }}>
             <View
-              style={{ width: 48, height: 4, borderRadius: 2, backgroundColor: COLORS.border }}
+              style={{
+                width: 48,
+                height: 4,
+                borderRadius: RADIUS.pill,
+                backgroundColor: COLORS.border,
+              }}
             />
           </View>
           <View
@@ -90,57 +103,38 @@ export function ReceiptSheet(props: {
               flexDirection: flow(dir),
               justifyContent: "space-between",
               alignItems: "center",
-              marginBottom: 12,
+              gap: SPACE.sm,
+              marginBottom: SPACE.md,
             }}
           >
             <Text
               style={{
+                ...TYPE.headline,
                 color: COLORS.cardText,
-                fontWeight: "900",
-                fontSize: 16,
                 flex: 1,
                 textAlign: "center",
               }}
             >
               {props.title}
             </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t(l, "shareStatement")}
+            <Button
+              label={t(l, "shareStatement")}
+              variant="success"
+              icon="logo-whatsapp"
               onPress={() => shareWhatsApp(props.shareText)}
-              style={{
-                backgroundColor: COLORS.debtOk,
-                borderRadius: RADIUS.pill,
-                paddingHorizontal: 14,
-                paddingVertical: 9,
-                flexDirection: flow(dir),
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 5,
-              }}
-            >
-              <Ionicons name="logo-whatsapp" size={14} color={COLORS.white} />
-              <Text style={{ color: COLORS.white, fontWeight: "800", fontSize: 12 }}>
-                {t(l, "shareStatement")}
-              </Text>
-            </Pressable>
+            />
           </View>
-          {props.children}
-          <Pressable
-            accessibilityRole="button"
+          <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+            {props.children}
+          </ScrollView>
+          <Button
+            label={t(l, "close")}
+            variant="quiet"
+            size="lg"
+            full
             onPress={props.onClose}
-            style={{
-              backgroundColor: COLORS.cardBg,
-              borderWidth: 1,
-              borderColor: COLORS.border,
-              borderRadius: RADIUS.pill,
-              padding: 12,
-              marginTop: 12,
-              alignItems: "center",
-            }}
-          >
-            <Text style={{ color: COLORS.cardText, fontWeight: "800" }}>{t(l, "close")}</Text>
-          </Pressable>
+            style={{ marginTop: SPACE.md }}
+          />
         </Pressable>
       </Pressable>
     </Modal>
@@ -163,62 +157,54 @@ export function Ticket(props: {
         backgroundColor: COLORS.cardBg,
         borderRadius: RADIUS.card,
         padding: SPACE.lg,
-        borderWidth: 1,
-        borderColor: tint(COLORS.headerBg, "0D"),
+        ...HAIRLINE,
       }}
     >
-      <View style={{ alignItems: "center", marginBottom: 8 }}>
-        <LinearGradient
-          colors={GRADIENTS.gold}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+      <View style={{ alignItems: "center", marginBottom: SPACE.sm }}>
+        <View
           style={{
             width: 56,
             height: 56,
-            borderRadius: 18,
+            borderRadius: RADIUS.cardSm,
+            backgroundColor: COLORS.primary,
             alignItems: "center",
             justifyContent: "center",
           }}
         >
-          <Text style={{ color: COLORS.headerBg, fontWeight: "900", fontSize: 24 }}>V</Text>
-        </LinearGradient>
+          <Text style={{ ...TYPE.display, color: COLORS.headerBg }}>V</Text>
+        </View>
         <Text
           style={{
+            ...TYPE.title,
             color: COLORS.cardText,
-            fontWeight: "900",
-            fontSize: 20,
-            marginTop: 10,
+            marginTop: SPACE.sm,
             letterSpacing: 0.4,
+            textAlign: "center",
           }}
         >
           {props.shopName}
         </Text>
       </View>
-      <View
-        style={{
-          borderTopWidth: 1,
-          borderTopColor: COLORS.border,
-          borderStyle: "dashed",
-          paddingTop: 8,
-        }}
-      >
+      <Dashed />
+      <View style={{ paddingTop: SPACE.sm }}>
         {props.headLines.map((r) => (
           <TicketRow key={r.label} label={r.label} value={r.value} dir={dir} />
         ))}
       </View>
-      <View style={{ alignItems: "center", marginTop: 10 }}>
+      <View style={{ alignItems: "center", marginTop: SPACE.sm }}>
+        <Dashed style={{ alignSelf: "stretch" }} />
         <View
           style={{
             flexDirection: flow(dir),
             alignItems: "center",
             justifyContent: "center",
-            gap: 8,
-            backgroundColor: COLORS.contentBg,
-            borderRadius: RADIUS.pill,
-            paddingHorizontal: 18,
-            paddingVertical: 12,
-            borderWidth: 1,
-            borderColor: COLORS.border,
+            gap: SPACE.sm,
+            alignSelf: "stretch",
+            backgroundColor: COLORS.sunkenBg,
+            borderRadius: RADIUS.inner,
+            paddingHorizontal: SPACE.lg,
+            paddingVertical: SPACE.md,
+            marginTop: SPACE.sm,
           }}
         >
           <Ionicons name="qr-code-outline" size={18} color={COLORS.headerBg} />
@@ -233,7 +219,15 @@ export function Ticket(props: {
             {props.qrText}
           </Text>
         </View>
-        <Text style={{ color: COLORS.cardMuted, fontSize: 11, marginTop: 8, textAlign: "center" }}>
+        <Text
+          style={{
+            ...TYPE.micro,
+            color: COLORS.cardMuted,
+            marginTop: SPACE.sm,
+            textAlign: "center",
+            lineHeight: 16,
+          }}
+        >
           {t(l, "receiptNote")}
         </Text>
       </View>

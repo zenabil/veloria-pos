@@ -1,13 +1,14 @@
 // Veloria Client — Écran scan QR d'activation (ADR-054, design splash_login).
 // Caméra active uniquement quand l'écran est monté ; un seul scan traité
 // (garde anti double-déclenchement) ; QR invalide = message ar/fr, on reste.
+// V4 : cadre de visée allégé (filet discret + coins or), actions via le kit.
 import { useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from "expo-camera";
 import { Ionicons } from "@expo/vector-icons";
-import { COLORS, RADIUS, SIZES, SPACE, tint } from "../tokens.ts";
+import { COLORS, RADIUS, SIZES, SPACE, TYPE, tint } from "../tokens.ts";
 import { direction, t, type Lang } from "../i18n.ts";
-import { flow } from "../ui/kit.tsx";
+import { Button, flow } from "../ui/kit.tsx";
 import { parseActivationQr, QrError } from "../qr.ts";
 
 export function QrScannerScreen(props: {
@@ -57,38 +58,49 @@ export function QrScannerScreen(props: {
     <View style={{ flex: 1, backgroundColor: COLORS.headerBg }}>
       {permission == null ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <Text style={{ color: COLORS.headerText }}>{t(l, "loading")}</Text>
+          <Text style={{ ...TYPE.body, color: COLORS.headerText }}>{t(l, "loading")}</Text>
         </View>
       ) : !permission.granted || denied ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24 }}>
+        <View
+          style={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            padding: SPACE.xxl,
+            gap: SPACE.sm,
+          }}
+        >
           <Text
-            style={{ color: COLORS.white, fontWeight: "800", fontSize: 17, textAlign: "center" }}
+            style={{
+              ...TYPE.title,
+              color: COLORS.white,
+              textAlign: "center",
+            }}
           >
             {t(l, "cameraNeed")}
           </Text>
-          <Pressable
-            accessibilityRole="button"
+          <Button
+            label={t(l, "cameraGrant")}
+            variant="gold"
+            size="lg"
             onPress={() => void grant()}
-            style={{
-              backgroundColor: COLORS.primary,
-              borderRadius: 16,
-              minHeight: SIZES.touchMin,
-              paddingHorizontal: 24,
-              alignItems: "center",
-              justifyContent: "center",
-              marginTop: 16,
-            }}
-          >
-            <Text style={{ color: COLORS.primaryText, fontWeight: "800" }}>
-              {t(l, "cameraGrant")}
-            </Text>
-          </Pressable>
+            style={{ alignSelf: "stretch", marginTop: SPACE.lg }}
+          />
           <Pressable
             accessibilityRole="button"
             onPress={props.onClose}
-            style={{ padding: 12, marginTop: 8 }}
+            style={{
+              minHeight: SIZES.touchMin,
+              paddingHorizontal: SPACE.lg,
+              paddingVertical: SPACE.md,
+              alignItems: "center",
+              justifyContent: "center",
+              marginTop: SPACE.xs,
+            }}
           >
-            <Text style={{ color: COLORS.headerText, fontWeight: "700" }}>{t(l, "close")}</Text>
+            <Text style={{ ...TYPE.body, color: COLORS.headerText, fontWeight: "700" }}>
+              {t(l, "close")}
+            </Text>
           </Pressable>
         </View>
       ) : (
@@ -99,7 +111,7 @@ export function QrScannerScreen(props: {
             barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
             onBarcodeScanned={handle}
           />
-          {/* Cadre de visée à coins + barre haute */}
+          {/* Cadre de visée : filet clair + 4 coins or (seul accent de l'écran). */}
           <View
             pointerEvents="none"
             style={{
@@ -109,8 +121,8 @@ export function QrScannerScreen(props: {
               right: "14%",
               height: 230,
               borderRadius: RADIUS.cardSm,
-              borderWidth: 3,
-              borderColor: tint(COLORS.primary, "59"),
+              borderWidth: 1,
+              borderColor: tint(COLORS.white, "26"),
             }}
           >
             {(
@@ -142,15 +154,13 @@ export function QrScannerScreen(props: {
               flexDirection: flow(dir),
               alignItems: "center",
               justifyContent: "center",
-              paddingHorizontal: SPACE.md,
+              paddingHorizontal: SPACE.lg,
               paddingVertical: SPACE.md,
               paddingTop: 40,
               backgroundColor: COLORS.overlay,
             }}
           >
-            <Text
-              style={{ color: COLORS.white, fontWeight: "900", fontSize: 17, letterSpacing: 0.3 }}
-            >
+            <Text style={{ ...TYPE.title, color: COLORS.white, letterSpacing: 0.2 }}>
               {t(l, "scanQr")}
             </Text>
           </View>
@@ -164,7 +174,7 @@ export function QrScannerScreen(props: {
               borderTopLeftRadius: RADIUS.sheet,
               borderTopRightRadius: RADIUS.sheet,
               padding: SPACE.lg,
-              paddingBottom: 32,
+              paddingBottom: SPACE.xxl,
             }}
           >
             <View
@@ -172,7 +182,7 @@ export function QrScannerScreen(props: {
                 alignSelf: "center",
                 width: 44,
                 height: 5,
-                borderRadius: 3,
+                borderRadius: RADIUS.pill,
                 backgroundColor: tint(COLORS.white, "3D"),
                 marginBottom: SPACE.md,
               }}
@@ -182,12 +192,12 @@ export function QrScannerScreen(props: {
                 flexDirection: flow(dir),
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 8,
-                marginBottom: 8,
+                gap: SPACE.sm,
+                marginBottom: SPACE.sm,
               }}
             >
               <Ionicons name="qr-code-outline" size={18} color={COLORS.primary} />
-              <Text style={{ color: COLORS.headerText, fontWeight: "700", fontSize: 13 }}>
+              <Text style={{ ...TYPE.body, color: COLORS.headerText, fontWeight: "700" }}>
                 {t(l, "scanQr")}
               </Text>
             </View>
@@ -199,29 +209,20 @@ export function QrScannerScreen(props: {
                   justifyContent: "center",
                   gap: 6,
                   backgroundColor: tint(COLORS.debtOverdue, "26"),
-                  borderRadius: RADIUS.pill,
-                  padding: 10,
-                  marginBottom: 8,
+                  borderWidth: 1,
+                  borderColor: tint(COLORS.debtOverdue, "33"),
+                  borderRadius: RADIUS.inner,
+                  padding: SPACE.sm,
+                  marginBottom: SPACE.sm,
                 }}
               >
                 <Ionicons name="alert-circle" size={16} color={COLORS.dangerLight} />
-                <Text style={{ color: COLORS.dangerLight, fontWeight: "800", fontSize: 12 }}>
+                <Text style={{ ...TYPE.caption, color: COLORS.dangerLight, fontWeight: "800" }}>
                   {t(l, "qrError")}
                 </Text>
               </View>
             ) : null}
-            <Pressable
-              accessibilityRole="button"
-              onPress={props.onClose}
-              style={{
-                backgroundColor: COLORS.cardBg,
-                borderRadius: RADIUS.pill,
-                padding: 14,
-                alignItems: "center",
-              }}
-            >
-              <Text style={{ color: COLORS.cardText, fontWeight: "800" }}>{t(l, "close")}</Text>
-            </Pressable>
+            <Button label={t(l, "close")} variant="quiet" size="lg" full onPress={props.onClose} />
           </View>
         </View>
       )}

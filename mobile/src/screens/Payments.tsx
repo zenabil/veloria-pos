@@ -1,15 +1,26 @@
-// Veloria Client — Écran 04 : paiements V3 (mois pills sur dégradé, résumé
-// surélevé, timeline avec tuiles icônes + reçu bottom-sheet).
-// Logique inchangée : filtre mois AAAA-MM + total + facture/avance.
+// Veloria Client — Écran 04 : paiements V4 « Daylight plat ».
+// Bandeau d'encre plat + puces de mois sur le fond clair, total mensuel sur
+// surface tonale, une ligne par paiement dans un groupe séparé par un filet.
+// Logique inchangée : filtre mois AAAA-MM + total + facture/avance + reçu.
 import { useEffect, useRef, useState } from "react";
 import { FlatList, RefreshControl, ScrollView, Text, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { COLORS, GRADIENTS, RADIUS, SPACE, SIZES, tint } from "../tokens.ts";
+import { COLORS, FONTS, SPACE, SIZES, TYPE } from "../tokens.ts";
 import { direction, t, type Lang } from "../i18n.ts";
 import { formatDateFr, formatMinor, monthLabel } from "../format.ts";
 import { paymentsOfMonth, type HomePayment } from "../views.ts";
-import { Amount, Badge, Card, IconBubble, Tap, farEdge, flow, type IconName } from "../ui/kit.tsx";
+import {
+  Amount,
+  Badge,
+  Card,
+  Chip,
+  Divider,
+  Group,
+  Row,
+  Tap,
+  flow,
+  type IconName,
+} from "../ui/kit.tsx";
 import { EmptyState } from "../ui/states.tsx";
 import { ReceiptSheet, Ticket } from "./ReceiptSheet.tsx";
 
@@ -64,63 +75,50 @@ export function PaymentsScreen(props: {
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.contentBg }}>
-      <LinearGradient
-        colors={GRADIENTS.heroDeep}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{ paddingHorizontal: SPACE.md, paddingTop: SPACE.sm, paddingBottom: SPACE.sm }}
+      <View
+        style={{
+          backgroundColor: COLORS.headerBg,
+          paddingHorizontal: SPACE.lg,
+          paddingTop: SPACE.md,
+          paddingBottom: SPACE.md,
+        }}
       >
-        <Text style={{ color: COLORS.white, fontWeight: "900", fontSize: 22, letterSpacing: 0.3 }}>
+        <Text style={{ ...TYPE.title, color: COLORS.white, letterSpacing: 0.2 }}>
           {t(l, "payments")}
         </Text>
-        <ScrollView
-          ref={monthsRef}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          onContentSizeChange={alignFirst}
-          contentContainerStyle={{
-            flexDirection: flow(dir),
-            gap: SPACE.sm,
-            paddingVertical: SPACE.sm,
-          }}
-        >
-          {months.map((m) => {
-            const active = selected === m;
-            return (
-              <Tap
-                key={m}
-                onPress={() => setMonth(m)}
-                accessibilityLabel={monthLabel(m, l)}
-                style={{
-                  backgroundColor: active ? COLORS.primary : tint(COLORS.white, "14"),
-                  borderRadius: RADIUS.pill,
-                  paddingHorizontal: SPACE.lg,
-                  minHeight: SIZES.filterChipHeight,
-                  justifyContent: "center",
-                  borderWidth: 1,
-                  borderColor: active ? COLORS.primary : "transparent",
-                }}
-              >
-                <Text
-                  style={{
-                    color: active ? COLORS.primaryText : COLORS.headerText,
-                    fontWeight: "800",
-                    fontSize: 12,
-                  }}
-                >
-                  {monthLabel(m, l)}
-                </Text>
-              </Tap>
-            );
-          })}
-        </ScrollView>
-      </LinearGradient>
+      </View>
+
+      <ScrollView
+        ref={monthsRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        onContentSizeChange={alignFirst}
+        contentContainerStyle={{
+          flexDirection: flow(dir),
+          gap: SPACE.sm,
+          paddingHorizontal: SPACE.lg,
+          paddingVertical: SPACE.md,
+        }}
+      >
+        {months.map((m) => (
+          <Chip
+            key={m}
+            label={monthLabel(m, l)}
+            active={selected === m}
+            onPress={() => setMonth(m)}
+          />
+        ))}
+      </ScrollView>
 
       <FlatList
         data={rows}
         keyExtractor={(p) => String(p.id)}
         initialNumToRender={20}
-        contentContainerStyle={{ padding: SPACE.md, paddingBottom: 110 }}
+        contentContainerStyle={{
+          paddingHorizontal: SPACE.lg,
+          paddingTop: SPACE.xs,
+          paddingBottom: SIZES.dockInset,
+        }}
         refreshControl={
           <RefreshControl
             refreshing={spinning}
@@ -131,32 +129,37 @@ export function PaymentsScreen(props: {
           />
         }
         ListHeaderComponent={
-          <Card raised style={{ marginBottom: SPACE.md }}>
+          <Card tone={COLORS.toneBg} style={{ marginBottom: SPACE.md }}>
             <View
               style={{
                 flexDirection: flow(dir),
                 alignItems: "center",
                 justifyContent: "space-between",
+                gap: SPACE.sm,
               }}
             >
-              <Text style={{ color: COLORS.cardMuted, fontSize: 12 }}>
+              <Text
+                style={{
+                  ...TYPE.label,
+                  color: COLORS.cardMuted,
+                  letterSpacing: 0.5,
+                  textAlign: rtl ? "right" : "left",
+                }}
+              >
                 {t(l, "monthlySummary")}
               </Text>
-              <IconBubble icon="trending-up" color={COLORS.debtOk} size={30} />
+              <Badge
+                label={`${rows.length} · ${selected ? monthLabel(selected, l) : t(l, "payments")}`}
+                color={COLORS.debtOk}
+              />
             </View>
             <Amount
               text={amount(total)}
               tone={COLORS.debtOk}
-              size={SIZES.heroAmount + 2}
-              style={{ marginTop: 4 }}
+              size={SIZES.amountLg}
+              align={rtl ? "right" : "left"}
+              style={{ marginTop: SPACE.xs }}
             />
-            <View style={{ flexDirection: flow(dir), marginTop: SPACE.sm }}>
-              <Badge
-                label={`${rows.length} · ${selected ? monthLabel(selected, l) : t(l, "payments")}`}
-                color={COLORS.debtOk}
-                icon="checkmark-circle"
-              />
-            </View>
           </Card>
         }
         ListEmptyComponent={
@@ -165,95 +168,56 @@ export function PaymentsScreen(props: {
           </View>
         }
         renderItem={({ item: p }) => (
-          <View style={{ flexDirection: flow(dir), marginBottom: SPACE.sm }}>
-            {/* Timeline */}
-            <View style={{ alignItems: "center", marginHorizontal: 4 }}>
-              <View
+          <Group style={{ marginBottom: SPACE.sm }}>
+            <Row
+              dir={dir}
+              icon={methodIcon(p.method)}
+              iconTone={COLORS.debtOk}
+              title={formatDateFr(p.payment_date)}
+              caption={p.sale_id != null ? t(l, "invoicePayment") : t(l, "accountAdvance")}
+              badge={<Badge label={methodLabel(l, p.method)} color={COLORS.headerBg} dot={false} />}
+              value={`+${amount(p.amount_minor)}`}
+              valueTone={COLORS.debtOk}
+            />
+            <Divider />
+            <Tap
+              onPress={() => setReceiptId(p.id)}
+              accessibilityLabel={t(l, "viewReceipt")}
+              style={{
+                minHeight: SIZES.touchMin,
+                paddingHorizontal: SPACE.lg,
+                paddingVertical: SPACE.sm,
+                flexDirection: flow(dir),
+                alignItems: "center",
+                gap: SPACE.sm,
+                backgroundColor: COLORS.cardBg,
+              }}
+            >
+              <Text
                 style={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: 5,
-                  backgroundColor: COLORS.debtOk,
-                  marginTop: 16,
+                  ...TYPE.caption,
+                  fontFamily: FONTS.mono,
+                  color: COLORS.cardMuted,
+                  flex: 1,
                 }}
-              />
-              <View style={{ width: 2, flex: 1, backgroundColor: COLORS.border }} />
-            </View>
-            <Card style={{ flex: 1, padding: SPACE.md, gap: SPACE.sm }}>
-              <View
-                style={{
-                  flexDirection: flow(dir),
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
+                numberOfLines={1}
               >
-                <View style={{ flexDirection: flow(dir), alignItems: "center", gap: 8 }}>
-                  <IconBubble icon={methodIcon(p.method)} color={COLORS.debtOk} size={34} />
-                  <View>
-                    <Text style={{ color: COLORS.cardText, fontWeight: "700", fontSize: 13 }}>
-                      {formatDateFr(p.payment_date)}
-                    </Text>
-                    <Text style={{ color: COLORS.cardMuted, fontSize: 11 }}>
-                      {p.sale_id != null ? t(l, "invoicePayment") : t(l, "accountAdvance")}
-                    </Text>
-                  </View>
-                </View>
-                <Amount
-                  text={`+${amount(p.amount_minor)}`}
-                  tone={COLORS.debtOk}
-                  size={20}
-                  align={farEdge(rtl)}
-                />
-              </View>
-
+                {p.reference ?? "—"}
+              </Text>
               <View
                 style={{
                   flexDirection: flow(dir),
                   alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: SPACE.sm,
-                  backgroundColor: COLORS.contentBg,
-                  borderRadius: RADIUS.inner,
-                  paddingHorizontal: SPACE.sm,
-                  paddingVertical: 6,
-                }}
-              >
-                <Text
-                  style={{
-                    color: COLORS.cardMuted,
-                    fontSize: 11,
-                    fontFamily: "monospace",
-                    flex: 1,
-                  }}
-                  numberOfLines={1}
-                >
-                  {p.reference ?? "—"}
-                </Text>
-                <Badge label={methodLabel(l, p.method)} color={COLORS.headerBg} />
-              </View>
-
-              <Tap
-                onPress={() => setReceiptId(p.id)}
-                accessibilityLabel={t(l, "viewReceipt")}
-                style={{
-                  flexDirection: flow(dir),
-                  alignItems: "center",
-                  justifyContent: "center",
                   gap: 6,
-                  backgroundColor: COLORS.contentBg,
-                  borderRadius: RADIUS.pill,
-                  paddingVertical: 10,
-                  borderWidth: 1,
-                  borderColor: COLORS.border,
                 }}
               >
-                <Ionicons name="receipt-outline" size={15} color={COLORS.cardText} />
-                <Text style={{ color: COLORS.cardText, fontWeight: "800", fontSize: 12 }}>
+                <Ionicons name="receipt-outline" size={15} color={COLORS.headerBg} />
+                <Text style={{ color: COLORS.headerBg, fontWeight: "800", fontSize: 12 }}>
                   {t(l, "viewReceipt")}
                 </Text>
-              </Tap>
-            </Card>
-          </View>
+              </View>
+            </Tap>
+          </Group>
         )}
       />
 

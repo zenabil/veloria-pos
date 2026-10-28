@@ -210,7 +210,7 @@ function send(res, status, obj) {
   res.writeHead(status, {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "apikey, Content-Type",
+    "Access-Control-Allow-Headers": "apikey, authorization, Content-Type, Prefer",
     "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
   });
   res.end(body);
@@ -220,7 +220,7 @@ const server = http.createServer((req, res) => {
   if (req.method === "OPTIONS") {
     res.writeHead(204, {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "apikey, Content-Type",
+      "Access-Control-Allow-Headers": "apikey, authorization, Content-Type, Prefer",
       "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
     });
     res.end();

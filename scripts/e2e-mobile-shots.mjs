@@ -37,8 +37,11 @@ const browser = await chromium.launch();
 try {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await page.goto(URL, { waitUntil: "networkidle", timeout: 90000 });
-  await page.getByLabel("phone").fill(PHONE);
-  await page.getByLabel("pin").fill(PIN);
+  // Le login rend des `aria-label` issus du glossaire (i18n.ts), pas des
+  // ancres techniques : `phone`/`pin` ne correspondaient plus à rien et la
+  // capture échouait systématiquement. Insensible à la langue (ar défaut).
+  await page.getByLabel(/هاتف|t[eé]l[eé]phone/i).fill(PHONE);
+  await page.getByLabel(/رمز العميل|Code client/i).fill(PIN);
   await page.getByRole("button", { name: /دخول|Entrer/ }).click();
   await expectAnchor(
     page.getByText("الدين المتبقي"),

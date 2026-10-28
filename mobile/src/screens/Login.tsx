@@ -1,6 +1,8 @@
-// Veloria Client — Écran 01 : splash + connexion (V3 « Veloria Fintech »).
-// Logique inchangée : téléphone + PIN 6 chiffres, erreurs mappées côté App,
-// scan QR (ADR-054) et demande de code WhatsApp préservés.
+// Veloria Client — Écran 01 : connexion V4 « Daylight plat ».
+// Écran d'encre plate (plus de dégradé), feuille blanche à angle resserré,
+// PIN sans halo, aide en bloc `navySoft`. Logique inchangée : téléphone +
+// PIN 6 chiffres, erreurs mappées côté App, scan QR (ADR-054/068) et demande
+// de code WhatsApp préservés — ni les textes ni les aria-label ne bougent.
 import { useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -12,14 +14,17 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { COLORS, GRADIENTS, RADIUS, SHADOW, SPACE, SIZES, tint } from "../tokens.ts";
+import { COLORS, RADIUS, SPACE, tint } from "../tokens.ts";
 import { t, type Lang } from "../i18n.ts";
 import { normalizeDigits } from "../format.ts";
-import { Button, flow, Tap } from "../ui/kit.tsx";
+import { Button, Field, flow, farEdge, Tap } from "../ui/kit.tsx";
 import { QrScannerScreen } from "./QrScanner.tsx";
 
+/** Libellé du PIN : même rythme que les labels de `Field`. */
+const PIN_LABEL_STYLE = { fontSize: 12, lineHeight: 16, fontWeight: "700" } as const;
+
+/** Cases de PIN : l'état actif se lit au filet, plus à l'ombre portée. */
 function PinBoxes(props: { pin: string; lang: Lang; revealed: boolean }): React.JSX.Element {
   const cells = [0, 1, 2, 3, 4, 5].map((i) => props.pin[i] ?? "");
   const dir = flow(props.lang === "ar" ? "rtl" : "ltr");
@@ -33,31 +38,16 @@ function PinBoxes(props: { pin: string; lang: Lang; revealed: boolean }): React.
             key={i}
             style={{
               flex: 1,
-              minHeight: 54,
+              minHeight: 52,
               borderRadius: RADIUS.field,
-              backgroundColor: COLORS.cardBg,
-              borderWidth: active ? 2 : 1.5,
-              borderColor: active
-                ? COLORS.primary
-                : filled
-                  ? COLORS.headerBg
-                  : tint(COLORS.headerBg, "1A"),
+              backgroundColor: active ? COLORS.cardBg : COLORS.sunkenBg,
+              borderWidth: active ? 2 : 1,
+              borderColor: active ? COLORS.primary : filled ? COLORS.gray300 : "transparent",
               alignItems: "center",
               justifyContent: "center",
-              shadowColor: active ? COLORS.primary : "transparent",
-              shadowOpacity: active ? 0.5 : 0,
-              shadowOffset: { width: 0, height: 4 },
-              shadowRadius: 10,
-              elevation: active ? 3 : 0,
             }}
           >
-            <Text
-              style={{
-                fontSize: 22,
-                fontWeight: "800",
-                color: COLORS.cardText,
-              }}
-            >
+            <Text style={{ fontSize: 20, fontWeight: "800", color: COLORS.cardText }}>
               {filled ? (props.revealed ? c : "•") : ""}
             </Text>
           </View>
@@ -79,10 +69,10 @@ function HelpStep(props: { index: number; text: string; dir: "rtl" | "ltr" }): R
     >
       <View
         style={{
-          width: 22,
-          height: 22,
-          borderRadius: 11,
-          backgroundColor: tint(COLORS.primary, "2E"),
+          width: 20,
+          height: 20,
+          borderRadius: 10,
+          backgroundColor: COLORS.navyLine,
           alignItems: "center",
           justifyContent: "center",
         }}
@@ -109,7 +99,7 @@ export function LoginScreen(props: {
   const [phone, setPhone] = useState("");
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
-  // Garde anti double-envoi : l'état React `busy` n'est pas encore vraie au
+  // Garde anti double-envoi : l'état React `busy` n'est pas encore vrai au
   // moment du second tap (même frame) — le ref, si.
   const busyRef = useRef(false);
   const [showPin, setShowPin] = useState(false);
@@ -117,6 +107,7 @@ export function LoginScreen(props: {
   const pinRef = useRef<TextInput>(null);
   const l = props.lang;
   const rtl = l === "ar";
+  const dir = rtl ? "rtl" : "ltr";
 
   async function submit(phoneArg?: string, pinArg?: string): Promise<void> {
     if (busyRef.current) return;
@@ -172,12 +163,7 @@ export function LoginScreen(props: {
   const helpSteps = [t(l, "help1"), t(l, "help2"), t(l, "help3")];
 
   return (
-    <LinearGradient
-      colors={GRADIENTS.heroDeep}
-      start={{ x: 0.1, y: 0 }}
-      end={{ x: 0.9, y: 1 }}
-      style={{ flex: 1 }}
-    >
+    <View style={{ flex: 1, backgroundColor: COLORS.headerBg }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -189,7 +175,7 @@ export function LoginScreen(props: {
           {/* Bandeau supérieur : réassurance + langue */}
           <View
             style={{
-              flexDirection: flow(rtl ? "rtl" : "ltr"),
+              flexDirection: flow(dir),
               justifyContent: "space-between",
               alignItems: "center",
               marginBottom: SPACE.xl,
@@ -197,10 +183,10 @@ export function LoginScreen(props: {
           >
             <View
               style={{
-                flexDirection: flow(rtl ? "rtl" : "ltr"),
+                flexDirection: flow(dir),
                 alignItems: "center",
                 gap: 6,
-                backgroundColor: tint(COLORS.headerAccent, "1A"),
+                backgroundColor: COLORS.navySoft,
                 borderRadius: RADIUS.pill,
                 paddingHorizontal: 12,
                 paddingVertical: 6,
@@ -213,8 +199,8 @@ export function LoginScreen(props: {
             </View>
             <View
               style={{
-                flexDirection: flow(rtl ? "rtl" : "ltr"),
-                backgroundColor: tint(COLORS.white, "14"),
+                flexDirection: flow(dir),
+                backgroundColor: COLORS.navySoft,
                 borderRadius: RADIUS.pill,
                 padding: 3,
               }}
@@ -229,6 +215,7 @@ export function LoginScreen(props: {
                     paddingVertical: 8,
                     backgroundColor: l === x ? COLORS.primary : "transparent",
                     borderRadius: RADIUS.pill,
+                    minHeight: 36,
                   }}
                 >
                   <Text
@@ -250,13 +237,14 @@ export function LoginScreen(props: {
             <Image
               // eslint-disable-next-line @typescript-eslint/no-require-imports
               source={require("../../assets/brand/veloria-customer.png")}
-              style={{ width: 120, height: 120, borderRadius: 32 }}
+              style={{ width: 96, height: 96, borderRadius: RADIUS.card }}
               accessibilityLabel="Veloria"
             />
             <Text
               style={{
-                fontSize: 32,
-                fontWeight: "900",
+                fontSize: 28,
+                lineHeight: 34,
+                fontWeight: "800",
                 color: COLORS.white,
                 marginTop: SPACE.md,
                 letterSpacing: 0.5,
@@ -269,79 +257,33 @@ export function LoginScreen(props: {
             </Text>
           </View>
 
-          {/* Carte de connexion */}
+          {/* Feuille de connexion : une surface, pas d'ombre portée. */}
           <View
-            style={[
-              {
-                backgroundColor: COLORS.cardBg,
-                borderRadius: RADIUS.sheet,
-                padding: SPACE.xl,
-                gap: SPACE.sm,
-              },
-              SHADOW.raised,
-            ]}
+            style={{
+              backgroundColor: COLORS.cardBg,
+              borderRadius: RADIUS.sheet,
+              padding: SPACE.xl,
+              gap: SPACE.sm,
+            }}
           >
-            <Text
-              style={{
-                color: COLORS.cardMuted,
-                fontWeight: "700",
-                fontSize: 13,
-                textAlign: rtl ? "right" : "left",
-                marginBottom: 2,
-              }}
-            >
-              {t(l, "phoneLabel")}
-            </Text>
-            <View
-              style={{
-                backgroundColor: COLORS.contentBg,
-                borderRadius: RADIUS.field,
-                borderWidth: 1.5,
-                borderColor: COLORS.border,
-                flexDirection: flow(rtl ? "rtl" : "ltr"),
-                alignItems: "center",
-                paddingHorizontal: SPACE.md,
-                gap: SPACE.sm,
-              }}
-            >
-              <Ionicons name="call-outline" size={18} color={COLORS.cardMuted} />
-              <View
-                style={{
-                  backgroundColor: COLORS.cardBg,
-                  borderRadius: RADIUS.pill,
-                  paddingHorizontal: 10,
-                  paddingVertical: 6,
-                }}
-              >
-                <Text style={{ fontWeight: "800", color: COLORS.cardText, fontSize: 13 }}>
-                  +213
-                </Text>
-              </View>
-              <TextInput
-                value={phone}
-                onChangeText={(v) => setPhone(normalizeDigits(v))}
-                keyboardType="phone-pad"
-                maxLength={30}
-                placeholder="05…"
-                placeholderTextColor={COLORS.cardMuted}
-                aria-label={t(l, "phoneLabel")}
-                returnKeyType="next"
-                onSubmitEditing={() => pinRef.current?.focus()}
-                style={{
-                  flex: 1,
-                  paddingVertical: 14,
-                  fontSize: 18,
-                  minHeight: SIZES.touchMin,
-                  fontFamily: "monospace",
-                  textAlign: rtl ? "right" : "left",
-                  color: COLORS.cardText,
-                }}
-              />
-            </View>
+            <Field
+              label={t(l, "phoneLabel")}
+              value={phone}
+              onChangeText={(v) => setPhone(normalizeDigits(v))}
+              placeholder="05…"
+              lang={l}
+              prefix="+213"
+              icon="call-outline"
+              keyboardType="phone-pad"
+              maxLength={30}
+              returnKeyType="next"
+              onSubmitEditing={() => pinRef.current?.focus()}
+              ariaLabel={t(l, "phoneLabel")}
+            />
 
             <View
               style={{
-                flexDirection: flow(rtl ? "rtl" : "ltr"),
+                flexDirection: flow(dir),
                 justifyContent: "space-between",
                 alignItems: "center",
                 marginTop: SPACE.sm,
@@ -350,10 +292,9 @@ export function LoginScreen(props: {
             >
               <Text
                 style={{
-                  color: COLORS.cardText,
-                  fontWeight: "700",
-                  fontSize: 13,
-                  textAlign: rtl ? "right" : "left",
+                  ...PIN_LABEL_STYLE,
+                  color: COLORS.cardMuted,
+                  textAlign: farEdge(rtl),
                 }}
               >
                 {t(l, "pinLabel")}
@@ -362,10 +303,10 @@ export function LoginScreen(props: {
                 onPress={() => setShowPin((s) => !s)}
                 accessibilityLabel={showPin ? t(l, "hidePin") : t(l, "showPin")}
                 style={{
-                  flexDirection: flow(rtl ? "rtl" : "ltr"),
+                  flexDirection: flow(dir),
                   alignItems: "center",
                   gap: 4,
-                  paddingVertical: 4,
+                  paddingVertical: 6,
                   paddingHorizontal: 6,
                 }}
               >
@@ -380,7 +321,9 @@ export function LoginScreen(props: {
               </Tap>
             </View>
 
-            {/* PIN : les cases affichent, un seul champ invisible capte le clavier. */}
+            {/* PIN : les cases affichent, un seul champ invisible capte le
+                clavier — et lui seul porte le libellé accessible (sinon deux
+                nœuds homonymes dans l'arbre, ambigu au lecteur d'écran). */}
             <Tap onPress={() => pinRef.current?.focus()}>
               <PinBoxes pin={pin} lang={l} revealed={showPin} />
             </Tap>
@@ -407,13 +350,13 @@ export function LoginScreen(props: {
             {props.error ? (
               <View
                 style={{
-                  backgroundColor: COLORS.dangerBg,
-                  borderRadius: RADIUS.field,
+                  backgroundColor: COLORS.dangerTone,
+                  borderRadius: RADIUS.inner,
                   borderWidth: 1,
-                  borderColor: tint(COLORS.debtOverdue, "40"),
+                  borderColor: tint(COLORS.debtOverdue, "33"),
                   padding: SPACE.md,
                   marginTop: SPACE.xs,
-                  flexDirection: flow(rtl ? "rtl" : "ltr"),
+                  flexDirection: flow(dir),
                   alignItems: "center",
                   gap: SPACE.sm,
                 }}
@@ -430,6 +373,7 @@ export function LoginScreen(props: {
               variant="gold"
               size="lg"
               busy={busy}
+              full
               icon="log-in-outline"
               onPress={() => void submit()}
               style={{ marginTop: SPACE.sm }}
@@ -440,12 +384,14 @@ export function LoginScreen(props: {
                 label={t(l, "scanQr")}
                 variant="outline"
                 icon="qr-code-outline"
+                full
                 onPress={() => setScanOpen(true)}
               />
               <Button
                 label={t(l, "requestCode")}
-                variant="ghost"
+                variant="quiet"
                 icon="logo-whatsapp"
+                full
                 onPress={() =>
                   void Linking.openURL(
                     `https://wa.me/?text=${encodeURIComponent(t(l, "newPinRequest"))}`,
@@ -459,16 +405,16 @@ export function LoginScreen(props: {
           <View
             style={{
               marginTop: SPACE.lg,
-              backgroundColor: tint(COLORS.white, "0F"),
-              borderRadius: RADIUS.card,
+              backgroundColor: COLORS.navySoft,
+              borderRadius: RADIUS.cardSm,
               borderWidth: 1,
-              borderColor: tint(COLORS.white, "1A"),
+              borderColor: COLORS.navyLine,
               padding: SPACE.lg,
             }}
           >
             <View
               style={{
-                flexDirection: flow(rtl ? "rtl" : "ltr"),
+                flexDirection: flow(dir),
                 alignItems: "center",
                 gap: 6,
                 marginBottom: SPACE.xs,
@@ -480,11 +426,11 @@ export function LoginScreen(props: {
               </Text>
             </View>
             {helpSteps.map((s, i) => (
-              <HelpStep key={s} index={i + 1} text={s} dir={rtl ? "rtl" : "ltr"} />
+              <HelpStep key={s} index={i + 1} text={s} dir={dir} />
             ))}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </LinearGradient>
+    </View>
   );
 }
