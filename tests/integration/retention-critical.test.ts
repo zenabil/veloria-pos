@@ -11,7 +11,7 @@ import path from "node:path";
 
 // Repo RÉEL testé sur base temporaire : `getDb` redirigé (node:sqlite) et
 // logger neutralisé (aucun import Electron dans ce contexte).
-const repoDb = vi.hoisted(() => ({ current: null as unknown }));
+const repoDb = vi.hoisted(() => ({ current: null as DatabaseSync | null }));
 
 vi.mock("../../electron/database/sqlite.service", () => ({
   getDb: () => {

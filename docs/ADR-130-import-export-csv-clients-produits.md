@@ -4,10 +4,10 @@
 
 Les deux écrans de catalogue étaient **asymétriques** :
 
-| Écran        | Import CSV           | Export CSV                     |
-| ------------ | -------------------- | ------------------------------ |
-| **Produits** | ✔ (existant, W3/P3) | **✘ manquant**                 |
-| **Clients**  | **✘ manquant**       | ✔ (existant, rapport enrichi) |
+| Écran        | Import CSV          | Export CSV                    |
+| ------------ | ------------------- | ----------------------------- |
+| **Produits** | ✔ (existant, W3/P3) | **✘ manquant**                |
+| **Clients**  | **✘ manquant**      | ✔ (existant, rapport enrichi) |
 
 Un commerçant ne pouvait donc pas **charger** sa liste de clients ni
 **sortir** son catalogue (pour un autre logiciel, un audit, une sauvegarde

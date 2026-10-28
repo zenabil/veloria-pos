@@ -90,10 +90,9 @@ describe("Sign/verify roundtrip", () => {
 
   it("rejette une signature d'une autre clé", () => {
     const other = testKeys();
-    const { pub, priv } = testKeys();
+    const { pub } = testKeys();
     const payload = basePayload();
     const signature = signPayload(payload, other.priv);
-    void priv;
     const st = verifyLicenseChain({
       signed: { payload, signature },
       publicKeyPem: pub,
@@ -144,7 +143,6 @@ describe("Verification chain", () => {
   it("accepte lifetime sans expiresAt", () => {
     const { pub, priv } = testKeys();
     const { expiresAt: _drop, ...rest } = basePayload();
-    void _drop;
     const payload: LicensePayload = { ...rest, licenseType: "lifetime" };
     const signature = signPayload(payload, priv);
     const st = verifyLicenseChain({

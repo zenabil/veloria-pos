@@ -84,14 +84,7 @@ export async function recognizeImage(
     OEM: { LSTM_ONLY: number };
   };
   try {
-    tess = (await import("tesseract.js")) as unknown as {
-      createWorker: (
-        langs: string,
-        oem: number,
-        options?: Record<string, unknown>,
-      ) => Promise<TessWorker>;
-      OEM: { LSTM_ONLY: number };
-    };
+    tess = await import("tesseract.js");
   } catch {
     throw new Error("Moteur OCR indisponible : réinstallez Veloria PoS.");
   }
@@ -119,9 +112,10 @@ export async function recognizeImage(
     state.timer.unref();
   });
   try {
-    const res = (await Promise.race([current.recognize(imagePath), timeout])) as {
-      data: { text: string; confidence: number };
-    };
+    const res = await Promise.race<{ data: { text: string; confidence: number } }>([
+      current.recognize(imagePath),
+      timeout,
+    ]);
     return { text: res.data.text, confidence: Number(res.data.confidence) };
   } catch (err) {
     if (err instanceof Error && err.message === "OCR_TIMEOUT") {

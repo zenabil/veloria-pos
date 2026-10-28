@@ -65,11 +65,7 @@ export interface StatementPayment {
 export type SupplierStatusFilter = "all" | "active" | "inactive";
 export type SupplierPaymentFilter = "all" | "with_debt" | "settled";
 export type SupplierSort =
-  | "name_asc"
-  | "name_desc"
-  | "purchases_desc"
-  | "debt_desc"
-  | "recent_desc";
+  "name_asc" | "name_desc" | "purchases_desc" | "debt_desc" | "recent_desc";
 
 export function isSupplierActive(s: Supplier): boolean {
   return s.is_active === 1;

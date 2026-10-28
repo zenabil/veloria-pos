@@ -403,13 +403,13 @@ export function DashboardScreen({
       ...summary.daily.map((d) => ({
         Section: "Ventes journalières",
         Rubrique: d.d,
-        Nombre: d.n as number | null,
+        Nombre: d.n,
         Valeur: money(d.t),
       })),
       ...summary.byMethod.map((m) => ({
         Section: "Moyens de paiement",
         Rubrique: paymentMethodLabel(m.method),
-        Nombre: m.n as number | null,
+        Nombre: m.n,
         Valeur: money(m.t),
       })),
     ];

@@ -71,7 +71,7 @@ export function UsersAdmin({
     );
   }
 
-  async function create(e: React.FormEvent): Promise<void> {
+  async function create(e: React.SubmitEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
     if (busy) return;
     setBusy(true);

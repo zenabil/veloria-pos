@@ -19,7 +19,7 @@ function withTimeout<T>(p: Promise<T>, ms: number, message: string): Promise<T> 
   });
   return Promise.race([p, timeout]).finally(() => {
     if (timer) clearTimeout(timer);
-  }) as Promise<T>;
+  });
 }
 
 export interface OcrPdfPage {

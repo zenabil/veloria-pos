@@ -7,7 +7,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const repoDb = vi.hoisted(() => ({ current: null as unknown, depth: 0 }));
+const repoDb = vi.hoisted(() => ({ current: null as DatabaseSync | null, depth: 0 }));
 
 vi.mock("../../electron/database/sqlite.service", () => ({
   getDb: () => {
@@ -156,13 +156,13 @@ describe("Réédition d'une vente (ADR-139)", () => {
   beforeEach(() => {
     tmp = fs.mkdtempSync(path.join(os.tmpdir(), "veloria-reopen-"));
     db = openMigrated(tmp);
-    (repoDb as { current: unknown; depth: number }).current = db;
-    (repoDb as { current: unknown; depth: number }).depth = 0;
+    repoDb.current = db;
+    repoDb.depth = 0;
     pid = seedProduct(db);
   });
 
   afterEach(() => {
-    (repoDb as { current: unknown; depth: number }).current = null;
+    repoDb.current = null;
     try {
       db.close();
     } catch {

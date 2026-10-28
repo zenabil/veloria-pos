@@ -153,8 +153,7 @@ export function qrSvgOf(text: string, cell: number): string {
 export function companyLogoDataUrl(): string {
   try {
     const row = getDb().prepare(`SELECT logo_path FROM company_profile WHERE id = 1`).get() as
-      | { logo_path: string | null }
-      | undefined;
+      { logo_path: string | null } | undefined;
     return readLogoDataUrlFromFile(row?.logo_path) ?? "";
   } catch (err) {
     log("WARN", "printing", "logo.unreadable", { error: String(err) });

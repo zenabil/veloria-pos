@@ -277,8 +277,7 @@ function requireManager(actorUserId: number): void {
 export function getStaffRole(userId: number): string | null {
   const db = getDb();
   const row = db.prepare(`SELECT role FROM staff_users WHERE id = ?`).get(userId) as
-    | { role: string }
-    | undefined;
+    { role: string } | undefined;
   return row?.role ?? null;
 }
 
@@ -286,8 +285,7 @@ export function getStaffRole(userId: number): string | null {
 export function mustChangeCode(userId: number): boolean {
   const db = getDb();
   const row = db.prepare(`SELECT must_change_code FROM staff_users WHERE id = ?`).get(userId) as
-    | { must_change_code: number }
-    | undefined;
+    { must_change_code: number } | undefined;
   return row?.must_change_code === 1;
 }
 
@@ -317,8 +315,7 @@ export function authenticateAtomic(args: {
   const db = getDb();
   const username = normalizeUsername(args.username);
   const row = db.prepare(`SELECT * FROM staff_users WHERE username = ?`).get(username) as
-    | StaffRow
-    | undefined;
+    StaffRow | undefined;
   // Identifiants invalides : même message que le code faux (pas d'oracle).
   if (!row || row.is_active !== 1) throw new Error("Identifiants invalides.");
   if (isLocked(row.locked_until, args.now)) {
@@ -369,8 +366,7 @@ export function changeCodeAtomic(args: {
   assertValidCode(args.newCode);
   const db = getDb();
   const row = db.prepare(`SELECT * FROM staff_users WHERE id = ?`).get(args.userId) as
-    | StaffRow
-    | undefined;
+    StaffRow | undefined;
   if (!row || row.is_active !== 1) throw new Error("Identifiants invalides.");
   if (isLocked(row.locked_until, args.now)) {
     throw new Error("Compte verrouillé : réessayez dans quelques minutes.");
@@ -403,7 +399,7 @@ export function changeCodeAtomic(args: {
     return result;
   });
   try {
-    return (tx as unknown as () => { changed: boolean })();
+    return tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -476,7 +472,7 @@ export function createStaffUserAtomic(args: {
     return result;
   });
   try {
-    return (tx as unknown as () => { id: number })();
+    return tx();
   } catch (err) {
     if (err instanceof Error) {
       if (/UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)) {
@@ -542,7 +538,7 @@ export function setPermissionsAtomic(args: {
     return result;
   });
   try {
-    return (tx as unknown as () => { saved: boolean })();
+    return tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -570,8 +566,7 @@ export function setActiveAtomic(args: {
     throw new Error("Impossible de désactiver votre propre compte.");
   const db = getDb();
   const target = db.prepare(`SELECT id, role FROM staff_users WHERE id = ?`).get(args.userId) as
-    | { id: number; role: string }
-    | undefined;
+    { id: number; role: string } | undefined;
   if (!target) throw new Error("Utilisateur introuvable.");
   // Anti-escalade : seul un gérant touche au compte d'un gérant.
   if (getStaffRole(args.actorUserId) !== "manager" && target.role === "manager") {
@@ -595,7 +590,7 @@ export function setActiveAtomic(args: {
     return result;
   });
   try {
-    return (tx as unknown as () => { saved: boolean })();
+    return tx();
   } catch (err) {
     if (err instanceof Error) {
       if (/UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)) {
@@ -636,7 +631,7 @@ export function regenRecoveryAtomic(args: {
     return result;
   });
   try {
-    return (tx as unknown as () => { recoveryCode: string })();
+    return tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -668,8 +663,7 @@ export function recoverAccessAtomic(args: {
   const db = getDb();
   const username = normalizeUsername(args.username);
   const row = db.prepare(`SELECT * FROM staff_users WHERE username = ?`).get(username) as
-    | StaffRow
-    | undefined;
+    StaffRow | undefined;
   const rec = db.prepare(`SELECT * FROM staff_recovery WHERE id = 1`).get() as
     | {
         code_hash: string;
@@ -712,7 +706,7 @@ export function recoverAccessAtomic(args: {
     return result;
   });
   try {
-    return (tx as unknown as () => { recovered: boolean })();
+    return tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -729,8 +723,7 @@ export function recoverAccessAtomic(args: {
 export function userHasPermission(userId: number, key: string): boolean {
   const db = getDb();
   const row = db.prepare(`SELECT role, is_active FROM staff_users WHERE id = ?`).get(userId) as
-    | { role: string; is_active: number }
-    | undefined;
+    { role: string; is_active: number } | undefined;
   if (!row || row.is_active !== 1) return false;
   if (row.role === "manager") return true;
   const hit = db

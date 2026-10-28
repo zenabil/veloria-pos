@@ -47,8 +47,7 @@ function allocatePurchaseOrderNumber(now: string): string {
 function orderRow(id: number): Record<string, unknown> | undefined {
   const db = getDb();
   return db.prepare(`SELECT * FROM purchase_orders WHERE id = ?`).get(id) as
-    | Record<string, unknown>
-    | undefined;
+    Record<string, unknown> | undefined;
 }
 
 export function createPurchaseOrderAtomic(args: {
@@ -65,8 +64,7 @@ export function createPurchaseOrderAtomic(args: {
   const tx = db.transaction(() => {
     claimIdempotency(args.operationId, "purchase.create", args.now);
     const sup = db.prepare(`SELECT id FROM suppliers WHERE id = ?`).get(args.supplierId) as
-      | { id: number }
-      | undefined;
+      { id: number } | undefined;
     if (!sup) throw new Error("Fournisseur introuvable.");
     if (args.lines.length === 0) throw new Error("Commande vide.");
     if (args.lines.length > 200) throw new Error("Commande trop volumineuse (max 200 lignes).");
@@ -126,7 +124,7 @@ export function createPurchaseOrderAtomic(args: {
     return out;
   });
   try {
-    return (tx as unknown as () => { id: number; number: string })();
+    return tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -149,7 +147,7 @@ export function createPurchaseOrderAtomic(args: {
       } catch {
         /* best-effort */
       }
-      return (tx as unknown as () => { id: number; number: string })();
+      return tx();
     }
     throw err;
   }
@@ -239,7 +237,7 @@ function transitionPurchaseOrder(
     storeIdempotencyResult(operationId, { updated: true });
   });
   try {
-    (tx as unknown as () => void)();
+    tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -367,7 +365,7 @@ export function receivePurchaseOrderAtomic(args: {
     return out;
   });
   try {
-    return (tx as unknown as () => { intakeId: number })();
+    return tx();
   } catch (err) {
     if (
       err instanceof Error &&

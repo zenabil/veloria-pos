@@ -3,22 +3,10 @@
 // documents (+ zakat), données, équipe, système.
 
 export type SettingsSectionId =
-  | "company"
-  | "commerce"
-  | "catalogue"
-  | "documents"
-  | "data"
-  | "team"
-  | "system";
+  "company" | "commerce" | "catalogue" | "documents" | "data" | "team" | "system";
 
 export type SettingsIconKey =
-  | "company"
-  | "commerce"
-  | "catalogue"
-  | "documents"
-  | "data"
-  | "team"
-  | "system";
+  "company" | "commerce" | "catalogue" | "documents" | "data" | "team" | "system";
 
 export interface SettingsSectionMeta {
   id: SettingsSectionId;

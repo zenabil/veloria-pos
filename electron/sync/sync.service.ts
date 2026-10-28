@@ -180,7 +180,7 @@ export function saveSyncConfigAtomic(args: { config: unknown; operationId: strin
     return result;
   });
   try {
-    return (tx as unknown as () => { saved: boolean })();
+    return tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -304,7 +304,7 @@ export async function pushNowAtomic(
     return result;
   });
   try {
-    return (tx as unknown as () => { pushed: number; access: number })();
+    return tx();
   } catch (err) {
     if (
       err instanceof Error &&

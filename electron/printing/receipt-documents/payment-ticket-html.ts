@@ -77,7 +77,7 @@ export function buildPaymentTicketHtml(
         watermark: d.watermark,
         headerNote: d.headerNote,
         footerNote: d.footerNote,
-      } as ReceiptData,
+      },
       m,
     ) +
     title +

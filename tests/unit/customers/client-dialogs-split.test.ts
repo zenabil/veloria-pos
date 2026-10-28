@@ -84,9 +84,7 @@ describe("Découpage ClientDialogs (compatibilité)", () => {
   it("helpers : splitFullName/fullName round-trip (comportement formulaire)", () => {
     const { firstName, lastName } = splitFullName("Amine Benali");
     expect(`${firstName} ${lastName}`).toBe("Amine Benali");
-    expect(
-      fullName({ first_name: firstName, last_name: lastName } as Parameters<typeof fullName>[0]),
-    ).toBe("Amine Benali");
+    expect(fullName({ first_name: firstName, last_name: lastName })).toBe("Amine Benali");
   });
 
   it("helpers : un nom existant non modifié garde ses champs (nom composé)", () => {

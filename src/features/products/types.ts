@@ -55,12 +55,7 @@ export function labelTargets(products: Iterable<Product>): LabelTarget[] {
 export type StockFilter = "all" | "in_stock" | "low_stock" | "out_of_stock";
 
 export type ProductSort =
-  | "name_asc"
-  | "name_desc"
-  | "price_asc"
-  | "price_desc"
-  | "stock_asc"
-  | "stock_desc";
+  "name_asc" | "name_desc" | "price_asc" | "price_desc" | "stock_asc" | "stock_desc";
 
 export const UNIT_OPTIONS: readonly string[] = UNIT_CODES;
 

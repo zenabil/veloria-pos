@@ -82,7 +82,7 @@ export function pruneTechnicalTables(nowMs = Date.now()): { idempotency: number;
           deleted += 1;
         }
       });
-      (tx as unknown as () => void)();
+      tx();
       out.idempotency = deleted;
     } catch {
       /* table absente (vieille base) : nominal */

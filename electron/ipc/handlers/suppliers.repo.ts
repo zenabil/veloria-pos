@@ -18,11 +18,7 @@ import {
 export type SupplierStatusFilter = "all" | "active" | "inactive";
 export type SupplierPaymentFilter = "all" | "with_debt" | "settled";
 export type SupplierSort =
-  | "name_asc"
-  | "name_desc"
-  | "purchases_desc"
-  | "debt_desc"
-  | "recent_desc";
+  "name_asc" | "name_desc" | "purchases_desc" | "debt_desc" | "recent_desc";
 
 export interface SupplierSearchOptions {
   statusFilter?: SupplierStatusFilter;
@@ -192,7 +188,7 @@ export function createSupplier(
         ).run(randomUUID(), String(id), args.operationId, JSON.stringify({ code }), args.now);
         return id;
       });
-      return (tx as unknown as () => number)();
+      return tx();
     } catch (err) {
       // Rejouement concurrent du même operationId : retrouver le gagnant.
       if (
@@ -226,8 +222,7 @@ export function updateSupplier(
   const tx = db.transaction(() => {
     claimOptional(args.operationId, "suppliers.update", args.now);
     const existing = db.prepare(`SELECT id FROM suppliers WHERE id = ?`).get(args.id) as
-      | { id: number }
-      | undefined;
+      { id: number } | undefined;
     if (!existing) throw new Error("Fournisseur introuvable.");
     const code = n.code ?? nextSupplierCode(db);
     assertCodeUnique(db, code, args.id);
@@ -259,7 +254,7 @@ export function updateSupplier(
     storeOptional(args.operationId, { updated: true });
   });
   try {
-    (tx as unknown as () => void)();
+    tx();
   } catch (err) {
     if (
       args.operationId &&
@@ -284,8 +279,7 @@ function assertDeletable(
   name: string,
 ): void {
   const sup = db.prepare(`SELECT outstanding_balance_minor FROM suppliers WHERE id = ?`).get(id) as
-    | { outstanding_balance_minor: number }
-    | undefined;
+    { outstanding_balance_minor: number } | undefined;
   if (!sup) throw new Error("Fournisseur introuvable.");
   if (Number(sup.outstanding_balance_minor) !== 0) {
     throw new Error(`Suppression impossible : solde de « ${name} » non soldé.`);
@@ -338,8 +332,7 @@ export function deleteSupplierAtomic(id: number, now: string, operationId: strin
   const tx = db.transaction(() => {
     claimIdempotency(operationId, "suppliers.delete", now);
     const row = db.prepare(`SELECT name FROM suppliers WHERE id = ?`).get(id) as
-      | { name: string }
-      | undefined;
+      { name: string } | undefined;
     if (!row) throw new Error("Fournisseur introuvable.");
     assertDeletable(db, id, row.name);
     db.prepare(`DELETE FROM suppliers WHERE id = ?`).run(id);
@@ -349,7 +342,7 @@ export function deleteSupplierAtomic(id: number, now: string, operationId: strin
     storeIdempotencyResult(operationId, { deleted: true });
   });
   try {
-    (tx as unknown as () => void)();
+    tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -381,8 +374,7 @@ export function deleteSuppliersAtomic(
     const names = new Map<number, string>();
     for (const id of unique) {
       const row = db.prepare(`SELECT name FROM suppliers WHERE id = ?`).get(id) as
-        | { name: string }
-        | undefined;
+        { name: string } | undefined;
       if (!row) throw new Error("Fournisseur introuvable.");
       names.set(id, row.name);
     }
@@ -401,7 +393,7 @@ export function deleteSuppliersAtomic(
     storeIdempotencyResult(operationId, { deleted: unique.length });
   });
   try {
-    (tx as unknown as () => void)();
+    tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -510,7 +502,7 @@ export function recordSupplierPaymentAtomic(args: {
     return { paymentId: inserted.id };
   });
   try {
-    return (tx as unknown as () => { paymentId: number })();
+    return tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -554,8 +546,7 @@ export function getSupplierStatement(supplierId: number): {
 export function getSupplierProducts(supplierId: number): { rows: unknown[] } {
   const db = getDb();
   const sup = db.prepare(`SELECT id FROM suppliers WHERE id = ?`).get(supplierId) as
-    | { id: number }
-    | undefined;
+    { id: number } | undefined;
   if (!sup) throw new Error("Fournisseur introuvable.");
   const rows = db
     .prepare(

@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { formatMinor } from "../../mobile/src/format";
 import { toHome } from "../../mobile/src/views";
-import type { HomeData } from "../../mobile/src/views";
 
 // Rejeu d'une charge miroir réaliste : chaque valeur affichée (hidden=false)
 // doit passer formatMinor sans lever (régression mapSale : champ oublié =
@@ -58,7 +57,7 @@ const SNAPSHOT = {
 
 describe("payload miroir : view-model complet et affichable", () => {
   it("aucun undefined dans le view-model + formatMinor ne lève jamais", () => {
-    const h = toHome(SNAPSHOT) as unknown as HomeData;
+    const h = toHome(SNAPSHOT);
     const seen: unknown[] = [];
     JSON.stringify(h, (_k, v: unknown) => {
       seen.push(v);

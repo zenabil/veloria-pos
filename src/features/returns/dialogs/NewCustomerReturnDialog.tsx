@@ -135,7 +135,7 @@ export function CustomerReturnDialog({
       setCustomerOutstandingMinor(det.customerOutstandingMinor ?? null);
       setRefundText("");
       setRefundTouched(false);
-      setLines(det.items.map((l) => ({ ...l, qty: "", condition: "good" as ItemCondition })));
+      setLines(det.items.map((l) => ({ ...l, qty: "", condition: "good" })));
     } catch (e) {
       notify(frError(e, "Recherche impossible."), "err");
     } finally {

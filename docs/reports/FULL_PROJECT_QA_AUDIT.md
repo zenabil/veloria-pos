@@ -15,23 +15,23 @@
 
 ## 1. Project Overview — discovered programs (not assumed)
 
-| #   | Program / Component                  | Type                                     | Path / Entry                                                                 | Tech                                                | Build / Run                                                       |
+| # | Program / Component | Type | Path / Entry | Tech | Build / Run |
 | --- | ------------------------------------ | ---------------------------------------- | ---------------------------------------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------- | ---------------------------------- | ----------------------------- | --------------------------------------------------- | ------------ | ---- | ---------------- |
-| 1   | Veloria POS (shell + 16 modules)     | Electron renderer app                    | `src/main.tsx` → `src/app/shell/App.tsx`                                     | React 19 + Vite 6 + Tailwind 4 + Zustand            | `npm run build` → `dist/`                                         |
-| 2   | POS Electron main                    | Desktop main process                     | `electron/main/main.ts`                                                      | Electron 37 + better-sqlite3 12.2.0                 | `npm run build:electron` → `dist-electron/`                       |
-| 3   | POS preload bridge                   | Secure IPC bridge                        | `electron/preload/preload.ts`                                                | contextBridge                                       | esbuild → `dist-electron/preload/preload.js`                      |
-| 4   | Veloria License Manager (renderer)   | Electron renderer app                    | `license-manager/renderer/main.tsx` → `App.tsx`                              | React + Vite (`vite.license-manager.config.ts`)     | `npm run build:manager-client` → `dist-license-manager-renderer/` |
-| 5   | License Manager main + preload + DB  | Desktop vendor tool                      | `license-manager/main/main.ts`, `preload/preload.ts`, `db/manager-db.ts`     | Electron + better-sqlite3                           | `npm run build:manager` → `dist-license-manager/`                 |
-| 6   | License signing module (vendor-only) | Library, NEVER in POS                    | `license-manager/signing.ts`                                                 | node:crypto Ed25519                                 | used by Manager + `scripts/licensing/keygen.mjs`                  |
-| 7   | Installer POS (NSIS + portable)      | Packaging target                         | `electron-builder.yml` (appId `com.veloria.pos`)                             | electron-builder 26, NSIS, x64                      | `npm run package:pos` / `package:win` / `package:portable`        |
-| 8   | Installer Manager (NSIS + portable)  | Packaging target                         | `electron-builder.license-manager.yml` (appId `com.veloria.license-manager`) | electron-builder 26, NSIS, x64                      | `npm run package:manager`                                         |
-| 9   | Updater / auto-update / R2           | —                                        | **DOES NOT EXIST (by design, ADR-023)**                                      | manual NSIS reinstall                               | N/A                                                               |
-| 10  | DB migration chain                   | 21 immutable migrations                  | `database/migrations/0001..0021.sql`                                         | SQLite (node:sqlite verify, better-sqlite3 runtime) | `npm run verify:migrations`                                       |
-| 11  | Backup / Restore service             | Main-process service                     | `electron/backup/backup.service.ts` (6 IPC channels)                         | VACUUM INTO → `.vposdb` + sidecar JSON              | via POS Settings UI                                               |
-| 12  | Printing service                     | Main-process service                     | `electron/printing/printing.service.ts` (12 IPC channels)                    | hidden BrowserWindow, silent default                | via POS UI                                                        |
-| 13  | Local OCR service                    | Main-process service                     | `electron/ocr/*.ts` (4 files)                                                | tesseract.js + pdfjs-dist, offline                  | via Stock OcrImportDialog                                         |
-| 14  | CLI scripts (7)                      | Tooling                                  | `scripts/licensing/keygen                                                    | secret-scan                                         | sign-integrity`, `scripts/database/verify-migrations              | integrity`, `scripts/release/smoke | checksums                     | stamp-electron-pkg`, `scripts/quality/verify-domain | verify-perf` | node | `npm run <name>` |
-| 15  | Test suites                          | 42 files, 269 tests + 8 Playwright specs | `tests/unit                                                                  | integration                                         | database                                                          | e2e`                               | vitest 3.1.1, Playwright 1.63 | `npm run test`, `test:db`, `test:e2e`               |
+| 1 | Veloria POS (shell + 16 modules) | Electron renderer app | `src/main.tsx` → `src/app/shell/App.tsx` | React 19 + Vite 6 + Tailwind 4 + Zustand | `npm run build` → `dist/` |
+| 2 | POS Electron main | Desktop main process | `electron/main/main.ts` | Electron 37 + better-sqlite3 12.2.0 | `npm run build:electron` → `dist-electron/` |
+| 3 | POS preload bridge | Secure IPC bridge | `electron/preload/preload.ts` | contextBridge | esbuild → `dist-electron/preload/preload.js` |
+| 4 | Veloria License Manager (renderer) | Electron renderer app | `license-manager/renderer/main.tsx` → `App.tsx` | React + Vite (`vite.license-manager.config.ts`) | `npm run build:manager-client` → `dist-license-manager-renderer/` |
+| 5 | License Manager main + preload + DB | Desktop vendor tool | `license-manager/main/main.ts`, `preload/preload.ts`, `db/manager-db.ts` | Electron + better-sqlite3 | `npm run build:manager` → `dist-license-manager/` |
+| 6 | License signing module (vendor-only) | Library, NEVER in POS | `license-manager/signing.ts` | node:crypto Ed25519 | used by Manager + `scripts/licensing/keygen.mjs` |
+| 7 | Installer POS (NSIS + portable) | Packaging target | `electron-builder.yml` (appId `com.veloria.pos`) | electron-builder 26, NSIS, x64 | `npm run package:pos` / `package:win` / `package:portable` |
+| 8 | Installer Manager (NSIS + portable) | Packaging target | `electron-builder.license-manager.yml` (appId `com.veloria.license-manager`) | electron-builder 26, NSIS, x64 | `npm run package:manager` |
+| 9 | Updater / auto-update / R2 | — | **DOES NOT EXIST (by design, ADR-023)** | manual NSIS reinstall | N/A |
+| 10 | DB migration chain | 21 immutable migrations | `database/migrations/0001..0021.sql` | SQLite (node:sqlite verify, better-sqlite3 runtime) | `npm run verify:migrations` |
+| 11 | Backup / Restore service | Main-process service | `electron/backup/backup.service.ts` (6 IPC channels) | VACUUM INTO → `.vposdb` + sidecar JSON | via POS Settings UI |
+| 12 | Printing service | Main-process service | `electron/printing/printing.service.ts` (12 IPC channels) | hidden BrowserWindow, silent default | via POS UI |
+| 13 | Local OCR service | Main-process service | `electron/ocr/*.ts` (4 files) | tesseract.js + pdfjs-dist, offline | via Stock OcrImportDialog |
+| 14 | CLI scripts (7) | Tooling | `scripts/licensing/keygen                                                    | secret-scan                                         | sign-integrity`, `scripts/database/verify-migrations              | integrity`, `scripts/release/smoke | checksums                     | stamp-electron-pkg`, `scripts/quality/verify-domain | verify-perf` | node | `npm run <name>` |
+| 15 | Test suites | 42 files, 269 tests + 8 Playwright specs | `tests/unit                                                                  | integration                                         | database                                                          | e2e` | vitest 3.1.1, Playwright 1.63 | `npm run test`, `test:db`, `test:e2e` |
 
 Counts: **2 renderer apps, 2 Electron mains, 2 NSIS installers (+2 portable), 7 CLI scripts, 0 updaters, 0 background services/workers, 160 IPC channels (149 POS + 11 Manager), 21 migrations, 25+ base tables, 2 entry points per app (renderer + main).**
 
@@ -155,19 +155,19 @@ No loops/awaits-in-render found by sampling; `products.matchBatch` eliminates OC
 
 ## 17. Production Readiness (per component, with evidence)
 
-| Component                    | Verdict                                                   | Evidence                               |
-| ---------------------------- | --------------------------------------------------------- | -------------------------------------- |
-| Veloria POS                  | **NEEDS FIXES**                                           | F-01, F-02                             |
-| License Manager              | **NEEDS FIXES** (minor)                                   | F-03; crypto core READY                |
-| DB layer + migrations        | **READY**                                                 | §8, T011                               |
-| IPC / Electron security      | **READY**                                                 | §12, T012/T014, `bridge-shape.test.ts` |
-| License enforcement          | **READY**                                                 | §9, red-team suites                    |
-| Backup / Restore             | **READY (code) / BLOCKED (live)**                         | T016 must-run                          |
-| Printing                     | **READY (code) / BLOCKED (live)**                         | T017 must-run                          |
-| Updater / R2                 | **N/A (by design)**                                       | ADR-023; T019                          |
-| Installer                    | **BLOCKED**                                               | T018 must-run after `package:win`      |
+| Component                  | Verdict                                                   | Evidence                               |
+| -------------------------- | --------------------------------------------------------- | -------------------------------------- |
+| Veloria POS                | **NEEDS FIXES**                                           | F-01, F-02                             |
+| License Manager            | **NEEDS FIXES** (minor)                                   | F-03; crypto core READY                |
+| DB layer + migrations      | **READY**                                                 | §8, T011                               |
+| IPC / Electron security    | **READY**                                                 | §12, T012/T014, `bridge-shape.test.ts` |
+| License enforcement        | **READY**                                                 | §9, red-team suites                    |
+| Backup / Restore           | **READY (code) / BLOCKED (live)**                         | T016 must-run                          |
+| Printing                   | **READY (code) / BLOCKED (live)**                         | T017 must-run                          |
+| Updater / R2               | **N/A (by design)**                                       | ADR-023; T019                          |
+| Installer                  | **BLOCKED**                                               | T018 must-run after `package:win`      |
 | Integration POS↔Manager↔DB | **NEEDS FIXES**                                           | F-01 spans UI→DB                       |
-| **Whole project**            | **NOT READY — blocked by F-01/F-02 + BLOCKED live gates** | —                                      |
+| **Whole project**          | **NOT READY — blocked by F-01/F-02 + BLOCKED live gates** | —                                      |
 
 ## 18. Not-testable items + reasons
 

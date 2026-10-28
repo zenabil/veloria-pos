@@ -7,11 +7,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const repoDb = vi.hoisted(() => ({ current: null as unknown }));
+const repoDb = vi.hoisted((): { current: DatabaseSync | null } => ({ current: null }));
 
 vi.mock("../../electron/database/sqlite.service", () => ({
   getDb: () => {
-    const db = (repoDb as { current: unknown }).current;
+    const db = repoDb.current;
     if (!db) throw new Error("Base de test non ouverte.");
     return db;
   },
@@ -87,12 +87,12 @@ describe("Recherche code-barres insensible à la casse", () => {
   beforeEach(() => {
     tmp = fs.mkdtempSync(path.join(os.tmpdir(), "veloria-barcode-"));
     db = openMigrated(tmp);
-    (repoDb as { current: unknown }).current = db;
+    repoDb.current = db;
     pid = seedProduct(db, "p-letter", "Produit lettré", "abc-123");
   });
 
   afterEach(() => {
-    (repoDb as { current: unknown }).current = null;
+    repoDb.current = null;
     try {
       db.close();
     } catch {
@@ -114,7 +114,7 @@ describe("Recherche code-barres insensible à la casse", () => {
   });
 
   it("normalise le code-barres en majuscules à la création", () => {
-    (repoDb as { current: unknown }).current = withTransactions(db);
+    repoDb.current = withTransactions(db);
     try {
       const id = createProduct({
         uuid: "norm-barcode-1",
@@ -138,7 +138,7 @@ describe("Recherche code-barres insensible à la casse", () => {
       expect(stored.barcode).toBe("AB-42X");
       expect(getProductByBarcode("ab-42x")?.id).toBe(id);
     } finally {
-      (repoDb as { current: unknown }).current = db;
+      repoDb.current = db;
     }
   });
 

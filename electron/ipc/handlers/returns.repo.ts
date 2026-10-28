@@ -32,11 +32,7 @@ export interface ReturnItemInput {
 
 export type ReturnKind = "customer" | "supplier";
 export type ReturnStatusFilter =
-  | "all"
-  | "validated"
-  | "partially_refunded"
-  | "refunded"
-  | "cancelled";
+  "all" | "validated" | "partially_refunded" | "refunded" | "cancelled";
 export type ReturnTypeFilter = "all" | "customer" | "supplier";
 export type ReturnSort = "date_desc" | "date_asc" | "amount_desc" | "amount_asc";
 
@@ -296,8 +292,7 @@ export function createReturnAtomic(args: {
             `SELECT id, product_id, product_name_snapshot, unit_price_minor, purchase_price_minor, quantity, line_total_minor, category_id, unit_factor FROM sale_items WHERE sale_id = ? AND (product_id IS ? OR product_id = ?) AND unit_factor = ? ORDER BY id ASC LIMIT 1`,
           )
           .get(args.originalSaleId, item.productId, item.productId, unitFactor) as
-          | ReturnSaleLineRow
-          | undefined;
+          ReturnSaleLineRow | undefined;
         if (!sold) throw new Error("Ligne de vente introuvable pour ce retour.");
       }
       if (unitFactor > 1 && !Number.isInteger(item.quantity)) {
@@ -671,7 +666,7 @@ export function createReturnAtomic(args: {
     return result;
   });
   try {
-    return (tx as unknown as () => CustomerReturnResult)();
+    return tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -689,7 +684,7 @@ export function createReturnAtomic(args: {
     ) {
       bumpReturnSequence("customer", args.now);
       try {
-        return (tx as unknown as () => CustomerReturnResult)();
+        return tx();
       } catch (retryErr) {
         if (
           retryErr instanceof Error &&
@@ -732,8 +727,7 @@ export function createSupplierReturnAtomic(args: {
   const tx = db.transaction(() => {
     claimIdempotency(args.operationId, "returns.create_supplier", args.now);
     const intake = db.prepare(`SELECT * FROM stock_intakes WHERE id = ?`).get(args.intakeId) as
-      | { invoice_number: string | null; supplier_id: number | null; status: string }
-      | undefined;
+      { invoice_number: string | null; supplier_id: number | null; status: string } | undefined;
     if (!intake) throw new Error("Bon d'achat d'origine introuvable.");
     if (intake.status === "cancelled") throw new Error("Bon d'achat annulé : retour impossible.");
     let totalReturn = 0;
@@ -1018,7 +1012,7 @@ export function createSupplierReturnAtomic(args: {
     return result;
   });
   try {
-    return (tx as unknown as () => ReturnResult)();
+    return tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -1034,7 +1028,7 @@ export function createSupplierReturnAtomic(args: {
     ) {
       bumpReturnSequence("supplier", args.now);
       try {
-        return (tx as unknown as () => ReturnResult)();
+        return tx();
       } catch (retryErr) {
         if (
           retryErr instanceof Error &&
@@ -1210,8 +1204,7 @@ export function getReturnableSaleItems(saleId: number): {
 } {
   const db = getDb();
   const sale = db.prepare(`SELECT * FROM sales WHERE id = ?`).get(saleId) as
-    | Record<string, unknown>
-    | undefined;
+    Record<string, unknown> | undefined;
   if (!sale) throw new Error("Vente introuvable.");
   if (sale["is_cancelled"] === 1) throw new Error("Vente annulée : retour impossible.");
   const items = db
@@ -1294,8 +1287,7 @@ export function getReturnableSaleItems(saleId: number): {
       ? (db
           .prepare(`SELECT search_name, outstanding_balance_minor FROM customers WHERE id = ?`)
           .get(sale["customer_id"]) as
-          | { search_name: string; outstanding_balance_minor: number }
-          | undefined)
+          { search_name: string; outstanding_balance_minor: number } | undefined)
       : undefined;
   return {
     sale,
@@ -1312,8 +1304,7 @@ export function getReturnableIntakeItems(intakeId: number): {
 } {
   const db = getDb();
   const intake = db.prepare(`SELECT * FROM stock_intakes WHERE id = ?`).get(intakeId) as
-    | Record<string, unknown>
-    | undefined;
+    Record<string, unknown> | undefined;
   if (!intake) throw new Error("Bon d'achat introuvable.");
   if (intake["status"] === "cancelled") throw new Error("Bon d'achat annulé : retour impossible.");
   const items = db
@@ -1412,8 +1403,7 @@ export function getReturnableIntakeItems(intakeId: number): {
   const sup =
     intake["supplier_id"] != null
       ? (db.prepare(`SELECT name FROM suppliers WHERE id = ?`).get(intake["supplier_id"]) as
-          | { name: string }
-          | undefined)
+          { name: string } | undefined)
       : undefined;
   return { intake, supplierName: sup?.name ?? null, items: out };
 }
@@ -1465,8 +1455,7 @@ export function recordReturnRefundAtomic(args: {
     claimIdempotency(args.operationId, "returns.refund", args.now);
     if (args.kind === "customer") {
       const r = db.prepare(`SELECT * FROM returns WHERE id = ?`).get(args.id) as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
       if (!r) throw new Error("Retour introuvable.");
       if (r["status"] === "cancelled") throw new Error("Retour annulé : remboursement impossible.");
       const settled = Number(r["amount_refunded_minor"]) + Number(r["credit_to_customer_minor"]);
@@ -1484,8 +1473,7 @@ export function recordReturnRefundAtomic(args: {
       ).run(args.amountMinor, args.method, deriveReturnStatus(total, next), args.now, args.id);
     } else {
       const r = db.prepare(`SELECT * FROM supplier_returns WHERE id = ?`).get(args.id) as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
       if (!r) throw new Error("Retour introuvable.");
       if (r["status"] === "cancelled") throw new Error("Retour annulé : récupération impossible.");
       const settled = Number(r["amount_recovered_minor"]);
@@ -1514,7 +1502,7 @@ export function recordReturnRefundAtomic(args: {
     storeIdempotencyResult(args.operationId, { refunded: true });
   });
   try {
-    (tx as unknown as () => void)();
+    tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -1538,8 +1526,7 @@ export function cancelReturnAtomic(args: {
     claimIdempotency(args.operationId, "returns.cancel", args.now);
     if (args.kind === "customer") {
       const r = db.prepare(`SELECT * FROM returns WHERE id = ?`).get(args.id) as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
       if (!r) throw new Error("Retour introuvable.");
       if (r["status"] === "cancelled") throw new Error("Retour déjà annulé.");
       if (Number(r["amount_refunded_minor"]) > 0 || Number(r["credit_to_customer_minor"]) > 0) {
@@ -1598,8 +1585,7 @@ export function cancelReturnAtomic(args: {
       );
     } else {
       const r = db.prepare(`SELECT * FROM supplier_returns WHERE id = ?`).get(args.id) as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
       if (!r) throw new Error("Retour introuvable.");
       if (r["status"] === "cancelled") throw new Error("Retour déjà annulé.");
       if (Number(r["amount_recovered_minor"]) > 0) {
@@ -1722,7 +1708,7 @@ export function cancelReturnAtomic(args: {
     storeIdempotencyResult(args.operationId, { cancelled: true });
   });
   try {
-    (tx as unknown as () => void)();
+    tx();
   } catch (err) {
     if (
       err instanceof Error &&

@@ -406,8 +406,7 @@ export function getZakatSources(): Record<string, unknown> {
     .prepare(`SELECT COALESCE(SUM(outstanding_balance_minor),0) AS d FROM suppliers`)
     .get();
   const settings = db.prepare(`SELECT value_json FROM app_settings WHERE key = 'zakat'`).get() as
-    | { value_json: string }
-    | undefined;
+    { value_json: string } | undefined;
   let params: {
     ratePercent: number;
     nisabMinor: number;
@@ -527,7 +526,7 @@ export function saveZakatCalculation(args: ZakatCalculationInput): { id: number 
     return out;
   });
   try {
-    return (txz as unknown as () => { id: number })();
+    return txz();
   } catch (err) {
     if (
       err instanceof Error &&

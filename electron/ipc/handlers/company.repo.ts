@@ -28,8 +28,7 @@ export interface CompanyInput {
 export function getCompany(): Record<string, unknown> | null {
   const db = getDb();
   const row = db.prepare(`SELECT * FROM company_profile WHERE id = 1`).get() as
-    | Record<string, unknown>
-    | undefined;
+    Record<string, unknown> | undefined;
   return row ?? null;
 }
 
@@ -62,8 +61,7 @@ export function saveCompany(input: CompanyInput, now: string, operationId?: stri
   const tx = db.transaction(() => {
     claimOptional(operationId, "company.update", now);
     const exists = db.prepare(`SELECT id FROM company_profile WHERE id = 1`).get() as
-      | { id: number }
-      | undefined;
+      { id: number } | undefined;
     if (!exists) {
       db.prepare(
         `INSERT INTO company_profile (id, uuid, company_name, commercial_name, phone, email, website, address, city, nif, rc_number, nis, article_imposition, invoice_prefix, logo_path, created_at, updated_at) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -120,7 +118,7 @@ export function saveCompany(input: CompanyInput, now: string, operationId?: stri
     storeOptional(operationId, { saved: true });
   });
   try {
-    (tx as unknown as () => void)();
+    tx();
   } catch (err) {
     if (
       operationId &&

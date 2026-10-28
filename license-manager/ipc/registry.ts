@@ -251,12 +251,7 @@ export function registerManagerIpc(): void {
         clientName: (row.client_name as string | null) ?? null,
         storeName: (row.store_name as string | null) ?? null,
         edition: row.edition as
-          | "basic"
-          | "standard"
-          | "professional"
-          | "pro"
-          | "enterprise"
-          | "custom",
+          "basic" | "standard" | "professional" | "pro" | "enterprise" | "custom",
         plan: (row.plan as "BASIC" | "STANDARD" | "PRO" | "ENTERPRISE" | "CUSTOM" | null) ?? null,
         licenseType: input.licenseType,
         licenseStatus: null,
@@ -315,12 +310,7 @@ export function registerManagerIpc(): void {
         clientName: (row.client_name as string | null) ?? null,
         storeName: (row.store_name as string | null) ?? null,
         edition: row.edition as
-          | "basic"
-          | "standard"
-          | "professional"
-          | "pro"
-          | "enterprise"
-          | "custom",
+          "basic" | "standard" | "professional" | "pro" | "enterprise" | "custom",
         plan: (row.plan as "BASIC" | "STANDARD" | "PRO" | "ENTERPRISE" | "CUSTOM" | null) ?? null,
         licenseType: row.license_type as "term" | "lifetime",
         licenseStatus: standing,
@@ -369,12 +359,7 @@ export function registerManagerIpc(): void {
         clientName: (row.client_name as string | null) ?? null,
         storeName: (row.store_name as string | null) ?? null,
         edition: row.edition as
-          | "basic"
-          | "standard"
-          | "professional"
-          | "pro"
-          | "enterprise"
-          | "custom",
+          "basic" | "standard" | "professional" | "pro" | "enterprise" | "custom",
         plan: (row.plan as "BASIC" | "STANDARD" | "PRO" | "ENTERPRISE" | "CUSTOM" | null) ?? null,
         licenseType: row.license_type as "term" | "lifetime",
         licenseStatus: "revoked",
@@ -414,12 +399,7 @@ export function registerManagerIpc(): void {
         clientName: (row.client_name as string | null) ?? null,
         storeName: (row.store_name as string | null) ?? null,
         edition: row.edition as
-          | "basic"
-          | "standard"
-          | "professional"
-          | "pro"
-          | "enterprise"
-          | "custom",
+          "basic" | "standard" | "professional" | "pro" | "enterprise" | "custom",
         plan: (row.plan as "BASIC" | "STANDARD" | "PRO" | "ENTERPRISE" | "CUSTOM" | null) ?? null,
         licenseType: row.license_type as "term" | "lifetime",
         licenseStatus: standing,
@@ -477,12 +457,7 @@ export function registerManagerIpc(): void {
         clientName: (row.client_name as string | null) ?? null,
         storeName: (row.store_name as string | null) ?? null,
         edition: row.edition as
-          | "basic"
-          | "standard"
-          | "professional"
-          | "pro"
-          | "enterprise"
-          | "custom",
+          "basic" | "standard" | "professional" | "pro" | "enterprise" | "custom",
         plan: (row.plan as "BASIC" | "STANDARD" | "PRO" | "ENTERPRISE" | "CUSTOM" | null) ?? null,
         licenseType: row.license_type as "term" | "lifetime",
         licenseStatus: standing,

@@ -231,7 +231,7 @@ export function createProformaAtomic(args: {
     return result;
   });
   try {
-    return (tx as unknown as () => { id: number; number: string })();
+    return tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -260,7 +260,7 @@ export function createProformaAtomic(args: {
           error: err instanceof Error ? err.message : String(err),
         });
       }
-      return (tx as unknown as () => { id: number; number: string })();
+      return tx();
     }
     throw err;
   }
@@ -287,8 +287,7 @@ export function setProformaStatus(
   // écrire (proforma annulée dont la vente existe déjà).
   const txs = db.transaction(() => {
     const row = db.prepare(`SELECT status FROM proforma_invoices WHERE id = ?`).get(id) as
-      | { status: string }
-      | undefined;
+      { status: string } | undefined;
     if (!row) throw new Error("Proforma introuvable.");
     if (!(allowed[row.status] ?? []).includes(to)) {
       throw new Error(`Transition interdite : ${row.status} → ${to}.`);
@@ -312,7 +311,7 @@ export function setProformaStatus(
     storeOptional(operationId, { updated: true });
   });
   try {
-    (txs as unknown as () => void)();
+    txs();
   } catch (err) {
     if (
       operationId &&
@@ -442,8 +441,7 @@ export function updateProformaAtomic(args: {
   const tx = db.transaction(() => {
     claimOptional(args.operationId, "proformas.update", args.now);
     const row = db.prepare(`SELECT status FROM proforma_invoices WHERE id = ?`).get(args.id) as
-      | { status: string }
-      | undefined;
+      { status: string } | undefined;
     if (!row) throw new Error("Proforma introuvable.");
     if (row.status !== "draft") throw new Error("Seul un brouillon est modifiable.");
     const { prepared, subtotal } = prepareProformaLines(db, args.lines);
@@ -494,7 +492,7 @@ export function updateProformaAtomic(args: {
     storeOptional(args.operationId, { updated: true });
   });
   try {
-    (tx as unknown as () => void)();
+    tx();
   } catch (err) {
     if (
       args.operationId &&
@@ -535,7 +533,7 @@ export function deleteProformaAtomic(id: number, now: string, operationId: strin
     storeIdempotencyResult(operationId, { deleted: true });
   });
   try {
-    (tx as unknown as () => void)();
+    tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -564,8 +562,7 @@ export function convertProformaToSaleAtomic(args: {
   const tx = db.transaction(() => {
     claimIdempotency(args.operationId, "proformas.convert", args.now);
     const pro = db.prepare(`SELECT * FROM proforma_invoices WHERE id = ?`).get(args.proformaId) as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     if (!pro) throw new Error("Proforma introuvable.");
     if (pro["status"] === "converted") throw new Error("Proforma déjà convertie.");
     if (pro["status"] === "cancelled") throw new Error("Proforma annulée.");
@@ -692,7 +689,7 @@ export function convertProformaToSaleAtomic(args: {
     return res;
   });
   try {
-    return (tx as unknown as () => { saleId: number; invoiceNumber: string })();
+    return tx();
   } catch (err) {
     if (
       err instanceof Error &&

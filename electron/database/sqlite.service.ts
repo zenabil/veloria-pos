@@ -52,7 +52,8 @@ function applyPragmas(database: BetterSqlite3DB): void {
 function migrationsDir(): string {
   // Packaged: extraResources/database/migrations; dev: database/migrations
   const candidates = [
-    path.join((process.resourcesPath as string | undefined) ?? "", "database", "migrations"),
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- tests Node : resourcesPath absent malgré le type Electron.
+    path.join(process.resourcesPath ?? "", "database", "migrations"),
     path.join(app.getAppPath(), "database", "migrations"),
     path.join(process.cwd(), "database", "migrations"),
   ];
@@ -282,11 +283,7 @@ export function runMigrations(database: BetterSqlite3DB = getDb()): void {
         database.pragma("foreign_keys = OFF");
       }
       try {
-        (runOne as unknown as (sql: string, v: number, c: string) => void)(
-          m.sql,
-          m.version,
-          m.checksum,
-        );
+        runOne(m.sql, m.version, m.checksum);
       } finally {
         if (needsFkOff) {
           database.pragma("foreign_keys = ON");

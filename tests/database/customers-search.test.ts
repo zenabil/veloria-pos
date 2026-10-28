@@ -14,7 +14,7 @@ import {
 // Régression : des clients « disparaissaient » des interfaces alors qu'ils
 // existaient en base (archivés, accents, téléphone espacé, tri page seule).
 // Premier test SQL direct de searchCustomers (zéro couverture avant).
-const repoDb = vi.hoisted(() => ({ current: null as unknown }));
+const repoDb = vi.hoisted(() => ({ current: null as DatabaseSync | null }));
 
 vi.mock("../../electron/database/sqlite.service", () => ({
   getDb: () => {

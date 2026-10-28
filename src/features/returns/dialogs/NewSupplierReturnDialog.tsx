@@ -127,7 +127,7 @@ export function SupplierReturnDialog({
     setLoading(true);
     try {
       const det = (await api.returnIntakeItems({ id })) as { items: IntakeLine[] };
-      setLines(det.items.map((l) => ({ ...l, qty: "", condition: "good" as ItemCondition })));
+      setLines(det.items.map((l) => ({ ...l, qty: "", condition: "good" })));
     } catch (e) {
       notify(frError(e, "Lignes indisponibles."), "err");
     } finally {

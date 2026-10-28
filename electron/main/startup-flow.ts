@@ -27,8 +27,7 @@ export interface StartupFailure {
 }
 
 export type StartupAttempt =
-  | { status: "ready"; info: DatabaseOpenInfo }
-  | { status: "failed"; failure: StartupFailure };
+  { status: "ready"; info: DatabaseOpenInfo } | { status: "failed"; failure: StartupFailure };
 
 export type StartupMode = "main" | "recovery";
 

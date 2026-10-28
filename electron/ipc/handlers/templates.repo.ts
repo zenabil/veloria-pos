@@ -69,8 +69,7 @@ export function listTemplates(): TemplateRow[] {
 export function getTemplate(id: number): TemplateRow {
   const db = getDb();
   const row = db.prepare(`SELECT * FROM print_templates WHERE id = ?`).get(id) as
-    | Record<string, unknown>
-    | undefined;
+    Record<string, unknown> | undefined;
   if (!row) throw new Error("Modèle introuvable.");
   return toRow(row);
 }
@@ -103,8 +102,7 @@ export function saveTemplateAtomic(args: {
     const payload = JSON.stringify(args.settings);
     if (args.id != null) {
       const row = db.prepare(`SELECT id FROM print_templates WHERE id = ?`).get(args.id) as
-        | { id: number }
-        | undefined;
+        { id: number } | undefined;
       if (!row) throw new Error("Modèle introuvable.");
       try {
         db.prepare(
@@ -142,7 +140,7 @@ export function saveTemplateAtomic(args: {
     }
   });
   try {
-    return (tx as unknown as () => { id: number; version: number })();
+    return tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -169,8 +167,7 @@ export function activateTemplateAtomic(args: {
   const tx = db.transaction(() => {
     claimIdempotency(args.operationId, "templates.activate", args.now);
     const row = db.prepare(`SELECT doc_type FROM print_templates WHERE id = ?`).get(args.id) as
-      | { doc_type: string }
-      | undefined;
+      { doc_type: string } | undefined;
     if (!row) throw new Error("Modèle introuvable.");
     db.prepare(`UPDATE print_templates SET is_active = 0 WHERE doc_type = ?`).run(row.doc_type);
     db.prepare(`UPDATE print_templates SET is_active = 1, updated_at = ? WHERE id = ?`).run(
@@ -180,7 +177,7 @@ export function activateTemplateAtomic(args: {
     storeIdempotencyResult(args.operationId, { activated: true });
   });
   try {
-    (tx as unknown as () => void)();
+    tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -210,7 +207,7 @@ export function deleteTemplateAtomic(args: { id: number; operationId: string; no
     storeIdempotencyResult(args.operationId, { deleted: true });
   });
   try {
-    (tx as unknown as () => void)();
+    tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -248,7 +245,7 @@ export function resetFactoryAtomic(args: {
     storeIdempotencyResult(args.operationId, { reset: true });
   });
   try {
-    (tx as unknown as () => void)();
+    tx();
   } catch (err) {
     if (
       err instanceof Error &&

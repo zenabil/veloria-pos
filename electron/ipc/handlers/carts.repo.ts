@@ -164,7 +164,7 @@ export function saveCartDraftsAtomic(
     return result;
   });
   try {
-    return (tx as unknown as () => { saved: number })();
+    return tx();
   } catch (err) {
     if (
       operationId &&

@@ -13,7 +13,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const repoDb = vi.hoisted(() => ({ current: null as unknown, depth: 0 }));
+const repoDb = vi.hoisted(() => ({ current: null as DatabaseSync | null, depth: 0 }));
 
 vi.mock("../../electron/database/sqlite.service", () => ({
   getDb: () => {
@@ -105,8 +105,8 @@ function openMigrated(tmp: string): DatabaseSync {
 }
 
 function useDb(db: DatabaseSync): void {
-  (repoDb as { current: unknown; depth: number }).current = db;
-  (repoDb as { current: unknown; depth: number }).depth = 0;
+  repoDb.current = db;
+  repoDb.depth = 0;
 }
 
 function countCustomers(db: DatabaseSync): number {
@@ -164,8 +164,7 @@ describe("Import CSV clients (lot atomique)", () => {
 
     // Trace d'audit (l'import est une mutation métier).
     const audit = db.prepare("SELECT event_type FROM audit_log WHERE operation_id = ?").get(OP) as
-      | { event_type: string }
-      | undefined;
+      { event_type: string } | undefined;
     expect(audit?.event_type).toBe("customers.imported");
   });
 

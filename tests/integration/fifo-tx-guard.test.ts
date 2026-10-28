@@ -16,7 +16,7 @@ import {
 } from "../../electron/ipc/handlers/fifo";
 import { getDb } from "../../electron/database/sqlite.service";
 
-const repoDb = vi.hoisted(() => ({ current: null as unknown, inTx: false }));
+const repoDb = vi.hoisted(() => ({ current: null as DatabaseSync | null, inTx: false }));
 
 vi.mock("../../electron/database/sqlite.service", () => ({
   getDb: () => {

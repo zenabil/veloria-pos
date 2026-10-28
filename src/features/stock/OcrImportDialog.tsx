@@ -264,16 +264,16 @@ export function OcrImportDialog({
         const line = lines[i] as { name: string; barcode: string | null };
         if (r.barcodeHit !== null) {
           return {
-            product: r.barcodeHit as unknown as ProductHit,
-            kind: "barcode" as OcrMatchKind,
-            confidence: "high" as OcrConfidence,
+            product: r.barcodeHit,
+            kind: "barcode",
+            confidence: "high",
           };
         }
         if (line.name.trim().length < 2) {
           return {
             product: null,
-            kind: "none" as OcrMatchKind,
-            confidence: "low" as OcrConfidence,
+            kind: "none",
+            confidence: "low",
           };
         }
         const m = matchByName(
@@ -283,14 +283,13 @@ export function OcrImportDialog({
         if (m.product === null) {
           return {
             product: null,
-            kind: "none" as OcrMatchKind,
-            confidence: "low" as OcrConfidence,
+            kind: "none",
+            confidence: "low",
           };
         }
         const full =
           (r.candidates.find((x) => x.id === m.product?.productId) as unknown as
-            | ProductHit
-            | undefined) ?? null;
+            ProductHit | undefined) ?? null;
         return { product: full, kind: m.kind, confidence: m.confidence };
       });
     } catch (err: unknown) {
@@ -298,8 +297,8 @@ export function OcrImportDialog({
       console.error("[Veloria] OCR : rapprochement produits impossible, relecture manuelle", err);
       return lines.map(() => ({
         product: null,
-        kind: "none" as OcrMatchKind,
-        confidence: "low" as OcrConfidence,
+        kind: "none",
+        confidence: "low",
       }));
     }
   }
@@ -480,8 +479,8 @@ export function OcrImportDialog({
               productId: h.id,
               productLabel: h.name,
               productPriceMinor: h.purchase_price_minor,
-              confidence: "high" as OcrConfidence,
-              matchKind: "exact" as OcrMatchKind,
+              confidence: "high",
+              matchKind: "exact",
               createNew: false,
             }
           : r,

@@ -186,7 +186,7 @@ export function saveProductPackagingAtomic(input: {
     return result;
   });
   try {
-    return (tx as unknown as () => { id: number })();
+    return tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -226,8 +226,7 @@ export function deleteProductPackagingAtomic(input: {
   const tx = db.transaction(() => {
     claimIdempotency(input.operationId, "products.packaging.delete", input.now);
     const product = db.prepare(`SELECT id FROM products WHERE id = ?`).get(input.productId) as
-      | { id: number }
-      | undefined;
+      { id: number } | undefined;
     if (!product) throw new Error("Produit introuvable.");
     db.prepare(
       `UPDATE product_packagings SET is_active = 0, updated_at = ? WHERE product_id = ? AND is_active = 1`,
@@ -254,7 +253,7 @@ export function deleteProductPackagingAtomic(input: {
     return result;
   });
   try {
-    return (tx as unknown as () => { deleted: boolean })();
+    return tx();
   } catch (err) {
     if (
       err instanceof Error &&

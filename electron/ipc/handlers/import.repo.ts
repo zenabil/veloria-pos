@@ -121,7 +121,7 @@ export function importCustomersAtomic(
     return result;
   });
   try {
-    return (tx as unknown as () => { imported: number; skipped: number })();
+    return tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -228,7 +228,7 @@ export function importProductsAtomic(
     return result;
   });
   try {
-    return (tx as unknown as () => { imported: number; skipped: number })();
+    return tx();
   } catch (err) {
     if (
       err instanceof Error &&

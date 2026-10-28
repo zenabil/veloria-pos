@@ -485,7 +485,7 @@ export function ProductFormDialog({
         ((r as { rows?: { id: number; name: string }[] }).rows ?? []).map((s) => ({
           id: s.id,
           name: s.name,
-        })) as { id: number; name: string }[],
+        })),
       );
       if (selectId != null) {
         setSupplierIds((prev) => (prev.includes(selectId) ? prev : [...prev, selectId]));

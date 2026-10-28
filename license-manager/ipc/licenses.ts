@@ -28,12 +28,7 @@ export function inTx(db: Db, fn: () => void): void {
 }
 
 export type ManagerEdition =
-  | "basic"
-  | "standard"
-  | "professional"
-  | "pro"
-  | "enterprise"
-  | "custom";
+  "basic" | "standard" | "professional" | "pro" | "enterprise" | "custom";
 export type ManagerLicenseType = "term" | "lifetime";
 
 export interface LicenseRow {

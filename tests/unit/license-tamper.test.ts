@@ -201,8 +201,8 @@ describe("H-3 tamper-evident state", () => {
       issuedAt: "2026-10-01T00:00:00.000Z",
     };
     delete (p as Partial<LicensePayload>).pages;
-    expect(hasLicensedPage(p as LicensePayload, "sales")).toBe(false);
-    expect(Object.values(licensedPages(p as LicensePayload)).every(Boolean)).toBe(false);
+    expect(hasLicensedPage(p, "sales")).toBe(false);
+    expect(Object.values(licensedPages(p)).every(Boolean)).toBe(false);
   });
 
   it("pre-cutoff legacy without pages keeps access (no existing client blocked)", () => {
@@ -211,7 +211,7 @@ describe("H-3 tamper-evident state", () => {
       issuedAt: "2026-01-01T00:00:00.000Z",
     };
     delete (p as Partial<LicensePayload>).pages;
-    expect(hasLicensedPage(p as LicensePayload, "sales")).toBe(true);
+    expect(hasLicensedPage(p, "sales")).toBe(true);
   });
 });
 

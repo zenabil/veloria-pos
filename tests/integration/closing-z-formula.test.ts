@@ -10,7 +10,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const repoDb = vi.hoisted(() => ({ current: null as unknown, depth: 0 }));
+const repoDb = vi.hoisted(() => ({ current: null as DatabaseSync | null, depth: 0 }));
 
 vi.mock("../../electron/database/sqlite.service", () => ({
   getDb: () => {
@@ -106,12 +106,12 @@ describe("E-22 : clôture Z — Only the cash actually in the drawer", () => {
       db.exec(fs.readFileSync(path.join(migDir, f), "utf-8"));
     }
     db.exec("PRAGMA foreign_keys = ON;");
-    (repoDb as { current: unknown; depth: number }).current = db;
-    (repoDb as { current: unknown; depth: number }).depth = 0;
+    repoDb.current = db;
+    repoDb.depth = 0;
   });
 
   afterEach(() => {
-    (repoDb as { current: unknown; depth: number }).current = null;
+    repoDb.current = null;
     try {
       db.close();
     } catch {

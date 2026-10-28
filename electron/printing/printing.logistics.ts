@@ -59,10 +59,7 @@ function logisticsOf(
     const enriched = withQr(
       withCompanyIdentity(applyInvoiceSettings(withLogo(toReceiptData(parsed)))),
     );
-    return applyTemplateToReceipt(
-      "bon_livraison",
-      enriched,
-    ) as import("./receipt-documents").LogisticsDocData;
+    return applyTemplateToReceipt("bon_livraison", enriched);
   }
   if (kind === "return") {
     const parsed = returnSlipPayloadSchema.parse(raw);

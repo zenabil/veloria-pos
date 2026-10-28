@@ -14,12 +14,7 @@ export const LICENSE_PRODUCT_ID = "veloria-pos";
 
 export type LicenseType = "term" | "lifetime";
 export type LicenseEdition =
-  | "basic"
-  | "standard"
-  | "professional"
-  | "pro"
-  | "enterprise"
-  | "custom";
+  "basic" | "standard" | "professional" | "pro" | "enterprise" | "custom";
 /** Plan commercial (preset d'émission, §20) — signé, informatif. */
 export type LicensePlan = "BASIC" | "STANDARD" | "PRO" | "ENTERPRISE" | "CUSTOM";
 /** Statut signé (révocation/suspension offline, §3/§30). */
@@ -82,8 +77,8 @@ export function canonicalJson(value: unknown): string {
   if (value === null || typeof value !== "object") {
     // JSON.stringify peut rendre undefined (entrée undefined/fonction) :
     // élargissement explicite pour préserver le repli "null" historique.
-    const s: string | undefined = JSON.stringify(value) as string | undefined;
-    return s ?? "null";
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- JSON.stringify rend undefined pour undefined/fonction, que le type lib ignore.
+    return JSON.stringify(value) ?? "null";
   }
   if (Array.isArray(value)) return `[${value.map((v) => canonicalJson(v)).join(",")}]`;
   const entries = Object.entries(value as Record<string, unknown>)

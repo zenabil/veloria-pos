@@ -72,8 +72,7 @@ export function App(): React.JSX.Element {
 
   function nameOf(snapshot: unknown): string {
     const c = ((snapshot ?? {}) as Record<string, unknown>)["customer"] as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     const fn = typeof c?.["first_name"] === "string" ? c["first_name"] : "";
     const ln = typeof c?.["last_name"] === "string" ? c["last_name"] : "";
     return `${fn} ${ln}`.trim();

@@ -244,14 +244,7 @@ export function listBackups(): { file: string; size: number; createdAt: string }
 }
 
 export type BackupFrequency =
-  | "10min"
-  | "30min"
-  | "1h"
-  | "6h"
-  | "12h"
-  | "daily"
-  | "weekly"
-  | "custom";
+  "10min" | "30min" | "1h" | "6h" | "12h" | "daily" | "weekly" | "custom";
 
 export interface BackupAutoConfig {
   enabled: boolean;
@@ -346,7 +339,7 @@ export function saveBackupAuto(
     storeOptional(operationId, { saved: true });
   });
   try {
-    (tx as unknown as () => void)();
+    tx();
   } catch (err) {
     if (
       operationId &&

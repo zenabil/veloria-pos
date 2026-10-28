@@ -22,7 +22,7 @@ export async function createProforma(d: SellFlowDeps): Promise<void> {
   if (d.proformaOpRef.current?.key !== proformaKey) {
     d.proformaOpRef.current = { key: proformaKey, id: newOperationId() };
   }
-  const proformaOperationId = (d.proformaOpRef.current as { key: string; id: string }).id;
+  const proformaOperationId = d.proformaOpRef.current.id;
   try {
     const res = (await api.proformaCreate({
       operationId: proformaOperationId,

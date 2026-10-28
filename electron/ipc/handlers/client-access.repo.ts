@@ -298,7 +298,7 @@ export function activateClientAccessAtomic(args: {
     return result;
   });
   try {
-    return (tx as unknown as () => { activated: boolean; activationCode: string })();
+    return tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -333,7 +333,7 @@ export function revokeClientAccessAtomic(args: {
     return result;
   });
   try {
-    return (tx as unknown as () => { revoked: boolean })();
+    return tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -362,8 +362,7 @@ export function getClientAccessStatus(customerId: number): {
       `SELECT revoked_at, failed_attempts, locked_until FROM customer_access WHERE customer_id = ?`,
     )
     .get(customerId) as
-    | { revoked_at: string | null; failed_attempts: number; locked_until: string | null }
-    | undefined;
+    { revoked_at: string | null; failed_attempts: number; locked_until: string | null } | undefined;
   if (!row) return { active: false, revokedAt: null, failedAttempts: 0, lockedUntil: null };
   return {
     active: row.revoked_at == null,
@@ -556,7 +555,7 @@ export function enqueueSnapshotAtomic(args: {
     ).run(args.operationId, args.customerId, args.kind, payload, args.now);
   });
   try {
-    (tx as unknown as () => void)();
+    tx();
     return { queued: true, existed: false };
   } catch (err) {
     // Course concurrent : le gagnant a inséré, le perdant retrouve la file.
@@ -606,7 +605,7 @@ export function saveAnnouncementAtomic(args: { operationId: string; text: string
     return result;
   });
   try {
-    return (tx as unknown as () => { announcementId: number })();
+    return tx();
   } catch (err) {
     if (
       err instanceof Error &&

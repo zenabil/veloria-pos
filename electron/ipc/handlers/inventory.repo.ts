@@ -83,8 +83,7 @@ export function adjustStockAtomic(args: {
     const prod = db
       .prepare(`SELECT quantity, min_stock_level, purchase_price_minor FROM products WHERE id = ?`)
       .get(args.productId) as
-      | { quantity: number; min_stock_level: number; purchase_price_minor: number }
-      | undefined;
+      { quantity: number; min_stock_level: number; purchase_price_minor: number } | undefined;
     if (!prod) throw new Error("Produit introuvable.");
     if (!Number.isFinite(args.newQuantity) || args.newQuantity < 0) {
       throw new Error("Quantité d'ajustement invalide.");
@@ -144,7 +143,7 @@ export function adjustStockAtomic(args: {
     return result;
   });
   try {
-    return (tx as unknown as () => { quantityAfter: number })();
+    return tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -494,7 +493,7 @@ export function receiveStockAtomic(args: {
     return { intakeId, totalMinor: total };
   });
   try {
-    return (tx as unknown as () => { intakeId: number; totalMinor: number })();
+    return tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -749,8 +748,7 @@ export function cancelStockIntakeAtomic(args: {
   const tx = db.transaction(() => {
     claimIdempotency(args.operationId, "stock.intakeCancel", args.now);
     const intake = db.prepare(`SELECT * FROM stock_intakes WHERE id = ?`).get(args.id) as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     if (!intake) throw new Error("Réception introuvable.");
     const ctx = intakeCancelContext(db, intake);
     if (ctx.reason != null) throw new Error(ctx.reason);
@@ -766,8 +764,7 @@ export function cancelStockIntakeAtomic(args: {
     }
     for (const [pid, agg] of byProduct) {
       const prod = db.prepare(`SELECT quantity FROM products WHERE id = ?`).get(pid) as
-        | { quantity: number }
-        | undefined;
+        { quantity: number } | undefined;
       if (!prod) throw new Error(`Produit introuvable pour « ${agg.name} ».`);
       const after = roundQty3(Number(prod.quantity) - agg.net);
       if (after < -1e-9) {
@@ -878,12 +875,7 @@ export type StockMovementKind =
   | "return_in"
   | "damage_out";
 export type StockSort =
-  | "name_asc"
-  | "name_desc"
-  | "qty_asc"
-  | "qty_desc"
-  | "value_desc"
-  | "recent_desc";
+  "name_asc" | "name_desc" | "qty_asc" | "qty_desc" | "value_desc" | "recent_desc";
 
 export interface StockProductsOptions {
   categoryId?: number | null;
@@ -977,8 +969,7 @@ export function listMovements(
 ): { rows: unknown[]; total: number } {
   const db = getDb();
   const exists = db.prepare(`SELECT id FROM products WHERE id = ?`).get(productId) as
-    | { id: number }
-    | undefined;
+    { id: number } | undefined;
   if (!exists) throw new Error("Produit introuvable.");
   const conds = [`product_id = ?`];
   const params: unknown[] = [productId];
@@ -1052,8 +1043,7 @@ export function applyInventoryAtomic(args: {
           `SELECT quantity, min_stock_level, purchase_price_minor FROM products WHERE id = ?`,
         )
         .get(it.productId) as
-        | { quantity: number; min_stock_level: number; purchase_price_minor: number }
-        | undefined;
+        { quantity: number; min_stock_level: number; purchase_price_minor: number } | undefined;
       if (!prod) throw new Error("Produit introuvable.");
       const delta = it.actualQty - Number(prod.quantity);
       if (delta === 0) {
@@ -1114,7 +1104,7 @@ export function applyInventoryAtomic(args: {
     return result;
   });
   try {
-    return (tx as unknown as () => { applied: number; skipped: number })();
+    return tx();
   } catch (err) {
     if (
       err instanceof Error &&

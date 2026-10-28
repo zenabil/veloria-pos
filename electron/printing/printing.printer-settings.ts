@@ -22,7 +22,7 @@ export function saveSelectedPrinterName(
     storeOptional(operationId, { saved: true });
   });
   try {
-    (tx as unknown as () => void)();
+    tx();
   } catch (err) {
     if (
       operationId &&

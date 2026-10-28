@@ -60,7 +60,7 @@ function runList(
     ...over,
   });
   const params = q.params as (string | number)[];
-  return db.prepare(q.sql).all(...params) as Record<string, unknown>[];
+  return db.prepare(q.sql).all(...params);
 }
 
 describe("History UNION (seeded)", () => {

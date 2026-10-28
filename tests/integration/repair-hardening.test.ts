@@ -57,8 +57,7 @@ describe("M-2 : idempotence suppressions (pattern peek/claim/store/replay)", () 
           "INSERT INTO idempotency_keys (operation_id, op_type, result_json, created_at) VALUES (?, 'suppliers.delete', '{}', ?)",
         ).run(op, now);
         const row = db.prepare("SELECT name FROM suppliers WHERE id = ?").get(id) as
-          | { name: string }
-          | undefined;
+          { name: string } | undefined;
         if (!row) throw new Error("Fournisseur introuvable.");
         db.prepare("DELETE FROM suppliers WHERE id = ?").run(id);
         db.prepare("UPDATE idempotency_keys SET result_json = ? WHERE operation_id = ?").run(

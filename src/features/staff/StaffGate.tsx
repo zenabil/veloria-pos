@@ -53,7 +53,7 @@ export function StaffGate({ notify, onLoggedIn }: Props): React.JSX.Element {
       .finally(() => setLoaded(true));
   }, [notify]);
 
-  async function submit(e: React.FormEvent): Promise<void> {
+  async function submit(e: React.SubmitEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
     if (busy) return;
     setBusy(true);

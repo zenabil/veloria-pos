@@ -279,7 +279,7 @@ export function createProduct(input: {
     return productId;
   });
   try {
-    return (tx as unknown as () => number)();
+    return tx();
   } catch (err) {
     // Course rejouée : l'autre transaction a inséré le même operationId.
     if (
@@ -324,8 +324,7 @@ export function updateProduct(input: {
   const tx = db.transaction(() => {
     claimOptional(input.operationId, "products.update", input.now);
     const old = db.prepare(`SELECT quantity FROM products WHERE id = ?`).get(input.id) as
-      | { quantity: number }
-      | undefined;
+      { quantity: number } | undefined;
     if (!old) throw new Error("Produit introuvable.");
     db.prepare(
       `UPDATE products SET name=?, category_id=?, unit_code=?, purchase_price_minor=?, selling_price_minor=?, quantity=?, min_stock_level=?, max_stock_level=?, expiration_date=?, supplier_id=?, stock_status=?, updated_at=? WHERE id=?`,
@@ -425,7 +424,7 @@ export function updateProduct(input: {
     storeOptional(input.operationId, { updated: true });
   });
   try {
-    (tx as unknown as () => void)();
+    tx();
   } catch (err) {
     if (
       input.operationId &&
@@ -458,7 +457,7 @@ export function restoreProduct(id: number, now: string, operationId: string): vo
     storeIdempotencyResult(operationId, { restored: true });
   });
   try {
-    (tx as unknown as () => void)();
+    tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -487,7 +486,7 @@ export function archiveProduct(id: number, now: string, operationId: string): vo
     storeIdempotencyResult(operationId, { archived: true });
   });
   try {
-    (tx as unknown as () => void)();
+    tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -527,8 +526,7 @@ export function deleteProductAtomic(id: number, now: string, operationId: string
   const tx = db.transaction(() => {
     claimIdempotency(operationId, "products.delete", now);
     const row = db.prepare(`SELECT id, name, is_active FROM products WHERE id = ?`).get(id) as
-      | { id: number; name: string; is_active: number }
-      | undefined;
+      { id: number; name: string; is_active: number } | undefined;
     if (!row) throw new Error("Produit introuvable.");
     if (row.is_active === 1) {
       throw new Error("Archivez le produit avant sa suppression définitive.");
@@ -556,7 +554,7 @@ export function deleteProductAtomic(id: number, now: string, operationId: string
     storeIdempotencyResult(operationId, { deleted: true });
   });
   try {
-    (tx as unknown as () => void)();
+    tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -591,8 +589,7 @@ export function createCategory(name: string, now: string, operationId?: string |
     claimOptional(operationId, "categories.create", now);
     // Rejouement concurrent : même nom déjà créé par le 1er essai → retourne l'id.
     const existing = db.prepare(`SELECT id FROM categories WHERE name = ?`).get(trimmed) as
-      | { id: number }
-      | undefined;
+      { id: number } | undefined;
     if (existing) {
       if (typeof operationId === "string" && operationId.trim().length > 0) {
         storeOptional(operationId, { id: Number(existing.id) });
@@ -616,7 +613,7 @@ export function createCategory(name: string, now: string, operationId?: string |
     return id;
   });
   try {
-    return (tx as unknown as () => number)();
+    return tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -629,8 +626,7 @@ export function createCategory(name: string, now: string, operationId?: string |
         if (retry) return retry.id;
       }
       const existing = db.prepare(`SELECT id FROM categories WHERE name = ?`).get(trimmed) as
-        | { id: number }
-        | undefined;
+        { id: number } | undefined;
       if (existing) return Number(existing.id);
     }
     throw err;
@@ -665,13 +661,11 @@ export function setProductSuppliersAtomic(
   const tx = db.transaction(() => {
     claimOptional(operationId, "products.setSuppliers", now);
     const prod = db.prepare(`SELECT id FROM products WHERE id = ?`).get(productId) as
-      | { id: number }
-      | undefined;
+      { id: number } | undefined;
     if (!prod) throw new Error("Produit introuvable.");
     for (const sid of unique) {
       const sup = db.prepare(`SELECT id FROM suppliers WHERE id = ?`).get(sid) as
-        | { id: number }
-        | undefined;
+        { id: number } | undefined;
       if (!sup) throw new Error("Fournisseur introuvable.");
     }
     db.prepare(`DELETE FROM product_suppliers WHERE product_id = ?`).run(productId);
@@ -698,7 +692,7 @@ export function setProductSuppliersAtomic(
     storeOptional(operationId, { linked: unique.length });
   });
   try {
-    (tx as unknown as () => void)();
+    tx();
   } catch (err) {
     if (
       operationId &&

@@ -679,7 +679,7 @@ export function PrintTemplatesScreen({ notify }: { notify: Notify }): React.JSX.
           return;
         }
       }
-      const full = mergeTemplateSettings(docType, record.settings as Partial<TemplateSettings>);
+      const full = mergeTemplateSettings(docType, record.settings);
       setDraft(full);
       if (typeof record.name === "string" && record.name.trim().length >= 2) {
         setDraftName(record.name.trim().slice(0, 100));

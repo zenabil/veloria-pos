@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const repoDb = vi.hoisted(() => ({ current: null as unknown, depth: 0 }));
+const repoDb = vi.hoisted(() => ({ current: null as DatabaseSync | null, depth: 0 }));
 
 vi.mock("../../electron/database/sqlite.service", () => ({
   getDb: () => {
@@ -109,8 +109,8 @@ describe("Atomic slices (SQL invariants)", () => {
     // atomicité. On appelle désormais la fonction de PRODUCTION, puis on
     // vérifie qu'un échec au milieu ne laisse AUCUNE trace.
     const db = openMigrated(tmp);
-    (repoDb as { current: unknown; depth: number }).current = db;
-    (repoDb as { current: unknown; depth: number }).depth = 0;
+    repoDb.current = db;
+    repoDb.depth = 0;
     db.prepare(
       "INSERT INTO suppliers (uuid, name, code, created_at, updated_at) VALUES ('s1','Moulin','FOU-00001','2026-01-01','2026-01-01')",
     ).run();
@@ -179,7 +179,7 @@ describe("Atomic slices (SQL invariants)", () => {
       quantity: number;
     };
     expect(Number(prod2.quantity)).toBe(18);
-    (repoDb as { current: unknown; depth: number }).current = null;
+    repoDb.current = null;
     db.close();
   });
 

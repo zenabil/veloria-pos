@@ -5,12 +5,12 @@
 // de production et exige que l'index soit UTILISÉ («USING INDEX»). Un index
 // inutilisé (ou une colonne non indexable) fait échouer la porte.
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { DatabaseSync, type SupportedValueType } from "node:sqlite";
+import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-type SupportedValue = SupportedValueType;
+type SupportedValue = SQLInputValue;
 
 function openMigrated(dir: string): DatabaseSync {
   const db = new DatabaseSync(path.join(dir, "plans.sqlite"));

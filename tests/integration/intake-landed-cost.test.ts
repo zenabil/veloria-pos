@@ -6,11 +6,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const repoDb = vi.hoisted(() => ({ current: null as unknown }));
+const repoDb = vi.hoisted((): { current: DatabaseSync | null } => ({ current: null }));
 
 vi.mock("../../electron/database/sqlite.service", () => ({
   getDb: () => {
-    const db = (repoDb as { current: unknown }).current;
+    const db = repoDb.current;
     if (!db) throw new Error("Base de test non ouverte.");
     return db;
   },
@@ -96,11 +96,11 @@ describe("réception : coût rendu par produit", () => {
   beforeEach(() => {
     tmp = fs.mkdtempSync(path.join(os.tmpdir(), "veloria-landed-"));
     db = openMigrated(tmp);
-    (repoDb as { current: unknown }).current = withTransactions(db);
+    repoDb.current = withTransactions(db);
   });
 
   afterEach(() => {
-    (repoDb as { current: unknown }).current = null;
+    repoDb.current = null;
     try {
       db.close();
     } catch {

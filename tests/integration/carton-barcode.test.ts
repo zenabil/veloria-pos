@@ -8,7 +8,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const repoDb = vi.hoisted(() => ({ current: null as unknown, depth: 0 }));
+const repoDb = vi.hoisted(() => ({ current: null as DatabaseSync | null, depth: 0 }));
 
 vi.mock("../../electron/database/sqlite.service", () => ({
   getDb: () => {
@@ -89,7 +89,7 @@ import {
   deleteProductPackagingAtomic,
   saveProductPackagingAtomic,
 } from "../../electron/ipc/handlers/packagings.repo";
-import { createSaleAtomic, type SaleLineInput } from "../../electron/ipc/handlers/sales.repo";
+import { createSaleAtomic } from "../../electron/ipc/handlers/sales.repo";
 import { createReturnAtomic } from "../../electron/ipc/handlers/returns.repo";
 import { buildSalePayload, type CartLine } from "@/application/sales/create-sale.ts";
 import { cartonScanUnits } from "@domain/packaging/carton-barcodes.ts";
@@ -118,7 +118,7 @@ function openMigrated(dir: string): DatabaseSync {
 }
 
 function state(): { current: unknown; depth: number } {
-  return repoDb as { current: unknown; depth: number };
+  return repoDb;
 }
 
 let productId = 0;
@@ -154,7 +154,7 @@ function savePackaging(operationId: string, over: Record<string, unknown> = {}):
     cartonBarcodes: [CARTON_CODE],
     now: NOW,
     ...over,
-  } as Parameters<typeof saveProductPackagingAtomic>[0]).id;
+  }).id;
 }
 
 /** Ligne telle que la caisse la construit après un scan du code carton. */
@@ -210,7 +210,7 @@ function sellCartons(count: number): ReturnType<typeof createSaleAtomic> {
     paymentStatus: payload.totals.paymentStatus,
     paymentMethod: "cash",
     dueDate: null,
-    lines: payload.lines as SaleLineInput[],
+    lines: payload.lines,
     lineTotals: payload.totals.lineTotalsMinor,
     now: NOW,
     allowNegativeStock: false,

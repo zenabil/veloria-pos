@@ -57,8 +57,7 @@ export function createExpense(
   normalizeUpsert(args);
   if (args.supplierId != null) {
     const sup = db.prepare(`SELECT id FROM suppliers WHERE id = ?`).get(args.supplierId) as
-      | { id: number }
-      | undefined;
+      { id: number } | undefined;
     if (!sup) throw new Error("Fournisseur introuvable.");
   }
   // Idempotence (migration 0022) : même motif que sales.operation_id.
@@ -107,7 +106,7 @@ export function createExpense(
     return id;
   });
   try {
-    return (tx as unknown as () => number)();
+    return tx();
   } catch (err) {
     // Course rejouée : l'autre transaction a inséré le même operationId.
     if (
@@ -130,8 +129,7 @@ export function updateExpense(
   normalizeUpsert(args);
   if (args.supplierId != null) {
     const sup = db.prepare(`SELECT id FROM suppliers WHERE id = ?`).get(args.supplierId) as
-      | { id: number }
-      | undefined;
+      { id: number } | undefined;
     if (!sup) throw new Error("Fournisseur introuvable.");
   }
   const tx = db.transaction(() => {
@@ -168,7 +166,7 @@ export function updateExpense(
     storeOptional(args.operationId, { updated: true });
   });
   try {
-    (tx as unknown as () => void)();
+    tx();
   } catch (err) {
     if (
       args.operationId &&
@@ -194,8 +192,7 @@ export function deleteExpenseAtomic(id: number, now: string, operationId: string
   const tx = db.transaction(() => {
     if (operationId != null) claimIdempotency(operationId, "expenses.delete", now);
     const row = db.prepare(`SELECT description FROM expenses WHERE id = ?`).get(id) as
-      | { description: string }
-      | undefined;
+      { description: string } | undefined;
     if (!row) throw new Error("Dépense introuvable.");
     db.prepare(`DELETE FROM expenses WHERE id = ?`).run(id);
     db.prepare(
@@ -210,7 +207,7 @@ export function deleteExpenseAtomic(id: number, now: string, operationId: string
     if (operationId != null) storeIdempotencyResult(operationId, { deleted: true });
   });
   try {
-    (tx as unknown as () => void)();
+    tx();
   } catch (err) {
     if (
       operationId != null &&

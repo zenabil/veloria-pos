@@ -45,12 +45,7 @@ export type StockMovementFilter =
   | "return_in"
   | "damage_out";
 export type StockSort =
-  | "name_asc"
-  | "name_desc"
-  | "qty_asc"
-  | "qty_desc"
-  | "value_desc"
-  | "recent_desc";
+  "name_asc" | "name_desc" | "qty_asc" | "qty_desc" | "value_desc" | "recent_desc";
 
 export function stockStatusLabel(status: string): string {
   if (status === "low_stock") return "Stock bas";

@@ -256,7 +256,7 @@ describe("Service : authorization pages/features", () => {
 
   it("import révoquée/suspendue refusé avec message FR", () => {
     for (const standing of ["revoked", "suspended"] as const) {
-      const s = setup({ ...basePayload(), licenseStatus: standing } as LicensePayload);
+      const s = setup({ ...basePayload(), licenseStatus: standing });
       expect(() => importLicenseEnvelope(s.deps, s.vlic)).toThrow(
         standing === "revoked" ? /révoquée/ : /suspendue/,
       );
@@ -291,8 +291,6 @@ describe("Service : authorization pages/features", () => {
       signature: signPayload(basePayload(), other.priv),
     });
     // Forgée avec une autre clé : le service utilise SA clé publique.
-    const k = keys();
-    void k;
     expect(() => importLicenseEnvelope(s.deps, forged)).toThrow(/signature/);
   });
 

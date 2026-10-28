@@ -250,8 +250,7 @@ export function getHistoryDetail(
     const cust =
       sale["customer_id"] != null
         ? (db.prepare(`SELECT search_name FROM customers WHERE id = ?`).get(sale["customer_id"]) as
-            | { search_name: string }
-            | undefined)
+            { search_name: string } | undefined)
         : undefined;
     return {
       ...base,
@@ -276,8 +275,7 @@ export function getHistoryDetail(
   }
   if (kind === "purchase") {
     const intake = db.prepare(`SELECT * FROM stock_intakes WHERE id = ?`).get(id) as
-      | Row
-      | undefined;
+      Row | undefined;
     if (!intake) throw new Error("Achat introuvable.");
     // R2 (0046) : un utilisateur ne rouvre que ses achats.
     if (staffUserId != null && intake["staff_user_id"] !== staffUserId) {
@@ -286,8 +284,7 @@ export function getHistoryDetail(
     const sup =
       intake["supplier_id"] != null
         ? (db.prepare(`SELECT name FROM suppliers WHERE id = ?`).get(intake["supplier_id"]) as
-            | { name: string }
-            | undefined)
+            { name: string } | undefined)
         : undefined;
     const items = db
       .prepare(`SELECT * FROM stock_intake_items WHERE stock_intake_id = ?`)
@@ -330,8 +327,7 @@ export function getHistoryDetail(
       const sale =
         pay["sale_id"] != null
           ? (db.prepare(`SELECT invoice_number FROM sales WHERE id = ?`).get(pay["sale_id"]) as
-              | { invoice_number: string }
-              | undefined)
+              { invoice_number: string } | undefined)
           : undefined;
       return {
         ...base,
@@ -355,8 +351,7 @@ export function getHistoryDetail(
     const sup =
       pay["supplier_id"] != null
         ? (db.prepare(`SELECT name FROM suppliers WHERE id = ?`).get(pay["supplier_id"]) as
-            | { name: string }
-            | undefined)
+            { name: string } | undefined)
         : undefined;
     return {
       ...base,

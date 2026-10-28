@@ -148,7 +148,7 @@ export function ClientMobileAccess({
       let done = 0;
       // A-15 : lot à concurrence bornée (les 3 clichés + les détails étaient
       // enchaînés un par un, sans retour visuel).
-      const res = await runBulk(
+      await runBulk(
         kinds,
         async (kind) => {
           const r = await callChecked(
@@ -165,7 +165,6 @@ export function ClientMobileAccess({
         },
         { concurrency: 3 },
       );
-      void res;
       // Détails des factures ouvertes (page détail APK, cap 10, best-effort
       // par vente : un détail manquant n'échoue jamais toute la synchro).
       let details = 0;

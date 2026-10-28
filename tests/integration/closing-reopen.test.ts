@@ -8,7 +8,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const repoDb = vi.hoisted(() => ({ current: null as unknown, depth: 0 }));
+const repoDb = vi.hoisted(() => ({ current: null as DatabaseSync | null, depth: 0 }));
 
 vi.mock("../../electron/database/sqlite.service", () => ({
   getDb: () => {
@@ -83,7 +83,7 @@ vi.mock("../../electron/backup/backup.service", () => ({
   backupStatus: () => ({ lastBackupAt: null }),
 }));
 
-const staffRole = vi.hoisted(() => ({ current: "manager" as string | null }));
+const staffRole = vi.hoisted(() => ({ current: "manager" }));
 
 vi.mock("../../electron/ipc/handlers/staff.repo", () => ({
   getStaffRole: () => staffRole.current,
@@ -115,8 +115,8 @@ describe("E-21 : réouverture d'une journée close (gérant, tracée, rejouable)
   beforeEach(() => {
     tmp = fs.mkdtempSync(path.join(os.tmpdir(), "veloria-closing-reopen-"));
     db = openMigrated(tmp);
-    (repoDb as { current: unknown; depth: number }).current = db;
-    (repoDb as { current: unknown; depth: number }).depth = 0;
+    repoDb.current = db;
+    repoDb.depth = 0;
     staffRole.current = "manager";
     db.prepare(
       `INSERT INTO daily_closings (uuid, business_date, cash_sales_minor, cash_payments_minor, customer_collections_minor, expenses_minor, refunds_minor, closing_balance_minor, closed_at)
@@ -125,7 +125,7 @@ describe("E-21 : réouverture d'une journée close (gérant, tracée, rejouable)
   });
 
   afterEach(() => {
-    (repoDb as { current: unknown; depth: number }).current = null;
+    repoDb.current = null;
     try {
       db.close();
     } catch {

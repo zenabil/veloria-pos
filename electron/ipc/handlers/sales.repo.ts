@@ -67,8 +67,7 @@ export function getSaleDetail(
 } {
   const db = getDb();
   const sale = db.prepare(`SELECT * FROM sales WHERE id = ?`).get(id) as
-    | Record<string, unknown>
-    | undefined;
+    Record<string, unknown> | undefined;
   if (!sale) throw new Error("Vente introuvable.");
   // R2 (0046) : un utilisateur ne rouvre que ses ventes (le gérant = null = tout).
   // Les ventes historiques sans auteur (NULL) sont réservées au gérant.
@@ -95,8 +94,7 @@ export function updateSaleDueDate(
   const tx = db.transaction(() => {
     claimOptional(operationId, "sales.setDueDate", now);
     const sale = db.prepare(`SELECT is_cancelled FROM sales WHERE id = ?`).get(id) as
-      | { is_cancelled: number }
-      | undefined;
+      { is_cancelled: number } | undefined;
     if (!sale) throw new Error("Vente introuvable.");
     if (sale.is_cancelled === 1) throw new Error("Vente annulée : échéance non modifiable.");
     const r = db
@@ -116,7 +114,7 @@ export function updateSaleDueDate(
     storeOptional(operationId, { updated: true });
   });
   try {
-    (tx as unknown as () => void)();
+    tx();
   } catch (err) {
     if (
       operationId &&
@@ -787,7 +785,7 @@ export function createSaleAtomic(input: CreateSaleInput): {
     return { saleId, invoiceNumber: invoice };
   });
   try {
-    return (tx as unknown as () => { saleId: number; invoiceNumber: string })();
+    return tx();
   } catch (err) {
     // Course rejouée : l'autre transaction a inséré le même operationId.
     if (
@@ -819,7 +817,7 @@ export function createSaleAtomic(input: CreateSaleInput): {
         /* avancement best-effort */
       }
       try {
-        return (tx as unknown as () => { saleId: number; invoiceNumber: string })();
+        return tx();
       } catch (retryErr) {
         if (
           retryErr instanceof Error &&
@@ -842,8 +840,7 @@ export function cancelSaleAtomic(saleId: number, now: string, operationId: strin
   const tx = db.transaction(() => {
     claimIdempotency(operationId, "sales.cancel", now);
     const sale = db.prepare(`SELECT * FROM sales WHERE id = ?`).get(saleId) as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     if (!sale) throw new Error("Vente introuvable.");
     if (sale["is_cancelled"] === 1) throw new Error("Vente déjà annulée.");
     const liveReturns = db
@@ -957,8 +954,7 @@ export function cancelSaleAtomic(saleId: number, now: string, operationId: strin
         ? Number(
             (
               db.prepare(`SELECT credit_allowed FROM customers WHERE id = ?`).get(customerId) as
-                | { credit_allowed: number }
-                | undefined
+                { credit_allowed: number } | undefined
             )?.credit_allowed ?? 0,
           ) === 1
         : false;
@@ -994,7 +990,7 @@ export function cancelSaleAtomic(saleId: number, now: string, operationId: strin
     storeIdempotencyResult(operationId, { cancelled: true });
   });
   try {
-    (tx as unknown as () => void)();
+    tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -1195,8 +1191,7 @@ function buildReopenDraft(
   let customerLabel = "Client de passage";
   if (customerId != null) {
     const c = db.prepare(`SELECT search_name FROM customers WHERE id = ?`).get(customerId) as
-      | { search_name: string }
-      | undefined;
+      { search_name: string } | undefined;
     customerLabel = c?.search_name ?? customerLabel;
   }
   return {
@@ -1225,8 +1220,7 @@ export function reopenSaleAtomic(
   const tx = db.transaction(() => {
     claimIdempotency(operationId, "sales.reopen", now);
     const sale = db.prepare(`SELECT * FROM sales WHERE id = ?`).get(saleId) as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     if (!sale) throw new Error("Vente introuvable.");
     // Même périmètre auteur que la lecture du détail (0046) : un utilisateur
     // ne réédite que ses ventes (gérant = null = tout).
@@ -1251,7 +1245,7 @@ export function reopenSaleAtomic(
     return draft;
   });
   try {
-    return (tx as unknown as () => SaleReopenDraft)();
+    return tx();
   } catch (err) {
     if (
       err instanceof Error &&

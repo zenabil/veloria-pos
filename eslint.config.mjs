@@ -72,7 +72,14 @@ export default tseslint.config(
     },
     rules: {
       "@typescript-eslint/no-explicit-any": "error",
-      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+      // SQLite/OCR renvoient des valeurs typées `number`/`string` qui peuvent
+      // différer au runtime (bigint, null, chaîne) : Number()/String() restent
+      // des gardes de frontière volontaires (argent, stock, confiance OCR).
+      "@typescript-eslint/no-unnecessary-type-conversion": "off",
       "@typescript-eslint/explicit-function-return-type": [
         "error",
         { allowExpressions: true, allowTypedFunctionExpressions: true },

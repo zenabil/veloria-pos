@@ -10,7 +10,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const repoDb = vi.hoisted(() => ({ current: null as unknown, depth: 0 }));
+const repoDb = vi.hoisted(() => ({ current: null as DatabaseSync | null, depth: 0 }));
 
 vi.mock("../../electron/database/sqlite.service", () => ({
   getDb: () => {
@@ -104,8 +104,8 @@ describe("Reçu d'un paiement client (fonction de production)", () => {
   beforeEach(() => {
     tmp = fs.mkdtempSync(path.join(os.tmpdir(), "veloria-receipt-"));
     db = openMigrated(tmp);
-    (repoDb as { current: unknown; depth: number }).current = db;
-    (repoDb as { current: unknown; depth: number }).depth = 0;
+    repoDb.current = db;
+    repoDb.depth = 0;
     db.prepare(
       `INSERT INTO customers (uuid, first_name, last_name, search_name, credit_allowed, initial_balance_minor, outstanding_balance_minor, created_at, updated_at)
        VALUES ('c-receipt','Amine','Benali','amine benali',1,0,0,'2026-01-01','2026-01-01')`,
@@ -125,7 +125,7 @@ describe("Reçu d'un paiement client (fonction de production)", () => {
   });
 
   afterEach(() => {
-    (repoDb as { current: unknown; depth: number }).current = null;
+    repoDb.current = null;
     try {
       db.close();
     } catch {

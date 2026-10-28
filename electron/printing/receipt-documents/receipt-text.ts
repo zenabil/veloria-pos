@@ -99,8 +99,7 @@ function toReceiptLines(value: unknown): ReceiptLine[] {
 }
 
 export function toReceiptData(raw: unknown): ReceiptData {
-  const payload: PrintReceiptPayload =
-    typeof raw === "object" && raw !== null ? (raw as PrintReceiptPayload) : {};
+  const payload: PrintReceiptPayload = typeof raw === "object" && raw !== null ? raw : {};
   const tvaRate =
     typeof payload.tvaRatePercent === "number" && Number.isFinite(payload.tvaRatePercent)
       ? Math.min(100, Math.max(0, payload.tvaRatePercent))

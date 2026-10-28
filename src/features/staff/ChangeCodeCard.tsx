@@ -28,7 +28,7 @@ export function ChangeCodeCard({
   const [code2, setCode2] = useState("");
   const [busy, setBusy] = useState(false);
 
-  async function submit(e: React.FormEvent): Promise<void> {
+  async function submit(e: React.SubmitEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
     if (busy) return;
     if (code1 !== code2) {

@@ -257,7 +257,7 @@ export function createCustomer(args: {
     return id;
   });
   try {
-    return (tx as unknown as () => number)();
+    return tx();
   } catch (err) {
     // Course rejouée : l'autre transaction a inséré le même operationId.
     if (
@@ -294,8 +294,7 @@ export function updateCustomer(args: {
   const tx = db.transaction(() => {
     claimOptional(args.operationId, "customers.update", args.now);
     const exists = db.prepare(`SELECT id FROM customers WHERE id = ?`).get(args.id) as
-      | { id: number }
-      | undefined;
+      { id: number } | undefined;
     if (!exists) throw new Error("Client introuvable.");
     // E-28 : unicité du téléphone (le client lui-même est exclu).
     assertPhoneAvailable(args.phone, args.id);
@@ -333,7 +332,7 @@ export function updateCustomer(args: {
     storeOptional(args.operationId, { updated: true });
   });
   try {
-    (tx as unknown as () => void)();
+    tx();
   } catch (err) {
     if (
       args.operationId &&
@@ -400,7 +399,7 @@ export function archiveCustomer(id: number, now: string, operationId: string): v
     storeIdempotencyResult(operationId, { archived: true });
   });
   try {
-    (tx as unknown as () => void)();
+    tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -430,7 +429,7 @@ export function restoreCustomer(id: number, now: string, operationId: string): v
     storeIdempotencyResult(operationId, { restored: true });
   });
   try {
-    (tx as unknown as () => void)();
+    tx();
   } catch (err) {
     if (
       err instanceof Error &&
@@ -474,8 +473,7 @@ export function getCustomerPaymentReceipt(paymentId: number): {
 } {
   const db = getDb();
   const payment = db.prepare(`SELECT * FROM sale_payments WHERE id = ?`).get(paymentId) as
-    | Record<string, unknown>
-    | undefined;
+    Record<string, unknown> | undefined;
   if (!payment) throw new Error("Paiement introuvable.");
   const customerId =
     typeof payment["customer_id"] === "number"
@@ -483,14 +481,12 @@ export function getCustomerPaymentReceipt(paymentId: number): {
       : typeof payment["sale_id"] === "number"
         ? (
             db.prepare(`SELECT customer_id FROM sales WHERE id = ?`).get(payment["sale_id"]) as
-              | { customer_id: number | null }
-              | undefined
+              { customer_id: number | null } | undefined
           )?.customer_id
         : null;
   if (customerId == null) throw new Error("Paiement sans client : reçu indisponible.");
   const customer = db.prepare(`SELECT * FROM customers WHERE id = ?`).get(customerId) as
-    | Record<string, unknown>
-    | undefined;
+    Record<string, unknown> | undefined;
   if (!customer) throw new Error("Client introuvable.");
   const sales = db
     .prepare(
@@ -704,7 +700,7 @@ export function recordCustomerPaymentAtomic(args: {
     return { paymentId: inserted.id };
   });
   try {
-    return (tx as unknown as () => { paymentId: number })();
+    return tx();
   } catch (err) {
     // Insertion concurrente du même operationId : retrouver le gagnant.
     if (

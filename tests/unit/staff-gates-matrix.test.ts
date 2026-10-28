@@ -9,7 +9,7 @@
 //    `database.reset`.
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
-const session = vi.hoisted(() => ({ userId: null as number | null, role: "manager" as string }));
+const session = vi.hoisted(() => ({ userId: null as number | null, role: "manager" }));
 
 vi.mock("../../electron/ipc/handlers/staff-session", () => ({
   getCurrentStaffUser: () => session.userId,

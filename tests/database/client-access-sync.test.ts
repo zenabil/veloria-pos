@@ -14,7 +14,7 @@ import {
 // n'existe pas dans ce contexte) avec la MÊME sémantique BEGIN/COMMIT/ROLLBACK
 // que better-sqlite3 : un throw dans la transaction doit annuler tout ce
 // qu'elle a écrit, dont la DELETE d'activation.
-const repoDb = vi.hoisted(() => ({ current: null as unknown }));
+const repoDb = vi.hoisted(() => ({ current: null as DatabaseSync | null }));
 
 vi.mock("../../electron/database/sqlite.service", () => ({
   getDb: () => {
@@ -70,7 +70,7 @@ describe("Migration 0032 client access + sync outbox", () => {
       db.exec(fs.readFileSync(path.join(migDir, f), "utf-8"));
     }
     db.exec("PRAGMA foreign_keys = ON;");
-    return db as unknown as DatabaseSync;
+    return db;
   }
 
   it("creates the three tables with indexes", () => {
@@ -110,14 +110,12 @@ describe("Migration 0032 client access + sync outbox", () => {
     ).toThrow();
     expect(() => db.prepare("DELETE FROM customers WHERE id = ?").run(cid)).toThrow();
     const kept = db.prepare("SELECT id FROM customer_access WHERE customer_id = ?").get(cid) as
-      | { id: number }
-      | undefined;
+      { id: number } | undefined;
     expect(kept).toBeDefined();
     db.prepare("DELETE FROM customer_access WHERE customer_id = ?").run(cid);
     db.prepare("DELETE FROM customers WHERE id = ?").run(cid);
     const gone2 = db.prepare("SELECT id FROM customers WHERE id = ?").get(cid) as
-      | { id: number }
-      | undefined;
+      { id: number } | undefined;
     expect(gone2).toBeUndefined();
     db.close();
   });

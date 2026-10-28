@@ -112,15 +112,7 @@ export function DebtDetailsDrawer({
           /* ticket sans coordonnées plutôt que pas de ticket */
         }
       }
-      const payload = buildSaleTicketPayload(
-        d as {
-          sale: Record<string, string | number | null>;
-          items: Record<string, string | number | null>[];
-        },
-        companyRecord,
-        customer,
-        customerId,
-      );
+      const payload = buildSaleTicketPayload(d, companyRecord, customer, customerId);
       const pv = (await api.printPreview(payload)) as { text80: string; html80?: unknown };
       setTicket({
         text80: pv.text80,

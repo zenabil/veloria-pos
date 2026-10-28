@@ -13,7 +13,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const demoDb = vi.hoisted(() => ({ current: null as unknown }));
+const demoDb = vi.hoisted(() => ({ current: null as DatabaseSync | null }));
 
 vi.mock("../../electron/database/sqlite.service", () => ({
   getDb: () => {

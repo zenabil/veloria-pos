@@ -4,14 +4,7 @@
 // parité volontaire, voir `main-domain-parity.test.ts`).
 
 export type BackupFrequency =
-  | "10min"
-  | "30min"
-  | "1h"
-  | "6h"
-  | "12h"
-  | "daily"
-  | "weekly"
-  | "custom";
+  "10min" | "30min" | "1h" | "6h" | "12h" | "daily" | "weekly" | "custom";
 
 export const BACKUP_FREQUENCY_MINUTES: Record<Exclude<BackupFrequency, "custom">, number> = {
   "10min": 10,
