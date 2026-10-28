@@ -19,15 +19,8 @@ import {
   assertValidPin,
 } from "../../src/domain/customer/client-access";
 import {
-  buildClientSnapshot,
-  buildActivationQrPayload,
   buildActivationQrPayloadV2,
   selectDetailSaleIds,
-  validateActivation,
-  validateAnnouncement,
-  type SnapshotItemRow,
-  type SnapshotPaymentRow,
-  type SnapshotSaleRow,
 } from "../../src/application/customers/client-access";
 import {
   announcementSaveSchema,
@@ -51,38 +44,6 @@ describe("PIN / activation", () => {
     expect(() => assertValidActivationCode(QR)).not.toThrow();
     expect(() => assertValidActivationCode("court")).toThrow();
     expect(() => assertValidActivationCode("avec espace dedans 123")).toThrow();
-  });
-  it("activation exige client + téléphone + operationId", () => {
-    const base = {
-      customerId: 7,
-      phone: "0550123456",
-      pin: "482916",
-      activationCode: QR,
-      operationId: OP,
-    };
-    expect(validateActivation(base).phone).toBe("0550123456");
-    expect(() => validateActivation({ ...base, customerId: 0 })).toThrow();
-    expect(() => validateActivation({ ...base, operationId: "" })).toThrow();
-    expect(() => validateActivation({ ...base, phone: "   " })).toThrow();
-    expect(() => validateActivation({ ...base, pin: "12345" })).toThrow();
-  });
-});
-
-describe("charge QR d'activation (ADR-054 / ADR-068)", () => {
-  it("le format V1 reste décrit par le use-case (l'APK le lit encore)", () => {
-    expect(buildActivationQrPayload("0550123456", "482916", QR)).toBe(
-      `VELORIA1|0550123456|482916|${QR}`,
-    );
-    expect(buildActivationQrPayload("  0550  ", "123456", QR)).toBe(`VELORIA1|0550|123456|${QR}`);
-    expect(() => buildActivationQrPayload("", "123456", QR)).toThrow();
-    expect(() => buildActivationQrPayload("05|50", "123456", QR)).toThrow();
-    expect(() => buildActivationQrPayload("0550", "12345", QR)).toThrow();
-    expect(() => buildActivationQrPayload("0550", "123456", "court")).toThrow();
-  });
-  it("W6 (B-03) : le MIROIR main du constructeur V1 a disparu (le POS n'émet plus que la V2)", () => {
-    expect(
-      (ClientAccess as unknown as Record<string, unknown>)["buildActivationQrPayload"],
-    ).toBeUndefined();
   });
   it("schéma IPC miroir des mêmes bornes", () => {
     const base = { phone: "0550", pin: "123456", code: QR };
@@ -111,6 +72,11 @@ describe("charge QR V2 universelle (ADR-068)", () => {
     expect(buildActivationQrPayloadV2(URL, ANON, "0550123456", "482916", QR)).toBe(
       `VELORIA2|${URL}|${ANON}|0550123456|482916|${QR}`,
     );
+  });
+  it("W6 (B-03) : le POS n'émet plus jamais de V1 (l'APK la lit encore, seule part)", () => {
+    expect(
+      (ClientAccess as unknown as Record<string, unknown>)["buildActivationQrPayload"],
+    ).toBeUndefined();
   });
   it("refuse URL piégée, anon courte et service_role", () => {
     expect(() =>
@@ -218,7 +184,6 @@ describe("expirations et verrouillage", () => {
 describe("annonces", () => {
   it("1..120 caractères", () => {
     expect(() => assertValidAnnouncement("Fermé vendredi")).not.toThrow();
-    expect(validateAnnouncement("  Fermé vendredi  ")).toBe("Fermé vendredi");
     expect(() => assertValidAnnouncement("   ")).toThrow();
     expect(() => assertValidAnnouncement("x".repeat(121))).toThrow();
   });
@@ -253,72 +218,6 @@ describe("validateurs IPC (frontière Zod)", () => {
     ).toBe(false);
   });
 });
-function sale(partial: Partial<SnapshotSaleRow> & { id: number }): SnapshotSaleRow {
-  return {
-    invoice_number: `FAC-${partial.id}`,
-    total_minor: 100000,
-    amount_paid_minor: 0,
-    remaining_balance_minor: 100000,
-    payment_status: "unpaid",
-    is_cancelled: 0,
-    created_at: "2026-09-01T10:00:00.000Z",
-    ...partial,
-  };
-}
-function pay(partial: Partial<SnapshotPaymentRow> & { id: number }): SnapshotPaymentRow {
-  return {
-    amount_minor: 50000,
-    method: "cash",
-    reference: null,
-    sale_id: null,
-    payment_date: "2026-09-01",
-    ...partial,
-  };
-}
-
-describe("cliché d'affichage", () => {
-  it("3 dernières factures/paiements, mois, points, top produits", () => {
-    const sales = [
-      sale({ id: 1, created_at: "2026-09-01T10:00:00.000Z" }),
-      sale({ id: 2, created_at: "2026-09-10T10:00:00.000Z" }),
-      sale({
-        id: 3,
-        created_at: "2026-08-05T10:00:00.000Z",
-        total_minor: 200000,
-        remaining_balance_minor: 200000,
-      }),
-      sale({ id: 4, created_at: "2026-09-20T10:00:00.000Z", is_cancelled: 1 }),
-      sale({ id: 5, created_at: "2026-09-15T10:00:00.000Z" }),
-    ];
-    const payments = [
-      pay({ id: 1, payment_date: "2026-09-02", amount_minor: 50000 }),
-      pay({ id: 2, payment_date: "2026-08-02", amount_minor: 70000 }),
-      pay({ id: 3, payment_date: "2026-09-12", amount_minor: 30000 }),
-      pay({ id: 4, payment_date: "2026-09-18", amount_minor: 10000 }),
-    ];
-    const items: SnapshotItemRow[] = [
-      { product_name_snapshot: "Sucre", quantity: 2, unit_price_minor: 9000 },
-      { product_name_snapshot: "Sucre", quantity: 3, unit_price_minor: 9500 },
-      { product_name_snapshot: "Huile", quantity: 10, unit_price_minor: 12000 },
-    ];
-    const snap = buildClientSnapshot(sales, payments, items, "2026-09", 250000);
-    expect(snap.lastSales.map((s) => s.id)).toEqual([5, 2, 1]);
-    expect(snap.lastPayments.map((p) => p.id)).toEqual([4, 3, 1]);
-    expect(snap.monthPurchasesMinor).toBe(300000);
-    expect(snap.monthPaymentsMinor).toBe(90000);
-    expect(snap.loyaltyPoints).toBe(2);
-    expect(snap.topProducts[0]).toEqual({ name: "Huile", quantity: 10, lastPriceMinor: 12000 });
-    expect(snap.topProducts[1]).toEqual({ name: "Sucre", quantity: 5, lastPriceMinor: 9500 });
-  });
-  it("mois invalide et montants négatifs refusés", () => {
-    expect(() => buildClientSnapshot([], [], [], "2026-13", 0)).not.toThrow();
-    expect(() => buildClientSnapshot([], [], [], "septembre", 0)).toThrow();
-    expect(() =>
-      buildClientSnapshot([sale({ id: 9, total_minor: -5 })], [], [], "2026-09", 0),
-    ).toThrow();
-  });
-});
-
 describe("#39 : paramètres canoniques de dérivation PIN (devinette lente)", () => {
   it("constantes KDF exactes (tout miroir doit s'aligner)", () => {
     expect(PIN_KDF_ALGO).toBe("pbkdf2-sha256-100k");

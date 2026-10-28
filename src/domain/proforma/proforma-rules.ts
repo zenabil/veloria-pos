@@ -11,8 +11,6 @@ import {
   sumSafeMinors,
 } from "../money/money.ts";
 
-export type ProformaStatus = "draft" | "sent" | "converted" | "cancelled";
-
 export interface ProformaLineDraft {
   productId: number | null;
   productName: string;
@@ -45,19 +43,6 @@ export function computeProformaTotals(
   const total = subtotal - discountMinor + deliveryMinor;
   assertSafeTotal(total, "Total devis invalide");
   return { subtotalMinor: subtotal, totalMinor: total };
-}
-
-const TRANSITIONS: Record<ProformaStatus, ProformaStatus[]> = {
-  draft: ["sent", "cancelled"],
-  sent: ["converted", "cancelled"],
-  converted: [],
-  cancelled: [],
-};
-
-export function assertProformaTransition(from: ProformaStatus, to: ProformaStatus): void {
-  if (!TRANSITIONS[from].includes(to)) {
-    throw new DomainError("PROFORMA_ERROR", `Transition interdite : ${from} → ${to}.`);
-  }
 }
 
 /**

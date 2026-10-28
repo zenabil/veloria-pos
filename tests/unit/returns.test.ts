@@ -2,7 +2,6 @@
 import { describe, it, expect } from "vitest";
 import {
   RETURN_REASONS,
-  assertAdditionalRefund,
   computeReturnStatus,
   formatReturnNumber,
 } from "@domain/returns/return-rules.ts";
@@ -26,12 +25,6 @@ describe("Return domain", () => {
     expect(computeReturnStatus(1000, 400)).toBe("partially_refunded");
     expect(computeReturnStatus(1000, 1000)).toBe("refunded");
     expect(() => computeReturnStatus(1000, 1200)).toThrow();
-  });
-
-  it("bounds additional refunds", () => {
-    expect(() => assertAdditionalRefund(1000, 400, 600)).not.toThrow();
-    expect(() => assertAdditionalRefund(1000, 400, 601)).toThrow();
-    expect(() => assertAdditionalRefund(1000, 400, 0)).toThrow();
   });
 
   it("offers French reasons", () => {

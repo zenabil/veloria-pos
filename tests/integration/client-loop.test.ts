@@ -1,15 +1,42 @@
 // Veloria — Boucle client de bout en bout (DÉMO/ESSAI sur base temporaire).
 // Chaîne réelle : migrations SQL → seed → activation (SHA-256 comme le repo) →
-// cliché via le use-case applicatif PUR → réception APK via syncNow (transport
-// simulé = future fonction Edge) → vues + formateurs ar/fr.
+// clichés via le CONSTRUCTEUR EXÉCUTÉ du main (`buildSnapshotPayload`, celui
+// que `sync_outbox` pousse) → réception APK via syncNow (transport simulé =
+// future fonction Edge) → vues + formateurs ar/fr.
 // Seul le réseau est simulé ; tout le reste est le vrai code de production.
-import { describe, expect, it } from "vitest";
+// ADR-153 (lot C) : l'étape « cliché » ne passe plus par la copie applicative
+// jamais branchée — elle exerce la production réelle.
+import { describe, expect, it, vi } from "vitest";
 import { DatabaseSync } from "node:sqlite";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { buildClientSnapshot } from "../../src/application/customers/client-access";
+
+const demoDb = vi.hoisted(() => ({ current: null as unknown }));
+
+vi.mock("../../electron/database/sqlite.service", () => ({
+  getDb: () => {
+    const db = demoDb.current as {
+      prepare: (sql: string) => {
+        all: (...p: unknown[]) => unknown[];
+        get: (...p: unknown[]) => unknown;
+        run: (...p: unknown[]) => { changes: number | bigint; lastInsertRowid: number | bigint };
+      };
+      exec: (sql: string) => void;
+    } | null;
+    if (!db) throw new Error("Base de test non ouverte.");
+    return db;
+  },
+}));
+
+vi.mock("../../electron/services/logger", () => ({
+  log: () => {},
+  initLogger: () => "",
+  getLogFile: () => "",
+}));
+
+import { buildSnapshotPayload } from "../../electron/ipc/handlers/client-access.repo";
 import { syncNow } from "../../mobile/src/api";
 import { formatMinor } from "../../mobile/src/format";
 import { t } from "../../mobile/src/i18n";
@@ -93,52 +120,30 @@ describe("Essai APK : boucle locale complète", () => {
         .get() as { c: number };
       expect(ax.c).toBe(1);
 
-      // 2) Cliché via le VRAI use-case applicatif (données lues de la base).
-      const saleRows = db
-        .prepare(
-          "SELECT id, invoice_number, total_minor, amount_paid_minor, remaining_balance_minor, payment_status, is_cancelled, created_at FROM sales WHERE customer_id = 1 ORDER BY id DESC",
-        )
-        .all() as never[];
-      const payRows = db
-        .prepare(
-          "SELECT id, amount_minor, method, reference, sale_id, payment_date FROM sale_payments WHERE customer_id = 1 ORDER BY id DESC",
-        )
-        .all() as never[];
-      const itemRows = db
-        .prepare(
-          "SELECT si.product_name_snapshot, si.quantity, si.unit_price_minor FROM sale_items si JOIN sales s ON s.id = si.sale_id WHERE s.customer_id = 1 AND s.is_cancelled = 0",
-        )
-        .all() as never[];
-      const totalPurchases = (saleRows as { total_minor: number; is_cancelled: number }[])
-        .filter((s) => s.is_cancelled !== 1)
-        .reduce((a, s) => a + s.total_minor, 0);
-      const snap = buildClientSnapshot(
-        saleRows as never,
-        payRows as never,
-        itemRows as never,
-        "2026-09",
-        totalPurchases,
-      );
+      // 2) Clichés via le producteur EXÉCUTÉ (celui de `sync_outbox`).
+      demoDb.current = db;
+      const NOW = "2026-09-29T10:00:00.000Z";
+      const build = (kind: "customer_snapshot" | "invoice_list" | "payment_list"): string =>
+        buildSnapshotPayload(1, kind, null, "2026-09", NOW);
+      const snap = JSON.parse(build("customer_snapshot")) as {
+        lastSales: { id: number }[];
+        loyaltyPoints: number;
+        topProducts: { name: string }[];
+        monthPurchasesMinor: number;
+        monthPaymentsMinor: number;
+      };
       expect(snap.lastSales.map((s) => s.id)).toEqual([3, 2, 1]);
       expect(snap.loyaltyPoints).toBe(12); // 1 250 000 / 100 000
       expect(snap.topProducts[0]?.name).toBe("Sucre 1kg");
+      expect(snap.monthPurchasesMinor).toBe(1250000);
+      expect(snap.monthPaymentsMinor).toBe(875000);
 
-      // 3) Miroir simulé (future fonction Edge) + réception APK réelle.
-      const snapJson = JSON.parse(JSON.stringify(snap)) as Record<string, unknown>;
+      // 3) Miroir simulé (future fonction Edge) + réception APK réelle — les
+      // trois charges viennent du même producteur que la file d'attente.
       const mirror = {
-        snapshot: {
-          customer: {
-            outstanding_balance_minor: 375000,
-            debt_status: "due",
-            is_over_limit: 0,
-            credit_limit_minor: 1000000,
-            first_name: "Karim",
-            last_name: "Ziani",
-          },
-          ...snapJson,
-        },
-        invoices: { sales: saleRows },
-        payments: { payments: payRows },
+        snapshot: JSON.parse(build("customer_snapshot")) as Record<string, unknown>,
+        invoices: JSON.parse(build("invoice_list")) as Record<string, unknown>,
+        payments: JSON.parse(build("payment_list")) as Record<string, unknown>,
       };
       interface EdgeRes {
         ok: boolean;

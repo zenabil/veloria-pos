@@ -1,7 +1,7 @@
 // Veloria PoS — Domain: stock movement rules.
 
 import { DomainError } from "../common/errors.ts";
-import { assertValidQuantity, roundQuantity } from "../common/quantity.ts";
+import { roundQuantity } from "../common/quantity.ts";
 
 export type AdjustmentKind = "in" | "out" | "set";
 
@@ -43,37 +43,4 @@ export function adjustmentReasonCode(
 ): AdjustmentReasonCode {
   if (dialog === "inventory") return "inventory";
   return kind === "set" ? "correction" : kind === "in" ? "entry" : "exit";
-}
-
-export function applyStockDelta(
-  currentQty: number,
-  delta: number,
-  opts?: { allowNegative?: boolean },
-): number {
-  // M-6 SINGLE SOURCE OF TRUTH: same rule as computeAdjustmentNewStock.
-  // Default fails closed on negative result; caller must explicitly opt in
-  // with { allowNegative: true } when the inventory policy allows it.
-  if (!Number.isFinite(currentQty) || !Number.isFinite(delta)) {
-    throw new DomainError("STOCK_ERROR", "Quantité de stock invalide.");
-  }
-  const next = roundQuantity(currentQty + delta);
-  if (!Number.isFinite(next)) {
-    throw new DomainError("STOCK_ERROR", "Quantité de stock invalide.");
-  }
-  if (next < 0 && opts?.allowNegative !== true) {
-    throw new DomainError("STOCK_ERROR", "Le stock ne peut pas devenir négatif.");
-  }
-  return next;
-}
-
-export function assertReturnQuantity(
-  soldQty: number,
-  alreadyReturned: number,
-  requested: number,
-): void {
-  assertValidQuantity(requested);
-  const eligible = soldQty - alreadyReturned;
-  if (requested > eligible) {
-    throw new DomainError("RETURN_ERROR", "Quantité retournée supérieure à la quantité éligible.");
-  }
 }

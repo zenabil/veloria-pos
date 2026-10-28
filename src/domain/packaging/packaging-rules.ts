@@ -162,19 +162,6 @@ export function priceSaleLine(input: {
   };
 }
 
-/** Conversion exacte d'une quantité d'achat en unités de base. */
-export function toBaseQuantity(qty: number, factor: number): number {
-  assertQty(qty);
-  if (!Number.isInteger(factor) || factor < 1) {
-    throw new DomainError("PRODUCT_ERROR", "Facteur de conditionnement invalide.");
-  }
-  const out = roundQuantity(qty * factor);
-  if (out > 1_000_000) {
-    throw new DomainError("QUANTITY_ERROR", "Quantité trop élevée.");
-  }
-  return out;
-}
-
 /**
  * Coûts unitaires (centimes entiers) pour répartir un total sur des unités de
  * base. Méthode du plus grand reste compacte : au plus DEUX paliers.

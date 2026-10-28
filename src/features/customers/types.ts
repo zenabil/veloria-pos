@@ -137,23 +137,3 @@ export function enrichCustomer(c: Customer, st: CustomerStatement | null): Enric
         : null,
   };
 }
-
-/** Repli local hors UI : le tri faisant autorité est serveur (`customers.search`,
- * param `sort`) — le tri local ne réordonne qu'une page affichée et recréait
- * l'illusion de clients « disparus » (débiteurs hors page 1). */
-export function sortCustomers(rows: EnrichedCustomer[], sort: CustomerSort): EnrichedCustomer[] {
-  const copy = [...rows];
-  switch (sort) {
-    case "name_desc":
-      return copy.sort((a, b) => fullName(b).localeCompare(fullName(a), "fr"));
-    case "debt_desc":
-      return copy.sort((a, b) => b.outstanding_balance_minor - a.outstanding_balance_minor);
-    case "debt_asc":
-      return copy.sort((a, b) => a.outstanding_balance_minor - b.outstanding_balance_minor);
-    case "purchases_desc":
-      return copy.sort((a, b) => b.totalPurchasesMinor - a.totalPurchasesMinor);
-    case "name_asc":
-    default:
-      return copy.sort((a, b) => fullName(a).localeCompare(fullName(b), "fr"));
-  }
-}

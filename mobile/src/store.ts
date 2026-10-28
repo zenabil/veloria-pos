@@ -26,9 +26,3 @@ export const EMPTY_CACHE: MirrorCache = {
   payments: null,
   syncedAt: null,
 };
-
-/** Libellé « données du … » quand le miroir est injoignable (jamais d'écran vide). */
-export function staleLabel(syncedAt: string | null): string | null {
-  if (syncedAt == null) return null;
-  return syncedAt.slice(0, 10);
-}

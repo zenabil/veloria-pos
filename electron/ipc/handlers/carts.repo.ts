@@ -226,29 +226,3 @@ export function loadCartDrafts(): CartDraftTab[] {
   }
   return out;
 }
-
-export function clearCartDraftsAtomic(operationId?: string | null): { cleared: boolean } {
-  const fast = peekOptional<{ cleared: boolean }>(operationId, "carts.clear");
-  if (fast) return fast;
-  const db = getDb();
-  const tx = db.transaction(() => {
-    claimOptional(operationId, "carts.clear", new Date().toISOString());
-    db.prepare(`DELETE FROM cart_drafts`).run();
-    const result = { cleared: true };
-    storeOptional(operationId, result);
-    return result;
-  });
-  try {
-    return (tx as unknown as () => { cleared: boolean })();
-  } catch (err) {
-    if (
-      operationId &&
-      err instanceof Error &&
-      /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
-    ) {
-      const retry = peekOptional<{ cleared: boolean }>(operationId, "carts.clear");
-      if (retry) return retry;
-    }
-    throw err;
-  }
-}

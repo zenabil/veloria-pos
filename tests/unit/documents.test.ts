@@ -20,7 +20,7 @@ import {
   type ProformaData,
   type ReceiptData,
 } from "../../electron/printing/receipt-documents";
-import { computeClosingBalance, validateBusinessDate } from "@/domain/closings/closing-rules";
+import { computeClosingBalance } from "@/domain/closings/closing-rules";
 import { validateExpenseDraft } from "@/domain/expenses/expense-rules";
 
 const DOC: ReceiptData = {
@@ -322,8 +322,6 @@ describe("Closing rules", () => {
         refundsMinor: 10,
       }),
     ).toBe(120);
-    expect(() => validateBusinessDate("2026-13-45")).toThrow();
-    expect(() => validateBusinessDate("2026-03-01")).not.toThrow();
   });
 });
 

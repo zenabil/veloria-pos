@@ -56,25 +56,6 @@ export function validateSupplierDraft(args: SupplierDraft): void {
   }
 }
 
-export function applySupplierIntakeBalance(
-  outstandingMinor: number,
-  intakeTotalMinor: number,
-): number {
-  try {
-    assertSafeTotal(outstandingMinor, "Solde fournisseur invalide");
-    assertSafeTotal(intakeTotalMinor, "Total d'entrée invalide");
-  } catch {
-    throw new DomainError("SUPPLIER_ERROR", "Solde fournisseur invalide.");
-  }
-  const out = outstandingMinor + intakeTotalMinor;
-  try {
-    assertSafeTotal(out, "Solde fournisseur invalide");
-  } catch {
-    throw new DomainError("SUPPLIER_ERROR", "Solde fournisseur : dépassement de capacité.");
-  }
-  return out;
-}
-
 export function applySupplierPayment(outstandingMinor: number, paymentMinor: number): number {
   try {
     assertSafeTotal(outstandingMinor, "Solde fournisseur invalide");

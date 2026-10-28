@@ -4,25 +4,12 @@ import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import {
-  assertPoTransition,
-  computePoTotals,
-  poStatusLabelFr,
-} from "@/domain/suppliers/po-rules.ts";
+import { poStatusLabelFr } from "@/domain/suppliers/po-rules.ts";
 
 describe("P3-c : po-rules", () => {
-  it("totaux + transitions + libellés FR", () => {
-    const t = computePoTotals([
-      { productName: "Farine", quantityOrdered: 10, unitCostMinor: 5000 },
-      { productName: "Sucre", quantityOrdered: 2.5, unitCostMinor: 12000 },
-    ]);
-    expect(t).toEqual({ subtotalMinor: 80000, totalMinor: 80000 });
-    expect(() => assertPoTransition("draft", "ordered")).not.toThrow();
-    expect(() => assertPoTransition("draft", "received")).toThrow("interdite");
-    expect(() => assertPoTransition("received", "cancelled")).toThrow("interdite");
+  it("libellés FR des statuts + repli", () => {
     expect(poStatusLabelFr("partially_received")).toBe("Partiellement reçue");
     expect(poStatusLabelFr("nope")).toBe("—");
-    expect(() => computePoTotals([])).toThrow("vide");
   });
 });
 

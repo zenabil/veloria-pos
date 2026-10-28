@@ -1,7 +1,7 @@
 // Veloria POS — P1 regression: M-1 proforma key + M-6 stock single source.
 import { describe, it, expect } from "vitest";
 import { proformaOperationKey } from "@/features/sales/proforma-op.ts";
-import { applyStockDelta, computeAdjustmentNewStock } from "@/domain/inventory/stock-rules.ts";
+import { computeAdjustmentNewStock } from "@/domain/inventory/stock-rules.ts";
 
 describe("M-1 : stable proforma operation key", () => {
   const lines = [
@@ -27,15 +27,8 @@ describe("M-1 : stable proforma operation key", () => {
   });
 });
 
-describe("M-6 : single source of truth stock négatif", () => {
-  it("applyStockDelta refuse le négatif par défaut (fail closed)", () => {
-    expect(applyStockDelta(10, -3)).toBe(7);
-    expect(() => applyStockDelta(2, -5)).toThrow(/négatif/);
-  });
-  it("applyStockDelta opt-in explicite uniquement", () => {
-    expect(applyStockDelta(2, -5, { allowNegative: true })).toBe(-3);
-  });
-  it("cohérence avec computeAdjustmentNewStock (même règle)", () => {
+describe("M-6 : source unique du stock négatif", () => {
+  it("computeAdjustmentNewStock refuse le négatif (fail closed)", () => {
     expect(computeAdjustmentNewStock({ currentQty: 10, kind: "out", quantity: 4 })).toBe(6);
     expect(() => computeAdjustmentNewStock({ currentQty: 2, kind: "out", quantity: 5 })).toThrow(
       /négatif/,

@@ -58,29 +58,6 @@ export function computeReturnStatus(totalMinor: number, settledMinor: number): R
   return "validated";
 }
 
-/** Remboursement complémentaire : strictement positif, borné par le reste. */
-export function assertAdditionalRefund(
-  totalMinor: number,
-  alreadySettledMinor: number,
-  amountMinor: number,
-): void {
-  asReturnError(
-    () => assertSafeTotal(totalMinor, "Valeur de retour invalide"),
-    "Valeur de retour invalide.",
-  );
-  asReturnError(
-    () => assertSafeTotal(alreadySettledMinor, "Montant réglé invalide"),
-    "Montant réglé invalide.",
-  );
-  asReturnError(
-    () => assertSafeMinor(amountMinor, { min: 1, label: "Montant de remboursement invalide" }),
-    "Montant de remboursement invalide.",
-  );
-  if (alreadySettledMinor + amountMinor > totalMinor) {
-    throw new DomainError("RETURN_ERROR", "Remboursement supérieur au solde du retour.");
-  }
-}
-
 export interface ReturnLineInput {
   productId: number | null;
   productName: string;

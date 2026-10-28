@@ -3,7 +3,6 @@ import { describe, it, expect } from "vitest";
 import {
   bigramDice,
   confidenceLabelFr,
-  extractBarcodeCandidates,
   matchByName,
   normalizeProductName,
   tokenDice,
@@ -85,10 +84,6 @@ describe("OCR matcher", () => {
     const f = matchByName("حليب كانديا", cands);
     expect(f.product?.productId).toBe(10);
     expect(f.kind).toBe("fuzzy");
-  });
-  it("barcodes candidats", () => {
-    expect(extractBarcodeCandidates("Jus 6111250223456 lot")).toEqual(["6111250223456"]);
-    expect(extractBarcodeCandidates("sans code")).toEqual([]);
   });
   it("scores bornés 0–1", () => {
     expect(tokenDice("lait candia", "lait candia")).toBe(1);

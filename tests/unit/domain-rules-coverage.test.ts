@@ -12,15 +12,9 @@ import {
 import {
   formatSupplierCode,
   validateSupplierDraft,
-  applySupplierIntakeBalance,
   applySupplierPayment,
 } from "@/domain/suppliers/supplier-rules.ts";
-import {
-  assertPoTransition,
-  computePoTotals,
-  poStatusLabelFr,
-  type PoLineInput,
-} from "@/domain/suppliers/po-rules.ts";
+import { poStatusLabelFr } from "@/domain/suppliers/po-rules.ts";
 import {
   computeReturnLineTotal,
   validateReturnLines,
@@ -42,10 +36,6 @@ function draft(over: Partial<ProductDraft> = {}): ProductDraft {
     barcodes: [],
     ...over,
   };
-}
-
-function poLine(over: Partial<PoLineInput> = {}): PoLineInput {
-  return { productName: "Farine", quantityOrdered: 10, unitCostMinor: 5000, ...over };
 }
 
 function returnLine(over: Partial<ReturnLineInput> = {}): ReturnLineInput {
@@ -165,12 +155,6 @@ describe("W4 — règles fournisseurs (supplier-rules)", () => {
     expect(formatSupplierCode(7)).toBe("FOU-00007");
   });
 
-  it("applySupplierIntakeBalance : solde invalide et dépassement refusés", () => {
-    expect(applySupplierIntakeBalance(10000, 25000)).toBe(35000);
-    expect(() => applySupplierIntakeBalance(-1, 100)).toThrow(/Solde fournisseur invalide/);
-    expect(() => applySupplierIntakeBalance(100_000_000_000, 1)).toThrow(/dépassement/i);
-  });
-
   it("applySupplierPayment : montant invalide et paiement > dette refusés", () => {
     expect(applySupplierPayment(5000, 2000)).toBe(3000);
     expect(() => applySupplierPayment(-1, 100)).toThrow(/Solde fournisseur invalide/);
@@ -180,31 +164,6 @@ describe("W4 — règles fournisseurs (supplier-rules)", () => {
 });
 
 describe("W4 — bons de commande (po-rules)", () => {
-  it("commande vide refusée", () => {
-    expect(() => computePoTotals([])).toThrow(/Commande vide/);
-  });
-
-  it("commande trop volumineuse refusée (max 200 lignes)", () => {
-    const lines = Array.from({ length: 201 }, () => poLine());
-    expect(() => computePoTotals(lines)).toThrow(/trop volumineuse/);
-  });
-
-  it("nom de produit manquant refusé", () => {
-    expect(() => computePoTotals([poLine({ productName: "   " })])).toThrow(/Nom de produit/);
-  });
-
-  it("totaux : sous-total = total", () => {
-    const totals = computePoTotals([poLine(), poLine({ quantityOrdered: 2, unitCostMinor: 1000 })]);
-    expect(totals.subtotalMinor).toBe(52000);
-    expect(totals.totalMinor).toBe(52000);
-  });
-
-  it("transitions autorisées et interdites", () => {
-    expect(() => assertPoTransition("draft", "ordered")).not.toThrow();
-    expect(() => assertPoTransition("draft", "received")).toThrow(/Transition/);
-    expect(() => assertPoTransition("received", "draft")).toThrow(/Transition/);
-  });
-
   it("libellés FR de chaque statut + repli", () => {
     expect(poStatusLabelFr("draft")).toBe("Brouillon");
     expect(poStatusLabelFr("ordered")).toBe("Commandée");

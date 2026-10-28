@@ -5,7 +5,6 @@ import {
   debtLabel,
   debtTone,
   fullName,
-  sortCustomers,
   splitFullName,
   type EnrichedCustomer,
 } from "@features/customers/types.ts";
@@ -76,28 +75,6 @@ describe("Clients helpers", () => {
     });
     expect(splitFullName("Solo")).toEqual({ firstName: "Solo", lastName: "Solo" });
     expect(fullName({ first_name: "Amine", last_name: "Benali" })).toBe("Amine Benali");
-  });
-
-  it("sorts by debt and purchases", () => {
-    const rows = [
-      makeClient({
-        id: 1,
-        first_name: "Zed",
-        last_name: "A",
-        outstanding_balance_minor: 100,
-        totalPurchasesMinor: 5000,
-      }),
-      makeClient({
-        id: 2,
-        first_name: "Ali",
-        last_name: "B",
-        outstanding_balance_minor: 900,
-        totalPurchasesMinor: 100,
-      }),
-    ];
-    expect(sortCustomers(rows, "debt_desc").map((c) => c.id)).toEqual([2, 1]);
-    expect(sortCustomers(rows, "purchases_desc").map((c) => c.id)).toEqual([1, 2]);
-    expect(sortCustomers(rows, "name_asc").map((c) => c.id)).toEqual([2, 1]);
   });
 });
 

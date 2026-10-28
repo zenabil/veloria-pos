@@ -44,6 +44,8 @@ describe("E-20 : parité domaine ↔ main de la répartition de remise", () => {
 
   it("montant négatif ou non entier : refus des deux côtés", () => {
     expect(() => allocateGlobalDiscount([1000], -1)).toThrow();
+    expect(() => allocateGlobalDiscount([1000], 1.5)).toThrow();
+    expect(() => allocateGlobalDiscount([1000], Number.NaN)).toThrow();
     expect(() => allocateAmountByWeights([1000], -1)).toThrow();
     expect(() => allocateAmountByWeights([1000], 1.5)).toThrow();
   });

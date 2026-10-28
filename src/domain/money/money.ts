@@ -51,17 +51,6 @@ export function assertSafeTotal(value: number, label = "Total invalide"): void {
   }
 }
 
-/** Overflow-safe addition of two safe minors. */
-export function addSafeMinor(a: number, b: number, label = "Total invalide"): number {
-  assertSafeTotal(a, label);
-  assertSafeTotal(b, label);
-  const sum = a + b;
-  if (!Number.isSafeInteger(sum) || sum < 0 || sum > MAX_MINOR_TOTAL) {
-    throw new MoneyError(`${label} : dépassement de capacité.`);
-  }
-  return sum;
-}
-
 /** Overflow-safe sum of N safe minors (invoices with 200+ lines). */
 export function sumSafeMinors(values: readonly number[], label = "Sous-total invalide"): number {
   let acc = 0;

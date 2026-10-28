@@ -5,7 +5,6 @@ import {
   allocateUnitCosts,
   priceSaleLine,
   splitQuantityByCarton,
-  toBaseQuantity,
 } from "@domain/packaging/packaging-rules.ts";
 import {
   expandSaleLine,
@@ -185,14 +184,6 @@ describe("priceSaleLine", () => {
       expect(r.cartonApplied, `carton=${cartonPrice}`).toBe(false);
       expect(r.totalMinor).toBe(24000);
     }
-  });
-});
-
-describe("toBaseQuantity", () => {
-  it("convertit une quantité d'achat en unités de base", () => {
-    expect(toBaseQuantity(3, 12)).toBe(36);
-    expect(toBaseQuantity(1.5, 1)).toBe(1.5);
-    expect(() => toBaseQuantity(1, 0)).toThrow(/Facteur/);
   });
 });
 

@@ -4,7 +4,6 @@ import { describe, it, expect } from "vitest";
 import {
   MAX_MINOR_SINGLE,
   MAX_MINOR_TOTAL,
-  addSafeMinor,
   assertSafeMinor,
   assertSafeTotal,
   fromDzd,
@@ -47,11 +46,9 @@ describe("H-1 money safety boundary", () => {
     expect(() => multiplyMinorByQuantity(100, -1)).toThrow();
   });
 
-  it("percent + add + sum are overflow-safe", () => {
+  it("percent + sum are overflow-safe", () => {
     expect(percentOfMinor(10000, 10)).toBe(1000);
     expect(() => percentOfMinor(MAX_MINOR_TOTAL + 1, 10)).toThrow();
-    expect(addSafeMinor(100, 200)).toBe(300);
-    expect(() => addSafeMinor(MAX_MINOR_TOTAL, 1)).toThrow();
     expect(sumSafeMinors([100, 200, 300])).toBe(600);
     expect(() => sumSafeMinors([MAX_MINOR_TOTAL, 1])).toThrow();
   });

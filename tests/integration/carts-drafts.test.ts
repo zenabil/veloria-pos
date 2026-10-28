@@ -3,8 +3,10 @@
 // I-03 (W4, audit 2026-10-19) : ce test reimplementait le filtre de lignes
 // dans le fichier (« miroir ») — il restait vert même si le chargeur de
 // production changeait. Il appelle désormais les fonctions de PRODUCTION
-// (`saveCartDraftsAtomic` / `loadCartDrafts` / `clearCartDraftsAtomic`) sur
-// une base migrée.
+// (`saveCartDraftsAtomic` / `loadCartDrafts`) sur une base migrée.
+// ADR-153 (lot C) : `clearCartDraftsAtomic` est retiré — aucun canal
+// `carts.clear` n'existe, le vidage réel passe par `saveCartDraftsAtomic`
+// (remplacement en bloc).
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
@@ -85,7 +87,6 @@ vi.mock("../../electron/services/logger", () => ({
 import {
   saveCartDraftsAtomic,
   loadCartDrafts,
-  clearCartDraftsAtomic,
   type CartDraftTab,
 } from "../../electron/ipc/handlers/carts.repo";
 
@@ -152,7 +153,7 @@ describe("P4-a : brouillons paniers (fonctions de production)", () => {
     fs.rmSync(tmp, { recursive: true, force: true });
   });
 
-  it("save remplace en bloc, load restitue, clear vide", () => {
+  it("save remplace en bloc, load restitue l'onglet et son operationId", () => {
     const saved = saveCartDraftsAtomic([tab()], NOW);
     expect(saved.saved).toBe(1);
     const rows = db.prepare("SELECT * FROM cart_drafts ORDER BY tab_id").all() as {
@@ -169,10 +170,6 @@ describe("P4-a : brouillons paniers (fonctions de production)", () => {
     expect(loaded[0]?.tabId).toBe(1);
     expect(loaded[0]?.lines[0]?.key).toBe("l1");
     expect(loaded[0]?.saleOperationId).toBe("11111111-1111-4111-8111-111111111111");
-
-    clearCartDraftsAtomic();
-    expect((db.prepare("SELECT COUNT(*) AS n FROM cart_drafts").get() as { n: number }).n).toBe(0);
-    expect(loadCartDrafts()).toHaveLength(0);
   });
 
   it("ligne corrompue ignorée (jamais de crash au chargement)", () => {

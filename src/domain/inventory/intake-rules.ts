@@ -49,20 +49,6 @@ export function validateIntakeLine(line: IntakeLineDraft): void {
   }
 }
 
-/**
- * Résolution du prix de vente à appliquer au produit :
- * - saisie vide (null/undefined) → conserver le prix actuel (jamais d'écrasement
- *   par vide ou zéro implicite) ;
- * - saisie explicite (dont 0) → nouveau prix de vente.
- */
-export function resolveIntakeSellingPrice(
-  currentSellingMinor: number,
-  inputSellingMinor: number | null | undefined,
-): number {
-  if (inputSellingMinor === undefined || inputSellingMinor === null) return currentSellingMinor;
-  return inputSellingMinor;
-}
-
 export function netQuantity(line: IntakeLineDraft): number {
   return line.quantityReceived - line.quantityDamaged;
 }
@@ -84,19 +70,4 @@ export function computeIntakeTotals(lines: IntakeLineDraft[], shippingMinor: num
   const total = subtotal + shippingMinor;
   assertSafeTotal(total, "Total entrée invalide");
   return { subtotalMinor: subtotal, shippingMinor, totalMinor: total };
-}
-
-export function validateAdjustment(args: { currentQty: number; newQty: number; reason: string }): {
-  delta: number;
-  movementType: "adjust_in" | "adjust_out";
-} {
-  if (!Number.isFinite(args.currentQty) || !Number.isFinite(args.newQty) || args.newQty < 0) {
-    throw new DomainError("STOCK_ERROR", "Quantité d'ajustement invalide.");
-  }
-  if (args.reason.trim().length < 2) {
-    throw new DomainError("STOCK_ERROR", "Motif d'ajustement requis (inventaire, casse…).");
-  }
-  const delta = args.newQty - args.currentQty;
-  if (delta === 0) throw new DomainError("STOCK_ERROR", "Aucune variation à enregistrer.");
-  return { delta, movementType: delta > 0 ? "adjust_in" : "adjust_out" };
 }

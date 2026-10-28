@@ -8,7 +8,6 @@ import {
   defaultPaperFor,
   factorySettings,
   mergeTemplateSettings,
-  nextTemplateVersion,
   TEMPLATE_DOC_TYPES,
 } from "@domain/print/template-rules.ts";
 import {
@@ -98,8 +97,6 @@ describe("C6 domaine : défauts, papiers, fusion", () => {
     expect(m.watermarkText).toHaveLength(60);
     // Un ticket ne peut jamais dériver vers A4.
     expect(mergeTemplateSettings("ticket", { paper: "A4" }).paper).toBe("80mm");
-    expect(nextTemplateVersion(3)).toBe(4);
-    expect(nextTemplateVersion(0)).toBe(1);
   });
 });
 

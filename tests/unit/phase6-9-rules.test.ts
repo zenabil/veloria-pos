@@ -1,14 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { computeIntakeTotals, validateAdjustment } from "@/domain/inventory/intake-rules.ts";
-import {
-  applySupplierIntakeBalance,
-  applySupplierPayment,
-  validateSupplierDraft,
-} from "@/domain/suppliers/supplier-rules.ts";
-import {
-  computeProformaTotals,
-  assertProformaTransition,
-} from "@/domain/proforma/proforma-rules.ts";
+import { computeIntakeTotals } from "@/domain/inventory/intake-rules.ts";
+import { applySupplierPayment, validateSupplierDraft } from "@/domain/suppliers/supplier-rules.ts";
+import { computeProformaTotals } from "@/domain/proforma/proforma-rules.ts";
 import { computeClosingBalance } from "@/domain/closings/closing-rules.ts";
 import { parseProductsCsv, parseCustomersCsv } from "@/domain/import/csv-import.ts";
 
@@ -46,19 +39,11 @@ describe("Phase 6 — entrées & ajustements", () => {
     ).toThrow();
     expect(() => computeIntakeTotals([], 0)).toThrow();
   });
-  it("calcule le delta d'ajustement", () => {
-    expect(validateAdjustment({ currentQty: 10, newQty: 7, reason: "Inventaire" })).toEqual({
-      delta: -3,
-      movementType: "adjust_out",
-    });
-    expect(() => validateAdjustment({ currentQty: 5, newQty: 5, reason: "Inventaire" })).toThrow();
-  });
   it("valide la fiche fournisseur", () => {
     expect(() => validateSupplierDraft({ name: "Moulin", phone: null })).not.toThrow();
     expect(() => validateSupplierDraft({ name: "X", phone: null })).toThrow();
   });
   it("maintient le solde fournisseur", () => {
-    expect(applySupplierIntakeBalance(10000, 25000)).toBe(35000);
     expect(applySupplierPayment(35000, 5000)).toBe(30000);
     expect(() => applySupplierPayment(1000, 2000)).toThrow();
   });
@@ -72,11 +57,6 @@ describe("Phase 7 — proformas", () => {
       500,
     );
     expect(t).toEqual({ subtotalMinor: 20000, totalMinor: 19500 });
-  });
-  it("interdit les transitions illégales", () => {
-    expect(() => assertProformaTransition("draft", "sent")).not.toThrow();
-    expect(() => assertProformaTransition("draft", "converted")).toThrow();
-    expect(() => assertProformaTransition("converted", "cancelled")).toThrow();
   });
 });
 

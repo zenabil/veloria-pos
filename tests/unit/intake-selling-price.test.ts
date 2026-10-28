@@ -1,23 +1,12 @@
 // Veloria PoS — Tests : entrée fournisseur + prix de vente par ligne.
 // Domaine (framework-free) + validateurs Zod à la frontière IPC.
 import { describe, it, expect } from "vitest";
-import {
-  computeIntakeTotals,
-  resolveIntakeSellingPrice,
-  validateIntakeLine,
-} from "@domain/inventory/intake-rules.ts";
+import { computeIntakeTotals, validateIntakeLine } from "@domain/inventory/intake-rules.ts";
 import { stockIntakeSchema } from "../../electron/ipc/validators.ts";
 
 const OP = "123e4567-e89b-42d3-a456-426614174000";
 
 describe("Intake selling price (domain)", () => {
-  it("Test 4 : prix vide conserve l'actuel, prix explicite (dont 0) s'applique", () => {
-    expect(resolveIntakeSellingPrice(10000, null)).toBe(10000);
-    expect(resolveIntakeSellingPrice(10000, undefined)).toBe(10000);
-    expect(resolveIntakeSellingPrice(10000, 11000)).toBe(11000);
-    expect(resolveIntakeSellingPrice(10000, 0)).toBe(0);
-  });
-
   it("valide les lignes : quantité > 0, achat >= 0, vente >= 0 ou vide", () => {
     expect(() =>
       validateIntakeLine({

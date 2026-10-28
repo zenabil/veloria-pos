@@ -3,7 +3,6 @@
 // Tout en centimes DZD entiers ; le repo main calcule les agrégats en SQL.
 
 import { DomainError } from "../common/errors.ts";
-import { isRealCalendarDate } from "../common/dates.ts";
 import { assertSafeTotal } from "../money/money.ts";
 
 export interface ClosingInputs {
@@ -22,25 +21,16 @@ export function computeClosingBalance(input: ClosingInputs): number {
       throw new DomainError("CLOSING_ERROR", `Montant de clôture invalide : ${k}.`);
     }
   }
-  // H-1: guarded arithmetic — credits guarded, debits guarded, result may be
-  // negative (loss-making day) and stays within safe bounds; documented.
+  // H-1 : arithmétique bornée. Chaque champ est déjà passé par
+  // `assertSafeTotal` (entier, 0..MAX_MINOR_TOTAL = 1e9) ⇒ credits ≤ 3e9,
+  // debits ≤ 2e9, résultat ∈ [-2e9, 3e9] : entiers et très loin de 2^53−1.
+  // Les gardes `isSafeInteger` / `< 0` sur les AGRÉGATS étaient donc
+  // inatteignables par construction (ADR-153 lot C) — retirées, non relâchées :
+  // la borne utile reste l'assertion d'entrée ci-dessus. Si MAX_MINOR_TOTAL
+  // change un jour, c'est elle qui doit bouger (avec la formule exécutée du Z,
+  // `electron/ipc/handlers/finance.repo.ts:276`).
   const credits = input.openingMinor + input.cashSalesMinor + input.customerCollectionsMinor;
-  if (!Number.isSafeInteger(credits) || credits < 0) {
-    throw new DomainError("CLOSING_ERROR", "Montant de clôture invalide : dépassement.");
-  }
   const debits = input.expensesMinor + input.refundsMinor;
-  if (!Number.isSafeInteger(debits) || debits < 0) {
-    throw new DomainError("CLOSING_ERROR", "Montant de clôture invalide : dépassement.");
-  }
-  const out = credits - debits;
-  if (!Number.isSafeInteger(out)) {
-    throw new DomainError("CLOSING_ERROR", "Montant de clôture invalide : dépassement.");
-  }
-  return out;
-}
-
-export function validateBusinessDate(date: string): void {
-  if (!isRealCalendarDate(date)) {
-    throw new DomainError("CLOSING_ERROR", "Date d'activité invalide (AAAA-MM-JJ).");
-  }
+  // Résultat volontairement signé : une journée en perte est < 0, jamais « — ».
+  return credits - debits;
 }

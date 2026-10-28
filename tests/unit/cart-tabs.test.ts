@@ -3,6 +3,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { useCartsStore } from "@features/sales/cart-store.ts";
 import type { CartLine } from "@/application/sales/create-sale.ts";
+import type { CartTab } from "@features/sales/cart-store.ts";
 
 function makeLine(key: string, productId: number | null = 7): CartLine {
   return {
@@ -140,5 +141,94 @@ describe("Paniers multiples (onglets)", () => {
     state().addLine(other);
     const lines = state().tabs.find((t) => t.id === state().activeId)?.lines ?? [];
     expect(lines).toHaveLength(2);
+  });
+});
+
+const OP_ID = "11111111-1111-4111-8111-111111111111";
+
+function draftTab(over: Partial<CartTab> & { id: number }): CartTab {
+  return {
+    name: `Panier ${over.id}`,
+    lines: [],
+    customerId: null,
+    customerLabel: "Client de passage",
+    amountPaidMinor: 0,
+    paymentMethod: "cash",
+    deliveryFeeMinor: 0,
+    saleOperationId: null,
+    ...over,
+  };
+}
+
+function active(): CartTab | undefined {
+  const s = state();
+  return s.tabs.find((t) => t.id === s.activeId);
+}
+
+describe("Caisse : retrait, vidage et identité d'encaissement", () => {
+  beforeEach(() => {
+    const s = useCartsStore.getState();
+    for (const t of [...s.tabs]) s.closeTab(t.id);
+  });
+
+  it("removeLine ne retire que la ligne visée de l'onglet actif", () => {
+    // Deux produits DISTINCTS : deux lignes du même produit fusionnent (P1-6).
+    state().addLine(makeLine("a", 7));
+    state().addLine(makeLine("b", 8));
+    state().removeLine("a");
+    expect(active()?.lines.map((l) => l.key)).toEqual(["b"]);
+  });
+
+  it("clear vide les lignes ET remet client, paiement et opération à zéro", () => {
+    state().addLine(makeLine("a"));
+    state().setCustomer(12, "Karim");
+    state().setTotals({ amountPaidMinor: 5000, paymentMethod: "cheque", deliveryFeeMinor: 200 });
+    state().setSaleOperationId(OP_ID);
+    state().clear();
+    const t = active();
+    expect(t?.lines).toEqual([]);
+    expect(t?.amountPaidMinor).toBe(0);
+    expect(t?.paymentMethod).toBe("cash");
+    expect(t?.deliveryFeeMinor).toBe(0);
+    expect(t?.customerId).toBeNull();
+    // Vente aboutie ⇒ l'identité d'opération ne survit pas au vidage (un
+    // nouveau panier doit porter une NOUVELLE opération, jamais rejouer celle-ci).
+    expect(t?.saleOperationId).toBeNull();
+  });
+
+  it("setSaleOperationId reste collé à SON onglet quand un nouveau panier s'ouvre", () => {
+    state().addLine(makeLine("a"));
+    state().setSaleOperationId(OP_ID);
+    const firstId = state().activeId;
+    state().newTab();
+    expect(state().tabs.find((t) => t.id === firstId)?.saleOperationId).toBe(OP_ID);
+    expect(active()?.saleOperationId ?? null).toBeNull();
+  });
+
+  it("hydrate : brouillon corrompu ignoré, champs bornés, opération reprise", () => {
+    state().hydrate([
+      draftTab({
+        id: 3,
+        name: "X".repeat(60),
+        lines: [makeLine("l1"), { ...makeLine("bad"), quantity: 0 }],
+        saleOperationId: OP_ID,
+        amountPaidMinor: -5,
+        deliveryFeeMinor: 1.5,
+      }),
+      // id invalide (≤ 0) ⇒ onglet rejeté, et jamais de crash du chargement.
+      draftTab({ id: 0, lines: [makeLine("l9")] }),
+      // Aucune ligne retenue ⇒ onglet sauté (un panier vide ne réapparait pas).
+      draftTab({ id: 5 }),
+    ]);
+    const s = state();
+    expect(s.tabs.map((t) => t.id)).toEqual([3]);
+    expect(s.activeId).toBe(3);
+    const t = s.tabs[0];
+    expect(t?.name).toHaveLength(40);
+    expect(t?.lines.map((l) => l.key)).toEqual(["l1"]);
+    expect(t?.amountPaidMinor).toBe(0);
+    expect(t?.deliveryFeeMinor).toBe(0);
+    // Retry après crash : le brouillon rejoue LA MÊME vente (operationId conservé).
+    expect(t?.saleOperationId).toBe(OP_ID);
   });
 });

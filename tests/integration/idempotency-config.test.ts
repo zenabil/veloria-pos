@@ -49,10 +49,7 @@ vi.mock("../../electron/services/logger", () => ({
   getLogFile: () => "",
 }));
 
-import {
-  saveCartDraftsAtomic,
-  clearCartDraftsAtomic,
-} from "../../electron/ipc/handlers/carts.repo";
+import { saveCartDraftsAtomic } from "../../electron/ipc/handlers/carts.repo";
 import { saveSelectedPrinterName } from "../../electron/printing/printing.service";
 import { saveBackupAuto } from "../../electron/backup/backup.service";
 import {
@@ -126,40 +123,6 @@ describe("RADICAL-FIX : configurations idempotentes", () => {
     expect(second).toEqual(first);
     const n = db.prepare("SELECT COUNT(*) AS n FROM cart_drafts").get() as { n: number };
     expect(n.n).toBe(1);
-  });
-
-  it("carts.clear repo idempotent par operationId", () => {
-    const op = "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb";
-    const tabs = [
-      {
-        tabId: 1,
-        name: "Panier 1",
-        lines: [
-          {
-            key: "l1",
-            productId: null,
-            productName: "Article libre",
-            unitCode: "PIECE",
-            originalUnitPriceMinor: 500,
-            unitPriceMinor: 500,
-            purchasePriceMinor: 0,
-            quantity: 1,
-          },
-        ],
-        customerId: null,
-        customerLabel: "Client de passage",
-        amountPaidMinor: 0,
-        paymentMethod: null,
-        deliveryFeeMinor: 0,
-      },
-    ];
-    const now = new Date().toISOString();
-    saveCartDraftsAtomic(tabs, now, null);
-    const first = clearCartDraftsAtomic(op);
-    const second = clearCartDraftsAtomic(op);
-    expect(second).toEqual(first);
-    const n = db.prepare("SELECT COUNT(*) AS n FROM cart_drafts").get() as { n: number };
-    expect(n.n).toBe(0);
   });
 
   it("printer.save idempotent par operationId", () => {

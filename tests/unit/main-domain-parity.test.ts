@@ -2,7 +2,12 @@
 // Contexte : electron/ ne peut pas importer src/ (rootDir) — les doublons
 // sont volontaires et documentés. Ce fichier PROUVE qu'ils se comportent
 // pareil : toute dérive casse ici avant la production.
+// ADR-153 (lot C) : quand la copie domaine n'était appelée par PERSONNE, elle
+// a été supprimée et le contrat est désormais figé sur la carte exécutée
+// (`P5`, lecture du repo main), comme `staff-domain.test.ts` le fait pour le KDF.
 import { describe, it, expect } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
 import { isRealCalendarDate as mainIsRealCalendarDate } from "../../electron/ipc/validators.ts";
 import { isRealCalendarDate as domainIsRealCalendarDate } from "@/domain/common/dates.ts";
 import { isRealCalendarDate as sharedIsRealCalendarDate } from "@/shared/dates/dates.ts";
@@ -232,5 +237,29 @@ describe("P4 : parité valeur nette d'une ligne retournée main/domaine", () => 
       expect(mainError, `main:${label}`).toBe(domainError);
       if (!domainError) expect(mainResult, `main:${label}`).toBe(domainResult);
     }
+  });
+});
+
+describe("P5 : contrat des transitions de statut (règle exécutée côté main)", () => {
+  const read = (rel: string): string =>
+    fs.readFileSync(path.resolve(__dirname, "../..", rel), "utf8");
+
+  it("purchases.repo : carte des transitions de commande figée", () => {
+    const src = read("electron/ipc/handlers/purchases.repo.ts");
+    expect(src).toContain('draft: ["ordered", "cancelled"]');
+    expect(src).toContain('ordered: ["partially_received", "received", "cancelled"]');
+    expect(src).toContain('partially_received: ["received"]');
+    expect(src).toContain("received: [],");
+    expect(src).toContain("Transition commande interdite");
+  });
+
+  it("proformas.repo : carte des transitions de devis figée", () => {
+    const src = read("electron/ipc/handlers/proformas.repo.ts");
+    expect(src).toContain('draft: ["sent", "cancelled"]');
+    expect(src).toContain('sent: ["converted", "cancelled"]');
+    expect(src).toContain("converted: [],");
+    expect(src).toContain("Transition interdite");
+    // TOCTOU : la garde de perte de mise à jour doit rester dans la transaction.
+    expect(src).toContain("statut modifié en parallèle");
   });
 });

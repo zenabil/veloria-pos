@@ -19,7 +19,7 @@ import {
   saveDetail,
   saveLastPhone,
 } from "../../mobile/src/cache";
-import { EMPTY_CACHE, staleLabel } from "../../mobile/src/store";
+import { EMPTY_CACHE } from "../../mobile/src/store";
 
 describe("tokens", () => {
   it("identité Veloria : header sombre + contenu clair + touch 48", () => {
@@ -103,10 +103,8 @@ describe("formateurs", () => {
 });
 
 describe("cache local", () => {
-  it("vide au départ, étiquette de fraîcheur JJ/MM/AAAA", () => {
+  it("vide au départ", () => {
     expect(EMPTY_CACHE.syncedAt).toBeNull();
-    expect(staleLabel(null)).toBeNull();
-    expect(staleLabel("2026-09-29T10:00:00.000Z")).toBe("2026-09-29");
   });
   it("repli mémoire : détail relisible, purge complète au logout (web/sans natif)", () => {
     // Sous vitest, expo-sqlite est absent → branche mémoire de cache.ts.

@@ -24,16 +24,6 @@ export function normalizeProductName(raw: string): string {
     .trim();
 }
 
-/** Candidats EAN (8–14 chiffres) trouvés dans un texte libre. */
-export function extractBarcodeCandidates(text: string): string[] {
-  const out: string[] = [];
-  for (const m of text.matchAll(/\d{8,14}/g)) {
-    const code = m[0];
-    if (!out.includes(code)) out.push(code);
-  }
-  return out.slice(0, 5);
-}
-
 function tokens(s: string): string[] {
   return s.split(" ").filter((t) => t.length > 0);
 }

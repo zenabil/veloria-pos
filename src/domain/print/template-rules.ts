@@ -199,8 +199,3 @@ export function mergeTemplateSettings(
     showPrice: keep(docType, "showPrice", bool(partial.showPrice, base.showPrice)),
   };
 }
-
-/** Version suivante (compteur monotone, jamais de retour en arrière). */
-export function nextTemplateVersion(current: number): number {
-  return Number.isSafeInteger(current) && current >= 1 ? current + 1 : 1;
-}
