@@ -1,4 +1,4 @@
-# Handoff — Veloria POS (état au 2026-10-26)
+# Handoff — Veloria POS (état au 2026-10-28)
 
 > Document de continuité : tout ce qui a été fait, fichiers modifiés,
 > erreurs (fermées/ouvertes), en-attente, commandes. Sessions 2026-10-07
@@ -15,7 +15,8 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête **session 61** (login client V6 « Connexion développée », ADR-152). Avant elle sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- Branche : `chore/root-layout` — tête **session 62** (purge dead-code en trois lots, ADR-153). Avant elle session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 62 (2026-10-28)** : **purge dead-code radicale exécutée en trois lots (ADR-153)** — demande « فحص المشروع من كل الاكواد الميتة و اصلاح جذريا », audit d'abord puis arbitrage propriétaire en un mot (« اوافق »). `knip` était **vert** sur son périmètre (0 fichier / 0 export / 0 type / 0 dépendance) : le gisement était donc hors de son champ. Trois mesures ajoutées : **fermeture transitive** depuis les vraies entrées de production (603 fichiers TS), **cartographie IPC à trois niveaux** (déclaration → `handle()` → preload → wrapper **ou** `callChecked((a) => …)` direct), et **index de tokens** sur 1 881 exports séparant appelants production et tests. Résultat : **lot A** = 2 canaux servis-validés-exposés-mais-jamais-appelés (`printer.get`, `templates.get` — le « lot 2 bis » différé depuis 2026-10-18) + 7 wrappers morts de la façade + 3 branches inatteignables des formatteurs DZD (+ le « `-—` » d'un négatif hors bornes corrigé au passage) + 1 script sans doc + `/release-manager-tmp/` ignoré ; **lot B** = 8 modules `src/domain` **n'entrant dans aucune chaîne de production** (595 lignes) + 4 fichiers de tests qui ne testaient qu'eux (343 lignes) — leurs règles sont bel et bien exécutées, par les miroirs `electron/ipc/handlers/**` ; **lot C** = 23 symboles test-only supprimés **avec preuve pour chacun** du chemin exécuté équivalent, et **refus exprès** de 5 autres (`isQrExpired` 7 j, `isSessionExpired` 90 j, `nextFailedState` 5 échecs→5 min, `convertQuantity` + table `TO_BASE`) qui sont la **seule** formulation de politiques jamais appliquées — à brancher, pas à delete. **Lot D refusé par l'opérateur** : aucun `DROP` (pas de migration 0057). Constataire : `tests/integration/client-loop.test.ts` fabriquait le cliché client avec la copie **morte** — il appelle désormais `buildSnapshotPayload` du main (mêmes valeurs affichées) ; les planchers de couverture étaient **portés par du code mort** (`test:coverage:features` passait de 65,06 % à 62,33 % en supprimant `sortCustomers` et ses fermetures de comparaison) — **aucun seuil abaissé**, à la place 4 actions réelles du panier couvertes (`removeLine`, `clear`, `setSaleOperationId`, `hydrate`) et 2 gardes **prouvées inatteignables** de la formule Z retirées (`assertSafeTotal` borne déjà chaque champ à 1e9). Rouge **pré-existante** trouvée et fermée : `previewReturnSettlement` n'avait **jamais** été couverte depuis `50a56cc` (session 54). Portes : typecheck 0 · typecheck:electron 0 · typecheck:manager 0 · `typecheck:mobile` 0 · eslint 0 · prettier 0 · **vitest 168 fichiers / 1 141 tests 0** · **test:coverage 0** · **test:coverage:features 0** (159 fichiers / 1 080 tests) · knip 0 · verify:migrations (56) · verify:domain · verify:fr · verify:encoding · **build** ✓ · **build:electron** ✓ (manifeste signé 234). Cumulé vs `45e2c69` : **80 fichiers de code, 2 701 lignes supprimées / 1 274 ajoutées**. Détails §62.
 - **Session 61 (2026-10-28)** : **login client V6 « Connexion développée »** — le propriétaire a demandé « غير تصميم واجهة login كليا », puis a cherché une référence **« lempe login » : introuvable** (web + Dribbble + Behance + Figma + recherche d'images — « Lempe » est un nom de famille germanique, aucun écran de connexion ne le porte). Trois maquettes HTML présentées (A feuille ancrée / B plein clair / C bandeau or) ; arbitrage final **« طور التصميم الحالي »** ⇒ on garde l'identité encre + or et on travaille la composition. Ajouts : **en-tête éditorial** sur encre (salut selon l'heure, **même règle D12 que l'accueil** + titre 26/900 + règle dorée 44×4), champ téléphone **`skin="outlined"`** (nouvelle prop optionnelle de `Field`, défaut `sunken` ⇒ **aucun autre écran ne bouge**) pendant que les cases PIN restent en creux, **zone QR en pointillés qui porte le mode d'emploi** (caption = clé `help1` déjà publiée, titre baissé de 16 à 14 gras), **touche retour arrière** césurée du bouton « إظهار » par un filet 1 px (sinon les deux glyphes se lisaient comme un seul contrôle), **trois cercles de filet** dans l'encre (`View` pures, `pointerEvents="none"`, hors arbre — rien d'animé, rien de dégradé). Logique V5 **intégralement conservée** (verrou = règle du serveur, envoi au 6ᵉ, `busyRef`, haptique, téléphone mémorisé) ; **1 seule** clé i18n ajoutée (`deleteDigit`, ar+fr), zéro texte/`aria-label` existant touché, zéro dépendance, zéro migration, zéro canal. Budget **tenu** : contenu **731 px pour 553 de viewport** (V5 : 713) soit **+18 dp alors que l'en-tête a été ajouté**, CTA à y≈408‑462 et zone QR à 488‑510 tous deux visibles sans scroller. Portes : mobile typecheck **0** · mobile lint **0** · vitest mobile-foundation **18/18** · prettier **0**. Preuve visuelle : captures **390×844 via Electron offscreen** (`capturePage`) — le panneau navigateur de Qoder était masqué pendant la session — états 0/5/6 chiffres + envoi automatique observé (CTA passé en « … »). **Non vérifié** : rendu natif Android, `autoFocus`, et le `borderStyle:"dashed"` sur device (Yoga/Android le rend via `BorderDrawable`, fidèle sur web, à confirmer à l'œil). **ADR-152**. Détails §61.
 - **Session 60 (2026-10-28)** : **login client V5 « Connexion directe »** — demande « قم بتطوير واجهة صفحة login الخاصة بتطبيق العملاء » **avec recherche internet préalable** (patterns 2026 : reconnaître le client qui revient, valider la forme avant le réseau, envoyer quand le code est complet, confirmer la frappe par le toucher, ne jamais laisser l'action sous la ligne de flottaison). Périmètre arbitré par le propriétaire : **« واجهة فقط بدون أي مكتبة جديدة »** — biométrie écartée (`expo-local-authentication` = dép native + ADR + rebuild APK + verrou posé sur le PIN stocké). Écran 01 réécrit : marque en **lockup horizontal** (−100 dp), aide 3 étapes **repliée** (−160 dp), réassurance descendue en pied, WhatsApp passé de 3ᵉ bouton à **lien** ; **CTA verrouillé** tant que le PIN n'a pas 6 chiffres (règle **identique** à `assertCredentials`/`client-sync`, volontairement **jamais plus stricte** — pas de règle « 10 chiffres algériens » inventée ici) + **envoi automatique au 6ᵉ** (différé 140 ms, timer annulé au démontage, garde `busyRef` conservée) ; **haptique** jeton par chiffre ajouté et alerte au refus (`haptic` exporté du kit, `buzz` inchangé) ; **téléphone mémorisé** `veloria.last-phone.v1` (SecureStore, survit à la purge comme `veloria.endpoint.v1`, **jamais le PIN**, vide/>30 refusé) avec `autoFocus` sur le code et « × » pour le changer ; champ PIN posé **par-dessus** les cases en absolu opacity 0 (fini le `Tap` englobant : un seul nœud labellisé, cases hors-arbre), **caret doré** dans la case active, chiffres en `FONTS.mono` ; défaut d'alignement arabe corrigé : `startEdge` remplace `farEdge` pour le texte d'aide et le libellé replié, qui fuyaient à l'opposé de leur icône. 2 clés i18n ajoutées (ar+fr), **zéro texte / `aria-label` / `testID` existant supprimé**, zéro dépendance, zéro migration, zéro canal, aucun autre écran touché. **+1 test de régression** (numéro survivant à `clearCache()`, écritures vides/surdimensionnées refusées). Mesure Chromium **360×553 (pire cas)** : contenu 713 px, « دخول » à **y ≈ 400-460** donc visible sans scroller ; états vus arabe et français, code à 0/4/6 chiffres, cases révélées, aide dépliée, et erreur « hors connexion » **déclenchée par l'envoi automatique** (seul message console de la page : POST réel refusé vers `:8099`). Portes : mobile typecheck **0** · mobile lint **0** · vitest mobile **29/29** · prettier **0** · **non vérifié : rendu natif Android et `autoFocus`** (le clavier ne s'ouvre pas sur web). **ADR-151**. Détails §60.
 - **Session 59 (2026-10-28)** : **client mobile V4 « Daylight plat »** — refonte complète du rendu de l'APK clients (`mobile/`, 8 écrans + kit + tokens + coquille), direction **A** choisie par le propriétaire parmi trois, alignée sur ADR-148 : plus de dégradés (`GRADIENTS` supprimé, `expo-linear-gradient` **retiré** du package), séparation par **filets** (`HAIRLINE`/`Divider`), un seul accent (or), statuts en point + texte, primitives neuves `Group`/`Row`/`Divider`, **dock ancré** (le pilon flottant mangeait la dernière ligne) + réserve `SIZES.dockInset`, `boxShadow` à la place des props `shadow*` dépréciées RN 0.76. Gains vus sur captures 390×844 : **4 lignes de factures contre 2**, totaux de détail enfin lisibles (le slab encre de la V3 rendait les montants masqués illegibles), titre RTL non tronqué. **Rendu seul** : zéro texte, zéro clé i18n, zéro `aria-label`, zéro logique métier touchés — les **4 verrous** d'identité/ergonomie des tests (`#051424`, `#fbbf24`, 48, 20) tiennent sans avoir été assouplis. Vérifié **visuellement** sans émulateur : miroir de démo + `expo start --web` + capture via le Chromium d'Electron (Playwright Chromium non téléchargeable ici). Trois obstacles corrigés au passage : `scripts/e2e-mobile-shots.mjs` aux ancres mortes (`phone`/`pin`), **Metro qui ne surveille pas les fichiers** (bundle servi identique octet pour octet → forcer le redémarrage du port 8083), CORS du serveur de démo sans `authorization` (« لا اتصال بالإنترنت » alors que le serveur répondait 200). Régression personnelle détectée et annulée : `aria-label` du PIN en double (conteneur + champ) ⇒ un seul nœud labellisé. Bug trouvé par la relecture parallèle : `Row` en `alignItems:"left|right"` (invalide) → `flex-start|flex-end`. Portes : mobile typecheck 0 · mobile lint 0 · **vitest 171/1 188 0** · typecheck racine 0 · eslint 0 · format:check 0 · encoding 0 (949) · fr 0 (341) · **knip 0** · **non vérifié : rendu natif Android** (aucun APK rebâti) · **Metro :8083 et démo :8099 encore lancés** (à arrêter). **ADR-150**. Détails §59.
@@ -2194,3 +2195,147 @@ Vérifications : typecheck 0 · vitest printing 41/41.
 - **Portes** : `mobile` typecheck **0** · `mobile` eslint (`src`, `--max-warnings 0`) **0** · vitest `mobile-foundation` **18/18** · `prettier --write` **0** (fichiers déjà conformes) · une erreur de lint corrigée en route : `explicit-function-return-type` sur la fabrique locale de cercles.
 - **Non vérifié (à assumer)** : **rendu natif Android** — aucun APK rebâti (comme §59/§60) ; en particulier `autoFocus` du champ PIN (le clavier ne s'ouvre pas sur web) et le `borderStyle:"dashed"` sur device (Android le dessine via `BorderDrawable` : fidèle dans le bundle web, à confirmer à l'œil sur téléphone).
 - **Ouvert** : (1) la question laissée en §60 — les cases PIN se remplissent de droite à gauche en arabe, donc un code **révélé** se lit à l'envers de gauche à droite (comportement V4 conservé, deux lignes pour changer) ; (2) biométrie non faite par arbitrage §60 ; (3) aucun build APK de la V5 ni de la V6.
+
+## 62) Session 2026-10-28 — Purge dead-code en trois lots (ADR-153)
+
+- **Demande** : « قم بفحص المشروع من كل الاكواد الميتة و اصلاح جذريا » (examen de
+  tout le code mort, correction radicale). Doctrine suivie (AGENTS §14,
+  ADR-075) : **audit d'abord, jamais de suppression automatique** → lots chiffrés
+  présentés, accord en un mot « اوافق », puis exécution lot par lot.
+- **Méthode — ce que les outils ne voient pas.** `npx knip` (6.43, `knip.json`
+  du lot 3 de 2026-10-19) est **vert** : 0 fichier, 0 export, 0 type, 0
+  dépendance. Trois mesures propres ont été écrites pour aller au-delà :
+  1. **Fermeture transitive** depuis les entrées de production réelles
+     (`src/main.tsx`, `electron/main/main.ts`, `electron/preload/preload.ts`,
+     `license-manager/main/main.ts`, `license-manager/renderer/main.tsx`,
+     `mobile/src/App.tsx`, fonctions cloud, **cibles des scripts npm**), alias
+     `@`/`@domain`/`@shared`/`@features` résolus, 603 fichiers — un fichier
+     importé seulement par `tests/**` devient visible.
+  2. **IPC à trois niveaux** : 186 canaux déclarés, 187 `handle()`, 184 exposés
+     par le preload, 177 wrappers dans `ipc-client.ts` — mais l'UI passe aussi
+     par `callChecked((a) => …)` **sans wrapper** : la façade peut être morte
+     avec le canal vivant, et l'inverse (2 canaux) existe.
+  3. **Index de tokens** sur 1 881 exports en distinguant sites production /
+     `tests/` / usage interne au fichier (knip compte un test comme consommateur).
+- **Réfutés (gardés, avec preuve)** : `recovery.retry` / `recovery.exit` (appelés
+  depuis le **HTML généré côté main** — `recovery-view.ts:95`,
+  `license-view.ts:95`), `window.maximizedChanged` / `ocr.progress` (écoutes
+  `ipcRenderer.on`, jamais `invoke`), les **270** « export de trop » consommés
+  par leur propre fichier (motif sanctioned par AGENTS §5 — retirer `export`
+  serait du churn), les 8 scripts npm hors-appelant **documentés** comme outils
+  manuels (`docs/licensing/ACTIVATION.md`, `KEY_MANAGEMENT.md`, ADR-034/060/077),
+  les 106 clés i18n du client (toutes vivantes, `greeting`/`greetingEvening`
+  étant sélectionnées dynamiquement), et `mobile/assets` + `resources/ocr/lang`
+  (chargés par chemin construit).
+- **Lot A (commit `dacb61f`)** — le « lot 2 bis » de 2026-10-18, différé parce
+  que le chantier impression n'était pas commité : `printer.get` +
+  `templates.get` retirés **de bout en bout** (channels, preload, `vite-env.d.ts`,
+  `ipc-client.ts`, handler `ipcMain.handle` de `printing.receipt.ts`, handler
+  `registry.system.ts`, `templateGetSchema`, entrée `staff-gates.ts`, entrée
+  `RAW_UNGUARDED_CHANNELS`), compteurs gelés resynchronisés (snapshot
+  **185→183**, `FROZEN_SCHEMA_COUNT` **125→124**, `FROZEN_SCHEMA_TOTAL`
+  **125→124**, `FROZEN_EXPORT_COUNT` **134→133**, parité impression **27→26** et
+  ses bornes de découpage recalées) ; 5 autres wrappers morts (`customerAccess
+Activate/Status/QrSvg`, `syncEnqueue`, `syncPushNow`) supprimés **sans toucher
+  aux canaux** ; trois branches inatteignables des formatteurs (`sign`/`Math.abs`
+  après garde `minor < 0`, dans `formatDzd` et `formatDzdStrict` ; `try/catch`
+  mort de `formatDzdSigned` — corrige au passage l'affichage `« -— »` d'un
+  négatif hors bornes) ; `scripts/database/probe-sqlite-version.cjs` (aucune
+  référence) + son entrée `allowDefaultProject` ; `/release-manager-tmp/` ajouté
+  au `.gitignore`.
+- **Lot B (commit `f1cf5c6`)** — DT-05 tranché : `audit-rules`, `cash-count`,
+  `credit-policy`, `payment-receipt`, `fifo-rules`, `stock-alerts`,
+  `return-policy`, `staff/staff` — **595 lignes** que **rien** en production
+  n'importe, + **343 lignes** de tests qui ne testaient qu'elles. Preuve que la
+  règle est bien exécutée ailleurs : `fifo.ts` (couches SQL),
+  `computeReceiptBalancesInline` (`customers.repo.ts:533` — le commentaire
+  lui-même disait « miroir local »), `staff.repo.ts` (code 6 chiffres, verrou
+  5/5 min, `STAFF_PERMISSIONS`), `return-settlement.ts`, `inventory.repo.ts`,
+  formule Z inline (`finance.repo.ts:276`), `debt-status.ts`. Danger documenté :
+  `main-domain-parity` ne comparait **que 2 symboles**, donc un écart entre la
+  copie décorative et la règle exécutée était invisible. `p3b-commerce.test.ts`
+  et `staff-domain.test.ts` **conservés mais élagués** (ils mélangeaient vivant
+  et mort) ; `tests/integration/payment-receipt.test.ts` intact (exerce le
+  miroir main sur vraie base). Commentaires corrigés (fifo, customers.repo,
+  staff.repo, `common/dates.ts`).
+- **Lot C** — 23 symboles test-only supprimés **un par un avec preuve du chemin
+  exécuté** (voir la table de `docs/ADR-153-purge-dead-code.md`) :
+  `clearCartDraftsAtomic` (aucun canal `carts.clear`), les 4 use-cases
+  d'`application/customers/client-access.ts` (V1 du QR retirée du POS, `…V2` en
+  service ; `clientAccessActivateSchema` à la frontière ; `buildSnapshotPayload`
+  du main ; `assertValidAnnouncement` appelé en direct), `validateBusinessDate`
+  (Zod `businessDate`), `resolveIntakeSellingPrice`/`validateAdjustment`,
+  `applyStockDelta`/`assertReturnQuantity`, `addSafeMinor`,
+  `extractBarcodeCandidates` (l'extracteur vivant est celui de `ocr/parser.ts`),
+  `toBaseQuantity`, `nextTemplateVersion` (SQL `version + 1`),
+  `assertProformaTransition` + **le doublon de type** `ProformaStatus` (la
+  source vivante est `features/proformas/types.ts:4`), `assertAdditionalRefund`,
+  `assertPoTransition`/`computePoTotals` + type `PurchaseOrderStatus` (carte
+  `PO_TRANSITIONS` du repo + bornes déjà imposées par `purchaseCreateSchema`
+  `.min(1).max(200)`), `applySupplierIntakeBalance` (SQL), `sortCustomers` (le
+  tri autoritaire est serveur), `staleLabel` (le libellé de fraîcheur est rendu
+  par `Home.tsx:99`).
+- **Refusé en lot C — trois politiques de sécurité sans application** :
+  `isQrExpired` (7 jours), `isSessionExpired` (90 jours) et `nextFailedState`
+  (5 échecs → verrou 5 min) de `src/domain/customer/client-access.ts`. **Aucun
+  chemin exécuté ne les applique** : pas d'horodatage dans le payload QR, pas de
+  colonne `issued/expires/last_login`, `customer_access.failed_attempts` n'est
+  jamais écrit autrement que `0` à l'INSERT (`client-access.repo.ts:284`), et la
+  fonction Edge lit `locked_until` sans jamais l'incrémenter. Ce sont les trous
+  déjà notés dans l'audit 2026-10-25 — la copie domaine est la **seule**
+  expression de la politique, donc à **brancher** (tranche verticale propre),
+  pas à supprimer. Idem `units.convertQuantity` + sa table `TO_BASE` (aucune
+  conversion d'unité n'est exécutée aujourd'hui).
+- **Conservés comme gardes / coutures** : `RAW_GUARDED_CHANNELS` (la garde
+  exécutable de `raw-guarded-channels.test.ts` — DT-01 de 2026-10-18 est clos),
+  `memorySecretBackend` (injection à la place de DPAPI), le bloc `PIN_KDF_*`
+  (contrat `pin-kdf-parity.test.ts`), `signDetached`/`verifyPayloadSignature`/
+  `planPreset`/`hasFeatureAccess` (primitives **vendeur** de la licence, face de
+  `keygen.mjs` — l'opérateur détient la clé), `allocateGlobalDiscount`
+  (cross-check de parité), `allKeys` (test de fondation du client).
+- **Lot D refusé par l'opérateur** : `app_meta`, 5 colonnes legacy de
+  `company_profile`, `customers.bread_profile_json`,
+  `daily_closings.z_report_path`, `v_daily_sales`, `v_customer_balance_check`,
+  8 index `bread_orders` **restent**. Un `DROP` exige une migration 0057
+  destructive, non annulable sur les postes livrés (AGENTS §12), pour zéro octet
+  utile ; `bread_orders` est DELIBERATE-KEEP (ADR-109) ;
+  `v_customer_balance_check` est lue par un test d'intégration.
+- **Deux découvertes hors périmètre, consignées** : (1) le test de boucle client
+  `client-loop.test.ts` construisait le cliché avec la copie **morte** puis la
+  poussait à l'APK — il exerce désormais `buildSnapshotPayload` (les trois
+  kinds), et le contenu réel du miroir n'était donc testé par personne avant
+  ceci ; (2) une garde `P5` de `main-domain-parity.test.ts` fige maintenant les
+  deux cartes de transitions (devis, commande) lues dans les repos main.
+- **Planchers de couverture : la purge a révélé qu'ils mesuraient du code mort.**
+  Aucun seuil abaissé. `test:coverage:features` est passé de 65,06 % à 62,33 %
+  fonctions en supprimant `sortCustomers` et ses 5 fermetures de comparaison
+  (couvertes) → 4 actions **réelles** du panier couvertes (`removeLine`,
+  `clear`, `setSaleOperationId`, `hydrate`, avec le piège retrouvé au passage :
+  deux lignes du **même** produit fusionnent, assertion alignée sur le
+  comportement réel). `closing-rules.ts` : les 3 gardes `isSafeInteger`/`< 0`
+  sur agrégats sont **prouvées** inatteignables (chaque champ déjà borné
+  0..1e9 ⇒ credits ≤ 3e9, debits ≤ 2e9) → retirées avec la preuve écrite dans le
+  fichier, comme le bras salé du lot A. `proforma-rules.ts` : le rejet « remise
+  non entière » n'était testé que côté main → 2 assertions de parité ajoutées.
+  Rouge **pré-existante** trouvée en relançant la porte : `previewReturnSettlement`
+  n'avait **jamais** été couverte depuis `50a56cc` (session 54) — fermée par
+  commit `d5cc130`.
+- **Git** : trois commits de code (`dacb61f` lot A, `d5cc130` test coverage,
+  `f1cf5c6` lot B) + le lot C + ce `docs(handoff)`. **Aucun remote** configuré
+  sur `chore/root-layout`. Le piège revécu : `git rm` **indexe** la suppression
+  immédiatement, donc un `git add <fichier> && git commit` postérieur embarque
+  les 11 suppressions du lot B dans un commit de test — repéré en relisant
+  `git show --stat`, corrigé par `git reset --soft` local (sans remote, sans
+  travail d'autrui dans l'index), puis re-commit réparti. Règle à retenir :
+  après **chaque** commit, relire `git show --stat`.
+- **Le session 61 (client V6) a été commitée par l'opérateur en parallèle**
+  (`64c1997`, `d648241`) pendant cette purge — aucun chevauchement de fichiers,
+  `handoff.md`/`docs/INDEX.md` ont été repris par-dessus proprement.
+- **Ouvert** : (1) brancher les trois politiques client (QR 7 j, session 90 j,
+  verrou 5 échecs) — c'est un trou de sécurité, plus vieux que cette purge ;
+  (2) dette de duplication reportée et chiffrée dans ADR-153 §« Hors périmètre »
+  (`useOperationId` adopté par 5 dialogues sur 16, deux familles de formatteurs
+  DZD avec plafonds différents, `isRealCalendarDate` en trois exemplaires,
+  `fmtMinorDa`, `normalizeBarcodeValue`, `formatBytes`) ; (3) `release/` et
+  `release-manager-tmp/` gardent chacun un `app.asar` **verrouillé par le
+  scanneur** (~35 Mo), jamais forcé — part au redémarrage (doctrine §55).

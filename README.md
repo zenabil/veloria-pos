@@ -24,7 +24,7 @@ npm run typecheck          # renderer + tests
 npm run typecheck:electron # main/preload (strict + noUncheckedIndexedAccess)
 npm run typecheck:manager  # License Manager (outil vendor)
 npm run lint
-npm run test               # 171 fichiers / ~1 188 tests (domaine pur, contrats
+npm run test               # 168 fichiers / ~1 141 tests (domaine pur, contrats
                            # IPC, intégration SQLite réel via node:sqlite)
 npm run test:db
 node scripts/database/integrity.js        # base réelle, lecture seule
@@ -101,7 +101,7 @@ npm run license:scan       # garde-fou : aucun secret dans le POS
 ## Spécification
 
 `docs/specs-archive/` est la source of truth figée.
-Décisions d'ingénierie : `docs/ADR-*.md` (001→149, indexées dans `docs/INDEX.md`).
+Décisions d'ingénierie : `docs/ADR-*.md` (001→153, indexées dans `docs/INDEX.md`).
 Avancement : `docs/reports/PHASE_X_REPORT.md` + `handoff.md` (continuité entre
 sessions — à lire en premier après `AGENTS.md`).
 Carte maintenance : `docs/STRUCTURE.md`. Archives : `docs/archive/` (`root-legacy/`, `stitch/`).

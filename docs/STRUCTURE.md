@@ -62,7 +62,7 @@ Règles dures (voir `AGENTS.md`) :
 
 | Dossier                   | Quoi                                                                                                            |
 | ------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `docs/ADR-*.md`           | Décisions d'ingénierie (001→149, séquentiel, jamais réécrit — une révision = un nouvel ADR qui pointe l'ancien) |
+| `docs/ADR-*.md`           | Décisions d'ingénierie (001→153, séquentiel, jamais réécrit — une révision = un nouvel ADR qui pointe l'ancien) |
 | `docs/INDEX.md`           | Index des ADR + Où écrire quoi (pointe, ne duplique pas)                                                        |
 | `handoff.md` (racine)     | État courant + une section par session — la doc vivante du chantier                                             |
 | `docs/reports/PHASE_*.md` | Avancement par phase (canonique — la racine n'en contient plus)                                                 |
