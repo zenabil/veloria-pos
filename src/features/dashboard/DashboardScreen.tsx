@@ -1,27 +1,18 @@
 // Veloria PoS — Écran : Tableau de bord (synthèse période + instantanés).
+// ADR-147 (hiérarchie, onglets) + ADR-154 (simplification) : deux bandeaux de
+// chiffres sur une surface chacun, un bandeau d'alertes conditionnel et
+// cliquable, plus de carte imbriquée ni de défilement interne.
 import { useEffect, useRef, useState } from "react";
 import {
-  AlertTriangle,
   Boxes,
-  CalendarDays,
   ChevronDown,
-  CreditCard,
   Download,
   FileDown,
   FileSpreadsheet,
   FileText,
-  HandCoins,
   History,
-  Package,
-  Percent,
-  ReceiptText,
   RefreshCw,
-  ShoppingBag,
-  ShoppingCart,
   Tags,
-  TrendingUp,
-  Truck,
-  Undo2,
   Wallet,
 } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
@@ -40,19 +31,20 @@ import {
   EmptyState,
   ErrorState,
   Kbd,
-  Kpi,
   Modal,
   PageHeader,
   Select,
+  StatsStrip,
   TextInput,
   cn,
 } from "@shared/ui/primitives.tsx";
 import { paymentMethodLabel, type DashboardSummary } from "./types.ts";
 
 import type { Notify } from "@shared/ui/primitives.tsx";
-import { EmptyMini, RecentCard, RecentRow } from "./widgets.tsx";
+import type { ModuleId } from "@/app/shell/shell-types.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import { useCountUp } from "@shared/ui/use-count-up.ts";
+import { AlertBand, DetailSection, RecentRow, ShareBar, type AlertItem } from "./widgets.tsx";
 
 const PRESETS = [
   { kind: "today", label: "Aujourd'hui" },
@@ -97,6 +89,8 @@ function ExportMenu({
   const close = (): void => {
     ref.current?.removeAttribute("open");
   };
+  const item =
+    "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50";
   return (
     <details ref={ref} className="relative">
       <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/[0.08] [&::-webkit-details-marker]:hidden">
@@ -111,7 +105,7 @@ function ExportMenu({
             close();
             onPdf();
           }}
-          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50"
+          className={item}
         >
           <FileText size={14} aria-hidden="true" /> Aperçu PDF
         </button>
@@ -122,7 +116,7 @@ function ExportMenu({
             close();
             onExcel();
           }}
-          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50"
+          className={item}
         >
           <FileSpreadsheet size={14} aria-hidden="true" /> Excel (CSV)
         </button>
@@ -133,7 +127,7 @@ function ExportMenu({
             close();
             onCsv();
           }}
-          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50"
+          className={item}
         >
           <FileDown size={14} aria-hidden="true" /> CSV brut
           <span className="ml-auto">
@@ -145,6 +139,8 @@ function ExportMenu({
   );
 }
 
+/** Une seule rangée : dates, presets, actualiser, exporter. La période n'est
+ *  répétée nulle part ailleurs (elle est déjà dans le sous-titre de page). */
 function PeriodToolbar({
   from,
   to,
@@ -167,117 +163,67 @@ function PeriodToolbar({
   exportMenu: React.ReactNode;
 }): React.JSX.Element {
   return (
-    <Card className="flex flex-col gap-3 p-3.5">
-      <div className="flex flex-wrap items-end gap-2.5">
-        <label className="flex flex-col gap-1 text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400">
-          Du
-          <TextInput
-            type="date"
-            ref={fromRef}
-            value={from}
-            onChange={(e) => onChange(e.target.value, to)}
-            aria-label="Du"
-            title="Du [F4]"
-            className="!w-auto"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400">
-          Au
-          <TextInput
-            type="date"
-            value={to}
-            onChange={(e) => onChange(from, e.target.value)}
-            aria-label="Au"
-            title="Au [F4]"
-            className="!w-auto"
-          />
-        </label>
-        <div
-          role="group"
-          aria-label="Périodes prédéfinies"
-          className="flex flex-wrap gap-1.5 pb-0.5"
-        >
-          {PRESETS.map((p) => {
-            const active = activePreset === p.kind;
-            return (
-              <button
-                key={p.kind}
-                type="button"
-                aria-pressed={active}
-                onClick={() => onPreset(p.kind)}
-                className={cn(
-                  "rounded-lg px-2.5 py-2 text-xs font-bold transition-colors",
-                  active
-                    ? "bg-amber-400 text-[#1a1206] shadow"
-                    : "bg-[#0d1c2d] text-[#d3c5ac] hover:bg-[#1c2b3c] hover:text-[#d4e4fa]",
-                )}
-              >
-                {p.label}
-              </button>
-            );
-          })}
-        </div>
-        <div className="ml-auto flex items-end gap-2">
-          <Button
-            variant="secondary"
-            onClick={onRefresh}
-            disabled={loading}
-            title="Actualiser [F5]"
-          >
-            <RefreshCw size={15} aria-hidden="true" /> {loading ? "…" : "Actualiser"}
-          </Button>
-          {exportMenu}
-        </div>
+    <Card className="flex flex-wrap items-center gap-2.5 p-2.5">
+      <label className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400">
+        Du
+        <TextInput
+          type="date"
+          ref={fromRef}
+          value={from}
+          onChange={(e) => onChange(e.target.value, to)}
+          aria-label="Du"
+          title="Du [F4]"
+          className="!w-auto"
+        />
+      </label>
+      <label className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400">
+        Au
+        <TextInput
+          type="date"
+          value={to}
+          onChange={(e) => onChange(from, e.target.value)}
+          aria-label="Au"
+          title="Au [F4]"
+          className="!w-auto"
+        />
+      </label>
+      <div role="group" aria-label="Périodes prédéfinies" className="flex flex-wrap gap-1.5">
+        {PRESETS.map((p) => {
+          const active = activePreset === p.kind;
+          return (
+            <button
+              key={p.kind}
+              type="button"
+              aria-pressed={active}
+              onClick={() => onPreset(p.kind)}
+              className={cn(
+                "rounded-lg px-2.5 py-2 text-xs font-bold transition-colors",
+                active
+                  ? "bg-amber-400 text-[#1a1206] shadow"
+                  : "bg-[#0d1c2d] text-[#d3c5ac] hover:bg-[#1c2b3c] hover:text-[#d4e4fa]",
+              )}
+            >
+              {p.label}
+            </button>
+          );
+        })}
       </div>
-      <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
-        <CalendarDays size={13} aria-hidden="true" />
-        <span>
-          {formatDateFr(from)} → {formatDateFr(to)}
-        </span>
-        <span>·</span>
-        <span>Net des avoirs et retours caisse</span>
-        {activePreset ? (
-          <Badge tone="amber">{PRESETS.find((p) => p.kind === activePreset)?.label}</Badge>
-        ) : null}
+      <div className="ml-auto flex items-center gap-2">
+        <Button variant="secondary" onClick={onRefresh} disabled={loading} title="Actualiser [F5]">
+          <RefreshCw size={15} aria-hidden="true" /> {loading ? "…" : "Actualiser"}
+        </Button>
+        {exportMenu}
       </div>
     </Card>
   );
 }
 
-function MiniMetric({
-  label,
-  value,
-  sub,
-  icon,
-  tone,
-}: {
-  label: string;
-  value: string;
-  sub: string;
-  icon: React.ReactNode;
-  tone: string;
-}): React.JSX.Element {
-  return (
-    <div className="flex items-start gap-2.5 bg-[#0f1e30] px-3 py-3">
-      <span className={cn("mt-0.5 shrink-0", tone)}>{icon}</span>
-      <div className="min-w-0">
-        <div className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">
-          {label}
-        </div>
-        <div className="mt-0.5 truncate font-mono text-sm font-bold tabular-nums text-slate-100">
-          {value}
-        </div>
-        <div className="mt-0.5 truncate text-[11px] text-slate-500">{sub}</div>
-      </div>
-    </div>
-  );
-}
-
 const DETAIL_TABS = [
-  { id: "finance", label: "Finances", icon: Wallet },
   { id: "stock", label: "Stock & dettes", icon: Boxes },
   { id: "activity", label: "Activité récente", icon: History },
 ] as const;
+
+type DetailTab = (typeof DETAIL_TABS)[number]["id"];
 
 function methodDot(method: string): string {
   if (method === "cash") return "bg-emerald-400";
@@ -286,72 +232,20 @@ function methodDot(method: string): string {
   return "bg-slate-400";
 }
 
-/** D7+D16 : bande « Aujourd'hui » — trois chiffres de décision animés
- *  (compteur 300 ms, réduit au final si `prefers-reduced-motion`). */
-function TodayStrip({
-  salesMinor,
-  overdue,
-  out,
+export function DashboardScreen({
+  notify,
+  onNavigate,
+  canNavigate,
 }: {
-  /** Sentinel -1 = today is excluded from the filtered period (hide the cell). */
-  salesMinor: number;
-  overdue: number;
-  out: number;
+  notify: Notify;
+  onNavigate?: (module: ModuleId) => void;
+  canNavigate?: (module: ModuleId) => boolean;
 }): React.JSX.Element {
-  const sales = useCountUp(salesMinor >= 0 ? salesMinor : 0);
-  const late = useCountUp(overdue);
-  const ruptures = useCountUp(out);
-  const cells: { label: string; value: string; tone: string }[] = [];
-  // Sentinelle -1 : période sans aujourd'hui → cellule masquée (jamais « 0 » trompeur).
-  if (salesMinor >= 0) {
-    cells.push({
-      label: "Ventes du jour",
-      value: formatDzdTotalSigned(sales),
-      tone: "text-[#d4e4fa]",
-    });
-  }
-  cells.push(
-    {
-      label: "Échéances dépassées",
-      value: String(late),
-      tone: late > 0 ? "text-red-300" : "text-emerald-300",
-    },
-    {
-      label: "Ruptures",
-      value: String(ruptures),
-      tone: ruptures > 0 ? "text-amber-300" : "text-emerald-300",
-    },
-  );
-  return (
-    <Card className="flex flex-col gap-3 p-3.5 sm:flex-row sm:items-center">
-      <div className="flex items-center gap-2 text-sm font-extrabold text-slate-100">
-        <CalendarDays size={15} aria-hidden="true" className="text-amber-300" />
-        Aujourd'hui
-      </div>
-      <div
-        role="group"
-        aria-label="Chiffres du jour"
-        className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-3 sm:divide-x sm:divide-white/10"
-      >
-        {cells.map((c) => (
-          <div key={c.label} className="flex flex-col gap-0.5 px-2">
-            <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#d3c5ac]/70">
-              {c.label}
-            </span>
-            <span className={`font-mono-currency-lg tabular-nums ${c.tone}`}>{c.value}</span>
-          </div>
-        ))}
-      </div>
-    </Card>
-  );
-}
-
-export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Element {
   const [from, setFrom] = useState(todayUtcDate());
   const [to, setTo] = useState(todayUtcDate());
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [detailsTab, setDetailsTab] = useState<"finance" | "stock" | "activity">("finance");
+  const [detailsTab, setDetailsTab] = useState<DetailTab>("stock");
   const [loading, setLoading] = useState(false);
   // A-06 : erreur de chargement PERSISTANTE (le toast dure 4,5 s).
   // Distingue « échec du chargement » de « aucune donnée ».
@@ -658,9 +552,22 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
   const k = summary?.kpis;
   const marginPct = k && k.salesMinor > 0 ? (k.profitMinor / k.salesMinor) * 100 : 0;
   const netProfitMinor = k ? k.profitMinor - k.expensesMinor : 0;
+  /** Coût de revient des ventes : seul chiffre dérivé non affiché ailleurs. */
+  const costOfSalesMinor = k ? k.salesMinor - k.profitMinor : 0;
   const netPaymentsMinor = summary?.byMethod.reduce((acc, m) => acc + m.t, 0) ?? 0;
+  const maxMethodMinor = summary
+    ? summary.byMethod.reduce((acc, m) => Math.max(acc, Math.abs(m.t)), 0)
+    : 0;
   const alertsOk =
     summary != null && summary.alerts.integrity === "ok" && summary.alerts.lastBackup != null;
+
+  /** Ventes du jour ; null = aujourd'hui hors période filtrée (jamais un « 0 » trompeur). */
+  const todayMinor =
+    summary != null && from <= todayUtcDate() && todayUtcDate() <= to
+      ? (summary.daily.find((d) => d.d === todayUtcDate())?.t ?? 0)
+      : null;
+  const todayAnimated = useCountUp(todayMinor ?? 0);
+
   const categoryRows = summary?.byCategory ?? [];
   const visibleCategories =
     categoryFilter === "all"
@@ -674,6 +581,62 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
     }),
     { salesMinor: 0, returnsMinor: 0, profitMinor: 0 },
   );
+  const maxCategoryMinor = visibleCategories.reduce(
+    (acc, c) => Math.max(acc, Math.abs(c.salesMinor)),
+    0,
+  );
+
+  /** Le lien n'est proposé que si la coquille admet réellement le module. */
+  function link(module: ModuleId): (() => void) | undefined {
+    if (!onNavigate || canNavigate?.(module) === false) return undefined;
+    return () => onNavigate(module);
+  }
+
+  const alertItems: AlertItem[] = [];
+  if (summary) {
+    const push = (
+      on: boolean,
+      key: string,
+      text: string,
+      tone: "amber" | "red",
+      module: ModuleId,
+    ): void => {
+      if (on) alertItems.push({ key, text, tone, onClick: link(module) });
+    };
+    push(
+      summary.overdueCount > 0,
+      "overdue",
+      `${summary.overdueCount} échéance(s) dépassée(s)`,
+      "red",
+      "debts",
+    );
+    push(summary.stock.out > 0, "out", `${summary.stock.out} rupture(s) de stock`, "red", "stock");
+    push(
+      summary.stock.low > 0,
+      "low",
+      `${summary.stock.low} article(s) sous le seuil`,
+      "amber",
+      "stock",
+    );
+    push(summary.alerts.lastBackup == null, "backup", "Aucune sauvegarde", "amber", "settings");
+    push(
+      summary.alerts.integrity !== "ok",
+      "integrity",
+      `Base : ${summary.alerts.integrity}`,
+      "red",
+      "settings",
+    );
+  }
+
+  /** Période sans aucune opération : ni mur de zéros, ni tableaux vides. */
+  const quiet =
+    summary != null &&
+    k != null &&
+    k.salesCount === 0 &&
+    k.returnsCount === 0 &&
+    k.purchasesCount === 0 &&
+    k.expensesCount === 0 &&
+    summary.byMethod.length === 0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -681,7 +644,11 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
         title="Tableau de bord"
         period={
           summary
-            ? `Période analytique : ${formatDateFr(summary.from)} au ${formatDateFr(summary.to)} · Net des avoirs et retours caisse`
+            ? `Période analytique : ${formatDateFr(summary.from)} au ${formatDateFr(summary.to)} · Net des avoirs et retours caisse` +
+              // Le rythme du jour n'a de sens que si aujourd'hui est dans la période.
+              (todayMinor == null
+                ? ""
+                : ` · Ventes du jour : ${formatDzdTotalSigned(todayAnimated)}`)
             : "Vue d'ensemble — synthèse d'activité"
         }
         actions={
@@ -717,7 +684,7 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
 
       {!summary || !k ? (
         loadError ? (
-          <ErrorState message={loadError} />
+          <ErrorState message={loadError} onRetry={() => void load()} />
         ) : loading ? (
           <EmptyState title="Chargement…" hint="Calcul des indicateurs en cours." />
         ) : (
@@ -728,526 +695,479 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
         )
       ) : (
         <>
-          <TodayStrip
-            salesMinor={
-              from <= todayUtcDate() && todayUtcDate() <= to
-                ? (summary.daily.find((d) => d.d === todayUtcDate())?.t ?? 0)
-                : -1
-            }
-            overdue={summary.overdueCount}
-            out={summary.stock.out}
-          />
+          {alertItems.length > 0 ? <AlertBand items={alertItems} /> : null}
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Kpi
-              label="Ventes nettes"
-              value={formatDzdTotalSigned(k.salesMinor)}
-              sub={`${k.salesCount} facture(s) · ${k.returnsCount} retour(s) · ${summary.comparison.deltaPercent >= 0 ? "+" : ""}${summary.comparison.deltaPercent} % vs précédente`}
-              accent="#fbbf24"
-              icon={<TrendingUp size={16} className="text-amber-300" aria-hidden="true" />}
-            />
-            <Kpi
-              label="Marge brute"
-              value={formatDzdTotalSigned(k.profitMinor)}
-              sub={`${PCT_FR.format(marginPct)} % des ventes nettes · net des retours`}
-              accent="#4edea3"
-              icon={<Percent size={16} className="text-emerald-300" aria-hidden="true" />}
-            />
-            <Kpi
-              label="Trésorerie globale"
-              value={formatDzdTotalSigned(k.cashMinor)}
-              sub="Encaissé − remboursements − décaissé"
-              accent="#6ffbbe"
-              icon={<Wallet size={16} className="text-emerald-300" aria-hidden="true" />}
-            />
-            <Kpi
-              label="Créances clients"
-              value={formatDzdTotal(k.customerDebtMinor)}
-              sub="Instantané global · comptes avec solde"
-              accent="#ffb4ab"
-              icon={<HandCoins size={16} className="text-red-300" aria-hidden="true" />}
-            />
-          </div>
-
-          <Card className="grid grid-cols-2 gap-px overflow-hidden bg-white/[0.06] p-0 lg:grid-cols-4">
-            <MiniMetric
-              label="Achats nets"
-              value={formatDzdTotal(k.purchasesMinor)}
-              sub={`${k.purchasesCount} réception(s)`}
-              icon={<ShoppingCart size={15} aria-hidden="true" />}
-              tone="text-sky-300"
-            />
-            <MiniMetric
-              label="Dépenses caisse"
-              value={formatDzdTotal(k.expensesMinor)}
-              sub={`${k.expensesCount} charge(s)`}
-              icon={<ReceiptText size={15} aria-hidden="true" />}
-              tone="text-red-300"
-            />
-            <MiniMetric
-              label="Dettes fournisseurs"
-              value={formatDzdTotal(k.supplierDebtMinor)}
-              sub="Solde dû"
-              icon={<CreditCard size={15} aria-hidden="true" />}
-              tone="text-amber-300"
-            />
-            <MiniMetric
-              label="Valeur stock"
-              value={formatDzdTotal(k.stockValueMinor)}
-              sub="Valorisation FIFO"
-              icon={<Package size={15} aria-hidden="true" />}
-              tone="text-sky-300"
-            />
-          </Card>
-
-          {!alertsOk ? (
-            <Card className="flex flex-wrap items-start gap-3 border-amber-400/30 bg-amber-400/[0.06] p-3.5">
-              <AlertTriangle
-                size={17}
-                aria-hidden="true"
-                className="mt-0.5 shrink-0 text-amber-300"
+          {quiet ? (
+            <Card className="p-2">
+              <EmptyState
+                title="Aucune activité sur la période"
+                hint="Aucune vente, achat, retour ni dépense entre les deux dates. Utilisez un raccourci de période, ou changez de dates."
               />
-              <div className="min-w-0 text-xs text-amber-100/90">
-                <strong className="block text-sm text-amber-100">Vigilance système</strong>
-                <p className="mt-0.5 leading-relaxed">
-                  {summary.alerts.lastBackup == null
-                    ? "Aucune sauvegarde : créez-en une (Paramètres → Sauvegarde)."
-                    : `Dernière sauvegarde : ${formatDateTimeFr(summary.alerts.lastBackup)}.`}{" "}
-                  {summary.alerts.integrity === "ok"
-                    ? "Base saine."
-                    : `Base : ${summary.alerts.integrity} — restaurez une sauvegarde.`}
-                </p>
-              </div>
             </Card>
-          ) : null}
-
-          <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
-            <Card className="space-y-2 p-4">
-              <BarChart
-                title="Ventes par jour"
-                labels={summary.daily.map((d) => d.d)}
-                series={[
-                  { label: "Ventes", values: summary.daily.map((d) => d.t), color: "#4edea3" },
+          ) : (
+            <>
+              <StatsStrip
+                items={[
+                  {
+                    label: "Ventes nettes",
+                    value: formatDzdTotalSigned(k.salesMinor),
+                    sub: `${k.salesCount} facture(s) · ${k.returnsCount} retour(s) · ${
+                      summary.comparison.deltaPercent >= 0 ? "+" : ""
+                    }${summary.comparison.deltaPercent} % vs précédente`,
+                    tone: "amber",
+                  },
+                  {
+                    label: "Marge brute",
+                    value: formatDzdTotalSigned(k.profitMinor),
+                    sub: `${PCT_FR.format(marginPct)} % des ventes · coût ${formatDzdTotal(costOfSalesMinor)}`,
+                    tone: k.profitMinor < 0 ? "red" : "green",
+                  },
+                  {
+                    label: "Bénéfice net",
+                    value: formatDzdTotalSigned(netProfitMinor),
+                    sub: "marge brute − dépenses caisse",
+                    tone: netProfitMinor < 0 ? "red" : "green",
+                  },
+                  {
+                    label: "Trésorerie globale",
+                    value: formatDzdTotalSigned(k.cashMinor),
+                    sub: "Encaissé − remboursements − décaissé",
+                    tone: k.cashMinor < 0 ? "red" : "default",
+                  },
                 ]}
               />
-              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-2 text-xs text-slate-500">
-                <span>
-                  Période précédente : {formatDzdTotalSigned(summary.comparison.prevSalesMinor)}
-                </span>
-                <Badge tone={summary.comparison.deltaPercent >= 0 ? "green" : "red"}>
-                  {summary.comparison.deltaPercent >= 0 ? "+" : ""}
-                  {summary.comparison.deltaPercent} % vs précédente
-                </Badge>
-              </div>
-            </Card>
 
-            <Card className="space-y-3 p-4">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h3 className="text-sm font-extrabold">Encaissements par moyen</h3>
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    Réels − remboursements. Une vente à crédit ne compte que sa part payée.
-                  </p>
-                </div>
-                <Wallet size={17} aria-hidden="true" className="shrink-0 text-amber-300" />
+              <StatsStrip
+                columns={5}
+                items={[
+                  {
+                    label: "Créances clients",
+                    value: formatDzdTotal(k.customerDebtMinor),
+                    sub: "Instantané global · comptes avec solde",
+                    tone: k.customerDebtMinor > 0 ? "amber" : "default",
+                  },
+                  {
+                    label: "Dettes fournisseurs",
+                    value: formatDzdTotal(k.supplierDebtMinor),
+                    sub: "Solde dû",
+                    tone: k.supplierDebtMinor > 0 ? "blue" : "default",
+                  },
+                  {
+                    label: "Valeur stock",
+                    value: formatDzdTotal(k.stockValueMinor),
+                    sub: "Valorisation FIFO",
+                  },
+                  {
+                    label: "Achats nets",
+                    value: formatDzdTotal(k.purchasesMinor),
+                    sub: `${k.purchasesCount} réception(s)`,
+                  },
+                  {
+                    label: "Dépenses caisse",
+                    value: formatDzdTotal(k.expensesMinor),
+                    sub: `${k.expensesCount} charge(s)`,
+                  },
+                ]}
+              />
+
+              <div className="grid items-start gap-4 xl:grid-cols-[1.5fr_1fr]">
+                <Card className="space-y-2 p-4">
+                  <BarChart
+                    title="Ventes par jour"
+                    labels={summary.daily.map((d) => d.d)}
+                    series={[
+                      { label: "Ventes", values: summary.daily.map((d) => d.t), color: "#4edea3" },
+                    ]}
+                  />
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-2 text-xs text-slate-500">
+                    <span>
+                      Période précédente : {formatDzdTotalSigned(summary.comparison.prevSalesMinor)}
+                    </span>
+                    <Badge tone={summary.comparison.deltaPercent >= 0 ? "green" : "red"}>
+                      {summary.comparison.deltaPercent >= 0 ? "+" : ""}
+                      {summary.comparison.deltaPercent} % vs précédente
+                    </Badge>
+                  </div>
+                </Card>
+
+                <Card className="space-y-3 p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h3 className="text-sm font-extrabold">Encaissements par moyen</h3>
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        Réels − remboursements. Une vente à crédit ne compte que sa part payée.
+                      </p>
+                    </div>
+                    <Wallet size={17} aria-hidden="true" className="shrink-0 text-amber-300" />
+                  </div>
+                  {summary.byMethod.length === 0 ? (
+                    <p className="text-xs text-slate-500">Aucun encaissement.</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {summary.byMethod.map((m) => (
+                        <div key={m.method} className="text-sm">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="flex min-w-0 items-center gap-2">
+                              <span
+                                aria-hidden="true"
+                                className={cn("h-2 w-2 shrink-0 rounded-full", methodDot(m.method))}
+                              />
+                              <span className="truncate">{paymentMethodLabel(m.method)}</span>
+                            </span>
+                            <span className="flex shrink-0 items-center gap-3">
+                              <span className="text-xs text-slate-500">{m.n}</span>
+                              <strong
+                                className={cn(
+                                  "tabular-nums",
+                                  m.t < 0 ? "text-red-300" : "text-slate-100",
+                                )}
+                              >
+                                {formatDzdTotalSigned(m.t)}
+                              </strong>
+                            </span>
+                          </div>
+                          <ShareBar
+                            share={maxMethodMinor > 0 ? Math.abs(m.t) / maxMethodMinor : 0}
+                            tone={m.t < 0 ? "bg-red-400" : "bg-emerald-400"}
+                          />
+                        </div>
+                      ))}
+                      <div className="flex justify-between border-t-2 border-white/15 pt-2 text-sm font-extrabold">
+                        <span>Total net</span>
+                        <span className="tabular-nums">
+                          {formatDzdTotalSigned(netPaymentsMinor)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </Card>
               </div>
-              {summary.byMethod.length === 0 ? (
-                <p className="text-xs text-slate-500">Aucun encaissement.</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {summary.byMethod.map((m) => (
-                    <div
-                      key={m.method}
-                      className="flex items-center justify-between gap-2 border-t border-white/[0.06] pt-1.5 text-sm"
-                    >
-                      <span className="flex min-w-0 items-center gap-2">
-                        <span
-                          aria-hidden="true"
-                          className={cn("h-2 w-2 shrink-0 rounded-full", methodDot(m.method))}
-                        />
-                        <span className="truncate">{paymentMethodLabel(m.method)}</span>
-                      </span>
-                      <span className="flex shrink-0 items-center gap-3">
-                        <span className="text-xs text-slate-500">{m.n}</span>
-                        <strong
+
+              <div className="grid items-start gap-4 xl:grid-cols-[1.5fr_1fr]">
+                <Card className="space-y-3 p-4">
+                  <div className="flex flex-wrap items-end justify-between gap-3">
+                    <div>
+                      <h3 className="flex items-center gap-2 text-sm font-extrabold">
+                        <Tags size={15} aria-hidden="true" className="text-amber-300" />
+                        Ventes et marge par catégorie
+                      </h3>
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        Articles, hors livraison · net des retours
+                      </p>
+                    </div>
+                    <label className="text-xs text-slate-400">
+                      Catégorie
+                      <Select
+                        aria-label="Filtrer par catégorie"
+                        value={categoryFilter}
+                        onChange={(e) => setCategoryFilter(e.target.value)}
+                        className="mt-1 w-52"
+                      >
+                        <option value="all">Toutes les catégories</option>
+                        {categoryRows.map((c) => (
+                          <option key={c.id ?? "none"} value={c.id == null ? "none" : String(c.id)}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+                  </div>
+                  {visibleCategories.length === 0 ? (
+                    <p className="text-xs text-slate-500">Aucune vente sur cette catégorie.</p>
+                  ) : (
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-[11px] uppercase tracking-wide text-slate-500">
+                          <th className="pb-1 text-left font-bold">Catégorie</th>
+                          <th className="pb-1 text-right font-bold">Ventes nettes</th>
+                          <th className="pb-1 text-right font-bold">Retours</th>
+                          <th className="pb-1 text-right font-bold">Marge</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {visibleCategories.map((c) => (
+                          <tr key={c.id ?? "none"} className="border-t border-white/[0.06]">
+                            <td className="max-w-[260px] truncate py-1.5 pr-3">{c.name}</td>
+                            <td className="py-1.5 text-right font-bold tabular-nums">
+                              {formatDzdTotalSigned(c.salesMinor)}
+                              <ShareBar
+                                share={
+                                  maxCategoryMinor > 0
+                                    ? Math.abs(c.salesMinor) / maxCategoryMinor
+                                    : 0
+                                }
+                                tone={c.salesMinor < 0 ? "bg-red-400" : "bg-amber-400"}
+                              />
+                            </td>
+                            <td className="py-1.5 text-right tabular-nums text-slate-400">
+                              {formatDzdTotal(c.returnsMinor)}
+                            </td>
+                            <td
+                              className={cn(
+                                "py-1.5 text-right font-bold tabular-nums",
+                                c.profitMinor < 0 ? "text-red-300" : "text-emerald-300",
+                              )}
+                            >
+                              {formatDzdTotalSigned(c.profitMinor)}
+                            </td>
+                          </tr>
+                        ))}
+                        <tr className="border-t-2 border-white/15 font-extrabold">
+                          <td className="py-1.5">Total</td>
+                          <td className="py-1.5 text-right tabular-nums">
+                            {formatDzdTotalSigned(categoryTotals.salesMinor)}
+                          </td>
+                          <td className="py-1.5 text-right tabular-nums">
+                            {formatDzdTotal(categoryTotals.returnsMinor)}
+                          </td>
+                          <td
+                            className={cn(
+                              "py-1.5 text-right tabular-nums",
+                              categoryTotals.profitMinor < 0 ? "text-red-300" : "text-emerald-300",
+                            )}
+                          >
+                            {formatDzdTotalSigned(categoryTotals.profitMinor)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  )}
+                </Card>
+
+                <Card className="space-y-2 p-4">
+                  <h3 className="text-sm font-extrabold">5 meilleures rotations</h3>
+                  {summary.fastMoving.length === 0 ? (
+                    <p className="text-xs text-slate-500">Aucune vente.</p>
+                  ) : (
+                    <table className="w-full text-sm">
+                      <tbody>
+                        {summary.fastMoving.map((p) => (
+                          <tr key={p.name} className="border-t border-white/[0.06]">
+                            <td className="max-w-[220px] truncate py-1.5">{p.name}</td>
+                            <td className="py-1.5 text-right tabular-nums text-slate-400">
+                              {p.qty}
+                            </td>
+                            <td className="py-1.5 text-right font-bold tabular-nums">
+                              {formatDzdTotalSigned(p.total)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </Card>
+              </div>
+
+              <Card className="overflow-hidden p-0">
+                <div className="flex flex-wrap items-center gap-1 border-b border-white/10 p-2">
+                  <span className="px-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                    Détails
+                  </span>
+                  <div
+                    role="tablist"
+                    aria-label="Détails du tableau de bord"
+                    className="flex flex-wrap gap-1"
+                  >
+                    {DETAIL_TABS.map((tab) => {
+                      const Icon = tab.icon;
+                      const selected = detailsTab === tab.id;
+                      const alertCount =
+                        tab.id === "stock"
+                          ? summary.stock.low + summary.stock.out + summary.overdueCount
+                          : 0;
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          role="tab"
+                          aria-selected={selected}
+                          onClick={() => setDetailsTab(tab.id)}
                           className={cn(
-                            "tabular-nums",
-                            m.t < 0 ? "text-red-300" : "text-slate-100",
+                            "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors",
+                            selected
+                              ? "bg-amber-400/15 text-amber-200"
+                              : "text-slate-400 hover:bg-white/[0.06] hover:text-white",
                           )}
                         >
-                          {formatDzdTotalSigned(m.t)}
-                        </strong>
-                      </span>
-                    </div>
-                  ))}
-                  <div className="flex justify-between border-t-2 border-white/15 pt-2 text-sm font-extrabold">
-                    <span>Total net</span>
-                    <span className="tabular-nums">{formatDzdTotalSigned(netPaymentsMinor)}</span>
+                          <Icon size={13} aria-hidden="true" />
+                          {tab.label}
+                          {alertCount > 0 ? (
+                            <span className="rounded-full bg-amber-400/20 px-1.5 text-[10px] text-amber-200">
+                              {alertCount}
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
-              )}
-            </Card>
-          </div>
 
-          <Card className="space-y-3 p-4">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <h3 className="flex items-center gap-2 text-sm font-extrabold">
-                  <Tags size={15} aria-hidden="true" className="text-amber-300" />
-                  Ventes et marge par catégorie
-                </h3>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  Articles, hors livraison · net des retours
-                </p>
-              </div>
-              <label className="text-xs text-slate-400">
-                Catégorie
-                <Select
-                  aria-label="Filtrer par catégorie"
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="mt-1 w-52"
-                >
-                  <option value="all">Toutes les catégories</option>
-                  {categoryRows.map((c) => (
-                    <option key={c.id ?? "none"} value={c.id == null ? "none" : String(c.id)}>
-                      {c.name}
-                    </option>
-                  ))}
-                </Select>
-              </label>
-            </div>
-            {visibleCategories.length === 0 ? (
-              <p className="text-xs text-slate-500">Aucune vente sur cette catégorie.</p>
-            ) : (
-              <div className="max-h-80 overflow-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-[11px] uppercase tracking-wide text-slate-500">
-                      <th className="pb-1 text-left font-bold">Catégorie</th>
-                      <th className="pb-1 text-right font-bold">Ventes nettes</th>
-                      <th className="pb-1 text-right font-bold">Retours</th>
-                      <th className="pb-1 text-right font-bold">Marge</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visibleCategories.map((c) => (
-                      <tr key={c.id ?? "none"} className="border-t border-white/[0.06]">
-                        <td className="max-w-[260px] truncate py-1.5">{c.name}</td>
-                        <td className="py-1.5 text-right font-bold tabular-nums">
-                          {formatDzdTotalSigned(c.salesMinor)}
-                        </td>
-                        <td className="py-1.5 text-right tabular-nums text-slate-400">
-                          {formatDzdTotal(c.returnsMinor)}
-                        </td>
-                        <td
-                          className={cn(
-                            "py-1.5 text-right font-bold tabular-nums",
-                            c.profitMinor < 0 ? "text-red-300" : "text-emerald-300",
-                          )}
-                        >
-                          {formatDzdTotalSigned(c.profitMinor)}
-                        </td>
-                      </tr>
-                    ))}
-                    <tr className="border-t-2 border-white/15 font-extrabold">
-                      <td className="py-1.5">Total</td>
-                      <td className="py-1.5 text-right tabular-nums">
-                        {formatDzdTotalSigned(categoryTotals.salesMinor)}
-                      </td>
-                      <td className="py-1.5 text-right tabular-nums">
-                        {formatDzdTotal(categoryTotals.returnsMinor)}
-                      </td>
-                      <td
-                        className={cn(
-                          "py-1.5 text-right tabular-nums",
-                          categoryTotals.profitMinor < 0 ? "text-red-300" : "text-emerald-300",
-                        )}
+                <div className="p-4">
+                  {detailsTab === "stock" ? (
+                    <div className="grid gap-x-8 gap-y-5 xl:grid-cols-2">
+                      <DetailSection
+                        title={`Stock sous seuil (${summary.stock.low})`}
+                        hint={`${summary.stock.out} rupture(s)`}
                       >
-                        {formatDzdTotalSigned(categoryTotals.profitMinor)}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Card>
+                        {summary.stock.lowRows.length === 0 ? (
+                          <p className="text-xs text-slate-500">Aucune alerte.</p>
+                        ) : (
+                          <table className="w-full text-sm">
+                            <tbody>
+                              {summary.stock.lowRows.map((p) => (
+                                <tr key={p.id} className="border-t border-white/[0.06]">
+                                  <td className="max-w-[220px] truncate py-1.5">{p.name}</td>
+                                  <td className="py-1.5 text-right tabular-nums text-red-300">
+                                    {p.quantity}
+                                  </td>
+                                  <td className="py-1.5 text-right tabular-nums text-slate-500">
+                                    min {p.min_stock_level}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </DetailSection>
 
-          <Card className="overflow-hidden p-0">
-            <div className="flex flex-wrap items-center gap-1 border-b border-white/10 p-2">
-              <span className="px-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
-                Détails
-              </span>
-              <div
-                role="tablist"
-                aria-label="Détails du tableau de bord"
-                className="flex flex-wrap gap-1"
-              >
-                {DETAIL_TABS.map((tab) => {
-                  const Icon = tab.icon;
-                  const selected = detailsTab === tab.id;
-                  const alertCount =
-                    tab.id === "stock"
-                      ? summary.stock.low + summary.stock.out + summary.overdueCount
-                      : 0;
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={selected}
-                      onClick={() => setDetailsTab(tab.id)}
-                      className={cn(
-                        "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors",
-                        selected
-                          ? "bg-amber-400/15 text-amber-200"
-                          : "text-slate-400 hover:bg-white/[0.06] hover:text-white",
-                      )}
-                    >
-                      <Icon size={13} aria-hidden="true" />
-                      {tab.label}
-                      {alertCount > 0 ? (
-                        <span className="rounded-full bg-amber-400/20 px-1.5 text-[10px] text-amber-200">
-                          {alertCount}
-                        </span>
+                      <DetailSection title="Dettes" hint="top 5 par échéance">
+                        <h4 className="text-xs font-bold text-slate-400">
+                          En retard ({summary.overdueCount})
+                        </h4>
+                        {summary.overdueCount === 0 ? (
+                          <p className="text-xs text-slate-500">Aucune échéance dépassée.</p>
+                        ) : (
+                          <table className="w-full text-sm">
+                            <tbody>
+                              {summary.overdue.map((d) => (
+                                <tr
+                                  key={`${d.kind}-${d.ref}`}
+                                  className="border-t border-white/[0.06]"
+                                >
+                                  <td className="max-w-[180px] truncate py-1.5">{d.party}</td>
+                                  <td className="py-1.5 font-mono text-xs text-slate-400">
+                                    {d.ref}
+                                  </td>
+                                  <td className="py-1.5 text-right font-bold tabular-nums text-red-300">
+                                    {formatDzdTotal(d.remaining)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                        {summary.upcomingCount > 0 ? (
+                          <>
+                            <h4 className="pt-2 text-xs font-bold text-slate-400">
+                              Échéances 7 jours ({summary.upcomingCount})
+                            </h4>
+                            <table className="w-full text-sm">
+                              <tbody>
+                                {summary.upcoming.map((d) => (
+                                  <tr
+                                    key={`${d.kind}-${d.ref}`}
+                                    className="border-t border-white/[0.06]"
+                                  >
+                                    <td className="max-w-[180px] truncate py-1.5">{d.party}</td>
+                                    <td className="py-1.5 tabular-nums text-slate-400">
+                                      {formatDateFr(d.due)}
+                                    </td>
+                                    <td className="py-1.5 text-right font-bold tabular-nums">
+                                      {formatDzdTotal(d.remaining)}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </>
+                        ) : null}
+                      </DetailSection>
+                    </div>
+                  ) : null}
+
+                  {detailsTab === "activity" ? (
+                    <div className="grid gap-x-8 gap-y-5 xl:grid-cols-2">
+                      {summary.recent.sales.length > 0 ? (
+                        <DetailSection title="Dernières ventes">
+                          {summary.recent.sales.map((s) => (
+                            <RecentRow
+                              key={s.id}
+                              left={s.invoice_number}
+                              mid={s.party}
+                              right={formatDzdTotal(s.total_minor)}
+                              sub={formatDateTimeFr(s.created_at)}
+                            />
+                          ))}
+                        </DetailSection>
                       ) : null}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="p-4">
-              {detailsTab === "finance" ? (
-                <div className="grid gap-4 xl:grid-cols-2">
-                  <Card className="space-y-2 p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <h3 className="text-sm font-extrabold">Revenus / Dépenses / Marge</h3>
-                      <Badge tone={netProfitMinor >= 0 ? "green" : "red"}>
-                        Net {formatDzdTotalSigned(netProfitMinor)}
-                      </Badge>
-                    </div>
-                    <dl className="mt-2 space-y-1.5 text-sm">
-                      <div className="flex justify-between">
-                        <dt className="text-slate-500">Revenus (ventes nettes)</dt>
-                        <dd className="font-bold tabular-nums">
-                          {formatDzdTotalSigned(k.salesMinor)}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between">
-                        <dt className="text-slate-500">Dépenses</dt>
-                        <dd className="font-bold tabular-nums">
-                          {formatDzdTotal(k.expensesMinor)}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between border-t border-white/10 pt-1.5">
-                        <dt className="font-extrabold">Bénéfice brut</dt>
-                        <dd className="font-extrabold tabular-nums text-amber-300">
-                          {formatDzdTotalSigned(k.profitMinor)}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between">
-                        <dt className="text-slate-500">Bénéfice net (brut − dépenses)</dt>
-                        <dd className="font-bold tabular-nums">
-                          {formatDzdTotalSigned(netProfitMinor)}
-                        </dd>
-                      </div>
-                    </dl>
-                  </Card>
-
-                  <Card className="space-y-2 p-4">
-                    <h3 className="text-sm font-extrabold">5 meilleures rotations</h3>
-                    {summary.fastMoving.length === 0 ? (
-                      <p className="text-xs text-slate-500">Aucune vente.</p>
-                    ) : (
-                      <table className="w-full text-sm">
-                        <tbody>
-                          {summary.fastMoving.map((p) => (
-                            <tr key={p.name} className="border-t border-white/[0.06]">
-                              <td className="max-w-[220px] truncate py-1.5">{p.name}</td>
-                              <td className="py-1.5 text-right tabular-nums text-slate-400">
-                                {p.qty}
-                              </td>
-                              <td className="py-1.5 text-right font-bold tabular-nums">
-                                {formatDzdTotalSigned(p.total)}
-                              </td>
-                            </tr>
+                      {summary.recent.payments.length > 0 ? (
+                        <DetailSection title="Derniers paiements">
+                          {summary.recent.payments.map((p, i) => (
+                            <RecentRow
+                              key={`${p.payment_date}-${p.party}-${p.amount_minor}-${p.method}-${i}`}
+                              left={p.dir === "in" ? "Encaissé" : "Payé"}
+                              mid={p.party}
+                              right={formatDzdTotal(p.amount_minor)}
+                              sub={`${formatDateFr(p.payment_date)} · ${paymentMethodLabel(p.method)}`}
+                            />
                           ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </Card>
-                </div>
-              ) : null}
-
-              {detailsTab === "stock" ? (
-                <div className="grid gap-4 xl:grid-cols-2">
-                  <Card className="space-y-2 p-4">
-                    <h3 className="text-sm font-extrabold">
-                      Stock bas ({summary.stock.low}) · Ruptures ({summary.stock.out})
-                    </h3>
-                    {summary.stock.lowRows.length === 0 ? (
-                      <p className="text-xs text-slate-500">Aucune alerte.</p>
-                    ) : (
-                      <table className="w-full text-sm">
-                        <tbody>
-                          {summary.stock.lowRows.map((p) => (
-                            <tr key={p.id} className="border-t border-white/[0.06]">
-                              <td className="max-w-[220px] truncate py-1.5">{p.name}</td>
-                              <td className="py-1.5 text-right tabular-nums text-red-300">
-                                {p.quantity}
-                              </td>
-                              <td className="py-1.5 text-right tabular-nums text-slate-500">
-                                min {p.min_stock_level}
-                              </td>
-                            </tr>
+                        </DetailSection>
+                      ) : null}
+                      {summary.recent.purchases.length > 0 ? (
+                        <DetailSection title="Derniers achats">
+                          {summary.recent.purchases.map((p) => (
+                            <RecentRow
+                              key={p.id}
+                              left={p.ref}
+                              mid={p.party}
+                              right={formatDzdTotal(p.total_minor)}
+                              sub={formatDateFr(p.created_at)}
+                            />
                           ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </Card>
-
-                  <Card className="space-y-2 p-4">
-                    <h3 className="text-sm font-extrabold">Dettes</h3>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-500">Créances clients</span>
-                      <strong className="tabular-nums">
-                        {formatDzdTotal(k.customerDebtMinor)}
-                      </strong>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-500">Dettes fournisseurs</span>
-                      <strong className="tabular-nums">
-                        {formatDzdTotal(k.supplierDebtMinor)}
-                      </strong>
-                    </div>
-                    <h3 className="pt-1 text-sm font-extrabold">
-                      En retard ({summary.overdueCount}) — top 5
-                    </h3>
-                    {summary.overdueCount === 0 ? (
-                      <p className="text-xs text-slate-500">Aucune échéance dépassée.</p>
-                    ) : (
-                      <table className="w-full text-sm">
-                        <tbody>
-                          {summary.overdue.map((d) => (
-                            <tr key={`${d.kind}-${d.ref}`} className="border-t border-white/[0.06]">
-                              <td className="max-w-[180px] truncate py-1.5">{d.party}</td>
-                              <td className="py-1.5 font-mono text-xs text-slate-400">{d.ref}</td>
-                              <td className="py-1.5 text-right font-bold tabular-nums text-red-300">
-                                {formatDzdTotal(d.remaining)}
-                              </td>
-                            </tr>
+                        </DetailSection>
+                      ) : null}
+                      {summary.recent.returns.length > 0 ? (
+                        <DetailSection title="Derniers retours">
+                          {summary.recent.returns.map((r) => (
+                            <RecentRow
+                              key={`${r.kind}-${r.ref}`}
+                              left={r.ref}
+                              mid={r.kind === "client" ? "Client" : "Fournisseur"}
+                              right={formatDzdTotal(r.total)}
+                              sub={formatDateFr(r.created_at)}
+                            />
                           ))}
-                        </tbody>
-                      </table>
-                    )}
-                    {summary.upcomingCount > 0 ? (
-                      <>
-                        <h3 className="pt-1 text-sm font-extrabold">
-                          Échéances 7 jours ({summary.upcomingCount}) — top 5
-                        </h3>
-                        <table className="w-full text-sm">
-                          <tbody>
-                            {summary.upcoming.map((d) => (
-                              <tr
-                                key={`${d.kind}-${d.ref}`}
-                                className="border-t border-white/[0.06]"
-                              >
-                                <td className="max-w-[180px] truncate py-1.5">{d.party}</td>
-                                <td className="py-1.5 tabular-nums text-slate-400">
-                                  {formatDateFr(d.due)}
-                                </td>
-                                <td className="py-1.5 text-right font-bold tabular-nums">
-                                  {formatDzdTotal(d.remaining)}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </>
-                    ) : null}
-                  </Card>
+                        </DetailSection>
+                      ) : null}
+                      {summary.recent.expenses.length > 0 ? (
+                        <DetailSection title="Dernières dépenses">
+                          {summary.recent.expenses.map((e) => (
+                            <RecentRow
+                              key={e.id}
+                              left={e.description}
+                              mid={e.category}
+                              right={formatDzdTotal(e.amount_minor)}
+                              sub={formatDateFr(e.expense_date)}
+                            />
+                          ))}
+                        </DetailSection>
+                      ) : null}
+                      {summary.recent.sales.length +
+                        summary.recent.payments.length +
+                        summary.recent.purchases.length +
+                        summary.recent.returns.length +
+                        summary.recent.expenses.length ===
+                      0 ? (
+                        <p className="text-xs text-slate-500">
+                          Aucune opération récente sur cette période.
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
-              ) : null}
-
-              {detailsTab === "activity" ? (
-                <div className="grid gap-4 xl:grid-cols-2">
-                  <RecentCard
-                    title="Dernières ventes"
-                    icon={<ShoppingBag size={14} aria-hidden="true" />}
-                  >
-                    {summary.recent.sales.map((s) => (
-                      <RecentRow
-                        key={s.id}
-                        left={s.invoice_number}
-                        mid={s.party}
-                        right={formatDzdTotal(s.total_minor)}
-                        sub={formatDateTimeFr(s.created_at)}
-                      />
-                    ))}
-                    {summary.recent.sales.length === 0 ? <EmptyMini /> : null}
-                  </RecentCard>
-                  <RecentCard
-                    title="Derniers paiements"
-                    icon={<Wallet size={14} aria-hidden="true" />}
-                  >
-                    {summary.recent.payments.map((p, i) => (
-                      <RecentRow
-                        key={`${p.payment_date}-${p.party}-${p.amount_minor}-${p.method}-${i}`}
-                        left={p.dir === "in" ? "Encaissé" : "Payé"}
-                        mid={p.party}
-                        right={formatDzdTotal(p.amount_minor)}
-                        sub={`${formatDateFr(p.payment_date)} · ${paymentMethodLabel(p.method)}`}
-                      />
-                    ))}
-                    {summary.recent.payments.length === 0 ? <EmptyMini /> : null}
-                  </RecentCard>
-                  <RecentCard title="Derniers achats" icon={<Truck size={14} aria-hidden="true" />}>
-                    {summary.recent.purchases.map((p) => (
-                      <RecentRow
-                        key={p.id}
-                        left={p.ref}
-                        mid={p.party}
-                        right={formatDzdTotal(p.total_minor)}
-                        sub={formatDateFr(p.created_at)}
-                      />
-                    ))}
-                    {summary.recent.purchases.length === 0 ? <EmptyMini /> : null}
-                  </RecentCard>
-                  <RecentCard
-                    title="Derniers retours"
-                    icon={<Undo2 size={14} aria-hidden="true" />}
-                  >
-                    {summary.recent.returns.map((r) => (
-                      <RecentRow
-                        key={`${r.kind}-${r.ref}`}
-                        left={r.ref}
-                        mid={r.kind === "client" ? "Client" : "Fournisseur"}
-                        right={formatDzdTotal(r.total)}
-                        sub={formatDateFr(r.created_at)}
-                      />
-                    ))}
-                    {summary.recent.returns.length === 0 ? <EmptyMini /> : null}
-                  </RecentCard>
-                  <RecentCard
-                    title="Dernières dépenses"
-                    icon={<ReceiptText size={14} aria-hidden="true" />}
-                  >
-                    {summary.recent.expenses.map((e) => (
-                      <RecentRow
-                        key={e.id}
-                        left={e.description}
-                        mid={e.category}
-                        right={formatDzdTotal(e.amount_minor)}
-                        sub={formatDateFr(e.expense_date)}
-                      />
-                    ))}
-                    {summary.recent.expenses.length === 0 ? <EmptyMini /> : null}
-                  </RecentCard>
-                </div>
-              ) : null}
-            </div>
-          </Card>
+              </Card>
+            </>
+          )}
 
           {alertsOk ? (
             <p className="px-1 text-[11px] text-slate-500">
@@ -1259,35 +1179,35 @@ export function DashboardScreen({ notify }: { notify: Notify }): React.JSX.Eleme
               {summary.alerts.lastBackup ? formatDateTimeFr(summary.alerts.lastBackup) : "—"}.
             </p>
           ) : null}
-
-          {preview ? (
-            <Modal
-              label="Aperçu rapport"
-              title="Rapport — aperçu A4"
-              onClose={() => setPreview(null)}
-              wide
-            >
-              <iframe
-                sandbox=""
-                srcDoc={preview.htmlA4}
-                title="Aperçu rapport A4"
-                className="h-[60vh] w-full rounded-xl border border-white/10 bg-white"
-              />
-              <div className="flex gap-2">
-                <Button variant="secondary" onClick={() => setPreview(null)} className="flex-1">
-                  Fermer
-                </Button>
-                <Button variant="secondary" onClick={() => void exportPdfFile()} className="flex-1">
-                  <FileDown size={15} aria-hidden="true" /> PDF
-                </Button>
-                <Button onClick={() => void printPdf()} className="flex-[2]">
-                  Imprimer
-                </Button>
-              </div>
-            </Modal>
-          ) : null}
         </>
       )}
+
+      {preview ? (
+        <Modal
+          label="Aperçu rapport"
+          title="Rapport — aperçu A4"
+          onClose={() => setPreview(null)}
+          wide
+        >
+          <iframe
+            sandbox=""
+            srcDoc={preview.htmlA4}
+            title="Aperçu rapport A4"
+            className="h-[60vh] w-full rounded-xl border border-white/10 bg-white"
+          />
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => setPreview(null)} className="flex-1">
+              Fermer
+            </Button>
+            <Button variant="secondary" onClick={() => void exportPdfFile()} className="flex-1">
+              <FileDown size={15} aria-hidden="true" /> PDF
+            </Button>
+            <Button onClick={() => void printPdf()} className="flex-[2]">
+              Imprimer
+            </Button>
+          </div>
+        </Modal>
+      ) : null}
     </div>
   );
 }

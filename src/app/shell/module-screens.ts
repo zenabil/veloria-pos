@@ -6,8 +6,14 @@ import type { ModuleId, Notify } from "./shell-types.ts";
 
 export type NotifyScreen = ComponentType<{
   notify: Notify;
-  /** Modules autorisés à renvoyer l'opérateur vers la caisse (ADR-139). */
-  onNavigate?: (module: "sell") => void;
+  /** Renvoi de l'opérateur vers un autre module (ADR-139 caisse, ADR-154 alertes). */
+  onNavigate?: (module: ModuleId) => void;
+  /**
+   * Verité du destinataire : la coquille est la seule source de la permission
+   * (staff + licence). Sans elle, une puce cliquable pourrait mener vers un
+   * module refusé et afficher un blocage « licence » pour un refus de rôle.
+   */
+  canNavigate?: (module: ModuleId) => boolean;
 }>;
 
 const ProductsScreen = lazy(() =>

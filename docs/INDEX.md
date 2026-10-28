@@ -159,6 +159,7 @@
 - [ADR-151](./ADR-151-mobile-connexion-directe.md) Client mobile V5 « Connexion directe » : login d'un écran sans clavier, verrou local = règle du serveur, envoi au 6ᵉ chiffre, téléphone mémorisé (zéro dépendance ajoutée)
 - [ADR-152](./ADR-152-mobile-connexion-developpee.md) Client mobile V6 « Connexion développée » : en-tête éditorial sur encre, champ à filet, zone QR-mode d'emploi, retour arrière (identité V4 conservée, A/B/C non retenus)
 - [ADR-153](./ADR-153-purge-dead-code.md) Purge dead-code : lot A (2 canaux IPC morts + façade + branches inatteignables), lot B (8 modules `src/domain` jamais exécutés), lot C (exports test-only triés), lot D refusé (schéma SQLite, aucun `DROP`), duplication reportée
+- [ADR-154](./ADR-154-tableau-de-bord-simplifie.md) Tableau de bord simplifié : 13 surfaces → 8, deux `StatsStrip`, bandeau « À traiter » cliquable et véridique (`canNavigate`), plus de carte dans une carte ni de mur de zéros
 
 ## Ou ecrire quoi
 

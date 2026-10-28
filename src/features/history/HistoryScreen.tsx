@@ -39,6 +39,7 @@ import {
 } from "./types.ts";
 
 import type { Notify } from "@shared/ui/primitives.tsx";
+import type { ModuleId } from "@/app/shell/shell-types.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 
 const PAGE_SIZE = 20;
@@ -58,7 +59,7 @@ export function HistoryScreen({
   onNavigate,
 }: {
   notify: Notify;
-  onNavigate?: (module: "sell") => void;
+  onNavigate?: (module: ModuleId) => void;
 }): React.JSX.Element {
   const [query, setQuery] = useState("");
   const [op, setOp] = useState<HistoryOpFilter>("all");

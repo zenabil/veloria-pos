@@ -31,6 +31,9 @@ test("tableau de bord : période, KPI, onglets de détail et export", async () =
   await page.getByLabel("Nom du produit", { exact: true }).fill(product);
   await page.getByLabel("Prix de vente", { exact: true }).fill("100");
   await page.getByLabel("Stock", { exact: true }).fill("5");
+  // Seuil au-dessus du stock : garantit une alerte déterministe pour le
+  // bandeau « À traiter » testé plus bas (ADR-154).
+  await page.getByLabel("Seuil minimum", { exact: true }).fill("10");
   await page.getByRole("button", { name: "Créer le produit" }).click();
   await readSuccessToast(page, /créé/);
 
@@ -77,4 +80,13 @@ test("tableau de bord : période, KPI, onglets de détail et export", async () =
   await page.locator("summary").filter({ hasText: "Exporter" }).click();
   await expect(page.getByRole("button", { name: "Aperçu PDF" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Excel (CSV)" })).toBeVisible();
+
+  // ADR-154 : le bandeau « À traiter » est une action, pas un texte. La puce
+  // n'est un bouton que si la coquille admet le module cible (licence + rôle).
+  const chip = page.getByRole("button", { name: /sous le seuil/ });
+  await expect(chip).toBeVisible();
+  await chip.click();
+  await expect(
+    page.getByRole("heading", { name: "Gestion des stocks et réceptions" }),
+  ).toBeVisible();
 });

@@ -322,7 +322,11 @@ export function App(): React.JSX.Element {
                   {active === "sell" ? (
                     <SellScreen notify={notify} />
                   ) : ActiveScreen ? (
-                    <ActiveScreen notify={notify} onNavigate={(m) => setActive(m)} />
+                    <ActiveScreen
+                      notify={notify}
+                      onNavigate={(m) => setActive(m)}
+                      canNavigate={moduleAllowed}
+                    />
                   ) : null}
                 </ErrorBoundary>
               </Suspense>
