@@ -22,6 +22,13 @@ Règles verrouillées :
   chiffre**, la frappe et le refus se **ressentent** (haptique), et le dernier
   téléphone saisi est retrouvé à l'ouverture (`veloria.last-phone.v1`, jamais
   le PIN) avec le focus posé sur le code.
+- **Écran de connexion V6 « Connexion développée » (ADR-152)** — identité
+  conservée, composition travaillée : en-tête éditorial sur encre (salut selon
+  l'**même règle que l'accueil**, titre 26, règle dorée), champ téléphone
+  **à filet** (`Field skin="outlined"`) pendant que les cases PIN restent en
+  creux, zone QR en **pointillés qui porte le mode d'emploi**, touche
+  **retour arrière** césurée du bouton « afficher », cercles de filet dans
+  l'encre (`View` pures : rien d'animé, rien de dégradé).
 - Kit partagé `src/ui/` : `Tap` (scale + haptics), `haptic()`, `Card`, `Group`,
   `Divider`,
   `Row`, `Button` (`gold|ink|quiet|outline|ghost|danger|success`), `Chip`,

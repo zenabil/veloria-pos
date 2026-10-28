@@ -527,18 +527,21 @@ export function Field(props: {
   ariaLabel: string;
   mono?: boolean;
   trailing?: React.ReactNode;
+  /** `sunken` (défaut, partout) ou `outlined` : filet V4 sur surface blanche. */
+  skin?: "sunken" | "outlined";
 }): React.JSX.Element {
   const rtl = props.lang === "ar";
+  const outlined = props.skin === "outlined";
   const [focused, setFocused] = useState(false);
   const inner = (
     <View
       style={{
         flexDirection: flow(rtl ? "rtl" : "ltr"),
         alignItems: "center",
-        backgroundColor: focused ? COLORS.cardBg : COLORS.sunkenBg,
+        backgroundColor: focused || outlined ? COLORS.cardBg : COLORS.sunkenBg,
         borderRadius: RADIUS.field,
-        borderWidth: 1.5,
-        borderColor: focused ? COLORS.primary : "transparent",
+        borderWidth: outlined ? 1 : 1.5,
+        borderColor: focused ? COLORS.primary : outlined ? COLORS.border : "transparent",
         paddingHorizontal: SPACE.md,
         minHeight: 52,
         gap: SPACE.sm,

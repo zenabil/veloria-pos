@@ -1,10 +1,12 @@
-// Veloria Client — Écran 01 : connexion V5 « Connexion directe ».
-// Le budget de la V5 est une hauteur d'écran SANS clavier : la marque passe en
-// lockup horizontal, l'aide se replie, le téléphone déjà connu ouvre l'écran
-// directement sur le PIN, et « دخول » se verrouille tant que le code n'a pas 6
-// chiffres (plus d'appel réseau perdu) avec envoi automatique au 6e. Vocabulaire
-// V4 conservé (ADR-150) : surfaces plates, filets, un seul accent or. Aucun
-// texte existant, aucun `aria-label` existant ne bouge — ajout seul.
+// Veloria Client — Écran 01 : connexion V6 « Connexion développée ».
+// La V5 avait mis le budget à plat (un écran sans clavier) ; la V6 développe le
+// dessin SANS changer l'identité : en-tête éditorial sur encre (salut selon
+// l'heure, titre, règle dorée), champ téléphone à filet comme les groupes de
+// la caisse, cases PIN en creux avec caret et retour arrière, zone QR en
+// pointillés qui devient un vrai mode d'emploi, et cercles de filet dans l'encre.
+// Logique V6 inchangée depuis V5 : verrou local = règle du serveur, envoi
+// automatique au 6ᵉ chiffre, haptique, téléphone mémorisé. Aucun texte, aucun
+// `aria-label` existant ne bouge — ajout seul.
 import { useEffect, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -20,7 +22,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { COLORS, FONTS, RADIUS, SIZES, SPACE, TYPE, tint } from "../tokens.ts";
 import { t, type Lang } from "../i18n.ts";
 import { normalizeDigits } from "../format.ts";
-import { Button, Field, flow, farEdge, haptic, Tap } from "../ui/kit.tsx";
+import { Button, Field, flow, farEdge, haptic, IconBubble, Tap } from "../ui/kit.tsx";
 import { QrScannerScreen } from "./QrScanner.tsx";
 
 /** Cases de PIN : l'état actif se lit au filet + un caret doré (où je tape). */
@@ -65,17 +67,52 @@ function PinBoxes(props: { pin: string; lang: Lang; revealed: boolean }): React.
               </Text>
             ) : active ? (
               <View
-                style={{
-                  width: 2,
-                  height: 22,
-                  borderRadius: 1,
-                  backgroundColor: COLORS.primary,
-                }}
+                style={{ width: 2, height: 22, borderRadius: 1, backgroundColor: COLORS.primary }}
               />
             ) : null}
           </View>
         );
       })}
+    </View>
+  );
+}
+
+/**
+ * Cercles de filet dans l'encre : du dessin pur, en `View` (aucun nœud animé —
+ * cf. crash du pont RN 2026-10-04 — et aucun dégradé, `GRADIENTS` est mort en
+ * V4). Ils meurent hors écran, côté marque.
+ */
+function InkRings(props: { rtl: boolean }): React.JSX.Element {
+  const ring = (inset: number, radius: number, color: string): React.JSX.Element => (
+    <View
+      style={{
+        position: "absolute",
+        top: inset,
+        left: inset,
+        right: inset,
+        bottom: inset,
+        borderRadius: radius,
+        borderWidth: 1,
+        borderColor: color,
+      }}
+    />
+  );
+  return (
+    <View
+      style={{
+        position: "absolute",
+        top: -34,
+        width: 236,
+        height: 236,
+        ...(props.rtl ? { right: -78 } : { left: -78 }),
+      }}
+      pointerEvents="none"
+      accessibilityElementsHidden
+      importantForAccessibility="no"
+    >
+      {ring(0, 118, COLORS.navyLine)}
+      {ring(34, 84, COLORS.navyLine)}
+      {ring(70, 48, tint(COLORS.primary, "2E"))}
     </View>
   );
 }
@@ -142,6 +179,10 @@ export function LoginScreen(props: {
   // Bord de LECTURE (droite en arabe) : le texte d'aide et le libellé replié
   // suivent leur icône, ils ne fuient pas vers le bord opposé.
   const startEdge = rtl ? ("right" as const) : ("left" as const);
+  // Même règle de salut que l'accueil (D12) : le login et l'accueil parlent
+  // pareil à la même heure.
+  const hour = new Date().getHours();
+  const greetKey = hour >= 18 || hour < 5 ? ("greetingEvening" as const) : ("greeting" as const);
   // Règle locale = règle du serveur (`assertCredentials`) : on ne grise le
   // bouton que sur ce que le miroir refuserait déjà (code incomplet).
   const canSubmit = phoneReady && codeReady;
@@ -228,6 +269,7 @@ export function LoginScreen(props: {
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.headerBg }}>
+      <InkRings rtl={rtl} />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -236,15 +278,33 @@ export function LoginScreen(props: {
           contentContainerStyle={{ padding: SPACE.lg, flexGrow: 1, justifyContent: "center" }}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Langue seule en tête : la réassurance « سريع ومحمي » descend en
-              pied d'écran, une ligne de moins au-dessus de la feuille. */}
+          {/* Rang 1 : marque à bord de lecture, langue à bord extérieur. */}
           <View
             style={{
               flexDirection: flow(dir),
-              justifyContent: "flex-end",
-              marginBottom: SPACE.md,
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: SPACE.xl,
             }}
           >
+            <View style={{ flexDirection: flow(dir), alignItems: "center", gap: SPACE.sm }}>
+              <Image
+                // eslint-disable-next-line @typescript-eslint/no-require-imports
+                source={require("../../assets/brand/veloria-customer.png")}
+                style={{ width: 34, height: 34, borderRadius: RADIUS.inner }}
+                accessibilityLabel="Veloria"
+              />
+              <Text
+                style={{
+                  color: COLORS.white,
+                  fontWeight: "900",
+                  fontSize: 15,
+                  letterSpacing: 0.4,
+                }}
+              >
+                Veloria
+              </Text>
+            </View>
             <View
               style={{
                 flexDirection: flow(dir),
@@ -259,11 +319,11 @@ export function LoginScreen(props: {
                   onPress={() => props.onLang(x)}
                   accessibilityLabel={x === "ar" ? "عربي" : "Français"}
                   style={{
-                    paddingHorizontal: 16,
+                    paddingHorizontal: 14,
                     paddingVertical: 8,
                     backgroundColor: l === x ? COLORS.primary : "transparent",
                     borderRadius: RADIUS.pill,
-                    minHeight: 44,
+                    minHeight: SIZES.filterChipHeight,
                   }}
                 >
                   <Text
@@ -280,45 +340,39 @@ export function LoginScreen(props: {
             </View>
           </View>
 
-          {/* Marque en lockup : logo + nom posés côte à côte (−100 dp de haut). */}
+          {/* Rang 2 : en-tête éditorial — le salut de l'accueil, puis le titre
+              de l'espace, puis la règle dorée (seul or de la moitié haute). */}
           <View
             style={{
-              flexDirection: flow(dir),
-              alignItems: "center",
-              gap: SPACE.md,
-              marginBottom: SPACE.xl,
+              alignItems: rtl ? "flex-end" : "flex-start",
+              marginBottom: SPACE.lg,
             }}
           >
-            <Image
-              // eslint-disable-next-line @typescript-eslint/no-require-imports
-              source={require("../../assets/brand/veloria-customer.png")}
-              style={{ width: 60, height: 60, borderRadius: RADIUS.cardSm }}
-              accessibilityLabel="Veloria"
+            <Text style={{ ...TYPE.label, color: COLORS.navyMuted, textAlign: startEdge }}>
+              {t(l, greetKey)}
+            </Text>
+            <Text
+              style={{
+                fontSize: 26,
+                lineHeight: 34,
+                fontWeight: "900",
+                color: COLORS.white,
+                letterSpacing: 0.2,
+                marginTop: 2,
+                textAlign: startEdge,
+              }}
+            >
+              {t(l, "clientSpace")}
+            </Text>
+            <View
+              style={{
+                width: 44,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: COLORS.primary,
+                marginTop: SPACE.md,
+              }}
             />
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{
-                  fontSize: 24,
-                  lineHeight: 30,
-                  fontWeight: "800",
-                  color: COLORS.white,
-                  letterSpacing: 0.4,
-                  textAlign: rtl ? "right" : "left",
-                }}
-              >
-                Veloria
-              </Text>
-              <Text
-                style={{
-                  ...TYPE.caption,
-                  color: COLORS.navyMuted,
-                  marginTop: 1,
-                  textAlign: rtl ? "right" : "left",
-                }}
-              >
-                {t(l, "clientSpace")}
-              </Text>
-            </View>
           </View>
 
           {/* Feuille de connexion : une surface, pas d'ombre portée. */}
@@ -344,6 +398,7 @@ export function LoginScreen(props: {
               returnKeyType="next"
               onSubmitEditing={() => pinRef.current?.focus()}
               ariaLabel={t(l, "phoneLabel")}
+              skin="outlined"
               trailing={
                 phone === "" ? null : (
                   <Tap
@@ -372,26 +427,50 @@ export function LoginScreen(props: {
               <Text style={{ ...TYPE.label, color: COLORS.cardMuted, textAlign: farEdge(rtl) }}>
                 {t(l, "pinLabel")}
               </Text>
-              <Tap
-                onPress={() => setShowPin((s) => !s)}
-                accessibilityLabel={showPin ? t(l, "hidePin") : t(l, "showPin")}
-                style={{
-                  flexDirection: flow(dir),
-                  alignItems: "center",
-                  gap: 4,
-                  paddingVertical: 8,
-                  paddingHorizontal: 6,
-                }}
-              >
-                <Ionicons
-                  name={showPin ? "eye-off-outline" : "eye-outline"}
-                  size={15}
-                  color={COLORS.cardMuted}
-                />
-                <Text style={{ color: COLORS.cardMuted, fontWeight: "700", fontSize: 12 }}>
-                  {showPin ? t(l, "hidePin") : t(l, "showPin")}
-                </Text>
-              </Tap>
+              <View style={{ flexDirection: flow(dir), alignItems: "center", gap: 2 }}>
+                {pin === "" ? null : (
+                  <>
+                    <Tap
+                      onPress={() => setPin((p) => p.slice(0, -1))}
+                      accessibilityLabel={t(l, "deleteDigit")}
+                      hitSlop={8}
+                      style={{ padding: 8 }}
+                    >
+                      <Ionicons name="backspace-outline" size={16} color={COLORS.cardMuted} />
+                    </Tap>
+                    {/* Filet fin : le retour arrière n'est pas une deuxième
+                        moitié du bouton « إظهار الرمز » qui le jouxte. */}
+                    <View
+                      style={{
+                        width: 1,
+                        height: 18,
+                        backgroundColor: COLORS.divider,
+                        marginHorizontal: 2,
+                      }}
+                    />
+                  </>
+                )}
+                <Tap
+                  onPress={() => setShowPin((s) => !s)}
+                  accessibilityLabel={showPin ? t(l, "hidePin") : t(l, "showPin")}
+                  style={{
+                    flexDirection: flow(dir),
+                    alignItems: "center",
+                    gap: 4,
+                    paddingVertical: 8,
+                    paddingHorizontal: 6,
+                  }}
+                >
+                  <Ionicons
+                    name={showPin ? "eye-off-outline" : "eye-outline"}
+                    size={15}
+                    color={COLORS.cardMuted}
+                  />
+                  <Text style={{ color: COLORS.cardMuted, fontWeight: "700", fontSize: 12 }}>
+                    {showPin ? t(l, "hidePin") : t(l, "showPin")}
+                  </Text>
+                </Tap>
+              </View>
             </View>
 
             {/* PIN : les cases dessinent, le champ qui capte le clavier est posé
@@ -472,14 +551,60 @@ export function LoginScreen(props: {
               style={{ marginTop: SPACE.sm }}
             />
 
-            <Button
-              label={t(l, "scanQr")}
-              variant="outline"
-              icon="qr-code-outline"
-              full
+            {/* Le QR n'est plus un deuxième bouton : une zone en pointillés qui
+                dit AUSSI où l'on trouve le code (clé `help1`, déjà publiée). */}
+            <Tap
               onPress={() => setScanOpen(true)}
-              style={{ marginTop: SPACE.xs }}
-            />
+              accessibilityLabel={t(l, "scanQr")}
+              style={{
+                flexDirection: flow(dir),
+                alignItems: "center",
+                gap: SPACE.md,
+                minHeight: 58,
+                borderWidth: 1,
+                borderStyle: "dashed",
+                borderColor: COLORS.border,
+                borderRadius: RADIUS.field,
+                paddingHorizontal: SPACE.md,
+                marginTop: SPACE.xs,
+              }}
+            >
+              <IconBubble
+                icon="qr-code-outline"
+                color={COLORS.headerBg}
+                bg={COLORS.toneBg}
+                size={36}
+              />
+              <View style={{ flex: 1 }}>
+                {/* 14 gras, pas 16 : la zone QR guide, elle ne rivalise pas
+                    avec le titre de l'écran ni avec le CTA. */}
+                <Text
+                  style={{
+                    ...TYPE.body,
+                    fontWeight: "700",
+                    color: COLORS.cardText,
+                    textAlign: startEdge,
+                  }}
+                >
+                  {t(l, "scanQr")}
+                </Text>
+                <Text
+                  style={{
+                    ...TYPE.micro,
+                    color: COLORS.cardMuted,
+                    marginTop: 2,
+                    textAlign: startEdge,
+                  }}
+                >
+                  {t(l, "help1")}
+                </Text>
+              </View>
+              <Ionicons
+                name={rtl ? "chevron-back" : "chevron-forward"}
+                size={16}
+                color={COLORS.inkFaint}
+              />
+            </Tap>
 
             {/* Récupération d'un code : un lien, plus un bouton — le CTA doit
                 rester la seule chose dorée de la feuille. */}

@@ -145,6 +145,7 @@ const STRINGS = {
   // et libellé de l'effacement du téléphone mémorisé.
   pinIncomplete: { ar: "أكمل الرمز (6 أرقام)", fr: "Code incomplet (6 chiffres)" },
   changeNumber: { ar: "تغيير الرقم", fr: "Changer le numéro" },
+  deleteDigit: { ar: "حذف رقم", fr: "Effacer un chiffre" },
   clientLabel: { ar: "الزبون", fr: "Client" },
   amountLabel: { ar: "المبلغ", fr: "Montant" },
   methodLabel: { ar: "الطريقة", fr: "Méthode" },
