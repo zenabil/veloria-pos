@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { computeDebtStatus, applyPaymentToBalance } from "@/domain/customer/debt-rules.ts";
 import { applyStockDelta, assertReturnQuantity } from "@/domain/inventory/stock-rules.ts";
 import { validateProductDraft } from "@/domain/product/product-rules.ts";
-import { computeReturnSettlement } from "@/domain/returns/return-rules.ts";
+import { computeReturnSettlement, previewReturnSettlement } from "@/domain/returns/return-rules.ts";
 
 describe("Debt rules", () => {
   it("flags over-limit", () => {
@@ -110,6 +110,43 @@ describe("Return settlement (dette d'abord)", () => {
         requestedRefundMinor: -1,
       }),
     ).toThrow();
+  });
+});
+
+describe("Return settlement — aperçu caisse (A-01, jamais d'exception au render)", () => {
+  it("rend le même découpage que la version stricte sur une entrée valide", () => {
+    const input = { totalReturnMinor: 10000, outstandingMinor: 6000, requestedRefundMinor: 4000 };
+    expect(previewReturnSettlement(input)).toEqual(computeReturnSettlement(input));
+  });
+
+  it("valeur illisible ⇒ plafonds à 0, jamais une exception ni un plafond inventé", () => {
+    const zero = {
+      creditAppliedMinor: 0,
+      cashRefundMinor: 0,
+      maxCashRefundMinor: 0,
+      unsettledMinor: 0,
+    };
+    expect(
+      previewReturnSettlement({
+        totalReturnMinor: -1,
+        outstandingMinor: 0,
+        requestedRefundMinor: 0,
+      }),
+    ).toEqual(zero);
+    expect(
+      previewReturnSettlement({
+        totalReturnMinor: 1000,
+        outstandingMinor: 0,
+        requestedRefundMinor: -1,
+      }),
+    ).toEqual(zero);
+    expect(
+      previewReturnSettlement({
+        totalReturnMinor: 1000,
+        outstandingMinor: 1.5,
+        requestedRefundMinor: 0,
+      }),
+    ).toEqual(zero);
   });
 });
 
