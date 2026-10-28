@@ -1,22 +1,12 @@
-// Veloria — Rôles internes : règles pures du domaine + frontière Zod.
-// Code 6 chiffres, verrou 5 échecs / 5 min, permissions gérant = tout.
+// Veloria — Frontière staff : validateurs Zod + carte des gardes + KDF main.
+// Code 6 chiffres, verrou 5 échecs / 5 min, permissions gérant = tout — la
+// règle EXÉCUTÉE vit dans `electron/ipc/handlers/staff.repo.ts` (lot B,
+// ADR-153 : la copie domaine non branchée a été retirée).
 
 import { describe, expect, it } from "vitest";
 import { pbkdf2Sync, randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import {
-  STAFF_LOCK_MINUTES,
-  STAFF_MAX_FAILED_ATTEMPTS,
-  STAFF_PERMISSIONS,
-  assertValidCode,
-  assertValidPermission,
-  assertValidRole,
-  assertValidUsername,
-  hasPermission,
-  isLocked,
-  nextFailedState,
-} from "../../src/domain/staff/staff";
 import {
   staffChangeCodeSchema,
   staffCreateSchema,
@@ -26,47 +16,10 @@ import {
   staffSetActiveSchema,
   staffSetPermissionsSchema,
 } from "../../electron/ipc/validators";
-import { STAFF_RECOVERY_LENGTH, assertValidRecoveryCode } from "../../src/domain/staff/staff";
 
 const OP = "123e4567-e89b-12d3-a456-426614174000";
 const ROOT = process.cwd();
 const read = (rel: string): string => fs.readFileSync(path.join(ROOT, rel), "utf8");
-
-describe("domaine staff", () => {
-  it("code 6 chiffres strict", () => {
-    expect(() => assertValidCode("123456")).not.toThrow();
-    for (const bad of ["12345", "1234567", "12345a", "admin", "", "12 456"]) {
-      expect(() => assertValidCode(bad)).toThrow();
-    }
-  });
-  it("nom normalisé minuscule, sans espace", () => {
-    expect(assertValidUsername("  Karim ")).toBe("karim");
-    expect(() => assertValidUsername("ab")).toThrow();
-    expect(() => assertValidUsername("a b")).toThrow();
-    expect(() => assertValidUsername("a|b")).toThrow();
-  });
-  it("rôle et permission fermés (union 0041)", () => {
-    expect(assertValidRole("manager")).toBe("manager");
-    expect(() => assertValidRole("super")).toThrow();
-    expect(STAFF_PERMISSIONS).toHaveLength(10);
-    expect(() => assertValidPermission("sales")).not.toThrow();
-    expect(() => assertValidPermission("root")).toThrow();
-  });
-  it("verrou au 5e échec pour 5 minutes", () => {
-    const now = "2026-10-13T10:00:00.000Z";
-    expect(nextFailedState(3, now)).toEqual({ failedAttempts: 4, lockedUntilISO: null });
-    const s5 = nextFailedState(4, now);
-    expect(s5.failedAttempts).toBe(STAFF_MAX_FAILED_ATTEMPTS);
-    expect(isLocked(s5.lockedUntilISO, now)).toBe(true);
-    const after = new Date(Date.parse(now) + STAFF_LOCK_MINUTES * 60_000 + 1000).toISOString();
-    expect(isLocked(s5.lockedUntilISO, after)).toBe(false);
-  });
-  it("gérant = tout, utilisateur = accordé uniquement", () => {
-    expect(hasPermission("manager", [], "sales")).toBe(true);
-    expect(hasPermission("user", ["sales"], "sales")).toBe(true);
-    expect(hasPermission("user", ["sales"], "settings")).toBe(false);
-  });
-});
 
 describe("validateurs IPC staff", () => {
   it("login : username + code requis", () => {
@@ -119,18 +72,8 @@ describe("validateurs IPC staff", () => {
   });
 });
 
-describe("secours 0042", () => {
-  it("8 chiffres stricts", () => {
-    expect(STAFF_RECOVERY_LENGTH).toBe(8);
-    expect(() => assertValidRecoveryCode("12345678")).not.toThrow();
-    for (const bad of ["1234567", "123456789", "1234567a", ""]) {
-      expect(() => assertValidRecoveryCode(bad)).toThrow();
-    }
-  });
-});
-
-describe("KDF staff : parité main/domaine (miroir #39)", () => {
-  it("repo main : mêmes itérations + clé + identifiant d'algorithme", () => {
+describe("KDF staff : contrat de l'implémentation main (miroir #39)", () => {
+  it("repo main : itérations, longueur de clé et identifiant d'algorithme figés", () => {
     const src = read("electron/ipc/handlers/staff.repo.ts");
     expect(src).toContain("STAFF_KDF_ITERATIONS = 100_000");
     expect(src).toContain("STAFF_KDF_KEYLEN_BYTES = 32");

@@ -1,7 +1,8 @@
 // Veloria PoS — Main-process: FIFO layer helpers (shared by repositories).
-// Boundary note: like validators.ts, the tiny allocator below duplicates the
-// pure domain rule (src/domain/inventory/fifo-rules.ts) on purpose — electron
-// must not import src/ (rootDir). Same thousandths/rounding conventions.
+// Boundary note: electron must not import src/ (rootDir), so the tiny
+// allocator below IS the executed FIFO rule — the unbranchable domain copy
+// was removed (ADR-153, lot B). Same thousandths/rounding conventions as the
+// APK.
 // Rule: FIFO drives inventory COST, never the selling price.
 // Every function below MUST be called inside the caller's db.transaction().
 // Enforced at runtime for mutating entries (fail-closed, FR message) :

@@ -1,6 +1,7 @@
 // Veloria PoS — Main-process repository: rôles internes gérant / utilisateur.
-// Code 6 chiffres + PBKDF2-HMAC-SHA256 100k + sel par utilisateur (miroir du
-// domaine src/domain/staff/staff.ts : mêmes constantes, « miroir du domaine »).
+// Code 6 chiffres + PBKDF2-HMAC-SHA256 100k + sel par utilisateur : ce repo
+// EST la règle exécutée (la copie domaine non branchée a été retirée, ADR-153
+// lot B). Les constantes ci-dessous sont figées par `staff-domain.test.ts`.
 // Une seule transaction par mutation ; idempotence par operationId.
 // Le code ne transite en clair que sur ce pont local (jamais stocké/loggé).
 
@@ -9,8 +10,8 @@ import { getDb } from "../../database/sqlite.service";
 import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./idempotency";
 
 /**
- * Paramètres KDF — MIROIR du domaine (`src/domain/staff/staff.ts`) :
- * mêmes valeurs que les PIN clients (#39). Tout écart = test contrat rouge.
+ * Paramètres KDF — mêmes valeurs que les PIN clients (#39) ; figés par le test
+ * contrat `staff-domain.test.ts`. Tout écart = test contrat rouge.
  */
 export const STAFF_KDF_ALGO = "pbkdf2-sha256-100k";
 export const STAFF_KDF_ITERATIONS = 100_000;

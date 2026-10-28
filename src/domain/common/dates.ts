@@ -23,11 +23,11 @@ function utcDayNumber(value: string): number {
 }
 
 /**
- * W7 (D-06) — SOURCE UNIQUE de l'écart en jours.
- * Dupliqué trois fois (`domain/customer/credit-policy.ts`,
- * `domain/returns/return-policy.ts`, `features/debts/types.ts`) avec des
- * écarts de sémantique (borné à 0 dans un cas, négatif dans un autre,
- * `Date.parse` dans un autre).
+ * W7 (D-06) — SOURCE UNIQUE de l'écart en jours. L'écart était calculé en
+ * trois endroits avec des sémantiques divergentes (borné à 0 ici, négatif
+ * là, `Date.parse` local ailleurs) ; tout le monde consomme désormais cette
+ * fonction, y compris les règles qui avaient leur copie propre (retirées par
+ * ADR-153, lot B).
  * Contrat : `to − from` en jours calendaires (négatif si `to` est avant
  * `from`), `NaN` si l'une des dates est illisible — chaque appelant garde
  * SA politique (bornage, code d'erreur) au-dessus de cette fonction.

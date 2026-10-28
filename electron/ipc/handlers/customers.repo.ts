@@ -463,7 +463,8 @@ export function getCustomerStatement(id: number): {
 /**
  * Reçu d'un paiement historique : soldes avant/après reconstitués depuis le
  * grand-livre (lecture seule, aucune écriture, aucun centime inventé).
- * Le calcul pur vit dans `src/domain/customer/payment-receipt.ts`.
+ * Règle exécutée ici même (`computeReceiptBalancesInline`) : la copie domaine,
+ * jamais branchée, a été retirée (ADR-153, lot B).
  */
 export function getCustomerPaymentReceipt(paymentId: number): {
   payment: Record<string, unknown>;
@@ -530,7 +531,7 @@ export function getCustomerPaymentReceipt(paymentId: number): {
   };
 }
 
-/** Miroir local de `src/domain/customer/payment-receipt.ts` (frontière main/domaine). */
+/** Reconstitution des soldes du grand-livre — source unique (ADR-153). */
 function computeReceiptBalancesInline(
   initialMinor: number,
   sales: { id: number; totalMinor: number; createdAt: string; cancelled: boolean }[],
