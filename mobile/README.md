@@ -15,7 +15,15 @@ Règles verrouillées :
   (`Group` + `Row` + `Divider`). Les dégradés (`GRADIENTS`) et l'`expo-linear-gradient`
   sont **sortis de l'app** ; les rares élévations utilisent `boxShadow` (les
   props `shadow*` sont dépréciées depuis RN 0.76).
-- Kit partagé `src/ui/` : `Tap` (scale + haptics), `Card`, `Group`, `Divider`,
+- **Écran de connexion V5 « Connexion directe » (ADR-151)** : toute l'action
+  tient dans un écran **sans clavier** (marque en lockup, aide repliée), le
+  bouton « دخول » est verrouillé tant que le code n'a pas 6 chiffres — même
+  règle que le serveur, jamais plus stricte —, l'envoi se déclenche **au 6ᵉ
+  chiffre**, la frappe et le refus se **ressentent** (haptique), et le dernier
+  téléphone saisi est retrouvé à l'ouverture (`veloria.last-phone.v1`, jamais
+  le PIN) avec le focus posé sur le code.
+- Kit partagé `src/ui/` : `Tap` (scale + haptics), `haptic()`, `Card`, `Group`,
+  `Divider`,
   `Row`, `Button` (`gold|ink|quiet|outline|ghost|danger|success`), `Chip`,
   `Badge`, `IconBubble`, `SectionHead`, `Amount` (Mono tabulaire), `Field`,
   `Dashed` ; `ui/nav.tsx` (dock **ancré** + `PageBar`), `ui/states.tsx`

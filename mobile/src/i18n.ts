@@ -141,6 +141,10 @@ const STRINGS = {
   help3: { ar: "شاهد دينك وفواتيرك", fr: "Voyez dette et factures" },
   fastSecure: { ar: "سريع ومحمي", fr: "Rapide et protégé" },
   clientSpace: { ar: "فضاء الزبون", fr: "Espace Client" },
+  // Écran de connexion V5 : reason pour laquelle « دخول » est encore grisé,
+  // et libellé de l'effacement du téléphone mémorisé.
+  pinIncomplete: { ar: "أكمل الرمز (6 أرقام)", fr: "Code incomplet (6 chiffres)" },
+  changeNumber: { ar: "تغيير الرقم", fr: "Changer le numéro" },
   clientLabel: { ar: "الزبون", fr: "Client" },
   amountLabel: { ar: "المبلغ", fr: "Montant" },
   methodLabel: { ar: "الطريقة", fr: "Méthode" },

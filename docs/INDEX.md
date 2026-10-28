@@ -156,6 +156,7 @@
 - [ADR-148](./ADR-148-refonte-visuelle-transversale.md) Refonte visuelle transversale : hiérarchie, densité et cohérence (aucune règle métier touchée)
 - [ADR-149](./ADR-149-code-barres-carton.md) Code-barres carton (Phase 3 d'ADR-136) : le code désigne le conditionnement, jamais le facteur ni le prix
 - [ADR-150](./ADR-150-mobile-daylight-plat.md) Client mobile V4 « Daylight plat » : filets au lieu d'ombres, un seul accent, dock ancré (rendu seul, contrats intacts)
+- [ADR-151](./ADR-151-mobile-connexion-directe.md) Client mobile V5 « Connexion directe » : login d'un écran sans clavier, verrou local = règle du serveur, envoi au 6ᵉ chiffre, téléphone mémorisé (zéro dépendance ajoutée)
 
 ## Ou ecrire quoi
 

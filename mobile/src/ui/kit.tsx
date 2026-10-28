@@ -27,10 +27,19 @@ export function farEdge(rtl: boolean): "left" | "right" {
   return rtl ? "left" : "right";
 }
 
+/** Retour tactile : `light` à la frappe, `warning` sur un refus du serveur. */
+export function haptic(kind: "light" | "warning" = "light"): void {
+  if (Platform.OS === "web") return;
+  const p =
+    kind === "warning"
+      ? Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
+      : Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  void p.catch(() => undefined);
+}
+
+/** Le tap de la V4 reste une vibration légère : inchangé pour tous les écrans. */
 function buzz(): void {
-  if (Platform.OS !== "web") {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
-  }
+  haptic("light");
 }
 
 /** Cible tactile (scale 0.98) + retour haptique léger.

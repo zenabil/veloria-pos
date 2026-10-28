@@ -15,6 +15,14 @@ const KV_PREFIX = "kv.";
  * re-scanner le QR : l'APK universel n'a aucun endpoint gravé d'avance.
  */
 const ENDPOINT_KEY = "veloria.endpoint.v1";
+/**
+ * Dernier téléphone SAISI (V5 « Connexion directe ») : surviv à la déconnexion
+ * comme l'endpoint, pour que l'écran de connexion ouvre directement sur le PIN.
+ * Chiffré par le stockage système, jamais transmis ni affiché ailleurs ; ce
+ * n'est pas un secret (c'est le numéro que le client dicte au comptoir) et ce
+ * n'est PAS une donnée métier — une simple préférence d'écran.
+ */
+const LAST_PHONE_KEY = "veloria.last-phone.v1";
 
 export interface ShopEndpoint {
   supabaseUrl: string;
@@ -192,6 +200,20 @@ export async function loadLastEndpoint(): Promise<ShopEndpoint | null> {
 export async function saveLastEndpoint(e: ShopEndpoint): Promise<void> {
   if (e.supabaseUrl === "" || e.anonKey === "") return;
   await secureSet(ENDPOINT_KEY, JSON.stringify(e));
+}
+
+/** Téléphone mémorisé pour l'écran de connexion (jamais le PIN). */
+export async function loadLastPhone(): Promise<string | null> {
+  const raw = await secureGet(LAST_PHONE_KEY);
+  if (raw == null) return null;
+  const phone = raw.trim();
+  return phone.length > 0 && phone.length <= 30 ? phone : null;
+}
+
+export async function saveLastPhone(phone: string): Promise<void> {
+  const value = phone.trim();
+  if (value.length === 0 || value.length > 30) return;
+  await secureSet(LAST_PHONE_KEY, value);
 }
 
 function parseJson(raw: string | undefined): unknown {

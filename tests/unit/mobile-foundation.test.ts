@@ -10,7 +10,15 @@ import {
   normalizeDigits,
 } from "../../mobile/src/format";
 import { assertCredentials, fetchInvoiceDetail, syncNow, SyncError } from "../../mobile/src/api";
-import { clearCache, loadCache, loadDetail, saveCache, saveDetail } from "../../mobile/src/cache";
+import {
+  clearCache,
+  loadCache,
+  loadDetail,
+  loadLastPhone,
+  saveCache,
+  saveDetail,
+  saveLastPhone,
+} from "../../mobile/src/cache";
 import { EMPTY_CACHE, staleLabel } from "../../mobile/src/store";
 
 describe("tokens", () => {
@@ -112,6 +120,19 @@ describe("cache local", () => {
     clearCache();
     expect(loadCache().syncedAt).toBeNull();
     expect(loadDetail(42)).toBeNull();
+  });
+  it("téléphone mémorisé : survit à la purge du cache, jamais le PIN", async () => {
+    await saveLastPhone("0550123456");
+    expect(await loadLastPhone()).toBe("0550123456");
+    // Déconnexion = purge des clichés et des détails ; le numéro déjà saisi
+    // reste (V5 « Connexion directe » : l'écran s'ouvre posé sur le PIN).
+    clearCache();
+    expect(loadCache().syncedAt).toBeNull();
+    expect(await loadLastPhone()).toBe("0550123456");
+    // Vide ou surdimensionné : refus silencieux, la valeur stockée survit.
+    await saveLastPhone("");
+    await saveLastPhone("x".repeat(31));
+    expect(await loadLastPhone()).toBe("0550123456");
   });
 });
 

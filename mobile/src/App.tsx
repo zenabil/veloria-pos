@@ -16,10 +16,12 @@ import {
   loadCache,
   loadDetail,
   loadLastEndpoint,
+  loadLastPhone,
   loadSession,
   saveCache,
   saveDetail,
   saveLastEndpoint,
+  saveLastPhone,
   saveSession,
 } from "./cache.ts";
 import { num, toHome } from "./views.ts";
@@ -52,6 +54,7 @@ export function App(): React.JSX.Element {
     anonKey: string | null;
   } | null>(null);
   const [cache, setCache] = useState<MirrorCache>(EMPTY_CACHE);
+  const [rememberedPhone, setRememberedPhone] = useState("");
   const [tab, setTab] = useState<Tab>("home");
   const [hidden, setHidden] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -83,12 +86,14 @@ export function App(): React.JSX.Element {
     let alive = true;
     void (async () => {
       try {
-        const [sess, cached, lastEp] = await Promise.all([
+        const [sess, cached, lastEp, lastPhone] = await Promise.all([
           loadSession(),
           Promise.resolve(loadCache()),
           loadLastEndpoint(),
+          loadLastPhone(),
         ]);
         if (!alive) return;
+        setRememberedPhone(lastPhone ?? sess?.phone ?? "");
         if (sess) {
           // Session V1 (sans endpoint gravé) + endpoint mémorisé : la
           // restauration silencieuse réutilise ce dernier au lieu du repli
@@ -212,6 +217,8 @@ export function App(): React.JSX.Element {
       });
       applyPayloads(data);
       if (used) await saveLastEndpoint(used);
+      setRememberedPhone(phone);
+      await saveLastPhone(phone);
       await saveSession({
         phone,
         pin,
@@ -392,7 +399,15 @@ export function App(): React.JSX.Element {
   }
 
   if (!session) {
-    return <LoginScreen lang={lang} onLang={setLang} onLogin={login} error={error} />;
+    return (
+      <LoginScreen
+        lang={lang}
+        onLang={setLang}
+        onLogin={login}
+        error={error}
+        rememberedPhone={rememberedPhone}
+      />
+    );
   }
 
   // Montants passés par `num()` STRICT (vue testée) : un montant legacy non
