@@ -16,12 +16,12 @@ files:
   - "!dist/builder-effective-config.yaml"
   - "!dist/win-unpacked/**/*"
   - "!dist/*.exe"
-  # Natif : `better-sqlite3` + `bindings` DOIVENT rester en `dependencies`
-  # (pas dev) — l'inclusion node_modules vient du graphe de dépendances PROD
-  # (`getNodeModuleFileMatcher`), les motifs ci-dessous sont une ceinture
+  # Natif : `better-sqlite3` 13 = binaire N-API précompilé (prebuilds/),
+  # compatible Node et Electron sans recompilation (ADR-155). Il DOIT rester
+  # en `dependencies` (pas dev) — l'inclusion node_modules vient du graphe de
+  # dépendances PROD (`getNodeModuleFileMatcher`), ce motif est une ceinture
   # de sécurité, pas le mécanisme principal (ADR-005).
   - node_modules/better-sqlite3/**/*
-  - node_modules/bindings/**/*
   # OCR local : moteur + données linguistiques embarqués (aucun réseau).
   - node_modules/tesseract.js/**/*
   # RADICAL-FIX: wildcard version-proof (tout bump tesseract.js-core reste empaqueté).
@@ -48,6 +48,9 @@ extraResources:
   - from: resources/ocr/lang
     to: ocr/lang
 asar: true
+# better-sqlite3 13 est N-API (prebuilds/win32-x64.node) : aucune
+# recompilation Electron nécessaire, donc aucun Visual Studio Build Tools.
+npmRebuild: false
 asarUnpack:
   - "**/*.node"
   # worker_threads Node + Emscripten exigent de vrais fichiers (pas l'asar).

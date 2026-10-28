@@ -30,8 +30,6 @@
     "test:db": "vitest run tests/database tests/integration",
     "test:e2e": "playwright test",
     "test:e2e:installer": "playwright test tests/e2e/installer.spec.ts",
-    "rebuild": "electron-rebuild -f -w better-sqlite3",
-    "postinstall": "electron-rebuild -f -w better-sqlite3",
     "package": "npm run license:scan && npm run build && npm run build:electron && npm run license:integrity && electron-builder",
     "package:win": "npm run license:scan && npm run build && npm run build:electron && npm run license:integrity && electron-builder --win",
     "package:portable": "npm run license:scan && npm run build && npm run build:electron && npm run license:integrity && electron-builder --win portable",
@@ -59,8 +57,7 @@
     "verify:perf": "node scripts/quality/verify-perf.mjs"
   },
   "dependencies": {
-    "better-sqlite3": "12.2.0",
-    "bindings": "1.5.0",
+    "better-sqlite3": "13.0.3",
     "clsx": "2.1.1",
     "lucide-react": "0.469.0",
     "pdfjs-dist": "6.4.299",
@@ -73,7 +70,6 @@
     "zustand": "5.0.16"
   },
   "devDependencies": {
-    "@electron/rebuild": "4.0.1",
     "@eslint/js": "10.0.1",
     "@playwright/test": "^1.64.1",
     "@tailwindcss/vite": "4.3.3",
@@ -83,7 +79,7 @@
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.2",
     "@vitest/coverage-v8": "^5.0.5",
-    "electron": "37.2.0",
+    "electron": "45.1.0",
     "electron-builder": "26.18.0",
     "esbuild": "0.28.2",
     "eslint": "10.13.0",

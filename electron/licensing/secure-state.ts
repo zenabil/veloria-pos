@@ -28,11 +28,13 @@ export interface SecureStoreBackend {
 }
 
 export function safeStorageBackend(): SecureStoreBackend {
+  /* eslint-disable @typescript-eslint/no-deprecated -- API sync dépréciée en Electron 45, retirée en 46 ; migration async planifiée (ADR-155). */
   return {
     isAvailable: () => safeStorage.isEncryptionAvailable(),
     encryptString: (plain: string) => safeStorage.encryptString(plain),
     decryptString: (enc: Buffer) => safeStorage.decryptString(enc),
   };
+  /* eslint-enable @typescript-eslint/no-deprecated */
 }
 
 export interface PersistedLicenseState {

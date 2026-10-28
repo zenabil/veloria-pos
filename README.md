@@ -6,11 +6,12 @@
 
 ## Démarrage (dev)
 
-Prérequis : Node.js 22 LTS, npm 11, Python 3 + Visual Studio Build Tools (C++ workload) pour `better-sqlite3`.
+Prérequis : Node.js 22.12+ (voir `.nvmrc`), npm 10.9+. Aucun compilateur C++
+requis : `better-sqlite3` 13 est livré en binaire N-API précompilé
+(`prebuilds/win32-x64.node`), compatible Node et Electron.
 
 ```powershell
 npm ci
-npm run rebuild
 npm run dev          # renderer seul (Vite)
 # + terminal 2 (après build electron) :
 npm run build:electron
@@ -77,6 +78,8 @@ npm run release:checksums   # release/SHA256SUMS.txt
 
 La base vit dans `%PROGRAMDATA%\Veloria PoS\Data\Veloria POS DB.sqlite`
 (repli `userData` si non inscriptible), jamais dans `Program Files`/`app.asar`.
+Le binaire natif est un prebuild N-API (`asarUnpack: **/*.node`), sans
+recompilation Electron (`npmRebuild: false`).
 Sauvegardes via `VACUUM INTO` (`.vposdb`), restauration avec snapshot de sécurité.
 
 Livrables : `release/` = installateurs + portables POS et Manager (+

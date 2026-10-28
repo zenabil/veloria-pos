@@ -21,8 +21,7 @@ jobs:
           node-version-file: ".nvmrc"
           cache: npm
       - run: npm ci
-      - run: npm run rebuild
-      - run: node -e "const fs=require('fs');const p='node_modules/better-sqlite3/build/Release/better_sqlite3.node';if(!fs.existsSync(p)){console.error('MISSING native binding');process.exit(1)}console.log('OK native binding present')"
+      - run: node -e "const Database=require('better-sqlite3');const db=new Database(':memory:');db.prepare('SELECT 1 AS x').get();db.close();console.log('OK better-sqlite3 N-API')"
       - run: npm run format:check
       - run: npm run lint
       - run: npm run typecheck

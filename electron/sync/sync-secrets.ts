@@ -31,6 +31,7 @@ function b64decode(b64: string): string {
 }
 
 export function safeStorageSecretBackend(): SecretBackend {
+  /* eslint-disable @typescript-eslint/no-deprecated -- API sync dépréciée en Electron 45, retirée en 46 ; migration async planifiée (ADR-155). */
   return {
     prefix: "dpapi1",
     isAvailable: () => {
@@ -43,6 +44,7 @@ export function safeStorageSecretBackend(): SecretBackend {
     encryptToB64: (plain: string) => safeStorage.encryptString(plain).toString("base64"),
     decryptFromB64: (stored: string) => safeStorage.decryptString(Buffer.from(stored, "base64")),
   };
+  /* eslint-enable @typescript-eslint/no-deprecated */
 }
 
 /** Backend mémoire (tests uniquement) : réversible, jamais en production. */
