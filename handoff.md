@@ -15,7 +15,8 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête **session 62** (purge dead-code en trois lots, ADR-153). Avant elle session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- Branche : `chore/root-layout` — tête **session 63** (Tableau de bord simplifié, ADR-154). Avant elle session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 63 (2026-10-28)** : **Tableau de bord simplifié — 13 surfaces → 8 (ADR-154)** — demande « قم بتبسيط و تطوير تصميم واجهة لوحة التحكم ». Le diagnostic a commencé par **rejouer la capture réelle** : la page était la seule à avoir échappé à ADR-148 (bande « Aujourd'hui » + 4 cartes `Kpi` + bande `MiniMetric` + carte Vigilance = 13 surfaces, ≈250 px avant le premier graphique, et le même montant écrit deux fois à 70 px d'écart). `MiniMetric` était un `StatsStrip` réécrit à la main dont la surface `#0f1e30` **n'existait pas** en thème clair. Rendu : deux `StatsStrip` (4 + 5 cellules, tons conditionnels), **coût de revient** enfin affiché (seul dérivé qui manquait), « Ventes du jour » remonté dans le sous-titre de page avec son compteur, onglet **Finances supprimé** (redondant), sections de détail **sans carte imbriquée** et non rendues si vides, barres de part, période dite **une fois**, `EmptyState` unique si la période est vide, `max-h-80` interne supprimé. Bandeau **« À traiter »** conditionnel : échéances/ruptures/seuil/sauvegarde/intégrité, **puce-bouton seulement si `canNavigate` l'autorise** — nouvelle prop câblée sur `moduleAllowed` (sinon un caissier sans droit aurait atterri sur `RouteBlocked`, dont le texte blame **la licence** : mensonge évité, ADR-038). Zéro migration, canal, schéma, dépendance. E2E **renforcée** (seuil 10 pour stock 5 ⇒ alerte déterministe, clic de puce ⇒ module Stock). Trois pannes de harnais documentées hors UI : manifeste signé couvrant `dist/**` (`build` sans `build:electron` = E2E impossible) et empreinte matérielle **amputée** par contention CPU des fils `reg`/`wmic`/`powershell` — **jamais de build ni vitest pendant un E2E**. Portes : typecheck 0 · electron 0 · eslint 0 · prettier 0 · fr 0 · encoding 0 · **vitest 168 fichiers / 1 141 tests 0** · build ✓ · build:electron ✓ · **E2E `dashboard-ui` 1/1** (3,0 min, machine au repos). **Session 62 menée en parallèle dans le même arbre.** Détails §63.
 - **Session 62 (2026-10-28)** : **purge dead-code radicale exécutée en trois lots (ADR-153)** — demande « فحص المشروع من كل الاكواد الميتة و اصلاح جذريا », audit d'abord puis arbitrage propriétaire en un mot (« اوافق »). `knip` était **vert** sur son périmètre (0 fichier / 0 export / 0 type / 0 dépendance) : le gisement était donc hors de son champ. Trois mesures ajoutées : **fermeture transitive** depuis les vraies entrées de production (603 fichiers TS), **cartographie IPC à trois niveaux** (déclaration → `handle()` → preload → wrapper **ou** `callChecked((a) => …)` direct), et **index de tokens** sur 1 881 exports séparant appelants production et tests. Résultat : **lot A** = 2 canaux servis-validés-exposés-mais-jamais-appelés (`printer.get`, `templates.get` — le « lot 2 bis » différé depuis 2026-10-18) + 7 wrappers morts de la façade + 3 branches inatteignables des formatteurs DZD (+ le « `-—` » d'un négatif hors bornes corrigé au passage) + 1 script sans doc + `/release-manager-tmp/` ignoré ; **lot B** = 8 modules `src/domain` **n'entrant dans aucune chaîne de production** (595 lignes) + 4 fichiers de tests qui ne testaient qu'eux (343 lignes) — leurs règles sont bel et bien exécutées, par les miroirs `electron/ipc/handlers/**` ; **lot C** = 23 symboles test-only supprimés **avec preuve pour chacun** du chemin exécuté équivalent, et **refus exprès** de 5 autres (`isQrExpired` 7 j, `isSessionExpired` 90 j, `nextFailedState` 5 échecs→5 min, `convertQuantity` + table `TO_BASE`) qui sont la **seule** formulation de politiques jamais appliquées — à brancher, pas à delete. **Lot D refusé par l'opérateur** : aucun `DROP` (pas de migration 0057). Constataire : `tests/integration/client-loop.test.ts` fabriquait le cliché client avec la copie **morte** — il appelle désormais `buildSnapshotPayload` du main (mêmes valeurs affichées) ; les planchers de couverture étaient **portés par du code mort** (`test:coverage:features` passait de 65,06 % à 62,33 % en supprimant `sortCustomers` et ses fermetures de comparaison) — **aucun seuil abaissé**, à la place 4 actions réelles du panier couvertes (`removeLine`, `clear`, `setSaleOperationId`, `hydrate`) et 2 gardes **prouvées inatteignables** de la formule Z retirées (`assertSafeTotal` borne déjà chaque champ à 1e9). Rouge **pré-existante** trouvée et fermée : `previewReturnSettlement` n'avait **jamais** été couverte depuis `50a56cc` (session 54). Portes : typecheck 0 · typecheck:electron 0 · typecheck:manager 0 · `typecheck:mobile` 0 · eslint 0 · prettier 0 · **vitest 168 fichiers / 1 141 tests 0** · **test:coverage 0** · **test:coverage:features 0** (159 fichiers / 1 080 tests) · knip 0 · verify:migrations (56) · verify:domain · verify:fr · verify:encoding · **build** ✓ · **build:electron** ✓ (manifeste signé 234). Cumulé vs `45e2c69` : **80 fichiers de code, 2 701 lignes supprimées / 1 274 ajoutées**. Détails §62.
 - **Session 61 (2026-10-28)** : **login client V6 « Connexion développée »** — le propriétaire a demandé « غير تصميم واجهة login كليا », puis a cherché une référence **« lempe login » : introuvable** (web + Dribbble + Behance + Figma + recherche d'images — « Lempe » est un nom de famille germanique, aucun écran de connexion ne le porte). Trois maquettes HTML présentées (A feuille ancrée / B plein clair / C bandeau or) ; arbitrage final **« طور التصميم الحالي »** ⇒ on garde l'identité encre + or et on travaille la composition. Ajouts : **en-tête éditorial** sur encre (salut selon l'heure, **même règle D12 que l'accueil** + titre 26/900 + règle dorée 44×4), champ téléphone **`skin="outlined"`** (nouvelle prop optionnelle de `Field`, défaut `sunken` ⇒ **aucun autre écran ne bouge**) pendant que les cases PIN restent en creux, **zone QR en pointillés qui porte le mode d'emploi** (caption = clé `help1` déjà publiée, titre baissé de 16 à 14 gras), **touche retour arrière** césurée du bouton « إظهار » par un filet 1 px (sinon les deux glyphes se lisaient comme un seul contrôle), **trois cercles de filet** dans l'encre (`View` pures, `pointerEvents="none"`, hors arbre — rien d'animé, rien de dégradé). Logique V5 **intégralement conservée** (verrou = règle du serveur, envoi au 6ᵉ, `busyRef`, haptique, téléphone mémorisé) ; **1 seule** clé i18n ajoutée (`deleteDigit`, ar+fr), zéro texte/`aria-label` existant touché, zéro dépendance, zéro migration, zéro canal. Budget **tenu** : contenu **731 px pour 553 de viewport** (V5 : 713) soit **+18 dp alors que l'en-tête a été ajouté**, CTA à y≈408‑462 et zone QR à 488‑510 tous deux visibles sans scroller. Portes : mobile typecheck **0** · mobile lint **0** · vitest mobile-foundation **18/18** · prettier **0**. Preuve visuelle : captures **390×844 via Electron offscreen** (`capturePage`) — le panneau navigateur de Qoder était masqué pendant la session — états 0/5/6 chiffres + envoi automatique observé (CTA passé en « … »). **Non vérifié** : rendu natif Android, `autoFocus`, et le `borderStyle:"dashed"` sur device (Yoga/Android le rend via `BorderDrawable`, fidèle sur web, à confirmer à l'œil). **ADR-152**. Détails §61.
 - **Session 60 (2026-10-28)** : **login client V5 « Connexion directe »** — demande « قم بتطوير واجهة صفحة login الخاصة بتطبيق العملاء » **avec recherche internet préalable** (patterns 2026 : reconnaître le client qui revient, valider la forme avant le réseau, envoyer quand le code est complet, confirmer la frappe par le toucher, ne jamais laisser l'action sous la ligne de flottaison). Périmètre arbitré par le propriétaire : **« واجهة فقط بدون أي مكتبة جديدة »** — biométrie écartée (`expo-local-authentication` = dép native + ADR + rebuild APK + verrou posé sur le PIN stocké). Écran 01 réécrit : marque en **lockup horizontal** (−100 dp), aide 3 étapes **repliée** (−160 dp), réassurance descendue en pied, WhatsApp passé de 3ᵉ bouton à **lien** ; **CTA verrouillé** tant que le PIN n'a pas 6 chiffres (règle **identique** à `assertCredentials`/`client-sync`, volontairement **jamais plus stricte** — pas de règle « 10 chiffres algériens » inventée ici) + **envoi automatique au 6ᵉ** (différé 140 ms, timer annulé au démontage, garde `busyRef` conservée) ; **haptique** jeton par chiffre ajouté et alerte au refus (`haptic` exporté du kit, `buzz` inchangé) ; **téléphone mémorisé** `veloria.last-phone.v1` (SecureStore, survit à la purge comme `veloria.endpoint.v1`, **jamais le PIN**, vide/>30 refusé) avec `autoFocus` sur le code et « × » pour le changer ; champ PIN posé **par-dessus** les cases en absolu opacity 0 (fini le `Tap` englobant : un seul nœud labellisé, cases hors-arbre), **caret doré** dans la case active, chiffres en `FONTS.mono` ; défaut d'alignement arabe corrigé : `startEdge` remplace `farEdge` pour le texte d'aide et le libellé replié, qui fuyaient à l'opposé de leur icône. 2 clés i18n ajoutées (ar+fr), **zéro texte / `aria-label` / `testID` existant supprimé**, zéro dépendance, zéro migration, zéro canal, aucun autre écran touché. **+1 test de régression** (numéro survivant à `clearCache()`, écritures vides/surdimensionnées refusées). Mesure Chromium **360×553 (pire cas)** : contenu 713 px, « دخول » à **y ≈ 400-460** donc visible sans scroller ; états vus arabe et français, code à 0/4/6 chiffres, cases révélées, aide dépliée, et erreur « hors connexion » **déclenchée par l'envoi automatique** (seul message console de la page : POST réel refusé vers `:8099`). Portes : mobile typecheck **0** · mobile lint **0** · vitest mobile **29/29** · prettier **0** · **non vérifié : rendu natif Android et `autoFocus`** (le clavier ne s'ouvre pas sur web). **ADR-151**. Détails §60.
@@ -2339,3 +2340,78 @@ Activate/Status/QrSvg`, `syncEnqueue`, `syncPushNow`) supprimés **sans toucher
   `fmtMinorDa`, `normalizeBarcodeValue`, `formatBytes`) ; (3) `release/` et
   `release-manager-tmp/` gardent chacun un `app.asar` **verrouillé par le
   scanneur** (~35 Mo), jamais forcé — part au redémarrage (doctrine §55).
+
+## 63) Session 2026-10-28 — Tableau de bord : 13 surfaces → 8 (ADR-154)
+
+- **Demande** : « قم بتبسيط و تطوير تصميم واجهة لوحة التحكم » — même page que §52,
+  côté design cette fois.
+- **Diagnostic sur capture réelle d'abord** (spec `dashboard-ui` rejouée avant
+  toute écriture) : le Tableau de bord était **le seul écran resté hors** de la
+  refonte ADR-148 — 13 surfaces, ≈250 px d'encadrement avant le premier graphique,
+  et le même `100,00 DZD` écrit deux fois à 70 px d'écart (bande « Aujourd'hui »,
+  puis carte « Ventes nettes »). Constats de code : `MiniMetric` était un
+  `StatsStrip` réécrit à la main, avec sa surface `bg-[#0f1e30]` **absente** des
+  surcharges du thème clair (quatre pavés navy sur fond blanc, ADR-072) ; 6 chiffres
+  dits deux fois (ventes nettes, dépenses, dettes fournisseurs, créances, échéances,
+  ruptures) ; 2 à 5 `Card` **dans** la `Card` « Détails » ; la période annoncée
+  **quatre fois** ; `max-h-80 overflow-auto` réapparu sur le tableau des catégories ;
+  une période vide = neuf `0,00 DZD` et cinq sections « Aucune activité ».
+- **Structure rendue** : bandeau `StatsStrip` principal 4 cellules (ventes nettes ·
+  marge brute · **bénéfice net** · trésorerie) + bandeau secondaire 5 cellules
+  (créances · dettes fournisseurs · valeur stock · achats · dépenses) ; « Ventes du
+  jour » (compteur `useCountUp` conservé) **remonte dans le sous-titre de page** et
+  disparaît si aujourd'hui n'est pas dans la période ; l'onglet **Finances** est
+  supprimé — son seul chiffre inédit était le **coût de revient** (`ventes − marge`),
+  désormais sous-ligne de la marge, et « 5 meilleures rotations » rejoint le
+  graphique des catégories ; `DetailSection` (titre + lignes) remplace les cartes
+  imbriquées ; sections d'activité **non rendues si vides** ; barres de part sur
+  moyens de paiement et catégories ; `EmptyState` unique « Aucune activité sur la
+  période » ; la période n'est plus dite qu'une fois. **13 surfaces → 8, dont zero
+  carte dans une carte.**
+- **Bandeau « À traiter »** (1 surface conditionnelle) remplace la carte Vigilance
+  et les deux cellules d'alerte de « Aujourd'hui » : échéances dépassées, ruptures,
+  articles sous le seuil, sauvegarde absente, intégrité — **absent s'il n'y a rien**.
+  **Décision d'intégrité prise en route** : la première version proposait un saut
+  direct vers Dettes/Stock/Paramètres branché sur `onNavigate` élargi à `ModuleId`.
+  Abandonné tel quel, parce que `RouteBlocked` jure « non inclus dans **votre
+  licence** » alors que `moduleAllowed` teste **aussi le rôle staff** — un caissier
+  sans droit « Dettes » aurait lu un mensonge (ADR-038). Retenue : prop
+  **`canNavigate`** câblée sur `moduleAllowed` dans `App.tsx` (source unique de la
+  permission, rien de dupliqué dans la feature) ⇒ une puce n'est un **bouton** que
+  si le module est réellement accessible, sinon elle reste du **texte**.
+- **Fichiers** : `src/features/dashboard/DashboardScreen.tsx`, `widgets.tsx`
+  (`MiniMetric`/`RecentCard`/`EmptyMini` supprimés, `DetailSection`/`ShareBar`/
+  `AlertChip`/`AlertBand` ajoutés), `src/app/shell/module-screens.ts`,
+  `src/app/shell/App.tsx`, `src/features/history/HistoryScreen.tsx` (type élargi,
+  appel inchangé), `tests/e2e/dashboard-ui.spec.ts`, `docs/ADR-154-…`, `docs/INDEX.md`.
+  **Zéro** migration, canal, schéma, dépendance ; exports PDF/Excel/CSV, aperçu A4,
+  F4/F5/F8, filtre catégorie et garde anti-course intacts.
+- **E2E enrichi, pas assoupli** : le produit de test reçoit un **Seuil minimum 10**
+  pour stock 5 (alerte déterministe ; la sauvegarde était déjà faite au boot sur une
+  base isolée, donc aucune puce « Aucune sauvegarde » à ce moment-là) et la spec
+  **clique la puce** « … article(s) sous le seuil » puis vérifie l'arrivée sur
+  « Gestion des stocks et réceptions ».
+- **Trois échecs de harnais rencontrés, tous hors UI — à retenir** : (1)
+  `integrity.mismatch` sur `dist/assets/*.js` : le manifeste signé couvre **le
+  renderer**, donc `npm run build` **sans** `npm run build:electron` (qui re-signe)
+  rend tout E2E impossible ; (2) `license.import_hardware_mismatch` et (3) un
+  `beforeEach` à 300 s : `collectHardwareSources()` dépend de fils `reg`/`wmic`/
+  `powershell` et **ampute** l'empreinte quand l'un échoue (memo P0-3, TTL 30 s) —
+  sous contention CPU (vitest/build lancés en parallèle), deux processus ne
+  calculent plus le même hash. **Reproduction : ne jamais lancer un build ou vitest
+  pendant un E2E** ; relancé seul, machine au repos, la spec passe en **3,0 min**.
+- **Portes** : `tsc -b` **0** · `typecheck:electron` **0** · eslint (dashboard,
+  shell, history) **0** · prettier **0** · `verify:fr` **0** · `verify:encoding`
+  **0** · **vitest 168 fichiers / 1 141 tests 0** (arbre commun, lot C déjà en
+  place) · build ✓ · build:electron ✓ (manifeste re-signé) · **E2E `dashboard-ui`
+  1/1** · captures `test-results/ui/dash-1-sombre.png`, `dash-2-activite.png`,
+  `dash-3-clair.png` (spec temporaire de capture supprimée après usage, doctrine
+  §53).
+- **Git** : commit de code + `docs(handoff)` séparés, add **par chemin explicite** —
+  la session 62 tournait **en parallèle dans le même arbre** (40 fichiers modifiés
+  au début de cette session, commités en `288b082`/`1f405df` pendant celle-ci) ;
+  `git show --stat` relu après chaque commit (règle laissée par §62).
+- **Ouvert, hors périmètre** : `Rapports` reste sur 6 cartes `Kpi` (même motif
+  qu'ici avant cette session) ; le graphique `BarChart` garde son `viewBox` 640×170
+  qui étire une série de 1 à 3 points (carte haute, barre fine) — le corriger
+  toucherait `Rapports`, donc hors de cette demande ; jour métier UTC (E-35) inchangé.
