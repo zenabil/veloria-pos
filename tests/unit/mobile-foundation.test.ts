@@ -163,7 +163,7 @@ describe("appel client-sync", () => {
     await expect(syncNow("u", "k", "0550", "12345", okFetch)).rejects.toMatchObject({
       code: "AUTH_ERROR",
     });
-    expect(() => assertCredentials("0550", "12345a")).toThrowError(SyncError);
+    expect(() => assertCredentials("0550", "12345a")).toThrow(SyncError);
   });
   it("succès → clichés + syncedAt", async () => {
     const r = await syncNow("https://x.supabase.co/", "k", "0550", "123456", okFetch);

@@ -14,10 +14,10 @@ import path from "node:path";
 export default defineConfig({
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "src"),
-      "@domain": path.resolve(__dirname, "src/domain"),
-      "@shared": path.resolve(__dirname, "src/shared"),
-      "@features": path.resolve(__dirname, "src/features"),
+      "@": path.resolve(import.meta.dirname, "src"),
+      "@domain": path.resolve(import.meta.dirname, "src/domain"),
+      "@shared": path.resolve(import.meta.dirname, "src/shared"),
+      "@features": path.resolve(import.meta.dirname, "src/features"),
     },
   },
   test: {

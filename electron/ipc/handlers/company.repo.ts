@@ -54,7 +54,7 @@ export function saveCompany(input: CompanyInput, now: string, operationId?: stri
       assertLogoValid(candidate, stat.size);
     } catch (err) {
       if (err instanceof Error && err.message.startsWith("Logo ")) throw err;
-      throw new Error("Logo invalide : fichier introuvable ou illisible.");
+      throw new Error("Logo invalide : fichier introuvable ou illisible.", { cause: err });
     }
     logoPath = candidate;
   }

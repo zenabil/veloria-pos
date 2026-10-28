@@ -10,10 +10,10 @@ export default defineConfig({
   base: "./",
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "src"),
-      "@domain": path.resolve(__dirname, "src/domain"),
-      "@shared": path.resolve(__dirname, "src/shared"),
-      "@features": path.resolve(__dirname, "src/features"),
+      "@": path.resolve(import.meta.dirname, "src"),
+      "@domain": path.resolve(import.meta.dirname, "src/domain"),
+      "@shared": path.resolve(import.meta.dirname, "src/shared"),
+      "@features": path.resolve(import.meta.dirname, "src/features"),
     },
   },
   build: {
@@ -23,14 +23,26 @@ export default defineConfig({
     // (un seul chunk de 485 Ko) et le seuil masquait la dérive. Découpage
     // explicite des grossiers (vendor) + seuil de 600 Ko : une régression de
     // taille devient visible dans le build.
+    // Vite 8/Rolldown : `manualChunks` objet n'existe plus, remplacé par
+    // `codeSplitting.groups` (les groupes sont prioritaires, react d'abord).
     chunkSizeWarningLimit: 600,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks: {
-          // Dépendance réellement utilisées par le renderer (une entrée
-          // inexistante fait ÉCHOUER le build : pas de package fantôme).
-          react: ["react", "react-dom"],
-          vendor: ["zustand", "zod", "clsx", "tailwind-merge", "lucide-react"],
+        codeSplitting: {
+          groups: [
+            {
+              name: "react",
+              test: /node_modules[\\/](react|react-dom)[\\/]/,
+              includeDependenciesRecursively: true,
+              priority: 2,
+            },
+            {
+              name: "vendor",
+              test: /node_modules[\\/](zustand|zod|clsx|tailwind-merge|lucide-react)[\\/]/,
+              includeDependenciesRecursively: true,
+              priority: 1,
+            },
+          ],
         },
       },
     },

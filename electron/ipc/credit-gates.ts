@@ -40,7 +40,7 @@ export function enforceCreditGates(
           channel,
           error: err instanceof Error ? err.message : String(err),
         });
-        throw new Error("Vérification de la licence impossible : réessayez.");
+        throw new Error("Vérification de la licence impossible : réessayez.", { cause: err });
       }
       if (debt > 0) requireLicensedFeature(deps, "debt-management");
     }
@@ -65,7 +65,7 @@ export function enforceCreditGates(
           channel,
           error: err instanceof Error ? err.message : String(err),
         });
-        throw new Error("Vérification de la licence impossible : réessayez.");
+        throw new Error("Vérification de la licence impossible : réessayez.", { cause: err });
       }
       if (ptotal != null && ptotal > 0 && cc.amountPaidMinor < ptotal) {
         requireLicensedFeature(deps, "debt-management");

@@ -172,9 +172,10 @@ export function registerCoreIpc(): void {
         });
         throw new Error(
           "Déplacement annulé mais la base n'a pas pu être rouverte. Redémarrez l'application ou réessayez depuis l'écran de récupération.",
+          { cause: fatalErr },
         );
       }
-      throw new Error("Déplacement annulé : l'ancienne base a été conservée.");
+      throw new Error("Déplacement annulé : l'ancienne base a été conservée.", { cause: err });
     }
   });
 }

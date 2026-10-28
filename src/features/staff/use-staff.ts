@@ -54,7 +54,7 @@ export function useStaff(notify?: Notify): {
       setSession(r.user);
       return r.user;
     } catch (e: unknown) {
-      throw new Error(frError(e, "Identifiants invalides."));
+      throw new Error(frError(e, "Identifiants invalides."), { cause: e });
     }
   }, []);
   const logout = useCallback(async (): Promise<void> => {

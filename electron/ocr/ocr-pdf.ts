@@ -82,7 +82,7 @@ export async function extractPdfText(pdfPath: string): Promise<OcrPdfInfo> {
     );
   } catch (err) {
     if (err instanceof Error && /trop long/.test(err.message)) throw err;
-    throw new Error("PDF invalide ou protégé : extraction impossible.");
+    throw new Error("PDF invalide ou protégé : extraction impossible.", { cause: err });
   }
   try {
     if (!Number.isInteger(doc.numPages) || doc.numPages < 1) {
@@ -103,7 +103,7 @@ export async function extractPdfText(pdfPath: string): Promise<OcrPdfInfo> {
         );
       } catch (err) {
         if (err instanceof Error && /délai/.test(err.message)) throw err;
-        throw new Error(`Lecture impossible de la page ${i}.`);
+        throw new Error(`Lecture impossible de la page ${i}.`, { cause: err });
       }
       const text = content.items
         .map((it) => (typeof it.str === "string" ? it.str : ""))

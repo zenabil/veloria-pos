@@ -80,6 +80,9 @@ export default tseslint.config(
       // différer au runtime (bigint, null, chaîne) : Number()/String() restent
       // des gardes de frontière volontaires (argent, stock, confiance OCR).
       "@typescript-eslint/no-unnecessary-type-conversion": "off",
+      // Les valeurs neutres (`let x = 0`) avant try/catch sont des contrats
+      // défensifs (fallback borné, retour anticipé), pas du code mort.
+      "no-useless-assignment": "off",
       "@typescript-eslint/explicit-function-return-type": [
         "error",
         { allowExpressions: true, allowTypedFunctionExpressions: true },

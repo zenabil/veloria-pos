@@ -5,19 +5,19 @@ import path from "node:path";
 
 // Veloria License Manager — renderer vendor (bundle séparé, jamais dans POS).
 export default defineConfig({
-  root: path.resolve(__dirname, "license-manager/renderer"),
+  root: path.resolve(import.meta.dirname, "license-manager/renderer"),
   plugins: [react(), tailwindcss()],
   base: "./",
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "src"),
-      "@domain": path.resolve(__dirname, "src/domain"),
-      "@shared": path.resolve(__dirname, "src/shared"),
-      "@features": path.resolve(__dirname, "src/features"),
+      "@": path.resolve(import.meta.dirname, "src"),
+      "@domain": path.resolve(import.meta.dirname, "src/domain"),
+      "@shared": path.resolve(import.meta.dirname, "src/shared"),
+      "@features": path.resolve(import.meta.dirname, "src/features"),
     },
   },
   build: {
-    outDir: path.resolve(__dirname, "dist-license-manager-renderer"),
+    outDir: path.resolve(import.meta.dirname, "dist-license-manager-renderer"),
     emptyOutDir: true,
     chunkSizeWarningLimit: 1200,
     sourcemap: false,

@@ -147,7 +147,7 @@ function snapshotBeforeMigration(sourcePath: string): void {
     // sans filet après un WARN exposerait à une migration à moitié appliquée
     // sans restauration possible.
     log("FATAL", "database", "migration.snapshot_failed", { error: String(err) });
-    throw new Error("Sauvegarde pré-migration impossible : migration annulée.");
+    throw new Error("Sauvegarde pré-migration impossible : migration annulée.", { cause: err });
   }
 }
 
@@ -465,7 +465,7 @@ export function factoryResetDatabase(operationId?: string | null): {
       path: target,
       reason: err instanceof Error ? err.message : "erreur inconnue",
     });
-    throw new Error("Réinitialisation impossible : fichier de base inaccessible.");
+    throw new Error("Réinitialisation impossible : fichier de base inaccessible.", { cause: err });
   }
   removeWalCompanions(target);
   const opened = reopenWithRetry("database.factory_reset");

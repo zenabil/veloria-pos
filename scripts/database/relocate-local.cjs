@@ -100,6 +100,7 @@ app.whenReady().then(() => {
           } catch (err) {
             throw new Error(
               `Compagnon ${suffix} illisible : déplacement annulé (${err instanceof Error ? err.message : String(err)}).`,
+              { cause: err },
             );
           }
         }

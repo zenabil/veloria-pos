@@ -480,7 +480,7 @@ export function createStaffUserAtomic(args: {
         if (retry) return retry;
       }
       if (/UNIQUE constraint failed: staff_users\.username/i.test(err.message)) {
-        throw new Error("Ce nom d'utilisateur existe déjà.");
+        throw new Error("Ce nom d'utilisateur existe déjà.", { cause: err });
       }
       if (/UNIQUE constraint failed: staff_users\.operation_id/i.test(err.message)) {
         const retry = peekIdempotency<{ id: number }>(args.operationId, "staff.create");

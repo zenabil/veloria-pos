@@ -67,7 +67,7 @@ function assertMagicBytes(filePath: string, ext: string): void {
       /* ignore */
     }
     if (err instanceof Error && /invalide|vide/.test(err.message)) throw err;
-    throw new Error("Fichier illisible.");
+    throw new Error("Fichier illisible.", { cause: err });
   }
   try {
     fs.closeSync(fd);

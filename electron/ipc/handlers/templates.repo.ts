@@ -110,7 +110,7 @@ export function saveTemplateAtomic(args: {
         ).run(args.docType, name, payload, args.now, args.id);
       } catch (err) {
         if (err instanceof Error && /UNIQUE constraint failed/i.test(err.message)) {
-          throw new Error("Ce nom existe déjà pour ce type de document.");
+          throw new Error("Ce nom existe déjà pour ce type de document.", { cause: err });
         }
         throw err;
       }
@@ -134,7 +134,7 @@ export function saveTemplateAtomic(args: {
       return out;
     } catch (err) {
       if (err instanceof Error && /UNIQUE constraint failed/i.test(err.message)) {
-        throw new Error("Ce nom existe déjà pour ce type de document.");
+        throw new Error("Ce nom existe déjà pour ce type de document.", { cause: err });
       }
       throw err;
     }

@@ -119,9 +119,9 @@ export async function recognizeImage(
     return { text: res.data.text, confidence: Number(res.data.confidence) };
   } catch (err) {
     if (err instanceof Error && err.message === "OCR_TIMEOUT") {
-      throw new Error("Analyse trop longue : image illisible ou trop lourde.");
+      throw new Error("Analyse trop longue : image illisible ou trop lourde.", { cause: err });
     }
-    throw new Error("Échec de la reconnaissance du texte.");
+    throw new Error("Échec de la reconnaissance du texte.", { cause: err });
   } finally {
     if (state.timer !== undefined) clearTimeout(state.timer);
     try {
