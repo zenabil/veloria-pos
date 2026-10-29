@@ -1,7 +1,7 @@
 // Veloria PoS — Écran : Zakat (calcul reporting + historique).
 // Paramètres déplacés dans Paramètres → Documents. Reporting seul, jamais un registre.
 import { useEffect, useState } from "react";
-import { Calculator, Download, FileDown, Printer } from "lucide-react";
+import { Calculator, Download, FileDown, History, Info, Printer, Scale } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { useCompany } from "@shared/company/use-company.ts";
 import { formatDzd } from "@domain/money/money.ts";
@@ -190,6 +190,7 @@ export function ZakatScreen({ notify }: { notify: Notify }): React.JSX.Element {
               onChange={(e) => setHijriYear(e.target.value)}
               aria-label="Année hégirienne"
               title="Année hégirienne"
+              className="w-[110px]"
             >
               {HIJRI_YEARS.map((y) => (
                 <option key={y} value={y}>
@@ -205,15 +206,46 @@ export function ZakatScreen({ notify }: { notify: Notify }): React.JSX.Element {
       />
 
       {/* Paramètres Nisab & Référentiel Sharia (lecture seule, édition dans Paramètres → Documents) */}
-      <Card className="flex flex-wrap items-center gap-3 p-4">
-        <div className="min-w-0 flex-1 text-sm">
-          <strong>Seuil du Nisab (Or 85g 24K) :</strong>{" "}
-          {sources ? formatDzd(sources.params.nisabMinor) : "—"} (
-          {sources ? nisabMethodLabel(sources.params.nisabMethod) : "—"}) · <strong>Taux :</strong>{" "}
-          {sources ? `${sources.params.ratePercent} %` : "—"} · <strong>Statut Hawl :</strong>{" "}
-          {formatDateFr(sources?.params.hawlDate ?? null)}
+      <Card className="flex flex-wrap items-center gap-4 p-4">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#fbbf24]/10 text-[#fbbf24] ring-1 ring-[#fbbf24]/20">
+          <Scale size={18} aria-hidden="true" />
+        </span>
+        <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+          <span className="flex flex-col">
+            <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+              Nisab or 85 g 24K
+            </span>
+            <strong className="font-mono text-[15px] tabular-nums text-slate-100">
+              {sources ? formatDzd(sources.params.nisabMinor) : "—"}
+            </strong>
+            <span className="text-[11px] text-slate-500">
+              {sources ? nisabMethodLabel(sources.params.nisabMethod) : "—"}
+            </span>
+          </span>
+          <span aria-hidden="true" className="hidden h-10 w-px bg-white/10 sm:block" />
+          <span className="flex flex-col">
+            <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+              Taux
+            </span>
+            <strong className="font-mono text-[15px] tabular-nums text-amber-200">
+              {sources ? `${sources.params.ratePercent} %` : "—"}
+            </strong>
+            <span className="text-[11px] text-slate-500">1/40e</span>
+          </span>
+          <span aria-hidden="true" className="hidden h-10 w-px bg-white/10 sm:block" />
+          <span className="flex flex-col">
+            <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+              Statut Hawl
+            </span>
+            <strong className="text-[13px] font-semibold text-slate-200">
+              {formatDateFr(sources?.params.hawlDate ?? null)}
+            </strong>
+            <span className="text-[11px] text-slate-500">Année lunaire</span>
+          </span>
         </div>
-        <span className="text-xs text-slate-500">Réglages : Paramètres → Documents → Zakat</span>
+        <span className="ml-auto text-[11px] text-slate-500">
+          Réglages : Paramètres → Documents → Zakat
+        </span>
       </Card>
 
       <StatsStrip
@@ -251,54 +283,68 @@ export function ZakatScreen({ notify }: { notify: Notify }): React.JSX.Element {
       />
 
       {/* Détail du calcul courant */}
-      <Card className="space-y-2.5 p-4 text-sm">
-        <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">
-          Base de calcul (sources comptables)
+      <Card className="space-y-3 p-4 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">
+            Base de calcul (sources comptables)
+          </div>
+          <Badge tone="grey">Reporting seul</Badge>
         </div>
-        <div className="grid gap-x-8 gap-y-1.5 sm:grid-cols-2">
-          <span className="flex justify-between gap-3">
-            <span className="text-slate-500">Espèces (ventes encaissées)</span>
-            <strong className="tabular-nums">{sources ? formatDzd(sources.cash.paid) : "—"}</strong>
+        <dl className="grid gap-x-8 sm:grid-cols-2">
+          {[
+            {
+              label: "Espèces (ventes encaissées)",
+              value: sources ? formatDzd(sources.cash.paid) : "—",
+            },
+            { label: "Ventes totales", value: sources ? formatDzd(sources.cash.total) : "—" },
+            { label: "Stock", value: sources ? formatDzd(sources.inventory.v) : "—" },
+            {
+              label: "Créances clients",
+              value: sources ? formatDzd(sources.customerDebts.d) : "—",
+            },
+            {
+              label: "Dettes fournisseurs",
+              value: sources ? formatDzd(sources.supplierDebts.d) : "—",
+            },
+          ].map((row) => (
+            <div
+              key={row.label}
+              className="flex justify-between gap-3 border-b border-white/[0.05] py-2 last:border-0"
+            >
+              <dt className="text-slate-500">{row.label}</dt>
+              <dd className="font-mono font-semibold tabular-nums text-slate-200">{row.value}</dd>
+            </div>
+          ))}
+          <div className="flex justify-between gap-3 py-2">
+            <dt className="text-slate-500">Caisse/banque</dt>
+            <dd className="text-right text-[11px] font-semibold text-amber-200/90">
+              Saisie manuelle (dialogue)
+            </dd>
+          </div>
+        </dl>
+        <p className="flex items-start gap-2 rounded-lg border border-white/[0.06] bg-black/25 px-3 py-2 text-[11px] leading-relaxed text-slate-500">
+          <Info size={13} aria-hidden="true" className="mt-0.5 shrink-0 text-[#fbbf24]" />
+          <span>
+            La caisse et la banque ne sont pas suivies par l&apos;application : saisissez-les dans
+            le dialogue de calcul. Reporting seul, jamais un registre.
           </span>
-          <span className="flex justify-between gap-3">
-            <span className="text-slate-500">Ventes totales</span>
-            <strong className="tabular-nums">
-              {sources ? formatDzd(sources.cash.total) : "—"}
-            </strong>
-          </span>
-          <span className="flex justify-between gap-3">
-            <span className="text-slate-500">Stock</span>
-            <strong className="tabular-nums">
-              {sources ? formatDzd(sources.inventory.v) : "—"}
-            </strong>
-          </span>
-          <span className="flex justify-between gap-3">
-            <span className="text-slate-500">Créances clients</span>
-            <strong className="tabular-nums">
-              {sources ? formatDzd(sources.customerDebts.d) : "—"}
-            </strong>
-          </span>
-          <span className="flex justify-between gap-3">
-            <span className="text-slate-500">Dettes fournisseurs</span>
-            <strong className="tabular-nums">
-              {sources ? formatDzd(sources.supplierDebts.d) : "—"}
-            </strong>
-          </span>
-          <span className="flex justify-between gap-3">
-            <span className="text-slate-500">Caisse/banque</span>
-            <strong className="tabular-nums">Saisie manuelle (dialogue)</strong>
-          </span>
-        </div>
-        <p className="text-xs text-slate-500">
-          La caisse et la banque ne sont pas suivies par l'application : saisissez-les dans le
-          dialogue de calcul. Reporting seul, jamais un registre.
         </p>
       </Card>
 
       {/* Historique */}
       <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="flex items-center justify-between gap-2 border-b border-white/[0.07] px-4 py-3">
-          <h3 className="text-sm font-extrabold">Historique des calculs</h3>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.07] px-4 py-3">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.04] text-slate-300 ring-1 ring-white/10">
+              <History size={15} aria-hidden="true" />
+            </span>
+            <div>
+              <h3 className="text-[15px] font-semibold tracking-tight text-slate-100">
+                Historique des calculs
+              </h3>
+              <p className="text-[11px] text-slate-500">{total} calcul(s) enregistré(s)</p>
+            </div>
+          </div>
           <div className="flex gap-2">
             <Button variant="secondary" onClick={exportHistory} title="Exporter CSV">
               <Download size={15} aria-hidden="true" /> CSV
@@ -326,7 +372,7 @@ export function ZakatScreen({ notify }: { notify: Notify }): React.JSX.Element {
             />
           ) : (
             <table className="w-full min-w-[760px] text-sm">
-              <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
+              <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500 shadow-[0_1px_0_rgba(255,255,255,0.07)]">
                 <tr>
                   <th className="px-3 py-2.5">Date</th>
                   <th className="px-3 py-2.5">Année H.</th>

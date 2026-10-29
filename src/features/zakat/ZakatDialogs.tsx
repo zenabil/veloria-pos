@@ -1,10 +1,12 @@
 // Veloria PoS — Zakat : dialogue de calcul (saisie + résultat + sauvegarde).
 import { useState } from "react";
+import { Calculator, Scale, Wallet } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { formatDzd, minorToInput, parseDzdInputStrict } from "@domain/money/money.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { todayUtcDate } from "@shared/dates/dates.ts";
 import { Button, Field, Modal, TextArea, TextInput } from "@shared/ui/primitives.tsx";
+import { FormSection } from "@shared/ui/form-section.tsx";
 import { computeZakat } from "@domain/zakat/zakat-rules.ts";
 import type { ZakatSources } from "./types.ts";
 
@@ -140,46 +142,82 @@ export function ZakatCalculationDialog({
   );
 
   return (
-    <Modal label="Calcul zakat" title={`Calcul zakat — ${hijriYear} H`} onClose={onClose} wide>
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          {money("Espèces (DZD)", cash, setCash, "Caisse comptée.")}
-          {money("Banque (DZD)", bank, setBank)}
-          {money("Stock (DZD)", stock, setStock, "Pré-rempli (valeur d'achat).")}
-          {money("Créances (DZD)", receivables, setReceivables, "Pré-rempli (clients).")}
-          {money("Autres biens (DZD)", other, setOther)}
-          {money("Dettes (DZD)", liabilities, setLiabilities, "Pré-rempli (fournisseurs).")}
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          {money("Nisab (DZD)", nisab, setNisab)}
-          <Field label="Taux (%)">
-            <TextInput
-              value={rate}
-              onChange={(e) => setRate(e.target.value)}
-              inputMode="decimal"
-              placeholder="2,5"
-              aria-label="Taux"
-            />
-          </Field>
-        </div>
-
-        <dl className="space-y-1.5 rounded-xl bg-black/25 p-4 text-sm">
-          <div className="flex justify-between">
-            <dt className="text-slate-500">Net zakatable</dt>
-            <dd className="font-bold tabular-nums">{result ? formatDzd(result.net) : "—"}</dd>
+    <Modal
+      label="Calcul zakat"
+      title={
+        <span className="flex items-center gap-2.5">
+          <span
+            aria-hidden="true"
+            className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#fbbf24]/10 text-[#fbbf24] ring-1 ring-[#fbbf24]/20"
+          >
+            <Calculator size={16} />
+          </span>
+          <span>{`Calcul zakat — ${hijriYear} H`}</span>
+        </span>
+      }
+      onClose={onClose}
+      wide
+    >
+      <div className="space-y-3.5">
+        <FormSection
+          icon={<Wallet size={14} aria-hidden="true" />}
+          title="Biens zakatables"
+          hint="DZD"
+        >
+          <div className="grid grid-cols-2 gap-2.5">
+            {money("Espèces (DZD)", cash, setCash, "Caisse comptée.")}
+            {money("Banque (DZD)", bank, setBank)}
+            {money("Stock (DZD)", stock, setStock, "Pré-rempli (valeur d'achat).")}
+            {money("Créances (DZD)", receivables, setReceivables, "Pré-rempli (clients).")}
+            {money("Autres biens (DZD)", other, setOther)}
           </div>
-          <div className="flex items-baseline justify-between border-t border-white/10 pt-2">
-            <dt className="font-extrabold">Zakat estimée</dt>
-            <dd className="text-xl font-extrabold tabular-nums text-amber-300">
-              {result ? formatDzd(result.zakat) : "—"}
+        </FormSection>
+
+        <FormSection
+          icon={<Scale size={14} aria-hidden="true" />}
+          title="Dettes & paramètres"
+          hint="Nisab, taux"
+        >
+          <div className="grid grid-cols-2 gap-2.5">
+            {money("Dettes (DZD)", liabilities, setLiabilities, "Pré-rempli (fournisseurs).")}
+            {money("Nisab (DZD)", nisab, setNisab)}
+            <Field label="Taux (%)">
+              <TextInput
+                value={rate}
+                onChange={(e) => setRate(e.target.value)}
+                inputMode="decimal"
+                placeholder="2,5"
+                aria-label="Taux"
+              />
+            </Field>
+          </div>
+        </FormSection>
+
+        <dl className="rounded-xl border border-white/10 bg-black/25 p-4 text-sm">
+          <div className="flex items-center justify-between">
+            <dt className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+              Net zakatable
+            </dt>
+            <dd className="font-mono font-bold tabular-nums text-slate-200">
+              {result ? formatDzd(result.net) : "—"}
             </dd>
           </div>
-          <div className="text-xs text-slate-500">
-            {result
-              ? result.above
-                ? "Au-dessus du nisab."
-                : "Sous le nisab : aucune zakat."
-              : "—"}
+          <div className="mt-2 flex items-end justify-between gap-3 border-t border-white/10 pt-3">
+            <div className="min-w-0">
+              <dt className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                Zakat estimée
+              </dt>
+              <dd className="mt-1 text-xs text-slate-500">
+                {result
+                  ? result.above
+                    ? "Au-dessus du nisab."
+                    : "Sous le nisab : aucune zakat."
+                  : "—"}
+              </dd>
+            </div>
+            <dd className="font-mono-currency-lg shrink-0 tabular-nums text-amber-300">
+              {result ? formatDzd(result.zakat) : "—"}
+            </dd>
           </div>
         </dl>
 
@@ -192,7 +230,7 @@ export function ZakatCalculationDialog({
           />
         </Field>
 
-        <div className="flex gap-2">
+        <div className="sticky bottom-0 z-10 -mx-6 flex gap-2 border-t border-white/10 bg-[#122131]/95 px-6 py-3.5 backdrop-blur">
           <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
             Annuler
           </Button>
