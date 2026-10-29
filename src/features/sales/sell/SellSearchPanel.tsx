@@ -67,11 +67,13 @@ export function SellSearchPanel({
   return (
     <Card className="flex flex-col justify-between p-4">
       <div>
-        <div className="flex items-center justify-between pb-1">
-          <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
+        <div className="flex items-center justify-between pb-2">
+          <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
+            <span aria-hidden="true" className="h-1 w-1 rounded-full bg-[#fbbf24]" />
             Recherche produit [F3]
           </span>
-          <span className="rounded bg-[#1c2b3c] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[#4edea3]">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/25 bg-emerald-400/[0.08] px-2 py-0.5 font-mono text-[10px] font-semibold text-emerald-200">
+            <span className="veloria-pulse-dot h-1.5 w-1.5 rounded-full bg-emerald-400" />
             Scanner prêt
           </span>
         </div>
@@ -82,7 +84,7 @@ export function SellSearchPanel({
           placeholder="Nom, code-barres… (5*code = quantité, ↑↓ + Entrée)"
           ariaLabel="Recherche produit"
           inputRef={searchRef}
-          inputClassName="pl-10 pr-20"
+          inputClassName="min-h-[52px] pl-10 pr-24 text-[15px]"
           trailing={
             <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
               <Kbd>Entrée ↵</Kbd>
@@ -99,7 +101,7 @@ export function SellSearchPanel({
         <ul
           role="listbox"
           aria-label="Résultats produits"
-          className="mt-2 max-h-56 divide-y divide-white/[0.06] overflow-auto rounded-xl border border-white/10"
+          className="mt-2 max-h-56 divide-y divide-white/[0.06] overflow-auto rounded-xl border border-white/10 bg-[#0d1c2d]"
         >
           {results.map((r, i) => (
             <li key={r.id}>
@@ -109,7 +111,7 @@ export function SellSearchPanel({
                 aria-selected={i === clamped}
                 onMouseEnter={() => setActive(i)}
                 onClick={() => onPick(r)}
-                className={`flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-amber-400/10 ${i === clamped ? "bg-amber-400/10" : ""} ${r.quantity <= 0 ? "opacity-60" : ""}`}
+                className={`flex w-full items-center justify-between gap-3 border-l-2 px-3 py-2.5 text-left text-sm transition-colors hover:bg-amber-400/10 ${i === clamped ? "border-[#fbbf24] bg-amber-400/10" : "border-transparent"} ${r.quantity <= 0 ? "opacity-60" : ""}`}
               >
                 <span className="min-w-0">
                   <span className="block truncate font-semibold">{r.name}</span>

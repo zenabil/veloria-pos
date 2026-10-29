@@ -1,5 +1,5 @@
 // Veloria PoS — Caisse : totaux + dernière vente (extrait de SellScreen, JSX pur).
-import { Printer } from "lucide-react";
+import { Banknote, Printer } from "lucide-react";
 import { formatDzdTotal } from "@domain/money/money.ts";
 import { Button, Card, Field, SectionTitle, TextInput } from "@shared/ui/primitives.tsx";
 import type { SellTotals } from "./useSellState.ts";
@@ -47,8 +47,17 @@ export function SellTotalsPanel({
       {/* D2 : total + encaissement collants en haut de colonne — visibles
           pendant le défilement de l'aperçu (dernière vente) ci-dessous. */}
       <div className="sticky top-0 z-10">
-        <Card className="space-y-3 border-[#fbbf24]/25 p-5 shadow-[0_12px_28px_-12px_rgba(2,6,13,0.8)]">
-          <SectionTitle title="Total à encaisser" hint="Montants en dinars (DZD)" />
+        <Card className="relative space-y-3 overflow-hidden border-[#fbbf24]/25 p-5 shadow-[0_12px_28px_-12px_rgba(2,6,13,0.8)]">
+          <span
+            aria-hidden="true"
+            className="absolute inset-x-0 top-0 h-[2px] bg-[linear-gradient(90deg,transparent,#fbbf24,transparent)] opacity-80"
+          />
+          <div className="flex items-start justify-between gap-2">
+            <SectionTitle title="Total à encaisser" hint="Montants en dinars (DZD)" />
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#fbbf24]/10 text-[#fbbf24] ring-1 ring-[#fbbf24]/20">
+              <Banknote size={16} aria-hidden="true" />
+            </span>
+          </div>
           {totalsErr ? (
             <p role="alert" className="text-sm font-semibold text-red-300">
               {totalsErr}
@@ -111,7 +120,14 @@ export function SellTotalsPanel({
             className="w-full py-3 text-base"
             title="Ouvrir l'encaissement [F10]"
           >
+            <Banknote size={18} aria-hidden="true" />
             Encaisser
+            <span
+              aria-hidden="true"
+              className="rounded bg-[#402d00]/15 px-1.5 py-0.5 font-mono text-[10px] font-bold text-[#402d00]"
+            >
+              F10
+            </span>
           </Button>
         </Card>
       </div>

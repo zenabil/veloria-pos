@@ -22,11 +22,12 @@ export function SellTabsBar({
 }): React.JSX.Element {
   return (
     <div
-      className="flex items-center gap-2 overflow-x-auto rounded-lg bg-[#0d1c2d] px-3 py-2"
+      className="flex items-center gap-2 overflow-x-auto rounded-2xl border border-white/[0.06] bg-[#0a0f1c] px-3 py-2"
       role="tablist"
       aria-label="Paniers en cours"
     >
-      <span className="shrink-0 pr-1 text-[11px] font-bold uppercase tracking-[0.12em] text-[#d3c5ac]">
+      <span className="flex shrink-0 items-center gap-2 pr-1 text-[11px] font-bold uppercase tracking-[0.12em] text-[#d3c5ac]">
+        <span aria-hidden="true" className="h-1 w-1 rounded-full bg-[#4edea3]" />
         Paniers en attente :
       </span>
       {tabs.map((t) => {
@@ -40,8 +41,8 @@ export function SellTabsBar({
             aria-label={`${t.name} · ${t.lines.length} article(s)`}
             className={
               selected
-                ? "flex shrink-0 items-center gap-2 rounded-xl border border-amber-400/50 bg-amber-400/10 py-1.5 pl-3 pr-1.5"
-                : "flex shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] py-1.5 pl-3 pr-1.5"
+                ? "flex shrink-0 items-center gap-2 rounded-xl border border-[#fbbf24]/30 bg-[linear-gradient(90deg,rgba(251,191,36,0.14),rgba(251,191,36,0.02))] py-1.5 pl-3 pr-1.5 shadow-[0_1px_0_rgba(255,255,255,0.05)_inset]"
+                : "flex shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] py-1.5 pl-3 pr-1.5 transition-colors hover:border-white/20"
             }
           >
             <button
@@ -59,7 +60,13 @@ export function SellTabsBar({
               </span>
               <Badge tone={selected ? "amber" : "grey"}>{t.lines.length}</Badge>
               {total != null ? (
-                <span className="text-xs font-bold tabular-nums text-slate-300">
+                <span
+                  className={
+                    selected
+                      ? "font-mono text-[11px] font-bold tabular-nums text-[#ffe1a7]"
+                      : "font-mono text-[11px] font-bold tabular-nums text-slate-300"
+                  }
+                >
                   {formatDzdTotal(total)}
                 </span>
               ) : null}

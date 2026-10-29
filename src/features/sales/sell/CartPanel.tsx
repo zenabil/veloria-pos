@@ -1,7 +1,7 @@
 // Veloria PoS — Caisse : panneau panier (P4, extrait de SellScreen).
 // La remise vit UNIQUEMENT dans le prix unitaire (clic sur le P.U. → PriceDialog).
 import { useEffect, useState } from "react";
-import { Minus, Plus, Trash2, X } from "lucide-react";
+import { Minus, Plus, ShoppingCart, Trash2, X } from "lucide-react";
 import {
   formatDzd,
   formatDzdTotal,
@@ -118,10 +118,15 @@ export function CartPanel({
     <>
       <Card className="flex min-h-0 flex-col overflow-hidden">
         <div className="flex items-center justify-between border-b border-white/[0.07] px-5 py-3">
-          <SectionTitle
-            title={`${cart.name} · ${cart.lines.length} article${cart.lines.length > 1 ? "s" : ""}`}
-            hint={`${Math.round(totalQty * 1000) / 1000} unité(s) au total`}
-          />
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#fbbf24]/10 text-[#fbbf24] ring-1 ring-[#fbbf24]/20">
+              <ShoppingCart size={17} aria-hidden="true" />
+            </span>
+            <SectionTitle
+              title={`${cart.name} · ${cart.lines.length} article${cart.lines.length > 1 ? "s" : ""}`}
+              hint={`${Math.round(totalQty * 1000) / 1000} unité(s) au total`}
+            />
+          </div>
           {cart.lines.length > 0 ? (
             <Button variant="ghost" onClick={clearActiveCart} title="Vider le panier [F9]">
               <Trash2 size={16} aria-hidden="true" /> Vider [F9]
@@ -130,14 +135,27 @@ export function CartPanel({
         </div>
         <div className="min-h-0 flex-1 overflow-auto p-3">
           {cart.lines.length === 0 ? (
-            <EmptyState
-              title="Caisse prête"
-              hint="Scannez un code-barres ou recherchez un produit pour commencer la vente."
-              glyph="cart"
-            />
+            <div className="flex h-full flex-col items-center justify-center gap-3">
+              <EmptyState
+                title="Caisse prête"
+                hint="Scannez un code-barres ou recherchez un produit pour commencer la vente."
+                glyph="cart"
+              />
+              <div className="-mt-10 flex flex-wrap items-center justify-center gap-1.5 font-mono text-[10px] font-medium text-slate-500">
+                <span className="rounded-md border border-white/10 bg-white/[0.03] px-2 py-1">
+                  <span className="font-bold text-[#ffe1a7]">F3</span> Recherche
+                </span>
+                <span className="rounded-md border border-white/10 bg-white/[0.03] px-2 py-1">
+                  <span className="font-bold text-[#ffe1a7]">F1</span> Article libre
+                </span>
+                <span className="rounded-md border border-white/10 bg-white/[0.03] px-2 py-1">
+                  <span className="font-bold text-[#ffe1a7]">F5</span> Client
+                </span>
+              </div>
+            </div>
           ) : (
             <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
+              <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500 shadow-[0_1px_0_rgba(255,255,255,0.07)]">
                 <tr>
                   <th className="px-3 py-2">Produit</th>
                   <th className="px-3 py-2 text-center">Qté</th>
@@ -274,7 +292,7 @@ export function CartPanel({
                                 cart.setQty(l.key, v);
                               }
                             }}
-                            className="w-[88px] min-h-[44px] rounded-lg border border-white/10 bg-black/30 px-2 py-2 text-center text-base tabular-nums disabled:cursor-not-allowed disabled:opacity-50"
+                            className="w-[88px] min-h-[44px] rounded-lg border border-white/10 bg-black/25 px-2 py-2 text-center text-base tabular-nums disabled:cursor-not-allowed disabled:opacity-50"
                           />
                           <button
                             type="button"
