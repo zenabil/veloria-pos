@@ -1,7 +1,7 @@
 // Veloria PoS — Retours : tiroir détail + création (client/fournisseur) + remboursement.
 // Branchés sur le bridge window.veloria (jamais de SQLite côté renderer).
 import { useEffect, useRef, useState } from "react";
-import { Search } from "lucide-react";
+import { HandCoins, ReceiptText, Search, Undo2 } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 
 import { formatDzd, minorToInput } from "@domain/money/money.ts";
@@ -26,6 +26,7 @@ import {
   TextInput,
   cn,
 } from "@shared/ui/primitives.tsx";
+import { FormSection } from "@shared/ui/form-section.tsx";
 import { type ItemCondition } from "../types.ts";
 
 import type { Notify } from "@shared/ui/primitives.tsx";
@@ -329,238 +330,294 @@ export function CustomerReturnDialog({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex gap-2">
-        <div className="flex-1">
-          <TextInput
-            value={invoice}
-            onChange={(e) => setInvoice(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                void search();
-              }
-            }}
-            placeholder="N° facture ou scan code-barres (ex. FAC-2026-00001)"
-            aria-label="Rechercher une facture par numéro ou scan code-barres"
-            className="font-mono"
-            autoFocus
-          />
+    <div className="space-y-3.5">
+      <FormSection
+        icon={<ReceiptText size={14} aria-hidden="true" />}
+        title="Facture d'origine"
+        hint="Numéro ou scan"
+      >
+        <div className="flex gap-2">
+          <div className="min-w-0 flex-1">
+            <TextInput
+              value={invoice}
+              onChange={(e) => setInvoice(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void search();
+                }
+              }}
+              placeholder="N° facture ou scan code-barres (ex. FAC-2026-00001)"
+              aria-label="Rechercher une facture par numéro ou scan code-barres"
+              className="font-mono"
+              autoFocus
+            />
+          </div>
+          <Button variant="secondary" onClick={() => void search()} disabled={loading}>
+            <Search size={15} aria-hidden="true" /> {loading ? "…" : "Chercher"}
+          </Button>
         </div>
-        <Button variant="secondary" onClick={() => void search()} disabled={loading}>
-          <Search size={15} aria-hidden="true" /> {loading ? "…" : "Rechercher"}
-        </Button>
-      </div>
-      <p className="text-xs text-slate-500">
-        Astuce : scannez le code-barres imprimé sur le ticket / la facture A4 — le N° se remplit
-        seul, puis Entrée.
-      </p>
+        <p className="text-[11px] text-slate-500">
+          Astuce : scannez le code-barres imprimé sur le ticket / la facture A4 — le N° se remplit
+          seul, puis Entrée.
+        </p>
+      </FormSection>
 
       {sale ? (
         <>
-          <dl className="rounded-xl bg-black/25 p-4 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-slate-500">Facture</dt>
-              <dd className="font-mono font-bold">{String(sale["invoice_number"] ?? "")}</dd>
+          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-white/[0.08] bg-white/[0.06] sm:grid-cols-4">
+            <div className="min-w-0 bg-[#101f31] px-3 py-2.5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                Facture
+              </p>
+              <p className="mt-1 truncate font-mono text-[13px] font-bold text-slate-100">
+                {String(sale["invoice_number"] ?? "")}
+              </p>
             </div>
-            <div className="mt-1 flex justify-between">
-              <dt className="text-slate-500">Client</dt>
-              <dd className="font-semibold">{customerName ?? "Passage"}</dd>
+            <div className="min-w-0 bg-[#101f31] px-3 py-2.5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                Client
+              </p>
+              <p className="mt-1 truncate text-[13px] font-semibold text-slate-200">
+                {customerName ?? "Passage"}
+              </p>
             </div>
-            <div className="mt-1 flex justify-between">
-              <dt className="text-slate-500">Total facture</dt>
-              <dd className="font-bold tabular-nums">{formatDzdSafe(sale["total_minor"] ?? 0)}</dd>
+            <div className="min-w-0 bg-[#101f31] px-3 py-2.5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                Total facture
+              </p>
+              <p className="mt-1 truncate font-mono text-[13px] font-bold tabular-nums text-slate-100">
+                {formatDzdSafe(sale["total_minor"] ?? 0)}
+              </p>
             </div>
-            <div className="mt-1 flex justify-between border-t border-white/10 pt-1">
-              <dt className="text-slate-500">Dette actuelle</dt>
-              <dd className="font-bold tabular-nums text-amber-300">
+            <div className="min-w-0 bg-[#101f31] px-3 py-2.5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                Dette actuelle
+              </p>
+              <p className="mt-1 truncate font-mono text-[13px] font-bold tabular-nums text-amber-300">
                 {customerOutstandingMinor == null
                   ? "Passage"
                   : formatDzdSafe(customerOutstandingMinor)}
-              </dd>
-            </div>
-          </dl>
-
-          <TextInput
-            value={itemQuery}
-            onChange={(e) => onItemQueryChange(uppercaseBarcodeInput(e.target.value))}
-            onKeyDown={(e) => {
-              if (e.key !== "Enter") return;
-              e.preventDefault();
-              const code = normalizeBarcodeValue(itemQuery);
-              if (code.length < 2 || /\s/.test(code)) return;
-              // Entrée = scan répété : un deuxième carton s'ajoute au premier.
-              lastScanRef.current = code;
-              void applyBarcodeScan(code);
-            }}
-            placeholder="Rechercher un produit (nom ou code-barres)…"
-            aria-label="Rechercher un produit dans la facture"
-            className="mb-2"
-            autoCapitalize="characters"
-            autoCorrect="off"
-            spellCheck={false}
-          />
-
-          <div className="max-h-56 overflow-auto rounded-xl border border-white/10">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
-                <tr>
-                  <th className="px-3 py-2">Produit</th>
-                  <th className="px-3 py-2 text-right">Acheté</th>
-                  <th className="px-3 py-2 text-right">Qté retour</th>
-                  <th className="px-3 py-2 text-right">Total</th>
-                  <th className="px-3 py-2">État</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleLines.map(({ l, i }) => (
-                  <tr key={l.id} className="border-t border-white/[0.06]">
-                    <td className="max-w-[180px] px-3 py-2">
-                      <span className="block truncate">{l.product_name_snapshot}</span>
-                      {l.unit_code && l.unit_code.toUpperCase() !== "PIECE" ? (
-                        <span className="text-[11px] font-semibold text-amber-300/80">
-                          {l.unit_code}
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums text-slate-400">
-                      {l.quantity} <span className="text-[11px]">(restant {l.eligible})</span>
-                    </td>
-                    <td className="w-24 px-3 py-2">
-                      <TextInput
-                        value={l.qty}
-                        onChange={(e) => setLineQty(i, e.target.value)}
-                        inputMode="decimal"
-                        placeholder="0"
-                        aria-label={`Quantité ${l.product_name_snapshot}`}
-                        className={cn("py-1.5 text-right", l.over && "border-red-400/60")}
-                      />
-                    </td>
-                    <td className="px-3 py-2 text-right font-bold tabular-nums">
-                      {formatDzd(netLineReturnMinor(l, l.wanted))}
-                    </td>
-                    <td className="px-3 py-2">
-                      <Select
-                        value={l.condition}
-                        onChange={(e) => setLineCondition(i, e.target.value as ItemCondition)}
-                        aria-label={`État ${l.product_name_snapshot}`}
-                        className="py-1.5 text-xs"
-                      >
-                        <option value="good">Bon état</option>
-                        <option value="defective">Défectueux</option>
-                      </Select>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-sm font-semibold">
-            <span>Remettre en stock</span>
-            <Switch
-              checked={restockAll}
-              onChange={() => setRestockAll((a) => !a)}
-              ariaLabel="Remettre en stock"
-            />
-          </label>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Motif">
-              <Select value={reason} onChange={(e) => setReason(e.target.value)} aria-label="Motif">
-                {RETURN_REASONS.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="Date de retour">
-              <TextInput
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                aria-label="Date de retour"
-              />
-            </Field>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field
-              label="Remboursé (DZD)"
-              hint={
-                autoCredit > 0
-                  ? `Max ${formatDzdSafe(maxRefund)} · ${formatDzdSafe(autoCredit)} imputé à la dette.`
-                  : `Max ${formatDzdSafe(maxRefund)} (aucune dette à imputer).`
-              }
-            >
-              <TextInput
-                value={refundText}
-                onChange={(e) => {
-                  setRefundTouched(true);
-                  setRefundText(e.target.value);
-                }}
-                disabled={maxRefund <= 0}
-                inputMode="decimal"
-                placeholder="0,00"
-                aria-label="Montant remboursé"
-              />
-            </Field>
-            <Field label="Moyen">
-              <Select
-                value={method}
-                onChange={(e) => setMethod(e.target.value as "cash" | "cheque" | "transfer")}
-                aria-label="Moyen de remboursement"
-              >
-                <option value="cash">Espèces</option>
-                <option value="cheque">Chèque</option>
-                <option value="transfer">Virement</option>
-              </Select>
-            </Field>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl border border-white/10 bg-black/25 px-4 py-3">
-              <p className="text-xs text-slate-500">Imputé automatiquement à la dette</p>
-              <p className="text-lg font-extrabold tabular-nums text-amber-300">
-                {formatDzdSafe(autoCredit)}
-              </p>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-black/25 px-4 py-3">
-              <p className="text-xs text-slate-500">Dette après retour</p>
-              <p className="text-lg font-extrabold tabular-nums text-emerald-300">
-                {outstandingAfter == null
-                  ? "Passage"
-                  : formatDzdSafe(Math.max(0, outstandingAfter))}
               </p>
             </div>
           </div>
-          <Field label="Notes" hint="Optionnel.">
+
+          <FormSection
+            icon={<Undo2 size={14} aria-hidden="true" />}
+            title="Articles retournés"
+            hint={`${chosen.length} ligne(s) sélectionnée(s)`}
+          >
             <TextInput
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Précisez le motif…"
-              aria-label="Notes"
+              value={itemQuery}
+              onChange={(e) => onItemQueryChange(uppercaseBarcodeInput(e.target.value))}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter") return;
+                e.preventDefault();
+                const code = normalizeBarcodeValue(itemQuery);
+                if (code.length < 2 || /\s/.test(code)) return;
+                // Entrée = scan répété : un deuxième carton s'ajoute au premier.
+                lastScanRef.current = code;
+                void applyBarcodeScan(code);
+              }}
+              placeholder="Rechercher un produit (nom ou code-barres)…"
+              aria-label="Rechercher un produit dans la facture"
+              autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
             />
-          </Field>
 
-          <dl className="flex items-baseline justify-between rounded-xl bg-black/25 px-4 py-3">
-            <dt className="font-extrabold">Total retour</dt>
-            <dd className="text-xl font-extrabold tabular-nums text-amber-300">
-              {formatDzd(total)}
-            </dd>
-          </dl>
+            <div className="max-h-56 overflow-auto rounded-xl border border-white/10 bg-[#0d1c2d]">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500 shadow-[0_1px_0_rgba(255,255,255,0.07)]">
+                  <tr>
+                    <th className="px-3 py-2">Produit</th>
+                    <th className="px-3 py-2 text-right">Acheté</th>
+                    <th className="px-3 py-2 text-right">Qté retour</th>
+                    <th className="px-3 py-2 text-right">Total</th>
+                    <th className="px-3 py-2">État</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleLines.map(({ l, i }) => (
+                    <tr key={l.id} className="border-t border-white/[0.06]">
+                      <td className="max-w-[180px] px-3 py-2">
+                        <span className="block truncate">{l.product_name_snapshot}</span>
+                        {l.unit_code && l.unit_code.toUpperCase() !== "PIECE" ? (
+                          <span className="text-[11px] font-semibold text-amber-300/80">
+                            {l.unit_code}
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-slate-400">
+                        {l.quantity} <span className="text-[11px]">(restant {l.eligible})</span>
+                      </td>
+                      <td className="w-24 px-3 py-2">
+                        <TextInput
+                          value={l.qty}
+                          onChange={(e) => setLineQty(i, e.target.value)}
+                          inputMode="decimal"
+                          placeholder="0"
+                          aria-label={`Quantité ${l.product_name_snapshot}`}
+                          className={cn("py-1.5 text-right", l.over && "border-red-400/60")}
+                        />
+                      </td>
+                      <td className="px-3 py-2 text-right font-bold tabular-nums">
+                        {formatDzd(netLineReturnMinor(l, l.wanted))}
+                      </td>
+                      <td className="px-3 py-2">
+                        <Select
+                          value={l.condition}
+                          onChange={(e) => setLineCondition(i, e.target.value as ItemCondition)}
+                          aria-label={`État ${l.product_name_snapshot}`}
+                          className="py-1.5 text-xs"
+                        >
+                          <option value="good">Bon état</option>
+                          <option value="defective">Défectueux</option>
+                        </Select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </FormSection>
+
+          <FormSection
+            icon={<HandCoins size={14} aria-hidden="true" />}
+            title="Règlement"
+            hint="La dette d'abord"
+          >
+            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-sm font-semibold">
+              <span>Remettre en stock</span>
+              <Switch
+                checked={restockAll}
+                onChange={() => setRestockAll((a) => !a)}
+                ariaLabel="Remettre en stock"
+              />
+            </label>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <Field label="Motif">
+                <Select
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  aria-label="Motif"
+                >
+                  {RETURN_REASONS.map((r) => (
+                    <option key={r} value={r}>
+                      {r}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Date de retour">
+                <TextInput
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  aria-label="Date de retour"
+                />
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <Field
+                label="Remboursé (DZD)"
+                hint={
+                  autoCredit > 0
+                    ? `Max ${formatDzdSafe(maxRefund)} · ${formatDzdSafe(autoCredit)} imputé à la dette.`
+                    : `Max ${formatDzdSafe(maxRefund)} (aucune dette à imputer).`
+                }
+              >
+                <TextInput
+                  value={refundText}
+                  onChange={(e) => {
+                    setRefundTouched(true);
+                    setRefundText(e.target.value);
+                  }}
+                  disabled={maxRefund <= 0}
+                  inputMode="decimal"
+                  placeholder="0,00"
+                  aria-label="Montant remboursé"
+                />
+              </Field>
+              <Field label="Moyen">
+                <Select
+                  value={method}
+                  onChange={(e) => setMethod(e.target.value as "cash" | "cheque" | "transfer")}
+                  aria-label="Moyen de remboursement"
+                >
+                  <option value="cash">Espèces</option>
+                  <option value="cheque">Chèque</option>
+                  <option value="transfer">Virement</option>
+                </Select>
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="rounded-xl border border-white/10 bg-black/25 px-4 py-3">
+                <p className="text-[11px] text-slate-500">Imputé automatiquement à la dette</p>
+                <p className="mt-1 font-mono text-lg font-bold tabular-nums text-amber-300">
+                  {formatDzdSafe(autoCredit)}
+                </p>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-black/25 px-4 py-3">
+                <p className="text-[11px] text-slate-500">Dette après retour</p>
+                <p className="mt-1 font-mono text-lg font-bold tabular-nums text-emerald-300">
+                  {outstandingAfter == null
+                    ? "Passage"
+                    : formatDzdSafe(Math.max(0, outstandingAfter))}
+                </p>
+              </div>
+            </div>
+
+            <Field label="Notes" hint="Optionnel.">
+              <TextInput
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Précisez le motif…"
+                aria-label="Notes"
+              />
+            </Field>
+          </FormSection>
+
+          <div className="sticky bottom-0 z-10 -mx-6 flex flex-col gap-3 border-t border-white/10 bg-[#122131]/95 px-6 py-3.5 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                Total retour
+              </p>
+              <p className="font-mono text-xl font-extrabold tabular-nums text-amber-300">
+                {formatDzd(total)}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={onClose}
+                className="flex-1 sm:flex-none sm:min-w-[108px]"
+              >
+                Annuler
+              </Button>
+              <Button
+                onClick={() => void save()}
+                disabled={busy || !sale}
+                className="flex-[2] sm:flex-none sm:min-w-[190px]"
+              >
+                {busy ? "Enregistrement…" : `Valider le retour · ${formatDzd(total)}`}
+              </Button>
+            </div>
+          </div>
         </>
       ) : (
-        <EmptyState title="Aucune facture" hint="Recherchez la facture d'origine ci-dessus." />
+        <div className="rounded-xl border border-white/[0.08] bg-black/25">
+          <EmptyState
+            title="Aucune facture"
+            hint="Recherchez la facture d'origine ci-dessus."
+            glyph="doc"
+          />
+        </div>
       )}
-
-      <div className="flex gap-2">
-        <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
-          Annuler
-        </Button>
-        <Button onClick={() => void save()} disabled={busy || !sale} className="flex-[2]">
-          {busy ? "Enregistrement…" : `Valider le retour · ${formatDzd(total)}`}
-        </Button>
-      </div>
     </div>
   );
 }
