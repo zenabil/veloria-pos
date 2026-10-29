@@ -1,9 +1,8 @@
 # Veloria PoS — CI (P3) : garde-fous AGENTS.md §8 sur chaque push/PR Windows.
-# Étapes alignées sur les « portes » locales : format → typecheck (×3) →
-# lint → licence → tests → verify:migrations/domain/perf → builds.
-# NB : aucune signature d'intégrité n'exige la clé vendor ici (hooks
-# `--if-key-present`) ; le packaging strict (`license:integrity` nu) reste
-# réservé aux scripts `package*` sur le poste vendor.
+# `check` et `verify` sont les sources uniques des portes locales (format,
+# typecheck ×3, lint, licence, migrations/domaine/perf) — CI et poste vendor
+# exécutent les mêmes commandes. Le packaging strict (`license:integrity` nu)
+# reste réservé aux scripts `package*` sur le poste vendor.
 name: ci
 
 on:
@@ -11,9 +10,17 @@ on:
   pull_request:
   workflow_dispatch:
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   quality:
     runs-on: windows-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,21 +29,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node -e "const Database=require('better-sqlite3');const db=new Database(':memory:');db.prepare('SELECT 1 AS x').get();db.close();console.log('OK better-sqlite3 N-API')"
-      - run: npm run format:check
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm run typecheck:electron
-      - run: npm run typecheck:manager
-      - run: npm run typecheck:mobile
-      - run: npm run license:scan
-      - run: npm run verify:fr
-      - run: npm run verify:encoding
+      - run: npm run check
+      - run: npm run knip
       - run: npm test
       - run: npm run test:coverage
       - run: npm run test:coverage:features
-      - run: npm run verify:migrations
-      - run: npm run verify:domain
-      - run: npm run verify:perf
+      - run: npm run verify
       - run: npm run build
       - run: npm run build:electron
       - run: npm run build:manager-client

@@ -16,8 +16,7 @@
         "cloud/**/*.ts"
       ],
       "ignoreExportsUsedInFile": true,
-      "ignoreBinaries": ["net"],
-      "ignoreDependencies": ["bindings", "@eslint/js"]
+      "ignoreBinaries": ["net"]
     },
     "mobile": {
       "entry": ["src/App.tsx"],

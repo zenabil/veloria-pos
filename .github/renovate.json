@@ -1,0 +1,26 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":dependencyDashboard", ":semanticCommits"],
+  "rangeStrategy": "pin",
+  "schedule": ["before 6am on monday"],
+  "timezone": "Africa/Algiers",
+  "packageRules": [
+    {
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "mises à jour mineures"
+    },
+    {
+      "matchDepTypes": ["devDependencies"],
+      "groupName": "outillage"
+    },
+    {
+      "matchPackageNames": ["electron", "better-sqlite3"],
+      "groupName": "runtime Electron/SQLite",
+      "automerge": false
+    },
+    {
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    }
+  ]
+}

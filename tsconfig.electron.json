@@ -1,28 +1,21 @@
 {
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2022",
     "lib": ["ES2022"],
     "module": "CommonJS",
     // node10 reste requis pour l'émission CommonJS de main/preload ; TypeScript 7
     // (bloqué par typescript-eslint <6.1) imposera une migration node16.
     "moduleResolution": "node10",
     "ignoreDeprecations": "6.0",
-    "skipLibCheck": true,
-    "isolatedModules": true,
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-    "resolveJsonModule": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "forceConsistentCasingInFileNames": true,
     "outDir": "dist-electron",
     "rootDir": "electron",
     "composite": true,
     "declaration": true,
     "declarationMap": false,
+    "tsBuildInfoFile": "./node_modules/.cache/tsbuildinfo/electron.tsbuildinfo",
     "types": ["node"]
   },
   "include": ["electron/**/*.ts"]
