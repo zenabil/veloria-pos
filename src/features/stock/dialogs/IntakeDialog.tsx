@@ -29,6 +29,7 @@ import {
   TextInput,
   cn,
 } from "@shared/ui/primitives.tsx";
+import { FormSection } from "@shared/ui/form-section.tsx";
 import { useDebouncedTimer } from "@shared/ui/use-debounced-timer.ts";
 import { uppercaseBarcodeInput } from "@shared/ui/barcode-input.ts";
 import { SupplierQuickCreateDialog } from "@features/suppliers/dialogs/FormDialog.tsx";
@@ -160,39 +161,6 @@ function hasIntakeInput(l: IntakeLine): boolean {
     l.selling.trim() !== "" ||
     l.received.trim() !== "1" ||
     l.damaged.trim() !== "0"
-  );
-}
-
-function IntakeSection({
-  icon,
-  title,
-  hint,
-  action,
-  children,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  hint?: string;
-  action?: React.ReactNode;
-  children: React.ReactNode;
-}): React.JSX.Element {
-  return (
-    <section className="rounded-xl border border-white/[0.08] bg-black/20 p-3.5">
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <span
-          aria-hidden="true"
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-amber-400/10 text-amber-300"
-        >
-          {icon}
-        </span>
-        <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-300">
-          {title}
-        </h3>
-        {hint ? <span className="text-[11px] text-slate-500">{hint}</span> : null}
-        {action ? <div className="ml-auto">{action}</div> : null}
-      </div>
-      <div className="space-y-3">{children}</div>
-    </section>
   );
 }
 
@@ -505,7 +473,17 @@ export function StockIntakeDialog({
     <>
       <Modal
         label="Réception fournisseur"
-        title="Réception fournisseur"
+        title={
+          <span className="flex items-center gap-2.5">
+            <span
+              aria-hidden="true"
+              className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#fbbf24]/10 text-[#fbbf24] ring-1 ring-[#fbbf24]/20"
+            >
+              <Truck size={16} />
+            </span>
+            <span>Réception fournisseur</span>
+          </span>
+        }
         onClose={onClose}
         extraWide
       >
@@ -536,12 +514,15 @@ export function StockIntakeDialog({
             if (withCtrl) void save();
           }}
         >
-          <p className="text-[11px] text-slate-500">
-            Stock, mouvements, dette fournisseur et audit sont mis à jour en une seule transaction.
-            Une facture se corrige depuis « Réceptions ».
+          <p className="flex items-start gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-[11px] leading-relaxed text-slate-500">
+            <ReceiptText size={13} aria-hidden="true" className="mt-0.5 shrink-0 text-[#fbbf24]" />
+            <span>
+              Stock, mouvements, dette fournisseur et audit sont mis à jour en une seule
+              transaction. Une facture se corrige depuis « Réceptions ».
+            </span>
           </p>
 
-          <IntakeSection
+          <FormSection
             icon={<ReceiptText size={14} aria-hidden="true" />}
             title="Facture fournisseur"
           >
@@ -590,7 +571,7 @@ export function StockIntakeDialog({
                     aria-expanded={supplierPickerOpen}
                     aria-controls="intake-supplier-picker"
                     onClick={toggleSupplierPicker}
-                    className="flex w-full items-center gap-2 rounded-lg border border-dashed border-white/15 bg-black/15 px-3 py-2.5 text-left transition-colors hover:border-amber-400/40 hover:bg-white/[0.03]"
+                    className="flex w-full items-center gap-2 rounded-lg border border-dashed border-white/15 bg-black/25 px-3 py-2.5 text-left transition-colors hover:border-amber-400/40 hover:bg-white/[0.03]"
                   >
                     <Truck size={15} className="shrink-0 text-slate-500" aria-hidden="true" />
                     <span className="min-w-0 flex-1 truncate text-sm text-slate-400">
@@ -603,7 +584,7 @@ export function StockIntakeDialog({
                   {supplierPickerOpen ? (
                     <div
                       id="intake-supplier-picker"
-                      className="mt-2 space-y-2 rounded-lg border border-white/10 bg-black/20 p-2.5"
+                      className="mt-2 space-y-2 rounded-lg border border-white/10 bg-black/25 p-2.5"
                     >
                       <div className="flex gap-2">
                         <SearchField
@@ -697,8 +678,8 @@ export function StockIntakeDialog({
                 />
               </Field>
             </div>
-          </IntakeSection>
-          <IntakeSection
+          </FormSection>
+          <FormSection
             icon={<PackagePlus size={14} aria-hidden="true" />}
             title="Articles reçus"
             hint={`${lines.length} ligne${lines.length > 1 ? "s" : ""}`}
@@ -962,7 +943,7 @@ export function StockIntakeDialog({
                       </Field>
                     </div>
                     {l.valid ? (
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg bg-black/20 px-3 py-2 text-[11px] text-slate-400">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg bg-black/25 px-3 py-2 text-[11px] text-slate-400">
                         <span>
                           Net{" "}
                           <strong className="font-mono text-slate-200">
@@ -1027,7 +1008,7 @@ export function StockIntakeDialog({
                       return (
                         <li
                           key={`share-${l.key}`}
-                          className="flex items-center justify-between gap-2 rounded-lg bg-black/20 px-2.5 py-1.5 text-[11px]"
+                          className="flex items-center justify-between gap-2 rounded-lg bg-black/25 px-2.5 py-1.5 text-[11px]"
                         >
                           <span className="min-w-0 truncate font-semibold text-slate-200">
                             {l.productName}
@@ -1047,8 +1028,8 @@ export function StockIntakeDialog({
                 </p>
               </div>
             ) : null}
-          </IntakeSection>
-          <div className="rounded-xl border border-white/[0.08] bg-black/20">
+          </FormSection>
+          <div className="rounded-xl border border-white/[0.08] bg-black/25">
             <button
               type="button"
               aria-expanded={notesOpen}
