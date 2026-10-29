@@ -3,6 +3,8 @@
 **Produit :** Veloria PoS · **Base :** `veloria POS DB` (`Veloria POS DB.sqlite`)
 **Plateforme :** Windows Desktop · **Langue :** Français · **Devise :** DZD
 **Architecture :** Offline-first, SQLite-first, Electron sécurisé, Clean Architecture.
+**Toolchain :** Electron 45 · Vite 8 (Rolldown) · React 19.3 · TypeScript 6 ·
+better-sqlite3 13 (N-API) · Vitest 5 · ESLint 10.
 
 ## Démarrage (dev)
 

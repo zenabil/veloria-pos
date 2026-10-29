@@ -17,6 +17,7 @@
 | `eslint.config.mjs`, `.prettierrc`, `.prettierignore`                   | Garde-fous (renderer isolé, FR, centimes)                                         | —                                             |
 | `vitest.config.ts`, `vitest.features.config.ts`, `playwright.config.ts` | Portes de test (unit/integration/database, écrans, E2E Electron réel)             | Scénarios métier dans le config               |
 | `knip.json`, `opencode.jsonc`, `skills-lock.json`, `CLAUDE.md`          | Outillage mort-code + skills projet (`AGENTS.md` lie les deux)                    | Dépendance runtime                            |
+| `.nvmrc`, `packageManager`, `engines`                                   | Node 22.12+ / npm 10.9+ (CI alignée ; Electron 45 embarque Node 24.22)            | Version Node ad hoc dans un script            |
 | `handoff.md`                                                            | Continuité entre sessions (§1 = état courant, une section par session)            | Duplication de l'ADR (pointe, ne recopie pas) |
 
 ## 2. Runtime POS (le seul qui compte en prod)

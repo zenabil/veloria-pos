@@ -15,7 +15,8 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête **session 63** (Tableau de bord simplifié, ADR-154). Avant elle session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- Branche : `chore/root-layout` — tête **session 64** (Montée de gamme de l'outillage, ADR-155). Avant elle session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 64 (2026-10-29)** : **montée de gamme de l'outillage — ADR-155** — demande « ابحث في الانترنت بعمق … تنظيم جذع المشروع باحدث التقنيات … تطوير مكتبات المشروع بأحدث التقنيات و حسب توافقها ». Grille **dernière version compatible** vérifiée sur npm et les guides officiels : Electron 37→**45.1.0** (Chromium 156/Node 24.22), better-sqlite3 12→**13.0.3 N-API** (prebuilds, SQLite 3.53.4), Vite 6→**8.3.5/Rolldown**, Vitest 3→**5.0.5**, ESLint 9→**10.13**, TypeScript 5.7→**6.0.3** (7 **refusé** : typescript-eslint `<6.1`), Zod 3→**4.6.7**, lucide 0.469→**1.63**, Tailwind 4.3, tailwind-merge 3, React 19.3. **Quatre checkpoints** : `a8c4e92` (mises à jour sûres, React 19.3, types Node 22.20, Prettier 3.9, Node 22.12/.nvmrc/packageManager), `97c6b02` (Vite 8 `codeSplitting.groups`, esbuild 0.28 explicite, `import.meta.dirname`, Vitest 5, ESLint 10, Tailwind 4.3, tailwind-merge 3), `45fc03a` (Electron 45 + better-sqlite3 13 N-API, **suppression** `@electron/rebuild`/`bindings`/postinstall/`rebuild`, `npmRebuild:false`, CI charge N-API), `9bd9925` (TS 6, Zod 4, lucide 1). **Bug attrapé** : Zod 4 `z.uuid()` est un `ZodUUID` distinct de `ZodString` ⇒ `schemaRequiresOperationId` renvoyait false et aurait **désactivé l'exigence d'operationId en production** (`handle.ts:88`) ; garde corrigé (`ZodString | ZodUUID`), tests 8/8. `baseUrl` supprimé (paths `./`), `node10` + `ignoreDeprecations` pour l'émission CJS ; safeStorage sync (6 appels) déprécié en 45/retiré en 46 → dérogation eslint + **dette tracée**. Porte features **recalibrée** (Vitest 5/V8, hooks `use*.ts` exclus, décision propriétaire) : planchers **50/65/70/50** (53,77/66,11/74,62/52,92 mesurés), +5 tests `proforma-rules`. **Incident poste** : `node_modules/electron/dist/resources/default_app.asar` verrouillé (scanner, EBUSY) ⇒ Electron 45 remplacé **dans la même arborescence** depuis le paquet officiel, lock régénéré par `--package-lock-only` ; **ne jamais forcer `rm`** (STRUCTURE §7), un `npm ci` propre utilise le lock. Portes : format 0 · typecheck ×3 0 · lint 0 · **vitest 169 fichiers / 1 146 tests 0** · **test:coverage 0** · **test:coverage:features 0** (160/1 085) · build POS/electron/manager 0 · verify:migrations/domain/fr/encoding/perf/secret-scan 0 · **E2E Electron 45 11/11** (activation/DPAPI, PDF, impression, vente SQLite) + `component-smoke` sur `release/win-unpacked/Veloria PoS.exe` · **suite E2E complète (50 tests) non relancée** · installateurs non reconstruits. Détails §64.
 - **Session 63 (2026-10-28)** : **Tableau de bord simplifié — 13 surfaces → 8 (ADR-154)** — demande « قم بتبسيط و تطوير تصميم واجهة لوحة التحكم ». Le diagnostic a commencé par **rejouer la capture réelle** : la page était la seule à avoir échappé à ADR-148 (bande « Aujourd'hui » + 4 cartes `Kpi` + bande `MiniMetric` + carte Vigilance = 13 surfaces, ≈250 px avant le premier graphique, et le même montant écrit deux fois à 70 px d'écart). `MiniMetric` était un `StatsStrip` réécrit à la main dont la surface `#0f1e30` **n'existait pas** en thème clair. Rendu : deux `StatsStrip` (4 + 5 cellules, tons conditionnels), **coût de revient** enfin affiché (seul dérivé qui manquait), « Ventes du jour » remonté dans le sous-titre de page avec son compteur, onglet **Finances supprimé** (redondant), sections de détail **sans carte imbriquée** et non rendues si vides, barres de part, période dite **une fois**, `EmptyState` unique si la période est vide, `max-h-80` interne supprimé. Bandeau **« À traiter »** conditionnel : échéances/ruptures/seuil/sauvegarde/intégrité, **puce-bouton seulement si `canNavigate` l'autorise** — nouvelle prop câblée sur `moduleAllowed` (sinon un caissier sans droit aurait atterri sur `RouteBlocked`, dont le texte blame **la licence** : mensonge évité, ADR-038). Zéro migration, canal, schéma, dépendance. E2E **renforcée** (seuil 10 pour stock 5 ⇒ alerte déterministe, clic de puce ⇒ module Stock). Trois pannes de harnais documentées hors UI : manifeste signé couvrant `dist/**` (`build` sans `build:electron` = E2E impossible) et empreinte matérielle **amputée** par contention CPU des fils `reg`/`wmic`/`powershell` — **jamais de build ni vitest pendant un E2E**. Portes : typecheck 0 · electron 0 · eslint 0 · prettier 0 · fr 0 · encoding 0 · **vitest 168 fichiers / 1 141 tests 0** · build ✓ · build:electron ✓ · **E2E `dashboard-ui` 1/1** (3,0 min, machine au repos). **Session 62 menée en parallèle dans le même arbre.** Détails §63.
 - **Session 62 (2026-10-28)** : **purge dead-code radicale exécutée en trois lots (ADR-153)** — demande « فحص المشروع من كل الاكواد الميتة و اصلاح جذريا », audit d'abord puis arbitrage propriétaire en un mot (« اوافق »). `knip` était **vert** sur son périmètre (0 fichier / 0 export / 0 type / 0 dépendance) : le gisement était donc hors de son champ. Trois mesures ajoutées : **fermeture transitive** depuis les vraies entrées de production (603 fichiers TS), **cartographie IPC à trois niveaux** (déclaration → `handle()` → preload → wrapper **ou** `callChecked((a) => …)` direct), et **index de tokens** sur 1 881 exports séparant appelants production et tests. Résultat : **lot A** = 2 canaux servis-validés-exposés-mais-jamais-appelés (`printer.get`, `templates.get` — le « lot 2 bis » différé depuis 2026-10-18) + 7 wrappers morts de la façade + 3 branches inatteignables des formatteurs DZD (+ le « `-—` » d'un négatif hors bornes corrigé au passage) + 1 script sans doc + `/release-manager-tmp/` ignoré ; **lot B** = 8 modules `src/domain` **n'entrant dans aucune chaîne de production** (595 lignes) + 4 fichiers de tests qui ne testaient qu'eux (343 lignes) — leurs règles sont bel et bien exécutées, par les miroirs `electron/ipc/handlers/**` ; **lot C** = 23 symboles test-only supprimés **avec preuve pour chacun** du chemin exécuté équivalent, et **refus exprès** de 5 autres (`isQrExpired` 7 j, `isSessionExpired` 90 j, `nextFailedState` 5 échecs→5 min, `convertQuantity` + table `TO_BASE`) qui sont la **seule** formulation de politiques jamais appliquées — à brancher, pas à delete. **Lot D refusé par l'opérateur** : aucun `DROP` (pas de migration 0057). Constataire : `tests/integration/client-loop.test.ts` fabriquait le cliché client avec la copie **morte** — il appelle désormais `buildSnapshotPayload` du main (mêmes valeurs affichées) ; les planchers de couverture étaient **portés par du code mort** (`test:coverage:features` passait de 65,06 % à 62,33 % en supprimant `sortCustomers` et ses fermetures de comparaison) — **aucun seuil abaissé**, à la place 4 actions réelles du panier couvertes (`removeLine`, `clear`, `setSaleOperationId`, `hydrate`) et 2 gardes **prouvées inatteignables** de la formule Z retirées (`assertSafeTotal` borne déjà chaque champ à 1e9). Rouge **pré-existante** trouvée et fermée : `previewReturnSettlement` n'avait **jamais** été couverte depuis `50a56cc` (session 54). Portes : typecheck 0 · typecheck:electron 0 · typecheck:manager 0 · `typecheck:mobile` 0 · eslint 0 · prettier 0 · **vitest 168 fichiers / 1 141 tests 0** · **test:coverage 0** · **test:coverage:features 0** (159 fichiers / 1 080 tests) · knip 0 · verify:migrations (56) · verify:domain · verify:fr · verify:encoding · **build** ✓ · **build:electron** ✓ (manifeste signé 234). Cumulé vs `45e2c69` : **80 fichiers de code, 2 701 lignes supprimées / 1 274 ajoutées**. Détails §62.
 - **Session 61 (2026-10-28)** : **login client V6 « Connexion développée »** — le propriétaire a demandé « غير تصميم واجهة login كليا », puis a cherché une référence **« lempe login » : introuvable** (web + Dribbble + Behance + Figma + recherche d'images — « Lempe » est un nom de famille germanique, aucun écran de connexion ne le porte). Trois maquettes HTML présentées (A feuille ancrée / B plein clair / C bandeau or) ; arbitrage final **« طور التصميم الحالي »** ⇒ on garde l'identité encre + or et on travaille la composition. Ajouts : **en-tête éditorial** sur encre (salut selon l'heure, **même règle D12 que l'accueil** + titre 26/900 + règle dorée 44×4), champ téléphone **`skin="outlined"`** (nouvelle prop optionnelle de `Field`, défaut `sunken` ⇒ **aucun autre écran ne bouge**) pendant que les cases PIN restent en creux, **zone QR en pointillés qui porte le mode d'emploi** (caption = clé `help1` déjà publiée, titre baissé de 16 à 14 gras), **touche retour arrière** césurée du bouton « إظهار » par un filet 1 px (sinon les deux glyphes se lisaient comme un seul contrôle), **trois cercles de filet** dans l'encre (`View` pures, `pointerEvents="none"`, hors arbre — rien d'animé, rien de dégradé). Logique V5 **intégralement conservée** (verrou = règle du serveur, envoi au 6ᵉ, `busyRef`, haptique, téléphone mémorisé) ; **1 seule** clé i18n ajoutée (`deleteDigit`, ar+fr), zéro texte/`aria-label` existant touché, zéro dépendance, zéro migration, zéro canal. Budget **tenu** : contenu **731 px pour 553 de viewport** (V5 : 713) soit **+18 dp alors que l'en-tête a été ajouté**, CTA à y≈408‑462 et zone QR à 488‑510 tous deux visibles sans scroller. Portes : mobile typecheck **0** · mobile lint **0** · vitest mobile-foundation **18/18** · prettier **0**. Preuve visuelle : captures **390×844 via Electron offscreen** (`capturePage`) — le panneau navigateur de Qoder était masqué pendant la session — états 0/5/6 chiffres + envoi automatique observé (CTA passé en « … »). **Non vérifié** : rendu natif Android, `autoFocus`, et le `borderStyle:"dashed"` sur device (Yoga/Android le rend via `BorderDrawable`, fidèle sur web, à confirmer à l'œil). **ADR-152**. Détails §61.
@@ -2415,3 +2416,86 @@ Activate/Status/QrSvg`, `syncEnqueue`, `syncPushNow`) supprimés **sans toucher
   qu'ici avant cette session) ; le graphique `BarChart` garde son `viewBox` 640×170
   qui étire une série de 1 à 3 points (carte haute, barre fine) — le corriger
   toucherait `Rapports`, donc hors de cette demande ; jour métier UTC (E-35) inchangé.
+
+## 64) Session 2026-10-29 — Montée de gamme de l'outillage (ADR-155)
+
+**Demande** : « ابحث في الانترنت بعمق … *تنظيم جذع المشروع باحدث التقنيات
+
+- تطوير مكتبات المشروع بأحدث التقنيات و حسب توافقها ». Recherche web + npm
+  registry + guides de migration officiels avant toute installation ; aucune
+  suppression de code, aucune migration SQLite.
+
+**Arbitrages de compatibilité**
+
+- **TypeScript 7 refusé** : `typescript-eslint@8.72.1` déclare
+  `typescript >=4.8.4 <6.1.0`. Monter en 7 aurait obligé à désactiver le lint
+  typé. TS **6.0.3** retenu ; `baseUrl` supprimé, `paths` en `./`, et
+  `moduleResolution: node10` + `ignoreDeprecations: "6.0"` pour l'émission
+  CommonJS de `electron/` et `license-manager/`.
+- **Electron 45 + better-sqlite3 13** : le driver passe en **N-API**, avec
+  `prebuilds/win32-x64.node` dans le paquet (SQLite 3.53.4). Conséquence :
+  `@electron/rebuild`, `bindings`, `postinstall` et `rebuild` **supprimés** ;
+  `npmRebuild: false` dans les deux configs electron-builder ; `asarUnpack`
+  inchangé. La CI ouvre une base `:memory:` pour prouver le chargement.
+- **safeStorage sync déprécié** : `isEncryptionAvailable/encryptString/
+decryptString` sont dépréciés en 45 et **retirés en 46**. Les 6 appels
+  (licensing + sync) restent avec dérogation eslint documentée ; migration
+  async à faire **avant Electron 46** (chemins de lecture/écriture synchrones
+  du licensing et de la sync, chantier séparé).
+- **Vite 8/Rolldown** : `rollupOptions` → `rolldownOptions` ;
+  `manualChunks` objet remplacé par `codeSplitting.groups` (react prioritaire,
+  vendor ensuite) ; `esbuild@0.28.2` explicite pour les préloads ;
+  `import.meta.dirname` dans les configs.
+- **Zod 4** : `z.uuid()` (51), `.loose()` (12), `strictObject`, codes
+  `"custom"` ; schéma d'impression scindé en `printPayloadBase` +
+  `printPayloadSchema` (plus de `.innerType()`) ; `ZodEffects` disparu.
+  **Correctif de production** : `z.uuid()` est un `ZodUUID` distinct de
+  `ZodString` ; le garde `schemaRequiresOperationId` renvoyait `false` et
+  aurait désactivé l'exigence d'`operationId` dans `handle.ts:88`. Garde
+  corrigé (`ZodString | ZodUUID`), `operation-id-coverage` 8/8.
+- **Porte features recalibrée (décision propriétaire)** : Vitest 5/V8 compte
+  les branches autrement et incluait les hooks `use*.ts` à 0 % (React/DOM).
+  Hooks exclus du périmètre « modules purs sans DOM ». Mesure réelle
+  53,77 statements · 66,11 branches · 74,62 fonctions · 52,92 lignes ; les
+  planchers passent à **50/65/70/50** (trois montent, la branche passe de 80 à
+  65 à cause du changement d'instrument, pas du code). 5 tests de bornes
+  `proforma-rules` ajoutés (devis vide, >500 lignes, ligne sans nom, remise >
+  sous-total, répartition exacte).
+
+**Incidents / état du poste**
+
+- `node_modules/electron/dist/resources/default_app.asar` était verrouillé
+  par le scanner (EBUSY sur tout rename) : Electron 45 a été remplacé **dans
+  la même arborescence** depuis le paquet officiel, puis le lock a été
+  régénéré par `npm install --package-lock-only`. **Ne pas forcer `rm`** sur
+  l'artefact verrouillé (STRUCTURE §7) ; un `npm ci` sur machine propre
+  installe la version du lock. `node_modules` local contient encore des
+  paquets extraneous de l'ancienne chaîne (`npm ls` les signale) — sans effet
+  runtime, à nettoyer après redémarrage si souhaité.
+- Les serveurs Expo des sessions précédentes tournent encore (ports 8095,
+  8096, 8097) ; non arrêtés pendant cette session, aucun impact sur les
+  portes (E2E lancée seule).
+- `release/win-unpacked/` régénéré avec Electron 45 pour la vérification
+  (component-smoke **1/1**) ; les installateurs `.exe` livrés n'ont pas été
+  reconstruits.
+
+**Portes mesurées sur l'arbre final**
+
+`format:check` 0 · `typecheck` ×3 0 · `lint` 0 · `verify:migrations`
+**VERIFIED (56)** · `verify:domain` 0 · `verify:fr` 0 (333 fichiers) ·
+`verify:encoding` 0 (944) · `verify:perf` 0 · `license:scan` 0 (1 399
+fichiers) · **vitest 169 fichiers / 1 146 tests 0** · **test:coverage 0**
+(proforma 90 % branches après tests) · **test:coverage:features 0**
+(160 fichiers / 1 085 tests, 50/65/70/50) · `build` 0 · `build:electron` 0 ·
+`build:manager-client` 0 · `build:manager` 0 · **E2E Electron 45 11/11**
+(activation/DPAPI, PDF, impression, vente SQLite) **+ component-smoke 1/1 sur
+l'app empaquetée**.
+
+**Git** : `a8c4e92` (palier 1) · `97c6b02` (palier 2) · `45fc03a` (palier 3) ·
+`9bd9925` (palier 4) · ce `docs(handoff)`.
+
+**Reste ouvert** : TypeScript 7 quand typescript-eslint le supportera ;
+migration async `safeStorage` **avant Electron 46** ; montée Expo mobile
+(APK séparé, hors périmètre) ; suite E2E complète (50 tests) non relancée ;
+installateurs non reconstruits. ADR-155 documente les décisions et les
+mesures.

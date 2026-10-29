@@ -4,7 +4,7 @@
 > l avancement en `reports/PHASE_*.md`. Ne jamais ecrire de rapport a la racine.
 > Conventions : `AGENTS.md` + `docs/STRUCTURE.md` (carte maintenance).
 
-## Decisions (ADR-001 a ADR-141 — tous saries, jamais supprimes)
+## Decisions (ADR-001 a ADR-155 — tous saries, jamais supprimes)
 
 - [ADR-001](./ADR-001-vite-renderer.md) Renderer Vite
 - [ADR-002](./ADR-002-native-versions.md) Versions natives
@@ -160,6 +160,7 @@
 - [ADR-152](./ADR-152-mobile-connexion-developpee.md) Client mobile V6 « Connexion développée » : en-tête éditorial sur encre, champ à filet, zone QR-mode d'emploi, retour arrière (identité V4 conservée, A/B/C non retenus)
 - [ADR-153](./ADR-153-purge-dead-code.md) Purge dead-code : lot A (2 canaux IPC morts + façade + branches inatteignables), lot B (8 modules `src/domain` jamais exécutés), lot C (exports test-only triés), lot D refusé (schéma SQLite, aucun `DROP`), duplication reportée
 - [ADR-154](./ADR-154-tableau-de-bord-simplifie.md) Tableau de bord simplifié : 13 surfaces → 8, deux `StatsStrip`, bandeau « À traiter » cliquable et véridique (`canNavigate`), plus de carte dans une carte ni de mur de zéros
+- [ADR-155](./ADR-155-montee-de-gamme-outillage-2026-10.md) Montée de gamme 2026-10 : Electron 45 + better-sqlite3 13 N-API, Vite 8/Rolldown, Vitest 5, ESLint 10, TypeScript 6 (pas 7, typescript-eslint), Zod 4, lucide 1, Node 22.12+ ; aucune migration SQLite
 
 ## Ou ecrire quoi
 
