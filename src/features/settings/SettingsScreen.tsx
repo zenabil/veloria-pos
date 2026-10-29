@@ -232,12 +232,18 @@ export function SettingsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
                           aria-label={meta.label}
                           onClick={() => onSelectSection(id)}
                           className={cn(
-                            "flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors",
+                            "relative flex w-full items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left transition-colors",
                             selected
-                              ? "bg-amber-400/15 text-amber-100"
-                              : "text-slate-300 hover:bg-white/[0.06] hover:text-white",
+                              ? "border-[#fbbf24]/20 bg-[linear-gradient(90deg,rgba(251,191,36,0.14),rgba(251,191,36,0.02))] text-amber-100"
+                              : "border-transparent text-slate-300 hover:bg-white/[0.06] hover:text-white",
                           )}
                         >
+                          {selected ? (
+                            <span
+                              aria-hidden="true"
+                              className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-r-full bg-[#fbbf24]"
+                            />
+                          ) : null}
                           <span
                             aria-hidden="true"
                             className={cn(

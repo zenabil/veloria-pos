@@ -140,7 +140,7 @@ export function SwitchRow({
   return (
     <label
       className={cn(
-        "flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/20 px-3.5 py-2.5 text-sm font-semibold",
+        "flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/25 px-3.5 py-2.5 text-sm font-semibold",
         disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
       )}
     >
@@ -171,7 +171,7 @@ export function Segmented<T extends string>({
     <div
       role="group"
       aria-label={ariaLabel}
-      className="grid auto-cols-fr grid-flow-col gap-1 rounded-lg border border-white/10 bg-black/20 p-1"
+      className="grid auto-cols-fr grid-flow-col gap-1 rounded-lg border border-white/10 bg-black/25 p-1"
     >
       {options.map((o) => (
         <button
@@ -238,7 +238,7 @@ export function SaveBar({
   hint?: string;
 }): React.JSX.Element {
   return (
-    <div className="-mx-5 -mb-5 mt-2 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 bg-black/20 px-5 py-3">
+    <div className="-mx-5 -mb-5 mt-2 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 bg-black/25 px-5 py-3">
       <span className="text-[11px] text-slate-500">
         {hint ?? (danger ? "Action irréversible." : "Appliqué à la base locale.")}
       </span>

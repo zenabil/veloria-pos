@@ -213,7 +213,7 @@ export function CompanySection({ notify }: { notify: Notify }): React.JSX.Elemen
         </div>
       </SettingsGroup>
 
-      <div className="rounded-lg border border-white/10 bg-black/20">
+      <div className="rounded-lg border border-white/10 bg-black/25">
         <button
           type="button"
           aria-expanded={fiscalOpen}

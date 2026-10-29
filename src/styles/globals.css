@@ -327,6 +327,10 @@ select {
 [data-theme="light"] .bg-\[\#122131\]\/95 {
   background-color: rgba(255, 255, 255, 0.95);
 }
+/* En-tête collant de la page Paramètres. */
+[data-theme="light"] .bg-\[\#0b1a2b\]\/95 {
+  background-color: rgba(250, 248, 242, 0.95);
+}
 [data-theme="light"] .bg-\[\#010f1f\] {
   background-color: #ffffff;
 }

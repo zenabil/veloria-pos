@@ -519,7 +519,7 @@ export function BackupSection({ notify }: { notify: Notify }): React.JSX.Element
       hint="Copies VACUUM INTO (.vposdb), rotation paramétrable."
       badge={status ? `${status.count} copie${status.count > 1 ? "s" : ""}` : "Lecture…"}
     >
-      <dl className="grid gap-2 rounded-lg border border-white/10 bg-black/20 p-3 sm:grid-cols-3">
+      <dl className="grid gap-2 rounded-lg border border-white/10 bg-black/25 p-3 sm:grid-cols-3">
         <InfoRow
           label="Dernière"
           value={status?.lastAt ? status.lastAt.slice(0, 16).replace("T", " ") : "—"}
@@ -737,7 +737,7 @@ export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Ele
       collapsible
       summary="Connexion, automatisation, clés Supabase et état de la file."
     >
-      <dl className="grid gap-2 rounded-lg border border-white/10 bg-black/20 p-3 sm:grid-cols-2">
+      <dl className="grid gap-2 rounded-lg border border-white/10 bg-black/25 p-3 sm:grid-cols-2">
         <InfoRow
           label="Dernière poussée"
           value={view?.lastPushAt ? view.lastPushAt.slice(0, 16).replace("T", " ") : "—"}
@@ -955,7 +955,7 @@ export function DatabaseSection({ notify }: { notify: Notify }): React.JSX.Eleme
       hint="SQLite locale, source unique de vérité."
       badge={health ? `Schéma v${health.schemaVersion}` : "Lecture…"}
     >
-      <dl className="grid gap-2 rounded-lg border border-white/10 bg-black/20 p-3 sm:grid-cols-2">
+      <dl className="grid gap-2 rounded-lg border border-white/10 bg-black/25 p-3 sm:grid-cols-2">
         <InfoRow label="Emplacement" value={location?.path ?? "—"} />
         <InfoRow label="Taille" value={size == null ? "—" : formatBytes(size)} />
         <InfoRow label="Moteur" value={sqliteVersion ? `SQLite ${sqliteVersion} · WAL` : "—"} />
@@ -1121,7 +1121,7 @@ export function SecuritySection({ notify }: { notify: Notify }): React.JSX.Eleme
       </SettingsGroup>
 
       <SettingsGroup title="État du poste">
-        <dl className="grid gap-2 rounded-lg border border-white/10 bg-black/20 p-3 sm:grid-cols-2">
+        <dl className="grid gap-2 rounded-lg border border-white/10 bg-black/25 p-3 sm:grid-cols-2">
           <InfoRow label="Intégrité base" value={integrity ?? "—"} />
           <InfoRow label="Données" value="SQLite locale + sauvegardes .vposdb" />
         </dl>
@@ -1298,7 +1298,7 @@ export function AboutSection({ notify }: { notify: Notify }): React.JSX.Element 
       summary="Versions, licence, coordonnées et dossiers de données."
     >
       <SettingsGroup title="Système">
-        <dl className="grid gap-2 rounded-lg border border-white/10 bg-black/20 p-3 sm:grid-cols-2">
+        <dl className="grid gap-2 rounded-lg border border-white/10 bg-black/25 p-3 sm:grid-cols-2">
           <InfoRow label="Application" value={`Veloria POS ${String(diag?.["version"] ?? "—")}`} />
           <InfoRow
             label="Base"
