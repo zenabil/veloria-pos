@@ -10,6 +10,7 @@ import {
   History,
   Pencil,
   Plus,
+  SlidersHorizontal,
   Trash2,
   X,
 } from "lucide-react";
@@ -45,6 +46,7 @@ import {
 import { SupplierPOsDialog } from "./SupplierPOsDialog.tsx";
 import {
   hasSupplierDebt,
+  isSupplierActive,
   supplierCode,
   supplierStatusLabel,
   supplierStatusTone,
@@ -376,10 +378,10 @@ export function SuppliersScreen({ notify }: { notify: Notify }): React.JSX.Eleme
         items={[
           { label: "Fiches totales", value: String(stats.total), sub: "Fournisseurs référencés" },
           {
-            label: "Avec dette",
+            label: "Fournisseurs actifs",
             value: String(stats.active),
-            sub: "Comptes avec encours",
-            tone: stats.active > 0 ? "amber" : "default",
+            sub: "Comptes ouverts",
+            tone: stats.active > 0 ? "green" : "default",
           },
           {
             label: "Total dettes fournisseurs",
@@ -396,7 +398,11 @@ export function SuppliersScreen({ notify }: { notify: Notify }): React.JSX.Eleme
         ]}
       />
 
-      <Toolbar>
+      <Toolbar className="gap-2">
+        <span className="flex h-[42px] items-center gap-2 rounded-xl bg-white/[0.03] px-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
+          <SlidersHorizontal size={14} aria-hidden="true" />
+          Filtres
+        </span>
         <Select
           id="suppliers-status"
           value={statusFilter}
@@ -435,7 +441,7 @@ export function SuppliersScreen({ notify }: { notify: Notify }): React.JSX.Eleme
         <Button variant="ghost" onClick={resetFilters} title="Réinitialiser les filtres">
           <X size={15} aria-hidden="true" /> Réinitialiser
         </Button>
-        <div className="ml-auto">
+        <div className="ml-auto flex flex-wrap items-center gap-1 rounded-xl border border-white/[0.06] bg-white/[0.02] p-1">
           <Button variant="ghost" onClick={exportCsv} title="Exporter la liste (CSV)">
             <Download size={15} aria-hidden="true" /> Exporter
           </Button>
@@ -444,8 +450,12 @@ export function SuppliersScreen({ notify }: { notify: Notify }): React.JSX.Eleme
 
       {/* Sélection multiple */}
       {selection.size > 0 ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-400/30 bg-amber-400/[0.07] px-4 py-2.5 text-sm">
-          <strong>{selection.size} sélectionné(s)</strong>
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#fbbf24]/25 bg-[linear-gradient(90deg,rgba(251,191,36,0.10),rgba(251,191,36,0.02))] px-4 py-2.5 text-sm">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#fbbf24]/15 text-[#fbbf24] ring-1 ring-[#fbbf24]/20">
+            <Trash2 size={14} aria-hidden="true" />
+          </span>
+          <strong className="font-bold text-slate-100">{selection.size} sélectionné(s)</strong>
+          <span aria-hidden="true" className="h-4 w-px bg-white/10" />
           <Button variant="secondary" onClick={() => void deleteSelection()} disabled={bulkBusy}>
             <Trash2 size={15} aria-hidden="true" />{" "}
             {bulkBusy ? "Suppression…" : "Supprimer la sélection"}
@@ -453,7 +463,7 @@ export function SuppliersScreen({ notify }: { notify: Notify }): React.JSX.Eleme
           <button
             type="button"
             onClick={() => setSelection(new Set())}
-            className="text-xs font-semibold text-slate-400 hover:text-white"
+            className="ml-auto text-xs font-semibold text-slate-400 transition-colors hover:text-white"
           >
             Tout désélectionner
           </button>
@@ -470,13 +480,18 @@ export function SuppliersScreen({ notify }: { notify: Notify }): React.JSX.Eleme
               Chargement…
             </p>
           ) : rows.length === 0 ? (
-            <EmptyState
-              title="Aucun fournisseur"
-              hint="Modifiez la recherche ou créez votre premier fournisseur avec le bouton « Nouveau Fournisseur »."
-            />
+            <div className="flex flex-col items-center">
+              <EmptyState
+                title="Aucun fournisseur"
+                hint="Modifiez la recherche ou créez votre premier fournisseur avec le bouton « Nouveau Fournisseur »."
+              />
+              <Button onClick={openCreate} className="-mt-12 mb-10">
+                <Plus size={16} aria-hidden="true" /> Créer un fournisseur
+              </Button>
+            </div>
           ) : (
             <table className="w-full min-w-[1180px] text-sm">
-              <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
+              <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500 shadow-[0_1px_0_rgba(255,255,255,0.07)]">
                 <tr>
                   <th className="w-10 px-3 py-2.5">
                     <input
@@ -507,6 +522,7 @@ export function SuppliersScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                     className={cn(
                       "cursor-pointer border-t border-white/[0.06] transition-colors hover:bg-amber-400/[0.06]",
                       selection.has(s.id) && "bg-amber-400/[0.08]",
+                      !isSupplierActive(s) && "opacity-60",
                     )}
                   >
                     <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
@@ -521,7 +537,22 @@ export function SuppliersScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                     <td className="whitespace-nowrap px-3 py-2 font-mono text-xs text-slate-400">
                       {supplierCode(s)}
                     </td>
-                    <td className="max-w-[200px] truncate px-3 py-2 font-semibold">{s.name}</td>
+                    <td className="max-w-[220px] px-3 py-2">
+                      <div className="flex items-center gap-2.5">
+                        <span
+                          aria-hidden="true"
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.04] font-mono text-[12px] font-bold uppercase text-slate-400 ring-1 ring-white/10"
+                        >
+                          {s.name.trim().charAt(0) || "?"}
+                        </span>
+                        <div className="min-w-0">
+                          <div className="truncate font-semibold">{s.name}</div>
+                          <div className="mt-0.5 font-mono text-[10px] text-slate-500">
+                            {s.intake_count} réception(s)
+                          </div>
+                        </div>
+                      </div>
+                    </td>
                     <td className="max-w-[150px] truncate px-3 py-2 text-slate-300">
                       {s.contact_person || "—"}
                     </td>
@@ -535,13 +566,33 @@ export function SuppliersScreen({ notify }: { notify: Notify }): React.JSX.Eleme
                     <td className="px-3 py-2 text-right tabular-nums text-emerald-300/90">
                       {formatDzd(s.total_paid_minor)}
                     </td>
-                    <td
-                      className={cn(
-                        "px-3 py-2 text-right font-bold tabular-nums",
-                        hasSupplierDebt(s) ? "text-red-300" : "text-slate-500",
-                      )}
-                    >
-                      {formatDzd(s.outstanding_balance_minor)}
+                    <td className="px-3 py-2 text-right">
+                      <div
+                        className={cn(
+                          "font-bold tabular-nums",
+                          hasSupplierDebt(s) ? "text-red-300" : "text-slate-500",
+                        )}
+                      >
+                        {formatDzd(s.outstanding_balance_minor)}
+                      </div>
+                      {hasSupplierDebt(s) && s.total_purchases_minor > 0 ? (
+                        <span
+                          aria-hidden="true"
+                          className="mt-1 block h-1 w-full overflow-hidden rounded-full bg-black/25"
+                        >
+                          <span
+                            className="block h-full rounded-full bg-red-400/70"
+                            style={{
+                              width: `${Math.min(
+                                100,
+                                Math.round(
+                                  (s.outstanding_balance_minor / s.total_purchases_minor) * 100,
+                                ),
+                              )}%`,
+                            }}
+                          />
+                        </span>
+                      ) : null}
                     </td>
                     <td className="px-3 py-2">
                       <Badge tone={supplierStatusTone(s)}>{supplierStatusLabel(s)}</Badge>
