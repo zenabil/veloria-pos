@@ -23,18 +23,15 @@ $env:VITE_DEV_SERVER_URL="http://localhost:5173"; npx electron .
 ## Qualité
 
 ```powershell
-npm run typecheck          # renderer + tests
-npm run typecheck:electron # main/preload (strict + noUncheckedIndexedAccess)
-npm run typecheck:manager  # License Manager (outil vendor)
-npm run lint
-npm run test               # 168 fichiers / ~1 141 tests (domaine pur, contrats
+npm run check              # format + lint + typecheck ×3 + typecheck mobile
+npm run verify             # migrations + domaine + fr + encoding + perf + licence
+npm run knip               # code mort (config/knip.json)
+npm run test               # 169 fichiers / ~1 146 tests (domaine pur, contrats
                            # IPC, intégration SQLite réel via node:sqlite)
 npm run test:db
 node scripts/database/integrity.js        # base réelle, lecture seule
-npm run verify:migrations
-npm run license:scan       # aucun secret/bypass dans le POS
-npm run verify:domain      # invariants domaine (passe par --experimental-strip-types)
-npm run verify:perf        # garde-fous perf (requêtes N+1, listes non paginées)
+npm run typecheck:electron # main/preload (strict + noUncheckedIndexedAccess)
+npm run typecheck:manager  # License Manager (outil vendor)
 ```
 
 ## Tests E2E (Playwright + Electron réel)
@@ -42,7 +39,7 @@ npm run verify:perf        # garde-fous perf (requêtes N+1, listes non paginée
 ```powershell
 npm run build              # renderer requis par l'app empaquetée en test
 npm run build:electron     # main/preload requis
-npm run test:e2e           # 24 specs / 50 tests, 1 worker (~30 min la suite)
+npm run test:e2e           # 24 specs / 54 tests, 1 worker (~30 min la suite)
 ```
 
 - **Piège de shell** : un shell qui exporte `ELECTRON_RUN_AS_NODE=1` (terminal

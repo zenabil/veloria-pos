@@ -6,19 +6,18 @@
 
 ## 1. Racine (volontairement maigre)
 
-| Chemin                                                                  | Rôle                                                                              | Ne jamais y mettre                            |
-| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------- | --------------------------------------------- |
-| `README.md`, `AGENTS.md`                                                | Entrée projet + règles contributeurs                                              | Rapports de phase (→ `docs/reports/`)         |
-| `package.json`                                                          | Scripts uniques (`dev`, `build*`, `typecheck*`, `test*`, `verify:*`, `package:*`) | Logique métier                                |
-| `index.html`, `vite.config.ts`, `public/`                               | Renderer POS (Vite, `base ./`)                                                    | Données métier                                |
-| `electron-builder.yml`                                                  | Packaging POS (`release/`, `appId com.veloria.pos`)                               | Clés privées                                  |
-| `electron-builder.license-manager.yml`                                  | Packaging Manager (outil vendor)                                                  | Base POS                                      |
-| `tsconfig.json` / `.electron.json` / `.manager.json`                    | POS+tests / main-preload / Manager                                                | —                                             |
-| `eslint.config.mjs`, `.prettierrc`, `.prettierignore`                   | Garde-fous (renderer isolé, FR, centimes)                                         | —                                             |
-| `vitest.config.ts`, `vitest.features.config.ts`, `playwright.config.ts` | Portes de test (unit/integration/database, écrans, E2E Electron réel)             | Scénarios métier dans le config               |
-| `knip.json`, `opencode.jsonc`, `skills-lock.json`, `CLAUDE.md`          | Outillage mort-code + skills projet (`AGENTS.md` lie les deux)                    | Dépendance runtime                            |
-| `.nvmrc`, `packageManager`, `engines`                                   | Node 22.12+ / npm 10.9+ (CI alignée ; Electron 45 embarque Node 24.22)            | Version Node ad hoc dans un script            |
-| `handoff.md`                                                            | Continuité entre sessions (§1 = état courant, une section par session)            | Duplication de l'ADR (pointe, ne recopie pas) |
+| Chemin                                                                      | Rôle                                                                                             | Ne jamais y mettre                                      |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------- |
+| `README.md`, `AGENTS.md`                                                    | Entrée projet + règles contributeurs                                                             | Rapports de phase (→ `docs/reports/`)                   |
+| `package.json`                                                              | Scripts uniques (`check`, `verify`, `ci`, `dev`, `build*`, `typecheck*`, `test*`, `package:*`)   | Logique métier                                          |
+| `index.html`, `vite.config.ts`, `public/`                                   | Renderer POS (Vite, `base ./`)                                                                   | Données métier                                          |
+| `config/`                                                                   | Configs non standard : `electron-builder/{pos,manager}.yml`, `playwright.config.ts`, `knip.json` | Entrées d'outils attendues à la racine (Vite/TS/ESLint) |
+| `tsconfig.json` / `.electron.json` / `.manager.json` / `tsconfig.base.json` | POS+tests / main-preload / Manager / options strictes partagées                                  | Options divergentes dans la base                        |
+| `eslint.config.mjs`, `.prettierrc`, `.prettierignore`                       | Garde-fous (renderer isolé, FR, centimes)                                                        | —                                                       |
+| `opencode.jsonc`, `skills-lock.json`, `CLAUDE.md`                           | Outillage skills projet (`AGENTS.md` lie les deux)                                               | Dépendance runtime                                      |
+| `vitest.config.ts`, `vitest.features.config.ts`                             | Portes de test (unit/integration/database, écrans)                                               | Scénarios métier dans le config                         |
+| `.nvmrc`, `packageManager`, `engines`                                       | Node 22.12+ / npm 10.9+ (CI alignée ; Electron 45 embarque Node 24.22)                           | Version Node ad hoc dans un script                      |
+| `handoff.md`                                                                | Continuité entre sessions (§1 = état courant, une section par session)                           | Duplication de l'ADR (pointe, ne recopie pas)           |
 
 ## 2. Runtime POS (le seul qui compte en prod)
 
@@ -103,8 +102,10 @@ interface), `verify:migrations`, `verify:domain`, `verify:perf`,
 
 - Rapports à la racine → `docs/reports/` ou `docs/archive/` (ADR-058).
 - Maquettes Stitch à la racine → `docs/archive/stitch/` (ADR-033/035/036/055).
-- `dist*/`, `release/`, `*.tsbuildinfo`, `*.log` : artefacts ignorés, jamais committés
-  (`npm run clean` + `clean:logs` pour purger le poste).
+- `dist*/`, `release/`, `*.log` : artefacts ignorés, jamais committés
+  (`npm run clean` + `clean:logs` pour purger le poste). Les `tsbuildinfo`
+  vivent désormais sous `node_modules/.cache/tsbuildinfo/` (ADR-156), plus à
+  la racine.
 - Scratch de session (`check_like.py`, `full-inventory.txt`) : git-ignorés **par
   nom** (`.gitignore`), purgés le 2026-10-27 (session 57) — ne pas les réécrire
   à la racine, écrire sous `docs/reports/` ou dans un dossier de script.
@@ -125,8 +126,9 @@ interface), `verify:migrations`, `verify:domain`, `verify:perf`,
 - `release/` : les `.exe` + `.blockmap` + `SHA256SUMS.txt` **courants** et
   `apk-android/` sont des livrables ; `win-unpacked/` et `builder-debug.yml`
   sont des intermédiaires de `electron-builder` (régénérés à chaque package).
-- `signAndEditExecutable: false` dans les 2 `electron-builder*.yml` = TEMP-BUILD
-  2026-10-02 (sans privilège symlink) — À REVERTIR dès que possible.
+- `signAndEditExecutable: true` dans les 2 configs
+  (`config/electron-builder/{pos,manager}.yml`) — ADR-070. Un `false`
+  (contournement TEMP-BUILD 2026-10-02) est interdit en release.
 - `mobile/android|ios`, `*.keystore`, `.expo/` : locaux, jamais committés.
 - `cloud/` n'est qu'un miroir — toute écriture métier hors SQLite = bug P0.
 
