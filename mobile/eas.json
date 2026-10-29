@@ -16,8 +16,8 @@
       //    (https://<projet>.supabase.co) — Android bloque le HTTP clair.
       //  - EXPO_PUBLIC_ANON_KEY : clé anon publique du projet Supabase.
       "env": {
-        "EXPO_PUBLIC_SYNC_URL": "https://VOTRE-PROJET.supabase.co",
-        "EXPO_PUBLIC_ANON_KEY": "VOTRE-CLE-ANON-PUBLIQUE"
+        "EXPO_PUBLIC_SYNC_URL": "https://ynktschorbwukxovjzcz.supabase.co",
+        "EXPO_PUBLIC_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlua3RzY2hvcmJ3dWt4b3ZqemN6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExNDIxMDMsImV4cCI6MjEwNjcxODEwM30.TPL0iH_1YLaGEjQji12fnZUQ3fSWJNi62nB047f_rV8"
       }
     },
     "production": {
@@ -26,8 +26,8 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_SYNC_URL": "https://VOTRE-PROJET.supabase.co",
-        "EXPO_PUBLIC_ANON_KEY": "VOTRE-CLE-ANON-PUBLIQUE"
+        "EXPO_PUBLIC_SYNC_URL": "https://ynktschorbwukxovjzcz.supabase.co",
+        "EXPO_PUBLIC_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlua3RzY2hvcmJ3dWt4b3ZqemN6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExNDIxMDMsImV4cCI6MjEwNjcxODEwM30.TPL0iH_1YLaGEjQji12fnZUQ3fSWJNi62nB047f_rV8"
       }
     }
   }
