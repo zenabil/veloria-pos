@@ -2,7 +2,7 @@
 // En-tête + 4 cartes stats + barre d'outils + table serveur + pagination +
 // tiroir détail + paiement + échéance.
 import { useEffect, useRef, useState } from "react";
-import { Download, Eye, HandCoins, Pencil, X } from "lucide-react";
+import { Download, Eye, HandCoins, Pencil, SlidersHorizontal, X } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { formatDzd } from "@domain/money/money.ts";
 import { downloadCsv } from "@shared/export/csv.ts";
@@ -364,7 +364,11 @@ export function DebtsScreen({ notify }: { notify: Notify }): React.JSX.Element {
         ]}
       />
 
-      <Toolbar>
+      <Toolbar className="gap-2">
+        <span className="flex h-[42px] items-center gap-2 rounded-xl bg-white/[0.03] px-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
+          <SlidersHorizontal size={14} aria-hidden="true" />
+          Filtres
+        </span>
         <Select
           id="debts-type"
           value={typeFilter}
@@ -425,7 +429,7 @@ export function DebtsScreen({ notify }: { notify: Notify }): React.JSX.Element {
         <Button variant="ghost" onClick={resetFilters} title="Réinitialiser les filtres">
           <X size={15} aria-hidden="true" /> Réinitialiser
         </Button>
-        <div className="ml-auto">
+        <div className="ml-auto flex flex-wrap items-center gap-1 rounded-xl border border-white/[0.06] bg-white/[0.02] p-1">
           <Button
             variant="ghost"
             onClick={exportAll}
@@ -439,15 +443,19 @@ export function DebtsScreen({ notify }: { notify: Notify }): React.JSX.Element {
 
       {/* Sélection multiple → export */}
       {selection.size > 0 ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-400/30 bg-amber-400/[0.07] px-4 py-2.5 text-sm">
-          <strong>{selection.size} sélectionnée(s)</strong>
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#fbbf24]/25 bg-[linear-gradient(90deg,rgba(251,191,36,0.10),rgba(251,191,36,0.02))] px-4 py-2.5 text-sm">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#fbbf24]/15 text-[#fbbf24] ring-1 ring-[#fbbf24]/20">
+            <Download size={14} aria-hidden="true" />
+          </span>
+          <strong className="font-bold text-slate-100">{selection.size} sélectionnée(s)</strong>
+          <span aria-hidden="true" className="h-4 w-px bg-white/10" />
           <Button variant="secondary" onClick={exportSelection} disabled={exporting}>
             <Download size={15} aria-hidden="true" /> Exporter la sélection (CSV)
           </Button>
           <button
             type="button"
             onClick={() => setSelection(new Set())}
-            className="text-xs font-semibold text-slate-400 hover:text-white"
+            className="ml-auto text-xs font-semibold text-slate-400 transition-colors hover:text-white"
           >
             Tout désélectionner
           </button>
@@ -470,7 +478,7 @@ export function DebtsScreen({ notify }: { notify: Notify }): React.JSX.Element {
             />
           ) : (
             <table className="w-full min-w-[1220px] text-sm">
-              <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
+              <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500 shadow-[0_1px_0_rgba(255,255,255,0.07)]">
                 <tr>
                   <th className="w-10 px-3 py-2.5">
                     <input
@@ -519,8 +527,21 @@ export function DebtsScreen({ notify }: { notify: Notify }): React.JSX.Element {
                           {debtTypeLabel(r.debt_type)}
                         </Badge>
                       </td>
-                      <td className="max-w-[200px] truncate px-3 py-2 font-semibold">
-                        {r.party_name}
+                      <td className="max-w-[220px] px-3 py-2">
+                        <div className="flex items-center gap-2.5">
+                          <span
+                            aria-hidden="true"
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.04] font-mono text-[11px] font-bold uppercase text-slate-400 ring-1 ring-white/10"
+                          >
+                            {r.party_name.trim().charAt(0) || "?"}
+                          </span>
+                          <div className="min-w-0">
+                            <div className="truncate font-semibold">{r.party_name}</div>
+                            <div className="mt-0.5 font-mono text-[10px] text-slate-500">
+                              {r.debt_type === "customer" ? "Client" : "Fournisseur"} #{r.entity_id}
+                            </div>
+                          </div>
+                        </div>
                       </td>
                       <td className="max-w-[140px] truncate px-3 py-2 font-mono text-xs text-slate-300">
                         {r.ref}
@@ -531,8 +552,26 @@ export function DebtsScreen({ notify }: { notify: Notify }): React.JSX.Element {
                       <td className="px-3 py-2 text-right tabular-nums text-emerald-300/90">
                         {formatDzd(r.paid_minor)}
                       </td>
-                      <td className="px-3 py-2 text-right font-bold tabular-nums text-red-300">
-                        {formatDzd(r.remaining_minor)}
+                      <td className="px-3 py-2 text-right">
+                        <div className="font-bold tabular-nums text-red-300">
+                          {formatDzd(r.remaining_minor)}
+                        </div>
+                        {r.original_minor > 0 ? (
+                          <span
+                            aria-hidden="true"
+                            className="mt-1 block h-1 w-full overflow-hidden rounded-full bg-black/25"
+                          >
+                            <span
+                              className="block h-full rounded-full bg-red-400/70"
+                              style={{
+                                width: `${Math.min(
+                                  100,
+                                  Math.round((r.remaining_minor / r.original_minor) * 100),
+                                )}%`,
+                              }}
+                            />
+                          </span>
+                        ) : null}
                       </td>
                       <td
                         className={cn(
