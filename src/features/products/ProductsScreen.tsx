@@ -12,6 +12,7 @@ import {
   Pencil,
   Plus,
   RotateCcw,
+  SlidersHorizontal,
   Upload,
   X,
 } from "lucide-react";
@@ -478,7 +479,11 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
         ]}
       />
 
-      <Toolbar>
+      <Toolbar className="gap-2">
+        <span className="flex h-[42px] items-center gap-2 rounded-xl bg-white/[0.03] px-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
+          <SlidersHorizontal size={14} aria-hidden="true" />
+          Filtres
+        </span>
         <Select
           id="catalog-category"
           value={categoryId}
@@ -519,7 +524,14 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
           <option value="stock_asc">Tri : stock croissant</option>
           <option value="stock_desc">Tri : stock décroissant</option>
         </Select>
-        <label className="flex h-[42px] cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-black/25 px-3 text-xs font-semibold text-slate-300">
+        <label
+          className={cn(
+            "flex h-[42px] cursor-pointer items-center gap-2 rounded-xl border px-3 text-xs font-semibold transition-colors",
+            includeArchived
+              ? "border-[#fbbf24]/30 bg-[#fbbf24]/10 text-amber-200"
+              : "border-white/10 bg-black/25 text-slate-300 hover:border-white/20",
+          )}
+        >
           <input
             type="checkbox"
             checked={includeArchived}
@@ -532,7 +544,7 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
         <Button variant="ghost" onClick={resetFilters} title="Réinitialiser les filtres">
           <X size={15} aria-hidden="true" /> Réinitialiser
         </Button>
-        <div className="ml-auto flex flex-wrap items-center gap-1">
+        <div className="ml-auto flex flex-wrap items-center gap-1 rounded-xl border border-white/[0.06] bg-white/[0.02] p-1">
           <Button
             variant="ghost"
             onClick={() => void exportCsv("report")}
@@ -563,8 +575,12 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
 
       {/* Sélection multiple */}
       {selection.size > 0 ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-400/30 bg-amber-400/[0.07] px-4 py-2.5 text-sm">
-          <strong>{selection.size} sélectionné(s)</strong>
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#fbbf24]/25 bg-[linear-gradient(90deg,rgba(251,191,36,0.10),rgba(251,191,36,0.02))] px-4 py-2.5 text-sm">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#fbbf24]/15 text-[#fbbf24] ring-1 ring-[#fbbf24]/20">
+            <Archive size={14} aria-hidden="true" />
+          </span>
+          <strong className="font-bold text-slate-100">{selection.size} sélectionné(s)</strong>
+          <span aria-hidden="true" className="h-4 w-px bg-white/10" />
           <Button variant="secondary" onClick={() => void archiveSelection()} disabled={bulkBusy}>
             <Archive size={15} aria-hidden="true" />
             {bulkBusy ? bulkLabel || "Archivage…" : "Archiver la sélection"}
@@ -575,7 +591,7 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
           <button
             type="button"
             onClick={() => setSelection(new Map())}
-            className="text-xs font-semibold text-slate-400 hover:text-white"
+            className="ml-auto text-xs font-semibold text-slate-400 transition-colors hover:text-white"
           >
             Tout désélectionner
           </button>
@@ -592,13 +608,18 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
               Chargement…
             </p>
           ) : visible.length === 0 ? (
-            <EmptyState
-              title="Aucun produit"
-              hint="Modifiez la recherche ou créez votre premier produit avec le bouton « Nouveau produit »."
-            />
+            <div className="flex flex-col items-center">
+              <EmptyState
+                title="Aucun produit"
+                hint="Modifiez la recherche ou créez votre premier produit avec le bouton « Nouveau produit »."
+              />
+              <Button onClick={openCreate} className="-mt-12 mb-10">
+                <Plus size={16} aria-hidden="true" /> Créer un produit
+              </Button>
+            </div>
           ) : (
             <table className="w-full min-w-[960px] text-sm">
-              <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
+              <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500 shadow-[0_1px_0_rgba(255,255,255,0.07)]">
                 <tr>
                   <th className="w-10 px-3 py-2.5">
                     <input
@@ -621,94 +642,144 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
                 </tr>
               </thead>
               <tbody>
-                {visible.map((p) => (
-                  <tr
-                    key={p.id}
-                    onClick={() => setDrawerProduct(p)}
-                    className={cn(
-                      "cursor-pointer border-t border-white/[0.06] transition-colors hover:bg-amber-400/[0.06]",
-                      selection.has(p.id) && "bg-amber-400/[0.08]",
-                    )}
-                  >
-                    <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={selection.has(p.id)}
-                        onChange={() => toggleSelect(p)}
-                        aria-label={`Sélectionner ${p.name}`}
-                        className="h-4 w-4 accent-amber-400"
-                      />
-                    </td>
-                    <td className="px-3 py-2 font-mono text-xs text-slate-500">#{p.id}</td>
-                    <td className="max-w-[240px] truncate px-3 py-2 font-semibold">{p.name}</td>
-                    <td className="px-3 py-2 font-mono text-xs text-slate-400">
-                      {p.primary_barcode ?? "—"}
-                    </td>
-                    <td className="px-3 py-2 text-slate-300">{p.category_name ?? "—"}</td>
-                    <td className="px-3 py-2 text-right tabular-nums text-slate-400">
-                      {formatDzd(p.purchase_price_minor)}
-                    </td>
-                    <td className="px-3 py-2 text-right font-bold tabular-nums">
-                      {formatDzd(p.selling_price_minor)}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums">{p.quantity}</td>
-                    <td className="px-3 py-2">
-                      <Badge tone={stockTone(p)}>{stockLabel(p)}</Badge>
-                    </td>
-                    <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex justify-end gap-1">
-                        <RowAction
-                          label={`Voir ${p.name}`}
-                          title="Détails de la fiche"
-                          onClick={() => setDrawerProduct(p)}
-                        >
-                          <Eye size={15} aria-hidden="true" />
-                        </RowAction>
-                        <RowAction
-                          label={`Mouvements ${p.name}`}
-                          title="Mouvements (graphe + journal)"
-                          onClick={() => setMovementsFor(p)}
-                        >
-                          <Activity size={15} aria-hidden="true" />
-                        </RowAction>
-                        <RowAction
-                          label={`Étiquettes ${p.name}`}
-                          title="Étiquettes code-barres"
-                          onClick={() =>
-                            p.primary_barcode
-                              ? setLabelsFor([
-                                  {
-                                    name: p.name,
-                                    priceMinor: p.selling_price_minor,
-                                    barcode: p.primary_barcode,
-                                  },
-                                ])
-                              : notify("Produit sans code-barres.", "err")
-                          }
-                        >
-                          <Barcode size={15} aria-hidden="true" />
-                        </RowAction>
-                        {!isArchived(p) ? (
-                          <RowAction
-                            label={`Modifier ${p.name}`}
-                            title="Modifier"
-                            onClick={() => openEdit(p)}
+                {visible.map((p) => {
+                  const marginPct =
+                    p.purchase_price_minor > 0 && p.selling_price_minor > 0
+                      ? Math.round(
+                          ((p.selling_price_minor - p.purchase_price_minor) /
+                            p.selling_price_minor) *
+                            100,
+                        )
+                      : null;
+                  return (
+                    <tr
+                      key={p.id}
+                      onClick={() => setDrawerProduct(p)}
+                      className={cn(
+                        "cursor-pointer border-t border-white/[0.06] transition-colors hover:bg-amber-400/[0.06]",
+                        selection.has(p.id) && "bg-amber-400/[0.08]",
+                        isArchived(p) && "opacity-60",
+                      )}
+                    >
+                      <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selection.has(p.id)}
+                          onChange={() => toggleSelect(p)}
+                          aria-label={`Sélectionner ${p.name}`}
+                          className="h-4 w-4 accent-amber-400"
+                        />
+                      </td>
+                      <td className="px-3 py-2 font-mono text-xs text-slate-500">#{p.id}</td>
+                      <td className="max-w-[280px] px-3 py-2">
+                        <div className="flex items-center gap-2.5">
+                          <span
+                            aria-hidden="true"
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.04] font-mono text-[12px] font-bold uppercase text-slate-400 ring-1 ring-white/10"
                           >
-                            <Pencil size={15} aria-hidden="true" />
-                          </RowAction>
-                        ) : (
-                          <RowAction
-                            label={`Restaurer ${p.name}`}
-                            title="Restaurer la fiche"
-                            onClick={() => void restoreRow(p)}
+                            {p.name.trim().charAt(0) || "?"}
+                          </span>
+                          <div className="min-w-0">
+                            <div className="truncate font-semibold">{p.name}</div>
+                            <div className="mt-0.5 truncate font-mono text-[10px] text-slate-500">
+                              {p.unit_code}
+                              {p.min_stock_level > 0 ? ` · min ${p.min_stock_level}` : ""}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 font-mono text-xs text-slate-400">
+                        {p.primary_barcode ?? "—"}
+                      </td>
+                      <td className="px-3 py-2 text-slate-300">{p.category_name ?? "—"}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-slate-400">
+                        {formatDzd(p.purchase_price_minor)}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <div className="font-bold tabular-nums">
+                          {formatDzd(p.selling_price_minor)}
+                        </div>
+                        {marginPct != null ? (
+                          <div
+                            className={cn(
+                              "text-[10px] tabular-nums",
+                              marginPct < 0 ? "text-red-300" : "text-emerald-300/80",
+                            )}
                           >
-                            <RotateCcw size={15} aria-hidden="true" />
+                            {marginPct > 0 ? "+" : ""}
+                            {marginPct} %
+                          </div>
+                        ) : null}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <div
+                          className={cn(
+                            "font-bold tabular-nums",
+                            p.quantity <= 0 ? "text-red-300" : "text-slate-100",
+                          )}
+                        >
+                          {p.quantity}
+                        </div>
+                        <div className="text-[10px] text-slate-500">{p.unit_code}</div>
+                      </td>
+                      <td className="px-3 py-2">
+                        <Badge tone={stockTone(p)}>{stockLabel(p)}</Badge>
+                      </td>
+                      <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex justify-end gap-1">
+                          <RowAction
+                            label={`Voir ${p.name}`}
+                            title="Détails de la fiche"
+                            onClick={() => setDrawerProduct(p)}
+                          >
+                            <Eye size={15} aria-hidden="true" />
                           </RowAction>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          <RowAction
+                            label={`Mouvements ${p.name}`}
+                            title="Mouvements (graphe + journal)"
+                            onClick={() => setMovementsFor(p)}
+                          >
+                            <Activity size={15} aria-hidden="true" />
+                          </RowAction>
+                          <RowAction
+                            label={`Étiquettes ${p.name}`}
+                            title="Étiquettes code-barres"
+                            onClick={() =>
+                              p.primary_barcode
+                                ? setLabelsFor([
+                                    {
+                                      name: p.name,
+                                      priceMinor: p.selling_price_minor,
+                                      barcode: p.primary_barcode,
+                                    },
+                                  ])
+                                : notify("Produit sans code-barres.", "err")
+                            }
+                          >
+                            <Barcode size={15} aria-hidden="true" />
+                          </RowAction>
+                          {!isArchived(p) ? (
+                            <RowAction
+                              label={`Modifier ${p.name}`}
+                              title="Modifier"
+                              onClick={() => openEdit(p)}
+                            >
+                              <Pencil size={15} aria-hidden="true" />
+                            </RowAction>
+                          ) : (
+                            <RowAction
+                              label={`Restaurer ${p.name}`}
+                              title="Restaurer la fiche"
+                              onClick={() => void restoreRow(p)}
+                            >
+                              <RotateCcw size={15} aria-hidden="true" />
+                            </RowAction>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
