@@ -1,4 +1,4 @@
-# Handoff — Veloria POS (état au 2026-10-28)
+# Handoff — Veloria POS (état au 2026-10-29)
 
 > Document de continuité : tout ce qui a été fait, fichiers modifiés,
 > erreurs (fermées/ouvertes), en-attente, commandes. Sessions 2026-10-07
@@ -15,7 +15,8 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête **session 65** (Organisation du tronc racine, ADR-156). Avant elle session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- Branche : `chore/root-layout` — tête **session 66** (Développement des interfaces, ADR-157). Avant elle session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 66 (2026-10-29)** : **développement des interfaces — 19 surfaces (ADR-157)** — demande « قم بتطوير تصميم واجهات الصفحات التالية … بالترتيب ». Direction validée par le propriétaire : **approfondir Stitch** (pas de nouvelle identité). Socle partagé d'abord (cartes, `PageHeader`, `StatsStrip`, `Kpi`, `FormSection` avec action, survol global des registres, entrée de module), puis les 19 pages dans l'ordre : navigation, tableau de bord, caisse, catalogue, fiche produit, clients, fiche client, stock, réception, fournisseurs, fiche fournisseur, historique, rapports, zakat, dettes, retours, nouveau retour, paramètres, licence. **19 checkpoints** (un par surface), libellés de données corrigés (« Fournisseurs actifs », sous-ligne « Client #id » retirée des retours). Portes vertes : format, lint, check ×4, **1 146 tests**, verify, E2E ciblés et captures Electron.
 - **Session 65 (2026-10-29)** : **organisation du tronc racine — ADR-156** — audit + recherche des conventions 2026 ; la racine garde les entrées attendues par les outils (`package.json`, `tsconfig*`, `vite*`, `vitest*`, `eslint.config.mjs`) et les configs non standard passent dans `config/` : `electron-builder/{pos,manager}.yml`, `playwright.config.ts`, `knip.json`. `tsconfig.base.json` factorise les options strictes, les `tsbuildinfo` vont sous `node_modules/.cache/tsbuildinfo/` (plus à la racine), et `mobile/tsconfig.json` reçoit `ignoreDeprecations: "6.0"` (base Expo en node10). Gouvernance : scripts **`check`/`verify`/`ci`/`knip`**, `.npmrc` `engine-strict` + `save-exact`, `.github/renovate.json`, CI `concurrency`/`timeout`/`permissions` qui appelle les scripts uniques. Aucun changement runtime ni migration. Portes : `npm run ci` (check + tests + 2 couvertures + verify + builds + knip), Playwright **54 tests listés**, E2E `component-smoke` ; **packaging non re-vérifié** (verrou scanner `default_app.asar`, EBUSY) — à rejouer après redémarrage. Détails §65.
 - **Session 64 (2026-10-29)** : **montée de gamme de l'outillage — ADR-155** — demande « ابحث في الانترنت بعمق … تنظيم جذع المشروع باحدث التقنيات … تطوير مكتبات المشروع بأحدث التقنيات و حسب توافقها ». Grille **dernière version compatible** vérifiée sur npm et les guides officiels : Electron 37→**45.1.0** (Chromium 156/Node 24.22), better-sqlite3 12→**13.0.3 N-API** (prebuilds, SQLite 3.53.4), Vite 6→**8.3.5/Rolldown**, Vitest 3→**5.0.5**, ESLint 9→**10.13**, TypeScript 5.7→**6.0.3** (7 **refusé** : typescript-eslint `<6.1`), Zod 3→**4.6.7**, lucide 0.469→**1.63**, Tailwind 4.3, tailwind-merge 3, React 19.3. **Quatre checkpoints** : `a8c4e92` (mises à jour sûres, React 19.3, types Node 22.20, Prettier 3.9, Node 22.12/.nvmrc/packageManager), `97c6b02` (Vite 8 `codeSplitting.groups`, esbuild 0.28 explicite, `import.meta.dirname`, Vitest 5, ESLint 10, Tailwind 4.3, tailwind-merge 3), `45fc03a` (Electron 45 + better-sqlite3 13 N-API, **suppression** `@electron/rebuild`/`bindings`/postinstall/`rebuild`, `npmRebuild:false`, CI charge N-API), `9bd9925` (TS 6, Zod 4, lucide 1). **Bug attrapé** : Zod 4 `z.uuid()` est un `ZodUUID` distinct de `ZodString` ⇒ `schemaRequiresOperationId` renvoyait false et aurait **désactivé l'exigence d'operationId en production** (`handle.ts:88`) ; garde corrigé (`ZodString | ZodUUID`), tests 8/8. `baseUrl` supprimé (paths `./`), `node10` + `ignoreDeprecations` pour l'émission CJS ; safeStorage sync (6 appels) déprécié en 45/retiré en 46 → dérogation eslint + **dette tracée**. Porte features **recalibrée** (Vitest 5/V8, hooks `use*.ts` exclus, décision propriétaire) : planchers **50/65/70/50** (53,77/66,11/74,62/52,92 mesurés), +5 tests `proforma-rules`. **Incident poste** : `node_modules/electron/dist/resources/default_app.asar` verrouillé (scanner, EBUSY) ⇒ Electron 45 remplacé **dans la même arborescence** depuis le paquet officiel, lock régénéré par `--package-lock-only` ; **ne jamais forcer `rm`** (STRUCTURE §7), un `npm ci` propre utilise le lock. Portes : format 0 · typecheck ×3 0 · lint 0 · **vitest 169 fichiers / 1 146 tests 0** · **test:coverage 0** · **test:coverage:features 0** (160/1 085) · build POS/electron/manager 0 · verify:migrations/domain/fr/encoding/perf/secret-scan 0 · **E2E Electron 45 11/11** (activation/DPAPI, PDF, impression, vente SQLite) + `component-smoke` sur `release/win-unpacked/Veloria PoS.exe` · **suite E2E complète (50 tests) non relancée** · installateurs non reconstruits. Détails §64.
 - **Session 63 (2026-10-28)** : **Tableau de bord simplifié — 13 surfaces → 8 (ADR-154)** — demande « قم بتبسيط و تطوير تصميم واجهة لوحة التحكم ». Le diagnostic a commencé par **rejouer la capture réelle** : la page était la seule à avoir échappé à ADR-148 (bande « Aujourd'hui » + 4 cartes `Kpi` + bande `MiniMetric` + carte Vigilance = 13 surfaces, ≈250 px avant le premier graphique, et le même montant écrit deux fois à 70 px d'écart). `MiniMetric` était un `StatsStrip` réécrit à la main dont la surface `#0f1e30` **n'existait pas** en thème clair. Rendu : deux `StatsStrip` (4 + 5 cellules, tons conditionnels), **coût de revient** enfin affiché (seul dérivé qui manquait), « Ventes du jour » remonté dans le sous-titre de page avec son compteur, onglet **Finances supprimé** (redondant), sections de détail **sans carte imbriquée** et non rendues si vides, barres de part, période dite **une fois**, `EmptyState` unique si la période est vide, `max-h-80` interne supprimé. Bandeau **« À traiter »** conditionnel : échéances/ruptures/seuil/sauvegarde/intégrité, **puce-bouton seulement si `canNavigate` l'autorise** — nouvelle prop câblée sur `moduleAllowed` (sinon un caissier sans droit aurait atterri sur `RouteBlocked`, dont le texte blame **la licence** : mensonge évité, ADR-038). Zéro migration, canal, schéma, dépendance. E2E **renforcée** (seuil 10 pour stock 5 ⇒ alerte déterministe, clic de puce ⇒ module Stock). Trois pannes de harnais documentées hors UI : manifeste signé couvrant `dist/**` (`build` sans `build:electron` = E2E impossible) et empreinte matérielle **amputée** par contention CPU des fils `reg`/`wmic`/`powershell` — **jamais de build ni vitest pendant un E2E**. Portes : typecheck 0 · electron 0 · eslint 0 · prettier 0 · fr 0 · encoding 0 · **vitest 168 fichiers / 1 141 tests 0** · build ✓ · build:electron ✓ · **E2E `dashboard-ui` 1/1** (3,0 min, machine au repos). **Session 62 menée en parallèle dans le même arbre.** Détails §63.
@@ -2564,3 +2565,110 @@ complète non relancée.
 **Reste ouvert** : rejouer `npm run package:win` après redémarrage ; Renovate
 inerte tant qu'aucun remote n'existe ; dettes session 64 (TS 7, `safeStorage`
 async avant Electron 46, Expo mobile).
+
+## 66) Session 2026-10-29 — Développement des interfaces, 19 surfaces (ADR-157)
+
+**Demande** : « قم بتطوير تصميم واجهات الصفحات التالية : شريط التنقل، لوحة
+التحكم، البيع، المنتجات، إضافة منتج، العملاء، إضافة عميل، المخزون، إضافة
+مخزون جديد، الموردين، إضافة مورد، السجل، التقارير، الزكاة، الديون،
+المرتجعات، مرتجع جديد، الإعدادات، التفعيل. التطوير يكون بالترتيب لا تنتقل
+إلى صفحة حتى تنهي الصفحة التي قبلها. »
+
+**Direction** : question unique au propriétaire (choix « تطوير الهوية الحالية
+(موصى به) »). Aucune nouvelle identité, aucune dépendance UI ajoutée : le
+travail approfondit Stitch Industrial Dark (ADR-033/035/036) et le thème clair
+(ADR-072).
+
+**Socle partagé (une fois, avant les pages)**
+
+- `Card` : profondeur discrète (inset + ombre basse), fond inchangé.
+- `PageHeader` : point ambre + H1 24 px + période 12 px.
+- `StatsStrip` : filet de teinte par cellule, chiffres mono 19 px.
+- `Kpi` : rail latéral coloré, valeur 22 px.
+- `FormSection` : icône cerclée, `hint` à droite, **action optionnelle**.
+- `BarChart` : grille pointillée, barres arrondies, `currentColor` (lisible en
+  clair).
+- Survol global des lignes de registres (sombre + clair) ; entrée de module
+  `veloria-page-in` 180 ms (neutralisée par `prefers-reduced-motion`).
+- Surcharges claires ajoutées : `bg-[#122131]/95` (pieds de dialogue) et
+  `bg-[#0b1a2b]/95` (en-tête Paramètres).
+
+**Les 19 pages, dans l'ordre demandé**
+
+1. **Navigation** : bloc de marque latéral (logo + « Caisse · DZ »), groupes
+   avec filet, tuiles d'icônes, rail ambre actif, dégradé de fin de liste ;
+   bandeau licence/santé/horloge/avatar/déconnexion compacte ; raccourcis en
+   touches.
+2. **Tableau de bord** : bandeaux de chiffres avec filets, encaissements par
+   moyen, onglets de détail segmentés (ambre plein), actions concrètes sur
+   période vide (caisse, produit, client).
+3. **Caisse** : recherche et client à 52 px, scanner vivant, résultat actif à
+   rail, fiche client condensée (avatar, solde, plafond, règlement), onglets
+   paniers hiérarchisés, panier vide avec raccourcis, total héros + F10.
+4. **Catalogue** : filtres groupés, exports séparés, sélection unifiée,
+   monogrammes, marge sous le prix de vente, stock + unité, état vide avec
+   création directe.
+5. **Fiche produit** : modale 960 px, en-tête icône, rappel des champs requis,
+   marge estimée en chiffre héros avec badge Rentable/Vente à perte.
+6. **Clients** : avatars, dette en rouge + jauge de recouvrement, filtres et
+   exports, sélection, état vide avec création.
+7. **Fiche client** : 960 px, sections partagées, crédit/notes au même niveau.
+8. **Stock** : menu d'actions avec chevron, filtres groupés, monogrammes,
+   quantité/unité sur deux lignes, valeur en ambre.
+9. **Réception** : sections partagées, rappel transactionnel, pied collant.
+10. **Fournisseurs** : registre cohérent, monogrammes + réceptions, jauge
+    d'encours, inactifs estompés ; **libellé corrigé** « Fournisseurs actifs »
+    (la requête compte `is_active`, pas les comptes endettés).
+11. **Fiche fournisseur** : deux colonnes (identité/contact, fiscalité/notes),
+    code auto-généré rappelé, `Ctrl+Entrée`.
+12. **Historique** : dates étiquetées, exports groupés, date+heure fusionnées,
+    recherche élargie.
+13. **Rapports** : périodes et rubriques en segments avec état actif, résultat
+    net en chiffre héros avec badge Bénéfice/Perte, sections à filet ambre.
+14. **Zakat** : Nisab/Taux/Hawl en trois repères, base de calcul en lignes,
+    historique titré/compté, dialogue en sections + total héros, sélecteur
+    d'année compact.
+15. **Dettes** : filtres groupés, jetons de tiers, jauge de reste, sélection
+    unifiée.
+16. **Retours** : monogrammes + facture d'origine, jauge de remboursement,
+    annulés estompés ; sous-ligne « Client #id » erronée **retirée**
+    (`entity_id` = identifiant du retour, pas du tiers).
+17. **Nouveau retour** : modale 960 px, deux tuiles client/fournisseur, résumé
+    facture en quatre repères, articles et règlement en sections, total
+    collant. Flux E2E client comptant **et** crédit revérifiés.
+18. **Paramètres** : navigation locale à rail, en-tête collant compatible clair,
+    panneaux unifiés (`bg-black/25`), test de navigation E2E vert.
+19. **Licence** : page en deux volets (poste + certificat), empreinte matérielle
+    copiable, guide d'activation en trois étapes si non activé.
+
+**Incidents / décisions**
+
+- Aucun changement de domaine, IPC, migration ou règle métier. Tous les
+  libellés, rôles ARIA et noms accessibles utilisés par les tests ont été
+  conservés ; le nom accessible du bouton « Encaisser » reste exact (le chip
+  F10 est `aria-hidden`).
+- Deux libellés de **données** corrigés (fournisseurs, retours) — voir ADR-157.
+- Les captures Electron ont été prises sur base vierge avec données de
+  démonstration créées par l'interface (`test-results/visual-*.png`), pas sur
+  des données de production.
+- Les tiroirs de détail non listés héritent des primitives mais n'ont pas été
+  restructurés en profondeur.
+
+**Portes** : `npm run format:check` OK · `npm run lint` OK · `npm run check`
+(renderer, electron, manager, mobile) OK · `npm test` **169 fichiers / 1 146
+tests OK** · `npm run verify` OK (migrations, domaine, FR, encodage, perf,
+secret-scan) · E2E : vente comptant, retour client comptant, retour client
+crédit, navigation paramètres — tous verts · captures Electron pour chaque
+surface clé.
+
+**Git** : 19 checkpoints (un par surface) — `43f3ac1` navigation, `9dc14c8`
+tableau de bord + socle, `06d9141` caisse, `f11023e` catalogue, `2b51517` fiche
+produit, `7253db1` clients, `3236f51` fiche client, `b342ecf` stock, `da17615`
+réception, `bf0404f` fournisseurs, `13bb27e` fiche fournisseur, `223876a`
+historique, `c87fa98` rapports, `b164fb9` zakat, `5f51960` dettes, `ef051a6`
+retours, `b2d5560` nouveau retour, `6f6c626` paramètres, `4d0ebbb` licence ·
+ce `docs(handoff)` (ADR-157 + INDEX + état courant).
+
+**Reste ouvert** : dettes sessions 64/65 (TS 7, `safeStorage` async avant
+Electron 46, Expo mobile, `npm run package:win` à rejouer après redémarrage) ;
+tiroirs de détail non restructurés (voir ADR-157 §Limites).

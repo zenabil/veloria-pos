@@ -4,7 +4,7 @@
 > l avancement en `reports/PHASE_*.md`. Ne jamais ecrire de rapport a la racine.
 > Conventions : `AGENTS.md` + `docs/STRUCTURE.md` (carte maintenance).
 
-## Decisions (ADR-001 a ADR-156 — tous saries, jamais supprimes)
+## Decisions (ADR-001 a ADR-157 — tous saries, jamais supprimes)
 
 - [ADR-001](./ADR-001-vite-renderer.md) Renderer Vite
 - [ADR-002](./ADR-002-native-versions.md) Versions natives
@@ -162,6 +162,7 @@
 - [ADR-154](./ADR-154-tableau-de-bord-simplifie.md) Tableau de bord simplifié : 13 surfaces → 8, deux `StatsStrip`, bandeau « À traiter » cliquable et véridique (`canNavigate`), plus de carte dans une carte ni de mur de zéros
 - [ADR-155](./ADR-155-montee-de-gamme-outillage-2026-10.md) Montée de gamme 2026-10 : Electron 45 + better-sqlite3 13 N-API, Vite 8/Rolldown, Vitest 5, ESLint 10, TypeScript 6 (pas 7, typescript-eslint), Zod 4, lucide 1, Node 22.12+ ; aucune migration SQLite
 - [ADR-156](./ADR-156-organisation-tronc-racine.md) Organisation du tronc racine : `config/` pour electron-builder/Playwright/Knip, `tsconfig.base.json`, cache `tsbuildinfo`, scripts `check`/`verify`/`ci`, npm strict, Renovate et CI durcie
+- [ADR-157](./ADR-157-design-pass-2026-10-29.md) Développement des interfaces 2026-10-29 : socle visuel partagé, 19 surfaces dans l'ordre (navigation → licence), registres et formulaires homogènes, thème clair préservé, libellés de données corrigés
 
 ## Ou ecrire quoi
 
