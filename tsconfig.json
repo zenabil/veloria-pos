@@ -18,12 +18,11 @@
     "exactOptionalPropertyTypes": true,
     "forceConsistentCasingInFileNames": true,
     "disableSourceOfProjectReferenceRedirect": true,
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@domain/*": ["src/domain/*"],
-      "@shared/*": ["src/shared/*"],
-      "@features/*": ["src/features/*"]
+      "@/*": ["./src/*"],
+      "@domain/*": ["./src/domain/*"],
+      "@shared/*": ["./src/shared/*"],
+      "@features/*": ["./src/features/*"]
     },
     "types": ["vite/client", "node"]
   },

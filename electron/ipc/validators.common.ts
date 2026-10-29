@@ -55,7 +55,7 @@ export const moneyTotalPositive = z.number().int().min(1).max(100_000_000_000);
 // atteignable ici — fail-closed sans risque de rejet légitime.
 export const moneyMinorSigned = z.number().int().min(-1_000_000_000).max(1_000_000_000);
 
-export const optionalOperationId = z.string().uuid().nullable().optional();
+export const optionalOperationId = z.uuid().nullable().optional();
 // A1-P0 : quantités ≥ 0 avec 3 décimales max (même règle que `quantity`, zéro inclus
 // pour stocks/dégâts/imports — rejette 1.23456 au lieu d'arrondir silencieusement).
 export const quantityNonNegative = z
@@ -68,7 +68,7 @@ export const quantityNonNegative = z
 
 // RADICAL-FIX P0: charge vide explicite pour les lectures — jamais de `null`
 // (contrat Zod uniforme, AGENTS.md §3 : toute commande passe par un schéma).
-export const emptyPayloadSchema = z.object({}).strict();
+export const emptyPayloadSchema = z.strictObject({});
 
 // E-31 (P2) : `page` était SANS borne ⇒ `OFFSET = (page-1) * pageSize`
 // devenait illimité (scan complet de la table, y compris sur le branche
@@ -84,7 +84,7 @@ export const idSchema = z.object({ id: z.number().int().positive() });
 
 export const idempotentIdSchema = z.object({
   id: z.number().int().positive(),
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
 });
 
 // P1-6 : couche centrale anti-sans-operationId. Tout schéma ZodObject dont le
@@ -93,21 +93,11 @@ export const idempotentIdSchema = z.object({
 // génération silencieuse côté main). Les schémas optionnels/compat (ex.
 // expenses.delete nullable) restent hors périmètre volontairement.
 export function schemaRequiresOperationId(schema: unknown): boolean {
-  let current: unknown = schema;
-  for (let depth = 0; depth < 5; depth++) {
-    if (current !== null && typeof current === "object" && "shape" in current) {
-      const shape = (current as { shape: Record<string, unknown> }).shape;
-      return shape.operationId instanceof z.ZodString;
-    }
-    // RADICAL-FIX (conseil llm-council) : déballe les wrappers d'effets
-    // (.refine/.superRefine → ZodEffects) pour lire le shape réel — sinon un
-    // schéma à operationId REQUIS mais raffiné (ex. purchaseReceiveSchema)
-    // échappait au garde. ZodOptional/Nullable/Default ne sont JAMAIS déballés.
-    if (current instanceof z.ZodEffects) {
-      current = current.innerType();
-      continue;
-    }
-    return false;
-  }
-  return false;
+  if (schema === null || typeof schema !== "object" || !("shape" in schema)) return false;
+  // Zod 4 : z.uuid() est un ZodUUID (plus un ZodString porteur de checks) ;
+  // les deux comptent comme operationId requis. ZodOptional/Nullable/Default
+  // ne sont JAMAIS déballés (compat legacy), comme avant.
+  const shape = (schema as { shape: Record<string, unknown> }).shape;
+  const operationId = shape.operationId;
+  return operationId instanceof z.ZodString || operationId instanceof z.ZodUUID;
 }

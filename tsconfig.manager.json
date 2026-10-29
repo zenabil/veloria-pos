@@ -3,7 +3,9 @@
     "target": "ES2022",
     "lib": ["ES2022", "DOM"],
     "module": "CommonJS",
-    "moduleResolution": "node",
+    // Même contrainte que tsconfig.electron.json (émission CommonJS du Manager).
+    "moduleResolution": "node10",
+    "ignoreDeprecations": "6.0",
     "skipLibCheck": true,
     "isolatedModules": true,
     "strict": true,

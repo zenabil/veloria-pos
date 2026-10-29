@@ -56,7 +56,7 @@ export const templateSettingsSchema = z.object({
 export type ParsedTemplateSettings = z.infer<typeof templateSettingsSchema>;
 
 export const templateSaveSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   id: z.number().int().positive().nullable().optional(),
   docType: templateDocTypeSchema,
   name: z.string().min(2).max(100),
@@ -64,17 +64,17 @@ export const templateSaveSchema = z.object({
 });
 
 export const templateActivateSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   id: z.number().int().positive(),
 });
 
 export const templateRemoveSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   id: z.number().int().positive(),
 });
 
 export const templateResetSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   docType: templateDocTypeSchema.nullable().optional(),
 });
 
@@ -84,7 +84,7 @@ export const templatePreviewSchema = z.object({
 });
 
 export const templateTestPrintSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   docType: templateDocTypeSchema,
   templateId: z.number().int().positive().nullable().optional(),
 });

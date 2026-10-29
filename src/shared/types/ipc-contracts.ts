@@ -1,7 +1,7 @@
 // Veloria PoS — Shared: contrats de réponse IPC (renderer).
 // Le pont `call<T>` ne vérifie rien (`res.data as T`) : `callChecked` valide
 // la forme réelle avec Zod et lève un message FR en cas de dérive main/renderer.
-// Schémas volontairement tolérants (`.passthrough()`) : ils garantissent les
+// Schémas volontairement tolérants (`.loose()`) : ils garantissent les
 // champs consommés par l'UI sans casser sur une colonne ajoutée côté main.
 
 import { z } from "zod";
@@ -41,7 +41,7 @@ const enrichedCustomerRowSchema = z
     total_purchases_minor: z.number().int().min(0),
     last_sale_at: z.string().nullable(),
   })
-  .passthrough();
+  .loose();
 
 export const enrichedCustomerSearchSchema = z.object({
   rows: z.array(enrichedCustomerRowSchema),
@@ -61,7 +61,7 @@ const productHitSchema = z
     quantity: z.number(),
     unit_code: z.string(),
   })
-  .passthrough();
+  .loose();
 
 /** Vente créée (sales.create / conversions) : id + numéro, jamais de cast. */
 export const saleResultSchema = z
@@ -69,7 +69,7 @@ export const saleResultSchema = z
     saleId: z.number().int().positive(),
     invoiceNumber: z.string().min(1),
   })
-  .passthrough();
+  .loose();
 
 /** Réponse d'appariement OCR par lot (1 IPC, migration main matchBatch). */
 export const productsMatchBatchSchema = z.object({
@@ -82,7 +82,7 @@ export const productsMatchBatchSchema = z.object({
 });
 
 /** Accusé de paiement idempotent (client ou fournisseur, migration 0020). */
-export const paymentAckSchema = z.object({ paymentId: z.number().int().positive() }).passthrough();
+export const paymentAckSchema = z.object({ paymentId: z.number().int().positive() }).loose();
 
 /** Clôture journalière Z (lignes `daily_closings`, montants en centimes). */
 const closingRowSchema = z
@@ -97,19 +97,19 @@ const closingRowSchema = z
     refunds_minor: z.number().int().min(0),
     closing_balance_minor: z.number().int(),
   })
-  .passthrough();
+  .loose();
 
 export const closingsListSchema = z.object({ rows: z.array(closingRowSchema) });
 
 /** Activation APK (le QR s'affiche une fois pour la carte d'activation). */
 export const accessActivateResultSchema = z
   .object({ activated: z.boolean(), activationCode: z.string().min(16) })
-  .passthrough();
+  .loose();
 
 /** QR d'activation scannable (ADR-054) : SVG N&B, "" = repli texte. */
 export const accessQrSvgResultSchema = z
   .object({ svg: z.string().max(200_000), payload: z.string().min(1).max(800) })
-  .passthrough();
+  .loose();
 
 /** État d'accès APK (jamais de condensats vers le renderer). */
 export const accessStatusResultSchema = z
@@ -121,19 +121,19 @@ export const accessStatusResultSchema = z
         failedAttempts: z.number().int().min(0),
         lockedUntil: z.string().nullable(),
       })
-      .passthrough(),
+      .loose(),
   })
-  .passthrough();
+  .loose();
 
 /** Mise en file d'un cliché vers le miroir. */
 export const syncEnqueueResultSchema = z
   .object({ queued: z.boolean(), existed: z.boolean() })
-  .passthrough();
+  .loose();
 
 /** Poussée miroir (compteurs, rejouable par operationId). */
 export const syncPushResultSchema = z
   .object({ pushed: z.number().int().min(0), access: z.number().int().min(0) })
-  .passthrough();
+  .loose();
 
 /** Configuration de synchro (clé service toujours masquée). */
 export const syncConfigViewSchema = z
@@ -147,4 +147,4 @@ export const syncConfigViewSchema = z
     lastError: z.string().nullable(),
     pendingCount: z.number().int().min(0),
   })
-  .passthrough();
+  .loose();

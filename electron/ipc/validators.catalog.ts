@@ -16,7 +16,7 @@ export const productSearchSchema = z.object({
 export const barcodeSchema = z.object({ barcode: z.string().min(1).max(64) });
 
 export const productCreateSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   name: z.string().min(2).max(200),
   categoryId: z.number().int().nullable().optional(),
   unitCode: z.string().max(20).default("PIECE"),
@@ -45,7 +45,7 @@ export const productUpdateSchema = productCreateSchema.omit({ operationId: true 
 
 export const productsImportSchema = z.object({
   // M-2 caller-owned batch operation: same file retried replays stored result.
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   rows: z
     .array(
       z.object({
@@ -79,7 +79,7 @@ export const packagingListSchema = z.object({
 // Codes-barres de carton : le code désigne le conditionnement, il ne porte ni
 // le facteur ni le prix (lus en base à l'encaissement).
 export const packagingSaveSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   productId: z.number().int().positive(),
   labelFr: z.string().min(2).max(40),
   factor: z.number().int().min(2).max(1_000_000),
@@ -90,7 +90,7 @@ export const packagingSaveSchema = z.object({
 });
 
 export const packagingDeleteSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   productId: z.number().int().positive(),
 });
 

@@ -7,7 +7,7 @@ import { quantity } from "./validators.common";
 import { optionalOperationId } from "./validators.common";
 
 export const returnCreateSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   kind: z.enum(["customer", "supplier"]),
   saleId: z.number().int().positive().nullable().optional(),
   intakeId: z.number().int().positive().nullable().optional(),
@@ -54,17 +54,17 @@ export const returnTargetSchema = z.object({
 });
 
 export const returnRefundSchema = returnTargetSchema.extend({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   amountMinor: moneyMinorPositive,
   method: z.enum(["cash", "cheque", "transfer"]),
 });
 
 export const returnCancelSchema = returnTargetSchema.extend({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
 });
 
 export const proformaCreateSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   customerId: z.number().int().positive().nullable().optional(),
   lines: z
     .array(
@@ -97,7 +97,7 @@ export const proformaStatusSchema = z.object({
 });
 
 export const proformaConvertSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   proformaId: z.number().int().positive(),
   amountPaidMinor: moneyMinor,
   paymentMethod: z.enum(["cash", "cheque", "transfer"]).nullable().optional(),

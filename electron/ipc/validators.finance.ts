@@ -7,7 +7,7 @@ import { optionalOperationId } from "./validators.common";
 
 export const recordPaymentSchema = z
   .object({
-    operationId: z.string().uuid(),
+    operationId: z.uuid(),
     customerId: z.number().int().positive().nullable().optional(),
     saleId: z.number().int().positive().nullable().optional(),
     amountMinor: moneyTotalPositive,
@@ -20,7 +20,7 @@ export const recordPaymentSchema = z
   .superRefine((v, ctx) => {
     if (v.customerId == null && v.saleId == null) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: "Client ou vente requis pour le paiement.",
         path: ["customerId"],
       });
@@ -28,7 +28,7 @@ export const recordPaymentSchema = z
   });
 
 export const expenseCreateSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   description: z.string().min(2).max(300),
   category: z.string().min(1).max(100),
   amountMinor: moneyMinorPositive,
@@ -181,7 +181,7 @@ export const saleDueDateSchema = z.object({
 });
 
 export const closingCreateSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   businessDate,
   openingMinor: moneyMinor.default(0),
 });
@@ -195,7 +195,7 @@ export const zakatParamsSchema = z.object({
 });
 
 export const zakatCalculationSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   hijriYear: z.string().min(4).max(10),
   calcDate: businessDate,
   cashMinor: moneyMinor.default(0),
@@ -222,7 +222,7 @@ export const closingsListSchema = z.object({
  * rejouable (operationId REQUIRED comme toute opération financière).
  */
 export const closingReopenSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   businessDate,
 });
 
@@ -262,5 +262,5 @@ export const expenseDeleteSchema = z.object({
   // acte financier ; sans clé de rejouabilité, un retry n'est pas
   // identifiable (le repo tombait sur un UUID aléatoire pour l'audit).
   // L'UI envoie déjà un operationId sur ses 3 appels.
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
 });

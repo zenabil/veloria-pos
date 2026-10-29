@@ -49,7 +49,7 @@ export const backupExportSchema = z.object({
 // rejoue tout le séquence snapshot→vérif→copie→réouverture.
 export const backupRestoreSchema = z.object({
   file: z.string().min(1).max(2000),
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
 });
 
 // Récupération au démarrage (base non prête) : actions sans charge utile,
@@ -63,50 +63,51 @@ export const licenseActionSchema = z.object({});
 // Chrome frameless : actions fenêtre sans charge utile (pas de remote).
 export const windowActionSchema = z.object({});
 
-export const printPayloadSchema = z
-  .object({
-    company: z.string().max(200).default("Veloria"),
-    customerName: z.string().max(200).default(""),
-    customerPhone: z.string().max(30).default(""),
-    customerAddress: z.string().max(300).default(""),
-    customerCode: z.string().max(20).default(""),
-    seller: z.string().max(100).default(""),
-    tvaRatePercent: z.number().min(0).max(100).default(0),
-    htMinor: moneyMinor.default(0),
-    tvaMinor: moneyMinor.default(0),
-    qrPayload: z.string().max(300).default(""),
-    qrSvg: z.string().max(200_000).default(""),
-    companyPhone: z.string().max(30).default(""),
-    companyAddress: z.string().max(300).default(""),
-    companyCity: z.string().max(100).default(""),
-    companyEmail: z.string().max(100).default(""),
-    companyRc: z.string().max(50).default(""),
-    companyNif: z.string().max(50).default(""),
-    companyNis: z.string().max(50).default(""),
-    companyArticle: z.string().max(50).default(""),
-    companyLogo: z.string().max(600_000).default(""),
-    paymentMethod: z.enum(["cash", "cheque", "transfer"]).nullable().optional(),
-    dueDate: z.string().max(50).default(""),
-    notes: z.string().max(1000).default(""),
-    invoice: z.string().max(50).default(""),
-    date: z.string().max(50).default(""),
-    lines: z.array(printLineSchema).min(1).max(200),
-    subtotalMinor: moneyMinor.default(0),
-    /**
-     * Remise SIGNÉE (ADR-131/132) : négative = majoration (prix facturé >
-     * prix catalogue) ou facture au montant saisi. La borne basse est
-     * symétrique à `moneyMinor` : le ticket reste imprimable et l'écart
-     * reste VISIBLE (jamais masqué).
-     */
-    discountMinor: moneyMinorSigned.default(0),
-    deliveryMinor: moneyMinor.default(0),
-    totalMinor: moneyMinor.default(0),
-    paidMinor: moneyMinor.default(0),
-    /** C5 : timbre LF 2025 documentaire (espèces, 0 sinon) — net = total + timbre. */
-    stampMinor: moneyMinor.default(0),
-    prevBalanceMinor: moneyMinor.nullable().optional(),
-    currentBalanceMinor: moneyMinor.nullable().optional(),
-  })
+const printPayloadBase = z.object({
+  company: z.string().max(200).default("Veloria"),
+  customerName: z.string().max(200).default(""),
+  customerPhone: z.string().max(30).default(""),
+  customerAddress: z.string().max(300).default(""),
+  customerCode: z.string().max(20).default(""),
+  seller: z.string().max(100).default(""),
+  tvaRatePercent: z.number().min(0).max(100).default(0),
+  htMinor: moneyMinor.default(0),
+  tvaMinor: moneyMinor.default(0),
+  qrPayload: z.string().max(300).default(""),
+  qrSvg: z.string().max(200_000).default(""),
+  companyPhone: z.string().max(30).default(""),
+  companyAddress: z.string().max(300).default(""),
+  companyCity: z.string().max(100).default(""),
+  companyEmail: z.string().max(100).default(""),
+  companyRc: z.string().max(50).default(""),
+  companyNif: z.string().max(50).default(""),
+  companyNis: z.string().max(50).default(""),
+  companyArticle: z.string().max(50).default(""),
+  companyLogo: z.string().max(600_000).default(""),
+  paymentMethod: z.enum(["cash", "cheque", "transfer"]).nullable().optional(),
+  dueDate: z.string().max(50).default(""),
+  notes: z.string().max(1000).default(""),
+  invoice: z.string().max(50).default(""),
+  date: z.string().max(50).default(""),
+  lines: z.array(printLineSchema).min(1).max(200),
+  subtotalMinor: moneyMinor.default(0),
+  /**
+   * Remise SIGNÉE (ADR-131/132) : négative = majoration (prix facturé >
+   * prix catalogue) ou facture au montant saisi. La borne basse est
+   * symétrique à `moneyMinor` : le ticket reste imprimable et l'écart
+   * reste VISIBLE (jamais masqué).
+   */
+  discountMinor: moneyMinorSigned.default(0),
+  deliveryMinor: moneyMinor.default(0),
+  totalMinor: moneyMinor.default(0),
+  paidMinor: moneyMinor.default(0),
+  /** C5 : timbre LF 2025 documentaire (espèces, 0 sinon) — net = total + timbre. */
+  stampMinor: moneyMinor.default(0),
+  prevBalanceMinor: moneyMinor.nullable().optional(),
+  currentBalanceMinor: moneyMinor.nullable().optional(),
+});
+
+export const printPayloadSchema = printPayloadBase
   // P04: cohérence arithmétique du ticket — un payload incohérent (total ≠
   // subtotal-remise+livraison, sous-total ≤ Σ lignes, ligne ≤ prix×qté) est
   // rejeté au lieu d'imprimer des montants faux (renderer compromis).
@@ -122,7 +123,7 @@ export const printPayloadSchema = z
       const tolerance = Math.ceil(l.unitPriceMinor * 0.0005) + 1;
       if (Math.abs(l.lineTotalMinor - expected) > tolerance) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           message: `Ligne ${i + 1} incohérente.`,
           path: ["lines", i, "lineTotalMinor"],
         });
@@ -142,14 +143,14 @@ export const printPayloadSchema = z
     const chargedSum = v.subtotalMinor - v.discountMinor;
     if (sum !== v.subtotalMinor && sum !== chargedSum) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: "Sous-total/remise incohérents avec les lignes.",
         path: ["subtotalMinor"],
       });
     }
     if (v.discountMinor > v.subtotalMinor) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: "Remise supérieure au sous-total.",
         path: ["discountMinor"],
       });
@@ -157,7 +158,7 @@ export const printPayloadSchema = z
     const expectedTotal = v.subtotalMinor - v.discountMinor + v.deliveryMinor;
     if (v.totalMinor !== expectedTotal) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: "Total incohérent.",
         path: ["totalMinor"],
       });
@@ -167,7 +168,7 @@ export const printPayloadSchema = z
     const rate = typeof v.tvaRatePercent === "number" ? v.tvaRatePercent : 0;
     if (rate > 0 && (v.htMinor > 0 || v.tvaMinor > 0) && v.htMinor + v.tvaMinor !== v.totalMinor) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: "Ventilation HT/TVA incohérente avec le total.",
         path: ["htMinor"],
       });
@@ -180,15 +181,16 @@ export const printPayloadSchema = z
     const stampExpected = timbreQuittanceLf2025(v.paidMinor, v.paymentMethod ?? null);
     if (v.stampMinor !== stampExpected) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: "Timbre fiscal incohérent.",
         path: ["stampMinor"],
       });
     }
   });
 
-// Export PDF (ticket) : `filePath` optionnel validé séparément
-// (printPayloadSchema porte déjà un superRefine : ZodEffects non extensible).
+// Export PDF (ticket) : `filePath` optionnel validé séparément.
+// Les documents logistiques étendent `printPayloadBase` (sans le superRefine
+// du ticket) ; seuls les payloads ticket portent la cohérence arithmétique.
 // Sans `filePath` : dialogue natif d'enregistrement côté main — jamais
 // d'écriture silencieuse arbitraire. Avec : absolu, extension .pdf, dossier
 // parent validé via assertSafeUserFolder (pas de traversal, pas de système).
@@ -226,7 +228,7 @@ export const paymentTicketSchema = z
   .superRefine((v, ctx) => {
     if (v.newBalanceMinor !== v.prevBalanceMinor - v.amountMinor) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: "Soldes incohérents (nouveau = ancien − montant).",
         path: ["newBalanceMinor"],
       });
@@ -257,7 +259,7 @@ export const labelsPayloadSchema = z.object({
 
 // P0-3 : documents logistiques (bon de livraison / bon de retour / bon de commande).
 // Réutilisent la cohérence du ticket (printPayloadSchema) + références d'origine.
-const printBase = printPayloadSchema.innerType();
+const printBase = printPayloadBase;
 
 export const deliveryPayloadSchema = printBase.extend({
   originNumber: z.string().max(50).default(""),

@@ -5,7 +5,7 @@ import { moneyMinor } from "./validators.common";
 import { optionalOperationId } from "./validators.common";
 
 export const customerCreateSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
   phone: z.string().max(30).nullable().optional(),
@@ -40,7 +40,7 @@ export const customerDebtFilterSchema = z.enum(["all", "with_debt", "no_debt", "
  * `productsImportSchema`).
  */
 export const customersImportSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   rows: z
     .array(
       z.object({
@@ -65,7 +65,7 @@ export const archivedOnlySchema = z.boolean().default(false);
 // Liaison produits — fournisseurs (jonction 0015).
 
 export const clientAccessActivateSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   customerId: z.number().int().positive(),
   phone: z.string().min(1).max(30),
   pin: z.string().regex(/^[0-9]{6}$/, { message: "Code PIN invalide (6 chiffres)." }),
@@ -86,7 +86,7 @@ export const clientAccessQrSchema = z.object({
 });
 
 export const syncEnqueueSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   customerId: z.number().int().positive(),
   // Union EXACTE du CHECK `sync_outbox.kind` — SOURCE AUTORITAIRE :
   // database/migrations/0032_client_access_sync.sql (immuable). Miroiée par
@@ -110,7 +110,7 @@ export const syncEnqueueSchema = z.object({
 });
 
 export const announcementSaveSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   text: z.string().min(1).max(120),
 });
 
@@ -118,7 +118,7 @@ export const announcementSaveSchema = z.object({
 // La clé service ne transite que sur ce pont local (jamais vers le renderer
 // en lecture : getConfig la masque — voir maskConfig côté service).
 export const syncConfigSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   enabled: z.boolean(),
   supabaseUrl: z.string().max(200),
   serviceKey: z.string().max(500),
@@ -127,5 +127,5 @@ export const syncConfigSchema = z.object({
 });
 
 export const syncPushNowSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
 });

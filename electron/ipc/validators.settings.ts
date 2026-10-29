@@ -130,7 +130,7 @@ export const relocateSchema = z.object({
   // A-13 (P1) : `operationId` EXIGÉ — la relocalisation déplace le fichier
   // de base VIF ; sans clé, une réémission (double-clic, retry réseau local)
   // déclenche une seconde copie. L'UI envoie déjà un operationId.
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
 });
 
 // Réinitialisation d'usine (zone dangereuse) : preuve de confirmation
@@ -139,5 +139,5 @@ export const relocateSchema = z.object({
 // L'UI exige en plus une confirmation tapée identique côté renderer.
 export const databaseResetSchema = z.object({
   confirmation: z.literal("REINITIALISER"),
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
 });

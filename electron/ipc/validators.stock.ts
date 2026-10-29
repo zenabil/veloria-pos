@@ -7,7 +7,7 @@ import { optionalOperationId } from "./validators.common";
 import { paginationSchema } from "./validators.common";
 
 export const stockAdjustSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   productId: z.number().int().positive(),
   newQuantity: quantityNonNegative,
   reason: z.string().min(2).max(300),
@@ -62,7 +62,7 @@ export const stockMovementsSchema = z.object({
 });
 
 export const inventoryApplySchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   items: z
     .array(
       z.object({
@@ -80,7 +80,7 @@ export const inventoryApplySchema = z.object({
 // P06: pageSize aligné sur les autres listes (200 max) — 1000 contournait le Pager.
 
 export const stockIntakeSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   supplierId: z.number().int().positive().nullable().optional(),
   invoiceNumber: z.string().max(100).nullable().optional(),
   invoiceDate: businessDate,
@@ -118,7 +118,7 @@ export const supplierSearchSchema = z.object({
 });
 
 export const supplierCreateSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   name: z.string().min(2).max(200),
   code: z.string().max(20).nullable().optional(),
   contact: z.string().max(100).nullable().optional(),
@@ -143,11 +143,11 @@ export const supplierDeleteManySchema = z.object({
   ids: z.array(z.number().int().positive()).min(1).max(100),
   // M-2 caller-owned operation: retry of the same user action replays the
   // stored result instead of failing on already-deleted rows.
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
 });
 
 export const supplierPaySchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   supplierId: z.number().int().positive(),
   amountMinor: moneyMinorPositive,
   method: z.enum(["cash", "cheque", "transfer"]),
@@ -167,7 +167,7 @@ export const purchaseLineSchema = z.object({
 });
 
 export const purchaseCreateSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   supplierId: z.number().int().positive(),
   expectedDate: businessDate.nullable().optional(),
   notes: z.string().max(500).nullable().optional(),
@@ -184,7 +184,7 @@ export const purchaseListSchema = paginationSchema.extend({
 
 export const purchaseReceiveSchema = z
   .object({
-    operationId: z.string().uuid(),
+    operationId: z.uuid(),
     id: z.number().int().positive(),
     lines: z
       .array(
@@ -206,7 +206,7 @@ export const purchaseReceiveSchema = z
       if (id == null) continue;
       if (seen.has(id)) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           message: "Ligne de commande en double.",
           path: ["lines", i, "itemId"],
         });
@@ -224,7 +224,7 @@ export const ocrSelectFileSchema = z.object({});
 // Le PIN reste en clair jusqu'au main qui le hache (jamais stocké ni loggé).
 
 export const ocrAnalyzeSchema = z.object({
-  fileId: z.string().uuid(),
+  fileId: z.uuid(),
   languages: z
     .array(z.enum(["fra", "eng", "ara"]))
     .min(1)
@@ -232,6 +232,6 @@ export const ocrAnalyzeSchema = z.object({
     .default(["fra", "eng"]),
 });
 
-export const ocrCancelSchema = z.object({ fileId: z.string().uuid() });
+export const ocrCancelSchema = z.object({ fileId: z.uuid() });
 
-export const ocrDisposeSchema = z.object({ fileId: z.string().uuid() });
+export const ocrDisposeSchema = z.object({ fileId: z.uuid() });

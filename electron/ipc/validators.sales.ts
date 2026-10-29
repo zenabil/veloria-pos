@@ -28,7 +28,7 @@ export const saleItemSchema = z.object({
 });
 
 export const saleCreateSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   customerId: z.number().int().nullable().optional(),
   limitOverrideApproved: z.boolean().default(false),
   // Aligné sur le domaine (`sale-rules.ts`) et les brouillons (500).
@@ -78,7 +78,7 @@ export const cartsSaveSchema = z.object({
         paymentMethod: z.enum(["cash", "cheque", "transfer"]).nullable().optional(),
         deliveryFeeMinor: moneyMinor.default(0),
         // Identité de la tentative d'encaissement (reprise après crash).
-        saleOperationId: z.string().uuid().nullable().optional(),
+        saleOperationId: z.uuid().nullable().optional(),
       }),
     )
     .max(20),

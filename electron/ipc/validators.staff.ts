@@ -10,7 +10,7 @@ export const staffLoginSchema = z.object({
 });
 
 export const staffCreateSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   username: z.string().min(3).max(32),
   displayName: z.string().min(1).max(64),
   role: z.enum(["manager", "user"]),
@@ -18,13 +18,13 @@ export const staffCreateSchema = z.object({
 });
 
 export const staffChangeCodeSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   oldCode: z.string().min(1).max(64),
   newCode: z.string().regex(/^[0-9]{6}$/, { message: "Code invalide (6 chiffres)." }),
 });
 
 export const staffSetPermissionsSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   userId: z.number().int().positive(),
   permissionKeys: z
     .array(
@@ -45,13 +45,13 @@ export const staffSetPermissionsSchema = z.object({
 });
 
 export const staffSetActiveSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   userId: z.number().int().positive(),
   isActive: z.boolean(),
 });
 
 export const staffRecoverSchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   username: z.string().min(3).max(32),
   recoveryCode: z
     .string()
@@ -60,5 +60,5 @@ export const staffRecoverSchema = z.object({
 });
 
 export const staffRegenRecoverySchema = z.object({
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
 });
