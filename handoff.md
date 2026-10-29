@@ -15,7 +15,8 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête **session 66** (Développement des interfaces, ADR-157). Avant elle session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- Branche : `chore/root-layout` — tête **session 67** (Miroir Supabase opérationnel, ADR-158). Avant elle session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 67 (2026-10-29)** : **miroir Supabase opérationnel (ADR-158)** — projet existant `veloria-pos` (ref `ynktschorbwukxovjzcz`, Londres) vérifié : tables + RLS + fonction `client-sync` (Verify JWT désactivé). POS raccordé (URL + clés legacy chiffrées DPAPI dans `app_settings.client_sync`), première poussée **réussie** (`lastPushAt 21:54:55Z`, 0 erreur). **Bug réel corrigé** : les ventes/paiements de clients non activés mettaient des clichés en file → FK `client_payloads.customer_id` → **409 bloquant toute la poussée** ; garde `hasActiveClientAccess` + test (7/7), file orpheline purgée après sauvegarde. Schéma cloud aligné (`pin_salt`, `pin_algo`). Test cloud complet insertion→`client-sync` 200→cleanup. Portes : format, lint, check ×4, **1 147 tests**.
 - **Session 66 (2026-10-29)** : **développement des interfaces — 19 surfaces (ADR-157)** — demande « قم بتطوير تصميم واجهات الصفحات التالية … بالترتيب ». Direction validée par le propriétaire : **approfondir Stitch** (pas de nouvelle identité). Socle partagé d'abord (cartes, `PageHeader`, `StatsStrip`, `Kpi`, `FormSection` avec action, survol global des registres, entrée de module), puis les 19 pages dans l'ordre : navigation, tableau de bord, caisse, catalogue, fiche produit, clients, fiche client, stock, réception, fournisseurs, fiche fournisseur, historique, rapports, zakat, dettes, retours, nouveau retour, paramètres, licence. **19 checkpoints** (un par surface), libellés de données corrigés (« Fournisseurs actifs », sous-ligne « Client #id » retirée des retours). Portes vertes : format, lint, check ×4, **1 146 tests**, verify, E2E ciblés et captures Electron.
 - **Session 65 (2026-10-29)** : **organisation du tronc racine — ADR-156** — audit + recherche des conventions 2026 ; la racine garde les entrées attendues par les outils (`package.json`, `tsconfig*`, `vite*`, `vitest*`, `eslint.config.mjs`) et les configs non standard passent dans `config/` : `electron-builder/{pos,manager}.yml`, `playwright.config.ts`, `knip.json`. `tsconfig.base.json` factorise les options strictes, les `tsbuildinfo` vont sous `node_modules/.cache/tsbuildinfo/` (plus à la racine), et `mobile/tsconfig.json` reçoit `ignoreDeprecations: "6.0"` (base Expo en node10). Gouvernance : scripts **`check`/`verify`/`ci`/`knip`**, `.npmrc` `engine-strict` + `save-exact`, `.github/renovate.json`, CI `concurrency`/`timeout`/`permissions` qui appelle les scripts uniques. Aucun changement runtime ni migration. Portes : `npm run ci` (check + tests + 2 couvertures + verify + builds + knip), Playwright **54 tests listés**, E2E `component-smoke` ; **packaging non re-vérifié** (verrou scanner `default_app.asar`, EBUSY) — à rejouer après redémarrage. Détails §65.
 - **Session 64 (2026-10-29)** : **montée de gamme de l'outillage — ADR-155** — demande « ابحث في الانترنت بعمق … تنظيم جذع المشروع باحدث التقنيات … تطوير مكتبات المشروع بأحدث التقنيات و حسب توافقها ». Grille **dernière version compatible** vérifiée sur npm et les guides officiels : Electron 37→**45.1.0** (Chromium 156/Node 24.22), better-sqlite3 12→**13.0.3 N-API** (prebuilds, SQLite 3.53.4), Vite 6→**8.3.5/Rolldown**, Vitest 3→**5.0.5**, ESLint 9→**10.13**, TypeScript 5.7→**6.0.3** (7 **refusé** : typescript-eslint `<6.1`), Zod 3→**4.6.7**, lucide 0.469→**1.63**, Tailwind 4.3, tailwind-merge 3, React 19.3. **Quatre checkpoints** : `a8c4e92` (mises à jour sûres, React 19.3, types Node 22.20, Prettier 3.9, Node 22.12/.nvmrc/packageManager), `97c6b02` (Vite 8 `codeSplitting.groups`, esbuild 0.28 explicite, `import.meta.dirname`, Vitest 5, ESLint 10, Tailwind 4.3, tailwind-merge 3), `45fc03a` (Electron 45 + better-sqlite3 13 N-API, **suppression** `@electron/rebuild`/`bindings`/postinstall/`rebuild`, `npmRebuild:false`, CI charge N-API), `9bd9925` (TS 6, Zod 4, lucide 1). **Bug attrapé** : Zod 4 `z.uuid()` est un `ZodUUID` distinct de `ZodString` ⇒ `schemaRequiresOperationId` renvoyait false et aurait **désactivé l'exigence d'operationId en production** (`handle.ts:88`) ; garde corrigé (`ZodString | ZodUUID`), tests 8/8. `baseUrl` supprimé (paths `./`), `node10` + `ignoreDeprecations` pour l'émission CJS ; safeStorage sync (6 appels) déprécié en 45/retiré en 46 → dérogation eslint + **dette tracée**. Porte features **recalibrée** (Vitest 5/V8, hooks `use*.ts` exclus, décision propriétaire) : planchers **50/65/70/50** (53,77/66,11/74,62/52,92 mesurés), +5 tests `proforma-rules`. **Incident poste** : `node_modules/electron/dist/resources/default_app.asar` verrouillé (scanner, EBUSY) ⇒ Electron 45 remplacé **dans la même arborescence** depuis le paquet officiel, lock régénéré par `--package-lock-only` ; **ne jamais forcer `rm`** (STRUCTURE §7), un `npm ci` propre utilise le lock. Portes : format 0 · typecheck ×3 0 · lint 0 · **vitest 169 fichiers / 1 146 tests 0** · **test:coverage 0** · **test:coverage:features 0** (160/1 085) · build POS/electron/manager 0 · verify:migrations/domain/fr/encoding/perf/secret-scan 0 · **E2E Electron 45 11/11** (activation/DPAPI, PDF, impression, vente SQLite) + `component-smoke` sur `release/win-unpacked/Veloria PoS.exe` · **suite E2E complète (50 tests) non relancée** · installateurs non reconstruits. Détails §64.
@@ -2672,3 +2673,72 @@ ce `docs(handoff)` (ADR-157 + INDEX + état courant).
 **Reste ouvert** : dettes sessions 64/65 (TS 7, `safeStorage` async avant
 Electron 46, Expo mobile, `npm run package:win` à rejouer après redémarrage) ;
 tiroirs de détail non restructurés (voir ADR-157 §Limites).
+
+## 67) Session 2026-10-29 — Miroir Supabase `veloria-pos` raccordé (ADR-158)
+
+**Demande** : « لدي قاعدة باسم veloria-pos تحقق منها » — vérifier le projet
+Supabase existant, puis le raccorder au POS.
+
+**État vérifié du projet** (`ynktschorbwukxovjzcz`, région `eu-west-2` Londres,
+plan Free, statut Healthy, URL `https://ynktschorbwukxovjzcz.supabase.co`) :
+
+- Tables `client_access`, `client_payloads`, vue `latest_client_payloads`.
+- RLS active sur les deux tables (`API DISABLED`), zéro policy — conforme à
+  `rls.sql` (`REVOKE ALL`).
+- Fonction `client-sync` déployée ; **Verify JWT désormais OFF** (le
+  téléphone n'est pas un utilisateur Supabase Auth) ; aucun secret custom :
+  les secrets par défaut `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`
+  suffisent (prouvé par un appel qui atteint le code de la fonction).
+- **Écart de schéma détecté** : le projet portait une version antérieure de
+  `cloud/supabase/schema.sql` — `client_access` sans `pin_salt` ni
+  `pin_algo`. Corrigé par `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` (additif,
+  aucune donnée touchée). Sans cela, toute activation client aurait échoué en
+  `PGRST204` à la poussée.
+- Clés utilisées : legacy `anon` (QR V2) et `service_role` (main uniquement).
+  Aucune clé n'est versionnée ; le service_role est chiffré DPAPI dans
+  `app_settings.client_sync` (`dpapi1:`), l'anon reste publique (RLS).
+
+**Raccordement POS**
+
+- Sauvegarde préalable : `private/backups/veloria-before-supabase-2026-10-29.sqlite`
+  (git-ignoré, `VACUUM INTO`, 3 162 112 octets).
+- Écriture de `client_sync` via le code main compilé (`saveSyncConfigAtomic`)
+  avec l'URL + les deux clés, intervalle 15 min, activation ON.
+- Première poussée : **succès** `lastPushAt = 2026-10-29T21:54:55.614Z`,
+  `lastError = null`, file vide.
+
+**Bug réel corrigé (produit par la première poussée)**
+
+- 409 : `client_payloads_customer_id_fkey` — 9 clichés appartenaient à 3
+  clients jamais activés (ventes/paiements automatiques). Un seul client non
+  activé bloquait **toute** la poussée.
+- Correctif : `hasActiveClientAccess` (ligne `customer_access` non révoquée)
+  garde `enqueueSnapshotAtomic` + `enqueueCustomerRefresh`/`enqueueSaleRefresh` ;
+  test de régression (accès absent **et** révoqué → 0 ligne `sync_outbox`).
+- File orpheline purgée sur le poste (données dérivées, régénérables) ; la
+  file vide a permis la poussée réussie ci-dessus.
+
+**Test cloud complet** (données temporaires, nettoyées) :
+
+1. INSERT `client_access` + `client_payloads` avec `service_role` → 201.
+2. `POST /functions/v1/client-sync` avec téléphone + PIN → **200** avec le
+   cliché attendu.
+3. DELETE des deux lignes → 0 restante.
+
+**Portes** : `npm run format:check` OK · `npm run lint` OK · `npm run check`
+(renderer/electron/manager/mobile) OK · `npm test` **169 fichiers / 1 147
+tests** · test de régression ciblé 7/7 · `npm run build:electron` OK.
+
+**Git** : `7ae7f7d` (garde sync + test) · ce `docs(handoff)` (ADR-158 +
+INDEX + état courant).
+
+**Reste ouvert** :
+
+- Activer au moins un client réel (Clients → fiche → Application mobile →
+  PIN 6 chiffres → QR) pour que le premier cliché réel parte ; ensuite le
+  téléphone se connecte avec `client-sync`.
+- Plan Free : pause après 7 jours sans activité (la poussée 15 min sert de
+  keep-alive).
+- Clés legacy : une rotation future devra mettre à jour POS + QR V2.
+- Dette sessions 64/65 inchangée (TS 7, `safeStorage` async, Expo mobile,
+  `npm run package:win`).
