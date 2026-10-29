@@ -14,7 +14,7 @@ import {
   storeIdempotencyResult,
 } from "../ipc/handlers/idempotency";
 import { toUserMessage } from "../ipc/ipc-errors";
-import { enqueueSnapshotAtomic } from "../ipc/handlers/client-access.repo";
+import { enqueueSnapshotAtomic, hasActiveClientAccess } from "../ipc/handlers/client-access.repo";
 import {
   SYNC_DEFAULTS,
   buildMirrorRequests,
@@ -327,6 +327,9 @@ export async function pushNowAtomic(
 export function enqueueCustomerRefresh(customerId: number): void {
   // Best-effort : jamais d'exception vers la finance (log + ignoré).
   try {
+    // Aucun cliché pour un client sans application mobile active : le miroir
+    // refuserait la ligne (FK client_access) et bloquerait TOUTE la poussée.
+    if (!hasActiveClientAccess(customerId)) return;
     const now = new Date().toISOString();
     const month = now.slice(0, 7);
     for (const kind of ["customer_snapshot", "invoice_list", "payment_list"] as const) {
@@ -360,7 +363,7 @@ export function enqueueSaleRefresh(saleId: number): void {
           customer_id: number | null;
         }
       | undefined;
-    if (row?.customer_id != null) {
+    if (row?.customer_id != null && hasActiveClientAccess(row.customer_id)) {
       enqueueCustomerRefresh(row.customer_id);
       try {
         enqueueSnapshotAtomic({

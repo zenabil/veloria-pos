@@ -524,6 +524,18 @@ export function buildSnapshotPayload(
   return json;
 }
 
+/**
+ * Un cliché ne part que pour un accès mobile ACTIF : le miroir exige une
+ * ligne `client_access` (FK `client_payloads.customer_id`). Sans cette garde,
+ * une vente à un client non activé mettait toute la poussée en échec (409).
+ */
+export function hasActiveClientAccess(customerId: number): boolean {
+  const row = getDb()
+    .prepare(`SELECT 1 AS ok FROM customer_access WHERE customer_id = ? AND revoked_at IS NULL`)
+    .get(customerId) as { ok: number } | undefined;
+  return row != null;
+}
+
 export function enqueueSnapshotAtomic(args: {
   operationId: string;
   customerId: number;
@@ -538,6 +550,9 @@ export function enqueueSnapshotAtomic(args: {
     .get(args.operationId) as { id: number } | undefined;
   if (existing) return { queued: true, existed: true };
   requireLiveCustomer(args.customerId);
+  if (!hasActiveClientAccess(args.customerId)) {
+    throw new Error("Application mobile non activée pour ce client.");
+  }
   if (!(SYNC_KINDS as readonly string[]).includes(args.kind)) {
     throw new Error("Type de cliché invalide.");
   }

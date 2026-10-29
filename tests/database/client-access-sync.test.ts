@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import {
   activateClientAccessAtomic,
+  enqueueSnapshotAtomic,
   sha256Hex,
 } from "../../electron/ipc/handlers/client-access.repo";
 
@@ -88,6 +89,34 @@ describe("Migration 0032 client access + sync outbox", () => {
       expect(found?.name).toBe(i);
     }
     db.close();
+  });
+
+  it("refuses a snapshot for a client without active mobile access", () => {
+    const db = openMigrated();
+    repoDb.current = db;
+    db.prepare(
+      "INSERT INTO customers (uuid, first_name, last_name, search_name, created_at, updated_at) VALUES ('ca33','Sans','Acces','sans acces','2026-01-01','2026-01-01')",
+    ).run();
+    const cid = Number(
+      (db.prepare("SELECT id FROM customers WHERE uuid = 'ca33'").get() as { id: number }).id,
+    );
+    const enqueue = (): unknown =>
+      enqueueSnapshotAtomic({
+        operationId: "op-no-access",
+        customerId: cid,
+        kind: "customer_snapshot",
+        now: "2026-01-01T00:00:00.000Z",
+      });
+    // Jamais de cliché sans accès : le miroir refuserait la ligne (FK) et
+    // bloquerait TOUTE la poussée (409 constaté en production).
+    expect(enqueue).toThrow(/non activée/);
+    db.prepare(
+      "INSERT INTO customer_access (customer_id, phone_hash, pin_hash, revoked_at, created_at, updated_at) VALUES (?, 'ph', 'pinh', '2026-01-01', '2026-01-01', '2026-01-01')",
+    ).run(cid);
+    expect(enqueue).toThrow(/non activée/);
+    expect((db.prepare("SELECT COUNT(*) AS c FROM sync_outbox").get() as { c: number }).c).toBe(0);
+    db.close();
+    repoDb.current = null;
   });
 
   it("enforces one access row per customer and restrict on delete (0038)", () => {
