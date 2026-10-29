@@ -2,7 +2,15 @@
 // Extrait de `ClientDialogs.tsx` (découpage sans changement de comportement).
 // Branché sur le bridge window.veloria (jamais de SQLite côté renderer).
 import { useEffect, useState } from "react";
-import { ChevronDown, MapPin, StickyNote, TriangleAlert, UserRound, Wallet } from "lucide-react";
+import {
+  ChevronDown,
+  Info,
+  MapPin,
+  StickyNote,
+  TriangleAlert,
+  UserRound,
+  Wallet,
+} from "lucide-react";
 
 import { api } from "@shared/types/ipc-client.ts";
 import { minorToInput, parseDzdInputStrict } from "@domain/money/money.ts";
@@ -158,9 +166,19 @@ export function ClientFormDialog({
   return (
     <Modal
       label={editing ? "Modifier le client" : "Nouveau client"}
-      title={editing ? "Modifier le client" : "Nouveau client"}
+      title={
+        <span className="flex items-center gap-2.5">
+          <span
+            aria-hidden="true"
+            className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#fbbf24]/10 text-[#fbbf24] ring-1 ring-[#fbbf24]/20"
+          >
+            <UserRound size={16} />
+          </span>
+          <span>{editing ? "Modifier le client" : "Nouveau client"}</span>
+        </span>
+      }
       onClose={onClose}
-      wide
+      extraWide
     >
       <form
         className="space-y-3.5 [&_input]:scroll-mb-24 [&_textarea]:scroll-mb-24"
@@ -175,9 +193,12 @@ export function ClientFormDialog({
           }
         }}
       >
-        <p className="text-[11px] leading-relaxed text-slate-500">
-          Seul le <span className="font-semibold text-slate-300">nom complet</span> est obligatoire
-          — téléphone, adresse et crédit peuvent être complétés plus tard.
+        <p className="flex items-start gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-[11px] leading-relaxed text-slate-500">
+          <Info size={13} aria-hidden="true" className="mt-0.5 shrink-0 text-[#fbbf24]" />
+          <span>
+            Seul le <span className="font-semibold text-slate-300">nom complet</span> est
+            obligatoire — téléphone, adresse et crédit peuvent être complétés plus tard.
+          </span>
         </p>
 
         <div className="grid gap-3 md:grid-cols-2">
@@ -304,7 +325,7 @@ export function ClientFormDialog({
               )}
             </FormSection>
 
-            <div className="rounded-xl border border-white/[0.08] bg-black/20">
+            <div className="rounded-xl border border-white/[0.08] bg-black/25">
               <button
                 type="button"
                 aria-expanded={notesOpen}
