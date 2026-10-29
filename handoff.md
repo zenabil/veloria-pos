@@ -15,7 +15,8 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête **session 67** (Miroir Supabase opérationnel, ADR-158). Avant elle session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- Branche : `chore/root-layout` — tête **session 68** (APK client signé, build Gradle local). Avant elle session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 68 (2026-10-30)** : **APK client signé (build local Gradle)** — `mobile/eas.json` pointe désormais le projet `veloria-pos` (URL + clé anon publique, profils preview/production). Build release local (`./gradlew assembleRelease`, Java 17 + SDK/NDK) : `dz.veloria.client` 1.0.0 (code 1, minSdk 24, target 34), signé CN=Veloria, 88 462 721 octets, copié `release/Veloria-Client-1.0.0.apk` (SHA-256 `6bdf6017…`). URL Supabase + anon gravées dans le bundle (repli sans QR ; le QR V2 reste prioritaire). Aucun appareil/émulateur disponible : non testé au runtime. `license:scan` OK.
 - **Session 67 (2026-10-29)** : **miroir Supabase opérationnel (ADR-158)** — projet existant `veloria-pos` (ref `ynktschorbwukxovjzcz`, Londres) vérifié : tables + RLS + fonction `client-sync` (Verify JWT désactivé). POS raccordé (URL + clés legacy chiffrées DPAPI dans `app_settings.client_sync`), première poussée **réussie** (`lastPushAt 21:54:55Z`, 0 erreur). **Bug réel corrigé** : les ventes/paiements de clients non activés mettaient des clichés en file → FK `client_payloads.customer_id` → **409 bloquant toute la poussée** ; garde `hasActiveClientAccess` + test (7/7), file orpheline purgée après sauvegarde. Schéma cloud aligné (`pin_salt`, `pin_algo`). Test cloud complet insertion→`client-sync` 200→cleanup. Portes : format, lint, check ×4, **1 147 tests**.
 - **Session 66 (2026-10-29)** : **développement des interfaces — 19 surfaces (ADR-157)** — demande « قم بتطوير تصميم واجهات الصفحات التالية … بالترتيب ». Direction validée par le propriétaire : **approfondir Stitch** (pas de nouvelle identité). Socle partagé d'abord (cartes, `PageHeader`, `StatsStrip`, `Kpi`, `FormSection` avec action, survol global des registres, entrée de module), puis les 19 pages dans l'ordre : navigation, tableau de bord, caisse, catalogue, fiche produit, clients, fiche client, stock, réception, fournisseurs, fiche fournisseur, historique, rapports, zakat, dettes, retours, nouveau retour, paramètres, licence. **19 checkpoints** (un par surface), libellés de données corrigés (« Fournisseurs actifs », sous-ligne « Client #id » retirée des retours). Portes vertes : format, lint, check ×4, **1 146 tests**, verify, E2E ciblés et captures Electron.
 - **Session 65 (2026-10-29)** : **organisation du tronc racine — ADR-156** — audit + recherche des conventions 2026 ; la racine garde les entrées attendues par les outils (`package.json`, `tsconfig*`, `vite*`, `vitest*`, `eslint.config.mjs`) et les configs non standard passent dans `config/` : `electron-builder/{pos,manager}.yml`, `playwright.config.ts`, `knip.json`. `tsconfig.base.json` factorise les options strictes, les `tsbuildinfo` vont sous `node_modules/.cache/tsbuildinfo/` (plus à la racine), et `mobile/tsconfig.json` reçoit `ignoreDeprecations: "6.0"` (base Expo en node10). Gouvernance : scripts **`check`/`verify`/`ci`/`knip`**, `.npmrc` `engine-strict` + `save-exact`, `.github/renovate.json`, CI `concurrency`/`timeout`/`permissions` qui appelle les scripts uniques. Aucun changement runtime ni migration. Portes : `npm run ci` (check + tests + 2 couvertures + verify + builds + knip), Playwright **54 tests listés**, E2E `component-smoke` ; **packaging non re-vérifié** (verrou scanner `default_app.asar`, EBUSY) — à rejouer après redémarrage. Détails §65.
@@ -2742,3 +2743,54 @@ INDEX + état courant).
 - Clés legacy : une rotation future devra mettre à jour POS + QR V2.
 - Dette sessions 64/65 inchangée (TS 7, `safeStorage` async, Expo mobile,
   `npm run package:win`).
+
+## 68) Session 2026-10-30 — APK client signé (build local, sans EAS)
+
+**Demande** : « ابني تطبيق العملاء » — produire l'APK client installable,
+raccordé au miroir Supabase.
+
+**Configuration**
+
+- `mobile/eas.json` : profils `preview` (APK) et `production` (AAB) pointent
+  désormais `https://ynktschorbwukxovjzcz.supabase.co` + la clé **anon
+  publique** (aucune clé `service_role` dans l'APK ni le dépôt).
+- L'APK reste **universel** : le QR V2 (ADR-068) embarque l'endpoint du
+  magasin et prime sur la valeur gravée ; les valeurs de build ne servent
+  qu'au repli (saisie téléphone + PIN sans scan).
+- `npm run validate-env` (mobile) : OK (ni placeholder ni HTTP clair).
+
+**Build**
+
+- EAS non connecté sur ce poste → build **local Gradle** :
+  `cd mobile/android && EXPO_PUBLIC_SYNC_URL=… EXPO_PUBLIC_ANON_KEY=… ./gradlew assembleRelease`.
+- Java 17 (Temurin), Android SDK + NDK présents ; Gradle 8.10.2 ;
+  Build-Tools 34 installés automatiquement pendant le build.
+- Sortie : `mobile/android/app/build/outputs/apk/release/app-release.apk`
+  (**88 462 721 octets**) ; copie versionnée
+  `release/Veloria-Client-1.0.0.apk` (git-ignoré) + `.sha256`
+  `6bdf6017323a87827bc040813b370f66020622b6585b5763eb8e103979cc39dc`.
+
+**Vérifications**
+
+- `aapt dump badging` : `dz.veloria.client`, versionName 1.0.0, versionCode 1,
+  minSdk 24, targetSdk 34, permissions CAMERA + INTERNET (AUDIO bloquée).
+- Signature : `apksigner verify` → CN=Veloria, OU=Mobile, O=Veloria, C=DZ ;
+  SHA-256 certificat `c190b12a6c5c98979510b6f694208b1f20288bab31a5c1884b73e9412c16a29f`
+  (même keystore que `%USERPROFILE%\.veloria-keys\veloria-release.keystore`,
+  copie `mobile/veloria-release.keystore` identique — SHA-256 du fichier
+  `16afef6a…`).
+- Bundle Hermes (`assets/index.android.bundle`, 1 407 436 octets) : contient
+  bien `https://ynktschorbwukxovjzcz.supabase.co` et la clé anon (repli).
+- `npm run license:scan` OK.
+
+**Limites**
+
+- Aucun émulateur AVD ni téléphone connecté sur ce poste : l'APK n'a pas été
+  lancé au runtime. Première installation à faire sur un téléphone réel
+  (activer un client dans POS → scanner son QR V2).
+- Avertissement Gradle `NODE_ENV` non défini (sélection `.env` d'expo-constants) :
+  sans impact sur la valeur gravée (variables passées au processus) ni sur le
+  flag release ; définir `NODE_ENV=production` pour un prochain build propre.
+- Incrémenter `versionCode`/`versionName` avant toute nouvelle diffusion.
+
+**Git** : `mobile/eas.json` (config projet) · ce `docs(handoff)`.
