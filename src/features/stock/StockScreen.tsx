@@ -3,12 +3,14 @@
 // tiroir détail + ajustement + historique + inventaire.
 import { useEffect, useRef, useState } from "react";
 import {
+  ChevronDown,
   ClipboardCheck,
   Eye,
   FileScan,
   History,
   PackagePlus,
   ReceiptText,
+  SlidersHorizontal,
   Wrench,
   X,
 } from "lucide-react";
@@ -324,8 +326,14 @@ export function StockScreen({ notify }: { notify: Notify }): React.JSX.Element {
                 aria-expanded={actionsOpen}
                 aria-haspopup="menu"
                 title="Actions stock"
+                className="gap-1.5"
               >
                 Actions stock
+                <ChevronDown
+                  size={14}
+                  aria-hidden="true"
+                  className={cn("transition-transform", actionsOpen && "rotate-180")}
+                />
               </Button>
               {actionsOpen ? (
                 <>
@@ -337,7 +345,7 @@ export function StockScreen({ notify }: { notify: Notify }): React.JSX.Element {
                   />
                   <div
                     role="menu"
-                    className="absolute right-0 z-20 mt-1 w-56 space-y-1 rounded-xl border border-white/10 bg-[#122131] p-2 shadow-xl"
+                    className="absolute right-0 z-20 mt-1 w-56 space-y-1 rounded-xl border border-white/10 bg-[#0d1c2d] p-1.5 shadow-2xl"
                   >
                     <Button
                       variant="ghost"
@@ -413,7 +421,11 @@ export function StockScreen({ notify }: { notify: Notify }): React.JSX.Element {
         ]}
       />
 
-      <Toolbar>
+      <Toolbar className="gap-2">
+        <span className="flex h-[42px] items-center gap-2 rounded-xl bg-white/[0.03] px-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
+          <SlidersHorizontal size={14} aria-hidden="true" />
+          Filtres
+        </span>
         <Select
           id="stock-category"
           value={categoryId == null ? "" : String(categoryId)}
@@ -477,15 +489,19 @@ export function StockScreen({ notify }: { notify: Notify }): React.JSX.Element {
 
       {/* Sélection multiple → inventaire */}
       {selection.size > 0 ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-400/30 bg-amber-400/[0.07] px-4 py-2.5 text-sm">
-          <strong>{selection.size} sélectionné(s)</strong>
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#fbbf24]/25 bg-[linear-gradient(90deg,rgba(251,191,36,0.10),rgba(251,191,36,0.02))] px-4 py-2.5 text-sm">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#fbbf24]/15 text-[#fbbf24] ring-1 ring-[#fbbf24]/20">
+            <ClipboardCheck size={14} aria-hidden="true" />
+          </span>
+          <strong className="font-bold text-slate-100">{selection.size} sélectionné(s)</strong>
+          <span aria-hidden="true" className="h-4 w-px bg-white/10" />
           <Button variant="secondary" onClick={openInventoryForSelection}>
             <ClipboardCheck size={15} aria-hidden="true" /> Inventaire de la sélection
           </Button>
           <button
             type="button"
             onClick={() => setSelection(new Set())}
-            className="text-xs font-semibold text-slate-400 hover:text-white"
+            className="ml-auto text-xs font-semibold text-slate-400 transition-colors hover:text-white"
           >
             Tout désélectionner
           </button>
@@ -508,7 +524,7 @@ export function StockScreen({ notify }: { notify: Notify }): React.JSX.Element {
             />
           ) : (
             <table className="w-full min-w-[1180px] text-sm">
-              <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
+              <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500 shadow-[0_1px_0_rgba(255,255,255,0.07)]">
                 <tr>
                   <th className="w-10 px-3 py-2.5">
                     <input
@@ -553,13 +569,35 @@ export function StockScreen({ notify }: { notify: Notify }): React.JSX.Element {
                     <td className="whitespace-nowrap px-3 py-2 font-mono text-xs text-slate-400">
                       {r.primary_barcode || "—"}
                     </td>
-                    <td className="max-w-[200px] truncate px-3 py-2 font-semibold">{r.name}</td>
+                    <td className="max-w-[240px] px-3 py-2">
+                      <div className="flex items-center gap-2.5">
+                        <span
+                          aria-hidden="true"
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.04] font-mono text-[12px] font-bold uppercase text-slate-400 ring-1 ring-white/10"
+                        >
+                          {r.name.trim().charAt(0) || "?"}
+                        </span>
+                        <div className="min-w-0">
+                          <div className="truncate font-semibold">{r.name}</div>
+                          <div className="mt-0.5 font-mono text-[10px] text-slate-500">
+                            Réf. #{r.id}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
                     <td className="max-w-[140px] truncate px-3 py-2 text-slate-300">
                       {r.category_name || "—"}
                     </td>
-                    <td className="px-3 py-2 text-right font-bold tabular-nums">
-                      {r.quantity}{" "}
-                      <span className="text-xs font-normal text-slate-500">{r.unit_code}</span>
+                    <td className="px-3 py-2 text-right">
+                      <div
+                        className={cn(
+                          "font-bold tabular-nums",
+                          r.quantity <= 0 ? "text-red-300" : "text-slate-100",
+                        )}
+                      >
+                        {r.quantity}
+                      </div>
+                      <div className="text-[10px] text-slate-500">{r.unit_code}</div>
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums text-slate-400">
                       {r.min_stock_level}
