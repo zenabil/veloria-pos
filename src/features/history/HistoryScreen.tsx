@@ -2,7 +2,7 @@
 // En-tête (recherche, période, export) + 4 cartes stats + barre d'outils +
 // table serveur + pagination + tiroir détail + export CSV.
 import { useEffect, useRef, useState } from "react";
-import { Download, Eye, Printer, X } from "lucide-react";
+import { Download, Eye, Printer, SlidersHorizontal, X } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { formatDzd } from "@domain/money/money.ts";
 import { downloadCsv } from "@shared/export/csv.ts";
@@ -365,7 +365,7 @@ export function HistoryScreen({
             placeholder="N° Ticket, Client, Réf, Code-barre… [F3]"
             ariaLabel="Rechercher dans l'historique (ticket, client, référence ou code-barres)"
             inputRef={searchRef}
-            className="w-full sm:w-64"
+            className="w-full sm:w-72 lg:w-80"
             inputClassName="pl-9 font-mono"
           />
         }
@@ -398,7 +398,11 @@ export function HistoryScreen({
         ]}
       />
 
-      <Toolbar>
+      <Toolbar className="gap-2">
+        <span className="flex h-[42px] items-center gap-2 rounded-xl bg-white/[0.03] px-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
+          <SlidersHorizontal size={14} aria-hidden="true" />
+          Filtres
+        </span>
         <Select
           id="history-op"
           value={op}
@@ -412,22 +416,28 @@ export function HistoryScreen({
             </option>
           ))}
         </Select>
-        <TextInput
-          id="history-from"
-          type="date"
-          value={from}
-          onChange={(e) => changeRange(e.target.value, to)}
-          aria-label="Du"
-          className="w-auto"
-        />
-        <TextInput
-          id="history-to"
-          type="date"
-          value={to}
-          onChange={(e) => changeRange(from, e.target.value)}
-          aria-label="Au"
-          className="w-auto"
-        />
+        <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">
+          Du
+          <TextInput
+            id="history-from"
+            type="date"
+            value={from}
+            onChange={(e) => changeRange(e.target.value, to)}
+            aria-label="Du"
+            className="w-auto"
+          />
+        </label>
+        <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">
+          Au
+          <TextInput
+            id="history-to"
+            type="date"
+            value={to}
+            onChange={(e) => changeRange(from, e.target.value)}
+            aria-label="Au"
+            className="w-auto"
+          />
+        </label>
         <Select
           id="history-sort"
           value={sort}
@@ -448,7 +458,7 @@ export function HistoryScreen({
         <Button variant="ghost" onClick={resetFilters} title="Réinitialiser les filtres">
           <X size={15} aria-hidden="true" /> Réinitialiser
         </Button>
-        <div className="ml-auto flex flex-wrap items-center gap-1">
+        <div className="ml-auto flex flex-wrap items-center gap-1 rounded-xl border border-white/[0.06] bg-white/[0.02] p-1">
           <Button
             variant="ghost"
             onClick={() => void reprintLast()}
@@ -471,15 +481,19 @@ export function HistoryScreen({
 
       {/* Sélection multiple → export */}
       {selection.size > 0 ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-400/30 bg-amber-400/[0.07] px-4 py-2.5 text-sm">
-          <strong>{selection.size} sélectionnée(s)</strong>
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#fbbf24]/25 bg-[linear-gradient(90deg,rgba(251,191,36,0.10),rgba(251,191,36,0.02))] px-4 py-2.5 text-sm">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#fbbf24]/15 text-[#fbbf24] ring-1 ring-[#fbbf24]/20">
+            <Download size={14} aria-hidden="true" />
+          </span>
+          <strong className="font-bold text-slate-100">{selection.size} sélectionnée(s)</strong>
+          <span aria-hidden="true" className="h-4 w-px bg-white/10" />
           <Button variant="secondary" onClick={exportSelection} disabled={exporting}>
             <Download size={15} aria-hidden="true" /> Exporter la sélection (CSV)
           </Button>
           <button
             type="button"
             onClick={() => setSelection(new Set())}
-            className="text-xs font-semibold text-slate-400 hover:text-white"
+            className="ml-auto text-xs font-semibold text-slate-400 transition-colors hover:text-white"
           >
             Tout désélectionner
           </button>
@@ -506,10 +520,11 @@ export function HistoryScreen({
             <EmptyState
               title="Aucune opération"
               hint="Modifiez la recherche ou la période. L'historique se remplit à chaque vente, achat, paiement et ajustement."
+              glyph="doc"
             />
           ) : (
-            <table className="w-full min-w-[1240px] text-sm">
-              <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
+            <table className="w-full min-w-[1180px] text-sm">
+              <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500 shadow-[0_1px_0_rgba(255,255,255,0.07)]">
                 <tr>
                   <th className="w-10 px-3 py-2.5">
                     <input
@@ -521,7 +536,6 @@ export function HistoryScreen({
                     />
                   </th>
                   <th className="px-3 py-2.5">Date</th>
-                  <th className="px-3 py-2.5">Heure</th>
                   <th className="px-3 py-2.5">Type</th>
                   <th className="px-3 py-2.5">Référence</th>
                   <th className="px-3 py-2.5">Description</th>
@@ -555,11 +569,11 @@ export function HistoryScreen({
                           className="h-4 w-4 accent-amber-400"
                         />
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2 tabular-nums text-slate-300">
-                        {date}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-2 tabular-nums text-slate-500">
-                        {time}
+                      <td className="whitespace-nowrap px-3 py-2">
+                        <div className="tabular-nums text-slate-200">{date}</div>
+                        <div className="mt-0.5 font-mono text-[10px] tabular-nums text-slate-500">
+                          {time}
+                        </div>
                       </td>
                       <td className="whitespace-nowrap px-3 py-2">
                         <Badge tone={kindTone(r.kind)}>{KIND_LABELS[r.kind]}</Badge>
