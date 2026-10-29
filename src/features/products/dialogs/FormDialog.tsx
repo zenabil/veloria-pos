@@ -5,6 +5,7 @@ import {
   Banknote,
   Boxes,
   ChevronDown,
+  Info,
   Layers,
   Package,
   Plus,
@@ -29,6 +30,7 @@ import {
 } from "@domain/packaging/carton-barcodes.ts";
 
 import {
+  Badge,
   Button,
   Field,
   Kbd,
@@ -672,9 +674,19 @@ export function ProductFormDialog({
     <>
       <Modal
         label={editing ? "Modifier le produit" : "Nouveau produit"}
-        title={editing ? "Modifier le produit" : "Nouveau produit"}
+        title={
+          <span className="flex items-center gap-2.5">
+            <span
+              aria-hidden="true"
+              className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#fbbf24]/10 text-[#fbbf24] ring-1 ring-[#fbbf24]/20"
+            >
+              <Package size={16} />
+            </span>
+            <span>{editing ? "Modifier le produit" : "Nouveau produit"}</span>
+          </span>
+        }
         onClose={onClose}
-        wide
+        extraWide
       >
         <form
           className="space-y-3.5 [&_input]:scroll-mb-24 [&_select]:scroll-mb-24 [&_textarea]:scroll-mb-24"
@@ -689,9 +701,12 @@ export function ProductFormDialog({
             }
           }}
         >
-          <p className="text-[11px] leading-relaxed text-slate-500">
-            Seul le <span className="font-semibold text-slate-300">nom</span> est obligatoire —
-            prix, stock et options peuvent être complétés plus tard.
+          <p className="flex items-start gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-[11px] leading-relaxed text-slate-500">
+            <Info size={13} aria-hidden="true" className="mt-0.5 shrink-0 text-[#fbbf24]" />
+            <span>
+              Seul le <span className="font-semibold text-slate-300">nom</span> est obligatoire —
+              prix, stock et options peuvent être complétés plus tard.
+            </span>
           </p>
 
           <div className="grid gap-3 md:grid-cols-2">
@@ -712,7 +727,7 @@ export function ProductFormDialog({
                         {barcodes.map((b, i) => (
                           <li
                             key={`${b}-${i}`}
-                            className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-black/30 py-1 pl-2 pr-1 font-mono text-[11px]"
+                            className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-black/25 py-1 pl-2 pr-1 font-mono text-[11px]"
                           >
                             <span className="max-w-[170px] truncate">{b}</span>
                             {i === 0 ? <span className="text-amber-300">principal</span> : null}
@@ -892,18 +907,29 @@ export function ProductFormDialog({
                 <div
                   aria-live="polite"
                   className={cn(
-                    "flex items-center justify-between gap-2 rounded-lg border px-3 py-2",
+                    "rounded-xl border px-3.5 py-3",
                     marginPreview?.belowCost
                       ? "border-red-400/30 bg-red-500/[0.08]"
-                      : "border-white/10 bg-black/20",
+                      : "border-white/10 bg-black/25",
                   )}
                 >
-                  <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
-                    Marge
-                  </span>
-                  <span
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                      Marge estimée
+                    </span>
+                    {marginPreview == null ? (
+                      <span className="text-[10px] font-semibold text-slate-500">
+                        Prix à compléter
+                      </span>
+                    ) : marginPreview.belowCost ? (
+                      <Badge tone="red">Vente à perte</Badge>
+                    ) : (
+                      <Badge tone="green">Rentable</Badge>
+                    )}
+                  </div>
+                  <div
                     className={cn(
-                      "flex items-center gap-1 font-mono text-xs font-bold",
+                      "mt-1 flex items-center gap-1.5 font-mono text-lg font-bold tabular-nums",
                       marginPreview == null
                         ? "text-slate-500"
                         : marginPreview.belowCost
@@ -912,11 +938,10 @@ export function ProductFormDialog({
                     )}
                   >
                     {marginPreview?.belowCost ? (
-                      <TriangleAlert size={13} aria-hidden="true" />
+                      <TriangleAlert size={15} aria-hidden="true" />
                     ) : null}
                     {marginText}
-                    {marginPreview?.belowCost ? " · vente à perte" : ""}
-                  </span>
+                  </div>
                 </div>
               </FormSection>
 
@@ -991,7 +1016,7 @@ export function ProductFormDialog({
                         Recalculer
                       </Button>
                     </div>
-                    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/15 px-3 py-2 text-xs font-semibold">
+                    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/25 px-3 py-2 text-xs font-semibold">
                       <span>
                         Tarif carton automatique
                         <span className="block text-[11px] font-normal text-slate-500">
@@ -1083,7 +1108,7 @@ export function ProductFormDialog({
             </div>
           </div>
 
-          <div className="rounded-xl border border-white/[0.08] bg-black/20">
+          <div className="rounded-xl border border-white/[0.08] bg-black/25">
             <button
               type="button"
               aria-expanded={advancedOpen}
@@ -1145,7 +1170,7 @@ export function ProductFormDialog({
                           className="mb-2"
                         />
                       ) : null}
-                      <ul className="max-h-40 space-y-0.5 overflow-auto rounded-lg border border-white/10 bg-black/15 p-1.5">
+                      <ul className="max-h-40 space-y-0.5 overflow-auto rounded-lg border border-white/10 bg-black/25 p-1.5">
                         {visibleSuppliers.map((s) => (
                           <li key={s.id}>
                             <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-white/[0.06]">
@@ -1194,7 +1219,7 @@ export function ProductFormDialog({
                   />
                 </Field>
                 {editing ? (
-                  <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 text-xs font-semibold">
+                  <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/25 px-3 py-2.5 text-xs font-semibold">
                     <span>
                       Produit actif
                       <span className="block text-[11px] font-normal text-slate-500">
