@@ -308,29 +308,34 @@ export function App(): React.JSX.Element {
             className="min-h-0 flex-1 overflow-auto bg-[radial-gradient(ellipse_at_top_left,rgba(251,191,36,0.045),transparent_55%)] px-6 py-5"
             aria-live="polite"
           >
-            {routeBlocked ? (
-              <RouteBlocked moduleLabel={current?.label} onGoLicense={() => setActive("license")} />
-            ) : (
-              <Suspense
-                fallback={
-                  <p className="py-10 text-center text-sm text-slate-500" role="status">
-                    Chargement du module…
-                  </p>
-                }
-              >
-                <ErrorBoundary moduleLabel={current?.label ?? "Module"} resetKey={active}>
-                  {active === "sell" ? (
-                    <SellScreen notify={notify} />
-                  ) : ActiveScreen ? (
-                    <ActiveScreen
-                      notify={notify}
-                      onNavigate={(m) => setActive(m)}
-                      canNavigate={moduleAllowed}
-                    />
-                  ) : null}
-                </ErrorBoundary>
-              </Suspense>
-            )}
+            <div key={active} className="veloria-page-in">
+              {routeBlocked ? (
+                <RouteBlocked
+                  moduleLabel={current?.label}
+                  onGoLicense={() => setActive("license")}
+                />
+              ) : (
+                <Suspense
+                  fallback={
+                    <p className="py-10 text-center text-sm text-slate-500" role="status">
+                      Chargement du module…
+                    </p>
+                  }
+                >
+                  <ErrorBoundary moduleLabel={current?.label ?? "Module"} resetKey={active}>
+                    {active === "sell" ? (
+                      <SellScreen notify={notify} />
+                    ) : ActiveScreen ? (
+                      <ActiveScreen
+                        notify={notify}
+                        onNavigate={(m) => setActive(m)}
+                        canNavigate={moduleAllowed}
+                      />
+                    ) : null}
+                  </ErrorBoundary>
+                </Suspense>
+              )}
+            </div>
           </main>
           {/* Pied de page Stitch : raccourcis RÉELS du module actif (ADR-037). */}
           <footer
@@ -338,8 +343,11 @@ export function App(): React.JSX.Element {
             aria-label="Raccourcis clavier du module"
           >
             {hintsFor(active).map((h) => (
-              <span key={h.k} className="whitespace-nowrap rounded bg-[#122131] px-1.5 py-0.5">
-                <span className="font-semibold text-[#d3c5ac]">{h.k}</span> {h.label}
+              <span
+                key={h.k}
+                className="whitespace-nowrap rounded-md border border-white/[0.06] bg-[#122131] px-2 py-0.5"
+              >
+                <span className="font-semibold text-[#ffe1a7]">{h.k}</span> {h.label}
               </span>
             ))}
           </footer>
