@@ -487,3 +487,14 @@ select {
 tbody tr {
   scroll-margin-top: 3.5rem;
 }
+
+/* Registres : survol de ligne discret et identique dans tous les modules. */
+main table tbody tr {
+  transition: background-color 120ms ease;
+}
+main table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.025);
+}
+[data-theme="light"] main table tbody tr:hover {
+  background-color: rgba(20, 32, 46, 0.04);
+}

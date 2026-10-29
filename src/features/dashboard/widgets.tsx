@@ -119,10 +119,14 @@ export interface AlertItem {
 /** Bandeau « À traiter » : une seule surface, jamais affichée s'il n'y a rien. */
 export function AlertBand({ items }: { items: AlertItem[] }): React.JSX.Element {
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/[0.07] bg-[#101f31] px-3 py-2.5">
-      <span className="flex items-center gap-1.5 pr-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
-        <AlertTriangle size={14} aria-hidden="true" className="text-amber-300" />À traiter
+    <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-amber-400/20 bg-[#101f31] px-3 py-2.5 shadow-[0_1px_0_rgba(255,255,255,0.035)_inset]">
+      <span className="flex items-center gap-2 pr-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-300">
+        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-400/10 text-amber-300 ring-1 ring-amber-400/20">
+          <AlertTriangle size={14} aria-hidden="true" />
+        </span>
+        À traiter
       </span>
+      <span aria-hidden="true" className="mr-1 hidden h-5 w-px bg-white/10 sm:block" />
       {items.map((it) => (
         <AlertChip key={it.key} text={it.text} tone={it.tone} onClick={it.onClick} />
       ))}

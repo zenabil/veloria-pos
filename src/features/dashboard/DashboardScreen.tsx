@@ -4,6 +4,7 @@
 // cliquable, plus de carte imbriquée ni de défilement interne.
 import { useEffect, useRef, useState } from "react";
 import {
+  ArrowRight,
   Boxes,
   ChevronDown,
   Download,
@@ -11,8 +12,11 @@ import {
   FileSpreadsheet,
   FileText,
   History,
+  PackagePlus,
   RefreshCw,
+  ShoppingCart,
   Tags,
+  UserPlus,
   Wallet,
 } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
@@ -592,6 +596,38 @@ export function DashboardScreen({
     return () => onNavigate(module);
   }
 
+  /** Période vide : trois chemins concrets plutôt qu'un mur de zéros. */
+  const quickActions: {
+    module: ModuleId;
+    label: string;
+    hint: string;
+    icon: typeof ShoppingCart;
+    onClick: () => void;
+  }[] = [];
+  for (const action of [
+    {
+      module: "sell" as ModuleId,
+      label: "Ouvrir la caisse",
+      hint: "Encaisser une vente",
+      icon: ShoppingCart,
+    },
+    {
+      module: "products" as ModuleId,
+      label: "Créer un produit",
+      hint: "Catalogue et prix",
+      icon: PackagePlus,
+    },
+    {
+      module: "customers" as ModuleId,
+      label: "Créer un client",
+      hint: "Fiche et dettes",
+      icon: UserPlus,
+    },
+  ]) {
+    const onClick = link(action.module);
+    if (onClick) quickActions.push({ ...action, onClick });
+  }
+
   const alertItems: AlertItem[] = [];
   if (summary) {
     const push = (
@@ -698,11 +734,43 @@ export function DashboardScreen({
           {alertItems.length > 0 ? <AlertBand items={alertItems} /> : null}
 
           {quiet ? (
-            <Card className="p-2">
+            <Card className="overflow-hidden p-0">
               <EmptyState
                 title="Aucune activité sur la période"
                 hint="Aucune vente, achat, retour ni dépense entre les deux dates. Utilisez un raccourci de période, ou changez de dates."
               />
+              {quickActions.length > 0 ? (
+                <div className="grid gap-px border-t border-white/[0.06] bg-white/[0.06] sm:grid-cols-3">
+                  {quickActions.map((action) => {
+                    const Icon = action.icon;
+                    return (
+                      <button
+                        key={action.module}
+                        type="button"
+                        onClick={action.onClick}
+                        className="group flex items-center gap-3 bg-[#101f31] px-4 py-3.5 text-left transition-colors hover:bg-white/[0.03]"
+                      >
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#fbbf24]/10 text-[#fbbf24] ring-1 ring-[#fbbf24]/20">
+                          <Icon size={17} aria-hidden="true" />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-sm font-bold text-slate-100">
+                            {action.label}
+                          </span>
+                          <span className="block truncate text-[11px] text-slate-500">
+                            {action.hint}
+                          </span>
+                        </span>
+                        <ArrowRight
+                          size={14}
+                          aria-hidden="true"
+                          className="ml-auto shrink-0 text-slate-600 transition-transform group-hover:translate-x-0.5 group-hover:text-slate-400"
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
             </Card>
           ) : (
             <>
@@ -793,12 +861,16 @@ export function DashboardScreen({
                 <Card className="space-y-3 p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <h3 className="text-sm font-extrabold">Encaissements par moyen</h3>
+                      <h3 className="text-[15px] font-semibold tracking-tight">
+                        Encaissements par moyen
+                      </h3>
                       <p className="mt-0.5 text-xs text-slate-500">
                         Réels − remboursements. Une vente à crédit ne compte que sa part payée.
                       </p>
                     </div>
-                    <Wallet size={17} aria-hidden="true" className="shrink-0 text-amber-300" />
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-400/10 text-amber-300 ring-1 ring-amber-400/20">
+                      <Wallet size={16} aria-hidden="true" />
+                    </span>
                   </div>
                   {summary.byMethod.length === 0 ? (
                     <p className="text-xs text-slate-500">Aucun encaissement.</p>
@@ -847,7 +919,7 @@ export function DashboardScreen({
                 <Card className="space-y-3 p-4">
                   <div className="flex flex-wrap items-end justify-between gap-3">
                     <div>
-                      <h3 className="flex items-center gap-2 text-sm font-extrabold">
+                      <h3 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight">
                         <Tags size={15} aria-hidden="true" className="text-amber-300" />
                         Ventes et marge par catégorie
                       </h3>
@@ -935,7 +1007,9 @@ export function DashboardScreen({
                 </Card>
 
                 <Card className="space-y-2 p-4">
-                  <h3 className="text-sm font-extrabold">5 meilleures rotations</h3>
+                  <h3 className="text-[15px] font-semibold tracking-tight">
+                    5 meilleures rotations
+                  </h3>
                   {summary.fastMoving.length === 0 ? (
                     <p className="text-xs text-slate-500">Aucune vente.</p>
                   ) : (
@@ -966,7 +1040,7 @@ export function DashboardScreen({
                   <div
                     role="tablist"
                     aria-label="Détails du tableau de bord"
-                    className="flex flex-wrap gap-1"
+                    className="flex flex-wrap gap-1 rounded-xl bg-[#0d1c2d] p-1"
                   >
                     {DETAIL_TABS.map((tab) => {
                       const Icon = tab.icon;
@@ -985,14 +1059,21 @@ export function DashboardScreen({
                           className={cn(
                             "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors",
                             selected
-                              ? "bg-amber-400/15 text-amber-200"
+                              ? "bg-[#fbbf24] text-[#402d00] shadow-[0_2px_8px_-2px_rgba(251,191,36,0.5)]"
                               : "text-slate-400 hover:bg-white/[0.06] hover:text-white",
                           )}
                         >
                           <Icon size={13} aria-hidden="true" />
                           {tab.label}
                           {alertCount > 0 ? (
-                            <span className="rounded-full bg-amber-400/20 px-1.5 text-[10px] text-amber-200">
+                            <span
+                              className={cn(
+                                "rounded-full px-1.5 text-[10px]",
+                                selected
+                                  ? "bg-[#402d00]/15 text-[#402d00]"
+                                  : "bg-amber-400/20 text-amber-200",
+                              )}
+                            >
                               {alertCount}
                             </span>
                           ) : null}

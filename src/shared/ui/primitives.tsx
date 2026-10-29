@@ -81,15 +81,16 @@ export function PageHeader({
     <header className="flex flex-col gap-3 border-b border-white/[0.06] pb-4 xl:flex-row xl:items-center xl:justify-between">
       <div className="min-w-0">
         {module ? (
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-[#fbbf24]/70">
+          <p className="flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-[#fbbf24]/70">
+            <span aria-hidden="true" className="h-1 w-1 rounded-full bg-[#fbbf24]" />
             {module}
           </p>
         ) : null}
-        <h1 className="mt-0.5 truncate text-[23px] font-semibold leading-tight tracking-tight text-slate-50">
+        <h1 className="mt-1 truncate text-[24px] font-bold leading-tight tracking-[-0.02em] text-slate-50">
           {title}
         </h1>
         {period ? (
-          <p className="mt-1 max-w-4xl text-[12px] leading-relaxed text-slate-400">{period}</p>
+          <p className="mt-1.5 max-w-4xl text-[12px] leading-relaxed text-slate-400">{period}</p>
         ) : null}
       </div>
       {actions ? (
@@ -109,7 +110,7 @@ export function Card({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-white/[0.07] bg-[#101f31] shadow-[0_1px_2px_rgba(2,6,13,0.35)]",
+        "rounded-2xl border border-white/[0.07] bg-[#101f31] shadow-[0_1px_0_rgba(255,255,255,0.035)_inset,0_18px_40px_-30px_rgba(0,0,0,0.9)]",
         className,
       )}
     >
@@ -626,7 +627,12 @@ export function Kpi({
   icon?: ReactNode;
 }): ReactNode {
   return (
-    <Card className="p-4 transition-colors hover:border-white/15">
+    <Card className="group relative overflow-hidden p-4 transition-colors hover:border-white/15">
+      <span
+        aria-hidden="true"
+        className="absolute inset-y-3 left-0 w-[3px] rounded-r-full opacity-80"
+        style={{ background: accent }}
+      />
       <div className="flex items-center justify-between gap-2">
         <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
           {label}
@@ -639,7 +645,7 @@ export function Kpi({
           />
         )}
       </div>
-      <div className="mt-2 font-mono text-[20px] font-bold leading-none tabular-nums text-slate-50">
+      <div className="mt-2 font-mono text-[22px] font-bold leading-none tabular-nums text-slate-50">
         {value}
       </div>
       {sub ? <div className="mt-1.5 text-[11px] leading-snug text-slate-500">{sub}</div> : null}
@@ -655,6 +661,15 @@ const statTones: Record<StatTone, string> = {
   green: "text-emerald-300",
   red: "text-red-300",
   blue: "text-sky-300",
+};
+
+/** Filet supérieur de chaque cellule : rappelle la teinte du chiffre. */
+const statRails: Record<StatTone, string> = {
+  default: "bg-slate-500/30",
+  amber: "bg-amber-400/80",
+  green: "bg-emerald-400/80",
+  red: "bg-red-400/80",
+  blue: "bg-sky-400/80",
 };
 
 export interface StatItem {
@@ -693,20 +708,30 @@ export function StatsStrip({
       )}
     >
       {items.map((it) => (
-        <div key={it.label} className="min-w-0 bg-[#101f31] px-4 py-3.5">
+        <div
+          key={it.label}
+          className="relative min-w-0 overflow-hidden bg-[#101f31] px-4 py-4 transition-colors hover:bg-white/[0.025]"
+        >
+          <span
+            aria-hidden="true"
+            className={cn(
+              "absolute inset-x-0 top-0 h-[2px] opacity-70",
+              statRails[it.tone ?? "default"],
+            )}
+          />
           <div className="truncate text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
             {it.label}
           </div>
           <div
             className={cn(
-              "mt-1.5 truncate font-mono text-[18px] font-bold leading-none tabular-nums",
+              "mt-1.5 truncate font-mono text-[19px] font-bold leading-none tabular-nums",
               statTones[it.tone ?? "default"],
             )}
           >
             {it.value}
           </div>
           {it.sub ? (
-            <div className="mt-1 truncate text-[11px] leading-snug text-slate-500">{it.sub}</div>
+            <div className="mt-1.5 truncate text-[11px] leading-snug text-slate-500">{it.sub}</div>
           ) : null}
         </div>
       ))}
