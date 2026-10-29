@@ -4,13 +4,15 @@
 // champ pour champ) est fusionné — UN seul formulaire ; le mode inline est
 // activé par le prop optionnel `onCreated`.
 import { useState } from "react";
+import { Building2, Info, Landmark, Phone, StickyNote, Truck } from "lucide-react";
 
 import { api } from "@shared/types/ipc-client.ts";
 
 import { newOperationId } from "@domain/common/ids.ts";
 import { validateSupplierDraft } from "@domain/suppliers/supplier-rules.ts";
 
-import { Button, Field, Modal, Switch, TextArea, TextInput } from "@shared/ui/primitives.tsx";
+import { Button, Field, Kbd, Modal, Switch, TextArea, TextInput } from "@shared/ui/primitives.tsx";
+import { FormSection } from "@shared/ui/form-section.tsx";
 
 import { type Supplier } from "../types.ts";
 
@@ -122,117 +124,195 @@ export function SupplierFormDialog({
   return (
     <Modal
       label={editing ? "Modifier le fournisseur" : "Nouveau fournisseur"}
-      title={editing ? "Modifier le fournisseur" : "Nouveau fournisseur"}
+      title={
+        <span className="flex items-center gap-2.5">
+          <span
+            aria-hidden="true"
+            className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#fbbf24]/10 text-[#fbbf24] ring-1 ring-[#fbbf24]/20"
+          >
+            <Truck size={16} />
+          </span>
+          <span>{editing ? "Modifier le fournisseur" : "Nouveau fournisseur"}</span>
+        </span>
+      }
       onClose={onClose}
-      wide
+      extraWide
     >
       <form
-        className="space-y-4"
+        className="space-y-3.5 [&_input]:scroll-mb-24 [&_textarea]:scroll-mb-24"
         onSubmit={(e) => {
           e.preventDefault();
           void save();
         }}
+        onKeyDown={(e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+            e.preventDefault();
+            void save();
+          }
+        }}
       >
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Code" hint="Vide = généré (FOU-00001).">
-            <TextInput
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="FOU-00001"
-              aria-label="Code fournisseur"
-            />
-          </Field>
-          <Field label="Nom *">
-            <TextInput
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Ex. : Moulin El Baraka"
-              aria-label="Nom fournisseur"
-            />
-          </Field>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Contact">
-            <TextInput
-              value={contact}
-              onChange={(e) => setContact(e.target.value)}
-              placeholder="Personne à contacter"
-              aria-label="Contact"
-            />
-          </Field>
-          <Field label="Téléphone">
-            <TextInput
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              inputMode="tel"
-              placeholder="Ex. : 0550 12 34 56"
-              aria-label="Téléphone"
-            />
-          </Field>
-        </div>
-        <Field label="E-mail">
-          <TextInput
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            inputMode="email"
-            placeholder="Ex. : contact@moulin.dz"
-            aria-label="E-mail"
-          />
-        </Field>
-        <Field label="Adresse">
-          <TextInput
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="Ex. : Zone industrielle, Alger"
-            aria-label="Adresse"
-          />
-        </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="NIF" hint="Numéro d'identification fiscale.">
-            <TextInput
-              value={taxNumber}
-              onChange={(e) => setTaxNumber(e.target.value)}
-              placeholder="Ex. : 000123456789012"
-              aria-label="NIF"
-            />
-          </Field>
-          <Field label="Registre de commerce">
-            <TextInput
-              value={commercialRegister}
-              onChange={(e) => setCommercialRegister(e.target.value)}
-              placeholder="Ex. : 16/00-1234567 B 20"
-              aria-label="Registre de commerce"
-            />
-          </Field>
-        </div>
-        <Field label="Notes" hint="Optionnel (500 caractères max).">
-          <TextArea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Ex. : livraison le mardi…"
-            aria-label="Notes"
-          />
-        </Field>
-        <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-sm font-semibold">
+        <p className="flex items-start gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-[11px] leading-relaxed text-slate-500">
+          <Info size={13} aria-hidden="true" className="mt-0.5 shrink-0 text-[#fbbf24]" />
           <span>
-            Fournisseur actif
-            <span className="block text-xs font-normal text-slate-500">
-              Inactif = masqué du filtre « Actifs », historique conservé.
-            </span>
+            Seul le <span className="font-semibold text-slate-300">nom</span> est obligatoire — le
+            code est généré automatiquement s&apos;il est vide.
           </span>
-          <Switch
-            checked={isActive}
-            onChange={() => setIsActive((a) => !a)}
-            ariaLabel="Fournisseur actif"
-          />
-        </label>
-        <div className="flex gap-2">
-          <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
-            Annuler
-          </Button>
-          <Button type="submit" disabled={busy} className="flex-[2]">
-            {busy ? "Enregistrement…" : editing ? "Enregistrer" : "Créer le fournisseur"}
-          </Button>
+        </p>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="space-y-3">
+            <FormSection
+              icon={<Building2 size={14} aria-hidden="true" />}
+              title="Identité"
+              hint="Code, nom"
+            >
+              <div className="grid grid-cols-2 gap-2.5">
+                <Field label="Code" hint="Vide = généré (FOU-00001).">
+                  <TextInput
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    placeholder="FOU-00001"
+                    aria-label="Code fournisseur"
+                    className="font-mono"
+                  />
+                </Field>
+                <Field label="Nom *">
+                  <TextInput
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Ex. : Moulin El Baraka"
+                    aria-label="Nom fournisseur"
+                  />
+                </Field>
+              </div>
+            </FormSection>
+
+            <FormSection
+              icon={<Phone size={14} aria-hidden="true" />}
+              title="Contact"
+              hint="Coordonnées"
+            >
+              <div className="grid grid-cols-2 gap-2.5">
+                <Field label="Contact">
+                  <TextInput
+                    value={contact}
+                    onChange={(e) => setContact(e.target.value)}
+                    placeholder="Personne à contacter"
+                    aria-label="Contact"
+                  />
+                </Field>
+                <Field label="Téléphone">
+                  <TextInput
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    inputMode="tel"
+                    placeholder="Ex. : 0550 12 34 56"
+                    aria-label="Téléphone"
+                  />
+                </Field>
+              </div>
+              <Field label="E-mail">
+                <TextInput
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  inputMode="email"
+                  placeholder="Ex. : contact@moulin.dz"
+                  aria-label="E-mail"
+                />
+              </Field>
+              <Field label="Adresse">
+                <TextInput
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Ex. : Zone industrielle, Alger"
+                  aria-label="Adresse"
+                />
+              </Field>
+            </FormSection>
+          </div>
+
+          <div className="space-y-3">
+            <FormSection
+              icon={<Landmark size={14} aria-hidden="true" />}
+              title="Informations fiscales"
+              hint="Optionnel"
+            >
+              <div className="grid grid-cols-2 gap-2.5">
+                <Field label="NIF" hint="Numéro d'identification fiscale.">
+                  <TextInput
+                    value={taxNumber}
+                    onChange={(e) => setTaxNumber(e.target.value)}
+                    placeholder="Ex. : 000123456789012"
+                    aria-label="NIF"
+                    className="font-mono"
+                  />
+                </Field>
+                <Field label="Registre de commerce">
+                  <TextInput
+                    value={commercialRegister}
+                    onChange={(e) => setCommercialRegister(e.target.value)}
+                    placeholder="Ex. : 16/00-1234567 B 20"
+                    aria-label="Registre de commerce"
+                    className="font-mono"
+                  />
+                </Field>
+              </div>
+            </FormSection>
+
+            <FormSection
+              icon={<StickyNote size={14} aria-hidden="true" />}
+              title="Notes"
+              hint="500 caractères max"
+            >
+              <TextArea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Ex. : livraison le mardi…"
+                aria-label="Notes"
+                maxLength={500}
+              />
+            </FormSection>
+
+            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-sm font-semibold">
+              <span>
+                Fournisseur actif
+                <span className="block text-xs font-normal text-slate-500">
+                  Inactif = masqué du filtre « Actifs », historique conservé.
+                </span>
+              </span>
+              <Switch
+                checked={isActive}
+                onChange={() => setIsActive((a) => !a)}
+                ariaLabel="Fournisseur actif"
+              />
+            </label>
+          </div>
+        </div>
+
+        <div className="sticky bottom-0 z-10 -mx-6 flex flex-col-reverse gap-3 border-t border-white/10 bg-[#122131]/95 px-6 py-3.5 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+          <p className="flex items-center gap-1 text-[11px] text-slate-500">
+            <Kbd>Ctrl</Kbd>
+            <span>+</span>
+            <Kbd>Entrée</Kbd>
+            <span className="ml-1">pour enregistrer</span>
+          </p>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={onClose}
+              className="flex-1 sm:flex-none sm:min-w-[108px]"
+            >
+              Annuler
+            </Button>
+            <Button
+              type="submit"
+              disabled={busy}
+              className="flex-[2] sm:flex-none sm:min-w-[170px]"
+            >
+              {busy ? "Enregistrement…" : editing ? "Enregistrer" : "Créer le fournisseur"}
+            </Button>
+          </div>
         </div>
       </form>
     </Modal>
