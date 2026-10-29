@@ -12,7 +12,10 @@ export function ReportSectionCard({
 }): React.JSX.Element {
   return (
     <Card className="overflow-hidden">
-      <h3 className="border-b border-white/[0.07] px-4 py-3 text-sm font-extrabold">{title}</h3>
+      <h3 className="flex items-center gap-2 border-b border-white/[0.07] bg-white/[0.02] px-4 py-3 text-[15px] font-semibold tracking-tight text-slate-100">
+        <span aria-hidden="true" className="h-3.5 w-[3px] rounded-full bg-[#fbbf24]" />
+        {title}
+      </h3>
       <div className="space-y-3 py-3">{children}</div>
     </Card>
   );
@@ -28,17 +31,17 @@ export function MiniTable({
   empty: string;
 }): React.JSX.Element {
   if (rows.length === 0) {
-    return <p className="px-4 text-xs text-slate-500">{empty}</p>;
+    return <p className="px-4 pb-1 text-xs text-slate-500">{empty}</p>;
   }
   return (
     <div className="overflow-auto px-4">
       <table className="w-full text-sm">
-        <thead className="sticky top-0 bg-[#122131] text-left text-[11px] uppercase tracking-[0.12em] text-slate-500">
-          <tr>
+        <thead className="text-left text-[10px] uppercase tracking-[0.12em] text-slate-500">
+          <tr className="border-b border-white/[0.07]">
             {/* A-27 : clés STABLES (le contenu de l'en-tête ne bouge pas) —
                 `key={i}` était un index de position. */}
             {headers.map((h, i) => (
-              <th key={`th-${h}`} className={cn("py-1.5 pr-3", i > 0 && "text-right")}>
+              <th key={`th-${h}`} className={cn("py-2 pr-3 font-bold", i > 0 && "text-right")}>
                 {h}
               </th>
             ))}
@@ -46,11 +49,16 @@ export function MiniTable({
         </thead>
         <tbody>
           {rows.map((r, i) => (
-            <tr key={`row-${i}`} className="border-t border-white/[0.06]">
+            <tr key={`row-${i}`} className="border-b border-white/[0.05] last:border-0">
               {r.map((c, j) => (
                 <td
                   key={`cell-${j}`}
-                  className={cn("py-1.5 pr-3", j === 0 ? "" : "text-right tabular-nums")}
+                  className={cn(
+                    "py-2 pr-3",
+                    j === 0
+                      ? "max-w-[280px] truncate font-medium text-slate-200"
+                      : "text-right tabular-nums",
+                  )}
                 >
                   {c}
                 </td>

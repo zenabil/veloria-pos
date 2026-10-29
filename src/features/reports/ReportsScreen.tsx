@@ -18,6 +18,7 @@ import { BarChart } from "@shared/charts/BarChart.tsx";
 import { MiniTable, ReportSectionCard } from "./widgets.tsx";
 import {
   ErrorState,
+  Badge,
   Button,
   Card,
   EmptyState,
@@ -28,6 +29,7 @@ import {
   PageHeader,
   Select,
   TextInput,
+  cn,
 } from "@shared/ui/primitives.tsx";
 import { ReportExportDialog } from "./ReportDialogs.tsx";
 import {
@@ -43,6 +45,30 @@ import type { Notify } from "@shared/ui/primitives.tsx";
 interface Category {
   id: number;
   name: string;
+}
+
+type PresetKind = "month" | "prev" | "quarter" | "year";
+
+/** Bornes UTC des périodes prédéfinies (source unique : boutons + état actif). */
+function presetRange(kind: PresetKind): { from: string; to: string } {
+  const now = new Date();
+  const y = now.getUTCFullYear();
+  const m = now.getUTCMonth();
+  const iso = (d: Date): string => d.toISOString().slice(0, 10);
+  if (kind === "month") {
+    return { from: iso(new Date(Date.UTC(y, m, 1))), to: todayUtcDate() };
+  }
+  if (kind === "prev") {
+    return {
+      from: iso(new Date(Date.UTC(y, m - 1, 1))),
+      to: iso(new Date(Date.UTC(y, m, 0))),
+    };
+  }
+  if (kind === "quarter") {
+    const q = Math.floor(m / 3) * 3;
+    return { from: iso(new Date(Date.UTC(y, q, 1))), to: todayUtcDate() };
+  }
+  return { from: iso(new Date(Date.UTC(y, 0, 1))), to: todayUtcDate() };
 }
 
 export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element {
@@ -267,23 +293,26 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
     if (f !== "" && t !== "") void load({ f, t });
   }
 
-  /** Presets Stitch : Ce Mois · Mois Précédent · Trimestre Q3 · Exercice 2025 (UTC). */
-  function applyPreset(kind: "month" | "prev" | "quarter" | "year"): void {
-    const now = new Date();
-    const y = now.getUTCFullYear();
-    const m = now.getUTCMonth();
-    const iso = (d: Date): string => d.toISOString().slice(0, 10);
-    if (kind === "month") {
-      changeRange(iso(new Date(Date.UTC(y, m, 1))), todayUtcDate());
-    } else if (kind === "prev") {
-      changeRange(iso(new Date(Date.UTC(y, m - 1, 1))), iso(new Date(Date.UTC(y, m, 0))));
-    } else if (kind === "quarter") {
-      const q = Math.floor(m / 3) * 3;
-      changeRange(iso(new Date(Date.UTC(y, q, 1))), todayUtcDate());
-    } else {
-      changeRange(iso(new Date(Date.UTC(y, 0, 1))), todayUtcDate());
-    }
+  /** Presets : Ce Mois · Mois Précédent · Trimestre courant · Exercice courant (UTC). */
+  function applyPreset(kind: PresetKind): void {
+    const range = presetRange(kind);
+    changeRange(range.from, range.to);
   }
+
+  const presets: { kind: PresetKind; label: string }[] = [
+    { kind: "month", label: "Ce Mois" },
+    { kind: "prev", label: "Mois Précédent" },
+    {
+      kind: "quarter",
+      label: `Trimestre T${Math.floor(new Date().getUTCMonth() / 3) + 1}`,
+    },
+    { kind: "year", label: `Exercice ${new Date().getUTCFullYear()}` },
+  ];
+  const activePreset =
+    presets.find((p) => {
+      const range = presetRange(p.kind);
+      return range.from === from && range.to === to;
+    })?.kind ?? null;
 
   async function searchCustomers(): Promise<void> {
     if (customerQ.trim().length < 2) return;
@@ -340,21 +369,29 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
         }
         actions={
           <>
-            <TextInput
-              type="date"
-              ref={fromRef}
-              value={from}
-              onChange={(e) => changeRange(e.target.value, to)}
-              aria-label="Du"
-              title="Du [F4]"
-            />
-            <TextInput
-              type="date"
-              value={to}
-              onChange={(e) => changeRange(from, e.target.value)}
-              aria-label="Au"
-              title="Au [F4]"
-            />
+            <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">
+              Du
+              <TextInput
+                type="date"
+                ref={fromRef}
+                value={from}
+                onChange={(e) => changeRange(e.target.value, to)}
+                aria-label="Du"
+                title="Du [F4]"
+                className="w-auto"
+              />
+            </label>
+            <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">
+              Au
+              <TextInput
+                type="date"
+                value={to}
+                onChange={(e) => changeRange(from, e.target.value)}
+                aria-label="Au"
+                title="Au [F4]"
+                className="w-auto"
+              />
+            </label>
             <Button
               onClick={() => setExportOpen(true)}
               disabled={summary == null}
@@ -372,24 +409,30 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
           <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
             Période
           </span>
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Périodes prédéfinies">
-            {(
-              [
-                ["month", "Ce Mois"],
-                ["prev", "Mois Précédent"],
-                ["quarter", `Trimestre T${Math.floor(new Date().getUTCMonth() / 3) + 1}`],
-                ["year", `Exercice ${new Date().getUTCFullYear()}`],
-              ] as const
-            ).map(([kind, label]) => (
-              <button
-                key={kind}
-                type="button"
-                onClick={() => applyPreset(kind)}
-                className="rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-slate-200"
-              >
-                {label}
-              </button>
-            ))}
+          <div
+            className="flex flex-wrap gap-1 rounded-xl bg-[#0d1c2d] p-1"
+            role="group"
+            aria-label="Périodes prédéfinies"
+          >
+            {presets.map((p) => {
+              const active = activePreset === p.kind;
+              return (
+                <button
+                  key={p.kind}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => applyPreset(p.kind)}
+                  className={cn(
+                    "rounded-lg px-3 py-1.5 text-xs font-bold transition-colors",
+                    active
+                      ? "bg-[#fbbf24] text-[#402d00] shadow-[0_2px_8px_-2px_rgba(251,191,36,0.5)]"
+                      : "text-slate-400 hover:bg-white/[0.06] hover:text-slate-200",
+                  )}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
           </div>
         </div>
         <div>
@@ -403,24 +446,28 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
           <div
             role="tablist"
             aria-labelledby="reports-section-label"
-            className="flex flex-wrap gap-1.5"
+            className="flex flex-wrap gap-1 rounded-xl bg-[#0d1c2d] p-1"
           >
-            {REPORT_SECTIONS.map((s) => (
-              <button
-                key={s.value}
-                type="button"
-                role="tab"
-                aria-selected={section === s.value}
-                onClick={() => setSection(s.value)}
-                className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
-                  section === s.value
-                    ? "bg-amber-400/20 text-amber-200"
-                    : "text-slate-400 hover:bg-white/[0.06] hover:text-slate-200"
-                }`}
-              >
-                {s.label}
-              </button>
-            ))}
+            {REPORT_SECTIONS.map((s) => {
+              const active = section === s.value;
+              return (
+                <button
+                  key={s.value}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setSection(s.value)}
+                  className={cn(
+                    "rounded-lg px-3 py-1.5 text-xs font-bold transition-colors",
+                    active
+                      ? "bg-[#fbbf24] text-[#402d00] shadow-[0_2px_8px_-2px_rgba(251,191,36,0.5)]"
+                      : "text-slate-400 hover:bg-white/[0.06] hover:text-slate-200",
+                  )}
+                >
+                  {s.label}
+                </button>
+              );
+            })}
           </div>
         </div>
         <div className="min-w-[180px]">
@@ -467,7 +514,7 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
             </div>
           )}
           {customerResults.length > 0 ? (
-            <ul className="mt-2 max-h-24 divide-y divide-white/[0.06] overflow-auto rounded-xl border border-white/10">
+            <ul className="mt-2 max-h-24 divide-y divide-white/[0.06] overflow-auto rounded-xl border border-white/10 bg-[#0d1c2d]">
               {customerResults.map((c) => (
                 <li key={c.id}>
                   <button
@@ -480,7 +527,7 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
                       setCustomerQ("");
                       void load({ customer: c.id });
                     }}
-                    className="w-full px-3 py-1.5 text-left text-sm hover:bg-amber-400/10"
+                    className="w-full border-l-2 border-transparent px-3 py-1.5 text-left text-sm transition-colors hover:border-[#fbbf24] hover:bg-amber-400/10"
                   >
                     {c.name}
                   </button>
@@ -539,7 +586,7 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
             </div>
           )}
           {supplierResults.length > 0 ? (
-            <ul className="mt-2 max-h-24 divide-y divide-white/[0.06] overflow-auto rounded-xl border border-white/10">
+            <ul className="mt-2 max-h-24 divide-y divide-white/[0.06] overflow-auto rounded-xl border border-white/10 bg-[#0d1c2d]">
               {supplierResults.map((s) => (
                 <li key={s.id}>
                   <button
@@ -551,7 +598,7 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
                       setSupplierQ("");
                       void load({ supplier: s.id });
                     }}
-                    className="w-full px-3 py-1.5 text-left text-sm hover:bg-amber-400/10"
+                    className="w-full border-l-2 border-transparent px-3 py-1.5 text-left text-sm transition-colors hover:border-[#fbbf24] hover:bg-amber-400/10"
                   >
                     {s.name}
                   </button>
@@ -656,18 +703,32 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
           {(() => {
             const net = k.profitMinor - k.expensesMinor - summary.returns.amountMinor;
             return (
-              <Card className="flex items-center justify-between p-4">
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
-                    Résultat net (période)
-                  </p>
-                  <p className="text-xs text-slate-500">Marge brute − dépenses − retours</p>
+              <Card className="relative overflow-hidden p-5">
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-x-0 top-0 h-[2px] bg-[linear-gradient(90deg,transparent,#fbbf24,transparent)] opacity-80"
+                />
+                <div className="flex flex-wrap items-end justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                      Résultat net (période)
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">Marge brute − dépenses − retours</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge tone={net >= 0 ? "green" : "red"}>
+                      {net >= 0 ? "Bénéfice" : "Perte"}
+                    </Badge>
+                    <p
+                      className={cn(
+                        "font-mono-currency-lg tabular-nums",
+                        net >= 0 ? "text-emerald-300" : "text-red-300",
+                      )}
+                    >
+                      {formatDzdSigned(net)}
+                    </p>
+                  </div>
                 </div>
-                <p
-                  className={`text-2xl font-extrabold tabular-nums ${net >= 0 ? "text-emerald-300" : "text-red-300"}`}
-                >
-                  {formatDzdSigned(net)}
-                </p>
               </Card>
             );
           })()}
