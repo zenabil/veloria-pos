@@ -16,6 +16,7 @@
 ## 1) État courant
 
 - Branche : `chore/root-layout` — tête **session 69** (Installateurs POS + License Manager). Avant elle session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 71 (2026-10-30)** : **icônes de l'APK client** — toutes les Ionicons étaient vides sur téléphone (police chargée à l'exécution par `expo-asset`, échec silencieux constaté sur le vrai appareil alors que le web rendait correctement). Correctif : police embarquée dans les assets natifs + composant `src/ui/Icon.tsx` qui dessine le glyphe via `fontFamily: "Ionicons"` (web : composant d'origine conservé), 34 usages remplacés, APK 1.0.1 (code 2) reconstruit et signé.
 - **Session 70 (2026-10-30)** : **connexion APK rétablie** — la fonction `client-sync` déployée était restée sur la version SHA-256 nue (02/10) alors que le POS écrit désormais des PIN PBKDF2 + sel : tout code correct répondait 401 et le compteur d'échecs montait (3). Redéploiement du fichier courant via la console Supabase, vérifié par sonde temporaire PBKDF2 → 200 puis 200 en legacy, lignes de test supprimées. Ajout : poussée miroir immédiate après activation d'un accès (`registry.customers.ts`) pour que le client puisse se connecter aussitôt.
 - **Session 69 (2026-10-30)** : **mise à jour des installateurs Windows** — POS (Setup 156 Mo, Portable 136 Mo) et License Manager (Setup 139 Mo, Portable 126 Mo), x64, v1.0.0, NSIS fr perMachine, **non signés** (aucun certificat Authenticode configuré). Blocage `EBUSY default_app.asar` sur `release/` contourné par une sortie neuve `E:\veloria-build` (sans rien supprimer) ; artefacts copiés dans `release/` + `SHA256SUMS.txt` actualisé.
 - **Session 68 (2026-10-30)** : **APK client signé (build local Gradle)** — `mobile/eas.json` pointe désormais le projet `veloria-pos` (URL + clé anon publique, profils preview/production). Build release local (`./gradlew assembleRelease`, Java 17 + SDK/NDK) : `dz.veloria.client` 1.0.0 (code 1, minSdk 24, target 34), signé CN=Veloria, 88 462 721 octets, copié `release/Veloria-Client-1.0.0.apk` (SHA-256 `6bdf6017…`). URL Supabase + anon gravées dans le bundle (repli sans QR ; le QR V2 reste prioritaire). Aucun appareil/émulateur disponible : non testé au runtime. `license:scan` OK.
@@ -2899,3 +2900,64 @@ fraîchement activé (téléphone `0668640999`).
 **Git** : `fix(sync): pousser le miroir dès l'activation d'un accès client`
 
 - ce `docs(handoff)`.
+
+## 71) Session 2026-10-30 — Icônes de l'APK client (police native)
+
+**Demande** : « قم بتصحيح واجهات تطبيق العملاء هناك بعض المكونات غير ظاهرة مثل الأيقونات ».
+
+**Constat sur le téléphone réel** (APK 1.0.0 = `release/Veloria-Client-1.0.0.apk`,
+SHA identique, `adb install` du 30/10 13:20) : **toutes** les Ionicons sont
+invisibles — cloche, icônes des cartes « Mes factures / Mes paiements », étoile
+fidélité, chevrons, icônes de la barre d'onglets — alors que les textes, le
+logo et les surfaces se dessinent normalement. La hiérarchie UI ne contient
+aucun nœud d'icône.
+
+**Diagnostic**
+
+- Le web (react-native-web) rend les icônes : le glyphe et le jeu d'icônes sont
+  corrects ; le problème est propre à l'Android natif.
+- Les 19 polices `@expo/vector-icons` sont bien dans l'APK (`res/raw`, dont
+  `node_modules_expo_vectoricons_…_ionics`). `@expo/vector-icons` 14 charge la
+  police **à l'exécution** (`Font.loadAsync` → `expo-asset` →
+  `downloadAsync` de la ressource brute) ; ce chemin échoue silencieusement sur
+  cet appareil (aucune erreur JS dans logcat, `componentDidMount` reste sans
+  `fontIsLoaded`, donc `<Text />` vide). Un premier correctif (police copiée
+  dans `android/app/src/main/assets/fonts/`) n'a pas suffi : l'échec vient du
+  chargement runtime, pas de l'absence du fichier.
+
+**Correctif**
+
+- Police source versionnée : `mobile/assets/fonts/Ionicons.ttf` (copie de
+  `node_modules/@expo/vector-icons/.../Fonts/Ionicons.ttf`), déclarée dans
+  `mobile/app.json` via le plugin `expo-font` (un `expo prebuild` la recopie
+  dans les assets natifs).
+- Nouveau `mobile/src/ui/Icon.tsx` : sur Android, dessine directement le glyphe
+  (`Ionicons.getRawGlyphMap()`) avec `fontFamily: "Ionicons"` — résolu par
+  `ReactFontManager` depuis `assets/fonts/Ionicons.ttf`, sans
+  `Font.loadAsync` ; sur web, rend le composant d'origine. Les 34 usages dans
+  11 fichiers passent par `Icon` ; `kit.tsx` réexporte `IconName`.
+- Version : `1.0.1` / `versionCode 2` (`app.json`, `android/app/build.gradle`).
+- `mobile/README.md` documente la contrainte (ne pas supprimer la police).
+
+**Build / artefacts**
+
+- `assembleRelease` (Gradle, même keystore CN=Veloria, cert SHA-256
+  `c190b12a…`), APK `release/Veloria-Client-1.0.1.apk`
+  (88 719 556 octets, SHA-256
+  `6241aa7ba831a4a822be9c65ac06f67af2666076506460ed4699920e6f7708b5`),
+  `release/SHA256SUMS.txt` mis à jour. `assets/fonts/Ionicons.ttf` (442 604
+  octets) présent dans l'APK, bundle Hermes contient le nouveau composant.
+- `typecheck:mobile` OK ; `eslint src` 0 avertissement ; tests mobile 28/28 ;
+  4 écrans web + login capturés sans erreur console (`test-results/mobile-audit/`).
+
+**Limite de cette session**
+
+- Le téléphone (CPH2687) s'est déconnecté d'ADB pendant le dernier build : le
+  build 1.0.1 n'a **pas** été réinstallé/vérifié au runtime. Le premier build
+  (police seule, sans le composant) avait encore des icônes vides. À faire dès
+  reconnexion : `adb install -r release/Veloria-Client-1.0.1.apk` (même
+  signature, données conservées) puis vérifier visuellement ; si les icônes
+  restent vides, instrumenter `Font.isLoaded`/`Typeface` au prochain build.
+
+**Git** : `fix(mobile): icônes visibles — police native embarquée` + ce
+`docs(handoff)`.
