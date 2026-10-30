@@ -34,6 +34,14 @@ export function formatDateFr(iso: string): string {
   return `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
 }
 
+/** ISO → « JJ/MM HH:MM » (heure locale, fraîcheur de synchro) ; invalide → « — ». */
+export function formatDateTimeFr(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  const pad = (n: number): string => String(n).padStart(2, "0");
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 const MONTHS: Record<Lang, string[]> = {
   ar: [
     "جانفي",

@@ -5,6 +5,7 @@ import { allKeys, direction, t, type Lang } from "../../mobile/src/i18n";
 import {
   errorReportText,
   formatDateFr,
+  formatDateTimeFr,
   formatMinor,
   monthLabel,
   normalizeDigits,
@@ -74,6 +75,11 @@ describe("formateurs", () => {
   it("dates ISO → JJ/MM/AAAA, invalide → —", () => {
     expect(formatDateFr("2026-09-28T10:00:00.000Z")).toBe("28/09/2026");
     expect(formatDateFr("nope")).toBe("—");
+  });
+  it("horodatage ISO → JJ/MM HH:MM (heure locale), invalide → —", () => {
+    expect(formatDateTimeFr("nope")).toBe("—");
+    const d = new Date(2026, 9, 30, 15, 21);
+    expect(formatDateTimeFr(d.toISOString())).toBe("30/10 15:21");
   });
   it("chiffres arabes/persans → ASCII (clavier arabe)", () => {
     expect(normalizeDigits("٠٥٥٠١٢٣٤٥٦")).toBe("0550123456");

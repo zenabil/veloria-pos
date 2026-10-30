@@ -28,9 +28,12 @@ const snapshot = {
     is_over_limit: 0,
     credit_limit_minor: 6000000,
   },
+  monthKey: now.toISOString().slice(0, 7),
   monthPurchasesMinor: 1840000,
   monthPaymentsMinor: 1200000,
   loyaltyPoints: 320,
+  invoiceCount: 4,
+  totalPurchasesMinor: 5525000,
   lastSales: [
     {
       id: 142,

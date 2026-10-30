@@ -5,7 +5,17 @@ export type Lang = "ar" | "fr";
 
 const STRINGS = {
   debtRemaining: { ar: "الدين المتبقي", fr: "Dette restante" },
-  totalPurchases: { ar: "إجمالي المشتريات", fr: "Total achats" },
+  lastInvoice: { ar: "آخر فاتورة", fr: "Dernière facture" },
+  thisMonth: { ar: "هذا الشهر", fr: "Ce mois-ci" },
+  invoicesTotal: { ar: "عدد الفواتير", fr: "Factures au total" },
+  creditUsage: { ar: "استخدام الائتمان", fr: "Utilisation du crédit" },
+  purchasesThisMonth: { ar: "مشتريات الشهر", fr: "Achats du mois" },
+  paidThisMonth: { ar: "مدفوعات الشهر", fr: "Payés ce mois" },
+  welcomeTitle: { ar: "مرحباً بك في فضاء الزبون", fr: "Bienvenue dans votre espace" },
+  welcomeHint: {
+    ar: "ستظهر فواتيرك ومدفوعاتك هنا بعد أول عملية شراء.",
+    fr: "Vos factures et paiements apparaîtront ici après votre premier achat.",
+  },
   loyaltyInfo: { ar: "نقاط الولاء (للعرض فقط)", fr: "Points fidélité (info)" },
   loyaltyHint: {
     ar: "نقاط تحفيزية غير قابلة للصرف حالياً",
@@ -129,8 +139,6 @@ const STRINGS = {
   },
   greeting: { ar: "السلام عليكم", fr: "Bonjour" },
   greetingEvening: { ar: "مساء الخير", fr: "Bonsoir" },
-  dueInvoices: { ar: "فواتير بانتظار الدفع", fr: "Factures à régler" },
-  ofLimit: { ar: "من سقف الائتمان", fr: "du plafond" },
   topProducts: { ar: "أكثر ما اشتريته", fr: "Vos articles phares" },
   invoiceLabel: { ar: "الفاتورة", fr: "Facture" },
   dateLabel: { ar: "التاريخ", fr: "Date" },

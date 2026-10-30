@@ -1,19 +1,19 @@
-// Veloria Client — Écran 02 : accueil V4 « Daylight plat ».
-// Bandeau d'encre plat (le chiffre de dette EST le héros), récapitulatif et
-// aperçus en groupes à filets : plus de carte qui déborde d'un dégradé, plus de
-// bento, plus de slab or pour la fidélité. Logique inchangée : toHome() +
-// masquage des montants + refresh + données périmées.
+// Veloria Client — Écran 02 : accueil V5 « Tableau de bord client ».
+// La dette reste le héros ; la dernière facture devient une carte qui chevauche
+// le bandeau, le crédit vit DANS le bandeau, le mois se lit en deux colonnes
+// tactiles (achats / payés) et un client sans activité voit un accueil dédié.
+// Logique inchangée : toHome() + masquage des montants + refresh + données
+// périmées ; aucune donnée n'est recalculée ici.
 import { useState } from "react";
 import { RefreshControl, ScrollView, Text, View } from "react-native";
 import { Icon } from "../ui/Icon.tsx";
-import { COLORS, HAIRLINE, RADIUS, SPACE, SIZES, debtColor } from "../tokens.ts";
+import { COLORS, HAIRLINE, RADIUS, SHADOW, SIZES, SPACE, debtColor } from "../tokens.ts";
 import { direction, t, type Lang } from "../i18n.ts";
-import { formatDateFr, formatMinor } from "../format.ts";
+import { formatDateFr, formatDateTimeFr, formatMinor, monthLabel } from "../format.ts";
 import { toHome, type HomeInvoice } from "../views.ts";
 import {
   Amount,
   Badge,
-  Button,
   Divider,
   Group,
   IconBubble,
@@ -83,21 +83,20 @@ export function HomeScreen(props: {
   const h = toHome(props.snapshot);
   const [spinning, setSpinning] = useState(false);
   const tone = debtColor(h.debtStatus, h.overLimit);
-  // D12 : salut selon l'heure (soir après 18h) + ligne dynamique — une seule
-  // phrase utile sous le nom : les impayés s'ils existent, sinon rien.
+  // D12 : salut selon l'heure (soir après 18h).
   const hour = new Date().getHours();
   const greetKey = hour >= 18 || hour < 5 ? "greetingEvening" : "greeting";
-  const dueCount = h.lastSales.filter(
-    (s) => s.is_cancelled !== 1 && s.payment_status !== "paid",
-  ).length;
   const amount = (v: number): string => (props.hidden ? "•••" : formatMinor(v, l));
   const creditUsed =
     h.creditLimitMinor > 0
       ? Math.min(100, Math.round((h.debtMinor / h.creditLimitMinor) * 100))
       : null;
+  const lastSale = h.lastSales[0] ?? null;
+  const hasActivity = h.lastSales.length > 0 || h.lastPayments.length > 0;
+  const month = h.monthKey !== "" ? monthLabel(h.monthKey, l) : "";
   const syncLine = props.stale
     ? `${t(l, "staleDataOn")} ${props.syncedAt ? formatDateFr(props.syncedAt) : "—"}`
-    : `${t(l, "connected")} · ${props.syncedAt ? formatDateFr(props.syncedAt) : "—"}`;
+    : `${t(l, "lastSync")} · ${props.syncedAt ? formatDateTimeFr(props.syncedAt) : "—"}`;
 
   return (
     <ScrollView
@@ -113,8 +112,8 @@ export function HomeScreen(props: {
         />
       }
     >
-      {/* Bandeau d'encre plat : boutique, solde, statut, fraîcheur. */}
-      <View style={{ backgroundColor: COLORS.headerBg, padding: SPACE.lg }}>
+      {/* Bandeau d'encre : boutique, dette, crédit, fraîcheur. */}
+      <View style={{ backgroundColor: COLORS.headerBg, padding: SPACE.lg, paddingBottom: 40 }}>
         <View style={{ flexDirection: flow(dir), alignItems: "flex-start", gap: SPACE.md }}>
           <View style={{ flex: 1 }}>
             <Text style={{ color: COLORS.navyMuted, fontSize: 12, fontWeight: "700" }}>
@@ -133,44 +132,36 @@ export function HomeScreen(props: {
               {h.shop.name}
             </Text>
           </View>
-        </View>
-
-        <View style={{ marginTop: SPACE.lg }}>
-          {/* L'œil commande les montants : il vit à côté du solde, pas dans un
-              coin perdu du bandeau. */}
-          <View
+          {/* L'œil commande les montants : une pastille lisible sur l'encre. */}
+          <Tap
+            onPress={props.onToggleHidden}
+            accessibilityLabel={props.hidden ? t(l, "showAmounts") : t(l, "hideAmounts")}
+            hitSlop={8}
             style={{
               flexDirection: flow(dir),
               alignItems: "center",
-              justifyContent: "space-between",
-              gap: SPACE.sm,
+              gap: 6,
+              minHeight: 40,
+              paddingHorizontal: SPACE.md,
+              borderRadius: RADIUS.pill,
+              backgroundColor: COLORS.navySoft,
             }}
           >
-            <Text style={{ color: COLORS.navyMuted, fontSize: 12, fontWeight: "700" }}>
-              {t(l, "debtRemaining")}
+            <Icon
+              name={props.hidden ? "eye-off-outline" : "eye-outline"}
+              size={16}
+              color={COLORS.headerText}
+            />
+            <Text style={{ color: COLORS.headerText, fontSize: 11, fontWeight: "700" }}>
+              {props.hidden ? t(l, "showAmounts") : t(l, "hideAmounts")}
             </Text>
-            <Tap
-              onPress={props.onToggleHidden}
-              accessibilityLabel={props.hidden ? t(l, "showAmounts") : t(l, "hideAmounts")}
-              hitSlop={8}
-              style={{
-                flexDirection: flow(dir),
-                alignItems: "center",
-                gap: 6,
-                minHeight: 36,
-                paddingHorizontal: SPACE.sm,
-              }}
-            >
-              <Icon
-                name={props.hidden ? "eye-off-outline" : "eye-outline"}
-                size={16}
-                color={COLORS.headerText}
-              />
-              <Text style={{ color: COLORS.navyMuted, fontSize: 11, fontWeight: "700" }}>
-                {props.hidden ? t(l, "showAmounts") : t(l, "hideAmounts")}
-              </Text>
-            </Tap>
-          </View>
+          </Tap>
+        </View>
+
+        <View style={{ marginTop: SPACE.lg }}>
+          <Text style={{ color: COLORS.navyMuted, fontSize: 12, fontWeight: "700" }}>
+            {t(l, "debtRemaining")}
+          </Text>
           <Amount
             text={amount(h.debtMinor)}
             tone={COLORS.white}
@@ -190,13 +181,64 @@ export function HomeScreen(props: {
               color={bandTone(tone)}
               dot
             />
-            {dueCount > 0 ? (
-              <Text style={{ color: COLORS.navyMuted, fontSize: 12 }} numberOfLines={1}>
-                {dueCount} · {t(l, "dueInvoices")}
-              </Text>
-            ) : null}
           </View>
         </View>
+
+        {/* Utilisation du crédit : DANS le bandeau, elle fait partie du solde. */}
+        {creditUsed != null ? (
+          <View
+            accessible
+            accessibilityLabel={
+              props.hidden
+                ? t(l, "creditUsage")
+                : `${t(l, "creditUsage")} ${creditUsed}% ${amount(h.creditLimitMinor)}`
+            }
+            style={{
+              backgroundColor: COLORS.navySoft,
+              borderRadius: RADIUS.cardSm,
+              padding: SPACE.md,
+              marginTop: SPACE.md,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: flow(dir),
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: SPACE.sm,
+              }}
+            >
+              <Text style={{ color: COLORS.navyMuted, fontSize: 11, fontWeight: "700" }}>
+                {t(l, "creditUsage")}
+              </Text>
+              <Text style={{ color: COLORS.headerText, fontSize: 11, fontWeight: "800" }}>
+                {props.hidden ? "•••" : `${creditUsed}%`} · {amount(h.creditLimitMinor)}
+              </Text>
+            </View>
+            {/* Barre segmentée (10 crans) : lisible d'un coup d'œil. */}
+            <View style={{ flexDirection: flow(dir), gap: 3, marginTop: SPACE.sm }}>
+              {Array.from({ length: 10 }, (_, i) => {
+                const filled = i * 10 < creditUsed;
+                const danger = creditUsed >= 90;
+                return (
+                  <View
+                    key={i}
+                    style={{
+                      flex: 1,
+                      height: 5,
+                      borderRadius: 3,
+                      backgroundColor: filled
+                        ? danger
+                          ? COLORS.debtOverdue
+                          : COLORS.primary
+                        : COLORS.navyLine,
+                    }}
+                  />
+                );
+              })}
+            </View>
+          </View>
+        ) : null}
 
         {/* Fraîcheur : une ligne, et « réessayer » seulement si périmé. */}
         <View
@@ -247,75 +289,67 @@ export function HomeScreen(props: {
         </View>
       </View>
 
-      <View style={{ padding: SPACE.lg }}>
-        {/* Utilisation du crédit : bloc tonal, la barre segmentée suffit. */}
-        {creditUsed != null ? (
-          <View
+      <View style={{ paddingHorizontal: SPACE.lg, paddingBottom: SPACE.lg }}>
+        {/* Dernière facture : la carte chevauche le bandeau (seule élévation). */}
+        {lastSale ? (
+          <Tap
+            onPress={() => props.onOpenDetail?.(lastSale)}
+            accessibilityLabel={`${t(l, "lastInvoice")} ${lastSale.invoice_number}, ${formatDateFr(
+              lastSale.created_at,
+            )}, ${statusText(l, lastSale)}, ${t(l, "remaining")} ${amount(
+              lastSale.remaining_balance_minor,
+            )}`}
             style={{
-              backgroundColor: COLORS.toneBg,
+              marginTop: -24,
+              backgroundColor: COLORS.cardBg,
               borderRadius: RADIUS.cardSm,
               padding: SPACE.md,
+              flexDirection: flow(dir),
+              alignItems: "center",
+              gap: SPACE.md,
+              ...HAIRLINE,
+              ...SHADOW.card,
             }}
           >
-            <View
-              style={{
-                flexDirection: flow(dir),
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: SPACE.sm,
-              }}
-            >
-              <Text style={{ color: COLORS.cardMuted, fontSize: 12 }}>
-                {/* Pourcentage masqué comme les montants (« Masquer » actif). */}
-                {props.hidden ? "•••" : `${creditUsed}%`} {t(l, "ofLimit")}
+            <IconBubble icon={statusIcon(lastSale)} color={sideColor(lastSale)} size={38} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: COLORS.cardMuted, fontSize: 10, fontWeight: "800" }}>
+                {t(l, "lastInvoice")}
               </Text>
-              <Amount text={amount(h.creditLimitMinor)} size={13} />
+              <Text
+                style={{
+                  color: COLORS.cardText,
+                  fontSize: 15,
+                  lineHeight: 20,
+                  fontWeight: "800",
+                  marginTop: 1,
+                }}
+                numberOfLines={1}
+              >
+                {lastSale.invoice_number}
+              </Text>
+              <Text style={{ color: COLORS.cardMuted, fontSize: 11 }} numberOfLines={1}>
+                {formatDateFr(lastSale.created_at)} · {statusText(l, lastSale)}
+              </Text>
             </View>
-            {/* D13 : barre segmentée (10 crans) — lisible d'un coup d'œil,
-                jamais d'anneau décoratif. Danger à 90 %+. */}
-            <View style={{ flexDirection: flow(dir), gap: 3, marginTop: SPACE.sm }}>
-              {Array.from({ length: 10 }, (_, i) => {
-                const filled = i * 10 < creditUsed;
-                const danger = creditUsed >= 90;
-                return (
-                  <View
-                    key={i}
-                    style={{
-                      flex: 1,
-                      height: 6,
-                      borderRadius: 3,
-                      backgroundColor: filled
-                        ? danger
-                          ? COLORS.debtOverdue
-                          : COLORS.primary
-                        : COLORS.gray200,
-                    }}
-                  />
-                );
-              })}
+            <View style={{ alignItems: rtl ? "flex-start" : "flex-end", gap: 1 }}>
+              <Text style={{ color: COLORS.cardMuted, fontSize: 10, fontWeight: "700" }}>
+                {t(l, "remaining")}
+              </Text>
+              <Amount
+                text={amount(lastSale.remaining_balance_minor)}
+                tone={sideColor(lastSale)}
+                size={SIZES.amountMd}
+                align={farEdge(rtl)}
+              />
             </View>
-          </View>
+            <Icon
+              name={rtl ? "chevron-back" : "chevron-forward"}
+              size={14}
+              color={COLORS.inkFaint}
+            />
+          </Tap>
         ) : null}
-
-        {/* Raccourcis : deux boutons discrets (les onglets restent la nav). */}
-        <View style={{ flexDirection: flow(dir), gap: SPACE.sm, marginTop: SPACE.md }}>
-          <Button
-            label={t(l, "invoices")}
-            icon="receipt-outline"
-            variant="quiet"
-            style={{ flex: 1 }}
-            accessibilityLabel={t(l, "invoices")}
-            onPress={() => props.onOpenTab("invoices")}
-          />
-          <Button
-            label={t(l, "payments")}
-            icon="wallet-outline"
-            variant="quiet"
-            style={{ flex: 1 }}
-            accessibilityLabel={t(l, "payments")}
-            onPress={() => props.onOpenTab("payments")}
-          />
-        </View>
 
         {h.announcement ? (
           <View
@@ -339,144 +373,200 @@ export function HomeScreen(props: {
           </View>
         ) : null}
 
-        {/* Récapitulatif du mois : un groupe, deux lignes. */}
-        <View style={{ marginTop: SPACE.lg }}>
-          <Group>
-            <Row
-              dir={dir}
-              title={t(l, "totalPurchases")}
-              caption={`${h.lastSales.length} ${t(l, "invoices")}`}
-              value={amount(h.monthPurchasesMinor)}
-            />
-            <Divider />
-            <Row
-              dir={dir}
-              title={t(l, "payments")}
-              caption={`${h.lastPayments.length} ${t(l, "payments")}`}
-              value={amount(h.monthPaymentsMinor)}
-              valueTone={COLORS.debtOk}
-            />
-          </Group>
-        </View>
-
-        {/* Fidélité : ligne tonale discrète (information non actionnable). */}
-        <View
-          style={{
-            flexDirection: flow(dir),
-            alignItems: "center",
-            gap: SPACE.md,
-            backgroundColor: COLORS.toneBg,
-            borderRadius: RADIUS.cardSm,
-            padding: SPACE.md,
-            marginTop: SPACE.md,
-          }}
-        >
-          <IconBubble icon="star-outline" color={COLORS.cardText} size={32} bg={COLORS.cardBg} />
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: COLORS.cardText, fontWeight: "700", fontSize: 13 }}>
-              {t(l, "loyaltyInfo")}
-            </Text>
-            <Text
-              style={{ color: COLORS.cardMuted, fontSize: 11, marginTop: 2, lineHeight: 15 }}
-              numberOfLines={2}
-            >
-              {t(l, "loyaltyHint")}
-            </Text>
-          </View>
-          <Amount
-            text={props.hidden ? "•••" : String(h.loyaltyPoints)}
-            tone={COLORS.cardText}
-            size={18}
-            align={farEdge(rtl)}
-          />
-        </View>
-
-        {/* Aperçu factures */}
-        <SectionHead
-          title={t(l, "invoices")}
-          actionLabel={t(l, "viewAll")}
-          onPress={() => props.onOpenTab("invoices")}
-          dir={dir}
-        />
-        {h.lastSales.length === 0 ? (
-          <Group>
-            <EmptyState
-              icon="receipt-outline"
-              title={t(l, "noInvoices")}
-              hint={t(l, "emptyHint")}
-            />
-          </Group>
-        ) : (
-          <Group>
-            {h.lastSales.map((s, i) => (
-              <View key={s.id}>
-                {i > 0 ? <Divider /> : null}
-                <Row
-                  dir={dir}
-                  title={s.invoice_number}
-                  caption={`${formatDateFr(s.created_at)} · ${statusText(l, s)} · ${t(l, "remaining")}`}
-                  value={amount(s.remaining_balance_minor)}
-                  valueTone={sideColor(s)}
-                  icon={statusIcon(s)}
-                  iconTone={sideColor(s)}
-                  chevron
-                  accessibilityLabel={`${s.invoice_number}, ${statusText(l, s)}, ${t(l, "remaining")} ${amount(s.remaining_balance_minor)}`}
-                  onPress={() => props.onOpenDetail?.(s)}
-                />
-              </View>
-            ))}
-          </Group>
-        )}
-
-        {/* Aperçu paiements */}
-        <SectionHead
-          title={t(l, "payments")}
-          actionLabel={t(l, "viewAll")}
-          onPress={() => props.onOpenTab("payments")}
-          dir={dir}
-        />
-        {h.lastPayments.length === 0 ? (
-          <Group>
-            <EmptyState icon="wallet-outline" title={t(l, "noPayments")} hint={t(l, "emptyHint")} />
-          </Group>
-        ) : (
-          <Group>
-            {h.lastPayments.map((p, i) => (
-              <View key={p.id}>
-                {i > 0 ? <Divider inset={SPACE.lg} /> : null}
-                <Row
-                  dir={dir}
-                  title={formatDateFr(p.payment_date)}
-                  caption={p.sale_id != null ? t(l, "invoicePayment") : t(l, "accountAdvance")}
-                  value={`+${amount(p.amount_minor)}`}
-                  valueTone={COLORS.debtOk}
-                  icon="arrow-down"
-                  iconTone={COLORS.debtOk}
-                />
-              </View>
-            ))}
-          </Group>
-        )}
-
-        {/* Top produits */}
-        {h.topProducts.length > 0 ? (
+        {hasActivity ? (
           <>
-            <SectionHead title={t(l, "topProducts")} dir={dir} />
-            <Group>
-              {h.topProducts.map((p, i) => (
-                <View key={`${p.name}#${i}`}>
-                  {i > 0 ? <Divider inset={SPACE.lg} /> : null}
-                  <Row
-                    dir={dir}
-                    title={p.name}
-                    caption={p.lastPriceMinor > 0 ? amount(p.lastPriceMinor) : undefined}
-                    value={`×${p.quantity}`}
-                  />
+            {/* Le mois en deux colonnes tactiles : achats / payés. */}
+            <SectionHead
+              title={t(l, "thisMonth")}
+              caption={month !== "" ? month : undefined}
+              dir={dir}
+            />
+            <View
+              style={{
+                flexDirection: flow(dir),
+                backgroundColor: COLORS.cardBg,
+                borderRadius: RADIUS.card,
+                overflow: "hidden",
+                ...HAIRLINE,
+              }}
+            >
+              <Tap
+                onPress={() => props.onOpenTab("invoices")}
+                accessibilityLabel={`${t(l, "purchasesThisMonth")} ${amount(
+                  h.monthPurchasesMinor,
+                )}`}
+                style={{ flex: 1, padding: SPACE.md, gap: 6, minHeight: 78 }}
+              >
+                <View style={{ flexDirection: flow(dir), alignItems: "center", gap: 6 }}>
+                  <Icon name="receipt-outline" size={14} color={COLORS.cardMuted} />
+                  <Text style={{ color: COLORS.cardMuted, fontSize: 11, fontWeight: "700" }}>
+                    {t(l, "purchasesThisMonth")}
+                  </Text>
                 </View>
-              ))}
-            </Group>
+                <Amount text={amount(h.monthPurchasesMinor)} size={SIZES.amountMd} />
+              </Tap>
+              <View style={{ width: 1, backgroundColor: COLORS.divider }} />
+              <Tap
+                onPress={() => props.onOpenTab("payments")}
+                accessibilityLabel={`${t(l, "paidThisMonth")} ${amount(h.monthPaymentsMinor)}`}
+                style={{ flex: 1, padding: SPACE.md, gap: 6, minHeight: 78 }}
+              >
+                <View style={{ flexDirection: flow(dir), alignItems: "center", gap: 6 }}>
+                  <Icon name="wallet-outline" size={14} color={COLORS.cardMuted} />
+                  <Text style={{ color: COLORS.cardMuted, fontSize: 11, fontWeight: "700" }}>
+                    {t(l, "paidThisMonth")}
+                  </Text>
+                </View>
+                <Amount
+                  text={amount(h.monthPaymentsMinor)}
+                  tone={COLORS.debtOk}
+                  size={SIZES.amountMd}
+                />
+              </Tap>
+            </View>
+
+            {/* Fidélité : ligne tonale discrète (information non actionnable). */}
+            <View
+              style={{
+                flexDirection: flow(dir),
+                alignItems: "center",
+                gap: SPACE.md,
+                backgroundColor: COLORS.toneBg,
+                borderRadius: RADIUS.cardSm,
+                padding: SPACE.md,
+                marginTop: SPACE.md,
+              }}
+            >
+              <IconBubble
+                icon="star-outline"
+                color={COLORS.cardText}
+                size={32}
+                bg={COLORS.cardBg}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: COLORS.cardText, fontWeight: "700", fontSize: 13 }}>
+                  {t(l, "loyaltyInfo")}
+                </Text>
+                <Text
+                  style={{ color: COLORS.cardMuted, fontSize: 11, marginTop: 2, lineHeight: 15 }}
+                  numberOfLines={2}
+                >
+                  {t(l, "loyaltyHint")}
+                </Text>
+              </View>
+              <Amount
+                text={props.hidden ? "•••" : String(h.loyaltyPoints)}
+                tone={COLORS.cardText}
+                size={18}
+                align={farEdge(rtl)}
+              />
+            </View>
+
+            {/* Aperçu factures */}
+            <SectionHead
+              title={t(l, "invoices")}
+              caption={`${t(l, "invoicesTotal")} · ${h.invoiceCount}`}
+              actionLabel={t(l, "viewAll")}
+              onPress={() => props.onOpenTab("invoices")}
+              dir={dir}
+            />
+            {h.lastSales.length === 0 ? (
+              <Group>
+                <EmptyState
+                  icon="receipt-outline"
+                  title={t(l, "noInvoices")}
+                  hint={t(l, "emptyHint")}
+                />
+              </Group>
+            ) : (
+              <Group>
+                {h.lastSales.map((s, i) => (
+                  <View key={s.id}>
+                    {i > 0 ? <Divider /> : null}
+                    <Row
+                      dir={dir}
+                      title={s.invoice_number}
+                      caption={`${formatDateFr(s.created_at)} · ${statusText(l, s)}`}
+                      value={amount(s.remaining_balance_minor)}
+                      valueTone={sideColor(s)}
+                      icon={statusIcon(s)}
+                      iconTone={sideColor(s)}
+                      chevron
+                      accessibilityLabel={`${s.invoice_number}, ${statusText(l, s)}, ${t(
+                        l,
+                        "remaining",
+                      )} ${amount(s.remaining_balance_minor)}`}
+                      onPress={() => props.onOpenDetail?.(s)}
+                    />
+                  </View>
+                ))}
+              </Group>
+            )}
+
+            {/* Aperçu paiements */}
+            <SectionHead
+              title={t(l, "payments")}
+              actionLabel={t(l, "viewAll")}
+              onPress={() => props.onOpenTab("payments")}
+              dir={dir}
+            />
+            {h.lastPayments.length === 0 ? (
+              <Group>
+                <EmptyState
+                  icon="wallet-outline"
+                  title={t(l, "noPayments")}
+                  hint={t(l, "emptyHint")}
+                />
+              </Group>
+            ) : (
+              <Group>
+                {h.lastPayments.map((p, i) => (
+                  <View key={p.id}>
+                    {i > 0 ? <Divider inset={SPACE.lg} /> : null}
+                    <Row
+                      dir={dir}
+                      title={formatDateFr(p.payment_date)}
+                      caption={p.sale_id != null ? t(l, "invoicePayment") : t(l, "accountAdvance")}
+                      value={`+${amount(p.amount_minor)}`}
+                      valueTone={COLORS.debtOk}
+                      icon="arrow-down"
+                      iconTone={COLORS.debtOk}
+                    />
+                  </View>
+                ))}
+              </Group>
+            )}
+
+            {/* Top produits */}
+            {h.topProducts.length > 0 ? (
+              <>
+                <SectionHead title={t(l, "topProducts")} dir={dir} />
+                <Group>
+                  {h.topProducts.map((p, i) => (
+                    <View key={`${p.name}#${i}`}>
+                      {i > 0 ? <Divider inset={SPACE.lg} /> : null}
+                      <Row
+                        dir={dir}
+                        title={p.name}
+                        caption={p.lastPriceMinor > 0 ? amount(p.lastPriceMinor) : undefined}
+                        value={`×${p.quantity}`}
+                      />
+                    </View>
+                  ))}
+                </Group>
+              </>
+            ) : null}
           </>
-        ) : null}
+        ) : (
+          // Client sans activité : un accueil dédié, jamais une pile de vides.
+          <Group style={{ marginTop: SPACE.lg }}>
+            <EmptyState
+              icon="storefront-outline"
+              title={t(l, "welcomeTitle")}
+              hint={t(l, "welcomeHint")}
+            />
+          </Group>
+        )}
       </View>
     </ScrollView>
   );

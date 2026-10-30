@@ -54,6 +54,10 @@ export interface HomeData {
   monthPurchasesMinor: number;
   monthPaymentsMinor: number;
   loyaltyPoints: number;
+  /** Nombre total de factures vivantes (cliché `invoiceCount`). */
+  invoiceCount: number;
+  /** Mois courant « AAAA-MM » du cliché (libellé du récapitulatif). */
+  monthKey: string;
   lastSales: HomeInvoice[];
   lastPayments: HomePayment[];
   topProducts: { name: string; quantity: number; lastPriceMinor: number }[];
@@ -128,6 +132,9 @@ export function toHome(payload: unknown): HomeData {
     is_cancelled: num(s["is_cancelled"]),
     created_at: str(s["created_at"]),
   });
+  // `invoiceCount` absent (ancien cliché) : la prévisualisation (3 max) reste
+  // le meilleur minorant lisible — jamais 0 à côté de factures affichées.
+  const invoiceCount = num(p["invoiceCount"]);
   return {
     debtMinor: num(customer["outstanding_balance_minor"]),
     debtStatus: str(customer["debt_status"]) || "none",
@@ -136,6 +143,8 @@ export function toHome(payload: unknown): HomeData {
     monthPurchasesMinor: num(p["monthPurchasesMinor"]),
     monthPaymentsMinor: num(p["monthPaymentsMinor"]),
     loyaltyPoints: num(p["loyaltyPoints"]),
+    invoiceCount: invoiceCount > 0 ? invoiceCount : sales.length,
+    monthKey: str(p["monthKey"]),
     lastSales: sales.map(mapSale),
     lastPayments: payments.map((x) => ({
       id: num(x["id"]),

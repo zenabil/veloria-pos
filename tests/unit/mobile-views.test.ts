@@ -15,8 +15,10 @@ describe("toHome", () => {
   it("mappe le cliché, défauts sûrs si champs absents", () => {
     const h = toHome({
       customer: { outstanding_balance_minor: 250000, debt_status: "due", credit_limit_minor: 0 },
+      monthKey: "2026-10",
       monthPurchasesMinor: 100000,
       loyaltyPoints: 3,
+      invoiceCount: 4,
       lastSales: [
         {
           id: 1,
@@ -34,12 +36,18 @@ describe("toHome", () => {
     expect(h.debtMinor).toBe(250000);
     expect(h.overLimit).toBe(false);
     expect(h.lastSales).toHaveLength(1);
+    expect(h.invoiceCount).toBe(4);
+    expect(h.monthKey).toBe("2026-10");
     const empty = toHome(null);
     expect(empty.debtMinor).toBe(0);
     expect(empty.debtStatus).toBe("none");
     expect(empty.syncedAt).toBeNull();
     expect(empty.announcement).toBeNull();
     expect(empty.shop.name).toBe("Veloria");
+    expect(empty.invoiceCount).toBe(0);
+    expect(empty.monthKey).toBe("");
+    // Ancien cliché sans invoiceCount : la prévisualisation (bornée) dépanne.
+    expect(toHome({ lastSales: [{}, {}] }).invoiceCount).toBe(2);
   });
   it("mappe annonce + boutique, défauts sûrs", () => {
     const h = toHome({
