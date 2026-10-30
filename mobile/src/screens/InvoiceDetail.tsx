@@ -1,12 +1,13 @@
-// Veloria Client — Écran 06 : page détail facture V4 « Daylight plat ».
-// Ticket 80 mm conservé (Dashed + Mono, parité avec le ticket imprimé), mais
-// plat : monogramme sans dégradé, totaux sur bandeau tonal CLAIR (le bloc navy
-// de la V3 rendait les montants masqués illisibles), statut en pastille à point.
+// Veloria Client — Écran 06 : page détail facture V5 « fiche + ticket ».
+// Le bandeau de navigation reste encre ; la fiche financière (boutique, statut,
+// reste en héros, total/payé) devient la première carte, les articles vivent
+// dans leur propre carte, puis la référence QR et les actions. Le ticket 80 mm
+// (Dashed + Mono) est conservé comme vocabulaire, sans dégradé ni bloc navy.
 // Données via `fetchInvoiceDetail` (App : `detail`, `loading`, `error`, `onRetry`).
 import { useState } from "react";
 import { RefreshControl, ScrollView, Text, View } from "react-native";
 import { Icon } from "../ui/Icon.tsx";
-import { COLORS, HAIRLINE, RADIUS, SPACE, tint } from "../tokens.ts";
+import { COLORS, FONTS, HAIRLINE, RADIUS, SIZES, SPACE, tint } from "../tokens.ts";
 import { direction, t, type Lang } from "../i18n.ts";
 import { errorReportText, formatDateFr, formatMinor } from "../format.ts";
 import type { HomeInvoice, InvoiceDetail } from "../views.ts";
@@ -56,8 +57,6 @@ export function InvoiceDetailScreen(props: {
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.contentBg }}>
       <PageBar
-        // Le numéro passe en sous-titre : en RTL, « titre · FAC-… » faisait
-        // sauter le début du libellé arabe (troncature à gauche).
         title={t(l, "detailTitle")}
         subtitle={`${s.invoice_number} · ${props.shopName}`}
         onBack={props.onBack}
@@ -89,8 +88,7 @@ export function InvoiceDetailScreen(props: {
       <ScrollView
         contentContainerStyle={{
           padding: SPACE.lg,
-          // Le dock est masqué sur cette page (App : `!detailRow`) : pas besoin
-          // de la réserve de 88 dp, seulement un confort de pouce.
+          // Le dock est masqué sur cette page : confort de pouce seulement.
           paddingBottom: SPACE.xxl,
         }}
         refreshControl={
@@ -103,7 +101,7 @@ export function InvoiceDetailScreen(props: {
           />
         }
       >
-        {/* Ticket 80 mm — surface claire à filet, plus d'ombre. */}
+        {/* Fiche financière : identité du ticket + reste en héros. */}
         <View
           style={{
             backgroundColor: COLORS.cardBg,
@@ -112,106 +110,156 @@ export function InvoiceDetailScreen(props: {
             ...HAIRLINE,
           }}
         >
-          <View style={{ alignItems: "center", marginBottom: SPACE.md }}>
+          <View style={{ flexDirection: flow(dir), alignItems: "center", gap: SPACE.md }}>
             <View
               style={{
-                width: 52,
-                height: 52,
+                width: 46,
+                height: 46,
                 borderRadius: RADIUS.cardSm,
                 backgroundColor: COLORS.primary,
                 alignItems: "center",
                 justifyContent: "center",
               }}
             >
-              <Text style={{ color: COLORS.headerBg, fontWeight: "900", fontSize: 22 }}>V</Text>
+              <Text style={{ color: COLORS.headerBg, fontWeight: "900", fontSize: 20 }}>V</Text>
             </View>
-            <Text
-              style={{
-                color: COLORS.cardText,
-                fontWeight: "800",
-                fontSize: 19,
-                lineHeight: 25,
-                marginTop: 10,
-                letterSpacing: 0.3,
-              }}
-            >
-              {props.shopName}
-            </Text>
-            <Text style={{ color: COLORS.cardMuted, fontSize: 12 }}>{props.customerName}</Text>
-          </View>
-
-          <Dashed />
-
-          <View
-            style={{
-              flexDirection: flow(dir),
-              justifyContent: "space-between",
-              paddingTop: SPACE.md,
-              gap: SPACE.md,
-            }}
-          >
-            <View>
-              <Text style={{ color: COLORS.cardMuted, fontSize: 11 }}>{t(l, "invoiceLabel")}</Text>
-              <Text style={{ fontFamily: "monospace", fontWeight: "800", color: COLORS.cardText }}>
-                {s.invoice_number}
-              </Text>
-            </View>
-            <View style={{ alignItems: rtl ? "flex-start" : "flex-end" }}>
-              <Text style={{ color: COLORS.cardMuted, fontSize: 11 }}>{t(l, "dateLabel")}</Text>
+            <View style={{ flex: 1 }}>
               <Text
-                style={{
-                  color: COLORS.cardText,
-                  fontWeight: "700",
-                  textAlign: farEdge(rtl),
-                }}
+                style={{ color: COLORS.cardText, fontWeight: "800", fontSize: 17, lineHeight: 22 }}
+                numberOfLines={1}
               >
-                {formatDateFr(s.created_at)}
+                {props.shopName}
+              </Text>
+              <Text style={{ color: COLORS.cardMuted, fontSize: 12 }} numberOfLines={1}>
+                {props.customerName}
               </Text>
             </View>
-          </View>
-
-          <View style={{ marginTop: SPACE.sm }}>
             <Badge label={statusLabel(l, s)} color={tone} />
           </View>
 
-          {/* Lignes produits */}
-          <Text
+          <Dashed style={{ marginVertical: SPACE.md }} />
+
+          <Text style={{ color: COLORS.cardMuted, fontSize: 11, fontWeight: "700" }}>
+            {t(l, "remaining")}
+          </Text>
+          <Amount
+            text={s.is_cancelled === 1 ? t(l, "cancelled") : amount(s.remaining_balance_minor)}
+            tone={s.is_cancelled === 1 ? COLORS.cardMuted : tone}
+            size={SIZES.heroAmount}
+            align={rtl ? "right" : "left"}
+          />
+
+          {/* Total / Payé : deux mini-cartes sous le héros — côte à côte, le
+              montant « DZD » du héros se tronquait en français. */}
+          <View style={{ flexDirection: flow(dir), gap: SPACE.sm, marginTop: SPACE.sm }}>
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: COLORS.toneBg,
+                borderRadius: RADIUS.inner,
+                padding: SPACE.sm,
+                gap: 2,
+              }}
+            >
+              <Text style={{ color: COLORS.cardMuted, fontSize: 10, fontWeight: "700" }}>
+                {t(l, "total")}
+              </Text>
+              <Amount text={amount(s.total_minor)} size={13} align={rtl ? "right" : "left"} />
+            </View>
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: COLORS.toneBg,
+                borderRadius: RADIUS.inner,
+                padding: SPACE.sm,
+                gap: 2,
+              }}
+            >
+              <Text style={{ color: COLORS.cardMuted, fontSize: 10, fontWeight: "700" }}>
+                {t(l, "paidAmount")}
+              </Text>
+              <Amount
+                text={paid != null ? amount(paid) : "—"}
+                tone={COLORS.debtOk}
+                size={13}
+                align={rtl ? "right" : "left"}
+              />
+            </View>
+          </View>
+
+          <Text style={{ color: COLORS.cardMuted, fontSize: 11, marginTop: SPACE.md }}>
+            {t(l, "dateLabel")} · {formatDateFr(s.created_at)}
+          </Text>
+        </View>
+
+        {/* Articles : une carte, des filets internes. */}
+        <View
+          style={{
+            backgroundColor: COLORS.cardBg,
+            borderRadius: RADIUS.card,
+            padding: SPACE.lg,
+            marginTop: SPACE.md,
+            ...HAIRLINE,
+          }}
+        >
+          <View
             style={{
-              fontWeight: "800",
-              fontSize: 13,
-              marginTop: SPACE.lg,
+              flexDirection: flow(dir),
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: SPACE.sm,
               marginBottom: SPACE.sm,
-              color: COLORS.cardMuted,
-              letterSpacing: 0.4,
             }}
           >
-            {t(l, "itemsTitle")}
-          </Text>
+            <Text
+              style={{
+                color: COLORS.cardMuted,
+                fontWeight: "800",
+                fontSize: 12,
+                letterSpacing: 0.6,
+              }}
+            >
+              {t(l, "itemsTitle")}
+            </Text>
+            <Text style={{ color: COLORS.cardMuted, fontSize: 11, fontFamily: FONTS.mono }}>
+              {props.detail ? props.detail.items.length : "—"}
+            </Text>
+          </View>
+
           {props.loading && !props.detail ? (
             <SkeletonList count={3} bare />
           ) : props.detail && props.detail.items.length > 0 ? (
             props.detail.items.map((it, i) => (
-              <View
-                key={`${it.name}-${i}`}
-                style={{
-                  flexDirection: flow(dir),
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  paddingVertical: SPACE.sm,
-                  gap: SPACE.sm,
-                  borderTopWidth: i === 0 ? 0 : 1,
-                  borderTopColor: COLORS.divider,
-                }}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: COLORS.cardText, fontWeight: "700", fontSize: 14 }}>
-                    {it.name}
-                  </Text>
-                  <Text style={{ color: COLORS.cardMuted, fontSize: 11, fontFamily: "monospace" }}>
-                    {t(l, "qtyShort")}: {it.quantity} × {amount(it.unitPriceMinor)}
-                  </Text>
+              <View key={`${it.name}-${i}`}>
+                {i > 0 ? <View style={{ height: 1, backgroundColor: COLORS.divider }} /> : null}
+                <View
+                  style={{
+                    flexDirection: flow(dir),
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    paddingVertical: SPACE.sm,
+                    gap: SPACE.sm,
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        color: COLORS.cardText,
+                        fontWeight: "700",
+                        fontSize: 14,
+                        // Nom (souvent arabe) aligné sur le bord de LECTURE de
+                        // l'UI : en FR il ne touche plus le montant à droite.
+                        textAlign: rtl ? "right" : "left",
+                      }}
+                    >
+                      {it.name}
+                    </Text>
+                    <Text style={{ color: COLORS.cardMuted, fontSize: 11, fontFamily: FONTS.mono }}>
+                      {t(l, "qtyShort")}: {it.quantity} × {amount(it.unitPriceMinor)}
+                    </Text>
+                  </View>
+                  <Amount text={amount(it.lineTotalMinor)} size={15} align={farEdge(rtl)} />
                 </View>
-                <Amount text={amount(it.lineTotalMinor)} size={15} align={farEdge(rtl)} />
               </View>
             ))
           ) : (
@@ -233,83 +281,52 @@ export function InvoiceDetailScreen(props: {
               </Text>
             </View>
           )}
+        </View>
 
-          {/* Totaux : bandeau tonal CLAIR — sur l'encre de la V3, les montants
-              masqués (« ••• ») n'étaient plus lisibles. */}
+        {/* Référence QR + note de reçu. */}
+        <View
+          style={{
+            backgroundColor: COLORS.cardBg,
+            borderRadius: RADIUS.card,
+            padding: SPACE.lg,
+            marginTop: SPACE.md,
+            alignItems: "center",
+            ...HAIRLINE,
+          }}
+        >
           <View
             style={{
-              marginTop: SPACE.md,
-              backgroundColor: COLORS.toneBg,
-              borderRadius: RADIUS.cardSm,
-              padding: SPACE.md,
+              flexDirection: flow(dir),
+              alignItems: "center",
               gap: SPACE.sm,
+              backgroundColor: COLORS.sunkenBg,
+              borderRadius: RADIUS.pill,
+              paddingHorizontal: SPACE.lg,
+              paddingVertical: SPACE.sm,
             }}
           >
-            {[
-              { k: t(l, "total"), v: amount(s.total_minor), c: COLORS.cardText, size: 17 },
-              {
-                k: t(l, "paidAmount"),
-                v: paid != null ? amount(paid) : "—",
-                c: COLORS.debtOk,
-                size: 14,
-              },
-              {
-                k: t(l, "remaining"),
-                v: s.is_cancelled === 1 ? t(l, "cancelled") : amount(s.remaining_balance_minor),
-                c: s.remaining_balance_minor > 0 ? COLORS.debtOverdue : COLORS.cardMuted,
-                size: 17,
-              },
-            ].map((row) => (
-              <View
-                key={row.k}
-                style={{
-                  flexDirection: flow(dir),
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <Text style={{ color: COLORS.cardMuted, fontSize: 13 }}>{row.k}</Text>
-                <Amount text={row.v} tone={row.c} size={row.size} align={farEdge(rtl)} />
-              </View>
-            ))}
-          </View>
-
-          {/* QR / référence */}
-          <View style={{ alignItems: "center", marginTop: SPACE.md }}>
-            <View
-              style={{
-                flexDirection: flow(dir),
-                alignItems: "center",
-                gap: SPACE.sm,
-                backgroundColor: COLORS.sunkenBg,
-                borderRadius: RADIUS.pill,
-                paddingHorizontal: SPACE.lg,
-                paddingVertical: SPACE.sm,
-              }}
-            >
-              <Icon name="qr-code-outline" size={18} color={COLORS.headerBg} />
-              <Text
-                style={{
-                  fontFamily: "monospace",
-                  fontWeight: "800",
-                  color: COLORS.cardText,
-                  fontSize: 13,
-                }}
-              >
-                {s.invoice_number}
-              </Text>
-            </View>
+            <Icon name="qr-code-outline" size={18} color={COLORS.headerBg} />
             <Text
               style={{
-                color: COLORS.cardMuted,
-                fontSize: 11,
-                marginTop: SPACE.sm,
-                textAlign: "center",
+                fontFamily: FONTS.mono,
+                fontWeight: "800",
+                color: COLORS.cardText,
+                fontSize: 13,
               }}
             >
-              {t(l, "receiptNote")}
+              {s.invoice_number}
             </Text>
           </View>
+          <Text
+            style={{
+              color: COLORS.cardMuted,
+              fontSize: 11,
+              marginTop: SPACE.sm,
+              textAlign: "center",
+            }}
+          >
+            {t(l, "receiptNote")}
+          </Text>
         </View>
 
         {/* Actions */}
@@ -329,8 +346,6 @@ export function InvoiceDetailScreen(props: {
             variant="outline"
             full
             icon="flag-outline"
-            // Rapport d'erreur (format.ts) et NON le reçu : WhatsApp doit
-            // recevoir le texte de signalement, comme sur la liste factures.
             onPress={() =>
               props.onReport(
                 errorReportText({

@@ -1,28 +1,20 @@
-// Veloria Client — Écran 04 : paiements V4 « Daylight plat ».
-// Bandeau d'encre plat + puces de mois sur le fond clair, total mensuel sur
-// surface tonale, une ligne par paiement dans un groupe séparé par un filet.
-// Logique inchangée : filtre mois AAAA-MM + total + facture/avance + reçu.
+// Veloria Client — Écran 04 : paiements V5 « panneau + résumé par méthode ».
+// Bandeau d'encre (titre + compteur), puces de mois, puis UN panneau blanc :
+// en-tête tonal (total du mois + répartition espèces/chèque/virement) et une
+// ligne tactile par paiement (reçu en bottom-sheet). Plus de seconde ligne
+// « voir le reçu » par paiement : la ligne entière ouvre le reçu.
+// Logique inchangée : mois AAAA-MM + total + facture/avance + reçu.
 import { useEffect, useRef, useState } from "react";
 import { FlatList, RefreshControl, ScrollView, Text, View } from "react-native";
 import { Icon } from "../ui/Icon.tsx";
-import { COLORS, FONTS, SPACE, SIZES, TYPE } from "../tokens.ts";
+import { COLORS, FONTS, HAIRLINE, RADIUS, SPACE, SIZES } from "../tokens.ts";
 import { direction, t, type Lang } from "../i18n.ts";
 import { formatDateFr, formatMinor, monthLabel } from "../format.ts";
-import { paymentsOfMonth, type HomePayment } from "../views.ts";
-import {
-  Amount,
-  Badge,
-  Card,
-  Chip,
-  Divider,
-  Group,
-  Row,
-  Tap,
-  flow,
-  type IconName,
-} from "../ui/kit.tsx";
+import { paymentsByMethod, paymentsOfMonth, type HomePayment } from "../views.ts";
+import { Amount, Badge, Chip, Divider, IconBubble, Tap, farEdge, flow } from "../ui/kit.tsx";
 import { EmptyState } from "../ui/states.tsx";
 import { ReceiptSheet, Ticket } from "./ReceiptSheet.tsx";
+import type { IconName } from "../ui/kit.tsx";
 
 function methodLabel(l: Lang, method: string): string {
   if (method === "cash") return t(l, "cash");
@@ -66,12 +58,12 @@ export function PaymentsScreen(props: {
     return () => clearTimeout(id);
   }, [rtl]);
   // Mois actif = choix conservé s'il existe encore, sinon le plus récent.
-  // (Corrige le défaut "Tout" après login : months[] n'existait pas au 1er rendu.)
   const selected = month && months.includes(month) ? month : (months[0] ?? null);
   const rows = selected ? paymentsOfMonth(props.rows, selected) : props.rows;
   const receipt = props.rows.find((p) => p.id === receiptId) ?? null;
   const amount = (v: number): string => (props.hidden ? "•••" : formatMinor(v, l));
   const total = rows.reduce((a, p) => a + p.amount_minor, 0);
+  const byMethod = paymentsByMethod(rows);
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.contentBg }}>
@@ -79,13 +71,47 @@ export function PaymentsScreen(props: {
         style={{
           backgroundColor: COLORS.headerBg,
           paddingHorizontal: SPACE.lg,
-          paddingTop: SPACE.md,
+          paddingTop: SPACE.sm,
           paddingBottom: SPACE.md,
         }}
       >
-        <Text style={{ ...TYPE.title, color: COLORS.white, letterSpacing: 0.2 }}>
-          {t(l, "payments")}
-        </Text>
+        <View
+          style={{
+            flexDirection: flow(dir),
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: SPACE.sm,
+          }}
+        >
+          <Text
+            style={{ color: COLORS.white, fontWeight: "800", fontSize: 20, letterSpacing: 0.3 }}
+          >
+            {t(l, "payments")}
+          </Text>
+          <View
+            style={{
+              flexDirection: flow(dir),
+              alignItems: "center",
+              gap: 4,
+              backgroundColor: COLORS.navySoft,
+              borderRadius: RADIUS.pill,
+              paddingHorizontal: 10,
+              paddingVertical: 4,
+            }}
+          >
+            <Icon name="wallet-outline" size={12} color={COLORS.navyMuted} />
+            <Text
+              style={{
+                color: COLORS.navyMuted,
+                fontWeight: "800",
+                fontSize: 12,
+                fontFamily: FONTS.mono,
+              }}
+            >
+              {rows.length}
+            </Text>
+          </View>
+        </View>
       </View>
 
       <ScrollView
@@ -99,6 +125,7 @@ export function PaymentsScreen(props: {
           paddingHorizontal: SPACE.lg,
           paddingVertical: SPACE.md,
         }}
+        style={{ flexGrow: 0 }}
       >
         {months.map((m) => (
           <Chip
@@ -110,116 +137,160 @@ export function PaymentsScreen(props: {
         ))}
       </ScrollView>
 
-      <FlatList
-        data={rows}
-        keyExtractor={(p) => String(p.id)}
-        initialNumToRender={20}
-        contentContainerStyle={{
-          paddingHorizontal: SPACE.lg,
-          paddingTop: SPACE.xs,
-          paddingBottom: SIZES.dockInset,
-        }}
-        refreshControl={
-          <RefreshControl
-            refreshing={spinning}
-            onRefresh={() => {
-              setSpinning(true);
-              void props.onRefresh().finally(() => setSpinning(false));
-            }}
-          />
-        }
-        ListHeaderComponent={
-          <Card tone={COLORS.toneBg} style={{ marginBottom: SPACE.md }}>
-            <View
-              style={{
-                flexDirection: flow(dir),
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: SPACE.sm,
-              }}
-            >
-              <Text
-                style={{
-                  ...TYPE.label,
-                  color: COLORS.cardMuted,
-                  letterSpacing: 0.5,
-                  textAlign: rtl ? "right" : "left",
+      {rows.length === 0 ? (
+        <View style={{ flex: 1, justifyContent: "center", paddingVertical: SPACE.xxl }}>
+          <EmptyState icon="wallet-outline" title={t(l, "noPayments")} hint={t(l, "emptyHint")} />
+        </View>
+      ) : (
+        <View
+          style={{
+            flex: 1,
+            marginHorizontal: SPACE.lg,
+            borderRadius: RADIUS.card,
+            overflow: "hidden",
+            backgroundColor: COLORS.cardBg,
+            ...HAIRLINE,
+          }}
+        >
+          <FlatList
+            data={rows}
+            keyExtractor={(p) => String(p.id)}
+            initialNumToRender={20}
+            ItemSeparatorComponent={() => <Divider inset={SPACE.lg} />}
+            contentContainerStyle={{ paddingBottom: SIZES.dockInset }}
+            refreshControl={
+              <RefreshControl
+                refreshing={spinning}
+                onRefresh={() => {
+                  setSpinning(true);
+                  void props.onRefresh().finally(() => setSpinning(false));
                 }}
-              >
-                {t(l, "monthlySummary")}
-              </Text>
-              <Badge
-                label={`${rows.length} · ${selected ? monthLabel(selected, l) : t(l, "payments")}`}
-                color={COLORS.debtOk}
               />
-            </View>
-            <Amount
-              text={amount(total)}
-              tone={COLORS.debtOk}
-              size={SIZES.amountLg}
-              align={rtl ? "right" : "left"}
-              style={{ marginTop: SPACE.xs }}
-            />
-          </Card>
-        }
-        ListEmptyComponent={
-          <View style={{ paddingVertical: SPACE.xxl }}>
-            <EmptyState icon="wallet-outline" title={t(l, "noPayments")} hint={t(l, "emptyHint")} />
-          </View>
-        }
-        renderItem={({ item: p }) => (
-          <Group style={{ marginBottom: SPACE.sm }}>
-            <Row
-              dir={dir}
-              icon={methodIcon(p.method)}
-              iconTone={COLORS.debtOk}
-              title={formatDateFr(p.payment_date)}
-              caption={p.sale_id != null ? t(l, "invoicePayment") : t(l, "accountAdvance")}
-              badge={<Badge label={methodLabel(l, p.method)} color={COLORS.headerBg} dot={false} />}
-              value={`+${amount(p.amount_minor)}`}
-              valueTone={COLORS.debtOk}
-            />
-            <Divider />
-            <Tap
-              onPress={() => setReceiptId(p.id)}
-              accessibilityLabel={t(l, "viewReceipt")}
-              style={{
-                minHeight: SIZES.touchMin,
-                paddingHorizontal: SPACE.lg,
-                paddingVertical: SPACE.sm,
-                flexDirection: flow(dir),
-                alignItems: "center",
-                gap: SPACE.sm,
-                backgroundColor: COLORS.cardBg,
-              }}
-            >
-              <Text
+            }
+            ListHeaderComponent={
+              <View>
+                <View style={{ backgroundColor: COLORS.toneBg, padding: SPACE.md }}>
+                  <View
+                    style={{
+                      flexDirection: flow(dir),
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: SPACE.sm,
+                    }}
+                  >
+                    <Text style={{ color: COLORS.cardMuted, fontSize: 12, fontWeight: "700" }}>
+                      {t(l, "monthlySummary")}
+                    </Text>
+                    <Badge
+                      label={`${rows.length} · ${
+                        selected ? monthLabel(selected, l) : t(l, "payments")
+                      }`}
+                      color={COLORS.debtOk}
+                    />
+                  </View>
+                  <View
+                    style={{
+                      flexDirection: flow(dir),
+                      alignItems: "flex-end",
+                      justifyContent: "space-between",
+                      gap: SPACE.sm,
+                      marginTop: SPACE.xs,
+                    }}
+                  >
+                    <Text style={{ color: COLORS.cardMuted, fontSize: 12, fontWeight: "700" }}>
+                      {t(l, "total")}
+                    </Text>
+                    <Amount
+                      text={amount(total)}
+                      tone={COLORS.debtOk}
+                      size={SIZES.amountLg}
+                      align={farEdge(rtl)}
+                    />
+                  </View>
+                  {byMethod.length > 0 ? (
+                    <View style={{ flexDirection: flow(dir), marginTop: SPACE.md }}>
+                      {byMethod.map((m, i) => (
+                        <View
+                          key={m.method}
+                          style={{
+                            flex: 1,
+                            gap: 2,
+                            paddingHorizontal: i > 0 ? SPACE.md : 0,
+                            ...(i > 0
+                              ? rtl
+                                ? { borderRightWidth: 1, borderRightColor: COLORS.divider }
+                                : { borderLeftWidth: 1, borderLeftColor: COLORS.divider }
+                              : null),
+                          }}
+                        >
+                          <View style={{ flexDirection: flow(dir), alignItems: "center", gap: 4 }}>
+                            <Icon name={methodIcon(m.method)} size={13} color={COLORS.cardMuted} />
+                            <Text
+                              style={{ color: COLORS.cardMuted, fontSize: 10, fontWeight: "700" }}
+                              numberOfLines={1}
+                            >
+                              {methodLabel(l, m.method)}
+                            </Text>
+                          </View>
+                          <Amount text={amount(m.totalMinor)} size={12} />
+                        </View>
+                      ))}
+                    </View>
+                  ) : null}
+                </View>
+                <Divider />
+              </View>
+            }
+            renderItem={({ item: p }) => (
+              <Tap
+                onPress={() => setReceiptId(p.id)}
+                accessibilityLabel={`${t(l, "viewReceipt")} ${formatDateFr(p.payment_date)} ${amount(
+                  p.amount_minor,
+                )}`}
                 style={{
-                  ...TYPE.caption,
-                  fontFamily: FONTS.mono,
-                  color: COLORS.cardMuted,
-                  flex: 1,
-                }}
-                numberOfLines={1}
-              >
-                {p.reference ?? "—"}
-              </Text>
-              <View
-                style={{
+                  minHeight: 68,
                   flexDirection: flow(dir),
                   alignItems: "center",
-                  gap: 6,
+                  gap: SPACE.md,
+                  paddingHorizontal: SPACE.md,
+                  paddingVertical: SPACE.sm,
+                  backgroundColor: COLORS.cardBg,
                 }}
               >
-                <Icon name="receipt-outline" size={15} color={COLORS.headerBg} />
-                <Text style={{ color: COLORS.headerBg, fontWeight: "800", fontSize: 12 }}>
-                  {t(l, "viewReceipt")}
-                </Text>
-              </View>
-            </Tap>
-          </Group>
-        )}
-      />
+                <IconBubble icon={methodIcon(p.method)} color={COLORS.debtOk} size={34} />
+                <View style={{ flex: 1, gap: 2 }}>
+                  {/* Méthode sur la ligne de la date : le type garde toute la
+                      largeur (sinon « Paiement facture » était tronqué). */}
+                  <View style={{ flexDirection: flow(dir), alignItems: "center", gap: SPACE.sm }}>
+                    <Text style={{ color: COLORS.cardText, fontWeight: "800", fontSize: 14 }}>
+                      {formatDateFr(p.payment_date)}
+                    </Text>
+                    <Badge label={methodLabel(l, p.method)} color={COLORS.headerBg} dot={false} />
+                  </View>
+                  <Text style={{ color: COLORS.cardMuted, fontSize: 11 }} numberOfLines={1}>
+                    {p.sale_id != null ? t(l, "invoicePayment") : t(l, "accountAdvance")}
+                  </Text>
+                  {p.reference ? (
+                    <Text
+                      style={{ fontFamily: FONTS.mono, color: COLORS.cardMuted, fontSize: 10 }}
+                      numberOfLines={1}
+                    >
+                      {p.reference}
+                    </Text>
+                  ) : null}
+                </View>
+                <Amount
+                  text={`+${amount(p.amount_minor)}`}
+                  tone={COLORS.debtOk}
+                  size={15}
+                  align={farEdge(rtl)}
+                />
+                <Icon name="receipt-outline" size={16} color={COLORS.headerBg} />
+              </Tap>
+            )}
+          />
+        </View>
+      )}
 
       {/* Bottom-sheet reçu paiement */}
       {receipt ? (

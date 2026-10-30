@@ -1,28 +1,17 @@
-// Veloria Client — Écran 03 : factures V4 « Daylight plat ».
-// Bandeau d'encre plat (titre + compteur + recherche), puces de filtre à 40 dp
-// jamais rognées aux bords, puis UNE surface : une ligne par facture (icône de
-// statut, numéro Mono, date + statut, reste au bord extérieur, « détails » qui
-// déplie le récapitulatif). Logique inchangée : filterInvoices + pagination 20
-// + report WhatsApp + ancres de texte (script de captures).
+// Veloria Client — Écran 03 : factures V5 « panneau unique ».
+// Bandeau d'encre (titre + compteur + dette restante + recherche), puces de
+// filtre, puis UN panneau blanc à filets : une ligne par facture, tactile de
+// bout en bout (statut, numéro, date, reste, « détails »). Le détail complet
+// vit dans l'écran dédié (totaux, reçu, signalement) — plus d'accordéon dupliqué.
+// Logique inchangée : filterInvoices + pagination 20 + refresh.
 import { useEffect, useRef, useState } from "react";
 import { FlatList, RefreshControl, ScrollView, Text, View } from "react-native";
 import { Icon } from "../ui/Icon.tsx";
-import { COLORS, HAIRLINE, RADIUS, SPACE, SIZES } from "../tokens.ts";
+import { COLORS, FONTS, HAIRLINE, RADIUS, SPACE, SIZES } from "../tokens.ts";
 import { direction, t, type Lang } from "../i18n.ts";
-import { errorReportText, formatDateFr, formatMinor } from "../format.ts";
+import { formatDateFr, formatMinor } from "../format.ts";
 import { filterInvoices, type HomeInvoice, type InvoiceFilter } from "../views.ts";
-import {
-  Amount,
-  Badge,
-  Button,
-  Chip,
-  Divider,
-  Field,
-  IconBubble,
-  Tap,
-  farEdge,
-  flow,
-} from "../ui/kit.tsx";
+import { Amount, Badge, Chip, Divider, Field, IconBubble, Tap, farEdge, flow } from "../ui/kit.tsx";
 import { EmptyState } from "../ui/states.tsx";
 
 const CHIPS: InvoiceFilter[] = ["all", "paid", "partial", "unpaid", "cancelled"];
@@ -51,11 +40,8 @@ function statusIcon(s: HomeInvoice): "checkmark-circle" | "time" | "close-circle
 export function InvoicesScreen(props: {
   lang: Lang;
   rows: HomeInvoice[];
-  customerName: string;
-  shopName: string;
   hidden: boolean;
   onOpenDetail: (row: HomeInvoice) => void;
-  onReport: (text: string) => void;
   onRefresh: () => Promise<void>;
 }): React.JSX.Element {
   const l = props.lang;
@@ -63,11 +49,14 @@ export function InvoicesScreen(props: {
   const rtl = dir === "rtl";
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<InvoiceFilter>("all");
-  const [openId, setOpenId] = useState<number | null>(null);
   const [shown, setShown] = useState<number>(SIZES.pageSize);
   const [spinning, setSpinning] = useState(false);
   const rows = filterInvoices(props.rows, query, filter);
   const amount = (v: number): string => (props.hidden ? "•••" : formatMinor(v, l));
+  // Dette restante = somme des factures vivantes (même périmètre que l'accueil).
+  const liveRemaining = props.rows
+    .filter((s) => s.is_cancelled !== 1)
+    .reduce((a, s) => a + s.remaining_balance_minor, 0);
 
   const chipLabel = (f: InvoiceFilter): string =>
     f === "all"
@@ -84,8 +73,7 @@ export function InvoicesScreen(props: {
 
   // RTL : le contenu en `row-reverse` commence à droite alors que le défilement
   // natif repose à gauche → la bande s'afficherait sur la DERNIÈRE puce avec la
-  // première hors écran. On recale donc sur la première puce (AR seulement,
-  // FR inchangé) : au montage, à chaque contenu, et au changement de langue.
+  // première hors écran. On recale donc sur la première puce (AR seulement).
   const chipsRef = useRef<ScrollView>(null);
   const alignFirst = (): void => {
     if (rtl) chipsRef.current?.scrollToEnd({ animated: false });
@@ -96,9 +84,11 @@ export function InvoicesScreen(props: {
     return () => clearTimeout(id);
   }, [rtl]);
 
+  const noResult = props.rows.length > 0;
+
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.contentBg }}>
-      {/* En-tête plat : titre + compteur + recherche. */}
+      {/* En-tête : titre, compteur filtré, dette restante, recherche. */}
       <View
         style={{
           backgroundColor: COLORS.headerBg,
@@ -112,7 +102,7 @@ export function InvoicesScreen(props: {
             flexDirection: flow(dir),
             alignItems: "center",
             justifyContent: "space-between",
-            marginBottom: SPACE.sm,
+            gap: SPACE.sm,
           }}
         >
           <Text
@@ -137,38 +127,43 @@ export function InvoicesScreen(props: {
                 color: COLORS.navyMuted,
                 fontWeight: "800",
                 fontSize: 12,
-                fontFamily: "monospace",
+                fontFamily: FONTS.mono,
               }}
             >
               {rows.length}
             </Text>
           </View>
         </View>
-        <Field
-          value={query}
-          onChangeText={(v) => {
-            setQuery(v);
-            setShown(SIZES.pageSize);
-          }}
-          placeholder={t(l, "searchInvoice")}
-          ariaLabel={t(l, "searchInvoice")}
-          lang={l}
-          icon="search-outline"
-          mono={false}
-          returnKeyType="search"
-          trailing={
-            query !== "" ? (
-              <Tap
-                onPress={() => setQuery("")}
-                accessibilityLabel={t(l, "close")}
-                hitSlop={16}
-                style={{ padding: 12 }}
-              >
-                <Icon name="close-circle" size={20} color={COLORS.cardMuted} />
-              </Tap>
-            ) : null
-          }
-        />
+        <Text style={{ color: COLORS.navyMuted, fontSize: 11, marginTop: 2 }}>
+          {t(l, "debtRemaining")} · {amount(liveRemaining)}
+        </Text>
+        <View style={{ marginTop: SPACE.sm }}>
+          <Field
+            value={query}
+            onChangeText={(v) => {
+              setQuery(v);
+              setShown(SIZES.pageSize);
+            }}
+            placeholder={t(l, "searchInvoice")}
+            ariaLabel={t(l, "searchInvoice")}
+            lang={l}
+            icon="search-outline"
+            mono={false}
+            returnKeyType="search"
+            trailing={
+              query !== "" ? (
+                <Tap
+                  onPress={() => setQuery("")}
+                  accessibilityLabel={t(l, "close")}
+                  hitSlop={16}
+                  style={{ padding: 12 }}
+                >
+                  <Icon name="close-circle" size={20} color={COLORS.cardMuted} />
+                </Tap>
+              ) : null
+            }
+          />
+        </View>
       </View>
 
       {/* Puces de filtre : 40 dp, marge d'écran conservée aux deux bords. */}
@@ -198,178 +193,126 @@ export function InvoicesScreen(props: {
 
       {rows.length === 0 ? (
         <View style={{ flex: 1, justifyContent: "center", paddingVertical: SPACE.xxl }}>
-          <EmptyState icon="receipt-outline" title={t(l, "noInvoices")} hint={t(l, "emptyHint")} />
+          <EmptyState
+            icon="receipt-outline"
+            title={noResult ? t(l, "noResults") : t(l, "noInvoices")}
+            hint={noResult ? t(l, "noResultsHint") : t(l, "emptyHint")}
+          />
         </View>
       ) : (
-        <FlatList
-          contentContainerStyle={{
-            paddingHorizontal: SPACE.lg,
-            paddingBottom: SIZES.dockInset,
+        // Un seul panneau à filets : la liste ne fabrique plus une carte par ligne.
+        <View
+          style={{
+            flex: 1,
+            marginHorizontal: SPACE.lg,
+            borderRadius: RADIUS.card,
+            overflow: "hidden",
+            backgroundColor: COLORS.cardBg,
+            ...HAIRLINE,
           }}
-          data={rows.slice(0, shown)}
-          keyExtractor={(s) => String(s.id)}
-          initialNumToRender={20}
-          onEndReachedThreshold={0.5}
-          onEndReached={() => setShown((n) => n + SIZES.pageSize)}
-          refreshControl={
-            <RefreshControl
-              refreshing={spinning}
-              onRefresh={() => {
-                setSpinning(true);
-                void props.onRefresh().finally(() => setSpinning(false));
-              }}
-            />
-          }
-          renderItem={({ item: s }) => {
-            const open = openId === s.id;
-            const tone = sideColor(s);
-            return (
-              <View
-                style={{
-                  backgroundColor: COLORS.cardBg,
-                  borderRadius: RADIUS.cardSm,
-                  marginBottom: SPACE.sm,
-                  opacity: s.is_cancelled === 1 ? 0.72 : 1,
-                  ...HAIRLINE,
+        >
+          <FlatList
+            data={rows.slice(0, shown)}
+            keyExtractor={(s) => String(s.id)}
+            initialNumToRender={20}
+            onEndReachedThreshold={0.5}
+            onEndReached={() => setShown((n) => n + SIZES.pageSize)}
+            ItemSeparatorComponent={() => <Divider inset={SPACE.lg} />}
+            contentContainerStyle={{ paddingBottom: SIZES.dockInset }}
+            refreshControl={
+              <RefreshControl
+                refreshing={spinning}
+                onRefresh={() => {
+                  setSpinning(true);
+                  void props.onRefresh().finally(() => setSpinning(false));
                 }}
-              >
-                <View
+              />
+            }
+            renderItem={({ item: s }) => {
+              const tone = sideColor(s);
+              const remaining = amount(s.remaining_balance_minor);
+              return (
+                <Tap
+                  onPress={() => props.onOpenDetail(s)}
+                  accessibilityLabel={`${s.invoice_number}, ${invoiceStatusLabel(
+                    l,
+                    s,
+                  )}, ${t(l, "remaining")} ${remaining}`}
                   style={{
-                    minHeight: SIZES.rowHeight,
+                    minHeight: 68,
                     flexDirection: flow(dir),
                     alignItems: "center",
                     gap: SPACE.md,
-                    padding: SPACE.md,
+                    paddingHorizontal: SPACE.md,
+                    paddingVertical: SPACE.sm,
+                    backgroundColor: COLORS.cardBg,
+                    opacity: s.is_cancelled === 1 ? 0.72 : 1,
                   }}
                 >
-                  <IconBubble icon={statusIcon(s)} color={tone} size={32} />
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <Text
-                      style={{
-                        fontFamily: "monospace",
-                        color: COLORS.cardText,
-                        fontWeight: "800",
-                        fontSize: 13,
-                      }}
-                      numberOfLines={1}
-                    >
-                      {t(l, "invoiceNo")} {s.invoice_number}
-                    </Text>
+                  <IconBubble icon={statusIcon(s)} color={tone} size={34} />
+                  <View style={{ flex: 1, gap: 4 }}>
+                    {/* Ligne 1 : numéro + reste (toute la largeur utile). */}
                     <View
                       style={{
                         flexDirection: flow(dir),
                         alignItems: "center",
+                        justifyContent: "space-between",
                         gap: SPACE.sm,
                       }}
                     >
-                      <Text style={{ color: COLORS.cardMuted, fontSize: 11 }} numberOfLines={1}>
-                        {formatDateFr(s.created_at)}
+                      <Text
+                        style={{
+                          fontFamily: FONTS.mono,
+                          color: COLORS.cardText,
+                          fontWeight: "800",
+                          fontSize: 13,
+                          flexShrink: 1,
+                        }}
+                        numberOfLines={1}
+                      >
+                        {s.invoice_number}
                       </Text>
-                      <Badge label={invoiceStatusLabel(l, s)} color={tone} />
+                      <View style={{ flexDirection: flow(dir), alignItems: "center", gap: 6 }}>
+                        <Text style={{ color: COLORS.cardMuted, fontSize: 10, fontWeight: "700" }}>
+                          {t(l, "remaining")}
+                        </Text>
+                        <Amount text={remaining} size={15} tone={tone} align={farEdge(rtl)} />
+                      </View>
                     </View>
-                  </View>
-                  <View style={{ alignItems: rtl ? "flex-start" : "flex-end" }}>
-                    <Amount
-                      text={
-                        s.is_cancelled === 1 ? t(l, "cancelled") : amount(s.remaining_balance_minor)
-                      }
-                      size={15}
-                      tone={s.remaining_balance_minor > 0 ? tone : COLORS.cardText}
-                      align={farEdge(rtl)}
-                    />
-                  </View>
-                  {/* L'ancre « détails » reste textuelle (script de captures). */}
-                  <Tap
-                    onPress={() => setOpenId(open ? null : s.id)}
-                    accessibilityLabel={t(l, "details")}
-                    hitSlop={8}
-                    style={{
-                      flexDirection: flow(dir),
-                      alignItems: "center",
-                      gap: 2,
-                      paddingVertical: 10,
-                      paddingHorizontal: SPACE.xs,
-                    }}
-                  >
-                    <Text style={{ color: COLORS.headerBg, fontWeight: "800", fontSize: 12 }}>
-                      {t(l, "details")}
-                    </Text>
-                    <Icon
-                      name={open ? "chevron-up" : "chevron-down"}
-                      size={13}
-                      color={COLORS.headerBg}
-                    />
-                  </Tap>
-                </View>
-
-                {open ? (
-                  <View style={{ paddingHorizontal: SPACE.md, paddingBottom: SPACE.md }}>
-                    <Divider />
-                    <View style={{ flexDirection: flow(dir), gap: SPACE.sm, marginTop: SPACE.md }}>
-                      {[
-                        { k: t(l, "total"), v: amount(s.total_minor), c: COLORS.cardText },
-                        { k: t(l, "paidAmount"), v: amount(s.amount_paid_minor), c: COLORS.debtOk },
-                        {
-                          k: t(l, "remaining"),
-                          v: amount(s.remaining_balance_minor),
-                          c: COLORS.debtOverdue,
-                        },
-                      ].map((cell) => (
-                        <View
-                          key={cell.k}
-                          style={{
-                            flex: 1,
-                            backgroundColor: COLORS.toneBg,
-                            borderRadius: RADIUS.inner,
-                            padding: SPACE.sm,
-                            gap: 2,
-                          }}
-                        >
-                          <Text style={{ color: COLORS.cardMuted, fontSize: 11 }}>{cell.k}</Text>
-                          <Amount text={cell.v} size={14} tone={cell.c} />
-                        </View>
-                      ))}
-                    </View>
-                    <Text style={{ color: COLORS.cardMuted, fontSize: 11, marginTop: SPACE.sm }}>
-                      {t(l, "status")}: {invoiceStatusLabel(l, s)} · {formatDateFr(s.created_at)}
-                    </Text>
+                    {/* Ligne 2 : date + statut, puis l'ancre « détails ». */}
                     <View
                       style={{
                         flexDirection: flow(dir),
+                        alignItems: "center",
+                        justifyContent: "space-between",
                         gap: SPACE.sm,
-                        marginTop: SPACE.md,
                       }}
                     >
-                      <Button
-                        label={t(l, "receipt")}
-                        variant="ink"
-                        icon="receipt-outline"
-                        style={{ flex: 1.3 }}
-                        onPress={() => props.onOpenDetail(s)}
-                      />
-                      <Button
-                        label={t(l, "reportError")}
-                        variant="quiet"
-                        icon="flag-outline"
-                        style={{ flex: 1 }}
-                        onPress={() =>
-                          props.onReport(
-                            errorReportText({
-                              lang: l,
-                              name: props.customerName,
-                              invoice: s.invoice_number,
-                              amountMinor: s.total_minor,
-                            }),
-                          )
-                        }
-                      />
+                      <View
+                        style={{ flexDirection: flow(dir), alignItems: "center", gap: SPACE.sm }}
+                      >
+                        <Text style={{ color: COLORS.cardMuted, fontSize: 11 }}>
+                          {formatDateFr(s.created_at)}
+                        </Text>
+                        <Badge label={invoiceStatusLabel(l, s)} color={tone} />
+                      </View>
+                      <View style={{ flexDirection: flow(dir), alignItems: "center", gap: 2 }}>
+                        <Text style={{ color: COLORS.headerBg, fontWeight: "800", fontSize: 11 }}>
+                          {t(l, "details")}
+                        </Text>
+                        <Icon
+                          name={rtl ? "chevron-back" : "chevron-forward"}
+                          size={13}
+                          color={COLORS.headerBg}
+                        />
+                      </View>
                     </View>
                   </View>
-                ) : null}
-              </View>
-            );
-          }}
-        />
+                </Tap>
+              );
+            }}
+          />
+        </View>
       )}
     </View>
   );

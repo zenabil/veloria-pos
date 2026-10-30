@@ -71,19 +71,16 @@ try {
   await page.waitForTimeout(1000);
   await page.screenshot({ path: SHOTS[1] });
 
-  // Détail : déplie la première facture puis « الوصل ».
-  const cards = page.getByRole("button", { name: "عرض التفاصيل" });
+  // Détail V5 : la ligne de facture entière ouvre la page détail.
+  const cards = page.getByRole("button", { name: /FAC-\d{4}-/ });
   try {
     await cards.first().waitFor({ timeout: 15000 });
   } catch {
     throw new Error(
-      "Aucune carte facture (« عرض التفاصيل ») : capture du détail impossible — échec explicite plutôt qu'un faux shots-ok.",
+      "Aucune ligne facture : capture du détail impossible — échec explicite plutôt qu'un faux shots-ok.",
     );
   }
   await cards.first().click();
-  const receipt = page.getByRole("button", { name: "الوصل" });
-  await expectAnchor(receipt, "bouton « الوصل »", 15000, LANG_HINT);
-  await receipt.first().click();
   await expectAnchor(
     page.getByText("تفاصيل الفاتورة"),
     "page détail « تفاصيل الفاتورة »",

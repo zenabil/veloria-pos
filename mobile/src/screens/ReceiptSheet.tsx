@@ -64,9 +64,10 @@ export function ReceiptSheet(props: {
   const dir = direction(l);
   return (
     <Modal visible transparent animationType="slide" onRequestClose={props.onClose}>
+      {/* Voile de fermeture : PAS de role « button » — la feuille contient déjà
+          des boutons (partager/fermer) et un bouton dans un bouton casse le DOM
+          web (validateDOMNesting) comme l'arbre d'accessibilité. */}
       <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t(l, "close")}
         onPress={props.onClose}
         style={{ flex: 1, backgroundColor: COLORS.overlay, justifyContent: "flex-end" }}
       >

@@ -578,18 +578,8 @@ export function App(): React.JSX.Element {
           <InvoicesScreen
             lang={lang}
             rows={invoiceRows}
-            customerName={customerName}
-            shopName={home.shop.name}
             hidden={hidden}
             onOpenDetail={(row) => void openDetail(row)}
-            onReport={(text) => {
-              const shop = home.shop.phone ?? "";
-              const url =
-                shop !== ""
-                  ? `https://wa.me/${shop}?text=${encodeURIComponent(text)}`
-                  : `https://wa.me/?text=${encodeURIComponent(text)}`;
-              void Linking.openURL(url).catch(() => undefined);
-            }}
             onRefresh={() => refresh()}
           />
         ) : tab === "payments" ? (
@@ -611,7 +601,7 @@ export function App(): React.JSX.Element {
             shopPhone={home.shop.phone ?? ""}
             shopAddress={home.shop.address}
             announcement={home.announcement}
-            appVersion="1.0.0"
+            appVersion="1.0.3"
             developer="Veloria"
             supportPhone={home.shop.phone ?? ""}
             debtMinor={home.debtMinor}

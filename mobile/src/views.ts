@@ -169,6 +169,25 @@ export function toHome(payload: unknown): HomeData {
   };
 }
 
+/** Totaux par moyen de paiement (résumé mensuel, ordre décroissant). */
+export interface MethodTotal {
+  method: string;
+  totalMinor: number;
+  count: number;
+}
+
+export function paymentsByMethod(rows: HomePayment[]): MethodTotal[] {
+  const map = new Map<string, MethodTotal>();
+  for (const p of rows) {
+    const method = p.method === "" ? "other" : p.method;
+    const cur = map.get(method) ?? { method, totalMinor: 0, count: 0 };
+    cur.totalMinor += p.amount_minor;
+    cur.count += 1;
+    map.set(method, cur);
+  }
+  return [...map.values()].sort((a, b) => b.totalMinor - a.totalMinor);
+}
+
 /** Recherche + filtre factures (local, sur la liste miroir). */
 export type InvoiceFilter = "all" | "paid" | "partial" | "unpaid" | "cancelled";
 

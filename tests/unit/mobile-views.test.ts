@@ -6,6 +6,7 @@ import {
   filterInvoices,
   num,
   numQty,
+  paymentsByMethod,
   paymentsOfMonth,
   toDetail,
   toHome,
@@ -121,6 +122,44 @@ describe("paymentsOfMonth", () => {
       },
     ];
     expect(paymentsOfMonth(rows, "2026-09")).toHaveLength(1);
+  });
+});
+
+describe("paymentsByMethod", () => {
+  it("agrège total + nombre par méthode, tri décroissant, méthode vide → other", () => {
+    const rows = [
+      {
+        id: 1,
+        amount_minor: 1000,
+        method: "cash",
+        reference: null,
+        sale_id: null,
+        payment_date: "x",
+      },
+      {
+        id: 2,
+        amount_minor: 500,
+        method: "cheque",
+        reference: null,
+        sale_id: null,
+        payment_date: "x",
+      },
+      {
+        id: 3,
+        amount_minor: 2000,
+        method: "cash",
+        reference: null,
+        sale_id: null,
+        payment_date: "x",
+      },
+      { id: 4, amount_minor: 300, method: "", reference: null, sale_id: null, payment_date: "x" },
+    ];
+    expect(paymentsByMethod(rows)).toEqual([
+      { method: "cash", totalMinor: 3000, count: 2 },
+      { method: "cheque", totalMinor: 500, count: 1 },
+      { method: "other", totalMinor: 300, count: 1 },
+    ]);
+    expect(paymentsByMethod([])).toEqual([]);
   });
 });
 

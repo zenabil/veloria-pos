@@ -67,7 +67,6 @@ const STRINGS = {
   shareStatement: { ar: "مشاركة الكشف", fr: "Partager" },
   logout: { ar: "خروج", fr: "Déconnexion" },
   changePin: { ar: "تغيير الرمز", fr: "Changer PIN" },
-  lastLogin: { ar: "آخر دخول", fr: "Dernière connexion" },
   aboutApp: { ar: "حول التطبيق", fr: "À propos" },
   enter: { ar: "دخول", fr: "Entrer" },
   newPinRequest: {
@@ -85,6 +84,11 @@ const STRINGS = {
   },
   noInvoices: { ar: "لا فواتير بعد", fr: "Aucune facture" },
   noPayments: { ar: "لا دفعات بعد", fr: "Aucun paiement" },
+  noResults: { ar: "لا نتائج", fr: "Aucun résultat" },
+  noResultsHint: {
+    ar: "جرّب كلمة أخرى أو أزل الفلتر",
+    fr: "Essayez un autre terme ou retirez le filtre.",
+  },
   emptyHint: { ar: "اتصل بالمحل عند الحاجة", fr: "Appelez le magasin si besoin." },
   all: { ar: "الكل", fr: "Tout" },
   details: { ar: "عرض التفاصيل", fr: "Voir détails" },
