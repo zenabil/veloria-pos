@@ -90,6 +90,8 @@ function resolveDates(input: {
 }
 
 export function registerManagerIpc(): void {
+  // Version installée (vérification visuelle après mise à jour de l'outil).
+  handle(MANAGER_CHANNELS["manager.appInfo"], null, () => ({ version: app.getVersion() }));
   handle(MANAGER_CHANNELS["manager.keyStatus"], null, () => ({ configured: keyConfigured() }));
   // Import guidé de la clé privée vendor (premier lancement) : dialogue
   // fichier main → validation Ed25519 stricte → copie dans userData/keys

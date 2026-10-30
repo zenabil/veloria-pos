@@ -6,6 +6,7 @@ import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
 import { addMonths, inTx, listLicenses } from "../../license-manager/ipc/licenses.ts";
+import { missingManagerMigrations } from "../../license-manager/db/manager-db.ts";
 import {
   licenseCreateSchema,
   licenseRenewSchema,
@@ -152,6 +153,26 @@ describe("inTx (registre vendor atomique)", () => {
       }),
     ).toThrow("panne");
     expect(calls[calls.length - 1]).toBe("rollback");
+  });
+});
+
+describe("upgrade du registre manager", () => {
+  it("ne rejoue que les colonnes absentes (parc 1.0.0 → 1.0.4)", () => {
+    const all = missingManagerMigrations([]);
+    expect(all).toHaveLength(8);
+    expect(all[0]).toContain("client_id");
+    const complete = [
+      "client_id",
+      "client_name",
+      "store_name",
+      "plan",
+      "license_status",
+      "device_binding",
+      "max_devices",
+      "pages_json",
+    ];
+    expect(missingManagerMigrations(complete)).toEqual([]);
+    expect(missingManagerMigrations(complete.slice(1))).toEqual([all[0]]);
   });
 });
 

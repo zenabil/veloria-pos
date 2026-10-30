@@ -51,6 +51,7 @@ export default tseslint.config(
             "scripts/release/checksums.js",
             "scripts/release/smoke.js",
             "scripts/release/stamp-electron-pkg.js",
+            "scripts/release/version.mjs",
             // Outils E2E/APK (hors tsconfig racine, toolchain Expo/Deno séparée).
             "scripts/demo-client-sync-server.mjs",
             "scripts/e2e-mirror-relay.mjs",

@@ -315,6 +315,7 @@ function pagesFr(ids: string[]): string {
 
 export function ManagerApp(): React.JSX.Element {
   const [tab, setTab] = useState<Tab>("list");
+  const [appVersion, setAppVersion] = useState<string | null>(null);
   const [keyOk, setKeyOk] = useState<boolean | null>(null);
   const [rows, setRows] = useState<LicenseRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -414,6 +415,13 @@ export function ManagerApp(): React.JSX.Element {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    mapi
+      .appInfo()
+      .then((i) => setAppVersion((i as { version: string }).version))
+      .catch(() => setAppVersion(null));
+  }, []);
 
   useEffect(() => {
     if (tab === "backups") loadBackups();
@@ -704,6 +712,7 @@ export function ManagerApp(): React.JSX.Element {
             </h1>
             <p className="text-xs text-slate-500">
               Outil éditeur — création et gestion des licences hors-ligne.
+              {appVersion ? ` · v${appVersion}` : ""}
             </p>
           </div>
           <div className="flex gap-2">

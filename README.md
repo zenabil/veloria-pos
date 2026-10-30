@@ -70,10 +70,20 @@ npm run test:e2e           # 24 specs / 54 tests, 1 worker (~30 min la suite)
 ## Production
 
 ```powershell
+npm run version:check       # versions POS/Manager/Client alignées (gate verify)
+npm run version:set 1.0.4   # version suivante : package.json + app.json + versionCode
 npm run package:win         # release/Veloria-PoS-Setup-*.exe + portable
+npm run package:manager     # release/Veloria-License-Manager-Setup-*.exe + portable
 node scripts/release/smoke.js
 npm run release:checksums   # release/SHA256SUMS.txt
 ```
+
+Mise à jour : installer le nouvel installateur **au-dessus** de l'ancien
+(même `appId`, données dans `%PROGRAMDATA%`/`%APPDATA%`, jamais dans
+`Program Files`). L'APK client se met à jour avec le même `applicationId` et le
+même keystore, à condition que `versionCode` ait augmenté — `version:set` le
+garantit. Pas d'auto-update en ligne tant qu'aucun certificat Authenticode ni
+hébergement d'artefacts n'est configuré (voir ADR-161).
 
 La base vit dans `%PROGRAMDATA%\Veloria PoS\Data\Veloria POS DB.sqlite`
 (repli `userData` si non inscriptible), jamais dans `Program Files`/`app.asar`.

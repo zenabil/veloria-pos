@@ -9,6 +9,7 @@ async function invoke<T>(channel: Channel, payload?: unknown): Promise<T> {
 }
 
 const api = {
+  appInfo: () => invoke(MANAGER_CHANNELS["manager.appInfo"]),
   keyStatus: () => invoke(MANAGER_CHANNELS["manager.keyStatus"]),
   keyImport: (p?: unknown) => invoke(MANAGER_CHANNELS["manager.keyImport"], p),
   licensesList: (p?: unknown) => invoke(MANAGER_CHANNELS["manager.licensesList"], p),

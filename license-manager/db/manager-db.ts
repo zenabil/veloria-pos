@@ -73,6 +73,50 @@ export function managerDbPath(): string {
   return path.join(app.getPath("userData"), "license-manager.sqlite");
 }
 
+/**
+ * Migrations de colonnes encore absentes (ordre stable). Pur : testé sans
+ * ouvrir Electron ni better-sqlite3.
+ */
+export function missingManagerMigrations(existingColumns: readonly string[]): string[] {
+  const have = new Set(existingColumns.map((c) => c.toLowerCase()));
+  return MIGRATIONS.filter((sql) => {
+    const m = /ADD COLUMN\s+([a-z_]+)/i.exec(sql);
+    const name = m?.[1];
+    return name != null && !have.has(name.toLowerCase());
+  });
+}
+
+/**
+ * Copie de sécurité AVANT toute migration de colonnes (parc existant).
+ * Fail-closed comme le POS : sans filet, la mise à jour est annulée.
+ * Rotation : 5 snapshots pré-mise à jour conservés.
+ */
+function backupBeforeMigration(database: Db): void {
+  const dir = path.join(app.getPath("userData"), "backups");
+  fs.mkdirSync(dir, { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const dest = path.join(dir, `manager-avant-migration-${stamp}.sqlite`);
+  try {
+    database.exec(`VACUUM INTO '${dest.replace(/'/g, "''")}'`);
+  } catch (err) {
+    throw new Error("Sauvegarde pré-mise à jour du registre impossible : mise à jour annulée.", {
+      cause: err,
+    });
+  }
+  const kept = fs
+    .readdirSync(dir)
+    .filter((f) => f.startsWith("manager-avant-migration-") && f.endsWith(".sqlite"))
+    .sort()
+    .slice(0, -5);
+  for (const f of kept) {
+    try {
+      fs.unlinkSync(path.join(dir, f));
+    } catch {
+      /* best effort */
+    }
+  }
+}
+
 export function openManagerDb(): Db {
   if (db) return db;
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -84,17 +128,24 @@ export function openManagerDb(): Db {
     `PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 10000;`,
   );
   database.exec(SCHEMA);
-  // Migration best effort des parcs existants. L3 : seule l'erreur
-  // « colonne déjà présente » est absorbée — absorber TOUTE erreur rendait
-  // une base corrompue/discutable silencieuse identique à un parc à jour
-  // (schema validé puis registre en lecture/écriture sur colonnes manquantes).
-  for (const sql of MIGRATIONS) {
-    try {
-      database.exec(sql);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (/duplicate column name/i.test(msg)) continue;
-      throw err instanceof Error ? err : new Error(msg);
+  // Upgrade depuis un ancien registre : sauvegarde d'abord, puis seules les
+  // colonnes manquantes. L3 : seule l'erreur « colonne déjà présente » est
+  // absorbée — absorber TOUTE erreur rendait une base corrompue silencieuse.
+  const existing = (
+    database.prepare(`PRAGMA table_info(licenses)`).all() as { name: string }[]
+  ).map((c) => c.name);
+  const pending = missingManagerMigrations(existing);
+  if (pending.length > 0) {
+    backupBeforeMigration(database);
+    for (const sql of pending) {
+      try {
+        database.exec(sql);
+      } catch (err) {
+        // Course bénigne : une autre instance vient d'ajouter la colonne.
+        const msg = err instanceof Error ? err.message : String(err);
+        if (/duplicate column name/i.test(msg)) continue;
+        throw err instanceof Error ? err : new Error(msg);
+      }
     }
   }
   db = database;

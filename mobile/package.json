@@ -1,6 +1,6 @@
 {
   "name": "veloria-client",
-  "version": "1.0.0",
+  "version": "1.0.4",
   "private": true,
   "description": "Veloria Client — APK lecture seule (dettes + factures), ar/fr, 0 $",
   "main": "index.js",

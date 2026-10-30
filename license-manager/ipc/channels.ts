@@ -1,5 +1,6 @@
 // Veloria License Manager — Canaux IPC internes (outil vendor, pas de run-sql).
 export const MANAGER_CHANNELS = {
+  "manager.appInfo": "manager.appInfo",
   "manager.licensesList": "manager.licensesList",
   "manager.licenseDetail": "manager.licenseDetail",
   "manager.licenseCreate": "manager.licenseCreate",

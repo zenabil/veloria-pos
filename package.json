@@ -1,7 +1,7 @@
 {
   "name": "veloria-pos",
   "productName": "Veloria PoS",
-  "version": "1.0.0",
+  "version": "1.0.4",
   "description": "Veloria PoS — Professional Offline-First Retail POS (Windows Desktop, French, DZD)",
   "author": "Veloria",
   "license": "UNLICENSED",
@@ -15,7 +15,7 @@
     "clean:logs": "node -e \"const fs=require('fs'),path=require('path');for (const f of fs.readdirSync('.')){if(f.endsWith('.log'))try{fs.rmSync(f)}catch{}};for (const p of ['logs']){try{fs.rmSync(p,{recursive:true,force:true})}catch{}}\"",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run typecheck:electron && npm run typecheck:manager && npm run typecheck:mobile",
     "ci": "npm run check && npm test && npm run test:coverage && npm run test:coverage:features && npm run verify && npm run build && npm run build:electron && npm run build:manager-client && npm run build:manager && npm run knip",
-    "verify": "npm run verify:migrations && npm run verify:domain && npm run verify:fr && npm run verify:encoding && npm run verify:perf && npm run license:scan",
+    "verify": "npm run verify:migrations && npm run verify:domain && npm run verify:fr && npm run verify:encoding && npm run verify:perf && npm run version:check && npm run license:scan",
     "build": "tsc -b && vite build",
     "build:electron": "tsc -p tsconfig.electron.json && esbuild electron/preload/preload.ts --bundle --platform=node --packages=external --external:electron --format=cjs --outfile=dist-electron/preload/preload.js --log-level=warning && node scripts/release/stamp-electron-pkg.js && node scripts/licensing/sign-integrity.mjs --if-key-present",
     "preview": "vite preview",
@@ -58,7 +58,9 @@
     "verify:domain": "node --experimental-strip-types scripts/quality/verify-domain.ts",
     "verify:fr": "node scripts/quality/verify-fr-only.mjs",
     "verify:encoding": "node scripts/quality/verify-encoding.mjs",
-    "verify:perf": "node scripts/quality/verify-perf.mjs"
+    "verify:perf": "node scripts/quality/verify-perf.mjs",
+    "version:check": "node scripts/release/version.mjs check",
+    "version:set": "node scripts/release/version.mjs set"
   },
   "dependencies": {
     "better-sqlite3": "13.0.3",

@@ -12,7 +12,7 @@ for (const f of [
   main,
   preload,
   "database/migrations/0001_initial_schema.sql",
-  "electron-builder.yml",
+  "config/electron-builder/pos.yml",
 ]) {
   if (fs.existsSync(path.join(process.cwd(), f)) || fs.existsSync(f)) console.log(`OK  ${f}`);
   else {
