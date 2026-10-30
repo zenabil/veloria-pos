@@ -16,6 +16,7 @@
 ## 1) État courant
 
 - Branche : `chore/root-layout` — tête **session 69** (Installateurs POS + License Manager). Avant elle session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 74 (2026-10-30)** : **passe UX 2026 sur les six écrans** — connexion (préfixe +213 trompeur retiré, autofill, conseil de récupération sur erreur, séparateur « ou » + QR, « Connexion chiffrée »), accueil (échéance), détail (historique des paiements de la facture), compte (tirer pour rafraîchir + confirmation de déconnexion), contraste AA (onglets/légendes/chevrons). 31/31 tests ; APK 1.0.4 (code 5) `b420ee84…` ; installation téléphone en attente (ADB déconnecté).
 - **Session 73 (2026-10-30)** : **écrans secondaires V5** — Factures (panneau unique à filets, ligne tactile, dette restante, « Aucun résultat »), Détail (fiche + héros Reste + mini Total/Payé, carte Articles, QR), Paiements (panneau, total du mois + répartition espèces/chèque/virement, ligne tactile, reçu), Compte (profil plein bandeau, dernière synchro horodatée). `paymentsByMethod` pur + tests. APK 1.0.3 (code 4) signé (`923cee03…`) ; installation téléphone en attente (ADB déconnecté).
 - **Session 72 (2026-10-30)** : **accueil client V5** — carte « dernière facture » chevauchant le bandeau, crédit intégré au bandeau (barre segmentée), fraîcheur horodatée, « Ce mois-ci » en deux colonnes tactiles, factures (total) / paiements / articles, accueil dédié au client sans activité. Données : `invoiceCount` + `monthKey` dans `toHome`, `formatDateTimeFr`, 7 clés i18n. APK 1.0.2 (code 3) construit et signé (`release/Veloria-Client-1.0.2.apk`, SHA-256 `8c2e365d…`) ; installation téléphone en attente (ADB déconnecté).
 - **Session 71 (2026-10-30)** : **icônes de l'APK client** — toutes les Ionicons étaient vides sur téléphone (police chargée à l'exécution par `expo-asset`, échec silencieux constaté sur le vrai appareil alors que le web rendait correctement). Correctif : police embarquée dans les assets natifs + composant `src/ui/Icon.tsx` qui dessine le glyphe via `fontFamily: "Ionicons"` (web : composant d'origine conservé), 34 usages remplacés, APK 1.0.1 (code 2) reconstruit, signé et **vérifié sur Android réel** (icônes rendues, 30/10 15:21).
@@ -3077,3 +3078,73 @@ mois en deux colonnes` + ce `docs(handoff)`.
   (`adb install -r` à faire au retour, même signature).
 
 **Git** : `feat(mobile): écrans secondaires V5` + ce `docs(handoff)`.
+
+## 74) Session 2026-10-30 — Recherche UX 2026 + passe sur les six écrans
+
+**Demande** : « ابحث في الانترنت و قم بتطوير واجهة التالية : فواتير، تسجيل
+الدخول، الرئيسية، تفاصيل الفاتورة، مدفوعات، حسابي ».
+
+**Sources retenues (principes appliqués)**
+
+- UXDA (20 bonnes pratiques fintech) : scénario principal focalisé, solde
+  d'abord, entrées/sorties distinguées, recherche, statuts et **prochaines
+  étapes**, récupération d'erreur guidée.
+- Authgear (login/signup UX) : minimum d'informations, erreurs **avec
+  solution**, repères de confiance (cadenas/SSL), chemins alternatifs,
+  autofill, libellés accessibles.
+- Cloudtopia (RTL Arabic 2026) : miroir des chevrons, formats locaux,
+  **contraste élevé**.
+- Pixelbrainy (2026) : hiérarchie, accessibilité, confiance.
+
+**Connexion (V7)**
+
+- Préfixe décoratif « +213 » retiré (il laissait croire qu'il fallait omettre
+  le 0) ; `autoComplete="tel"` sur le champ téléphone.
+- Erreur d'identifiants : message + **conseil de récupération**
+  (« vérifiez le numéro et le code, ou demandez un nouveau code au magasin »),
+  affiché seulement pour l'erreur générique.
+- Séparateur **« ou »** avant l'option QR (deux chemins distincts) ; pied de
+  page **« Connexion chiffrée »** avec cadenas (au lieu de « Rapide et
+  protégé »).
+- Conservés : auto-submit au 6ᵉ chiffre, haptique, téléphone mémorisé, aide
+  3 étapes, QR, WhatsApp.
+
+**Accueil**
+
+- **Échéance** (`settlement_day` du cliché) à côté du statut lorsqu'une dette
+  existe — prochaine étape concrète. `toHome` expose `settlementDay` + test.
+
+**Détail facture**
+
+- **Historique des paiements de CETTE facture** (filtre `sale_id` côté App) :
+  date, moyen, référence, montant, dans une carte dédiée.
+- `paymentMethodLabel` partagé dans `views.ts` (utilisé par Paiements et
+  Détail) + test.
+
+**Compte**
+
+- **Tirer pour rafraîchir** (RefreshControl) : magasin, annonce et dette se
+  mettent à jour.
+- **Confirmation avant déconnexion** (modale : annuler / se déconnecter) —
+  une action destructrice n'est plus immédiate.
+
+**Accessibilité (WCAG)**
+
+- Onglets inactifs, légendes de `SectionHead` et chevrons passent de
+  `inkFaint` (2,8:1) à `cardMuted` (~5,5:1) ; token `inkFaint` retiré.
+- Cibles tactiles et libellés explicites conservés.
+
+**Vérifications**
+
+- `typecheck:mobile` OK ; `eslint src` 0 avertissement ; **31/31** tests.
+- Captures 390×844 ar/fr : login, erreur de connexion, accueil (échéance),
+  détail (paiements), confirmation de déconnexion
+  (`test-results/ux-v6/`), 0 erreur console hors 401 volontaire.
+- APK **1.0.4** (versionCode 5) signé (cert `c190b12a…`) :
+  `release/Veloria-Client-1.0.4.apk` (88 724 364 octets, SHA-256
+  `b420ee84fb3a9dd9a12e4d834d97b5832a0d71065690a9672b9bdda6c4d3afac`),
+  `release/SHA256SUMS.txt` mis à jour.
+- **Non installé sur téléphone** : ADB déconnecté après le build
+  (`adb install -r` au retour, même signature).
+
+**Git** : `feat(mobile): passe UX 2026 sur les six écrans` + ce `docs(handoff)`.
