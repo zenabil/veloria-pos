@@ -210,7 +210,7 @@ export function Row(props: {
         <Icon
           name={props.dir === "rtl" ? "chevron-back" : "chevron-forward"}
           size={16}
-          color={COLORS.inkFaint}
+          color={COLORS.cardMuted}
         />
       ) : null}
     </View>
@@ -445,8 +445,9 @@ export function SectionHead(props: {
         >
           {props.title}
         </Text>
+        {/* Contraste AA : l'encre « faint » (2,8:1) est réservée au décor. */}
         {props.caption ? (
-          <Text style={{ ...TYPE.caption, color: COLORS.inkFaint, marginTop: 2 }}>
+          <Text style={{ ...TYPE.caption, color: COLORS.cardMuted, marginTop: 2 }}>
             {props.caption}
           </Text>
         ) : null}
@@ -522,6 +523,8 @@ export function Field(props: {
   inputRef?: React.RefObject<TextInput>;
   returnKeyType?: "next" | "done" | "search";
   onSubmitEditing?: () => void;
+  /** Autofill : « tel » sur le champ téléphone (clavier/navigateur). */
+  autoComplete?: "tel" | "off";
   ariaLabel: string;
   mono?: boolean;
   trailing?: React.ReactNode;
@@ -561,6 +564,7 @@ export function Field(props: {
         secureTextEntry={props.secure}
         maxLength={props.maxLength}
         aria-label={props.ariaLabel}
+        autoComplete={props.autoComplete}
         autoCapitalize="none"
         returnKeyType={props.returnKeyType ?? "done"}
         onFocus={() => setFocused(true)}

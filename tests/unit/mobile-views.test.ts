@@ -6,6 +6,7 @@ import {
   filterInvoices,
   num,
   numQty,
+  paymentMethodLabel,
   paymentsByMethod,
   paymentsOfMonth,
   toDetail,
@@ -15,7 +16,12 @@ import {
 describe("toHome", () => {
   it("mappe le cliché, défauts sûrs si champs absents", () => {
     const h = toHome({
-      customer: { outstanding_balance_minor: 250000, debt_status: "due", credit_limit_minor: 0 },
+      customer: {
+        outstanding_balance_minor: 250000,
+        debt_status: "due",
+        credit_limit_minor: 0,
+        settlement_day: 30,
+      },
       monthKey: "2026-10",
       monthPurchasesMinor: 100000,
       loyaltyPoints: 3,
@@ -39,6 +45,7 @@ describe("toHome", () => {
     expect(h.lastSales).toHaveLength(1);
     expect(h.invoiceCount).toBe(4);
     expect(h.monthKey).toBe("2026-10");
+    expect(h.settlementDay).toBe(30);
     const empty = toHome(null);
     expect(empty.debtMinor).toBe(0);
     expect(empty.debtStatus).toBe("none");
@@ -47,6 +54,7 @@ describe("toHome", () => {
     expect(empty.shop.name).toBe("Veloria");
     expect(empty.invoiceCount).toBe(0);
     expect(empty.monthKey).toBe("");
+    expect(empty.settlementDay).toBe(0);
     // Ancien cliché sans invoiceCount : la prévisualisation (bornée) dépanne.
     expect(toHome({ lastSales: [{}, {}] }).invoiceCount).toBe(2);
   });
@@ -160,6 +168,16 @@ describe("paymentsByMethod", () => {
       { method: "other", totalMinor: 300, count: 1 },
     ]);
     expect(paymentsByMethod([])).toEqual([]);
+  });
+});
+
+describe("paymentMethodLabel", () => {
+  it("libellés ar/fr, méthode inconnue rendue brute", () => {
+    expect(paymentMethodLabel("fr", "cash")).toBe("Espèces");
+    expect(paymentMethodLabel("fr", "cheque")).toBe("Chèque");
+    expect(paymentMethodLabel("fr", "transfer")).toBe("Virement");
+    expect(paymentMethodLabel("ar", "cash")).toBe("نقدي");
+    expect(paymentMethodLabel("fr", "other")).toBe("other");
   });
 });
 

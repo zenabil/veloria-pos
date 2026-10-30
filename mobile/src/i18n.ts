@@ -5,6 +5,7 @@ export type Lang = "ar" | "fr";
 
 const STRINGS = {
   debtRemaining: { ar: "الدين المتبقي", fr: "Dette restante" },
+  settlementDay: { ar: "الاستحقاق", fr: "Échéance" },
   lastInvoice: { ar: "آخر فاتورة", fr: "Dernière facture" },
   thisMonth: { ar: "هذا الشهر", fr: "Ce mois-ci" },
   invoicesTotal: { ar: "عدد الفواتير", fr: "Factures au total" },
@@ -41,6 +42,7 @@ const STRINGS = {
   retry: { ar: "إعادة المحاولة", fr: "Réessayer" },
   invoices: { ar: "فواتيري", fr: "Mes factures" },
   payments: { ar: "دفعاتي", fr: "Mes paiements" },
+  invoicePayments: { ar: "دفعات الفاتورة", fr: "Paiements de la facture" },
   home: { ar: "الرئيسية", fr: "Accueil" },
   account: { ar: "حسابي", fr: "Mon compte" },
   shop: { ar: "المحل", fr: "Magasin" },
@@ -66,6 +68,12 @@ const STRINGS = {
   support: { ar: "الدعم", fr: "Assistance" },
   shareStatement: { ar: "مشاركة الكشف", fr: "Partager" },
   logout: { ar: "خروج", fr: "Déconnexion" },
+  logoutConfirm: { ar: "تسجيل الخروج؟", fr: "Se déconnecter ?" },
+  logoutHint: {
+    ar: "ستحتاج إلى رقم الهاتف والرمز للدخول مجدداً.",
+    fr: "Vous devrez saisir votre téléphone et votre code pour revenir.",
+  },
+  cancel: { ar: "إلغاء", fr: "Annuler" },
   changePin: { ar: "تغيير الرمز", fr: "Changer PIN" },
   aboutApp: { ar: "حول التطبيق", fr: "À propos" },
   enter: { ar: "دخول", fr: "Entrer" },
@@ -74,6 +82,10 @@ const STRINGS = {
     fr: "Bonjour, je suis votre client et je souhaite un nouveau code appli. Merci",
   },
   loginError: { ar: "الهاتف أو الرمز غير صحيح", fr: "Téléphone ou code incorrect" },
+  loginHint: {
+    ar: "تحقق من الرقم والرمز، أو اطلب رمزاً جديداً من المحل",
+    fr: "Vérifiez le numéro et le code, ou demandez un nouveau code au magasin.",
+  },
   lockedError: {
     ar: "الحساب مقفل 5 دقائق (5 محاولات)",
     fr: "Compte verrouillé 5 minutes (5 échecs)",
@@ -151,7 +163,8 @@ const STRINGS = {
   help1: { ar: "خذ رمزك من المحل", fr: "Prenez votre code au magasin" },
   help2: { ar: "أدخل الهاتف والرمز", fr: "Saisissez téléphone + code" },
   help3: { ar: "شاهد دينك وفواتيرك", fr: "Voyez dette et factures" },
-  fastSecure: { ar: "سريع ومحمي", fr: "Rapide et protégé" },
+  secureConnection: { ar: "اتصال مشفّر", fr: "Connexion chiffrée" },
+  or: { ar: "أو", fr: "ou" },
   clientSpace: { ar: "فضاء الزبون", fr: "Espace Client" },
   // Écran de connexion V5 : reason pour laquelle « دخول » est encore grisé,
   // et libellé de l'effacement du téléphone mémorisé.

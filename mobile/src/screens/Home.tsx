@@ -181,6 +181,12 @@ export function HomeScreen(props: {
               color={bandTone(tone)}
               dot
             />
+            {/* Échéance convenue : la prochaine étape quand une dette existe. */}
+            {h.debtMinor > 0 && h.settlementDay > 0 ? (
+              <Text style={{ color: COLORS.navyMuted, fontSize: 12 }} numberOfLines={1}>
+                {t(l, "settlementDay")} · {h.settlementDay}
+              </Text>
+            ) : null}
           </View>
         </View>
 
@@ -346,7 +352,7 @@ export function HomeScreen(props: {
             <Icon
               name={rtl ? "chevron-back" : "chevron-forward"}
               size={14}
-              color={COLORS.inkFaint}
+              color={COLORS.cardMuted}
             />
           </Tap>
         ) : null}

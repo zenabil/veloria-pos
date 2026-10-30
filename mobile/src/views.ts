@@ -58,6 +58,8 @@ export interface HomeData {
   invoiceCount: number;
   /** Mois courant « AAAA-MM » du cliché (libellé du récapitulatif). */
   monthKey: string;
+  /** Jour d'échéance convenu avec le magasin (0 = aucun). */
+  settlementDay: number;
   lastSales: HomeInvoice[];
   lastPayments: HomePayment[];
   topProducts: { name: string; quantity: number; lastPriceMinor: number }[];
@@ -145,6 +147,7 @@ export function toHome(payload: unknown): HomeData {
     loyaltyPoints: num(p["loyaltyPoints"]),
     invoiceCount: invoiceCount > 0 ? invoiceCount : sales.length,
     monthKey: str(p["monthKey"]),
+    settlementDay: num(customer["settlement_day"]),
     lastSales: sales.map(mapSale),
     lastPayments: payments.map((x) => ({
       id: num(x["id"]),
@@ -167,6 +170,14 @@ export function toHome(payload: unknown): HomeData {
       address: typeof shopRaw["address"] === "string" ? shopRaw["address"] : null,
     },
   };
+}
+
+/** Libellé localisé d'un moyen de paiement (inconnu → valeur brute). */
+export function paymentMethodLabel(lang: Lang, method: string): string {
+  if (method === "cash") return t(lang, "cash");
+  if (method === "cheque") return t(lang, "cheque");
+  if (method === "transfer") return t(lang, "transfer");
+  return method;
 }
 
 /** Totaux par moyen de paiement (résumé mensuel, ordre décroissant). */

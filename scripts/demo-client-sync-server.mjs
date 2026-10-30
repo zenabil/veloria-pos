@@ -27,6 +27,7 @@ const snapshot = {
     debt_status: "overdue",
     is_over_limit: 0,
     credit_limit_minor: 6000000,
+    settlement_day: 30,
   },
   monthKey: now.toISOString().slice(0, 7),
   monthPurchasesMinor: 1840000,
@@ -124,6 +125,15 @@ const invoices = {
 
 const payments = {
   payments: [
+    // Paiement rattaché à la facture 142 (historique de la page détail).
+    {
+      id: 95,
+      amount_minor: 520000,
+      method: "cash",
+      reference: "PAY-9942",
+      sale_id: 142,
+      payment_date: day(1),
+    },
     ...snapshot.lastPayments,
     {
       id: 70,

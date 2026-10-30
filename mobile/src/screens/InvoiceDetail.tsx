@@ -10,7 +10,8 @@ import { Icon } from "../ui/Icon.tsx";
 import { COLORS, FONTS, HAIRLINE, RADIUS, SIZES, SPACE, tint } from "../tokens.ts";
 import { direction, t, type Lang } from "../i18n.ts";
 import { errorReportText, formatDateFr, formatMinor } from "../format.ts";
-import type { HomeInvoice, InvoiceDetail } from "../views.ts";
+import type { HomeInvoice, HomePayment, InvoiceDetail } from "../views.ts";
+import { paymentMethodLabel } from "../views.ts";
 import { Amount, Badge, Button, Dashed, Tap, farEdge, flow } from "../ui/kit.tsx";
 import { SkeletonList } from "../ui/states.tsx";
 import { PageBar } from "../ui/nav.tsx";
@@ -36,6 +37,8 @@ export function InvoiceDetailScreen(props: {
   shopName: string;
   hidden: boolean;
   detail: InvoiceDetail | null;
+  /** Paiements rattachés à cette facture (historique, lecture seule). */
+  payments: HomePayment[];
   loading: boolean;
   error: string | null;
   onBack: () => void;
@@ -282,6 +285,74 @@ export function InvoiceDetailScreen(props: {
             </View>
           )}
         </View>
+
+        {/* Historique des paiements rattachés à CETTE facture (le client voit
+            ce qui a déjà été réglé, sans quitter le détail). */}
+        {props.payments.length > 0 ? (
+          <View
+            style={{
+              backgroundColor: COLORS.cardBg,
+              borderRadius: RADIUS.card,
+              padding: SPACE.lg,
+              marginTop: SPACE.md,
+              ...HAIRLINE,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: flow(dir),
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: SPACE.sm,
+                marginBottom: SPACE.sm,
+              }}
+            >
+              <Text
+                style={{
+                  color: COLORS.cardMuted,
+                  fontWeight: "800",
+                  fontSize: 12,
+                  letterSpacing: 0.6,
+                }}
+              >
+                {t(l, "invoicePayments")}
+              </Text>
+              <Text style={{ color: COLORS.cardMuted, fontSize: 11, fontFamily: FONTS.mono }}>
+                {props.payments.length}
+              </Text>
+            </View>
+            {props.payments.map((p, i) => (
+              <View key={p.id}>
+                {i > 0 ? <View style={{ height: 1, backgroundColor: COLORS.divider }} /> : null}
+                <View
+                  style={{
+                    flexDirection: flow(dir),
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: SPACE.sm,
+                    paddingVertical: SPACE.sm,
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: COLORS.cardText, fontWeight: "700", fontSize: 13 }}>
+                      {formatDateFr(p.payment_date)}
+                    </Text>
+                    <Text style={{ color: COLORS.cardMuted, fontSize: 11 }} numberOfLines={1}>
+                      {paymentMethodLabel(l, p.method)}
+                      {p.reference ? ` · ${p.reference}` : ""}
+                    </Text>
+                  </View>
+                  <Amount
+                    text={`+${amount(p.amount_minor)}`}
+                    tone={COLORS.debtOk}
+                    size={14}
+                    align={farEdge(rtl)}
+                  />
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : null}
 
         {/* Référence QR + note de reçu. */}
         <View

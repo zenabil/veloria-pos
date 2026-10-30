@@ -10,18 +10,16 @@ import { Icon } from "../ui/Icon.tsx";
 import { COLORS, FONTS, HAIRLINE, RADIUS, SPACE, SIZES } from "../tokens.ts";
 import { direction, t, type Lang } from "../i18n.ts";
 import { formatDateFr, formatMinor, monthLabel } from "../format.ts";
-import { paymentsByMethod, paymentsOfMonth, type HomePayment } from "../views.ts";
+import {
+  paymentMethodLabel as methodLabel,
+  paymentsByMethod,
+  paymentsOfMonth,
+  type HomePayment,
+} from "../views.ts";
 import { Amount, Badge, Chip, Divider, IconBubble, Tap, farEdge, flow } from "../ui/kit.tsx";
 import { EmptyState } from "../ui/states.tsx";
 import { ReceiptSheet, Ticket } from "./ReceiptSheet.tsx";
 import type { IconName } from "../ui/kit.tsx";
-
-function methodLabel(l: Lang, method: string): string {
-  if (method === "cash") return t(l, "cash");
-  if (method === "cheque") return t(l, "cheque");
-  if (method === "transfer") return t(l, "transfer");
-  return method;
-}
 
 function methodIcon(method: string): IconName {
   if (method === "cash") return "cash-outline";

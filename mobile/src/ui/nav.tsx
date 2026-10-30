@@ -75,12 +75,12 @@ export function TabBar(props: {
             <Icon
               name={TAB_ICON[x.id]}
               size={19}
-              color={active ? COLORS.headerBg : COLORS.inkFaint}
+              color={active ? COLORS.headerBg : COLORS.cardMuted}
             />
             <Text
               style={{
                 ...TYPE.micro,
-                color: active ? COLORS.headerBg : COLORS.inkFaint,
+                color: active ? COLORS.headerBg : COLORS.cardMuted,
                 letterSpacing: 0.2,
               }}
               numberOfLines={1}

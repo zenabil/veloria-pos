@@ -25,7 +25,6 @@ export const COLORS = {
   // --- Encres ---
   cardText: "#0F1B2A",
   cardMuted: "#5B6B7F",
-  inkFaint: "#8A99AC",
   white: "#FFFFFF",
   overlay: "#051424CC",
   // --- Dettes : texte + point (le fond teinté reste rare) ---

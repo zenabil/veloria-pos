@@ -542,6 +542,7 @@ export function App(): React.JSX.Element {
             shopName={home.shop.name}
             hidden={hidden}
             detail={detailData}
+            payments={paymentRows.filter((p) => p.sale_id === detailRow.id)}
             loading={detailLoading}
             error={detailError}
             onBack={closeDetail}
@@ -601,13 +602,14 @@ export function App(): React.JSX.Element {
             shopPhone={home.shop.phone ?? ""}
             shopAddress={home.shop.address}
             announcement={home.announcement}
-            appVersion="1.0.3"
+            appVersion="1.0.4"
             developer="Veloria"
             supportPhone={home.shop.phone ?? ""}
             debtMinor={home.debtMinor}
             debtStatus={home.debtStatus}
             overLimit={home.overLimit}
             hidden={hidden}
+            onRefresh={() => refresh()}
             onLogout={() => {
               void logout();
             }}

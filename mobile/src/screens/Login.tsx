@@ -391,8 +391,8 @@ export function LoginScreen(props: {
               onChangeText={(v) => setPhone(normalizeDigits(v))}
               placeholder="05…"
               lang={l}
-              prefix="+213"
               icon="call-outline"
+              autoComplete="tel"
               keyboardType="phone-pad"
               maxLength={30}
               returnKeyType="next"
@@ -533,9 +533,16 @@ export function LoginScreen(props: {
                 accessibilityLiveRegion="polite"
               >
                 <Icon name="alert-circle" size={18} color={COLORS.debtOverdue} />
-                <Text style={{ color: COLORS.dangerText, fontWeight: "700", flex: 1 }}>
-                  {props.error}
-                </Text>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={{ color: COLORS.dangerText, fontWeight: "700" }}>{props.error}</Text>
+                  {/* Erreur d'identifiants : dire QUOI faire (récupération),
+                      pas seulement constater l'échec. */}
+                  {props.error === t(l, "loginError") ? (
+                    <Text style={{ color: COLORS.cardMuted, fontSize: 11, lineHeight: 15 }}>
+                      {t(l, "loginHint")}
+                    </Text>
+                  ) : null}
+                </View>
               </View>
             ) : null}
 
@@ -550,6 +557,23 @@ export function LoginScreen(props: {
               onPress={() => void submit()}
               style={{ marginTop: SPACE.sm }}
             />
+
+            {/* Séparation « ou » : deux chemins de connexion distincts (code
+                du magasin vs QR), sans faire du QR un second bouton doré. */}
+            <View
+              style={{
+                flexDirection: flow(dir),
+                alignItems: "center",
+                gap: SPACE.sm,
+                marginTop: SPACE.md,
+              }}
+            >
+              <View style={{ flex: 1, height: 1, backgroundColor: COLORS.divider }} />
+              <Text style={{ color: COLORS.cardMuted, fontSize: 11, fontWeight: "700" }}>
+                {t(l, "or")}
+              </Text>
+              <View style={{ flex: 1, height: 1, backgroundColor: COLORS.divider }} />
+            </View>
 
             {/* Le QR n'est plus un deuxième bouton : une zone en pointillés qui
                 dit AUSSI où l'on trouve le code (clé `help1`, déjà publiée). */}
@@ -602,7 +626,7 @@ export function LoginScreen(props: {
               <Icon
                 name={rtl ? "chevron-back" : "chevron-forward"}
                 size={16}
-                color={COLORS.inkFaint}
+                color={COLORS.cardMuted}
               />
             </Tap>
 
@@ -698,9 +722,9 @@ export function LoginScreen(props: {
               marginBottom: SPACE.md,
             }}
           >
-            <Icon name="shield-checkmark" size={13} color={COLORS.headerAccent} />
+            <Icon name="lock-closed" size={13} color={COLORS.headerAccent} />
             <Text style={{ color: COLORS.headerAccent, fontSize: 11, fontWeight: "700" }}>
-              {t(l, "fastSecure")}
+              {t(l, "secureConnection")}
             </Text>
           </View>
         </ScrollView>
