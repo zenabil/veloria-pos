@@ -1,4 +1,4 @@
-# Handoff — Veloria POS (état au 2026-10-29)
+# Handoff — Veloria POS (état au 2026-10-30)
 
 > Document de continuité : tout ce qui a été fait, fichiers modifiés,
 > erreurs (fermées/ouvertes), en-attente, commandes. Sessions 2026-10-07
@@ -16,6 +16,7 @@
 ## 1) État courant
 
 - Branche : `chore/root-layout` — tête **session 69** (Installateurs POS + License Manager). Avant elle session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 70 (2026-10-30)** : **connexion APK rétablie** — la fonction `client-sync` déployée était restée sur la version SHA-256 nue (02/10) alors que le POS écrit désormais des PIN PBKDF2 + sel : tout code correct répondait 401 et le compteur d'échecs montait (3). Redéploiement du fichier courant via la console Supabase, vérifié par sonde temporaire PBKDF2 → 200 puis 200 en legacy, lignes de test supprimées. Ajout : poussée miroir immédiate après activation d'un accès (`registry.customers.ts`) pour que le client puisse se connecter aussitôt.
 - **Session 69 (2026-10-30)** : **mise à jour des installateurs Windows** — POS (Setup 156 Mo, Portable 136 Mo) et License Manager (Setup 139 Mo, Portable 126 Mo), x64, v1.0.0, NSIS fr perMachine, **non signés** (aucun certificat Authenticode configuré). Blocage `EBUSY default_app.asar` sur `release/` contourné par une sortie neuve `E:\veloria-build` (sans rien supprimer) ; artefacts copiés dans `release/` + `SHA256SUMS.txt` actualisé.
 - **Session 68 (2026-10-30)** : **APK client signé (build local Gradle)** — `mobile/eas.json` pointe désormais le projet `veloria-pos` (URL + clé anon publique, profils preview/production). Build release local (`./gradlew assembleRelease`, Java 17 + SDK/NDK) : `dz.veloria.client` 1.0.0 (code 1, minSdk 24, target 34), signé CN=Veloria, 88 462 721 octets, copié `release/Veloria-Client-1.0.0.apk` (SHA-256 `6bdf6017…`). URL Supabase + anon gravées dans le bundle (repli sans QR ; le QR V2 reste prioritaire). Aucun appareil/émulateur disponible : non testé au runtime. `license:scan` OK.
 - **Session 67 (2026-10-29)** : **miroir Supabase opérationnel (ADR-158)** — projet existant `veloria-pos` (ref `ynktschorbwukxovjzcz`, Londres) vérifié : tables + RLS + fonction `client-sync` (Verify JWT désactivé). POS raccordé (URL + clés legacy chiffrées DPAPI dans `app_settings.client_sync`), première poussée **réussie** (`lastPushAt 21:54:55Z`, 0 erreur). **Bug réel corrigé** : les ventes/paiements de clients non activés mettaient des clichés en file → FK `client_payloads.customer_id` → **409 bloquant toute la poussée** ; garde `hasActiveClientAccess` + test (7/7), file orpheline purgée après sauvegarde. Schéma cloud aligné (`pin_salt`, `pin_algo`). Test cloud complet insertion→`client-sync` 200→cleanup. Portes : format, lint, check ×4, **1 147 tests**.
@@ -2851,3 +2852,50 @@ ADR-158).
 
 **Git** : ce `docs(handoff)` uniquement (aucun changement source ; `release/`
 est git-ignoré).
+
+## 70) Session 2026-10-30 — Connexion APK : fonction `client-sync` obsolète
+
+**Symptôme** : « الهاتف أو الرمز غير صحيح » sur l'APK avec un client
+fraîchement activé (téléphone `0668640999`).
+
+**Diagnostic** (lecture seule du miroir `veloria-pos` + sonde temporaire)
+
+- La ligne `client_access` du client 94 est bien dans le miroir : condensat
+  téléphone exact, `pin_hash` PBKDF2-SHA256 100k + `pin_salt`, accès actif.
+- La fonction **déployée** répondait 401 sur une ligne PBKDF2 salée et 200 sur
+  une ligne SHA-256 nue, tout en écrivant `failed_attempts` : c'était la
+  version antérieure au durcissement #39 (comportement de la version du
+  02/10, commit `6ee2862`). Tout PIN correct était donc refusé ; 3 échecs
+  déjà enregistrés (verrou à 5).
+- Cause secondaire du parcours : l'activation ne poussait pas le miroir ; le
+  client devait attendre le cycle suivant (5–15 min) → même message trompeur.
+
+**Correctifs**
+
+- Redéploiement de `cloud/supabase/functions/client-sync/index.ts` (version
+  courante : PBKDF2 + sel, lecture seule) via la console Supabase ; « Verify
+  JWT » reste désactivé.
+- Vérification après déploiement : sonde temporaire sur le miroir (une ligne
+  PBKDF2 salée, une ligne SHA-256 legacy) → **200 / 200**, compteurs
+  inchangés ; les deux lignes de test ont été supprimées (`204`, relecture
+  vide). Aucune donnée réelle touchée.
+- `electron/ipc/registry.customers.ts` : après `activateClientAccessAtomic`,
+  poussée `pushNowAtomic` best-effort (échec ignoré, jamais bloquant) pour que
+  le miroir connaisse le client immédiatement. Le prochain build POS embarque
+  ce comportement ; l'installation actuelle reste sur la poussée périodique.
+
+**Risque ouvert (à traiter)**
+
+- La fonction courante est en LECTURE SEULE : plus personne n'incrémente
+  `customer_access.failed_attempts` côté miroir (le POS ne voit pas les
+  tentatives APK ; seuls les compteurs staff existent). Le verrou « 5 échecs
+  → 5 min » du domaine n'est donc plus appliqué pour l'APK. À arbitrer :
+  écriture ciblée des compteurs par la fonction (déroge au « aucune écriture
+  Deno ») ou rate-limit plateforme en V2.
+
+**Portes** : `prettier --check` OK ; `eslint` 0 avertissement ;
+`typecheck:electron` OK ; suite complète **1 147/1 147**.
+
+**Git** : `fix(sync): pousser le miroir dès l'activation d'un accès client`
+
+- ce `docs(handoff)`.
