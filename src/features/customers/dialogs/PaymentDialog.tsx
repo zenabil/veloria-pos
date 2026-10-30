@@ -140,6 +140,9 @@ export function PaymentDialog({
               </Select>
             </Field>
           </div>
+          <p className="text-xs text-slate-500">
+            Le montant est réparti automatiquement sur les factures les plus anciennes.
+          </p>
           <div className="flex gap-2">
             <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
               Annuler

@@ -585,19 +585,58 @@ export function recordCustomerPaymentAtomic(args: {
   // Idempotence : rejouer le même operationId (retry IPC, double-clic avant
   // le verrou UI) retrouve le paiement existant. Garde anti-course : l'UNIQUE
   // tranche les insertions concurrentes (voir catch ci-dessous).
+  // Un encaissement standalone ventilé écrit une ligne par facture sous
+  // `${operationId}:${saleId}` (plus une ligne résiduelle à l'operationId
+  // exact s'il reste un solde sans facture) : la recherche couvre les deux.
   const findExisting = (): { paymentId: number } | undefined => {
-    const row = db
+    const exact = db
       .prepare(`SELECT id FROM sale_payments WHERE operation_id = ?`)
       .get(args.operationId) as { id: number } | undefined;
-    return row ? { paymentId: row.id } : undefined;
+    if (exact) return { paymentId: exact.id };
+    const prefix = `${args.operationId.replace(/[%_\\]/g, (c) => `\\${c}`)}:%`;
+    const branch = db
+      .prepare(
+        `SELECT id FROM sale_payments WHERE operation_id LIKE ? ESCAPE '\\' ORDER BY id ASC LIMIT 1`,
+      )
+      .get(prefix) as { id: number } | undefined;
+    return branch ? { paymentId: branch.id } : undefined;
   };
   const fast = findExisting();
   if (fast) return fast;
+  const insertPayment = db.prepare(
+    `INSERT INTO sale_payments (uuid, sale_id, customer_id, amount_minor, method, reference, notes, payment_date, operation_id, staff_user_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+  const insertPaymentRow = (
+    operationId: string,
+    saleId: number | null,
+    customerId: number | null,
+    amountMinor: number,
+  ): void => {
+    insertPayment.run(
+      randomUUID(),
+      saleId,
+      customerId,
+      amountMinor,
+      args.method,
+      args.reference,
+      args.notes,
+      args.paymentDate,
+      operationId,
+      args.staffUserId ?? null,
+      args.now,
+    );
+  };
+  const applyToSale = db.prepare(
+    `UPDATE sales SET amount_paid_minor = amount_paid_minor + ?, remaining_balance_minor = total_minor - (amount_paid_minor + ?), payment_status = CASE WHEN total_minor - (amount_paid_minor + ?) = 0 THEN 'paid' WHEN (amount_paid_minor + ?) = 0 THEN 'unpaid' ELSE 'partial' END, updated_at = ? WHERE id = ?`,
+  );
   const tx = db.transaction(() => {
+    const allocations: { saleId: number; amountMinor: number }[] = [];
     // Garde-fous explicites (aucun clamp silencieux : aucun centime perdu).
     // - Paiement lié à une vente : borné par le reste dû de LA VENTE (le solde
     //   client peut être inférieur via un avoir/solde initial créditeur).
-    // - Encaissement standalone (sans vente) : borné par le solde client.
+    // - Encaissement standalone (sans vente) : borné par le solde client, puis
+    //   ventilé FIFO sur ses factures ouvertes (la plus ancienne d'abord) pour
+    //   que le reste dû par facture et le solde client restent alignés.
     if (args.saleId != null) {
       const s = db
         .prepare(
@@ -627,34 +666,8 @@ export function recordCustomerPaymentAtomic(args: {
           throw new Error("Le paiement dépasse le solde dû du client.");
         }
       }
-    } else {
-      const c = db
-        .prepare(`SELECT outstanding_balance_minor FROM customers WHERE id = ?`)
-        .get(args.customerId) as { outstanding_balance_minor: number } | undefined;
-      if (!c) throw new Error("Client introuvable.");
-      if (args.amountMinor > c.outstanding_balance_minor) {
-        throw new Error("Le paiement dépasse le solde dû du client.");
-      }
-    }
-    db.prepare(
-      `INSERT INTO sale_payments (uuid, sale_id, customer_id, amount_minor, method, reference, notes, payment_date, operation_id, staff_user_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(
-      randomUUID(),
-      args.saleId,
-      args.customerId,
-      args.amountMinor,
-      args.method,
-      args.reference,
-      args.notes,
-      args.paymentDate,
-      args.operationId,
-      args.staffUserId ?? null,
-      args.now,
-    );
-    if (args.saleId != null) {
-      db.prepare(
-        `UPDATE sales SET amount_paid_minor = amount_paid_minor + ?, remaining_balance_minor = total_minor - (amount_paid_minor + ?), payment_status = CASE WHEN total_minor - (amount_paid_minor + ?) = 0 THEN 'paid' WHEN (amount_paid_minor + ?) = 0 THEN 'unpaid' ELSE 'partial' END, updated_at = ? WHERE id = ?`,
-      ).run(
+      insertPaymentRow(args.operationId, args.saleId, args.customerId, args.amountMinor);
+      applyToSale.run(
         args.amountMinor,
         args.amountMinor,
         args.amountMinor,
@@ -662,6 +675,37 @@ export function recordCustomerPaymentAtomic(args: {
         args.now,
         args.saleId,
       );
+    } else {
+      const customerId = args.customerId;
+      if (customerId == null) {
+        throw new Error("Client ou vente requis pour enregistrer un paiement.");
+      }
+      const c = db
+        .prepare(`SELECT outstanding_balance_minor FROM customers WHERE id = ?`)
+        .get(customerId) as { outstanding_balance_minor: number } | undefined;
+      if (!c) throw new Error("Client introuvable.");
+      if (args.amountMinor > c.outstanding_balance_minor) {
+        throw new Error("Le paiement dépasse le solde dû du client.");
+      }
+      // FIFO : factures ouvertes de la plus ancienne à la plus récente.
+      const open = db
+        .prepare(
+          `SELECT id, remaining_balance_minor FROM sales WHERE customer_id = ? AND is_cancelled = 0 AND remaining_balance_minor > 0 ORDER BY created_at ASC, id ASC`,
+        )
+        .all(customerId) as { id: number; remaining_balance_minor: number }[];
+      let rest = args.amountMinor;
+      for (const s of open) {
+        if (rest <= 0) break;
+        const take = Math.min(rest, s.remaining_balance_minor);
+        insertPaymentRow(`${args.operationId}:${s.id}`, s.id, customerId, take);
+        applyToSale.run(take, take, take, take, args.now, s.id);
+        allocations.push({ saleId: s.id, amountMinor: take });
+        rest -= take;
+      }
+      if (rest > 0) {
+        // Solde sans facture ouverte (ex. solde initial) : ligne résiduelle.
+        insertPaymentRow(args.operationId, null, customerId, rest);
+      }
     }
     // E-30 : le statut du client est recalculé APRÈS le mouvement de la
     // vente (le statut « en retard » dépend du reste dû de la vente : il
@@ -684,20 +728,23 @@ export function recordCustomerPaymentAtomic(args: {
         args.customerId,
       );
     }
-    const inserted = db
-      .prepare(`SELECT id FROM sale_payments WHERE operation_id = ?`)
-      .get(args.operationId) as { id: number };
+    const inserted = findExisting();
+    if (!inserted) throw new Error("Paiement introuvable après insertion.");
     // P8: paiement client = mutation financière tracée (history).
     db.prepare(
       `INSERT INTO audit_log (event_id, event_type, entity_type, entity_id, operation_id, details_json, created_at) VALUES (?, 'customer.payment', 'customer', ?, ?, ?, ?)`,
     ).run(
       randomUUID(),
-      String(args.customerId ?? args.saleId ?? inserted.id),
+      String(args.customerId ?? args.saleId ?? inserted.paymentId),
       args.operationId,
-      JSON.stringify({ amount: args.amountMinor, saleId: args.saleId ?? null }),
+      JSON.stringify(
+        args.saleId != null
+          ? { amount: args.amountMinor, saleId: args.saleId }
+          : { amount: args.amountMinor, saleId: null, allocations },
+      ),
       args.now,
     );
-    return { paymentId: inserted.id };
+    return { paymentId: inserted.paymentId };
   });
   try {
     return tx();

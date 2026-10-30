@@ -58,7 +58,7 @@ export function SettleDialog({
           </Button>
         </div>
         <p className="text-xs text-slate-500">
-          Encaissement standalone borné par la dette (aucun dépassement accepté).
+          Montant borné par la dette et réparti sur les factures les plus anciennes.
         </p>
       </form>
     </Modal>
