@@ -1,5 +1,6 @@
 // Veloria PoS - IPC: clients + acces APK + synchro miroir (extrait de registry.ts, deplacement pur).
 
+import { randomUUID } from "node:crypto";
 import { IPC_CHANNELS } from "./channels";
 import * as V from "./validators";
 import * as Customers from "./handlers/customers.repo";
@@ -125,15 +126,22 @@ export function registerCustomersChannels(): void {
   // (condensats côté main), révocation, état, file de synchro, annonces.
   // Le PIN transite en clair uniquement sur ce pont local chiffré (jamais
   // stocké ni loggé) ; le miroir ne reçoit que des condensats + clichés.
-  handle(IPC_CHANNELS["customers.accessActivate"], V.clientAccessActivateSchema, (input) =>
-    ClientAccess.activateClientAccessAtomic({
+  handle(IPC_CHANNELS["customers.accessActivate"], V.clientAccessActivateSchema, (input) => {
+    const result = ClientAccess.activateClientAccessAtomic({
       operationId: input.operationId,
       customerId: input.customerId,
       phone: input.phone,
       pin: input.pin,
       now: new Date().toISOString(),
-    }),
-  );
+    });
+    // Le client se connecte en général aussitôt : sans poussée immédiate, le
+    // miroir ignore la ligne jusqu'au prochain cycle (5 à 1440 min) et répond
+    // « téléphone ou code incorrect » alors que le PIN est juste.
+    void pushNowAtomic({ operationId: randomUUID(), now: new Date().toISOString() }).catch(
+      () => undefined,
+    );
+    return result;
+  });
   handle(IPC_CHANNELS["customers.accessRevoke"], V.idempotentIdSchema, (input) =>
     ClientAccess.revokeClientAccessAtomic({
       customerId: input.id,
