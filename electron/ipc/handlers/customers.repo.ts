@@ -577,7 +577,7 @@ export function recordCustomerPaymentAtomic(args: {
   now: string;
   /** Auteur de l'encaissement (session main, 0046). */
   staffUserId?: number | null;
-}): { paymentId: number } {
+}): { paymentId: number; allocatedSaleIds: number[] } {
   if (args.saleId == null && args.customerId == null) {
     throw new Error("Client ou vente requis pour enregistrer un paiement.");
   }
@@ -602,7 +602,7 @@ export function recordCustomerPaymentAtomic(args: {
     return branch ? { paymentId: branch.id } : undefined;
   };
   const fast = findExisting();
-  if (fast) return fast;
+  if (fast) return { ...fast, allocatedSaleIds: [] };
   const insertPayment = db.prepare(
     `INSERT INTO sale_payments (uuid, sale_id, customer_id, amount_minor, method, reference, notes, payment_date, operation_id, staff_user_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
@@ -744,7 +744,12 @@ export function recordCustomerPaymentAtomic(args: {
       ),
       args.now,
     );
-    return { paymentId: inserted.paymentId };
+    return {
+      paymentId: inserted.paymentId,
+      // Factures soldées par la ventilation FIFO : le miroir APK en repousse
+      // le détail (montant payé/reste à jour), pas seulement les listes.
+      allocatedSaleIds: allocations.map((a) => a.saleId),
+    };
   });
   try {
     return tx();
@@ -755,7 +760,7 @@ export function recordCustomerPaymentAtomic(args: {
       /UNIQUE constraint failed: sale_payments\.operation_id/i.test(err.message)
     ) {
       const retry = findExisting();
-      if (retry) return retry;
+      if (retry) return { ...retry, allocatedSaleIds: [] };
     }
     throw err;
   }

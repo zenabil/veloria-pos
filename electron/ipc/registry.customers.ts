@@ -9,6 +9,7 @@ import * as ClientAccess from "./handlers/client-access.repo";
 import { getCurrentStaffUser } from "./handlers/staff-session";
 import {
   enqueueCustomerRefresh,
+  enqueueInvoiceDetailRefresh,
   enqueueSaleRefresh,
   getShopEndpoint,
   getSyncView,
@@ -97,7 +98,7 @@ export function registerCustomersChannels(): void {
     const now = new Date().toISOString();
     // P08: paymentDate est une businessDate YYYY-MM-DD — jamais un ISO datetime.
     const paymentDate = input.paymentDate ?? now.slice(0, 10);
-    const { paymentId } = Customers.recordCustomerPaymentAtomic({
+    const { paymentId, allocatedSaleIds } = Customers.recordCustomerPaymentAtomic({
       operationId: input.operationId,
       customerId: input.customerId ?? null,
       saleId: input.saleId ?? null,
@@ -110,9 +111,15 @@ export function registerCustomersChannels(): void {
       // R2 (0046) : l'encaissement porte son auteur.
       staffUserId: getCurrentStaffUser(),
     });
-    // Miroir APK (best-effort) : file rafraîchie après encaissement.
-    if (input.customerId != null) enqueueCustomerRefresh(input.customerId);
-    else if (input.saleId != null) enqueueSaleRefresh(input.saleId);
+    // Miroir APK (best-effort) : listes + détail de la facture réglée. Un
+    // encaissement standalone est ventilé FIFO sur plusieurs factures : leur
+    // détail (montant payé/reste) doit repartir aussi, pas seulement les listes.
+    if (input.saleId != null) {
+      enqueueSaleRefresh(input.saleId);
+    } else {
+      if (input.customerId != null) enqueueCustomerRefresh(input.customerId);
+      for (const sid of allocatedSaleIds) enqueueInvoiceDetailRefresh(sid);
+    }
     return { recorded: true, paymentId };
   });
   handle(IPC_CHANNELS["customers.statement"], V.idSchema, (input) =>

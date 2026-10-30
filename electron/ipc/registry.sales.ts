@@ -7,7 +7,7 @@ import * as Sales from "./handlers/sales.repo";
 import * as Carts from "./handlers/carts.repo";
 import { getCurrentStaffUser } from "./handlers/staff-session";
 import { getStaffRole } from "./handlers/staff.repo";
-import { enqueueCustomerRefresh, enqueueSaleRefresh } from "../sync/sync.service";
+import { enqueueSaleRefresh } from "../sync/sync.service";
 import { handle } from "./handle";
 import { priceLine } from "./money-guard";
 
@@ -89,9 +89,10 @@ export function registerSalesChannels(): void {
       // R2 (0046) : la vente porte son auteur (filtrage tableau/historique/rapports).
       staffUserId: getCurrentStaffUser(),
     });
-    // Miroir APK (best-effort) : la vente réussie rafraîchit la file du client
-    // (jamais d'exception vers la caisse — loggé et ignoré dans le service).
-    if (input.customerId != null) enqueueCustomerRefresh(input.customerId);
+    // Miroir APK (best-effort) : la vente réussie pousse les listes ET le
+    // détail de la facture (page détail APK). `enqueueCustomerRefresh` seul
+    // laissait toute nouvelle facture sans cliché de détail dans le miroir.
+    if (input.customerId != null) enqueueSaleRefresh(result.saleId);
     return result;
   });
   handle(

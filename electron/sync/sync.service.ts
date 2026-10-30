@@ -350,34 +350,51 @@ export function enqueueCustomerRefresh(customerId: number): void {
   }
 }
 
+/** Client d'une vente (null = vente au comptant ou introuvable). */
+function customerIdOfSale(saleId: number): number | null {
+  const row = getDb().prepare(`SELECT customer_id FROM sales WHERE id = ?`).get(saleId) as
+    { customer_id: number | null } | undefined;
+  return row?.customer_id ?? null;
+}
+
+function enqueueDetailFor(customerId: number, saleId: number): void {
+  if (!hasActiveClientAccess(customerId)) return;
+  enqueueSnapshotAtomic({
+    operationId: randomUUID(),
+    customerId,
+    kind: "invoice_detail",
+    saleId,
+    now: new Date().toISOString(),
+  });
+}
+
+/**
+ * Détail d'UNE vente seulement (page facture APK), sans rafraîchir les listes :
+ * un encaissement ventilé touche plusieurs factures du même client, une seule
+ * paire de clichés de listes suffit (pas de doublons par facture).
+ */
+export function enqueueInvoiceDetailRefresh(saleId: number): void {
+  try {
+    const customerId = customerIdOfSale(saleId);
+    if (customerId == null) return;
+    enqueueDetailFor(customerId, saleId);
+  } catch (err) {
+    // Vente au comptant/annulée : pas de détail client (comportement existant).
+    log("WARN", "sync", "enqueue.detail.skip", { saleId, error: String(err) });
+  }
+}
+
 /**
  * Rafraîchit la file d'une vente (résout le client, best-effort).
- * Pousse aussi le détail de la vente (page détail APK) quand elle appartient
- * à un client non archivé — le miroir garde le dernier cliché par vente.
+ * Pousse les trois clichés de listes + le détail de la vente (page détail APK)
+ * quand elle appartient à un client non archivé.
  */
 export function enqueueSaleRefresh(saleId: number): void {
   try {
-    const db = getDb();
-    const row = db.prepare(`SELECT customer_id FROM sales WHERE id = ?`).get(saleId) as
-      | {
-          customer_id: number | null;
-        }
-      | undefined;
-    if (row?.customer_id != null && hasActiveClientAccess(row.customer_id)) {
-      enqueueCustomerRefresh(row.customer_id);
-      try {
-        enqueueSnapshotAtomic({
-          operationId: randomUUID(),
-          customerId: row.customer_id,
-          kind: "invoice_detail",
-          saleId,
-          now: new Date().toISOString(),
-        });
-      } catch (err) {
-        // Vente au comptant/annulée : pas de détail client (comportement existant).
-        log("WARN", "sync", "enqueue.detail.skip", { saleId, error: String(err) });
-      }
-    }
+    const customerId = customerIdOfSale(saleId);
+    if (customerId == null) return;
+    enqueueCustomerRefresh(customerId);
+    enqueueDetailFor(customerId, saleId);
   } catch (err) {
     log("WARN", "sync", "enqueue.failed", { saleId, error: String(err) });
   }

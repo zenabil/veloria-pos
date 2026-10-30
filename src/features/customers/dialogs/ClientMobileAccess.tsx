@@ -165,14 +165,18 @@ export function ClientMobileAccess({
         },
         { concurrency: 3 },
       );
-      // Détails des factures ouvertes (page détail APK, cap 10, best-effort
-      // par vente : un détail manquant n'échoue jamais toute la synchro).
+      // Détails des factures du relevé (page détail APK). Le relevé est borné
+      // à 100 ventes : on pousse TOUTES les non annulées, pas seulement les
+      // plus récentes — l'ancien plafond 10 laissait les factures payées
+      // hors fenêtre définitivement sans détail (404 « demandez au magasin de
+      // synchroniser », que la synchro ne corrigeait jamais).
       let details = 0;
       try {
         const st = (await api.customerStatement({ id: customer.id })) as {
           sales?: { id: number; is_cancelled: number; remaining_balance_minor: number }[];
         };
-        const ids = selectDetailSaleIds(Array.isArray(st.sales) ? st.sales : [], 10);
+        const sales = Array.isArray(st.sales) ? st.sales : [];
+        const ids = selectDetailSaleIds(sales, sales.length);
         await runBulk(
           ids,
           async (saleId) => {

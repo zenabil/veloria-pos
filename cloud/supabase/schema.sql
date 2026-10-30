@@ -41,6 +41,13 @@ CREATE TABLE IF NOT EXISTS client_payloads (
 CREATE INDEX IF NOT EXISTS idx_client_payloads_customer_kind
   ON client_payloads(customer_id, kind, id DESC);
 
+-- Détail facture à la demande : recherche directe par vente
+-- (`payload->sale->>id`), sans fenêtre de balayage. Index d'expression partiel
+-- pour rester O(log n) quand un client accumule des milliers de clichés.
+CREATE INDEX IF NOT EXISTS idx_client_payloads_customer_sale
+  ON client_payloads (customer_id, ((payload->'sale'->>'id')))
+  WHERE kind = 'invoice_detail';
+
 -- 3) Lecture du dernier cliché par (client, kind) pour la synchro APK.
 CREATE OR REPLACE VIEW latest_client_payloads AS
 SELECT DISTINCT ON (customer_id, kind)

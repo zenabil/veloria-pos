@@ -4,7 +4,7 @@
 > l avancement en `reports/PHASE_*.md`. Ne jamais ecrire de rapport a la racine.
 > Conventions : `AGENTS.md` + `docs/STRUCTURE.md` (carte maintenance).
 
-## Decisions (ADR-001 a ADR-159 — tous saries, jamais supprimes)
+## Decisions (ADR-001 a ADR-160 — tous saries, jamais supprimes)
 
 - [ADR-001](./ADR-001-vite-renderer.md) Renderer Vite
 - [ADR-002](./ADR-002-native-versions.md) Versions natives
@@ -165,6 +165,7 @@
 - [ADR-157](./ADR-157-design-pass-2026-10-29.md) Développement des interfaces 2026-10-29 : socle visuel partagé, 19 surfaces dans l'ordre (navigation → licence), registres et formulaires homogènes, thème clair préservé, libellés de données corrigés
 - [ADR-158](./ADR-158-miroir-cliches-acces-actif.md) Miroir client Supabase : clichés réservés aux accès actifs (fin du 409 FK), schéma cloud aligné (`pin_salt`/`pin_algo`), clés chiffrées DPAPI, vérification cloud complète
 - [ADR-159](./ADR-159-ventilation-paiements-fifo.md) Encaissement standalone ventilé FIFO sur les factures ouvertes (la plus ancienne d'abord) : dettes, échéances et solde client restent alignés, sans migration
+- [ADR-160](./ADR-160-detail-facture-apk-sans-fenetre.md) Détail de facture APK : poussée à chaque vente/paiement (y compris ventilation FIFO), lecture miroir directe par `saleId` sans fenêtre, synchronisation manuelle du relevé complet
 
 ## Ou ecrire quoi
 

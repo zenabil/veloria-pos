@@ -12,10 +12,6 @@ import http from "node:http";
 const PORT = Number(process.argv[2] ?? 8100);
 const MAX_FAILED = 5;
 const LOCK_MS = 5 * 60_000;
-// PARITÉ STRICTE avec la fonction Edge (`cloud/supabase/functions/client-sync`) :
-// même borne de balayage du détail à la demande, sinon l'E2E passerait là où la
-// production répondrait 404 (voir DETAIL_SCAN_LIMIT côté Edge).
-const DETAIL_SCAN_LIMIT = 50;
 
 const sha256 = (s) => createHash("sha256").update(s, "utf8").digest("hex");
 
@@ -138,10 +134,10 @@ async function handleSync(body) {
   if (saleId != null) {
     const details = mine.filter((p) => p.kind === "invoice_detail");
     details.sort((a, b) => (a.id < b.id ? 1 : -1));
-    // Même borne que la production (DETAIL_SCAN_LIMIT) : au-delà, 404.
-    const match = details
-      .slice(0, DETAIL_SCAN_LIMIT)
-      .find((p) => String(p.payload?.sale?.id) === String(saleId));
+    // PARITÉ avec l'Edge : recherche directe par vente, sans fenêtre de
+    // balayage — une facture ancienne reste consultable tant que son cliché
+    // existe (aucun `DETAIL_SCAN_LIMIT`).
+    const match = details.find((p) => String(p.payload?.sale?.id) === String(saleId));
     if (!match) return fail("NOT_FOUND", "Facture indisponible.", 404);
     return {
       status: 200,

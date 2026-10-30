@@ -6,15 +6,6 @@
 // (master) et appliqués ici en LECTURE SEULE (aucune écriture Deno, ADR-053).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.44.4";
-/**
- * Détail à la demande : on ne balaye que les 50 derniers clichés
- * `invoice_detail` (ils s'accumulent, UNIQUE operation_id).
- * LIMITE CONNUE : une facture plus ancienne que ces 50 lignes répond 404
- * tant que le POS n'a pas repoussé son détail. Le relais E2E
- * (`scripts/e2e-mirror-relay.mjs`) applique la MÊME borne nommée pour que
- * l'E2E ne passe jamais là où la production ferait un 404 (parité stricte).
- */
-const DETAIL_SCAN_LIMIT = 50;
 
 type Json = Record<string, unknown>;
 
@@ -193,24 +184,23 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   const pick = (kind: string): unknown => rows?.find((r) => r.kind === kind)?.payload ?? null;
   // Détail à la demande (page facture APK) : dernier cliché `invoice_detail`
-  // dont `payload.sale.id` correspond (comparaison lâche entier/chaîne).
-  // Balaye les DETAIL_SCAN_LIMIT derniers (borne partagée avec le relais E2E).
+  // dont `payload.sale.id` correspond. Filtre JSON côté PostgREST : aucune
+  // fenêtre de balayage — une facture ancienne reste consultable tant que son
+  // cliché existe (l'ancien `LIMIT 50` rendait 404 hors fenêtre).
   if (saleId != null) {
     const { data: details, error: detailError } = await supa
       .from("client_payloads")
       .select("payload")
       .eq("customer_id", access.customer_id)
       .eq("kind", "invoice_detail")
+      .eq("payload->sale->>id", String(saleId))
       .order("id", { ascending: false })
-      .limit(DETAIL_SCAN_LIMIT);
+      .limit(1);
     if (detailError) {
       console.error("client-sync: lecture des details impossible", detailError.code);
       return fail("SERVER_ERROR", "Échec de synchronisation.", 500);
     }
-    const match = (details ?? []).find((r) => {
-      const sale = ((r.payload ?? {}) as Json)["sale"] as Json | undefined;
-      return sale != null && String(sale["id"]) === String(saleId);
-    });
+    const match = (details ?? [])[0];
     if (!match) {
       return fail("NOT_FOUND", "Facture indisponible.", 404);
     }

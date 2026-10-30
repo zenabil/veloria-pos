@@ -173,7 +173,7 @@ describe("Encaissement standalone ventilé FIFO", () => {
     const newSale = createSaleAtomic(saleArgs(customerId, 8000, "2026-01-06T10:00:00.000Z")).saleId;
     const operationId = crypto.randomUUID();
 
-    recordCustomerPaymentAtomic({
+    const result = recordCustomerPaymentAtomic({
       operationId,
       customerId,
       saleId: null,
@@ -184,6 +184,8 @@ describe("Encaissement standalone ventilé FIFO", () => {
       paymentDate: "2026-01-10",
       now: "2026-01-10T09:00:00.000Z",
     });
+    // Le miroir APK doit repousser le détail de CHAQUE facture ventilée.
+    expect(result.allocatedSaleIds).toEqual([oldSale, newSale]);
 
     const rows = payments(db);
     expect(rows).toHaveLength(2);
@@ -273,6 +275,7 @@ describe("Encaissement standalone ventilé FIFO", () => {
     const second = recordCustomerPaymentAtomic(args);
 
     expect(second.paymentId).toBe(first.paymentId);
+    expect(second.allocatedSaleIds).toEqual([]);
     expect(payments(db)).toHaveLength(1);
     expect(customerRow(db, customerId).b).toBe(5000);
     const sale = db
