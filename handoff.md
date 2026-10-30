@@ -16,6 +16,7 @@
 ## 1) État courant
 
 - Branche : `chore/root-layout` — tête **session 69** (Installateurs POS + License Manager). Avant elle session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 73 (2026-10-30)** : **écrans secondaires V5** — Factures (panneau unique à filets, ligne tactile, dette restante, « Aucun résultat »), Détail (fiche + héros Reste + mini Total/Payé, carte Articles, QR), Paiements (panneau, total du mois + répartition espèces/chèque/virement, ligne tactile, reçu), Compte (profil plein bandeau, dernière synchro horodatée). `paymentsByMethod` pur + tests. APK 1.0.3 (code 4) signé (`923cee03…`) ; installation téléphone en attente (ADB déconnecté).
 - **Session 72 (2026-10-30)** : **accueil client V5** — carte « dernière facture » chevauchant le bandeau, crédit intégré au bandeau (barre segmentée), fraîcheur horodatée, « Ce mois-ci » en deux colonnes tactiles, factures (total) / paiements / articles, accueil dédié au client sans activité. Données : `invoiceCount` + `monthKey` dans `toHome`, `formatDateTimeFr`, 7 clés i18n. APK 1.0.2 (code 3) construit et signé (`release/Veloria-Client-1.0.2.apk`, SHA-256 `8c2e365d…`) ; installation téléphone en attente (ADB déconnecté).
 - **Session 71 (2026-10-30)** : **icônes de l'APK client** — toutes les Ionicons étaient vides sur téléphone (police chargée à l'exécution par `expo-asset`, échec silencieux constaté sur le vrai appareil alors que le web rendait correctement). Correctif : police embarquée dans les assets natifs + composant `src/ui/Icon.tsx` qui dessine le glyphe via `fontFamily: "Ionicons"` (web : composant d'origine conservé), 34 usages remplacés, APK 1.0.1 (code 2) reconstruit, signé et **vérifié sur Android réel** (icônes rendues, 30/10 15:21).
 - **Session 70 (2026-10-30)** : **connexion APK rétablie** — la fonction `client-sync` déployée était restée sur la version SHA-256 nue (02/10) alors que le POS écrit désormais des PIN PBKDF2 + sel : tout code correct répondait 401 et le compteur d'échecs montait (3). Redéploiement du fichier courant via la console Supabase, vérifié par sonde temporaire PBKDF2 → 200 puis 200 en legacy, lignes de test supprimées. Ajout : poussée miroir immédiate après activation d'un accès (`registry.customers.ts`) pour que le client puisse se connecter aussitôt.
@@ -3009,3 +3010,70 @@ aucun nœud d'icône.
 
 **Git** : `feat(mobile): accueil V5 — dernière facture, crédit intégré,
 mois en deux colonnes` + ce `docs(handoff)`.
+
+## 73) Session 2026-10-30 — Écrans secondaires V5 (factures, détail, paiements, compte)
+
+**Demande** : « قم بتطوير واجهة التالية في تطبيق العملاء : فواتير، تفاصيل
+الفاتورة، مدفوعات، حسابي ».
+
+**Factures**
+
+- En-tête encre : titre + compteur filtré + « Dette restante » (somme des
+  restes des factures vivantes) + recherche.
+- Puces de filtre inchangées ; **un seul panneau blanc à filets** (plus une
+  carte par ligne). Chaque ligne est tactile de bout en bout sur deux rangées :
+  numéro + reste / date + statut + « Voir détails ». L'accordéon est supprimé :
+  le détail complet vit dans l'écran dédié (totaux, reçu, signalement).
+- État vide distingué : « Aucune facture » vs « Aucun résultat » (recherche ou
+  filtre sans correspondance).
+
+**Détail facture**
+
+- PageBar encre (retour + partage or) inchangée ; **fiche financière** :
+  boutique/client/statut, **reste en héros (30 pt)**, deux mini-cartes
+  Total/Payé (côte à côte, « DZD » tronquait le héros en français), date.
+- **Carte Articles** séparée (nom aligné au bord de lecture de l'UI pour ne
+  plus toucher le montant), carte QR/note, actions (réessayer si erreur,
+  signaler). Vocabulaire ticket conservé (Dashed + Mono).
+
+**Paiements**
+
+- En-tête encre + compteur ; puces de mois ; **un panneau** : en-tête tonal
+  (total du mois + répartition espèces/chèque/virement via `paymentsByMethod`)
+  - une ligne tactile par paiement (date + méthode, type, référence, montant,
+    reçu en bottom-sheet). La seconde ligne « voir le reçu » disparaît.
+- Bottom-sheet : voile sans role « button » (corrige un bouton imbriqué sur le
+  web — validateDOMNesting — et l'arbre d'accessibilité).
+
+**Compte**
+
+- Bandeau profil **pleine largeur** (avatar, nom, téléphone, dernière synchro
+  horodatée), carte Situation teintée qui chevauche, actions, magasin,
+  annonce, réglages, partage du relevé.
+- « Dernière connexion » remplacé par « Dernière synchro » (le champ affiché
+  est `syncedAt`, pas une date de connexion) ; version affichée 1.0.3.
+
+**Données / contrats**
+
+- `paymentsByMethod(rows)` pur : total + nombre par méthode, tri décroissant,
+  méthode vide → `other` (+ tests).
+- i18n : `noResults` / `noResultsHint` ajoutés ; `lastLogin` retiré ;
+  `appVersion` passé à 1.0.3 dans l'App.
+- `scripts/e2e-mobile-shots.mjs` : la ligne facture remplace l'accordéon
+  (locator /FAC-/), l'étape « الوصل » disparaît.
+
+**Vérifications**
+
+- `typecheck:mobile` OK ; `eslint src` 0 avertissement ; **30/30** tests mobile.
+- Captures 390×844 ar/fr des quatre écrans + détail + reçu
+  (`test-results/screens-v5/`), **0 erreur console**.
+- E2E script non exécuté ici (navigateur Playwright bundlé absent sur ce
+  poste) : le parcours a été validé par le même flux avec Chrome (captures).
+- APK **1.0.3** (versionCode 4) signé (cert `c190b12a…`) :
+  `release/Veloria-Client-1.0.3.apk` (88 722 072 octets, SHA-256
+  `923cee037f490bb2f183c73fbdc98513e29b2a471b4b8197f27e51fd786a86ad`),
+  `release/SHA256SUMS.txt` mis à jour.
+- **Non installé sur téléphone** : ADB déconnecté après le build
+  (`adb install -r` à faire au retour, même signature).
+
+**Git** : `feat(mobile): écrans secondaires V5` + ce `docs(handoff)`.
