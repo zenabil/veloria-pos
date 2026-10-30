@@ -67,6 +67,16 @@ glossaire arabe) — corrigé en expressions insensibles à la langue.
   en-têtes `Authorization`, `num()`/`numQty()` sécurisés).
 - `package.json` + `app.json` : manifeste Expo (installation sur machine de build uniquement).
 
+## Icônes — police embarquée (correctif 2026-10-30)
+
+`@expo/vector-icons` charge Ionicons à l'exécution via `expo-asset` ; sur
+certains Android ce chemin échoue silencieusement (toutes les icônes vides
+dans l'APK release). La police est donc livrée dans les assets natifs :
+`android/app/src/main/assets/fonts/Ionicons.ttf` (source `assets/fonts/Ionicons.ttf`,
+déclarée dans `app.json` via le plugin `expo-font`), et `src/ui/Icon.tsx`
+dessine le glyphe directement avec `fontFamily: "Ionicons"` (résolu par
+`ReactFontManager`, sans `Font.loadAsync`). Ne pas les supprimer.
+
 ## Signature release (#41)
 
 Le keystore de signature (`veloria-release.keystore`) ne vit JAMAIS à côté

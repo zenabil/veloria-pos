@@ -4,7 +4,7 @@
 // Logique inchangée : filtre mois AAAA-MM + total + facture/avance + reçu.
 import { useEffect, useRef, useState } from "react";
 import { FlatList, RefreshControl, ScrollView, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Icon } from "../ui/Icon.tsx";
 import { COLORS, FONTS, SPACE, SIZES, TYPE } from "../tokens.ts";
 import { direction, t, type Lang } from "../i18n.ts";
 import { formatDateFr, formatMinor, monthLabel } from "../format.ts";
@@ -211,7 +211,7 @@ export function PaymentsScreen(props: {
                   gap: 6,
                 }}
               >
-                <Ionicons name="receipt-outline" size={15} color={COLORS.headerBg} />
+                <Icon name="receipt-outline" size={15} color={COLORS.headerBg} />
                 <Text style={{ color: COLORS.headerBg, fontWeight: "800", fontSize: 12 }}>
                   {t(l, "viewReceipt")}
                 </Text>

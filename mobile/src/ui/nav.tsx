@@ -3,7 +3,7 @@
 // Le dock flottant V3 mangeait la dernière ligne des listes : la barre est
 // désormais ancrée, et les écrans réservent `SIZES.dockInset`.
 import { Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Icon } from "./Icon.tsx";
 import { COLORS, RADIUS, SHADOW, SPACE, SIZES, TYPE } from "../tokens.ts";
 import { flow, Tap, type IconName } from "./kit.tsx";
 import type { Lang } from "../i18n.ts";
@@ -72,7 +72,7 @@ export function TabBar(props: {
                 marginBottom: 2,
               }}
             />
-            <Ionicons
+            <Icon
               name={TAB_ICON[x.id]}
               size={19}
               color={active ? COLORS.headerBg : COLORS.inkFaint}
@@ -132,7 +132,7 @@ export function PageBar(props: {
             justifyContent: "center",
           }}
         >
-          <Ionicons name={backIcon} size={19} color={COLORS.white} />
+          <Icon name={backIcon} size={19} color={COLORS.white} />
         </Tap>
       ) : (
         <View style={{ width: SPACE.sm }} />

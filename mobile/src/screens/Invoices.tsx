@@ -6,7 +6,7 @@
 // + report WhatsApp + ancres de texte (script de captures).
 import { useEffect, useRef, useState } from "react";
 import { FlatList, RefreshControl, ScrollView, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Icon } from "../ui/Icon.tsx";
 import { COLORS, HAIRLINE, RADIUS, SPACE, SIZES } from "../tokens.ts";
 import { direction, t, type Lang } from "../i18n.ts";
 import { errorReportText, formatDateFr, formatMinor } from "../format.ts";
@@ -131,7 +131,7 @@ export function InvoicesScreen(props: {
               paddingVertical: 4,
             }}
           >
-            <Ionicons name="documents-outline" size={12} color={COLORS.navyMuted} />
+            <Icon name="documents-outline" size={12} color={COLORS.navyMuted} />
             <Text
               style={{
                 color: COLORS.navyMuted,
@@ -164,7 +164,7 @@ export function InvoicesScreen(props: {
                 hitSlop={16}
                 style={{ padding: 12 }}
               >
-                <Ionicons name="close-circle" size={20} color={COLORS.cardMuted} />
+                <Icon name="close-circle" size={20} color={COLORS.cardMuted} />
               </Tap>
             ) : null
           }
@@ -294,7 +294,7 @@ export function InvoicesScreen(props: {
                     <Text style={{ color: COLORS.headerBg, fontWeight: "800", fontSize: 12 }}>
                       {t(l, "details")}
                     </Text>
-                    <Ionicons
+                    <Icon
                       name={open ? "chevron-up" : "chevron-down"}
                       size={13}
                       color={COLORS.headerBg}

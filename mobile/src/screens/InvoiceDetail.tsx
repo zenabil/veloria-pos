@@ -5,7 +5,7 @@
 // Données via `fetchInvoiceDetail` (App : `detail`, `loading`, `error`, `onRetry`).
 import { useState } from "react";
 import { RefreshControl, ScrollView, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Icon } from "../ui/Icon.tsx";
 import { COLORS, HAIRLINE, RADIUS, SPACE, tint } from "../tokens.ts";
 import { direction, t, type Lang } from "../i18n.ts";
 import { errorReportText, formatDateFr, formatMinor } from "../format.ts";
@@ -78,7 +78,7 @@ export function InvoiceDetailScreen(props: {
               gap: 6,
             }}
           >
-            <Ionicons name="share-social-outline" size={15} color={COLORS.primaryText} />
+            <Icon name="share-social-outline" size={15} color={COLORS.primaryText} />
             <Text style={{ color: COLORS.primaryText, fontWeight: "800", fontSize: 12 }}>
               {t(l, "shareStatement")}
             </Text>
@@ -227,7 +227,7 @@ export function InvoiceDetailScreen(props: {
                 borderColor: tint(COLORS.debtOverdue, "33"),
               }}
             >
-              <Ionicons name="alert-circle-outline" size={18} color={COLORS.debtOverdue} />
+              <Icon name="alert-circle-outline" size={18} color={COLORS.debtOverdue} />
               <Text style={{ color: COLORS.dangerText, fontSize: 12, flex: 1, fontWeight: "600" }}>
                 {props.error ?? t(l, "detailNotFound")}
               </Text>
@@ -287,7 +287,7 @@ export function InvoiceDetailScreen(props: {
                 paddingVertical: SPACE.sm,
               }}
             >
-              <Ionicons name="qr-code-outline" size={18} color={COLORS.headerBg} />
+              <Icon name="qr-code-outline" size={18} color={COLORS.headerBg} />
               <Text
                 style={{
                   fontFamily: "monospace",

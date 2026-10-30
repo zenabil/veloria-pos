@@ -5,7 +5,7 @@
 import { useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from "expo-camera";
-import { Ionicons } from "@expo/vector-icons";
+import { Icon } from "../ui/Icon.tsx";
 import { COLORS, RADIUS, SIZES, SPACE, TYPE, tint } from "../tokens.ts";
 import { direction, t, type Lang } from "../i18n.ts";
 import { Button, flow } from "../ui/kit.tsx";
@@ -196,7 +196,7 @@ export function QrScannerScreen(props: {
                 marginBottom: SPACE.sm,
               }}
             >
-              <Ionicons name="qr-code-outline" size={18} color={COLORS.primary} />
+              <Icon name="qr-code-outline" size={18} color={COLORS.primary} />
               <Text style={{ ...TYPE.body, color: COLORS.headerText, fontWeight: "700" }}>
                 {t(l, "scanQr")}
               </Text>
@@ -216,7 +216,7 @@ export function QrScannerScreen(props: {
                   marginBottom: SPACE.sm,
                 }}
               >
-                <Ionicons name="alert-circle" size={16} color={COLORS.dangerLight} />
+                <Icon name="alert-circle" size={16} color={COLORS.dangerLight} />
                 <Text style={{ ...TYPE.caption, color: COLORS.dangerLight, fontWeight: "800" }}>
                   {t(l, "qrError")}
                 </Text>

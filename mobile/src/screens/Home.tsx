@@ -5,7 +5,7 @@
 // masquage des montants + refresh + données périmées.
 import { useState } from "react";
 import { RefreshControl, ScrollView, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Icon } from "../ui/Icon.tsx";
 import { COLORS, HAIRLINE, RADIUS, SPACE, SIZES, debtColor } from "../tokens.ts";
 import { direction, t, type Lang } from "../i18n.ts";
 import { formatDateFr, formatMinor } from "../format.ts";
@@ -161,7 +161,7 @@ export function HomeScreen(props: {
                 paddingHorizontal: SPACE.sm,
               }}
             >
-              <Ionicons
+              <Icon
                 name={props.hidden ? "eye-off-outline" : "eye-outline"}
                 size={16}
                 color={COLORS.headerText}
@@ -238,7 +238,7 @@ export function HomeScreen(props: {
                 paddingVertical: 6,
               }}
             >
-              <Ionicons name="refresh-outline" size={14} color={COLORS.primary} />
+              <Icon name="refresh-outline" size={14} color={COLORS.primary} />
               <Text style={{ color: COLORS.primary, fontWeight: "800", fontSize: 12 }}>
                 {t(l, "retry")}
               </Text>
@@ -330,7 +330,7 @@ export function HomeScreen(props: {
               ...HAIRLINE,
             }}
           >
-            <Ionicons name="megaphone-outline" size={17} color={COLORS.debtOk} />
+            <Icon name="megaphone-outline" size={17} color={COLORS.debtOk} />
             <Text
               style={{ color: COLORS.announcementText, fontWeight: "600", flex: 1, fontSize: 13 }}
             >

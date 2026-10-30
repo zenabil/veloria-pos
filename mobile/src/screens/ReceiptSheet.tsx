@@ -4,7 +4,7 @@
 // V4 : enveloppe plate à filet + ombre réservée à la feuille superposée ;
 // la trame du ticket (centré, mono, pointillés) est intacte.
 import { Linking, Modal, Pressable, ScrollView, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Icon } from "../ui/Icon.tsx";
 import { COLORS, FONTS, HAIRLINE, RADIUS, SHADOW, SPACE, TYPE } from "../tokens.ts";
 import { direction, t, type Lang } from "../i18n.ts";
 import { Button, Dashed, flow } from "../ui/kit.tsx";
@@ -207,7 +207,7 @@ export function Ticket(props: {
             marginTop: SPACE.sm,
           }}
         >
-          <Ionicons name="qr-code-outline" size={18} color={COLORS.headerBg} />
+          <Icon name="qr-code-outline" size={18} color={COLORS.headerBg} />
           <Text
             style={{
               fontFamily: FONTS.mono,

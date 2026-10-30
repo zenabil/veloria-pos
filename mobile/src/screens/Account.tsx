@@ -3,7 +3,7 @@
 // magasin et réglages regroupés en lignes à filet. Plus de carte dans une carte.
 // Logique inchangée : props + appel/WhatsApp + logout/changePin/share/langue.
 import { Linking, ScrollView, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Icon } from "../ui/Icon.tsx";
 import { COLORS, RADIUS, SPACE, SIZES, TYPE, debtColor, debtSurface } from "../tokens.ts";
 import { direction, t, type Lang } from "../i18n.ts";
 import { formatDateFr, formatMinor } from "../format.ts";
@@ -197,12 +197,7 @@ export function AccountScreen(props: {
             padding: SPACE.md,
           }}
         >
-          <Ionicons
-            name="megaphone-outline"
-            size={16}
-            color={COLORS.debtOk}
-            style={{ marginTop: 2 }}
-          />
+          <Icon name="megaphone-outline" size={16} color={COLORS.debtOk} style={{ marginTop: 2 }} />
           <Text
             style={{
               ...TYPE.caption,

@@ -18,7 +18,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Icon } from "../ui/Icon.tsx";
 import { COLORS, FONTS, RADIUS, SIZES, SPACE, TYPE, tint } from "../tokens.ts";
 import { t, type Lang } from "../i18n.ts";
 import { normalizeDigits } from "../format.ts";
@@ -410,7 +410,7 @@ export function LoginScreen(props: {
                     hitSlop={8}
                     style={{ padding: 6 }}
                   >
-                    <Ionicons name="close-circle" size={17} color={COLORS.cardMuted} />
+                    <Icon name="close-circle" size={17} color={COLORS.cardMuted} />
                   </Tap>
                 )
               }
@@ -436,7 +436,7 @@ export function LoginScreen(props: {
                       hitSlop={8}
                       style={{ padding: 8 }}
                     >
-                      <Ionicons name="backspace-outline" size={16} color={COLORS.cardMuted} />
+                      <Icon name="backspace-outline" size={16} color={COLORS.cardMuted} />
                     </Tap>
                     {/* Filet fin : le retour arrière n'est pas une deuxième
                         moitié du bouton « إظهار الرمز » qui le jouxte. */}
@@ -461,7 +461,7 @@ export function LoginScreen(props: {
                     paddingHorizontal: 6,
                   }}
                 >
-                  <Ionicons
+                  <Icon
                     name={showPin ? "eye-off-outline" : "eye-outline"}
                     size={15}
                     color={COLORS.cardMuted}
@@ -532,7 +532,7 @@ export function LoginScreen(props: {
                 }}
                 accessibilityLiveRegion="polite"
               >
-                <Ionicons name="alert-circle" size={18} color={COLORS.debtOverdue} />
+                <Icon name="alert-circle" size={18} color={COLORS.debtOverdue} />
                 <Text style={{ color: COLORS.dangerText, fontWeight: "700", flex: 1 }}>
                   {props.error}
                 </Text>
@@ -599,7 +599,7 @@ export function LoginScreen(props: {
                   {t(l, "help1")}
                 </Text>
               </View>
-              <Ionicons
+              <Icon
                 name={rtl ? "chevron-back" : "chevron-forward"}
                 size={16}
                 color={COLORS.inkFaint}
@@ -624,7 +624,7 @@ export function LoginScreen(props: {
                 marginTop: SPACE.xs,
               }}
             >
-              <Ionicons name="logo-whatsapp" size={15} color={COLORS.cardMuted} />
+              <Icon name="logo-whatsapp" size={15} color={COLORS.cardMuted} />
               <Text
                 style={{
                   color: COLORS.cardMuted,
@@ -652,7 +652,7 @@ export function LoginScreen(props: {
               paddingHorizontal: SPACE.xs,
             }}
           >
-            <Ionicons name="sparkles-outline" size={14} color={COLORS.primary} />
+            <Icon name="sparkles-outline" size={14} color={COLORS.primary} />
             <Text
               style={{
                 color: COLORS.headerText,
@@ -664,7 +664,7 @@ export function LoginScreen(props: {
             >
               {t(l, "firstSteps")}
             </Text>
-            <Ionicons
+            <Icon
               name={helpOpen ? "chevron-up" : "chevron-down"}
               size={16}
               color={COLORS.navyMuted}
@@ -698,7 +698,7 @@ export function LoginScreen(props: {
               marginBottom: SPACE.md,
             }}
           >
-            <Ionicons name="shield-checkmark" size={13} color={COLORS.headerAccent} />
+            <Icon name="shield-checkmark" size={13} color={COLORS.headerAccent} />
             <Text style={{ color: COLORS.headerAccent, fontSize: 11, fontWeight: "700" }}>
               {t(l, "fastSecure")}
             </Text>

@@ -3,7 +3,7 @@
 // (expo-sqlite, repli mémoire) : l'appli rouvre sur les dernières données.
 import { useEffect, useRef, useState } from "react";
 import { BackHandler, Image, Linking, Modal, Platform, Pressable, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Icon } from "./ui/Icon.tsx";
 import { COLORS, RADIUS, SHADOW, SIZES, SPACE, TYPE, tint } from "./tokens.ts";
 import { formatDateFr } from "./format.ts";
 import { t, type Lang } from "./i18n.ts";
@@ -525,7 +525,7 @@ export function App(): React.JSX.Element {
               justifyContent: "center",
             }}
           >
-            <Ionicons
+            <Icon
               name={home.announcement ? "notifications" : "notifications-outline"}
               size={18}
               color={home.announcement ? COLORS.primary : COLORS.headerText}
@@ -675,7 +675,7 @@ export function App(): React.JSX.Element {
           <Text style={{ color: COLORS.white, flex: 1, fontSize: 13, fontWeight: "600" }}>
             {error}
           </Text>
-          <Ionicons name="close" size={16} color={COLORS.navyMuted} />
+          <Icon name="close" size={16} color={COLORS.navyMuted} />
         </Tap>
       ) : null}
       {/* Panneau notifications V3 : annonce + fraîcheur (bottom-sheet) */}

@@ -5,12 +5,12 @@
 import { useState } from "react";
 import { Platform, Pressable, Text, TextInput, View } from "react-native";
 import type { StyleProp, TextStyle, ViewStyle } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Icon, type IconName } from "./Icon.tsx";
 import * as Haptics from "expo-haptics";
 import { COLORS, FONTS, HAIRLINE, RADIUS, SHADOW, SIZES, SPACE, TYPE, tint } from "../tokens.ts";
 import type { Lang } from "../i18n.ts";
 
-export type IconName = React.ComponentProps<typeof Ionicons>["name"];
+export type { IconName };
 export type Flow = "row" | "row-reverse";
 
 const TAP_MIN = SIZES.touchMin;
@@ -207,7 +207,7 @@ export function Row(props: {
         ) : null}
       </View>
       {props.chevron ? (
-        <Ionicons
+        <Icon
           name={props.dir === "rtl" ? "chevron-back" : "chevron-forward"}
           size={16}
           color={COLORS.inkFaint}
@@ -284,7 +284,7 @@ export function Button(props: {
         <Text style={{ color: skin.fg, fontWeight: "800" }}>…</Text>
       ) : (
         <>
-          {props.icon ? <Ionicons name={props.icon} size={17} color={skin.fg} /> : null}
+          {props.icon ? <Icon name={props.icon} size={17} color={skin.fg} /> : null}
           <Text
             style={{
               color: skin.fg,
@@ -327,9 +327,7 @@ export function Chip(props: {
         gap: 6,
       }}
     >
-      {props.icon && active ? (
-        <Ionicons name={props.icon} size={13} color={COLORS.primary} />
-      ) : null}
+      {props.icon && active ? <Icon name={props.icon} size={13} color={COLORS.primary} /> : null}
       <Text
         style={{ color: active ? COLORS.white : COLORS.cardText, fontWeight: "700", fontSize: 13 }}
       >
@@ -381,7 +379,7 @@ export function Badge(props: {
           }}
         />
       ) : null}
-      {props.icon ? <Ionicons name={props.icon} size={12} color={props.color} /> : null}
+      {props.icon ? <Icon name={props.icon} size={12} color={props.color} /> : null}
       <Text style={{ color: props.color, fontWeight: "700", fontSize: 12 }}>{props.label}</Text>
     </View>
   );
@@ -412,7 +410,7 @@ export function IconBubble(props: {
         props.style,
       ]}
     >
-      <Ionicons name={props.icon} size={Math.round(size * 0.5)} color={color} />
+      <Icon name={props.icon} size={Math.round(size * 0.5)} color={color} />
     </View>
   );
 }
@@ -469,7 +467,7 @@ export function SectionHead(props: {
           <Text style={{ color: COLORS.headerBg, fontWeight: "800", fontSize: 13 }}>
             {props.actionLabel}
           </Text>
-          <Ionicons
+          <Icon
             name={props.dir === "rtl" ? "chevron-back" : "chevron-forward"}
             size={14}
             color={COLORS.headerBg}
@@ -547,7 +545,7 @@ export function Field(props: {
         gap: SPACE.sm,
       }}
     >
-      {props.icon ? <Ionicons name={props.icon} size={18} color={COLORS.cardMuted} /> : null}
+      {props.icon ? <Icon name={props.icon} size={18} color={COLORS.cardMuted} /> : null}
       {props.prefix ? (
         <Text style={{ fontWeight: "800", color: COLORS.cardMuted, fontSize: 14 }}>
           {props.prefix}
