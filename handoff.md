@@ -15,7 +15,8 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête **session 69** (Installateurs POS + License Manager). Avant elle session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- Branche : `chore/root-layout` — tête **session 75** (encaissement standalone ventilé FIFO, ADR-159). Avant elle session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 75 (2026-10-30)** : **encaissement standalone ventilé FIFO (ADR-159)** — demande propriétaire : le client a UNE dette, le POS la tenait par facture et un paiement « standalone » (fiche client / caisse) ne décrémentait que le solde agrégé, sans jamais toucher les ventes ⇒ liste des dettes, « En retard » et carte du jour restaient faux, et Σ restes par facture ≠ solde client. Désormais `recordCustomerPaymentAtomic` ventile le montant **dans la même transaction** sur les factures ouvertes, **la plus ancienne d'abord** (`created_at, id`), une ligne `sale_payments` par facture (`operationId:saleId`), reliquat éventuel en ligne standalone à l'`operationId` exact, solde client décrémenté une seule fois, audit enrichi (`allocations`). **Aucun backfill** de l'historique, aucune migration, aucun canal. Aide UI FR ajoutée dans la fiche client et la caisse. Test d'intégration neuf (base migrée réelle) : 5 cas ; suites adjacentes 44/44 ; **suite complète 170 fichiers / 1 155 tests 0** ; `build` ✓ · `build:electron` ✓ (manifeste signé **243**).
 - **Session 74 (2026-10-30)** : **passe UX 2026 sur les six écrans** — connexion (préfixe +213 trompeur retiré, autofill, conseil de récupération sur erreur, séparateur « ou » + QR, « Connexion chiffrée »), accueil (échéance), détail (historique des paiements de la facture), compte (tirer pour rafraîchir + confirmation de déconnexion), contraste AA (onglets/légendes/chevrons). 31/31 tests ; APK 1.0.4 (code 5) `b420ee84…` ; installation téléphone en attente (ADB déconnecté).
 - **Session 73 (2026-10-30)** : **écrans secondaires V5** — Factures (panneau unique à filets, ligne tactile, dette restante, « Aucun résultat »), Détail (fiche + héros Reste + mini Total/Payé, carte Articles, QR), Paiements (panneau, total du mois + répartition espèces/chèque/virement, ligne tactile, reçu), Compte (profil plein bandeau, dernière synchro horodatée). `paymentsByMethod` pur + tests. APK 1.0.3 (code 4) signé (`923cee03…`) ; installation téléphone en attente (ADB déconnecté).
 - **Session 72 (2026-10-30)** : **accueil client V5** — carte « dernière facture » chevauchant le bandeau, crédit intégré au bandeau (barre segmentée), fraîcheur horodatée, « Ce mois-ci » en deux colonnes tactiles, factures (total) / paiements / articles, accueil dédié au client sans activité. Données : `invoiceCount` + `monthKey` dans `toHome`, `formatDateTimeFr`, 7 clés i18n. APK 1.0.2 (code 3) construit et signé (`release/Veloria-Client-1.0.2.apk`, SHA-256 `8c2e365d…`) ; installation téléphone en attente (ADB déconnecté).
@@ -3148,3 +3149,71 @@ mois en deux colonnes` + ce `docs(handoff)`.
   (`adb install -r` au retour, même signature).
 
 **Git** : `feat(mobile): passe UX 2026 sur les six écrans` + ce `docs(handoff)`.
+
+## 75) Session 2026-10-30 — Encaissement standalone ventilé FIFO (ADR-159)
+
+**Demande** : « اريد مناقشة شيء معك حول تاريخ الاستحقاق » → vérification
+seule demandée (« تحقق فقط لا تغير شيئا ») → « اقترح علي » → « نفذ توزيع
+تلقائي «الأقدم أولًا » ».
+
+**Diagnostic vérifié (lecture seule, avant tout changement)**
+
+- La dette est tenue PAR FACTURE : `debts.list` est bâti sur
+  `sales.remaining_balance_minor > 0` (une ligne par facture ouverte), tandis
+  que le client porte UN solde agrégé (`customers.outstanding_balance_minor`).
+- Paiement lié (`saleId` fourni, écran Dettes) : met à jour la vente ET le
+  solde client — cohérent.
+- Paiement standalone (`saleId: null` — fiche client « Règlement client » et
+  caisse « Régler la dette ») : SEUL le solde client bougeait ; aucune
+  écriture sur les ventes, aucune ventilation (pas de FIFO).
+- Conséquence : après un encaissement standalone, la liste des dettes montrait
+  toujours les mêmes factures (mêmes restes, mêmes échéances dépassées),
+  « En retard » restait collé et Σ restes par facture ≠ solde client.
+
+**Décision (ADR-159)**
+
+- Ventilation FIFO **dans la transaction du paiement** : factures ouvertes du
+  client, annulées exclues, `ORDER BY created_at ASC, id ASC` (la plus
+  ancienne d'abord, `id` en départage).
+- Une ligne `sale_payments` par facture (`sale_id` renseigné,
+  `operation_id = ${operationId}:${saleId}`), même instruction de mise à jour
+  de la vente que le chemin lié (`remaining`, `payment_status`).
+- Reliquat éventuel (solde sans facture ouverte, ex. solde initial) : ligne
+  standalone à l'`operationId` exact — comportement historique préservé.
+- Solde client décrémenté UNE fois ; `debt_status` recalculé après les mises
+  à jour de ventes (règle E-30).
+- Idempotence : `findExisting` cherche l'`operationId` exact puis le préfixe
+  échappé `${operationId}:` (première ligne allouée = ancre stable) ; le
+  catch UNIQUE existant couvre les courses.
+- Audit `customer.payment` : `allocations` ajoutées pour les standalone.
+- Aide UI FR : « Le montant est réparti automatiquement sur les factures les
+  plus anciennes. » (fiche client) et « Montant borné par la dette et réparti
+  sur les factures les plus anciennes. » (caisse).
+- **Pas de backfill** de l'historique : les encaissements standalone anciens
+  laissent leurs factures ouvertes, le passé n'est pas réécrit.
+
+**Fichiers**
+
+- `electron/ipc/handlers/customers.repo.ts` — fonction seule, aucun autre
+  chemin de paiement touché.
+- `src/features/customers/dialogs/PaymentDialog.tsx`,
+  `src/features/sales/sell/SettleDialog.tsx` — aide FR uniquement.
+- `tests/integration/customer-payment-fifo.test.ts` — neuf, 5 tests (base
+  migrée réelle : ventilation FIFO + alignement liste des dettes, reliquat,
+  rejeu `operationId`, refus > solde avec rollback, ventes annulées exclues).
+- `docs/ADR-159-ventilation-paiements-fifo.md`, `docs/INDEX.md`, ce handoff.
+
+**Vérifications**
+
+- Test neuf 5/5 ; suites adjacentes (reçu, idempotence LWW, atomic slices,
+  dashboard paiements annulés, boucle client, unités op-id/bornes/plafond)
+  44/44.
+- `tsc -b` 0 · `tsc -p tsconfig.electron.json --noEmit` 0 · ESLint 0 ·
+  Prettier OK · `verify:fr` 0 (333) · `verify:encoding` 0 (953) ·
+  `verify:migrations` VERIFIED (56).
+- **Suite complète : 170 fichiers / 1 155 tests, 0 échec** (490 s) · `build` ✓
+  · `build:electron` ✓ (manifeste signé **243**).
+
+**Git** : `fix(payments): ventiler les encaissements standalone FIFO (ADR-159)`
+
+- ce `docs(handoff)`.
