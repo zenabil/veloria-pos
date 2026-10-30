@@ -15,7 +15,8 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête **session 76** (détails de facture APK rétablis, ADR-160). Avant elle session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- Branche : `chore/root-layout` — tête **session 77** (version unique 1.0.4 + mises à jour, ADR-161). Avant elle session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 77 (2026-10-31)** : **version unique 1.0.4 + contrat de mise à jour (ADR-161)** — demande propriétaire : « غير اصدار pos و license الى 1.0.4 و يجب ان تدعم ... الترقية من اصدار الى اصدار جديد ». Constat : POS/Manager étaient en **1.0.0** (`package.json` racine, embarqué par electron-builder) alors que le client était en **1.0.4** (`app.json`/`build.gradle`), avec un libellé `appVersion` codé en dur, aucune version visible dans le Manager et des migrations de registre sans copie de sécurité. Décisions : `package.json` racine = **source unique 1.0.4** (POS + Manager) ; outil **`npm run version:check|version:set`** (`scripts/release/version.mjs`) qui aligne package/locks/app.json/Gradle/`App.tsx` et **incrémente `versionCode` Android** sans régression ; `verify` inclut `version:check` ; Manager : canal `manager.appInfo` + version dans l'en-tête, **snapshot `VACUUM INTO` avant migration** de colonnes (5 conservés, fail-closed), seules les colonnes absentes rejouées ; POS : contrat NSIS inchangé (appId stable, perMachine, données hors install, snapshots pré-migration) ; client : même `applicationId`/keystore, `versionCode` croissant, données SecureStore/SQLite conservées. **Pas d'auto-update en ligne** (aucun serveur, installateurs non signés). Preuves : **172 fichiers / 1 166 tests 0** ; lint/format/typechecks ✓ ; verify (dont version:check) ✓ ; `build` ✓ ; `build:electron` ✓ (manifeste signé 243, **v1.0.4**) ; `build:manager` ✓ ; **installateurs 1.0.4** produits et copiés dans `release/` (hashes ci-dessous) ; `release:smoke` réparé (chemin `config/electron-builder/pos.yml`) et vert. **Non exécuté** : installation réelle 1.0.0 → 1.0.4 (UAC/perMachine) et rebuild APK (client déjà 1.0.4 code 5).
 - **Session 76 (2026-10-30)** : **détails de facture APK rétablis (ADR-160)** — demande propriétaire : « تفاصيل الفواتير لا تظهر في تطبيق العملاء ما السبب ». Diagnostic (base réelle + code) : `sales.create` ne poussait que les trois clichés de listes (jamais `invoice_detail`), un encaissement standalone ventilé FIFO ne poussait pas le détail des factures soldées, et l'Edge ne cherchait le détail que dans les **50 derniers** clichés → 404 « التفاصيل غير متوفرة ». Correctifs : `enqueueSaleRefresh` après création de vente ; `recordCustomerPaymentAtomic` retourne `allocatedSaleIds` et le détail repart pour chaque facture ventilée (`enqueueInvoiceDetailRefresh`, sans dupliquer les listes) ; lecture miroir directe `payload->sale->>id` (plus de fenêtre 50, index d'expression) ; bouton « Synchroniser » couvre tout le relevé (≤100 ventes) au lieu des 10 dernières. Tests : 3 nouveaux (`client-sync-queue`) + 2 assertions FIFO ; **suite complète 171 fichiers / 1 158 tests 0** ; `build` ✓ · `build:electron` ✓ (manifeste signé **243**). **À déployer** : fonction Edge `client-sync` (console Supabase, Verify JWT OFF) + index `idx_client_payloads_customer_sale`.
 - **Session 75 (2026-10-30)** : **encaissement standalone ventilé FIFO (ADR-159)** — demande propriétaire : le client a UNE dette, le POS la tenait par facture et un paiement « standalone » (fiche client / caisse) ne décrémentait que le solde agrégé, sans jamais toucher les ventes ⇒ liste des dettes, « En retard » et carte du jour restaient faux, et Σ restes par facture ≠ solde client. Désormais `recordCustomerPaymentAtomic` ventile le montant **dans la même transaction** sur les factures ouvertes, **la plus ancienne d'abord** (`created_at, id`), une ligne `sale_payments` par facture (`operationId:saleId`), reliquat éventuel en ligne standalone à l'`operationId` exact, solde client décrémenté une seule fois, audit enrichi (`allocations`). **Aucun backfill** de l'historique, aucune migration, aucun canal. Aide UI FR ajoutée dans la fiche client et la caisse. Test d'intégration neuf (base migrée réelle) : 5 cas ; suites adjacentes 44/44 ; **suite complète 170 fichiers / 1 155 tests 0** ; `build` ✓ · `build:electron` ✓ (manifeste signé **243**).
 - **Session 74 (2026-10-30)** : **passe UX 2026 sur les six écrans** — connexion (préfixe +213 trompeur retiré, autofill, conseil de récupération sur erreur, séparateur « ou » + QR, « Connexion chiffrée »), accueil (échéance), détail (historique des paiements de la facture), compte (tirer pour rafraîchir + confirmation de déconnexion), contraste AA (onglets/légendes/chevrons). 31/31 tests ; APK 1.0.4 (code 5) `b420ee84…` ; installation téléphone en attente (ADB déconnecté).
@@ -3285,5 +3286,107 @@ LIMIT 1`), suppression de `DETAIL_SCAN_LIMIT`.
    factures existantes, puis laisser la poussée automatique (5 min) envoyer.
 
 **Git** : `fix(sync): pousser le détail de facture et supprimer la fenêtre 50 (ADR-160)`
+
+- ce `docs(handoff)`.
+
+## 77) Session 2026-10-31 — Version unique 1.0.4 et contrat de mise à jour (ADR-161)
+
+**Demande** : « غير اصدار pos و license الى 1.0.4 و يجب ان تدعم البرامج pos
+و license و التطبيقات الهواتف veloria client الترقية من اصدار الى اصدار
+جديد ».
+
+**Diagnostic**
+
+- POS + License Manager : **1.0.0** (`package.json` racine ; electron-builder
+  l'embarque dans les deux installateurs, `app.getVersion()` l'affiche).
+- Client : **1.0.4** (`mobile/app.json`, `build.gradle`), mais `App.tsx`
+  affichait `appVersion="1.0.4"` en dur et le Manager n'affichait aucune
+  version.
+- Les installateurs NSIS pouvaient déjà se remplacer (appId stable,
+  `perMachine`, données hors installation) mais rien ne garantissait
+  l'alignement des numéros ni la croissance du `versionCode` Android.
+- Registre Manager : migrations de colonnes rejouées sans copie de sécurité.
+
+**Décisions (ADR-161)**
+
+- `package.json` racine = **source unique** ; version portée à **1.0.4** pour
+  POS + License Manager (installateurs + About POS + en-tête Manager).
+- `scripts/release/version.mjs` : `check` (gate `verify`) et `set x.y.z`
+  (package + locks + `mobile/package.json` + `app.json` + `build.gradle`
+  `versionName`/`versionCode` + `App.tsx`). `versionCode` strictement
+  croissant, `--code N` explicite possible ; refus d'une régression.
+- License Manager : canal `manager.appInfo` (version dans l'en-tête) ;
+  **snapshot `VACUUM INTO` avant migration** (`backups/manager-avant-migration-*`,
+  5 conservés, échec = mise à jour annulée) ; seules les colonnes absentes
+  sont ajoutées.
+- POS : contrat existant conservé (appId stable, `perMachine`,
+  `deleteAppDataOnUninstall:false`, base `%PROGRAMDATA%`, snapshots
+  pré-migration + checksums).
+- Client : même `applicationId` `dz.veloria.client`, même keystore release,
+  `versionCode` croissant ; SecureStore/SQLite conservés par Android.
+- **Pas d'auto-update en ligne** : aucun serveur d'artefacts et installateurs
+  non signés (`verifyUpdateCodeSignature:false`) — un téléchargement/exécution
+  automatique serait dangereux (voir ADR-161, alternatives).
+
+**Fichiers**
+
+- `package.json`, `package-lock.json`, `mobile/package.json`,
+  `mobile/package-lock.json` (version 1.0.4).
+- `scripts/release/version.mjs` (neuf), `eslint.config.mjs` (allowlist),
+  `package.json` scripts `version:check`/`version:set`, `verify` enrichi.
+- `license-manager/db/manager-db.ts` (backup + helper pur),
+  `license-manager/ipc/{channels,registry}.ts`, `preload/preload.ts`,
+  `renderer/{ipc-client.ts,manager-env.d.ts,App.tsx}`.
+- `tests/unit/version-alignment.test.ts` (neuf, 7 tests),
+  `tests/unit/license-manager.test.ts` (+1 test migration).
+- `scripts/release/smoke.js` : chemin `config/electron-builder/pos.yml`
+  (l'ancien `electron-builder.yml` déplacé en session 65 faisait échouer la
+  porte release).
+- `README.md`, `docs/INDEX.md`, `docs/ADR-161-version-unique-et-mises-a-jour.md`,
+  ce handoff.
+
+**Artefacts 1.0.4 (`release/`)**
+
+| Fichier                                      |      Taille | SHA-256                                                            |
+| -------------------------------------------- | ----------: | ------------------------------------------------------------------ |
+| `Veloria-PoS-Setup-1.0.4.exe`                | 163 548 058 | `e21710fb390e1f75ecf6b663a3f3b94892f47d7d0fbe69118c1e81accd5107bf` |
+| `Veloria-PoS-Portable-1.0.4.exe`             | 141 664 367 | `d1a3a88317e0e279ca881e3670a8b0031fbfede75b83162bba458b77efc81856` |
+| `Veloria-License-Manager-Setup-1.0.4.exe`    | 145 523 587 | `842866bf847f0af4a2eb33dac0d0b05e298b5c462cb9a7294fd0d62154bcaf63` |
+| `Veloria-License-Manager-Portable-1.0.4.exe` | 131 754 141 | `0d67cbdc1de8e7dd87f28874a50b20d659d0e92130c8cf5ba3c95a121f697021` |
+| `Veloria-Client-1.0.4.apk` (inchangé)        |  88 724 364 | `b420ee84fb3a9dd9a12e4d834d97b5832a0d71065690a9672b9bdda6c4d3afac` |
+
+Installateurs **non signés Authenticode** (aucun certificat configuré) ;
+POS/Manager construits dans `E:\veloria-build-1.0.4` (évite le verrou
+scanner de `release/`) puis copiés. L'APK n'est pas reconstruit : le client
+reste 1.0.4 code 5, aucune source mobile modifiée.
+
+**Portes**
+
+- `npm run version:check` OK (1.0.4, code Android 5) ; `format:check` OK ;
+  ESLint 0 ; `tsc -b` 0 ; `typecheck:electron` 0 ; `typecheck:manager` 0 ;
+  `typecheck:mobile` 0 ; **vitest 172 fichiers / 1 166 tests, 0 échec**
+  (423 s) ; `knip` 0 ; `verify` ✓ (migrations/domain/fr/encoding/perf/
+  version:check/secret-scan) ; `build` ✓ ; `build:electron` ✓ (manifeste
+  signé **243**, v1.0.4) ; `build:manager-client` + `build:manager` ✓ ;
+  `release:checksums` ✓ ; `release:smoke` ✓ (après correctif du chemin).
+- **Non exécuté** : installation réelle 1.0.0 → 1.0.4 (UAC/perMachine,
+  E2E installateur toujours ignoré sur cette machine), reconstruction APK
+  (client déjà 1.0.4 code 5), mise à jour en ligne (hors périmètre).
+
+**Reste à faire (utilisateur)**
+
+1. Installer `Veloria-PoS-Setup-1.0.4.exe` puis
+   `Veloria-License-Manager-Setup-1.0.4.exe` sur les postes existants
+   (l'installateur remplace l'ancienne version ; base, sauvegardes, réglages
+   et licence conservés). Vérifier « À propos » POS = 1.0.4 et l'en-tête du
+   Manager = v1.0.4.
+2. Pour une version suivante : `npm run version:set x.y.z` (incrémente le
+   `versionCode`), puis rebuild installateurs + APK. Ne jamais réutiliser un
+   `versionCode` déjà publié.
+3. L'APK client reste `Veloria-Client-1.0.4.apk` ; la prochaine version
+   (ex. 1.0.5 code 6) s'installera par-dessus sans perte de session si elle
+   est signée avec le même keystore.
+
+**Git** : `feat(release): version unique 1.0.4 et contrat de mise à jour (ADR-161)`
 
 - ce `docs(handoff)`.
