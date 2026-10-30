@@ -15,7 +15,8 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête **session 68** (APK client signé, build Gradle local). Avant elle session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- Branche : `chore/root-layout` — tête **session 69** (Installateurs POS + License Manager). Avant elle session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 69 (2026-10-30)** : **mise à jour des installateurs Windows** — POS (Setup 156 Mo, Portable 136 Mo) et License Manager (Setup 139 Mo, Portable 126 Mo), x64, v1.0.0, NSIS fr perMachine, **non signés** (aucun certificat Authenticode configuré). Blocage `EBUSY default_app.asar` sur `release/` contourné par une sortie neuve `E:\veloria-build` (sans rien supprimer) ; artefacts copiés dans `release/` + `SHA256SUMS.txt` actualisé.
 - **Session 68 (2026-10-30)** : **APK client signé (build local Gradle)** — `mobile/eas.json` pointe désormais le projet `veloria-pos` (URL + clé anon publique, profils preview/production). Build release local (`./gradlew assembleRelease`, Java 17 + SDK/NDK) : `dz.veloria.client` 1.0.0 (code 1, minSdk 24, target 34), signé CN=Veloria, 88 462 721 octets, copié `release/Veloria-Client-1.0.0.apk` (SHA-256 `6bdf6017…`). URL Supabase + anon gravées dans le bundle (repli sans QR ; le QR V2 reste prioritaire). Aucun appareil/émulateur disponible : non testé au runtime. `license:scan` OK.
 - **Session 67 (2026-10-29)** : **miroir Supabase opérationnel (ADR-158)** — projet existant `veloria-pos` (ref `ynktschorbwukxovjzcz`, Londres) vérifié : tables + RLS + fonction `client-sync` (Verify JWT désactivé). POS raccordé (URL + clés legacy chiffrées DPAPI dans `app_settings.client_sync`), première poussée **réussie** (`lastPushAt 21:54:55Z`, 0 erreur). **Bug réel corrigé** : les ventes/paiements de clients non activés mettaient des clichés en file → FK `client_payloads.customer_id` → **409 bloquant toute la poussée** ; garde `hasActiveClientAccess` + test (7/7), file orpheline purgée après sauvegarde. Schéma cloud aligné (`pin_salt`, `pin_algo`). Test cloud complet insertion→`client-sync` 200→cleanup. Portes : format, lint, check ×4, **1 147 tests**.
 - **Session 66 (2026-10-29)** : **développement des interfaces — 19 surfaces (ADR-157)** — demande « قم بتطوير تصميم واجهات الصفحات التالية … بالترتيب ». Direction validée par le propriétaire : **approfondir Stitch** (pas de nouvelle identité). Socle partagé d'abord (cartes, `PageHeader`, `StatsStrip`, `Kpi`, `FormSection` avec action, survol global des registres, entrée de module), puis les 19 pages dans l'ordre : navigation, tableau de bord, caisse, catalogue, fiche produit, clients, fiche client, stock, réception, fournisseurs, fiche fournisseur, historique, rapports, zakat, dettes, retours, nouveau retour, paramètres, licence. **19 checkpoints** (un par surface), libellés de données corrigés (« Fournisseurs actifs », sous-ligne « Client #id » retirée des retours). Portes vertes : format, lint, check ×4, **1 146 tests**, verify, E2E ciblés et captures Electron.
@@ -2794,3 +2795,59 @@ raccordé au miroir Supabase.
 - Incrémenter `versionCode`/`versionName` avant toute nouvelle diffusion.
 
 **Git** : `mobile/eas.json` (config projet) · ce `docs(handoff)`.
+
+## 69) Session 2026-10-30 — Installateurs Windows POS + License Manager
+
+**Demande** : « ابن ملفات التثبيت pos و license manager » — reconstruire les
+installateurs Windows à partir de l'état courant (UI ADR-157 + correctif sync
+ADR-158).
+
+**Blocage rencontré et contournement**
+
+- `npm run package:pos` échoue à la préparation Electron :
+  `EBUSY default_app.asar` dans `release/win-unpacked.tmp` (verrou persistant
+  d'un ancien processus/scanner ; renommage testé → EBUSY même sans build en
+  cours). **Aucun fichier supprimé de force.**
+- Contournement : electron-builder relancé vers une sortie neuve
+  `E:\veloria-build` (`--config.directories.output=...`) → extraction et
+  packaging OK. Les artefacts finaux ont été copiés dans `release/`.
+- Restes à nettoyer après redémarrage : `release/win-unpacked` (357 Mo,
+  partiel) et `release/win-unpacked.tmp` (116 Ko, verrouillé). `E:\veloria-build`
+  (1,0 Go, sortie temporaire de cette session) peut être supprimé.
+
+**Construits**
+
+- POS : `npm run package:pos` (renderer + electron rebuild + manifeste
+  d'intégrité signé), puis NSIS + portable x64.
+- Manager : `build:manager-client` + `build:manager` (manifeste manager signé,
+  21 fichiers) puis NSIS + portable x64.
+
+| Fichier                                      | Taille | SHA-256                                                            |
+| -------------------------------------------- | -----: | ------------------------------------------------------------------ |
+| `Veloria-PoS-Setup-1.0.0.exe`                | 156 Mo | `d3cb52b5645373571a906f5d5f9e2c6a797e89a5c9a364d1fcdbe0f185a5eff0` |
+| `Veloria-PoS-Portable-1.0.0.exe`             | 136 Mo | `585ea8b0c7819155bc5c8bb67615a482478e46461b6393399adc84bb796840bb` |
+| `Veloria-License-Manager-Setup-1.0.0.exe`    | 139 Mo | `5765636fa7229676786e05899acabc875d2120088f4027c9205fd5a5dfc380b4` |
+| `Veloria-License-Manager-Portable-1.0.0.exe` | 126 Mo | `79a2c6d5cee8c9f9dcc5caca69fdae505aef2bde2163c04a7538376b84336173` |
+
+`release/SHA256SUMS.txt` regénéré (inclut l'APK client,
+`6bdf6017…`). Les anciens installateurs du 27/10 ont été remplacés.
+
+**Caractéristiques**
+
+- NSIS `fr_FR`, `perMachine` (UAC admin), dossier modifiable, raccourcis
+  bureau/menu Démarrer, désinstallation sans suppression des données.
+- `signAndEditExecutable: true` (règle ADR-070 conservée) ; **aucun certificat
+  Authenticode configuré** → `Get-AuthenticodeSignature` = `NotSigned` pour
+  les quatre exécutables. SmartScreen affichera un avertissement à
+  l'installation ; aucun certificat auto-signé n'a été ajouté.
+- Versions produit : Veloria PoS 1.0.0, Veloria License Manager 1.0.0.
+
+**Portes / vérifications**
+
+- `license:scan` OK ; manifeste POS 243 fichiers ; manifeste manager 21
+  fichiers ; `aapt`/`apksigner` déjà vérifiés pour l'APK (session 68).
+- Versions produit et statut de signature vérifiés via PowerShell.
+- **Non testé au runtime** : installateurs non exécutés sur ce poste.
+
+**Git** : ce `docs(handoff)` uniquement (aucun changement source ; `release/`
+est git-ignoré).
