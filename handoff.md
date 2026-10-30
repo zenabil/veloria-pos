@@ -15,9 +15,10 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête **session 77** (version unique 1.0.4 + mises à jour, ADR-161). Avant elle session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
-- **Session 77 (2026-10-31)** : **version unique 1.0.4 + contrat de mise à jour (ADR-161)** — demande propriétaire : « غير اصدار pos و license الى 1.0.4 و يجب ان تدعم ... الترقية من اصدار الى اصدار جديد ». Constat : POS/Manager étaient en **1.0.0** (`package.json` racine, embarqué par electron-builder) alors que le client était en **1.0.4** (`app.json`/`build.gradle`), avec un libellé `appVersion` codé en dur, aucune version visible dans le Manager et des migrations de registre sans copie de sécurité. Décisions : `package.json` racine = **source unique 1.0.4** (POS + Manager) ; outil **`npm run version:check|version:set`** (`scripts/release/version.mjs`) qui aligne package/locks/app.json/Gradle/`App.tsx` et **incrémente `versionCode` Android** sans régression ; `verify` inclut `version:check` ; Manager : canal `manager.appInfo` + version dans l'en-tête, **snapshot `VACUUM INTO` avant migration** de colonnes (5 conservés, fail-closed), seules les colonnes absentes rejouées ; POS : contrat NSIS inchangé (appId stable, perMachine, données hors install, snapshots pré-migration) ; client : même `applicationId`/keystore, `versionCode` croissant, données SecureStore/SQLite conservées. **Pas d'auto-update en ligne** (aucun serveur, installateurs non signés). Preuves : **172 fichiers / 1 166 tests 0** ; lint/format/typechecks ✓ ; verify (dont version:check) ✓ ; `build` ✓ ; `build:electron` ✓ (manifeste signé 243, **v1.0.4**) ; `build:manager` ✓ ; **installateurs 1.0.4** produits et copiés dans `release/` (hashes ci-dessous) ; `release:smoke` réparé (chemin `config/electron-builder/pos.yml`) et vert. **Non exécuté** : installation réelle 1.0.0 → 1.0.4 (UAC/perMachine) et rebuild APK (client déjà 1.0.4 code 5).
-- **Session 76 (2026-10-30)** : **détails de facture APK rétablis (ADR-160)** — demande propriétaire : « تفاصيل الفواتير لا تظهر في تطبيق العملاء ما السبب ». Diagnostic (base réelle + code) : `sales.create` ne poussait que les trois clichés de listes (jamais `invoice_detail`), un encaissement standalone ventilé FIFO ne poussait pas le détail des factures soldées, et l'Edge ne cherchait le détail que dans les **50 derniers** clichés → 404 « التفاصيل غير متوفرة ». Correctifs : `enqueueSaleRefresh` après création de vente ; `recordCustomerPaymentAtomic` retourne `allocatedSaleIds` et le détail repart pour chaque facture ventilée (`enqueueInvoiceDetailRefresh`, sans dupliquer les listes) ; lecture miroir directe `payload->sale->>id` (plus de fenêtre 50, index d'expression) ; bouton « Synchroniser » couvre tout le relevé (≤100 ventes) au lieu des 10 dernières. Tests : 3 nouveaux (`client-sync-queue`) + 2 assertions FIFO ; **suite complète 171 fichiers / 1 158 tests 0** ; `build` ✓ · `build:electron` ✓ (manifeste signé **243**). **À déployer** : fonction Edge `client-sync` (console Supabase, Verify JWT OFF) + index `idx_client_payloads_customer_sale`.
+- Branche : `chore/root-layout` — tête **session 78** (déploiement Supabase ADR-160). Avant elle session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 78 (2026-10-31)** : **déploiement Supabase exécuté (ADR-160)** — demande : « نفّذ التغييرات على Supabase الآن ». Depuis la session navigateur Qoder (org Veloria) : `client-sync` **redéployé** depuis le fichier du dépôt (filtre direct `payload->sale->>id`, plus de `DETAIL_SCAN_LIMIT`, « Verify JWT with legacy secret » **OFF** confirmé) ; index `idx_client_payloads_customer_sale` **créé et vérifié** dans `pg_indexes`. Preuve de bout en bout via sonde temporaire (client 999999, facture 424242) : `saleId=424242` → **200** avec détail, vente inconnue → **404 NOT_FOUND**, mauvais PIN → **401 AUTH_ERROR** ; sonde supprimée (`access_left=0`, `payload_left=0`). Aucun changement de schéma/RLS/clé. Reste côté poste : installer POS 1.0.4 puis « Synchroniser » pour backfiller les factures existantes.
+- **Session 77 (2026-10-31)** : **version unique 1.0.4 + contrat de mise à jour (ADR-161)** — demande propriétaire : « غير اصدار pos و license الى 1.0.4 و يجب ان تدعم ... الترقية من اصدار الى اصدار جديد ». Constat : POS/Manager étaient en **1.0.0** (`package.json` racine, embarqué par electron-builder) alors que le client était en **1.0.4** (`app.json`/`build.gradle`), avec un libellé `appVersion` codé en dur, aucune version visible dans le Manager et des migrations de registre sans copie de sécurité. Décisions : `package.json` racine = **source unique 1.0.4** (POS + Manager) ; outil **`npm run version:check|version:set`** (`scripts/release/version.mjs`) qui aligne package/locks/app.json/Gradle/`App.tsx` et **incrémente `versionCode` Android** sans régression ; `verify` inclut `version:check` ; Manager : canal `manager.appInfo` + version dans l'en-tête, **snapshot `VACUUM INTO` avant migration** de colonnes (5 conservés, fail-closed), seules les colonnes absentes rejouées ; POS : contrat NSIS inchangé (appId stable, perMachine, données hors install, snapshots pré-migration) ; client : même `applicationId`/keystore, `versionCode` croissant, données SecureStore/SQLite conservées. **Pas d'auto-update en ligne** (aucun serveur, installateurs non signés). Preuves : **172 fichiers / 1 166 tests 0** ; lint/format/typechecks ✓ ; verify (dont version:check) ✓ ; `build` ✓ ; `build:electron` ✓ (manifeste signé 243, **v1.0.4**) ; `build:manager` ✓ ; **installateurs 1.0.4** produits et copiés dans `release/` ; `release:smoke` réparé (chemin `config/electron-builder/pos.yml`) et vert. **Non exécuté** : installation réelle 1.0.0 → 1.0.4 (UAC/perMachine) et rebuild APK (client déjà 1.0.4 code 5).
+- **Session 76 (2026-10-30)** : **détails de facture APK rétablis (ADR-160)** — demande propriétaire : « تفاصيل الفواتير لا تظهر في تطبيق العملاء ما السبب ». Diagnostic (base réelle + code) : `sales.create` ne poussait que les trois clichés de listes (jamais `invoice_detail`), un encaissement standalone ventilé FIFO ne poussait pas le détail des factures soldées, et l'Edge ne cherchait le détail que dans les **50 derniers** clichés → 404 « التفاصيل غير متوفرة ». Correctifs : `enqueueSaleRefresh` après création de vente ; `recordCustomerPaymentAtomic` retourne `allocatedSaleIds` et le détail repart pour chaque facture ventilée (`enqueueInvoiceDetailRefresh`, sans dupliquer les listes) ; lecture miroir directe `payload->sale->>id` (plus de fenêtre 50, index d'expression) ; bouton « Synchroniser » couvre tout le relevé (≤100 ventes) au lieu des 10 dernières. Tests : 3 nouveaux (`client-sync-queue`) + 2 assertions FIFO ; **suite complète 171 fichiers / 1 158 tests 0** ; `build` ✓ · `build:electron` ✓ (manifeste signé **243**). **Déployé le 2026-10-31 (session 78)** : fonction Edge + index, vérifiés 200/404/401 et sonde nettoyée.
 - **Session 75 (2026-10-30)** : **encaissement standalone ventilé FIFO (ADR-159)** — demande propriétaire : le client a UNE dette, le POS la tenait par facture et un paiement « standalone » (fiche client / caisse) ne décrémentait que le solde agrégé, sans jamais toucher les ventes ⇒ liste des dettes, « En retard » et carte du jour restaient faux, et Σ restes par facture ≠ solde client. Désormais `recordCustomerPaymentAtomic` ventile le montant **dans la même transaction** sur les factures ouvertes, **la plus ancienne d'abord** (`created_at, id`), une ligne `sale_payments` par facture (`operationId:saleId`), reliquat éventuel en ligne standalone à l'`operationId` exact, solde client décrémenté une seule fois, audit enrichi (`allocations`). **Aucun backfill** de l'historique, aucune migration, aucun canal. Aide UI FR ajoutée dans la fiche client et la caisse. Test d'intégration neuf (base migrée réelle) : 5 cas ; suites adjacentes 44/44 ; **suite complète 170 fichiers / 1 155 tests 0** ; `build` ✓ · `build:electron` ✓ (manifeste signé **243**).
 - **Session 74 (2026-10-30)** : **passe UX 2026 sur les six écrans** — connexion (préfixe +213 trompeur retiré, autofill, conseil de récupération sur erreur, séparateur « ou » + QR, « Connexion chiffrée »), accueil (échéance), détail (historique des paiements de la facture), compte (tirer pour rafraîchir + confirmation de déconnexion), contraste AA (onglets/légendes/chevrons). 31/31 tests ; APK 1.0.4 (code 5) `b420ee84…` ; installation téléphone en attente (ADB déconnecté).
 - **Session 73 (2026-10-30)** : **écrans secondaires V5** — Factures (panneau unique à filets, ligne tactile, dette restante, « Aucun résultat »), Détail (fiche + héros Reste + mini Total/Payé, carte Articles, QR), Paiements (panneau, total du mois + répartition espèces/chèque/virement, ligne tactile, reçu), Compte (profil plein bandeau, dernière synchro horodatée). `paymentsByMethod` pur + tests. APK 1.0.3 (code 4) signé (`923cee03…`) ; installation téléphone en attente (ADB déconnecté).
@@ -3273,15 +3274,15 @@ LIMIT 1`), suppression de `DETAIL_SCAN_LIMIT`.
   `typecheck:electron` 0 · `typecheck:mobile` 0 · **suite complète 171
   fichiers / 1 158 tests, 0 échec** (417 s) · `build` ✓ · `build:electron` ✓
   (manifeste signé **243**).
-- **Non exécuté** : E2E Playwright (nécessite la build packagée) et
-  déploiement Supabase (fonction + index) — à faire côté console, « Verify
-  JWT » reste OFF.
+- **Non exécuté (session 76)** : E2E Playwright (nécessite la build packagée).
+  **Déploiement Supabase : FAIT en session 78** — fonction redéployée, index
+  appliqué, sonde 200/404/401, « Verify JWT » OFF.
 
 **Reste à faire (utilisateur)**
 
-1. Redéployer `client-sync` depuis le fichier du dépôt.
-2. Appliquer l'index `idx_client_payloads_customer_sale` au projet
-   `veloria-pos` (facultatif pour la correction, requis pour la performance).
+1. ~~Redéployer `client-sync`~~ — fait le 2026-10-31 (session 78).
+2. ~~Appliquer l'index `idx_client_payloads_customer_sale`~~ — fait le
+   2026-10-31 (vérifié dans `pg_indexes`).
 3. Depuis le POS : fiche client → « Synchroniser » pour backfiller les
    factures existantes, puis laisser la poussée automatique (5 min) envoyer.
 
@@ -3390,3 +3391,45 @@ reste 1.0.4 code 5, aucune source mobile modifiée.
 **Git** : `feat(release): version unique 1.0.4 et contrat de mise à jour (ADR-161)`
 
 - ce `docs(handoff)`.
+
+## 78) Session 2026-10-31 — Déploiement Supabase ADR-160 (console navigateur)
+
+**Demande** : « نفّذ التغييرات على Supabase الآن ».
+
+**Contexte** : la session 76 avait corrigé `client-sync` dans le dépôt (filtre
+direct `payload->sale->>id`, suppression de `DETAIL_SCAN_LIMIT`) et ajouté
+l'index miroir, mais le déploiement était resté manuel. La session navigateur
+Qoder était déjà authentifiée sur l'organisation Veloria ; aucun jeton
+personnel, aucune clé affichée ou créée.
+
+**Exécution**
+
+- `client-sync` : code du dépôt injecté dans l'éditeur Monaco
+  (`monaco.editor.getModels()[0].setValue`) puis **Deploy updates** confirmé.
+  Vérifié : éditeur déployé = 10 237 caractères, `DETAIL_SCAN_LIMIT` absent,
+  `payload->sale->>id` présent ; Overview « Last deployed » à jour ; onglet
+  Settings : **Verify JWT with legacy secret = OFF** (inchangé).
+- Index : `CREATE INDEX IF NOT EXISTS idx_client_payloads_customer_sale ON
+client_payloads (customer_id, ((payload->'sale'->>'id'))) WHERE kind =
+'invoice_detail'` exécuté dans le SQL Editor → `Success. No rows returned` ;
+  vérifié dans `pg_indexes` (définition exacte).
+- Preuve de bout en bout : ligne sonde temporaire
+  `client_access(customer_id=999999, sha256('0550000000'), sha256('123456'), pin_salt NULL)`
+  - cliché `invoice_detail` (vente 424242, article PROBE), puis appels réels
+    de la fonction avec la clé anon publique :
+  * `saleId=424242` → **200** avec `sale.id=424242` et l'article ;
+  * `saleId=999999999` → **404 NOT_FOUND** ;
+  * mauvais PIN → **401 AUTH_ERROR**.
+- Nettoyage : `DELETE` des deux lignes de sonde, vérifié
+  `access_left=0 / payload_left=0`. Aucune autre donnée modifiée.
+
+**Effet attendu** : après installation de POS 1.0.4 et appui sur
+« Synchroniser » (fiche client), les anciennes factures reçoivent leur cliché
+`invoice_detail` ; toute nouvelle vente/paiement le pousse automatiquement.
+Les factures déjà présentes dans le miroir (ex. 1067 du client 94) sont
+maintenant retrouvées sans fenêtre de 50.
+
+**Non exécuté** : test avec les identifiants réels d'un client (PIN inconnu,
+jamais demandé) ; installation POS/APK sur poste/téléphone.
+
+**Git** : ce `docs(handoff)`.
