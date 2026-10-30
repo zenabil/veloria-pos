@@ -16,6 +16,7 @@
 ## 1) État courant
 
 - Branche : `chore/root-layout` — tête **session 69** (Installateurs POS + License Manager). Avant elle session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 72 (2026-10-30)** : **accueil client V5** — carte « dernière facture » chevauchant le bandeau, crédit intégré au bandeau (barre segmentée), fraîcheur horodatée, « Ce mois-ci » en deux colonnes tactiles, factures (total) / paiements / articles, accueil dédié au client sans activité. Données : `invoiceCount` + `monthKey` dans `toHome`, `formatDateTimeFr`, 7 clés i18n. APK 1.0.2 (code 3) construit et signé (`release/Veloria-Client-1.0.2.apk`, SHA-256 `8c2e365d…`) ; installation téléphone en attente (ADB déconnecté).
 - **Session 71 (2026-10-30)** : **icônes de l'APK client** — toutes les Ionicons étaient vides sur téléphone (police chargée à l'exécution par `expo-asset`, échec silencieux constaté sur le vrai appareil alors que le web rendait correctement). Correctif : police embarquée dans les assets natifs + composant `src/ui/Icon.tsx` qui dessine le glyphe via `fontFamily: "Ionicons"` (web : composant d'origine conservé), 34 usages remplacés, APK 1.0.1 (code 2) reconstruit, signé et **vérifié sur Android réel** (icônes rendues, 30/10 15:21).
 - **Session 70 (2026-10-30)** : **connexion APK rétablie** — la fonction `client-sync` déployée était restée sur la version SHA-256 nue (02/10) alors que le POS écrit désormais des PIN PBKDF2 + sel : tout code correct répondait 401 et le compteur d'échecs montait (3). Redéploiement du fichier courant via la console Supabase, vérifié par sonde temporaire PBKDF2 → 200 puis 200 en legacy, lignes de test supprimées. Ajout : poussée miroir immédiate après activation d'un accès (`registry.customers.ts`) pour que le client puisse se connecter aussitôt.
 - **Session 69 (2026-10-30)** : **mise à jour des installateurs Windows** — POS (Setup 156 Mo, Portable 136 Mo) et License Manager (Setup 139 Mo, Portable 126 Mo), x64, v1.0.0, NSIS fr perMachine, **non signés** (aucun certificat Authenticode configuré). Blocage `EBUSY default_app.asar` sur `release/` contourné par une sortie neuve `E:\veloria-build` (sans rien supprimer) ; artefacts copiés dans `release/` + `SHA256SUMS.txt` actualisé.
@@ -2962,3 +2963,49 @@ aucun nœud d'icône.
 
 **Git** : `fix(mobile): icônes visibles — police native embarquée` + ce
 `docs(handoff)`.
+
+## 72) Session 2026-10-30 — Accueil client V5 (tableau de bord)
+
+**Demande** : « قم بتطوير واجهة الرئيسية في تطبيق العملاء ».
+
+**Nouvelle composition**
+
+- Bandeau d'encre : salutation + boutique, pastille œil, dette (héros) +
+  statut, **utilisation du crédit déplacée DANS le bandeau** (barre
+  segmentée 10 crans, rouge à ≥ 90 %), fraîcheur horodatée
+  (« Dernière synchro · JJ/MM HH:MM », « Réessayer » si périmé).
+- **Carte « Dernière facture »** qui chevauche le bandeau (icône de statut,
+  numéro, date, reste, chevron → détail) : seule élévation de l'écran.
+- Annonce boutique, puis **« Ce mois-ci »** en deux colonnes tactiles
+  (Achats du mois / Payés ce mois → onglets Factures / Paiements).
+- Fidélité inchangée (ligne informative) ; sections Factures (caption
+  « Factures au total · n »), Paiements et Articles phares.
+- Client sans activité : carte de bienvenue dédiée (plus de pile de vides).
+- Le compteur « factures à régler » (calculé sur les 3 dernières factures
+  seulement) est supprimé : la dette et la dernière facture portent
+  l'information, sans chiffre trompeur.
+
+**Données / contrats**
+
+- `toHome` expose `invoiceCount` (repli borné sur la prévisualisation) et
+  `monthKey` ; `formatDateTimeFr` ajouté ; clés i18n `lastInvoice`, `thisMonth`,
+  `invoicesTotal`, `creditUsage`, `purchasesThisMonth`, `paidThisMonth`,
+  `welcomeTitle`/`welcomeHint` ; `dueInvoices`, `ofLimit` et `totalPurchases`
+  retirés (plus utilisés).
+- Fixture démo : `monthKey`, `invoiceCount`, `totalPurchasesMinor` ajoutés
+  (même contrat que le cliché POS).
+
+**Vérifications**
+
+- `typecheck:mobile` OK ; `eslint src` 0 avertissement ; 29/29 tests mobile.
+- Captures 390×844 ar/fr, montants visibles et masqués
+  (`test-results/home-v5/`), aucune erreur console.
+- APK **1.0.2** (versionCode 3) construit et signé (même keystore,
+  cert `c190b12a…`) : `release/Veloria-Client-1.0.2.apk` (88 721 140 octets,
+  SHA-256 `8c2e365dce0ab6ce2c437efdc481b94dc31f6a0f4af0c3cebc3afc7eb4680bb7`),
+  `release/SHA256SUMS.txt` mis à jour.
+- **Non installé sur téléphone** : l'appareil s'est déconnecté d'ADB avant
+  l'installation ; à faire au retour (`adb install -r`, même signature).
+
+**Git** : `feat(mobile): accueil V5 — dernière facture, crédit intégré,
+mois en deux colonnes` + ce `docs(handoff)`.
