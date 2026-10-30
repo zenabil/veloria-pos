@@ -15,7 +15,8 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête **session 75** (encaissement standalone ventilé FIFO, ADR-159). Avant elle session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- Branche : `chore/root-layout` — tête **session 76** (détails de facture APK rétablis, ADR-160). Avant elle session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 76 (2026-10-30)** : **détails de facture APK rétablis (ADR-160)** — demande propriétaire : « تفاصيل الفواتير لا تظهر في تطبيق العملاء ما السبب ». Diagnostic (base réelle + code) : `sales.create` ne poussait que les trois clichés de listes (jamais `invoice_detail`), un encaissement standalone ventilé FIFO ne poussait pas le détail des factures soldées, et l'Edge ne cherchait le détail que dans les **50 derniers** clichés → 404 « التفاصيل غير متوفرة ». Correctifs : `enqueueSaleRefresh` après création de vente ; `recordCustomerPaymentAtomic` retourne `allocatedSaleIds` et le détail repart pour chaque facture ventilée (`enqueueInvoiceDetailRefresh`, sans dupliquer les listes) ; lecture miroir directe `payload->sale->>id` (plus de fenêtre 50, index d'expression) ; bouton « Synchroniser » couvre tout le relevé (≤100 ventes) au lieu des 10 dernières. Tests : 3 nouveaux (`client-sync-queue`) + 2 assertions FIFO ; **suite complète 171 fichiers / 1 158 tests 0** ; `build` ✓ · `build:electron` ✓ (manifeste signé **243**). **À déployer** : fonction Edge `client-sync` (console Supabase, Verify JWT OFF) + index `idx_client_payloads_customer_sale`.
 - **Session 75 (2026-10-30)** : **encaissement standalone ventilé FIFO (ADR-159)** — demande propriétaire : le client a UNE dette, le POS la tenait par facture et un paiement « standalone » (fiche client / caisse) ne décrémentait que le solde agrégé, sans jamais toucher les ventes ⇒ liste des dettes, « En retard » et carte du jour restaient faux, et Σ restes par facture ≠ solde client. Désormais `recordCustomerPaymentAtomic` ventile le montant **dans la même transaction** sur les factures ouvertes, **la plus ancienne d'abord** (`created_at, id`), une ligne `sale_payments` par facture (`operationId:saleId`), reliquat éventuel en ligne standalone à l'`operationId` exact, solde client décrémenté une seule fois, audit enrichi (`allocations`). **Aucun backfill** de l'historique, aucune migration, aucun canal. Aide UI FR ajoutée dans la fiche client et la caisse. Test d'intégration neuf (base migrée réelle) : 5 cas ; suites adjacentes 44/44 ; **suite complète 170 fichiers / 1 155 tests 0** ; `build` ✓ · `build:electron` ✓ (manifeste signé **243**).
 - **Session 74 (2026-10-30)** : **passe UX 2026 sur les six écrans** — connexion (préfixe +213 trompeur retiré, autofill, conseil de récupération sur erreur, séparateur « ou » + QR, « Connexion chiffrée »), accueil (échéance), détail (historique des paiements de la facture), compte (tirer pour rafraîchir + confirmation de déconnexion), contraste AA (onglets/légendes/chevrons). 31/31 tests ; APK 1.0.4 (code 5) `b420ee84…` ; installation téléphone en attente (ADB déconnecté).
 - **Session 73 (2026-10-30)** : **écrans secondaires V5** — Factures (panneau unique à filets, ligne tactile, dette restante, « Aucun résultat »), Détail (fiche + héros Reste + mini Total/Payé, carte Articles, QR), Paiements (panneau, total du mois + répartition espèces/chèque/virement, ligne tactile, reçu), Compte (profil plein bandeau, dernière synchro horodatée). `paymentsByMethod` pur + tests. APK 1.0.3 (code 4) signé (`923cee03…`) ; installation téléphone en attente (ADB déconnecté).
@@ -3215,5 +3216,74 @@ seule demandée (« تحقق فقط لا تغير شيئا ») → « اقترح
   · `build:electron` ✓ (manifeste signé **243**).
 
 **Git** : `fix(payments): ventiler les encaissements standalone FIFO (ADR-159)`
+
+- ce `docs(handoff)`.
+
+## 76) Session 2026-10-30 — Détails de facture APK rétablis (ADR-160)
+
+**Demande** : « تفاصيل الفواتير لا تظهر في تطبيق العملاء ما السبب » puis
+« نفذ الاصلاحات الجذرية ».
+
+**Diagnostic vérifié (lecture seule d'abord)**
+
+- `sales.create` (`electron/ipc/registry.sales.ts`) appelait seulement
+  `enqueueCustomerRefresh` : les trois clichés de listes partaient, jamais
+  `invoice_detail`.
+- `enqueueSaleRefresh` (listes + détail) n'était branché que sur
+  annulation/réouverture, paiement **lié à `saleId`** et impression.
+- `recordPayment` préférait `customerId` : un encaissement standalone (même
+  ventilé FIFO depuis ADR-159) ne poussait aucun détail de facture.
+- L'Edge `client-sync` ne cherchait le détail que dans les 50 derniers clichés
+  `invoice_detail` du client (`DETAIL_SCAN_LIMIT`) → 404 au-delà.
+- Preuve sur la base réelle (`E:\data\Veloria POS DB.sqlite`) : client 94,
+  factures 1067 et 1164, **un seul** cliché `invoice_detail` (1067, poussé à
+  12:21) ; la 1164 créée et payée à 19:51 n'avait reçu que
+  `customer_snapshot`/`invoice_list`/`payment_list`.
+
+**Correctifs**
+
+- `electron/sync/sync.service.ts` : `enqueueInvoiceDetailRefresh(saleId)`
+  (détail seul) + `enqueueSaleRefresh` refactoré (listes + détail, résolution
+  client unique).
+- `electron/ipc/registry.sales.ts` : après `sales.create`,
+  `enqueueSaleRefresh(result.saleId)` (remplace `enqueueCustomerRefresh`).
+- `electron/ipc/handlers/customers.repo.ts` : `recordCustomerPaymentAtomic`
+  retourne `allocatedSaleIds` (ventilation FIFO) ; `registry.customers.ts`
+  pousse `enqueueSaleRefresh` pour un paiement lié, sinon les listes une fois +
+  `enqueueInvoiceDetailRefresh` pour **chaque** facture allouée.
+- `cloud/supabase/functions/client-sync/index.ts` : lecture directe
+  `payload->sale->>id = saleId` (PostgREST JSON path, `ORDER BY id DESC
+LIMIT 1`), suppression de `DETAIL_SCAN_LIMIT`.
+- `cloud/supabase/schema.sql` : index d'expression partiel
+  `idx_client_payloads_customer_sale` sur `(customer_id, (payload->'sale'->>'id'))`
+  `WHERE kind = 'invoice_detail'`.
+- `scripts/e2e-mirror-relay.mjs` : parité stricte, plus de fenêtre 50.
+- `src/features/customers/dialogs/ClientMobileAccess.tsx` : « Synchroniser »
+  pousse les détails de **tout** le relevé (≤100 ventes), plus seulement 10.
+
+**Tests / portes**
+
+- `tests/integration/client-sync-queue.test.ts` (neuf, base migrée réelle +
+  shim `transaction` node:sqlite) : vente → 3 listes + détail ; détail seul
+  sans duplication des listes ; accès révoqué → aucun cliché.
+- `tests/integration/customer-payment-fifo.test.ts` : `allocatedSaleIds`
+  exposé (2 factures) et vide au rejeu idempotent.
+- Portes : Prettier OK · ESLint 0 (fichiers touchés) · `tsc -b` 0 ·
+  `typecheck:electron` 0 · `typecheck:mobile` 0 · **suite complète 171
+  fichiers / 1 158 tests, 0 échec** (417 s) · `build` ✓ · `build:electron` ✓
+  (manifeste signé **243**).
+- **Non exécuté** : E2E Playwright (nécessite la build packagée) et
+  déploiement Supabase (fonction + index) — à faire côté console, « Verify
+  JWT » reste OFF.
+
+**Reste à faire (utilisateur)**
+
+1. Redéployer `client-sync` depuis le fichier du dépôt.
+2. Appliquer l'index `idx_client_payloads_customer_sale` au projet
+   `veloria-pos` (facultatif pour la correction, requis pour la performance).
+3. Depuis le POS : fiche client → « Synchroniser » pour backfiller les
+   factures existantes, puis laisser la poussée automatique (5 min) envoyer.
+
+**Git** : `fix(sync): pousser le détail de facture et supprimer la fenêtre 50 (ADR-160)`
 
 - ce `docs(handoff)`.
