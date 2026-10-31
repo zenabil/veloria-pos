@@ -16,6 +16,7 @@
 ## 1) État courant
 
 - Branche : `chore/root-layout` — tête **session 79** (application propriétaire, ADR-162). Avant elle session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 81 (2026-10-31)** : **passe design v2 (app propriétaire)** — demande : « قم بتبسيط و تطوير واجهات تطبيق المالك ». Montants en police système + chiffres tabulaires (monospace retiré du kit et des jetons), actualisation unique dans l'en-tête (bouton or) au lieu du bandeau Aujourd'hui, titres d'écran dupliqués supprimés (Argent/Stock/Périodes/Alertes), Stock converti en **lignes groupées compactes** (une surface, filets, pastille d'état + quantité + valeur), fiche produit : carte « ÉCONOMIE » unique (marchandise/PAMP/PVC/PAMP unitaire) et disponibilité dépliée dans sa carte tonale. Portes : eslint owner 0 · `typecheck:owner` 0 · **owner-foundation 15/15** · knip owner 0 ; captures Expo web (Aujourd'hui, Stock, fiche produit). Détails §81.
 - **Session 80 (2026-10-31)** : **écrans courts par onglets internes** — demande propriétaire : « قم بتبسيط الواجهات و اختسار الواجهات الطويلة بتبويبات ». Chaque écran long de `owner/` est découpé avec le sélecteur existant : Aujourd'hui (Synthèse / Opérations), Argent (Caisse / Dépenses / Dettes — filtre réel au lieu d'ancres de défilement), Périodes (Ventes / Marges / Top, plage 7/30 j en puces), Alertes (Stock / Créances / Système), fiche produit (Synthèse / Mouvements), fiche client (Encours / Factures), audit des caisses (Synthèse / Sessions). Simplifications : en-têtes dupliqués supprimés (fraîcheur portée par le seul bandeau), Stock ramené à une carte valeur + compteurs, libellés des contrôles secondaires raccourcis. Liasse de démo corrigée (sessions S-138→S-141 alignées sur 167 000/158 350/174 520/245 800 DZD). Portes : eslint owner 0 · `typecheck:owner` 0 · **owner-foundation 15/15** ; parcours réel Expo web : Synthèse/Opérations, Caisse/Dépenses/Dettes, Marges/Top, Système, Synthèse/Sessions. Détails §80.
 - **Session 79 (2026-10-31)** : **application propriétaire (ADR-162)** — demande : étudier les maquettes Stitch puis créer l'app mobile du propriétaire. Livré : nouveau projet Expo `owner/` (français uniquement, `dz.veloria.owner`), 5 onglets (Aujourd'hui, Argent, Stock, Périodes, Alertes) + connexion + 3 sous-écrans (fiche client avec téléphone/Appeler/WhatsApp, fiche produit avec mouvements, audit des caisses), liasse de démonstration identique aux maquettes, cache SecureStore/SQLite, contrat `owner-sync` (Supabase Auth + `fetch` injecté) prêt pour l'Edge Function à venir, mode démo sans endpoint. **Lecture seule stricte** : actualiser/déconnexion/appel uniquement, aucun bouton d'écriture. Portes : `typecheck:owner` 0 · eslint owner 0 · **owner-foundation 15/15** · `typecheck` racine 0 · bundle web Expo capturé (9 écrans). **Non fait** : Edge Function `owner-sync`, use case POS de publication + réglage de cadence, compte propriétaire, biométrie, APK. Détails §79.
 - **Session 78 (2026-10-31)** : **déploiement Supabase exécuté (ADR-160)** — demande : « نفّذ التغييرات على Supabase الآن ». Depuis la session navigateur Qoder (org Veloria) : `client-sync` **redéployé** depuis le fichier du dépôt (filtre direct `payload->sale->>id`, plus de `DETAIL_SCAN_LIMIT`, « Verify JWT with legacy secret » **OFF** confirmé) ; index `idx_client_payloads_customer_sale` **créé et vérifié** dans `pg_indexes`. Preuve de bout en bout via sonde temporaire (client 999999, facture 424242) : `saleId=424242` → **200** avec détail, vente inconnue → **404 NOT_FOUND**, mauvais PIN → **401 AUTH_ERROR** ; sonde supprimée (`access_left=0`, `payload_left=0`). Aucun changement de schéma/RLS/clé. Reste côté poste : installer POS 1.0.4 puis « Synchroniser » pour backfiller les factures existantes.
@@ -3540,3 +3541,32 @@ Stock/Créances/Système, Synthèse/Sessions.
 
 **Git** : commit (`refactor(owner): écrans courts par onglets internes`) + ce
 `docs(handoff)`.
+
+---
+
+## 81) Session 2026-10-31 — Passe design v2 de l'app propriétaire
+
+**Demande** : « قم بتبسيط و تطوير واجهات تطبيق المالك ».
+
+**Changements**
+
+- **Typographie** : `Amount` n'utilise plus la police monospace ; chiffres
+  tabulaires (`fontVariant: ["tabular-nums"]`), graisse 800 conservée, aucun
+  crénage ajouté. `FONTS` retiré des jetons (plus aucun usage).
+- **En-tête unique** : bouton d'actualisation (or) dans `AppHeader` ; le bandeau
+  « Tirer pour actualiser / Actualiser » de Aujourd'hui est supprimé, l'écran
+  gagne ~70 px et son état hors-ligne reste porté par la puce d'en-tête.
+- **Titres dupliqués supprimés** : Argent, Stock, Périodes et Alertes ne
+  répètent plus leur libellé (déjà dans le bandeau) ; la date reste en une ligne
+  discrète, Alertes garde son titre d'anomalie dans la carte héro.
+- **Stock** : liste en `Group` compact — pastille d'état, nom + référence,
+  quantité colorée, valeur, chevron ; plus une carte par produit.
+- **Fiche produit** : disponibilité dans la carte tonale (plus de carte
+  imbriquée), valeurs fusionnées en une carte « ÉCONOMIE » à filets.
+- Aucune action d'écriture ajoutée ; contrat et données inchangés.
+
+**Vérifications** : eslint owner **0** · `typecheck:owner` **0** ·
+`vitest` owner-foundation **15/15** · knip owner **0** · parcours Expo web réel
+avec captures (Aujourd'hui, Stock compact, fiche produit).
+
+**Git** : commit (`style(owner): passe design v2`) + ce `docs(handoff)`.
