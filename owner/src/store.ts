@@ -6,6 +6,58 @@ export type SaleKind = "sale" | "return" | "payment" | "expense";
 
 export type MethodKey = "cash" | "card" | "credit";
 
+export interface TransactionLine {
+  name: string;
+  qty: number;
+  unitMinor: number;
+  totalMinor: number;
+}
+
+export interface SaleDetail {
+  kind: "sale";
+  invoiceNumber: string;
+  lines: TransactionLine[];
+  subtotalMinor: number;
+  discountMinor: number;
+  totalMinor: number;
+  payment: { label: string; receivedMinor: number; changeMinor: number; creditMinor: number };
+  cashier: string;
+  session: string;
+}
+
+export interface ReturnDetail {
+  kind: "return";
+  originInvoice: string;
+  lines: TransactionLine[];
+  reason: string;
+  refund: { label: string; amountMinor: number; toDebtMinor: number };
+  totalMinor: number;
+  operator: string;
+}
+
+export interface PaymentDetail {
+  kind: "payment";
+  label: string;
+  method: string;
+  reference: string;
+  amountMinor: number;
+  operator: string;
+  note: string | null;
+}
+
+export interface ExpenseDetail {
+  kind: "expense";
+  category: string;
+  payee: string;
+  method: string;
+  reference: string;
+  amountMinor: number;
+  operator: string;
+  note: string | null;
+}
+
+export type TransactionDetail = SaleDetail | ReturnDetail | PaymentDetail | ExpenseDetail;
+
 export interface JournalRow {
   id: string;
   at: string;
@@ -13,6 +65,7 @@ export interface JournalRow {
   ref: string;
   detail: string;
   amountMinor: number;
+  tx: TransactionDetail;
 }
 
 export interface MethodTotal {
@@ -276,4 +329,8 @@ export function findProduct(snapshot: OwnerSnapshot, id: string): Product | null
 
 export function findDebtor(snapshot: OwnerSnapshot, id: string): Debtor | null {
   return snapshot.money.debts.rows.find((d) => d.id === id) ?? null;
+}
+
+export function findJournalEntry(snapshot: OwnerSnapshot, id: string): JournalRow | null {
+  return snapshot.day.journal.find((r) => r.id === id) ?? null;
 }

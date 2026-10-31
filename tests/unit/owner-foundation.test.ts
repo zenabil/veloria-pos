@@ -12,7 +12,13 @@ import {
   formatTime,
   freshnessLabel,
 } from "../../owner/src/format";
-import { filterProducts, findDebtor, findProduct, productStatus } from "../../owner/src/store";
+import {
+  filterProducts,
+  findDebtor,
+  findJournalEntry,
+  findProduct,
+  productStatus,
+} from "../../owner/src/store";
 import { DEMO_SNAPSHOT } from "../../owner/src/demo";
 import {
   assertLoginFields,
@@ -91,6 +97,29 @@ describe("sélecteurs de la liasse", () => {
   it("client débiteur retrouvé par identifiant", () => {
     expect(findDebtor(DEMO_SNAPSHOT, "debt-oran")?.name).toBe("SARL Oran Parfums");
     expect(findDebtor(DEMO_SNAPSHOT, "inconnu")).toBeNull();
+  });
+  it("détails de transaction cohérents avec le journal", () => {
+    for (const row of DEMO_SNAPSHOT.day.journal) {
+      expect(findJournalEntry(DEMO_SNAPSHOT, row.id)?.id).toBe(row.id);
+      expect(row.tx.kind).toBe(row.kind);
+      if (row.tx.kind === "sale") {
+        const lines = row.tx.lines.reduce((acc, l) => acc + l.totalMinor, 0);
+        expect(lines).toBe(row.tx.subtotalMinor);
+        expect(row.tx.totalMinor).toBe(row.amountMinor);
+        expect(row.tx.payment.receivedMinor - row.tx.payment.changeMinor).toBe(
+          row.tx.totalMinor - row.tx.payment.creditMinor,
+        );
+      }
+      if (row.tx.kind === "return") {
+        expect(row.tx.totalMinor).toBe(-row.amountMinor);
+        expect(row.tx.refund.amountMinor).toBe(row.tx.totalMinor);
+        expect(row.tx.lines.reduce((acc, l) => acc + l.totalMinor, 0)).toBe(row.tx.totalMinor);
+      }
+      if (row.tx.kind === "payment" || row.tx.kind === "expense") {
+        expect(row.tx.amountMinor).toBe(-row.amountMinor);
+      }
+    }
+    expect(findJournalEntry(DEMO_SNAPSHOT, "inconnu")).toBeNull();
   });
   it("cohérence de la liasse de démonstration", () => {
     const day = DEMO_SNAPSHOT.day;

@@ -14,7 +14,14 @@ import {
   saveSession,
   saveSnapshot,
 } from "./cache.ts";
-import { findDebtor, findProduct, type OwnerSnapshot, type Session } from "./store.ts";
+import {
+  findDebtor,
+  findJournalEntry,
+  findProduct,
+  type OwnerSnapshot,
+  type SaleKind,
+  type Session,
+} from "./store.ts";
 import { AppHeader, TabBar, type TabId } from "./ui/nav.tsx";
 import { Button, Card, Tap } from "./ui/kit.tsx";
 import { Icon } from "./ui/Icon.tsx";
@@ -27,11 +34,16 @@ import { AlertsScreen } from "./screens/Alerts.tsx";
 import { ProductDetailScreen } from "./screens/ProductDetail.tsx";
 import { DebtorDetailScreen } from "./screens/DebtorDetail.tsx";
 import { CashAuditScreen } from "./screens/CashAudit.tsx";
+import { TransactionDetailScreen } from "./screens/TransactionDetail.tsx";
 
 assertConfig();
 
 type Detail =
-  { kind: "product"; id: string } | { kind: "debtor"; id: string } | { kind: "cashAudit" } | null;
+  | { kind: "product"; id: string }
+  | { kind: "debtor"; id: string }
+  | { kind: "transaction"; id: string }
+  | { kind: "cashAudit" }
+  | null;
 
 const TAB_LABEL: Record<TabId, string> = {
   today: "Aujourd'hui",
@@ -57,6 +69,8 @@ export function Root(): React.JSX.Element {
   const [snapshot, setSnapshot] = useState<OwnerSnapshot | null>(null);
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
   const [tab, setTab] = useState<TabId>("today");
+  const [todayView, setTodayView] = useState<"summary" | "journal">("summary");
+  const [todayKind, setTodayKind] = useState<"all" | SaleKind>("all");
   const [detail, setDetail] = useState<Detail>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [loginBusy, setLoginBusy] = useState(false);
@@ -271,6 +285,7 @@ export function Root(): React.JSX.Element {
 
   const product = detail?.kind === "product" ? findProduct(snapshot, detail.id) : null;
   const debtor = detail?.kind === "debtor" ? findDebtor(snapshot, detail.id) : null;
+  const entry = detail?.kind === "transaction" ? findJournalEntry(snapshot, detail.id) : null;
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.contentBg }}>
@@ -294,10 +309,19 @@ export function Root(): React.JSX.Element {
           <ProductDetailScreen product={product} onBack={() => setDetail(null)} />
         ) : detail?.kind === "debtor" && debtor ? (
           <DebtorDetailScreen debtor={debtor} onBack={() => setDetail(null)} />
+        ) : detail?.kind === "transaction" && entry ? (
+          <TransactionDetailScreen entry={entry} onBack={() => setDetail(null)} />
         ) : detail?.kind === "cashAudit" ? (
           <CashAuditScreen snapshot={snapshot} onBack={() => setDetail(null)} />
         ) : tab === "today" ? (
-          <TodayScreen snapshot={snapshot} />
+          <TodayScreen
+            snapshot={snapshot}
+            view={todayView}
+            onView={setTodayView}
+            kindFilter={todayKind}
+            onKindFilter={setTodayKind}
+            onOpenTransaction={(id) => setDetail({ kind: "transaction", id })}
+          />
         ) : tab === "money" ? (
           <MoneyScreen
             snapshot={snapshot}

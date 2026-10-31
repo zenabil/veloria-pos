@@ -43,17 +43,18 @@ code : aucune porte propriétaire ne doit exister dans un binaire client.
 
 5 onglets + porte de connexion, plus 3 sous-écrans :
 
-| Écran             | Contenu                                                                                                                    |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Connexion         | e-mail + mot de passe, erreur FR, « mot de passe oublié », biométrie annoncée « bientôt »                                  |
-| Aujourd'hui       | CA net, tickets, panier moyen, marge, espèces, encaissements par mode, journal du jour, état de fraîcheur                  |
-| Argent            | session active (attendu/compté/écart), sessions clôturées, dépenses du mois, créances (total, retard critique, par client) |
-| Stock             | valeur, références, sous seuil, ruptures, recherche + filtres, liste produit                                               |
-| Périodes          | 7/30 jours, CA cumulé, tickets, panier, courbe journalière, marge par catégorie, top 5                                     |
-| Alertes           | compteurs critiques/vigilance/conformes, stock, créances, sauvegarde + intégrité + synchro                                 |
-| Fiche client      | encours, plafond, dernier encaissement, ancienneté 0–30/31–60/+60, factures ouvertes, téléphone, Appeler/WhatsApp          |
-| Fiche produit     | disponibilité vs seuil, valeurs marchandise/PAMP, marge unitaire, dynamique 30 j, mouvements                               |
-| Audit des caisses | fonds manipulés, écart net, conformité, session active, sessions clôturées filtrables                                      |
+| Écran              | Contenu                                                                                                                                                                                                                                     |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Connexion          | e-mail + mot de passe, erreur FR, « mot de passe oublié », biométrie annoncée « bientôt »                                                                                                                                                   |
+| Aujourd'hui        | CA net, tickets, panier moyen, marge, espèces, encaissements par mode, journal du jour, état de fraîcheur                                                                                                                                   |
+| Argent             | session active (attendu/compté/écart), sessions clôturées, dépenses du mois, créances (total, retard critique, par client)                                                                                                                  |
+| Stock              | valeur, références, sous seuil, ruptures, recherche + filtres, liste produit                                                                                                                                                                |
+| Périodes           | 7/30 jours, CA cumulé, tickets, panier, courbe journalière, marge par catégorie, top 5                                                                                                                                                      |
+| Alertes            | compteurs critiques/vigilance/conformes, stock, créances, sauvegarde + intégrité + synchro                                                                                                                                                  |
+| Fiche client       | encours, plafond, dernier encaissement, ancienneté 0–30/31–60/+60, factures ouvertes, téléphone, Appeler/WhatsApp                                                                                                                           |
+| Fiche produit      | disponibilité vs seuil, valeurs marchandise/PAMP, marge unitaire, dynamique 30 j, mouvements                                                                                                                                                |
+| Audit des caisses  | fonds manipulés, écart net, conformité, session active, sessions clôturées filtrables                                                                                                                                                       |
+| Détail transaction | vente (pièces, sous-total/remise/total, encaissement, caissier), retour (facture d'origine, motif, remboursement, imputation dette), versement (type, moyen, référence, opérateur), dépense (catégorie, bénéficiaire, règlement, référence) |
 
 Les écrans longs sont **découpés en onglets internes** (2026-10-31) pour rester
 courts à l'ouverture : Aujourd'hui (Synthèse / Opérations), Argent (Caisse /
@@ -68,6 +69,13 @@ tabulaires** (fin du monospace), **actualisation portée par l'en-tête global**
 (plus de bandeau dédié), titres d'écran dupliqués supprimés (le bandeau porte le
 libellé), **liste Stock en lignes groupées compactes** (une seule surface, filets)
 et valeurs produit fusionnées en une carte « Économie ». Aucune écriture ajoutée.
+
+Détails de transaction (2026-10-31) : chaque ligne du journal porte un
+`TransactionDetail` (vente / retour / versement / dépense) ; la Synthèse affiche
+la progression d'objectif et le rappel des retours, et l'onglet Opérations
+propose des filtres par type et l'ouverture d'une fiche en lecture seule
+(pièces, totaux, encaissement, remboursement, référence). L'état des onglets
+Aujourd'hui est porté par `App` pour revenir sur Opérations après consultation.
 
 ### 3. Contrat de données
 

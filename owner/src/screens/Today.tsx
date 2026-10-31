@@ -1,5 +1,5 @@
 // Veloria Owner — Aujourd'hui : deux vues courtes, Synthèse et Opérations.
-import { useState } from "react";
+
 import { ScrollView, Text, View } from "react-native";
 import { COLORS, RADIUS, SIZES, SPACE, TYPE } from "../tokens.ts";
 import {
@@ -14,11 +14,14 @@ import {
   Amount,
   Badge,
   Card,
+  Chip,
   Divider,
   Group,
+  ProgressBar,
   ReadOnlyNote,
   SectionHead,
   Segmented,
+  Tap,
 } from "../ui/kit.tsx";
 import { Icon } from "../ui/Icon.tsx";
 
@@ -55,59 +58,71 @@ function KpiCard(props: {
   );
 }
 
-function JournalLine(props: { row: JournalRow }): React.JSX.Element {
+function JournalLine(props: { row: JournalRow; onPress: () => void }): React.JSX.Element {
   const tone = KIND_TONE[props.row.kind];
   return (
-    <View
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        gap: SPACE.md,
-        paddingHorizontal: SPACE.lg,
-        paddingVertical: SPACE.md,
-        minHeight: 58,
-      }}
-    >
-      <Text style={{ ...TYPE.label, color: COLORS.cardMuted, width: 40 }}>
-        {formatTime(props.row.at)}
-      </Text>
+    <Tap onPress={props.onPress} accessibilityLabel={`Détails ${props.row.ref}`}>
       <View
         style={{
-          backgroundColor: tone.bg,
-          borderRadius: RADIUS.inner,
-          paddingHorizontal: 7,
-          paddingVertical: 2,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: SPACE.md,
+          paddingHorizontal: SPACE.lg,
+          paddingVertical: SPACE.md,
+          minHeight: 58,
         }}
       >
-        <Text style={{ ...TYPE.badge, color: tone.fg }}>{KIND_LABEL[props.row.kind]}</Text>
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text
-          style={{ ...TYPE.bodySm, color: COLORS.cardText, fontWeight: "700" }}
-          numberOfLines={1}
+        <Text style={{ ...TYPE.label, color: COLORS.cardMuted, width: 40 }}>
+          {formatTime(props.row.at)}
+        </Text>
+        <View
+          style={{
+            backgroundColor: tone.bg,
+            borderRadius: RADIUS.inner,
+            paddingHorizontal: 7,
+            paddingVertical: 2,
+          }}
         >
-          {props.row.ref}
-        </Text>
-        <Text style={{ ...TYPE.label, color: COLORS.cardMuted }} numberOfLines={1}>
-          {props.row.detail}
-        </Text>
+          <Text style={{ ...TYPE.badge, color: tone.fg }}>{KIND_LABEL[props.row.kind]}</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text
+            style={{ ...TYPE.bodySm, color: COLORS.cardText, fontWeight: "700" }}
+            numberOfLines={1}
+          >
+            {props.row.ref}
+          </Text>
+          <Text style={{ ...TYPE.label, color: COLORS.cardMuted }} numberOfLines={1}>
+            {props.row.detail}
+          </Text>
+        </View>
+        <Amount
+          text={formatSignedMinor(props.row.amountMinor)}
+          size={14}
+          tone={
+            props.row.kind === "return" || props.row.kind === "expense"
+              ? COLORS.criticalText
+              : COLORS.cardText
+          }
+        />
+        <Icon name="chevron-forward" size={16} color={COLORS.cardMuted} />
       </View>
-      <Amount
-        text={formatSignedMinor(props.row.amountMinor)}
-        size={14}
-        tone={
-          props.row.kind === "return" || props.row.kind === "expense"
-            ? COLORS.criticalText
-            : COLORS.cardText
-        }
-      />
-    </View>
+    </Tap>
   );
 }
 
-export function TodayScreen(props: { snapshot: OwnerSnapshot }): React.JSX.Element {
-  const [view, setView] = useState<"summary" | "journal">("summary");
+export function TodayScreen(props: {
+  snapshot: OwnerSnapshot;
+  view: "summary" | "journal";
+  onView: (v: "summary" | "journal") => void;
+  kindFilter: "all" | SaleKind;
+  onKindFilter: (v: "all" | SaleKind) => void;
+  onOpenTransaction: (id: string) => void;
+}): React.JSX.Element {
+  const { view, kindFilter } = props;
   const day = props.snapshot.day;
+  const journalRows =
+    kindFilter === "all" ? day.journal : day.journal.filter((r) => r.kind === kindFilter);
   const objectivePct =
     day.objectiveMinor && day.objectiveMinor > 0
       ? Math.round((day.salesMinor / day.objectiveMinor) * 100)
@@ -131,7 +146,7 @@ export function TodayScreen(props: { snapshot: OwnerSnapshot }): React.JSX.Eleme
             { value: "journal", label: `Opérations (${day.journal.length})` },
           ]}
           value={view}
-          onChange={setView}
+          onChange={props.onView}
         />
       </View>
 
@@ -167,13 +182,19 @@ export function TodayScreen(props: { snapshot: OwnerSnapshot }): React.JSX.Eleme
               style={{ marginTop: SPACE.sm }}
             />
             {objectivePct !== null && day.objectiveMinor ? (
-              <View
-                style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: SPACE.md }}
-              >
-                <Icon name="checkmark-circle-outline" size={15} color={COLORS.navyMuted} />
-                <Text style={{ color: COLORS.navyMuted, ...TYPE.label }}>
-                  Objectif atteint à {objectivePct} % · {formatMinor(day.objectiveMinor)} fixé
-                </Text>
+              <View style={{ marginTop: SPACE.md, gap: 6 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Icon name="checkmark-circle-outline" size={15} color={COLORS.navyMuted} />
+                  <Text style={{ color: COLORS.navyMuted, ...TYPE.label, flex: 1 }}>
+                    Objectif atteint à {objectivePct} % · {formatMinor(day.objectiveMinor)} fixé
+                  </Text>
+                </View>
+                <ProgressBar
+                  percent={objectivePct}
+                  color={COLORS.primary}
+                  track={COLORS.navyLine}
+                  height={6}
+                />
               </View>
             ) : null}
           </View>
@@ -258,18 +279,71 @@ export function TodayScreen(props: { snapshot: OwnerSnapshot }): React.JSX.Eleme
             </View>
           </Card>
 
+          {day.returnsCount > 0 ? (
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: SPACE.sm,
+                backgroundColor: COLORS.watchTone,
+                borderRadius: RADIUS.control,
+                paddingHorizontal: SPACE.md,
+                paddingVertical: SPACE.sm,
+                marginTop: SPACE.md,
+              }}
+            >
+              <Icon name="return-down-back-outline" size={16} color={COLORS.statusWatch} />
+              <Text style={{ ...TYPE.label, color: COLORS.statusWatch, flex: 1 }}>
+                {day.returnsCount} retour{day.returnsCount > 1 ? "s" : ""} sur la journée
+              </Text>
+              <Amount text={formatMinor(-day.returnsMinor)} size={12} tone={COLORS.statusWatch} />
+            </View>
+          ) : null}
+
           <ReadOnlyNote text="Supervision gestion — lecture seule active" />
         </>
       ) : (
         <>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: SPACE.sm, marginBottom: SPACE.md }}
+          >
+            <Chip
+              label="Toutes"
+              count={day.journal.length}
+              active={kindFilter === "all"}
+              onPress={() => props.onKindFilter("all")}
+            />
+            {(["sale", "return", "payment", "expense"] as SaleKind[]).map((k) => {
+              const count = day.journal.filter((r) => r.kind === k).length;
+              if (count === 0) return null;
+              return (
+                <Chip
+                  key={k}
+                  label={KIND_LABEL[k]}
+                  count={count}
+                  active={kindFilter === k}
+                  onPress={() => props.onKindFilter(k)}
+                />
+              );
+            })}
+          </ScrollView>
           <Group>
-            {day.journal.map((r, i) => (
+            {journalRows.map((r, i) => (
               <View key={r.id}>
                 {i > 0 ? <Divider inset={SPACE.lg} /> : null}
-                <JournalLine row={r} />
+                <JournalLine row={r} onPress={() => props.onOpenTransaction(r.id)} />
               </View>
             ))}
           </Group>
+          {journalRows.length === 0 ? (
+            <Card style={{ marginTop: SPACE.md }}>
+              <Text style={{ ...TYPE.bodySm, color: COLORS.cardMuted, textAlign: "center" }}>
+                Aucune opération pour ce filtre.
+              </Text>
+            </Card>
+          ) : null}
           <ReadOnlyNote text="Journal du jour — lecture seule, aucune correction possible" />
         </>
       )}
