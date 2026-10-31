@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { COLORS, RADIUS, SIZES, SPACE, TYPE } from "../tokens.ts";
-import { formatMinor, formatTime } from "../format.ts";
+import { formatDateShortFr, formatMinor, formatTime } from "../format.ts";
 import type { OwnerSnapshot } from "../store.ts";
 import { Amount, Badge, Card, Divider, Group, ReadOnlyNote, Segmented, Tap } from "../ui/kit.tsx";
 import { Icon } from "../ui/Icon.tsx";
@@ -16,6 +16,10 @@ export function AlertsScreen(props: {
 }): React.JSX.Element {
   const [view, setView] = useState<AlertsView>("stock");
   const a = props.snapshot.alerts;
+  const stockCritical = a.stock.filter((s) => s.severity === "critical").length;
+  const stockWatch = a.stock.length - stockCritical;
+  const estimatedLoss = a.stock.reduce((acc, s) => acc + (s.lossPerDayMinor ?? 0), 0);
+  const criticalDebts = a.debts.filter((d) => d.lateDays > 60).length;
 
   return (
     <ScrollView
@@ -85,51 +89,80 @@ export function AlertsScreen(props: {
       </View>
 
       {view === "stock" ? (
-        <Group>
-          {a.stock.map((s, i) => (
-            <View key={s.id}>
-              {i > 0 ? <Divider inset={SPACE.lg} /> : null}
-              <Tap onPress={() => props.onOpenProduct(s.productId)} accessibilityLabel={s.name}>
-                <View style={{ paddingHorizontal: SPACE.lg, paddingVertical: SPACE.md, gap: 4 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: SPACE.sm }}>
-                    <View
-                      style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: 4,
-                        backgroundColor:
-                          s.severity === "critical" ? COLORS.statusCritical : COLORS.statusWatch,
-                      }}
-                    />
+        <>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: SPACE.sm,
+              backgroundColor: COLORS.toneBg,
+              borderRadius: RADIUS.control,
+              paddingHorizontal: SPACE.md,
+              paddingVertical: SPACE.sm,
+              marginBottom: SPACE.md,
+            }}
+          >
+            <Text style={{ ...TYPE.label, color: COLORS.cardMuted, flex: 1 }}>
+              {stockCritical} rupture{stockCritical > 1 ? "s" : ""} · {stockWatch} sous seuil
+            </Text>
+            {estimatedLoss > 0 ? (
+              <Text style={{ ...TYPE.label, color: COLORS.statusCritical, fontWeight: "700" }}>
+                Perte ~{formatMinor(estimatedLoss)}/j
+              </Text>
+            ) : null}
+          </View>
+          <Group>
+            {a.stock.map((s, i) => (
+              <View key={s.id}>
+                {i > 0 ? <Divider inset={SPACE.lg} /> : null}
+                <Tap onPress={() => props.onOpenProduct(s.productId)} accessibilityLabel={s.name}>
+                  <View style={{ paddingHorizontal: SPACE.lg, paddingVertical: SPACE.md, gap: 4 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: SPACE.sm }}>
+                      <View
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: 4,
+                          backgroundColor:
+                            s.severity === "critical" ? COLORS.statusCritical : COLORS.statusWatch,
+                        }}
+                      />
+                      <Text
+                        style={{
+                          ...TYPE.bodySm,
+                          color: COLORS.cardText,
+                          fontWeight: "700",
+                          flex: 1,
+                        }}
+                        numberOfLines={1}
+                      >
+                        {s.name}
+                      </Text>
+                      <Badge
+                        label={`REF-${s.ref}`}
+                        color={COLORS.cardMuted}
+                        dot={false}
+                        background={COLORS.sunkenBg}
+                      />
+                      <Icon name="chevron-forward" size={15} color={COLORS.cardMuted} />
+                    </View>
                     <Text
-                      style={{ ...TYPE.bodySm, color: COLORS.cardText, fontWeight: "700", flex: 1 }}
-                      numberOfLines={1}
+                      style={{
+                        ...TYPE.bodySm,
+                        color:
+                          s.severity === "critical" ? COLORS.statusCritical : COLORS.statusWatch,
+                        fontWeight: "700",
+                      }}
                     >
-                      {s.name}
+                      {s.headline}
                     </Text>
-                    <Badge
-                      label={`REF-${s.ref}`}
-                      color={COLORS.cardMuted}
-                      dot={false}
-                      background={COLORS.sunkenBg}
-                    />
-                    <Icon name="chevron-forward" size={15} color={COLORS.cardMuted} />
+                    <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>{s.detail}</Text>
                   </View>
-                  <Text
-                    style={{
-                      ...TYPE.bodySm,
-                      color: s.severity === "critical" ? COLORS.statusCritical : COLORS.statusWatch,
-                      fontWeight: "700",
-                    }}
-                  >
-                    {s.headline}
-                  </Text>
-                  <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>{s.detail}</Text>
-                </View>
-              </Tap>
-            </View>
-          ))}
-        </Group>
+                </Tap>
+              </View>
+            ))}
+          </Group>
+        </>
       ) : null}
 
       {view === "debts" ? (
@@ -153,6 +186,9 @@ export function AlertsScreen(props: {
               tone={COLORS.statusCritical}
               style={{ marginTop: 4 }}
             />
+            <Text style={{ ...TYPE.label, color: COLORS.criticalText, marginTop: 4 }}>
+              {criticalDebts} dossier{criticalDebts > 1 ? "s" : ""} au-delà de 60 jours
+            </Text>
           </Card>
           <Group style={{ marginTop: SPACE.md }}>
             {a.debts.map((d, i) => (
@@ -245,6 +281,37 @@ export function AlertsScreen(props: {
                 <Icon name="checkmark-circle-outline" size={20} color={COLORS.statusOk} />
               </View>
             ))}
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: SPACE.md,
+                paddingHorizontal: SPACE.lg,
+                paddingVertical: SPACE.md,
+                borderTopWidth: 1,
+                borderTopColor: COLORS.divider,
+              }}
+            >
+              <View
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 4,
+                  backgroundColor: COLORS.statusOk,
+                }}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={{ ...TYPE.bodySm, color: COLORS.cardText, fontWeight: "700" }}>
+                  Dernier inventaire physique
+                </Text>
+                <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>
+                  {props.snapshot.stock.lastInventoryAt
+                    ? formatDateShortFr(props.snapshot.stock.lastInventoryAt)
+                    : "—"}
+                </Text>
+              </View>
+              <Icon name="checkmark-circle-outline" size={20} color={COLORS.statusOk} />
+            </View>
           </Card>
           <View
             style={{

@@ -32,6 +32,11 @@ export function PeriodsScreen(props: { snapshot: OwnerSnapshot }): React.JSX.Ele
   const [view, setView] = useState<PeriodView>("sales");
   const p = props.snapshot.periods;
   const last = p.days[p.days.length - 1];
+  const averageDay = p.days.length > 0 ? Math.round(p.totalMinor / p.days.length) : 0;
+  const bestDay = p.days.reduce(
+    (best, day) => (best && best.totalMinor >= day.totalMinor ? best : day),
+    p.days[0],
+  );
   const bars = p.days.map((d) => {
     const date = new Date(d.date);
     return {
@@ -139,6 +144,21 @@ export function PeriodsScreen(props: { snapshot: OwnerSnapshot }): React.JSX.Ele
                 </Card>
               </View>
 
+              <Card tone={COLORS.toneBg} style={{ marginTop: SPACE.md }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                  <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>Moyenne / jour</Text>
+                  <Amount text={formatMinor(averageDay)} size={13} />
+                </View>
+                <View
+                  style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 6 }}
+                >
+                  <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>
+                    Meilleur jour{bestDay ? ` (${formatDateShortFr(bestDay.date)})` : ""}
+                  </Text>
+                  {bestDay ? <Amount text={formatMinor(bestDay.totalMinor)} size={13} /> : null}
+                </View>
+              </Card>
+
               <Card style={{ marginTop: SPACE.md }}>
                 <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
                   <Text style={{ ...TYPE.headlineSm, color: COLORS.cardText }}>
@@ -224,7 +244,12 @@ export function PeriodsScreen(props: { snapshot: OwnerSnapshot }): React.JSX.Ele
                       >
                         {c.name}
                       </Text>
-                      <Amount text={formatMinor(c.salesMinor)} size={13} />
+                      <View style={{ alignItems: "flex-end" }}>
+                        <Amount text={formatMinor(c.profitMinor)} size={13} />
+                        <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>
+                          CA {formatMinor(c.salesMinor)}
+                        </Text>
+                      </View>
                     </View>
                     <View style={{ marginTop: 6 }}>
                       <ProgressBar percent={c.sharePercent} color={COLORS.headerBg} height={7} />
@@ -292,7 +317,11 @@ export function PeriodsScreen(props: { snapshot: OwnerSnapshot }): React.JSX.Ele
                       {t.name}
                     </Text>
                     <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>
-                      {t.qty} articles écoulés
+                      {t.qty} articles ·{" "}
+                      {p.totalMinor > 0
+                        ? ((t.totalMinor / p.totalMinor) * 100).toFixed(1).replace(".", ",")
+                        : "0,0"}{" "}
+                      % du CA
                     </Text>
                   </View>
                   <Amount text={formatMinor(t.totalMinor)} size={14} />

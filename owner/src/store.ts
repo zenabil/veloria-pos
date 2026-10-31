@@ -334,3 +334,18 @@ export function findDebtor(snapshot: OwnerSnapshot, id: string): Debtor | null {
 export function findJournalEntry(snapshot: OwnerSnapshot, id: string): JournalRow | null {
   return snapshot.day.journal.find((r) => r.id === id) ?? null;
 }
+
+export interface MovementFeedRow {
+  product: Product;
+  movement: StockMovement;
+}
+
+/** Flux global des mouvements (tous produits), du plus récent au plus ancien. */
+export function recentMovements(snapshot: OwnerSnapshot, limit = 30): MovementFeedRow[] {
+  const rows: MovementFeedRow[] = [];
+  for (const product of snapshot.stock.products) {
+    for (const movement of product.movements) rows.push({ product, movement });
+  }
+  rows.sort((a, b) => b.movement.at.localeCompare(a.movement.at));
+  return rows.slice(0, limit);
+}

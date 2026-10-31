@@ -70,6 +70,16 @@ tabulaires** (fin du monospace), **actualisation portée par l'en-tête global**
 libellé), **liste Stock en lignes groupées compactes** (une seule surface, filets)
 et valeurs produit fusionnées en une carte « Économie ». Aucune écriture ajoutée.
 
+Argent, Stock, Périodes et Alertes enrichis (2026-10-31) : Argent affiche la
+synthèse caisse (sessions, conformité, écart net), la moyenne et le poste
+principal des dépenses, et la part du portefeuille en retard critique. Stock
+gagne trois onglets — Aperçu (valeur + compteurs + inventaire), Produits
+(catalogue filtrable), Mouvements (flux global trié, chaque ligne ouvre la
+fiche produit). Périodes affiche moyenne/jour et meilleur jour, la marge en
+valeur par catégorie, et la part du CA de chaque meilleure vente. Alertes
+affiche les ruptures/sous-seuil et la perte estimée, les dossiers > 60 jours et
+le dernier inventaire dans Système.
+
 Détails de transaction (2026-10-31) : chaque ligne du journal porte un
 `TransactionDetail` (vente / retour / versement / dépense) ; la Synthèse affiche
 la progression d'objectif et le rappel des retours, et l'onglet Opérations

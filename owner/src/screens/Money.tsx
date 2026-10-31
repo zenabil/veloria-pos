@@ -11,6 +11,7 @@ import {
   Divider,
   Group,
   IconBubble,
+  ProgressBar,
   ReadOnlyNote,
   SectionHead,
   Segmented,
@@ -126,6 +127,14 @@ export function MoneyScreen(props: {
   const money = props.snapshot.money;
   const session = money.activeSession;
   const debts = money.debts;
+  const overdueShare =
+    debts.totalMinor > 0 ? Math.round((debts.overdueMinor / debts.totalMinor) * 100) : 0;
+  const expenseAverage =
+    money.expenses.count > 0 ? Math.round(money.expenses.totalMinor / money.expenses.count) : 0;
+  const topExpense = money.expenses.rows.reduce<ExpenseRow | null>(
+    (best, row) => (best && best.amountMinor >= row.amountMinor ? best : row),
+    null,
+  );
 
   return (
     <ScrollView
@@ -150,6 +159,50 @@ export function MoneyScreen(props: {
 
       {view === "cash" ? (
         <>
+          <View style={{ flexDirection: "row", gap: SPACE.sm }}>
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: COLORS.toneBg,
+                borderRadius: RADIUS.inner,
+                padding: SPACE.sm,
+              }}
+            >
+              <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>Sessions</Text>
+              <Text style={{ ...TYPE.bodySm, color: COLORS.cardText, fontWeight: "800" }}>
+                {money.sessions.length}
+              </Text>
+            </View>
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: COLORS.toneBg,
+                borderRadius: RADIUS.inner,
+                padding: SPACE.sm,
+              }}
+            >
+              <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>Conformité</Text>
+              <Text style={{ ...TYPE.bodySm, color: COLORS.statusOk, fontWeight: "800" }}>
+                {money.audit.conformityPercent.toFixed(2).replace(".", ",")} %
+              </Text>
+            </View>
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: COLORS.toneBg,
+                borderRadius: RADIUS.inner,
+                padding: SPACE.sm,
+              }}
+            >
+              <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>Écart net</Text>
+              <Amount
+                text={varianceText(money.audit.varianceNetMinor)}
+                size={13}
+                tone={varianceTone(money.audit.varianceNetMinor)}
+              />
+            </View>
+          </View>
+
           <SectionHead
             title="Session active"
             right={
@@ -284,6 +337,32 @@ export function MoneyScreen(props: {
               />
             </View>
           </Card>
+          <View style={{ flexDirection: "row", gap: SPACE.sm, marginTop: SPACE.sm }}>
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: COLORS.toneBg,
+                borderRadius: RADIUS.inner,
+                padding: SPACE.sm,
+              }}
+            >
+              <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>Moyenne / pièce</Text>
+              <Amount text={formatMinor(expenseAverage)} size={13} />
+            </View>
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: COLORS.toneBg,
+                borderRadius: RADIUS.inner,
+                padding: SPACE.sm,
+              }}
+            >
+              <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>Poste principal</Text>
+              <Text style={{ ...TYPE.bodySm, color: COLORS.cardText, fontWeight: "800" }}>
+                {topExpense ? topExpense.category : "—"}
+              </Text>
+            </View>
+          </View>
           <View style={{ marginTop: SPACE.sm }}>
             {money.expenses.rows.map((row) => (
               <ExpenseLine key={row.id} row={row} />
@@ -322,6 +401,17 @@ export function MoneyScreen(props: {
                 dont retard critique (+30 j)
               </Text>
               <Amount text={formatMinor(debts.overdueMinor)} size={13} tone={COLORS.statusWatch} />
+            </View>
+            <View style={{ marginTop: SPACE.md }}>
+              <ProgressBar
+                percent={overdueShare}
+                color={COLORS.statusWatch}
+                track={COLORS.sunkenBg}
+                height={6}
+              />
+              <Text style={{ ...TYPE.label, color: COLORS.cardMuted, marginTop: 6 }}>
+                {overdueShare} % du portefeuille en retard critique
+              </Text>
             </View>
           </Card>
 

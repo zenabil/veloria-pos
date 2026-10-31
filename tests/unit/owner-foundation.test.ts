@@ -18,6 +18,7 @@ import {
   findJournalEntry,
   findProduct,
   productStatus,
+  recentMovements,
 } from "../../owner/src/store";
 import { DEMO_SNAPSHOT } from "../../owner/src/demo";
 import {
@@ -93,6 +94,13 @@ describe("sélecteurs de la liasse", () => {
     expect(filterProducts(products, "all", "VL-412").map((p) => p.id)).toEqual(["p-serum-412"]);
     expect(filterProducts(products, "all", "brume").map((p) => p.id)).toEqual(["p-brume-109"]);
     expect(filterProducts(products, "all", "zzz")).toEqual([]);
+  });
+  it("flux des mouvements : tri décroissant, limite respectée", () => {
+    const feed = recentMovements(DEMO_SNAPSHOT, 5);
+    expect(feed).toHaveLength(5);
+    const ats = feed.map((r) => r.movement.at);
+    expect(ats).toEqual([...ats].sort().reverse());
+    expect(recentMovements(DEMO_SNAPSHOT, 100).length).toBeGreaterThan(5);
   });
   it("client débiteur retrouvé par identifiant", () => {
     expect(findDebtor(DEMO_SNAPSHOT, "debt-oran")?.name).toBe("SARL Oran Parfums");
