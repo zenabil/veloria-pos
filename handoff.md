@@ -15,7 +15,8 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête **session 79** (application propriétaire, ADR-162). Avant elle session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- Branche : `chore/root-layout` — tête **session 87** (annonce magasin poussée aux clients, ADR-160). Avant elle session 86 (compte propriétaire, ADR-164), session 85 (connexion Supabase owner, ADR-163), session 84 (données fictives supprimées, owner), session 83 (Argent/Stock/Périodes/Alertes enrichis), session 82 (Aujourd'hui + détails de transaction), session 81 (passe design v2 owner), session 80 (écrans courts owner), session 79 (application propriétaire, ADR-162), session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 87 (2026-10-31)** : **annonce magasin poussée aux clients** — demande : l'annonce saisie dans POS n'arrive pas dans l'APK, et la synchro doit être automatique selon la cadence choisie. Diagnostic sur la base réelle : `announcements.save` écrivait seulement la table `announcements` (12:15 et 12:17), aucun `sync_outbox` correspondant ; le timer poussait bien (lastPushAt 12:22) mais **rien à envoyer**, et le `customer_snapshot` du miroir gardait l'ancienne annonce (`null`). Correctif : `enqueueAnnouncementRefresh()` (un `customer_snapshot` par accès mobile **actif**, révoqués exclus, best-effort) appelé après `announcements.save` ; message UI « partira à la prochaine synchronisation ». La cadence auto est inchangée (`startSyncTimer` tick 60 s + `isPushDue(intervalMinutes)`, réglage POS 5 min). Test de régression ajouté (4/4). Portes : **173 fichiers / 1 187 tests 0** ; format/lint/typechecks ✓ ; verify ✓ ; **POS 1.0.4 reconstruit** (Setup `e6f96ec6…`, Portable `50a733cc…`), `release:checksums` + `release:smoke` ✓. **À faire côté poste** : installer le nouveau POS 1.0.4, réenregistrer l'annonce existante une fois, attendre ≤5 min, rouvrir l'APK.
 - **Session 86 (2026-10-31)** : **compte propriétaire créé depuis le POS (ADR-164)** — demande : « اعداد الحساب يكون من برنامج pos مع امكانية تغييره ». Nouveau canal `sync.saveOwnerAccount` (Zod `ownerAccountSaveSchema`, `operationId`) : le main utilise l'URL + la clé service **déjà stockée chiffrée** pour appeler l'Admin API Supabase (`POST`/`PUT /auth/v1/admin/users`, `email_confirm`), retrouve un compte existant par e-mail en cas de 409/422, recrée si l'id stocké a disparu. Seuls `email` + `userId` + date sont conservés (`app_settings.owner_account`) ; **mot de passe jamais stocké**. UI Paramètres → Miroir Android : compte actuel, e-mail, mot de passe, bouton Créer/Mettre à jour. Gardes : licence `customers`, staff `settings`, idempotence. Contrats gelés mis à jour (canal 164, schéma 125, exports 134) + tests protocole. Portes : eslint 0 · typecheck 0 · typecheck:electron 0 · tests contrats 39/39. **Non exécuté** : SQL Supabase, test réel de création de compte (nécessite la clé service sur le poste + URL appliquée). Détails §86.
 - **Session 85 (2026-10-31)** : **connexion de l'app propriétaire à Supabase (ADR-163)** — demande : « اربط التطبيق بقاعدة البيانات supabase ». Décision : **pas d'Edge Function** — table `owner_snapshots` (JSONB + `generated_at`, index `shop_key, generated_at DESC`) dans `cloud/supabase/owner.sql`, RLS `anon` révoqué / `authenticated` lecture / `service_role` écriture ; `fetchOwnerSnapshot` passe en **GET PostgREST** de la dernière liasse (message FR si vide) ; `owner/eas.json` grave l'URL + clé **anon** du projet `veloria-pos` (valeurs publiques, jamais `service_role`). **Non exécuté (cloud)** : SQL non appliqué, compte Auth propriétaire non créé, publieur POS non branché — l'app affichera « Aucune liasse de supervision publiée » jusqu'à ces trois étapes. Portes : eslint owner 0 · `typecheck:owner` 0 · **owner-foundation 17/17** · knip owner 0. Détails §85.
 - **Session 84 (2026-10-31)** : **suppression totale des données fictives (app propriétaire)** — demande : « احذف كل البيانات الوهمية من التطبيق ». `owner/src/demo.ts` **supprimé** ; mode démonstration retiré (`DEMO_MODE`, `DEMO_SNAPSHOT`, puce « DÉMONSTRATION », avis de connexion, branche `Session.demo`, repli démo au boot/refresh). Sans endpoint configuré, l'app affiche un **écran de configuration** et n'ouvre aucun accès. Chiffres codés en dur retirés ou calculés : `+2,1 %`, `+12,4 %`, `100 % audité`, « v4.2 · RO », initiales « YB » (dérivées de l'opérateur), conformité en badge (issue de la liasse). États vides ajoutés (journal, encaissements, sessions, dépenses, dettes, mouvements, périodes, alertes). Tests réécrits avec une **fixture locale** (aucune donnée fictive dans l'app). Portes : eslint owner 0 · `typecheck:owner` 0 · **owner-foundation 17/17** · knip owner 0. Détails §84.
@@ -3358,15 +3359,16 @@ LIMIT 1`), suppression de `DETAIL_SCAN_LIMIT`.
 
 | Fichier                                      |      Taille | SHA-256                                                            |
 | -------------------------------------------- | ----------: | ------------------------------------------------------------------ |
-| `Veloria-PoS-Setup-1.0.4.exe`                | 163 548 058 | `e21710fb390e1f75ecf6b663a3f3b94892f47d7d0fbe69118c1e81accd5107bf` |
-| `Veloria-PoS-Portable-1.0.4.exe`             | 141 664 367 | `d1a3a88317e0e279ca881e3670a8b0031fbfede75b83162bba458b77efc81856` |
+| `Veloria-PoS-Setup-1.0.4.exe`                | 163 550 651 | `e6f96ec647ec8b27f4ef5382c1d27fb9d7e1e2872010b3258922a9c1733d473b` |
+| `Veloria-PoS-Portable-1.0.4.exe`             | 141 652 080 | `50a733cc54318a09ed6de3b386378b2e422e49151e7740616efa8abd85f6e1b9` |
 | `Veloria-License-Manager-Setup-1.0.4.exe`    | 145 523 587 | `842866bf847f0af4a2eb33dac0d0b05e298b5c462cb9a7294fd0d62154bcaf63` |
 | `Veloria-License-Manager-Portable-1.0.4.exe` | 131 754 141 | `0d67cbdc1de8e7dd87f28874a50b20d659d0e92130c8cf5ba3c95a121f697021` |
 | `Veloria-Client-1.0.4.apk` (inchangé)        |  88 724 364 | `b420ee84fb3a9dd9a12e4d834d97b5832a0d71065690a9672b9bdda6c4d3afac` |
 
 Installateurs **non signés Authenticode** (aucun certificat configuré) ;
-POS/Manager construits dans `E:\veloria-build-1.0.4` (évite le verrou
-scanner de `release/`) puis copiés. L'APK n'est pas reconstruit : le client
+POS reconstruit en session 87 (correctif annonce) dans
+`E:\veloria-build-1.0.4-ann`, Manager dans `E:\veloria-build-1.0.4` (évite le
+verrou scanner de `release/`) puis copiés. L'APK n'est pas reconstruit : le client
 reste 1.0.4 code 5, aucune source mobile modifiée.
 
 **Portes**
@@ -3783,3 +3785,64 @@ compte (exige la clé service du poste + URL appliquée), publieur POS.
 
 **Git** : commit (`feat(pos): compte propriétaire créé et modifiable depuis le
 miroir`) + ce `docs(handoff)`.
+
+## 87) Session 2026-10-31 — Annonce magasin poussée aux clients (ADR-160)
+
+**Demande** : « Annonce magasin لا تظهر في تطبيق العميل … و اريد ان تكون
+المزامنة مع تطبيق العميل بشكل تلقائي حسب الوقت المختار في البرنامج pos ».
+
+**Diagnostic (base réelle)**
+
+- `announcements.save` écrivait uniquement la table `announcements` (deux
+  lignes à 12:15:29 et 12:17:38) ; **aucun** `sync_outbox` n'était créé.
+- Le timer auto poussait normalement (`lastPushAt = 12:22:03Z`, `lastError =
+null`, cadence 5 min), mais la file était vide : rien ne partait.
+- L'annonce voyage dans `customer_snapshot` (`buildSnapshotPayload` lit la
+  dernière annonce active). Sans nouveau snapshot, le miroir gardait l'ancien
+  cliché (`announcement: null`) et l'APK n'affichait rien.
+
+**Correctif**
+
+- `electron/sync/sync.service.ts` : `enqueueAnnouncementRefresh()` — un
+  `customer_snapshot` par accès mobile **ACTIF** (`revoked_at IS NULL`),
+  révoqués exclus, best-effort par client (un échec n'arrête pas les autres).
+- `electron/ipc/registry.customers.ts` : appel après
+  `ClientAccess.saveAnnouncementAtomic` (la transaction est committée avant la
+  lecture du cliché).
+- `src/features/settings/SettingsSectionsA.tsx` : message
+  « Annonce enregistrée : elle partira à la prochaine synchronisation. »
+  (attente réelle, plus de promesse de visibilité immédiate).
+- Cadence auto : **inchangée** — `startSyncTimer` vérifie toutes les 60 s
+  `isPushDue(intervalMinutes)` et pousse la file `pending` ; le réglage POS
+  est actuellement **5 min**. L'APK, lui, récupère à l'ouverture ou au
+  tirer-pour-rafraîchir (pas de push serveur vers le téléphone).
+
+**Tests / portes**
+
+- `tests/integration/client-sync-queue.test.ts` (+1) : un snapshot par accès
+  actif avec `announcement` = texte saisi ; accès révoqué exclu ; 4/4.
+- Prettier OK · ESLint 0 · `tsc -b` 0 · `typecheck:electron` 0 ·
+  **vitest 173 fichiers / 1 187 tests, 0 échec** (439 s) · `verify` ✓
+  (migrations/domain/fr/encoding/perf/version:check/secret-scan).
+- **POS 1.0.4 reconstruit** dans `E:\veloria-build-1.0.4-ann` (Setup +
+  Portable), copié dans `release/` ; `release:checksums` et `release:smoke` ✓.
+  Hashes : Setup `e6f96ec647ec8b27f4ef5382c1d27fb9d7e1e2872010b3258922a9c1733d473b`,
+  Portable `50a733cc54318a09ed6de3b386378b2e422e49151e7740616efa8abd85f6e1b9`.
+
+**À faire côté poste**
+
+1. Installer le **nouveau** `Veloria-PoS-Setup-1.0.4.exe` par-dessus l'ancien
+   (même version, installeur reconstruit).
+2. Ouvrir Paramètres → Annonce magasin et **réenregistrer l'annonce
+   existante** une fois : elle a été saisie avant le correctif, donc elle
+   n'est pas dans la file. Les prochaines saisies partent automatiquement.
+3. Attendre la prochaine échéance (≤ 5 min) ou « Pousser maintenant » dans
+   Miroir Android ; rouvrir l'APK ou tirer pour rafraîchir.
+4. Vérifier `Dernière poussée` mise à jour et `lastError = null`.
+
+**Non exécuté** : livraison sur téléphone/ADB, rafraîchissement automatique
+de l'APK ouvert (le client ne fait pas de polling en arrière-plan ; à ajouter
+côté mobile si demandé).
+
+**Git** : `fix(sync): pousser l'annonce magasin aux clients actifs` +
+ce `docs(handoff)`.
