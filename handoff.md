@@ -16,6 +16,7 @@
 ## 1) État courant
 
 - Branche : `chore/root-layout` — tête **session 79** (application propriétaire, ADR-162). Avant elle session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 85 (2026-10-31)** : **connexion de l'app propriétaire à Supabase (ADR-163)** — demande : « اربط التطبيق بقاعدة البيانات supabase ». Décision : **pas d'Edge Function** — table `owner_snapshots` (JSONB + `generated_at`, index `shop_key, generated_at DESC`) dans `cloud/supabase/owner.sql`, RLS `anon` révoqué / `authenticated` lecture / `service_role` écriture ; `fetchOwnerSnapshot` passe en **GET PostgREST** de la dernière liasse (message FR si vide) ; `owner/eas.json` grave l'URL + clé **anon** du projet `veloria-pos` (valeurs publiques, jamais `service_role`). **Non exécuté (cloud)** : SQL non appliqué, compte Auth propriétaire non créé, publieur POS non branché — l'app affichera « Aucune liasse de supervision publiée » jusqu'à ces trois étapes. Portes : eslint owner 0 · `typecheck:owner` 0 · **owner-foundation 17/17** · knip owner 0. Détails §85.
 - **Session 84 (2026-10-31)** : **suppression totale des données fictives (app propriétaire)** — demande : « احذف كل البيانات الوهمية من التطبيق ». `owner/src/demo.ts` **supprimé** ; mode démonstration retiré (`DEMO_MODE`, `DEMO_SNAPSHOT`, puce « DÉMONSTRATION », avis de connexion, branche `Session.demo`, repli démo au boot/refresh). Sans endpoint configuré, l'app affiche un **écran de configuration** et n'ouvre aucun accès. Chiffres codés en dur retirés ou calculés : `+2,1 %`, `+12,4 %`, `100 % audité`, « v4.2 · RO », initiales « YB » (dérivées de l'opérateur), conformité en badge (issue de la liasse). États vides ajoutés (journal, encaissements, sessions, dépenses, dettes, mouvements, périodes, alertes). Tests réécrits avec une **fixture locale** (aucune donnée fictive dans l'app). Portes : eslint owner 0 · `typecheck:owner` 0 · **owner-foundation 17/17** · knip owner 0. Détails §84.
 - **Session 83 (2026-10-31)** : **Argent, Stock, Périodes et Alertes enrichis** — demande : « قم بتطوير الصفحات المتبقية — Argent، Stock، Périodes، Alertes بجميع تبويباتها ». Argent : synthèse caisse (sessions, conformité, écart net), dépenses (moyenne/pièce, poste principal), dettes (part en retard critique via barre). Stock : onglets **Aperçu / Produits / Mouvements** ; flux global `recentMovements` (tri décroissant, ouverture fiche produit) ; ancienne liste déplacée dans Produits. Périodes : moyenne/jour + meilleur jour, marge en valeur par catégorie (CA en sous-ligne), part du CA de chaque top vente. Alertes : synthèse ruptures/sous-seuil + perte estimée, dossiers > 60 jours, dernier inventaire dans Système. Liasse : mouvements ajoutés à 5 produits (16 lignes au flux). Portes : eslint owner 0 · `typecheck:owner` 0 · **owner-foundation 17/17** · knip owner 0 ; vérification structurelle Expo web (snapshots) des quatre écrans, capture d'écran indisponible (surface navigateur masquée). Détails §83.
 - **Session 82 (2026-10-31)** : **Aujourd'hui enrichi + détails de transaction** — demande : « قم بتطوير صفحة Aujourd'hui، طوّر تبويب Synthèse و Opérations، وأضف تفاصيل المعاملة (فاتورة، مرتجع، تسديد) ». Contrat `TransactionDetail` ajouté au journal (vente : pièces, sous-total/remise/total, encaissement reçu/monnaie/crédit, caissier, session ; retour : facture d'origine, motif, lignes, remboursement et imputation dette ; versement : type, moyen, référence, opérateur ; dépense : catégorie, bénéficiaire, règlement, référence). Synthèse : barre de progression d'objectif + rappel des retours du jour. Opérations : filtres Toutes/Vente/Retour/Versement/Dépense avec compteurs, lignes tactiles → **fiche détail** en lecture seule ; état des onglets hissé dans `App` pour revenir sur Opérations après consultation. 8 détails de démo cohérents + test d'égalité (lignes = sous-total, encaissement = total, sorties = montant). Portes : eslint owner 0 · `typecheck:owner` 0 · **owner-foundation 16/16** · knip owner 0 ; captures Expo web (Synthèse, Opérations, vente, retour, versement). Détails §82.
@@ -3708,4 +3709,41 @@ testés sans embarquer de données dans l'app.
 restant dans `owner/src` (hors écran de configuration qui explique l'absence).
 
 **Git** : commit (`chore(owner): suppression totale des données fictives`) +
+ce `docs(handoff)`.
+
+---
+
+## 85) Session 2026-10-31 — Connexion de l'app propriétaire à Supabase (ADR-163)
+
+**Demande** : « اربط التطبيق بقاعدة البيانات supabase ».
+
+**Livré (code)**
+
+- `cloud/supabase/owner.sql` : `owner_snapshots` (une liasse JSONB par
+  publication, index `(shop_key, generated_at DESC)`), RLS activée, `anon`
+  révoqué, `authenticated` lecture, `service_role` écriture, aucune policy
+  d'écriture.
+- `owner/src/api.ts` : `fetchOwnerSnapshot` = **GET PostgREST**
+  (`shop_key=eq.veloria`, tri `generated_at DESC`, limite 1) avec `apikey` +
+  jeton Supabase Auth ; réponse vide → « Aucune liasse de supervision publiée. ».
+- `owner/eas.json` : profils `preview`/`production` avec
+  `EXPO_PUBLIC_OWNER_SYNC_URL` + `EXPO_PUBLIC_OWNER_ANON_KEY` du projet
+  `veloria-pos` (clé **anon** publique uniquement).
+- `cloud/supabase/README.md` : procédure de lecture et rôle du publieur POS.
+- Tests : mock PostgREST (tableau), vérification URL/méthode GET, cas vide.
+
+**Non exécuté (action cloud, en attente d'accord propriétaire)**
+
+1. Appliquer `owner.sql` dans Supabase (dashboard).
+2. Créer le compte Auth propriétaire (e-mail + mot de passe choisis par lui) ;
+   inscriptions désactivées.
+3. Publier une première liasse : nécessite le **publieur POS** (calcul de
+   l'`OwnerSnapshot` depuis SQLite + insertion `service_role`) — non codé dans
+   cette session. Sans lui, l'app répond « Aucune liasse de supervision
+   publiée. ».
+
+**Vérifications** : eslint owner **0** · `typecheck:owner` **0** ·
+`vitest` owner-foundation **17/17** · knip owner **0**.
+
+**Git** : commit (`feat(owner): connexion Supabase via PostgREST (ADR-163)`) +
 ce `docs(handoff)`.
