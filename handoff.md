@@ -3934,3 +3934,54 @@ cette session ; l'ADR des annonces a donc été renumérotée **166**.
 
 **Git** : `feat(client): annonces multi-médias avec expiration (ADR-166)`
 `1dc3e46` + ce `docs(handoff)`.
+
+## 87 bis) Session 2026-10-31 — Rafraîchissement périodique du client (ADR-165)
+
+**Demande** : « اريد ان تكون المزامنة مع تطبيق العميل بشكل تلقائي حسب الوقت
+المختار في البرنامج pos ».
+
+**Décision (ADR-165, commits `dd3b2fc` / `9a03cf6` / `dce523f`)**
+
+- `buildSnapshotPayload` ajoute `syncIntervalMinutes` (5–1440, défaut 15), lu
+  dans `app_settings.client_sync` — la cadence choisie dans POS voyage donc
+  dans chaque `customer_snapshot` (aucun changement Supabase : JSONB opaque).
+- `toHome` expose la valeur (même borne, défaut 15 pour les anciens clichés).
+- `App.tsx` démarre un `setInterval` à cette cadence quand une session existe,
+  avec **un seul `syncNow` à la fois** (`refreshingRef`) ; le timer est recréé
+  quand la cadence change. Retour au premier plan (`AppState = active`) :
+  rafraîchissement immédiat. Aucun service d'arrière-plan ni push.
+- Version APK : `versionName 1.0.4`, **`versionCode 6`** (l'APK précédent était
+  code 5) — même package, même keystore, données SecureStore/SQLite conservées.
+- Développement isolé (worktree) pendant la session concurrente ADR-166, puis
+  intégré dans la même branche ; l'arbre final contient les deux fonctions.
+
+**Preuves / artefacts finaux (release/)**
+
+- Tests : **173 fichiers / 1 194 tests 0** ; format/lint/typecheck/electron/
+  mobile 0 ; `verify` ✓ ; `build` ✓ ; `build:electron` ✓ (manifeste 244) ;
+  `release:checksums` + `release:smoke` ✓.
+- POS Setup **1.0.4** : 163 554 201 o, SHA-256
+  `6bd2ed05235d58366753c14d8be273ca23d8969936f26539a23f01c4b35b9a9c`.
+- POS Portable **1.0.4** : 141 685 304 o, SHA-256
+  `4a8292fc559441607634f378c5b10e81881926b1c9026ea93dea4a5e3e3e5b7f`.
+- APK client **1.0.4 code 6** : 88 726 616 o, SHA-256
+  `8dc6078aacc65d9214d3eaa7d5887bef4b42fea665004f04ea3c3d38c52bcc3b`,
+  signé CN=Veloria (certificat identique à l'APK code 5, mise à jour acceptée).
+- Vérification du bundle APK : `syncIntervalMinutes`, `AppState` et
+  `announcement` présents ; `aapt` → package `dz.veloria.client`,
+  versionCode **6**, versionName **1.0.4**.
+
+**Reste à faire côté poste**
+
+1. Installer le **POS 1.0.4 final** (Setup `6bd2ed05…`) puis l'**APK code 6**
+   par-dessus l'ancien (même signature, données conservées).
+2. Le premier cliché doit porter la cadence 5 min : enregistrer une annonce,
+   faire une vente/paiement, ou « Synchroniser » la fiche client. Avant ce
+   cliché, l'APK utilise 15 min par défaut.
+3. Ensuite l'APK se rafraîchit toutes les 5 min **tant qu'il est ouvert** (et
+   immédiatement au retour au premier plan) ; aucun push en arrière-plan.
+4. L'annonce magasin existante doit être réenregistrée une fois (elle précède
+   le correctif session 87) ; les suivantes partent automatiquement.
+
+**Non exécuté** : installation réelle sur téléphone/ADB (le build APK est
+signé et vérifié, mais pas installé ici).
