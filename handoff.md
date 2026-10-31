@@ -15,7 +15,8 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête **session 87** (annonce magasin poussée aux clients, ADR-160). Avant elle session 86 (compte propriétaire, ADR-164), session 85 (connexion Supabase owner, ADR-163), session 84 (données fictives supprimées, owner), session 83 (Argent/Stock/Périodes/Alertes enrichis), session 82 (Aujourd'hui + détails de transaction), session 81 (passe design v2 owner), session 80 (écrans courts owner), session 79 (application propriétaire, ADR-162), session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- Branche : `chore/root-layout` — tête **session 88** (annonces multi-médias + bandeau hero APK, ADR-166). Avant elle session 87 bis (rafraîchissement périodique de l'APK selon la cadence POS, ADR-165), session 87 (annonce magasin poussée aux clients, ADR-160). Avant elle session 86 (compte propriétaire, ADR-164), session 85 (connexion Supabase owner, ADR-163), session 84 (données fictives supprimées, owner), session 83 (Argent/Stock/Périodes/Alertes enrichis), session 82 (Aujourd'hui + détails de transaction), session 81 (passe design v2 owner), session 80 (écrans courts owner), session 79 (application propriétaire, ADR-162), session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 88 (2026-10-31)** : **annonces multi-médias + bandeau hero APK (ADR-166)** — demande : bandeau hero en haut de l'accueil de l'application client, annonces **optionnelles** en texte **ou** image hébergée sur un site gratuit, **4 maximum**, avec un **compte à rebours d'expiration**. Migration **0057** (rebuild de 0032, lignes legacy conservées) : `image_url` https ≤ 500 (jamais de blob/base64), `ends_at`, `sort`, `updated_at`, `CHECK` texte OU image. Domaine : texte ≤ 120 ou image https, échéance future obligatoire, **4 actives non expirées** (comptées dans la transaction). Repo : `saveAnnouncementAtomic` devient un **upsert idempotent** (`id` optionnel), `removeAnnouncementAtomic` idempotent par valeur, `listAnnouncements` ; canaux `announcements.list`/`remove`, `announcements.get` supprimé ; gardes staff `settings` / licence `customers` ; rétention critique élargie au préfixe `announcements.`. Cliché : `announcements[]` (actives non expirées, tri `sort`, ≤ 4) **+** champ legacy `announcement` (premier texte) pour les APK ≤ 1.0.4 déjà installées. POS (Paramètres → Annonces du magasin) : liste, formulaire texte/image (aperçu, https, fin, ordre, actif), suppression confirmée, badge « x/4 actives ». APK : composant `announcement-hero.tsx` (image 2:1 + texte, compte à rebours rafraîchi chaque minute, pastilles si plusieurs, **repli texte** si l'image ne charge pas, annonce expirée masquée, repli sur l'ancien champ texte), i18n ar/fr et RTL. Portes : **173 fichiers / 1 194 tests 0** · lint 0 · typecheck / electron / mobile 0 · `verify` ✓ · `build` ✓ · `build:electron` ✓ (manifeste **244**) · vérification visuelle **Expo web** (image 800×400 chargée, « ينتهي بعد 3 يوم 3 ساعة », l'annonce expirée n'apparaît pas, bascule 1/2 → 2/2), serveurs de démo arrêtés. **Non exécuté** : reconstruction/installation de l'APK (le hero ne sera visible qu'après un nouveau build + install). Session concurrente : ADR-165 (rafraîchissement périodique) commitée avant, d'où la renumérotation en **ADR-166**. Commit `1dc3e46`.
 - **Session 87 (2026-10-31)** : **annonce magasin poussée aux clients** — demande : l'annonce saisie dans POS n'arrive pas dans l'APK, et la synchro doit être automatique selon la cadence choisie. Diagnostic sur la base réelle : `announcements.save` écrivait seulement la table `announcements` (12:15 et 12:17), aucun `sync_outbox` correspondant ; le timer poussait bien (lastPushAt 12:22) mais **rien à envoyer**, et le `customer_snapshot` du miroir gardait l'ancienne annonce (`null`). Correctif : `enqueueAnnouncementRefresh()` (un `customer_snapshot` par accès mobile **actif**, révoqués exclus, best-effort) appelé après `announcements.save` ; message UI « partira à la prochaine synchronisation ». La cadence auto est inchangée (`startSyncTimer` tick 60 s + `isPushDue(intervalMinutes)`, réglage POS 5 min). Test de régression ajouté (4/4). Portes : **173 fichiers / 1 187 tests 0** ; format/lint/typechecks ✓ ; verify ✓ ; **POS 1.0.4 reconstruit** (Setup `e6f96ec6…`, Portable `50a733cc…`), `release:checksums` + `release:smoke` ✓. **À faire côté poste** : installer le nouveau POS 1.0.4, réenregistrer l'annonce existante une fois, attendre ≤5 min, rouvrir l'APK.
 - **Session 86 (2026-10-31)** : **compte propriétaire créé depuis le POS (ADR-164)** — demande : « اعداد الحساب يكون من برنامج pos مع امكانية تغييره ». Nouveau canal `sync.saveOwnerAccount` (Zod `ownerAccountSaveSchema`, `operationId`) : le main utilise l'URL + la clé service **déjà stockée chiffrée** pour appeler l'Admin API Supabase (`POST`/`PUT /auth/v1/admin/users`, `email_confirm`), retrouve un compte existant par e-mail en cas de 409/422, recrée si l'id stocké a disparu. Seuls `email` + `userId` + date sont conservés (`app_settings.owner_account`) ; **mot de passe jamais stocké**. UI Paramètres → Miroir Android : compte actuel, e-mail, mot de passe, bouton Créer/Mettre à jour. Gardes : licence `customers`, staff `settings`, idempotence. Contrats gelés mis à jour (canal 164, schéma 125, exports 134) + tests protocole. Portes : eslint 0 · typecheck 0 · typecheck:electron 0 · tests contrats 39/39. **Non exécuté** : SQL Supabase, test réel de création de compte (nécessite la clé service sur le poste + URL appliquée). Détails §86.
 - **Session 85 (2026-10-31)** : **connexion de l'app propriétaire à Supabase (ADR-163)** — demande : « اربط التطبيق بقاعدة البيانات supabase ». Décision : **pas d'Edge Function** — table `owner_snapshots` (JSONB + `generated_at`, index `shop_key, generated_at DESC`) dans `cloud/supabase/owner.sql`, RLS `anon` révoqué / `authenticated` lecture / `service_role` écriture ; `fetchOwnerSnapshot` passe en **GET PostgREST** de la dernière liasse (message FR si vide) ; `owner/eas.json` grave l'URL + clé **anon** du projet `veloria-pos` (valeurs publiques, jamais `service_role`). **Non exécuté (cloud)** : SQL non appliqué, compte Auth propriétaire non créé, publieur POS non branché — l'app affichera « Aucune liasse de supervision publiée » jusqu'à ces trois étapes. Portes : eslint owner 0 · `typecheck:owner` 0 · **owner-foundation 17/17** · knip owner 0. Détails §85.
@@ -71,7 +72,7 @@
 - **Baseline gelé 2026-10-21 (mesuré, arbre propre)** : `tsc -b` **0** · `typecheck:electron` **0** · `eslint . --max-warnings 0` **exit 0** · `vitest` **142 fichiers / 976 tests** **0** · `test:db` **39 fichiers / 183 tests** **0** (isolé) · **`test:coverage` = EXIT 0 (VERT — 95,83 % lignes · 87,19 % branches · 100 % fonctions, seuils 80/75/88/80 par fichier ; aucun seuil abaissé)** · `knip` **0** (0 fichier, 0 export, 0 type, 0 dépendance) · `verify:migrations` **VERIFIED** · `verify:domain` **VERIFIED** · `verify:perf` **VERIFIED** · `verify:fr` **0** (322 fichiers, **plus de liste d'attente**) · `verify:encoding` **0** (868 fichiers) · `license:scan` **0** (1420 fichiers) · `format:check` **0** · `build` ✓ (12,1 s) · `build:electron` ✓ (manifeste signé **216 fichiers**).
 - **Nouveaux constats P1 (non corrigés, voir plan)** : jour métier en UTC au lieu de `Africa/Algiers` (E-35) · `verify:licensing` hors CI (bloqué : l'état local du Manager n'existe pas sur un runner) · **E2E rejoués le 2026-10-23 : 42 réussis / 3 ignorés / 0 échec**.
 - **Corrigé en W1→W10 (à ne plus re-signaler)** : `customers.accessQrSvg` sans staff-gate · `staffScope()` ⇒ «no session = gérant» · `database.optimize` sans gate · conversion Proforma→vente cassée si remise · clôture Z (chèque/transfert/dépenses/retours) · verrou de période close (W3) · unicité téléphone + `paginationSchema.page` borné (W3) · `test:coverage` rouge (W4) · `FROZEN_SCHEMA_COUNT` (W4) · extraction EAN-13/14 (W4) · `formatDzd` qui throw au rendu + double-submit + focus + lots bornés (W5) · atelier impression (W5) · code mort trié, `knip` à 0, `expo-constants` retirée, garde FR sans liste d'attente (W6) · chemins chauds indexés (migration 0050) + N+1 supprimés + bundle découpé (W8) · encodage réparé (W9) · **règles uniques (quantité/montant/date/normalisation) + état « en retard » produit (W7)** · **état d'erreur persistant dans 12 écrans (W10)**.
-- ADRs : 001→**149** (`134` = design du ticket de vente, `135` = export données réimportable, `136` = conditionnement carton, `137` = coût FIFO en caisse, `138` = retours dette d'abord, `139` = annulation/correction factures, `140` = carton devis/retours fournisseur, `141` = tarif de gros carton sans plancher, `142` = coût rendu produit/livraison, `143` = paramètres navigation/recherche, `144` = formulaires et code-barres, `145` = paramètres composants/sections, `146` = studio d'impression, `147` = tableau de bord, `148` = refonte visuelle transversale, `149` = code-barres carton). `docs/INDEX.md` **complété 142→149** (manquaient depuis les sessions 49/50/52/53).
+- ADRs : 001→**166** (`134` = design du ticket de vente, `135` = export données réimportable, `136` = conditionnement carton, `137` = coût FIFO en caisse, `138` = retours dette d'abord, `139` = annulation/correction factures, `140` = carton devis/retours fournisseur, `141` = tarif de gros carton sans plancher, `142` = coût rendu produit/livraison, `143` = paramètres navigation/recherche, `144` = formulaires et code-barres, `145` = paramètres composants/sections, `146` = studio d'impression, `147` = tableau de bord, `148` = refonte visuelle transversale, `149` = code-barres carton). `docs/INDEX.md` **complété 142→149** (manquaient depuis les sessions 49/50/52/53).
 - **3 bugs caisse signalés par le propriétaire (2026-10-21) — DIAGNOSTIC PROUVÉ puis CORRIGÉS (§23, ADR-131)** : (B1) focus qui revient au champ « Nom » de l'article libre — `useDialogFocus` rejouait son effet à chaque rendu (`onClose` inline = identité nouvelle) ⇒ **corrigé** (refs, dépendances `[boxRef]`) ; (B2) vente au poids en mode « Montant » : 50,00 DZD saisis mais **49,70 facturés** ⇒ **corrigé** (le montant saisi est facturé tel quel, `billedTotalMinor`) ; (B3) panier mixte : `CHECK constraint failed: discount_amount_minor >= 0` (7× dans le journal du 2026-10-21) — une **majoration** (prix de ligne > prix d'origine) produisait une remise négative, acceptée par le domaine mais **interdite par la base** ⇒ **corrigé** (migration **0051** : remise signée, table `sales` reconstruite + runner « FK off » ; garde des lignes AVANT l'INSERT ⇒ message FR au lieu du CHECK SQL). **Lien B1 → B3** (la saisie tronquée du prix forçait une correction par majoration). Packaging refait le 2026-10-23 (schéma 0051 inclus) ; constat secondaire non traité (4 ventes à `amount_paid_minor = 0`).
 - **Constats bloquants de la revue UI d'ADR-131 — CORRIGÉS (§25, ADR-132)** : (C1) éditer qté/prix d'une ligne « montant saisi » tuait l'écran Vente (`computeBilledTotal` levait au rendu) ⇒ ligne **verrouillée** (qté + prix, jamais fusionnée, `+`/`−` strictement sur la dernière ligne) + `safeLineTotal` (« — » + log, jamais d'exception) ; (C2) ticket **non imprimable** (remise négative refusée par `discountMinor`) ⇒ `moneyMinorSigned`, ticket « Remise −X »/« Majoration +X », « montant saisi » au lieu de qté × P.U., quantités FR, devis A4 à majoration visible ; (C3) couverture **E2E** du mode Montant. Revue ui-fr (3 risques corrigés) + db-guardian CLEAN (aucune migration).
 - Outillage : `knip.json` (§16) — `Unused files` **32 → 0** ; re-mesuré 2026-10-21 : **0 fichier · 0 export · 0 type · 0 dépendance** (la couverture `knip` s'étend désormais à `license-manager/**` et `cloud/**` — J-11).
@@ -3846,3 +3847,90 @@ côté mobile si demandé).
 
 **Git** : `fix(sync): pousser l'annonce magasin aux clients actifs` +
 ce `docs(handoff)`.
+
+## 88) Session 2026-10-31 — Annonces multi-médias + bandeau hero APK (ADR-166)
+
+**Demande** : « إضافة شريط hero أعلى الصفحة الرئيسية تظهر فيه الإعلانات » pour
+l'**application client** : annonces optionnelles, **texte ou image**, images
+hébergées sur un site gratuit, et « عداد » = **compte à rebours d'expiration**
+(4 annonces maximum).
+
+**Décisions (ADR-166)**
+
+- **Migration 0057** `0057_announcements_media_expiry.sql` : reconstruction de
+  `announcements` (SQLite n'enlève pas un NOT NULL) — `text` NULLable (1..120
+  quand présent), `image_url` NULLable **https ≤ 500** (CHECK), `ends_at`,
+  `sort` (0..99), `updated_at`, `CHECK (text IS NOT NULL OR image_url IS NOT
+NULL)`. Les lignes 0032 sont copiées telles quelles (échéance NULL = sans
+  compte à rebours, toujours valable).
+- **Domaine** (`src/domain/customer/client-access.ts`) : texte OU image,
+  `ends_at` future obligatoire, **4 actives non expirées maximum** ;
+  `assertValidAnnouncementInput`, `assertValidAnnouncementImageUrl`,
+  `isAnnouncementExpired`, constantes `CLIENT_ANNOUNCEMENT_ACTIVE_MAX` /
+  `CLIENT_ANNOUNCEMENT_IMAGE_MAX`.
+- **Repo** (`electron/ipc/handlers/client-access.repo.ts`) : `listAnnouncements`,
+  `saveAnnouncementAtomic` = **upsert idempotent** (`id` optionnel,
+  `operationId`), `removeAnnouncementAtomic` idempotent par valeur ; plafond
+  compté **dans la transaction** (expirées/inactives ne comptent pas) ;
+  `getCurrentAnnouncement` supprimé. Mirroir main des bornes du domaine
+  (rootDir), messages FR.
+- **Cliché** : `buildSnapshotPayload` ajoute `announcements: [{ id, text,
+imageUrl, endsAt }]` — actives non expirées, tri `sort ASC, id DESC`,
+  `LIMIT 4` — **et conserve** `announcement` (premier texte) pour les APK
+  ≤ 1.0.4 déjà installées.
+- **IPC** : `announcements.save` (schéma étendu : `id?`, `text?`, `imageUrl?`,
+  `endsAt`, `sort`, `isActive`), `announcements.list`, `announcements.remove`
+  (`idempotentIdSchema`) ; `announcements.get` retiré. Gardes staff `settings`,
+  licence `customers` ; rétention critique `announcements.` (save + remove).
+- **POS** : Paramètres → **Annonces du magasin** (`SettingsSectionsA.tsx`) —
+  liste (statut Publiée/Expirée/Inactive, échéance, ordre), formulaire
+  texte/image avec **aperçu** et repli si l'image casse, `datetime-local`,
+  ordre, SwitchRow actif, suppression confirmée, badge « x/4 actives » ;
+  rafraîchissement de la file après chaque mutation.
+- **APK** : composant **`mobile/src/ui/announcement-hero.tsx`** sous la carte
+  « dernière facture » (le bandeau dette reste le héros, ADR-055) — image
+  `aspectRatio` 2:1 + texte, **compte à rebours local** recalculé chaque minute
+  (aucune écriture retour), pastilles tactiles si plusieurs annonces, repli
+  texte si l'image ne charge pas, annonce expirée masquée ; `toHome` parse
+  `announcements[]` (entrées corrompues écartées, échéance illisible =
+  annonce écartée) avec **repli sur l'ancien champ** `announcement` ; clés
+  i18n ar/fr (`announcement`, `expireIn`, `daysShort`, `hoursShort`,
+  `minutesShort`).
+- **Démo** : `scripts/demo-client-sync-server.mjs` envoie 3 annonces (image
+  https, texte, **expirée**) pour la vérification visuelle — la 3e est bien
+  masquée.
+
+**Tests / portes**
+
+- `tests/integration/announcement.test.ts` réécrit (9 cas) : aller-retour,
+  rejeu d'`operationId`, image seule / texte seul / vide refusé, texte 121 et
+  échéance passée refusés, mise à jour, **plafond 4** avec libération par
+  expiration, suppression idempotente, contenu/ordre du cliché + champ legacy.
+- `tests/unit/mobile-views.test.ts` (+2), `tests/unit/mobile-payload.test.ts`
+  (+1), `tests/unit/client-access.test.ts` (frontière Zod), rétention
+  (préfixe `announcements.`), snapshot des canaux, `tests/database/*`
+  (0057 → 57 fichiers).
+- **173 fichiers / 1 194 tests, 0 échec** · ESLint 0 (racine + mobile) ·
+  typecheck / typecheck:electron / typecheck:mobile 0 · `verify` ✓
+  (migrations 57, domain, fr, encoding, perf, version, secret-scan) ·
+  `build` ✓ · `build:electron` ✓ (manifeste signé **244**, v1.0.4).
+- **Vérification visuelle** (Expo web `:8083` + serveur de démo `:8099` via le
+  navigateur Qoder, capture d'écran indisponible — surface masquée) : image
+  `placehold.co` **chargée** (`naturalWidth 800 × 400`), texte arabe +
+  « ينتهي بعد 3 يوم 3 ساعة », **2 pastilles** (l'annonce expirée absente),
+  bascule vers la 2e annonce (texte seul, « ينتهي بعد 1 يوم 1 ساعة »).
+  Serveurs arrêtés après contrôle.
+
+**Non exécuté**
+
+- Reconstruction et installation de l'**APK** : le hero ne sera visible sur un
+  téléphone qu'après un nouvel APK (versionCode inchangé pour l'instant).
+- Aucun changement Supabase (le payload JSONB est opaque) ; les APK déjà
+  installées continuent d'afficher l'ancien champ texte.
+
+**Concurrence** : une autre fenêtre Qoder a livré puis commité le
+rafraîchissement périodique (ADR-165, `dd3b2fc`/`9a03cf6`/`dce523f`) pendant
+cette session ; l'ADR des annonces a donc été renumérotée **166**.
+
+**Git** : `feat(client): annonces multi-médias avec expiration (ADR-166)`
+`1dc3e46` + ce `docs(handoff)`.
