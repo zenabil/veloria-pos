@@ -16,6 +16,7 @@
 ## 1) État courant
 
 - Branche : `chore/root-layout` — tête **session 79** (application propriétaire, ADR-162). Avant elle session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 82 (2026-10-31)** : **Aujourd'hui enrichi + détails de transaction** — demande : « قم بتطوير صفحة Aujourd'hui، طوّر تبويب Synthèse و Opérations، وأضف تفاصيل المعاملة (فاتورة، مرتجع، تسديد) ». Contrat `TransactionDetail` ajouté au journal (vente : pièces, sous-total/remise/total, encaissement reçu/monnaie/crédit, caissier, session ; retour : facture d'origine, motif, lignes, remboursement et imputation dette ; versement : type, moyen, référence, opérateur ; dépense : catégorie, bénéficiaire, règlement, référence). Synthèse : barre de progression d'objectif + rappel des retours du jour. Opérations : filtres Toutes/Vente/Retour/Versement/Dépense avec compteurs, lignes tactiles → **fiche détail** en lecture seule ; état des onglets hissé dans `App` pour revenir sur Opérations après consultation. 8 détails de démo cohérents + test d'égalité (lignes = sous-total, encaissement = total, sorties = montant). Portes : eslint owner 0 · `typecheck:owner` 0 · **owner-foundation 16/16** · knip owner 0 ; captures Expo web (Synthèse, Opérations, vente, retour, versement). Détails §82.
 - **Session 81 (2026-10-31)** : **passe design v2 (app propriétaire)** — demande : « قم بتبسيط و تطوير واجهات تطبيق المالك ». Montants en police système + chiffres tabulaires (monospace retiré du kit et des jetons), actualisation unique dans l'en-tête (bouton or) au lieu du bandeau Aujourd'hui, titres d'écran dupliqués supprimés (Argent/Stock/Périodes/Alertes), Stock converti en **lignes groupées compactes** (une surface, filets, pastille d'état + quantité + valeur), fiche produit : carte « ÉCONOMIE » unique (marchandise/PAMP/PVC/PAMP unitaire) et disponibilité dépliée dans sa carte tonale. Portes : eslint owner 0 · `typecheck:owner` 0 · **owner-foundation 15/15** · knip owner 0 ; captures Expo web (Aujourd'hui, Stock, fiche produit). Détails §81.
 - **Session 80 (2026-10-31)** : **écrans courts par onglets internes** — demande propriétaire : « قم بتبسيط الواجهات و اختسار الواجهات الطويلة بتبويبات ». Chaque écran long de `owner/` est découpé avec le sélecteur existant : Aujourd'hui (Synthèse / Opérations), Argent (Caisse / Dépenses / Dettes — filtre réel au lieu d'ancres de défilement), Périodes (Ventes / Marges / Top, plage 7/30 j en puces), Alertes (Stock / Créances / Système), fiche produit (Synthèse / Mouvements), fiche client (Encours / Factures), audit des caisses (Synthèse / Sessions). Simplifications : en-têtes dupliqués supprimés (fraîcheur portée par le seul bandeau), Stock ramené à une carte valeur + compteurs, libellés des contrôles secondaires raccourcis. Liasse de démo corrigée (sessions S-138→S-141 alignées sur 167 000/158 350/174 520/245 800 DZD). Portes : eslint owner 0 · `typecheck:owner` 0 · **owner-foundation 15/15** ; parcours réel Expo web : Synthèse/Opérations, Caisse/Dépenses/Dettes, Marges/Top, Système, Synthèse/Sessions. Détails §80.
 - **Session 79 (2026-10-31)** : **application propriétaire (ADR-162)** — demande : étudier les maquettes Stitch puis créer l'app mobile du propriétaire. Livré : nouveau projet Expo `owner/` (français uniquement, `dz.veloria.owner`), 5 onglets (Aujourd'hui, Argent, Stock, Périodes, Alertes) + connexion + 3 sous-écrans (fiche client avec téléphone/Appeler/WhatsApp, fiche produit avec mouvements, audit des caisses), liasse de démonstration identique aux maquettes, cache SecureStore/SQLite, contrat `owner-sync` (Supabase Auth + `fetch` injecté) prêt pour l'Edge Function à venir, mode démo sans endpoint. **Lecture seule stricte** : actualiser/déconnexion/appel uniquement, aucun bouton d'écriture. Portes : `typecheck:owner` 0 · eslint owner 0 · **owner-foundation 15/15** · `typecheck` racine 0 · bundle web Expo capturé (9 écrans). **Non fait** : Edge Function `owner-sync`, use case POS de publication + réglage de cadence, compte propriétaire, biométrie, APK. Détails §79.
@@ -3570,3 +3571,45 @@ Stock/Créances/Système, Synthèse/Sessions.
 avec captures (Aujourd'hui, Stock compact, fiche produit).
 
 **Git** : commit (`style(owner): passe design v2`) + ce `docs(handoff)`.
+
+---
+
+## 82) Session 2026-10-31 — Aujourd'hui enrichi + détails de transaction
+
+**Demande** : « قم بتطوير صفحة Aujourd'hui — طوّر تبويب Synthèse و Opérations —
+أضف تفاصيل المعاملة مثل تفاصيل الفاتورة، تفاصيل المرتجع، تفاصيل التسديد ».
+
+**Contrat** (`owner/src/store.ts`)
+
+- `TransactionDetail` discriminé : `sale` (lignes, sous-total, remise, total,
+  encaissement mode/reçu/monnaie/crédit, caissier, session), `return`
+  (facture d'origine, motif, lignes, remboursement, imputation dette,
+  opérateur), `payment` (type, moyen, référence, opérateur, note), `expense`
+  (catégorie, bénéficiaire, règlement, référence, opérateur, note).
+- Chaque `JournalRow` porte son `tx` ; `findJournalEntry(snapshot, id)` retrouve
+  l'entrée pour la fiche.
+
+**Écrans**
+
+- Synthèse : barre de progression de l'objectif dans le héro, bandeau « retours
+  du jour » (nombre + montant).
+- Opérations : puces de filtre par type avec compteurs, lignes tactiles avec
+  chevron, état vide localisé.
+- Nouvelle fiche `TransactionDetailScreen` : en-tête (référence, heure, montant
+  signé), pièces, totaux, encaissement ou remboursement, métadonnées — aucune
+  action.
+- État `view`/`kindFilter` d'Aujourd'hui hissé dans `App` : revenir d'une fiche
+  restaure l'onglet Opérations.
+
+**Données de démo** : 8 transactions détaillées (ventes 142/141/140/139/138,
+retour avoir RC-89, dépôt caisse, dépense coursier) cohérentes avec les montants
+du journal.
+
+**Vérifications** : eslint owner **0** · `typecheck:owner` **0** ·
+`vitest` owner-foundation **16/16** (dont cohérence lignes/totaux/encaissement) ·
+knip owner **0** · parcours Expo web réel : Synthèse, Opérations filtrées,
+fiche vente, fiche retour, fiche versement.
+
+**Git** : commit (`feat(owner): détails de transaction et Aujourd'hui enrichi`)
+
+- ce `docs(handoff)`.
