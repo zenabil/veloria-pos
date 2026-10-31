@@ -16,6 +16,7 @@
 ## 1) État courant
 
 - Branche : `chore/root-layout` — tête **session 79** (application propriétaire, ADR-162). Avant elle session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 86 (2026-10-31)** : **compte propriétaire créé depuis le POS (ADR-164)** — demande : « اعداد الحساب يكون من برنامج pos مع امكانية تغييره ». Nouveau canal `sync.saveOwnerAccount` (Zod `ownerAccountSaveSchema`, `operationId`) : le main utilise l'URL + la clé service **déjà stockée chiffrée** pour appeler l'Admin API Supabase (`POST`/`PUT /auth/v1/admin/users`, `email_confirm`), retrouve un compte existant par e-mail en cas de 409/422, recrée si l'id stocké a disparu. Seuls `email` + `userId` + date sont conservés (`app_settings.owner_account`) ; **mot de passe jamais stocké**. UI Paramètres → Miroir Android : compte actuel, e-mail, mot de passe, bouton Créer/Mettre à jour. Gardes : licence `customers`, staff `settings`, idempotence. Contrats gelés mis à jour (canal 164, schéma 125, exports 134) + tests protocole. Portes : eslint 0 · typecheck 0 · typecheck:electron 0 · tests contrats 39/39. **Non exécuté** : SQL Supabase, test réel de création de compte (nécessite la clé service sur le poste + URL appliquée). Détails §86.
 - **Session 85 (2026-10-31)** : **connexion de l'app propriétaire à Supabase (ADR-163)** — demande : « اربط التطبيق بقاعدة البيانات supabase ». Décision : **pas d'Edge Function** — table `owner_snapshots` (JSONB + `generated_at`, index `shop_key, generated_at DESC`) dans `cloud/supabase/owner.sql`, RLS `anon` révoqué / `authenticated` lecture / `service_role` écriture ; `fetchOwnerSnapshot` passe en **GET PostgREST** de la dernière liasse (message FR si vide) ; `owner/eas.json` grave l'URL + clé **anon** du projet `veloria-pos` (valeurs publiques, jamais `service_role`). **Non exécuté (cloud)** : SQL non appliqué, compte Auth propriétaire non créé, publieur POS non branché — l'app affichera « Aucune liasse de supervision publiée » jusqu'à ces trois étapes. Portes : eslint owner 0 · `typecheck:owner` 0 · **owner-foundation 17/17** · knip owner 0. Détails §85.
 - **Session 84 (2026-10-31)** : **suppression totale des données fictives (app propriétaire)** — demande : « احذف كل البيانات الوهمية من التطبيق ». `owner/src/demo.ts` **supprimé** ; mode démonstration retiré (`DEMO_MODE`, `DEMO_SNAPSHOT`, puce « DÉMONSTRATION », avis de connexion, branche `Session.demo`, repli démo au boot/refresh). Sans endpoint configuré, l'app affiche un **écran de configuration** et n'ouvre aucun accès. Chiffres codés en dur retirés ou calculés : `+2,1 %`, `+12,4 %`, `100 % audité`, « v4.2 · RO », initiales « YB » (dérivées de l'opérateur), conformité en badge (issue de la liasse). États vides ajoutés (journal, encaissements, sessions, dépenses, dettes, mouvements, périodes, alertes). Tests réécrits avec une **fixture locale** (aucune donnée fictive dans l'app). Portes : eslint owner 0 · `typecheck:owner` 0 · **owner-foundation 17/17** · knip owner 0. Détails §84.
 - **Session 83 (2026-10-31)** : **Argent, Stock, Périodes et Alertes enrichis** — demande : « قم بتطوير الصفحات المتبقية — Argent، Stock، Périodes، Alertes بجميع تبويباتها ». Argent : synthèse caisse (sessions, conformité, écart net), dépenses (moyenne/pièce, poste principal), dettes (part en retard critique via barre). Stock : onglets **Aperçu / Produits / Mouvements** ; flux global `recentMovements` (tri décroissant, ouverture fiche produit) ; ancienne liste déplacée dans Produits. Périodes : moyenne/jour + meilleur jour, marge en valeur par catégorie (CA en sous-ligne), part du CA de chaque top vente. Alertes : synthèse ruptures/sous-seuil + perte estimée, dossiers > 60 jours, dernier inventaire dans Système. Liasse : mouvements ajoutés à 5 produits (16 lignes au flux). Portes : eslint owner 0 · `typecheck:owner` 0 · **owner-foundation 17/17** · knip owner 0 ; vérification structurelle Expo web (snapshots) des quatre écrans, capture d'écran indisponible (surface navigateur masquée). Détails §83.
@@ -3747,3 +3748,38 @@ ce `docs(handoff)`.
 
 **Git** : commit (`feat(owner): connexion Supabase via PostgREST (ADR-163)`) +
 ce `docs(handoff)`.
+
+---
+
+## 86) Session 2026-10-31 — Compte propriétaire géré depuis le POS
+
+**Demande** : « اعداد الحساب يكون من برنامج pos مع امكانية تغييره ».
+
+**Livré**
+
+- Canal `sync.saveOwnerAccount` + `ownerAccountSaveSchema` (operationId, e-mail,
+  mot de passe) : licence `customers`, staff `settings`, idempotent.
+- `saveOwnerAccountAtomic` (main) : Admin API Supabase avec la clé service
+  stockée chiffrée — création (`POST /auth/v1/admin/users`), mise à jour
+  (`PUT .../{id}`), récupération si l'e-mail existe déjà, recréation si l'id
+  stocké est introuvable (404). Erreurs FR, détail HTTP loggé.
+- Persistance locale : `app_settings.owner_account` = `{ email, userId,
+updatedAt }` — **aucun mot de passe**.
+- Vue renderer `sync.getConfig` enrichie (`ownerEmail`, `ownerUpdatedAt`) ;
+  schéma IPC mis à jour.
+- UI Paramètres → Miroir Android → « Compte propriétaire (application mobile) » :
+  compte actuel, dernière mise à jour, e-mail, mot de passe, bouton
+  « Créer le compte » / « Mettre à jour le compte ».
+- Contrats : canal ajouté (snapshot 164), schéma 124 → 125, exports 133 → 134,
+  classement operationId (REQUIRED). Tests protocole : validation e-mail/mot de
+  passe, URL Admin, masque de vue.
+
+**Vérifications** : eslint **0** (périmètre touché) · `typecheck` **0** ·
+`typecheck:electron` **0** · tests contrats IPC/sync/validators/bridge/staff
+**39/39**.
+
+**Non exécuté** : application de `owner.sql` dans Supabase, création réelle du
+compte (exige la clé service du poste + URL appliquée), publieur POS.
+
+**Git** : commit (`feat(pos): compte propriétaire créé et modifiable depuis le
+miroir`) + ce `docs(handoff)`.
