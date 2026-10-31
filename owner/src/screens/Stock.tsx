@@ -2,13 +2,7 @@
 import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { COLORS, RADIUS, SIZES, SPACE, TYPE } from "../tokens.ts";
-import {
-  formatDateLongFr,
-  formatDateShortFr,
-  formatMinor,
-  formatQuantity,
-  freshnessLabel,
-} from "../format.ts";
+import { formatDateLongFr, formatDateShortFr, formatMinor, formatQuantity } from "../format.ts";
 import { filterProducts, productStatus, type OwnerSnapshot, type ProductFilter } from "../store.ts";
 import { Amount, Badge, Card, Chip, Field, IconBubble, ReadOnlyNote, Tap } from "../ui/kit.tsx";
 import { Icon } from "../ui/Icon.tsx";
@@ -36,33 +30,14 @@ export function StockScreen(props: {
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      <Card>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: SPACE.sm }}>
-          <IconBubble icon="cube-outline" color={COLORS.cardText} size={32} />
-          <View style={{ flex: 1 }}>
-            <Text style={{ ...TYPE.headline, color: COLORS.cardText }}>Stock & Inventaire</Text>
-            <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>
-              {formatDateLongFr(props.snapshot.day.date)}
-            </Text>
-          </View>
-        </View>
-        <View style={{ flexDirection: "row", gap: SPACE.sm, marginTop: SPACE.md }}>
-          <Badge
-            label={freshnessLabel(props.snapshot.generatedAt)}
-            color={COLORS.cardMuted}
-            dot={false}
-            background={COLORS.sunkenBg}
-          />
-          <Badge
-            label="Consultation seule"
-            color={COLORS.cardMuted}
-            dot={false}
-            background={COLORS.sunkenBg}
-          />
-        </View>
-      </Card>
+      <Text style={{ ...TYPE.title, color: COLORS.cardText }}>Stock & Inventaire</Text>
+      <Text
+        style={{ ...TYPE.label, color: COLORS.cardMuted, marginTop: 2, marginBottom: SPACE.md }}
+      >
+        {formatDateLongFr(props.snapshot.day.date)}
+      </Text>
 
-      <Card style={{ marginTop: SPACE.md }}>
+      <Card>
         <View
           style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
         >
@@ -77,32 +52,23 @@ export function StockScreen(props: {
             size={44}
           />
         </View>
+        <View style={{ height: 1, backgroundColor: COLORS.divider, marginVertical: SPACE.md }} />
+        <View style={{ flexDirection: "row" }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>Références</Text>
+            <Text style={{ ...TYPE.headline, color: COLORS.cardText, marginTop: 2 }}>
+              {stock.references}
+            </Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>Sous seuil</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
+              <Text style={{ ...TYPE.headline, color: COLORS.statusWatch }}>{lowCount}</Text>
+              <Text style={{ ...TYPE.label, color: COLORS.statusWatch }}>à réapprovisionner</Text>
+            </View>
+          </View>
+        </View>
       </Card>
-
-      <View style={{ flexDirection: "row", gap: SPACE.md, marginTop: SPACE.md }}>
-        <Card style={{ flex: 1 }}>
-          <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-            <Text style={{ ...TYPE.bodySm, color: COLORS.cardMuted }}>Références</Text>
-            <Icon name="barcode-outline" size={16} color={COLORS.cardMuted} />
-          </View>
-          <Text style={{ ...TYPE.hero, color: COLORS.cardText, marginTop: 4 }}>
-            {stock.references}
-          </Text>
-          <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>Catalogue actif</Text>
-        </Card>
-        <Card style={{ flex: 1 }}>
-          <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-            <Text style={{ ...TYPE.bodySm, color: COLORS.cardMuted }}>Sous seuil</Text>
-            <View
-              style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.statusWatch }}
-            />
-          </View>
-          <Text style={{ ...TYPE.hero, color: COLORS.statusWatch, marginTop: 4 }}>{lowCount}</Text>
-          <Text style={{ ...TYPE.label, color: COLORS.statusWatch }}>
-            {lowCount} à réapprovisionner
-          </Text>
-        </Card>
-      </View>
 
       {outCount > 0 ? (
         <View

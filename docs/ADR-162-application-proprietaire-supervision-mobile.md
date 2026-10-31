@@ -55,6 +55,14 @@ code : aucune porte propriétaire ne doit exister dans un binaire client.
 | Fiche produit     | disponibilité vs seuil, valeurs marchandise/PAMP, marge unitaire, dynamique 30 j, mouvements                               |
 | Audit des caisses | fonds manipulés, écart net, conformité, session active, sessions clôturées filtrables                                      |
 
+Les écrans longs sont **découpés en onglets internes** (2026-10-31) pour rester
+courts à l'ouverture : Aujourd'hui (Synthèse / Opérations), Argent (Caisse /
+Dépenses / Dettes — le sélecteur filtre réellement, il ne défile plus), Stock
+(fiche allégée : valeur + compteurs dans une seule carte), Périodes (Ventes /
+Marges / Top), Alertes (Stock / Créances / Système), fiche produit (Synthèse /
+Mouvements), fiche client (Encours / Factures), audit des caisses (Synthèse /
+Sessions).
+
 ### 3. Contrat de données
 
 `OwnerSnapshot` v1 est une **liasse agrégée** calculée par le POS (centimes DZD),

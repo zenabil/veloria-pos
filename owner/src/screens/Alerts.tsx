@@ -1,16 +1,20 @@
-// Veloria Owner — Alertes : stock, créances, santé système.
+// Veloria Owner — Alertes : trois vues courtes (Stock, Créances, Système).
+import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { COLORS, RADIUS, SIZES, SPACE, TYPE } from "../tokens.ts";
-import { formatDateShortFr, formatMinor, formatTime } from "../format.ts";
+import { formatMinor, formatTime } from "../format.ts";
 import type { OwnerSnapshot } from "../store.ts";
-import { Amount, Badge, Card, Divider, Group, IconBubble, SectionHead, Tap } from "../ui/kit.tsx";
+import { Amount, Badge, Card, Divider, Group, ReadOnlyNote, Segmented, Tap } from "../ui/kit.tsx";
 import { Icon } from "../ui/Icon.tsx";
+
+type AlertsView = "stock" | "debts" | "system";
 
 export function AlertsScreen(props: {
   snapshot: OwnerSnapshot;
   onOpenProduct: (id: string) => void;
   onOpenDebtor: (id: string) => void;
 }): React.JSX.Element {
+  const [view, setView] = useState<AlertsView>("stock");
   const a = props.snapshot.alerts;
 
   return (
@@ -28,7 +32,7 @@ export function AlertsScreen(props: {
         <View
           style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
         >
-          <Badge label="CONTRÔLE D'INTÉGRITÉ" color={COLORS.statusWatch} />
+          <Text style={{ color: COLORS.headerText, ...TYPE.title }}>Alertes</Text>
           <Badge
             label="Lecture seule"
             color={COLORS.navyMuted}
@@ -37,13 +41,10 @@ export function AlertsScreen(props: {
             background={COLORS.onNavyChip}
           />
         </View>
-        <Text style={{ color: COLORS.headerText, ...TYPE.title, marginTop: SPACE.sm }}>
-          Alertes & Diagnostic
+        <Text style={{ color: COLORS.navyMuted, ...TYPE.label, marginTop: 2 }}>
+          {a.anomaliesTitle} — {a.anomaliesDetail}
         </Text>
-        <Text style={{ color: COLORS.navyMuted, ...TYPE.label }}>
-          Supervision en temps réel des points névralgiques
-        </Text>
-        <View style={{ flexDirection: "row", gap: SPACE.sm, marginTop: SPACE.lg }}>
+        <View style={{ flexDirection: "row", gap: SPACE.sm, marginTop: SPACE.md }}>
           {[
             { n: a.critical, label: "Critiques", color: COLORS.statusCritical },
             { n: a.watch, label: "Vigilance", color: COLORS.statusWatch },
@@ -73,234 +74,209 @@ export function AlertsScreen(props: {
         </View>
       </View>
 
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: SPACE.md,
-          backgroundColor: COLORS.cardBg,
-          borderRadius: RADIUS.card,
-          borderWidth: 1,
-          borderColor: COLORS.border,
-          padding: SPACE.lg,
-          marginTop: SPACE.md,
-        }}
-      >
-        <IconBubble icon="alert-outline" color={COLORS.statusCritical} size={42} />
-        <View style={{ flex: 1 }}>
-          <Text style={{ ...TYPE.headlineSm, color: COLORS.cardText }}>{a.anomaliesTitle}</Text>
-          <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>{a.anomaliesDetail}</Text>
-        </View>
-        <Badge
-          label={formatDateShortFr(props.snapshot.day.date)}
-          color={COLORS.cardMuted}
-          dot={false}
-          background={COLORS.sunkenBg}
+      <View style={{ marginTop: SPACE.md, marginBottom: SPACE.md }}>
+        <Segmented
+          options={[
+            { value: "stock", label: `Stock (${a.stock.length})` },
+            { value: "debts", label: `Créances (${a.debts.length})` },
+            { value: "system", label: "Système" },
+          ]}
+          value={view}
+          onChange={setView}
         />
       </View>
 
-      <SectionHead
-        title="Stock & Disponibilité"
-        right={
-          <Badge
-            label={`${a.stock.length} articles`}
-            color={COLORS.statusCritical}
-            dot={false}
-            background={COLORS.criticalTone}
-          />
-        }
-      />
-      <Group>
-        {a.stock.map((s, i) => (
-          <View key={s.id}>
-            {i > 0 ? <Divider inset={SPACE.lg} /> : null}
-            <Tap onPress={() => props.onOpenProduct(s.productId)} accessibilityLabel={s.name}>
-              <View style={{ paddingHorizontal: SPACE.lg, paddingVertical: SPACE.md, gap: 4 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: SPACE.sm }}>
-                  <View
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: 4,
-                      backgroundColor:
-                        s.severity === "critical" ? COLORS.statusCritical : COLORS.statusWatch,
-                    }}
-                  />
+      {view === "stock" ? (
+        <Group>
+          {a.stock.map((s, i) => (
+            <View key={s.id}>
+              {i > 0 ? <Divider inset={SPACE.lg} /> : null}
+              <Tap onPress={() => props.onOpenProduct(s.productId)} accessibilityLabel={s.name}>
+                <View style={{ paddingHorizontal: SPACE.lg, paddingVertical: SPACE.md, gap: 4 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: SPACE.sm }}>
+                    <View
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: 4,
+                        backgroundColor:
+                          s.severity === "critical" ? COLORS.statusCritical : COLORS.statusWatch,
+                      }}
+                    />
+                    <Text
+                      style={{ ...TYPE.bodySm, color: COLORS.cardText, fontWeight: "700", flex: 1 }}
+                      numberOfLines={1}
+                    >
+                      {s.name}
+                    </Text>
+                    <Badge
+                      label={`REF-${s.ref}`}
+                      color={COLORS.cardMuted}
+                      dot={false}
+                      background={COLORS.sunkenBg}
+                    />
+                    <Icon name="chevron-forward" size={15} color={COLORS.cardMuted} />
+                  </View>
                   <Text
-                    style={{ ...TYPE.bodySm, color: COLORS.cardText, fontWeight: "700", flex: 1 }}
-                    numberOfLines={1}
+                    style={{
+                      ...TYPE.bodySm,
+                      color: s.severity === "critical" ? COLORS.statusCritical : COLORS.statusWatch,
+                      fontWeight: "700",
+                    }}
                   >
-                    {s.name}
+                    {s.headline}
                   </Text>
-                  <Badge
-                    label={`REF-${s.ref}`}
-                    color={COLORS.cardMuted}
-                    dot={false}
-                    background={COLORS.sunkenBg}
-                  />
-                  <Icon name="chevron-forward" size={15} color={COLORS.cardMuted} />
+                  <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>{s.detail}</Text>
                 </View>
-                <Text
+              </Tap>
+            </View>
+          ))}
+        </Group>
+      ) : null}
+
+      {view === "debts" ? (
+        <>
+          <Card tone={COLORS.criticalTone}>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ ...TYPE.badge, color: COLORS.criticalText, letterSpacing: 0.6 }}>
+                ENCOURS CRITIQUE TOTAL
+              </Text>
+              <Icon name="calendar-outline" size={18} color={COLORS.criticalText} />
+            </View>
+            <Amount
+              text={formatMinor(props.snapshot.money.debts.overdueMinor)}
+              size={26}
+              tone={COLORS.statusCritical}
+              style={{ marginTop: 4 }}
+            />
+          </Card>
+          <Group style={{ marginTop: SPACE.md }}>
+            {a.debts.map((d, i) => (
+              <View key={d.debtorId}>
+                {i > 0 ? <Divider inset={SPACE.lg} /> : null}
+                <Tap onPress={() => props.onOpenDebtor(d.debtorId)} accessibilityLabel={d.name}>
+                  <View style={{ paddingHorizontal: SPACE.lg, paddingVertical: SPACE.md, gap: 4 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: SPACE.sm }}>
+                      <View
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: 4,
+                          backgroundColor: COLORS.statusCritical,
+                        }}
+                      />
+                      <Text
+                        style={{
+                          ...TYPE.bodySm,
+                          color: COLORS.cardText,
+                          fontWeight: "700",
+                          flex: 1,
+                        }}
+                      >
+                        {d.name}
+                      </Text>
+                      <Badge
+                        label={`#${d.ref}`}
+                        color={COLORS.cardMuted}
+                        dot={false}
+                        background={COLORS.sunkenBg}
+                      />
+                      <Icon name="chevron-forward" size={15} color={COLORS.cardMuted} />
+                    </View>
+                    <Text
+                      style={{ ...TYPE.label, color: COLORS.statusCritical, fontWeight: "700" }}
+                    >
+                      Retard de {d.lateDays} jours (
+                      {d.lateDays > 60 ? "+60 j critique" : "échéance dépassée"})
+                    </Text>
+                    <Amount text={formatMinor(d.remainingMinor)} size={15} />
+                  </View>
+                </Tap>
+              </View>
+            ))}
+          </Group>
+        </>
+      ) : null}
+
+      {view === "system" ? (
+        <>
+          <Card padded={false}>
+            {a.system.map((s, i) => (
+              <View
+                key={s.id}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: SPACE.md,
+                  paddingHorizontal: SPACE.lg,
+                  paddingVertical: SPACE.md,
+                  borderTopWidth: i === 0 ? 0 : 1,
+                  borderTopColor: COLORS.divider,
+                }}
+              >
+                <View
                   style={{
-                    ...TYPE.bodySm,
-                    color: s.severity === "critical" ? COLORS.statusCritical : COLORS.statusWatch,
-                    fontWeight: "700",
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor:
+                      s.state === "ok"
+                        ? COLORS.statusOk
+                        : s.state === "watch"
+                          ? COLORS.statusWatch
+                          : COLORS.statusCritical,
                   }}
-                >
-                  {s.headline}
-                </Text>
-                <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>{s.detail}</Text>
-              </View>
-            </Tap>
-          </View>
-        ))}
-      </Group>
-
-      <SectionHead
-        title="Créances en Souffrance"
-        right={
-          <Badge
-            label={`${a.debts.length} dossiers`}
-            color={COLORS.statusCritical}
-            dot={false}
-            background={COLORS.criticalTone}
-          />
-        }
-      />
-      <Card tone={COLORS.criticalTone}>
-        <View
-          style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
-        >
-          <Text style={{ ...TYPE.badge, color: COLORS.criticalText, letterSpacing: 0.6 }}>
-            ENCOURS CRITIQUE TOTAL
-          </Text>
-          <Icon name="calendar-outline" size={18} color={COLORS.criticalText} />
-        </View>
-        <Amount
-          text={formatMinor(props.snapshot.money.debts.overdueMinor)}
-          size={26}
-          tone={COLORS.statusCritical}
-          style={{ marginTop: 4 }}
-        />
-      </Card>
-      <Group style={{ marginTop: SPACE.md }}>
-        {a.debts.map((d, i) => (
-          <View key={d.debtorId}>
-            {i > 0 ? <Divider inset={SPACE.lg} /> : null}
-            <Tap onPress={() => props.onOpenDebtor(d.debtorId)} accessibilityLabel={d.name}>
-              <View style={{ paddingHorizontal: SPACE.lg, paddingVertical: SPACE.md, gap: 4 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: SPACE.sm }}>
-                  <View
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: 4,
-                      backgroundColor: COLORS.statusCritical,
-                    }}
-                  />
-                  <Text
-                    style={{ ...TYPE.bodySm, color: COLORS.cardText, fontWeight: "700", flex: 1 }}
-                  >
-                    {d.name}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ ...TYPE.bodySm, color: COLORS.cardText, fontWeight: "700" }}>
+                    {s.label}
                   </Text>
-                  <Badge
-                    label={`#${d.ref}`}
-                    color={COLORS.cardMuted}
-                    dot={false}
-                    background={COLORS.sunkenBg}
-                  />
-                  <Icon name="chevron-forward" size={15} color={COLORS.cardMuted} />
+                  <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>{s.detail}</Text>
+                  {s.at ? (
+                    <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>
+                      Dernier contrôle : {formatTime(s.at)}
+                    </Text>
+                  ) : null}
                 </View>
-                <Text style={{ ...TYPE.label, color: COLORS.statusCritical, fontWeight: "700" }}>
-                  Retard de {d.lateDays} jours (
-                  {d.lateDays > 60 ? "+60 j critique" : "échéance dépassée"})
-                </Text>
-                <Amount text={formatMinor(d.remainingMinor)} size={15} />
+                <Icon name="checkmark-circle-outline" size={20} color={COLORS.statusOk} />
               </View>
-            </Tap>
-          </View>
-        ))}
-      </Group>
-
-      <SectionHead
-        title="Système & Intégrité"
-        right={
-          <Badge
-            label="100 % Opérationnel"
-            color={COLORS.primaryText}
-            dot={false}
-            background={COLORS.primary}
-          />
-        }
-      />
-      <Card padded={false}>
-        {a.system.map((s, i) => (
+            ))}
+          </Card>
           <View
-            key={s.id}
             style={{
               flexDirection: "row",
               alignItems: "center",
-              gap: SPACE.md,
+              justifyContent: "space-between",
+              backgroundColor: COLORS.toneBg,
+              borderRadius: RADIUS.control,
               paddingHorizontal: SPACE.lg,
               paddingVertical: SPACE.md,
-              borderTopWidth: i === 0 ? 0 : 1,
-              borderTopColor: COLORS.divider,
+              marginTop: SPACE.md,
             }}
           >
-            <View
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: 4,
-                backgroundColor:
-                  s.state === "ok"
-                    ? COLORS.statusOk
-                    : s.state === "watch"
-                      ? COLORS.statusWatch
-                      : COLORS.statusCritical,
-              }}
-            />
-            <View style={{ flex: 1 }}>
-              <Text style={{ ...TYPE.bodySm, color: COLORS.cardText, fontWeight: "700" }}>
-                {s.label}
+            <View style={{ flexDirection: "row", alignItems: "center", gap: SPACE.sm }}>
+              <Icon name="shield-outline" size={16} color={COLORS.cardMuted} />
+              <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>
+                Journal d'audit Veloria POS
               </Text>
-              <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>{s.detail}</Text>
-              {s.at ? (
-                <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>
-                  {formatDateShortFr(s.at)} à {formatTime(s.at)}
-                </Text>
-              ) : null}
             </View>
-            <Icon name="checkmark-circle-outline" size={20} color={COLORS.statusOk} />
+            <Badge
+              label="v4.2 · RO"
+              color={COLORS.cardMuted}
+              dot={false}
+              background={COLORS.sunkenBg}
+            />
           </View>
-        ))}
-      </Card>
+        </>
+      ) : null}
 
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          backgroundColor: COLORS.toneBg,
-          borderRadius: RADIUS.control,
-          paddingHorizontal: SPACE.lg,
-          paddingVertical: SPACE.md,
-          marginTop: SPACE.md,
-        }}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: SPACE.sm }}>
-          <Icon name="shield-outline" size={16} color={COLORS.cardMuted} />
-          <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>
-            Journal d'audit Veloria POS · Consultation sécurisée
-          </Text>
-        </View>
-        <Badge
-          label="v4.2 · RO"
-          color={COLORS.cardMuted}
-          dot={false}
-          background={COLORS.sunkenBg}
-        />
-      </View>
+      <ReadOnlyNote text="Supervision en lecture seule — aucune action correctrice depuis ce terminal" />
     </ScrollView>
   );
 }
