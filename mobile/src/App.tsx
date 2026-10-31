@@ -2,7 +2,17 @@
 // Session persistée (SecureStore, repli mémoire) + clichés persistés
 // (expo-sqlite, repli mémoire) : l'appli rouvre sur les dernières données.
 import { useEffect, useRef, useState } from "react";
-import { AppState, BackHandler, Image, Linking, Modal, Platform, Pressable, Text, View } from "react-native";
+import {
+  AppState,
+  BackHandler,
+  Image,
+  Linking,
+  Modal,
+  Platform,
+  Pressable,
+  Text,
+  View,
+} from "react-native";
 import { Icon } from "./ui/Icon.tsx";
 import { COLORS, RADIUS, SHADOW, SIZES, SPACE, TYPE, tint } from "./tokens.ts";
 import { formatDateFr } from "./format.ts";
