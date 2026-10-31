@@ -16,6 +16,7 @@
 ## 1) État courant
 
 - Branche : `chore/root-layout` — tête **session 79** (application propriétaire, ADR-162). Avant elle session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 83 (2026-10-31)** : **Argent, Stock, Périodes et Alertes enrichis** — demande : « قم بتطوير الصفحات المتبقية — Argent، Stock، Périodes، Alertes بجميع تبويباتها ». Argent : synthèse caisse (sessions, conformité, écart net), dépenses (moyenne/pièce, poste principal), dettes (part en retard critique via barre). Stock : onglets **Aperçu / Produits / Mouvements** ; flux global `recentMovements` (tri décroissant, ouverture fiche produit) ; ancienne liste déplacée dans Produits. Périodes : moyenne/jour + meilleur jour, marge en valeur par catégorie (CA en sous-ligne), part du CA de chaque top vente. Alertes : synthèse ruptures/sous-seuil + perte estimée, dossiers > 60 jours, dernier inventaire dans Système. Liasse : mouvements ajoutés à 5 produits (16 lignes au flux). Portes : eslint owner 0 · `typecheck:owner` 0 · **owner-foundation 17/17** · knip owner 0 ; vérification structurelle Expo web (snapshots) des quatre écrans, capture d'écran indisponible (surface navigateur masquée). Détails §83.
 - **Session 82 (2026-10-31)** : **Aujourd'hui enrichi + détails de transaction** — demande : « قم بتطوير صفحة Aujourd'hui، طوّر تبويب Synthèse و Opérations، وأضف تفاصيل المعاملة (فاتورة، مرتجع، تسديد) ». Contrat `TransactionDetail` ajouté au journal (vente : pièces, sous-total/remise/total, encaissement reçu/monnaie/crédit, caissier, session ; retour : facture d'origine, motif, lignes, remboursement et imputation dette ; versement : type, moyen, référence, opérateur ; dépense : catégorie, bénéficiaire, règlement, référence). Synthèse : barre de progression d'objectif + rappel des retours du jour. Opérations : filtres Toutes/Vente/Retour/Versement/Dépense avec compteurs, lignes tactiles → **fiche détail** en lecture seule ; état des onglets hissé dans `App` pour revenir sur Opérations après consultation. 8 détails de démo cohérents + test d'égalité (lignes = sous-total, encaissement = total, sorties = montant). Portes : eslint owner 0 · `typecheck:owner` 0 · **owner-foundation 16/16** · knip owner 0 ; captures Expo web (Synthèse, Opérations, vente, retour, versement). Détails §82.
 - **Session 81 (2026-10-31)** : **passe design v2 (app propriétaire)** — demande : « قم بتبسيط و تطوير واجهات تطبيق المالك ». Montants en police système + chiffres tabulaires (monospace retiré du kit et des jetons), actualisation unique dans l'en-tête (bouton or) au lieu du bandeau Aujourd'hui, titres d'écran dupliqués supprimés (Argent/Stock/Périodes/Alertes), Stock converti en **lignes groupées compactes** (une surface, filets, pastille d'état + quantité + valeur), fiche produit : carte « ÉCONOMIE » unique (marchandise/PAMP/PVC/PAMP unitaire) et disponibilité dépliée dans sa carte tonale. Portes : eslint owner 0 · `typecheck:owner` 0 · **owner-foundation 15/15** · knip owner 0 ; captures Expo web (Aujourd'hui, Stock, fiche produit). Détails §81.
 - **Session 80 (2026-10-31)** : **écrans courts par onglets internes** — demande propriétaire : « قم بتبسيط الواجهات و اختسار الواجهات الطويلة بتبويبات ». Chaque écran long de `owner/` est découpé avec le sélecteur existant : Aujourd'hui (Synthèse / Opérations), Argent (Caisse / Dépenses / Dettes — filtre réel au lieu d'ancres de défilement), Périodes (Ventes / Marges / Top, plage 7/30 j en puces), Alertes (Stock / Créances / Système), fiche produit (Synthèse / Mouvements), fiche client (Encours / Factures), audit des caisses (Synthèse / Sessions). Simplifications : en-têtes dupliqués supprimés (fraîcheur portée par le seul bandeau), Stock ramené à une carte valeur + compteurs, libellés des contrôles secondaires raccourcis. Liasse de démo corrigée (sessions S-138→S-141 alignées sur 167 000/158 350/174 520/245 800 DZD). Portes : eslint owner 0 · `typecheck:owner` 0 · **owner-foundation 15/15** ; parcours réel Expo web : Synthèse/Opérations, Caisse/Dépenses/Dettes, Marges/Top, Système, Synthèse/Sessions. Détails §80.
@@ -3611,5 +3612,50 @@ knip owner **0** · parcours Expo web réel : Synthèse, Opérations filtrées,
 fiche vente, fiche retour, fiche versement.
 
 **Git** : commit (`feat(owner): détails de transaction et Aujourd'hui enrichi`)
+
+- ce `docs(handoff)`.
+
+---
+
+## 83) Session 2026-10-31 — Argent, Stock, Périodes et Alertes enrichis
+
+**Demande** : « قم بتطوير الصفحات المتبقية — Argent بجميع تبويباتها، Stock
+بجميع تبويباتها، Périodes بجميع تبويباتها، Alertes بجميع تبويباتها ».
+
+**Argent**
+
+- Caisse : bandeau de synthèse (sessions, conformité, écart net) avant la
+  session active ; liste des sessions inchangée.
+- Dépenses : moyenne par pièce et poste principal calculés depuis les lignes.
+- Dettes : part du portefeuille en retard critique (barre + pourcentage).
+
+**Stock**
+
+- Trois onglets : **Aperçu** (valeur, références/sous seuil/ruptures,
+  inventaire), **Produits** (recherche + filtres + liste groupée),
+  **Mouvements** (flux global via `recentMovements`, tri décroissant, chaque
+  ligne ouvre la fiche produit).
+- Données : mouvements ajoutés à Nuit, Coffret, Huile, Crème et Brume
+  (16 lignes au flux, sérum inclus).
+
+**Périodes**
+
+- Ventes : moyenne par jour et meilleur jour sous les tuiles tickets/panier.
+- Marges : marge en valeur par catégorie (CA en sous-ligne), taux inchangé.
+- Top : part du CA de chaque article (quantité + pourcentage).
+
+**Alertes**
+
+- Stock : synthèse « ruptures / sous seuil » + perte estimée cumulée par jour.
+- Créances : nombre de dossiers au-delà de 60 jours.
+- Système : ligne « Dernier inventaire physique ».
+
+**Vérifications** : eslint owner **0** · `typecheck:owner` **0** ·
+`vitest` owner-foundation **17/17** (dont tri/limite du flux mouvements) ·
+knip owner **0** · inspection Expo web (snapshots) des quatre écrans et de
+leurs onglets ; captures PNG indisponibles pendant cette passe (surface du
+navigateur masquée côté outil), rendu vérifié par l'arbre d'accessibilité.
+
+**Git** : commit (`feat(owner): Argent, Stock, Périodes et Alertes enrichis`)
 
 - ce `docs(handoff)`.
