@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { COLORS, RADIUS, SIZES, SPACE, TYPE } from "../tokens.ts";
 import {
+  formatDateLongFr,
   formatDateShortFr,
   formatDelta,
   formatMinor,
@@ -46,17 +47,12 @@ export function PeriodsScreen(props: { snapshot: OwnerSnapshot }): React.JSX.Ele
       contentContainerStyle={{ padding: SPACE.lg, paddingBottom: SIZES.dockInset + SPACE.lg }}
       showsVerticalScrollIndicator={false}
     >
-      <View style={{ flexDirection: "row", alignItems: "flex-start", gap: SPACE.md }}>
-        <View style={{ flex: 1 }}>
-          <Text style={{ ...TYPE.title, color: COLORS.cardText }}>Périodes</Text>
-          <Text style={{ ...TYPE.label, color: COLORS.cardMuted, marginTop: 2 }}>
-            Analytique & tendances
-          </Text>
-        </View>
-        <View style={{ flexDirection: "row", gap: SPACE.xs }}>
-          <Chip label="7 j" active={range === "7"} onPress={() => setRange("7")} />
-          <Chip label="30 j" active={range === "30"} onPress={() => setRange("30")} />
-        </View>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: SPACE.md }}>
+        <Text style={{ ...TYPE.label, color: COLORS.cardMuted, flex: 1 }}>
+          {formatDateLongFr(props.snapshot.day.date)}
+        </Text>
+        <Chip label="7 j" active={range === "7"} onPress={() => setRange("7")} />
+        <Chip label="30 j" active={range === "30"} onPress={() => setRange("30")} />
       </View>
 
       {range === "30" ? (

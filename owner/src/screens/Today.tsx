@@ -13,7 +13,6 @@ import type { JournalRow, OwnerSnapshot, SaleKind } from "../store.ts";
 import {
   Amount,
   Badge,
-  Button,
   Card,
   Divider,
   Group,
@@ -106,12 +105,7 @@ function JournalLine(props: { row: JournalRow }): React.JSX.Element {
   );
 }
 
-export function TodayScreen(props: {
-  snapshot: OwnerSnapshot;
-  refreshing: boolean;
-  offline: boolean;
-  onRefresh: () => void;
-}): React.JSX.Element {
+export function TodayScreen(props: { snapshot: OwnerSnapshot }): React.JSX.Element {
   const [view, setView] = useState<"summary" | "journal">("summary");
   const day = props.snapshot.day;
   const objectivePct =
@@ -128,40 +122,6 @@ export function TodayScreen(props: {
       }}
       showsVerticalScrollIndicator={false}
     >
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: SPACE.md,
-          backgroundColor: COLORS.cardBg,
-          borderRadius: RADIUS.control,
-          borderWidth: 1,
-          borderColor: COLORS.border,
-          paddingHorizontal: SPACE.md,
-          paddingVertical: SPACE.sm,
-          marginBottom: SPACE.md,
-        }}
-      >
-        <Icon name="arrow-down-circle-outline" size={18} color={COLORS.cardMuted} />
-        <View style={{ flex: 1 }}>
-          <Text style={{ ...TYPE.bodySm, color: COLORS.cardText, fontWeight: "700" }}>
-            {props.offline ? "Hors ligne" : "Données du jour"}
-          </Text>
-          <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>
-            {props.offline ? "Dernière liasse locale" : "Synchro automatique"}
-          </Text>
-        </View>
-        <Button
-          label={props.refreshing ? "…" : "Actualiser"}
-          variant="ink"
-          icon="refresh"
-          busy={props.refreshing}
-          onPress={props.onRefresh}
-          accessibilityLabel="Actualiser les données"
-          style={{ minHeight: 44 }}
-        />
-      </View>
-
       <Text style={{ ...TYPE.title, color: COLORS.cardText }}>{formatDateLongFr(day.date)}</Text>
 
       <View style={{ marginTop: SPACE.md, marginBottom: SPACE.md }}>

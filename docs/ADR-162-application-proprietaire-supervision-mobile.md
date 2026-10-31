@@ -63,6 +63,12 @@ Marges / Top), Alertes (Stock / Créances / Système), fiche produit (Synthèse 
 Mouvements), fiche client (Encours / Factures), audit des caisses (Synthèse /
 Sessions).
 
+Passe design v2 (2026-10-31) : montants rendus en **police système avec chiffres
+tabulaires** (fin du monospace), **actualisation portée par l'en-tête global**
+(plus de bandeau dédié), titres d'écran dupliqués supprimés (le bandeau porte le
+libellé), **liste Stock en lignes groupées compactes** (une seule surface, filets)
+et valeurs produit fusionnées en une carte « Économie ». Aucune écriture ajoutée.
+
 ### 3. Contrat de données
 
 `OwnerSnapshot` v1 est une **liasse agrégée** calculée par le POS (centimes DZD),

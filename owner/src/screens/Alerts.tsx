@@ -29,10 +29,7 @@ export function AlertsScreen(props: {
           padding: SPACE.lg,
         }}
       >
-        <View
-          style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
-        >
-          <Text style={{ color: COLORS.headerText, ...TYPE.title }}>Alertes</Text>
+        <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
           <Badge
             label="Lecture seule"
             color={COLORS.navyMuted}
@@ -41,9 +38,10 @@ export function AlertsScreen(props: {
             background={COLORS.onNavyChip}
           />
         </View>
-        <Text style={{ color: COLORS.navyMuted, ...TYPE.label, marginTop: 2 }}>
-          {a.anomaliesTitle} — {a.anomaliesDetail}
+        <Text style={{ color: COLORS.headerText, ...TYPE.headline, marginTop: 2 }}>
+          {a.anomaliesTitle}
         </Text>
+        <Text style={{ color: COLORS.navyMuted, ...TYPE.label }}>{a.anomaliesDetail}</Text>
         <View style={{ flexDirection: "row", gap: SPACE.sm, marginTop: SPACE.md }}>
           {[
             { n: a.critical, label: "Critiques", color: COLORS.statusCritical },

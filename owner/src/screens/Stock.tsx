@@ -4,7 +4,18 @@ import { ScrollView, Text, View } from "react-native";
 import { COLORS, RADIUS, SIZES, SPACE, TYPE } from "../tokens.ts";
 import { formatDateLongFr, formatDateShortFr, formatMinor, formatQuantity } from "../format.ts";
 import { filterProducts, productStatus, type OwnerSnapshot, type ProductFilter } from "../store.ts";
-import { Amount, Badge, Card, Chip, Field, IconBubble, ReadOnlyNote, Tap } from "../ui/kit.tsx";
+import {
+  Amount,
+  Badge,
+  Card,
+  Chip,
+  Divider,
+  Field,
+  Group,
+  IconBubble,
+  ReadOnlyNote,
+  Tap,
+} from "../ui/kit.tsx";
 import { Icon } from "../ui/Icon.tsx";
 
 const STATUS: Record<"ok" | "low" | "out", { label: string; color: string; bg: string }> = {
@@ -30,10 +41,7 @@ export function StockScreen(props: {
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      <Text style={{ ...TYPE.title, color: COLORS.cardText }}>Stock & Inventaire</Text>
-      <Text
-        style={{ ...TYPE.label, color: COLORS.cardMuted, marginTop: 2, marginBottom: SPACE.md }}
-      >
+      <Text style={{ ...TYPE.label, color: COLORS.cardMuted, marginBottom: SPACE.md }}>
         {formatDateLongFr(props.snapshot.day.date)}
       </Text>
 
@@ -140,76 +148,59 @@ export function StockScreen(props: {
         />
       </ScrollView>
 
-      <View style={{ gap: SPACE.md, marginTop: SPACE.md }}>
-        {rows.map((p) => {
+      <Group style={{ marginTop: SPACE.md }}>
+        {rows.map((p, i) => {
           const status = STATUS[productStatus(p)];
           return (
-            <Tap key={p.id} onPress={() => props.onOpenProduct(p.id)} accessibilityLabel={p.name}>
-              <Card padded={false} style={{ padding: SPACE.lg }}>
-                <View style={{ flexDirection: "row", alignItems: "flex-start", gap: SPACE.sm }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ ...TYPE.headlineSm, color: COLORS.cardText }} numberOfLines={1}>
-                      {p.name}
-                    </Text>
-                    <Text
-                      style={{ ...TYPE.label, color: COLORS.cardMuted, marginTop: 2 }}
-                      numberOfLines={1}
-                    >
-                      {p.subtitle} · REF-{p.ref}
-                    </Text>
-                  </View>
-                  <Badge
-                    label={status.label}
-                    color={status.color}
-                    dot={false}
-                    background={status.bg}
-                  />
-                </View>
-
+            <View key={p.id}>
+              {i > 0 ? <Divider inset={SPACE.lg} /> : null}
+              <Tap onPress={() => props.onOpenProduct(p.id)} accessibilityLabel={p.name}>
                 <View
                   style={{
                     flexDirection: "row",
                     alignItems: "center",
-                    backgroundColor: status.bg,
-                    borderRadius: RADIUS.inner,
-                    paddingHorizontal: SPACE.md,
-                    paddingVertical: SPACE.sm,
-                    marginTop: SPACE.md,
+                    gap: SPACE.md,
+                    paddingHorizontal: SPACE.lg,
+                    paddingVertical: SPACE.md,
+                    minHeight: 60,
                   }}
                 >
+                  <View
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: 4,
+                      backgroundColor: status.color,
+                    }}
+                  />
                   <View style={{ flex: 1 }}>
-                    <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>
-                      {p.quantity === 0
-                        ? "Niveau de stock"
-                        : p.quantity <= p.minLevel
-                          ? "Quantité restante"
-                          : "Quantité disponible"}
+                    <Text style={{ ...TYPE.headlineSm, color: COLORS.cardText }} numberOfLines={1}>
+                      {p.name}
                     </Text>
-                    <Text style={{ ...TYPE.bodySm, color: status.color, fontWeight: "800" }}>
-                      {formatQuantity(p.quantity, p.unit.singular, p.unit.plural)} (min :{" "}
-                      {p.minLevel})
+                    <Text style={{ ...TYPE.label, color: COLORS.cardMuted }} numberOfLines={1}>
+                      {p.subtitle} · REF-{p.ref}
                     </Text>
                   </View>
                   <View style={{ alignItems: "flex-end" }}>
-                    <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>Valeur stock</Text>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                      <Amount text={formatMinor(p.valueMinor)} size={14} />
-                      <Icon name="chevron-forward" size={14} color={COLORS.cardMuted} />
-                    </View>
+                    <Text style={{ ...TYPE.bodySm, color: status.color, fontWeight: "800" }}>
+                      {formatQuantity(p.quantity, p.unit.singular, p.unit.plural)}
+                    </Text>
+                    <Amount text={formatMinor(p.valueMinor)} size={12} tone={COLORS.cardMuted} />
                   </View>
+                  <Icon name="chevron-forward" size={16} color={COLORS.cardMuted} />
                 </View>
-              </Card>
-            </Tap>
+              </Tap>
+            </View>
           );
         })}
-        {rows.length === 0 ? (
-          <Card>
-            <Text style={{ ...TYPE.bodySm, color: COLORS.cardMuted, textAlign: "center" }}>
-              Aucune référence ne correspond à cette recherche.
-            </Text>
-          </Card>
-        ) : null}
-      </View>
+      </Group>
+      {rows.length === 0 ? (
+        <Card style={{ marginTop: SPACE.md }}>
+          <Text style={{ ...TYPE.bodySm, color: COLORS.cardMuted, textAlign: "center" }}>
+            Aucune référence ne correspond à cette recherche.
+          </Text>
+        </Card>
+      ) : null}
 
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: SPACE.xl }}>
         <Icon name="time-outline" size={15} color={COLORS.cardMuted} />

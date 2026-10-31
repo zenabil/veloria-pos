@@ -25,6 +25,8 @@ export function AppHeader(props: {
   generatedAt: string | null;
   offline: boolean;
   demo: boolean;
+  refreshing: boolean;
+  onRefresh: () => void;
   onAccount: () => void;
 }): React.JSX.Element {
   const fresh = props.generatedAt ? freshnessLabel(props.generatedAt) : "Synchronisation inconnue";
@@ -109,6 +111,24 @@ export function AppHeader(props: {
           ) : null}
         </View>
       </View>
+      <Tap
+        onPress={props.onRefresh}
+        disabled={props.refreshing}
+        accessibilityLabel="Actualiser les données"
+        style={{
+          width: 38,
+          height: 38,
+          borderRadius: RADIUS.pill,
+          backgroundColor: COLORS.navySoft,
+          borderWidth: 1,
+          borderColor: COLORS.navyLine,
+          alignItems: "center",
+          justifyContent: "center",
+          opacity: props.refreshing ? 0.5 : 1,
+        }}
+      >
+        <Icon name="refresh" size={19} color={COLORS.primary} />
+      </Tap>
       <Tap
         onPress={props.onAccount}
         accessibilityLabel="Compte"

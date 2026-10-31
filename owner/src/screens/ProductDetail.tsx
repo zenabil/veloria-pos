@@ -107,69 +107,64 @@ export function ProductDetailScreen(props: {
 
         {view === "summary" ? (
           <>
-            <Card>
-              <View
-                style={{
-                  backgroundColor: status.bg,
-                  borderRadius: RADIUS.inner,
-                  padding: SPACE.md,
-                  gap: SPACE.sm,
-                }}
-              >
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                  <Icon name="warning-outline" size={15} color={status.color} />
-                  <Text style={{ ...TYPE.bodySm, color: COLORS.cardText, flex: 1 }}>
-                    Disponibilité magasin{" "}
-                    <Text style={{ color: status.color, fontWeight: "800" }}>
-                      {formatQuantity(p.quantity, p.unit.singular, p.unit.plural)}
-                    </Text>
+            <Card tone={status.bg} style={{ borderColor: status.bg, gap: SPACE.sm }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Icon name="warning-outline" size={15} color={status.color} />
+                <Text style={{ ...TYPE.bodySm, color: COLORS.cardText, flex: 1 }}>
+                  Disponibilité magasin{" "}
+                  <Text style={{ color: status.color, fontWeight: "800" }}>
+                    {formatQuantity(p.quantity, p.unit.singular, p.unit.plural)}
                   </Text>
-                </View>
-                <ProgressBar
-                  percent={thresholdPct}
-                  color={status.color}
-                  track={COLORS.cardBg}
-                  height={6}
-                />
-                <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                  <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>
-                    Seuil critique : {p.minLevel} unités
-                  </Text>
-                  <Text style={{ ...TYPE.label, color: status.color, fontWeight: "700" }}>
-                    {thresholdPct} % du seuil
-                  </Text>
-                </View>
+                </Text>
+              </View>
+              <ProgressBar
+                percent={thresholdPct}
+                color={status.color}
+                track={COLORS.cardBg}
+                height={6}
+              />
+              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>
+                  Seuil critique : {p.minLevel} unités
+                </Text>
+                <Text style={{ ...TYPE.label, color: status.color, fontWeight: "700" }}>
+                  {thresholdPct} % du seuil
+                </Text>
               </View>
             </Card>
 
-            <View style={{ flexDirection: "row", gap: SPACE.md, marginTop: SPACE.md }}>
-              <Card style={{ flex: 1 }}>
-                <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>Valeur marchandise</Text>
-                <Amount text={formatMinor(p.valueMinor)} size={19} style={{ marginTop: 4 }} />
-                <View
-                  style={{ height: 1, backgroundColor: COLORS.divider, marginVertical: SPACE.sm }}
-                />
-                <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                  <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>PVC unitaire</Text>
-                  <Amount text={formatMinor(p.saleUnitMinor)} size={12} />
-                </View>
-              </Card>
-              <Card style={{ flex: 1 }}>
-                <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>Valeur d'achat</Text>
-                <Amount
-                  text={formatMinor(p.quantity * p.purchaseUnitMinor)}
-                  size={19}
-                  style={{ marginTop: 4 }}
-                />
-                <View
-                  style={{ height: 1, backgroundColor: COLORS.divider, marginVertical: SPACE.sm }}
-                />
-                <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                  <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>PAMP unitaire</Text>
-                  <Amount text={formatMinor(p.purchaseUnitMinor)} size={12} />
-                </View>
-              </Card>
-            </View>
+            <Card style={{ marginTop: SPACE.md }}>
+              <Text style={{ ...TYPE.badge, color: COLORS.cardMuted, letterSpacing: 0.6 }}>
+                ÉCONOMIE
+              </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  marginTop: SPACE.sm,
+                }}
+              >
+                <Text style={{ ...TYPE.bodySm, color: COLORS.cardMuted }}>Valeur marchandise</Text>
+                <Amount text={formatMinor(p.valueMinor)} size={15} />
+              </View>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 6 }}>
+                <Text style={{ ...TYPE.bodySm, color: COLORS.cardMuted }}>
+                  Valeur d'achat (PAMP)
+                </Text>
+                <Amount text={formatMinor(p.quantity * p.purchaseUnitMinor)} size={15} />
+              </View>
+              <View
+                style={{ height: 1, backgroundColor: COLORS.divider, marginVertical: SPACE.sm }}
+              />
+              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>PVC unitaire</Text>
+                <Amount text={formatMinor(p.saleUnitMinor)} size={12} />
+              </View>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 4 }}>
+                <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>PAMP unitaire</Text>
+                <Amount text={formatMinor(p.purchaseUnitMinor)} size={12} />
+              </View>
+            </Card>
 
             <View
               style={{

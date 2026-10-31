@@ -5,7 +5,7 @@ import { Platform, Pressable, Text, TextInput, View } from "react-native";
 import type { StyleProp, TextStyle, ViewStyle } from "react-native";
 import { Icon, type IconName } from "./Icon.tsx";
 import * as Haptics from "expo-haptics";
-import { COLORS, FONTS, HAIRLINE, RADIUS, SIZES, SPACE, TYPE, tint } from "../tokens.ts";
+import { COLORS, HAIRLINE, RADIUS, SIZES, SPACE, TYPE, tint } from "../tokens.ts";
 
 const TAP_MIN = SIZES.touchMin;
 
@@ -220,7 +220,7 @@ export function Chip(props: {
             color: active ? COLORS.primary : COLORS.cardMuted,
             fontWeight: "800",
             fontSize: 12,
-            fontFamily: FONTS.mono,
+            fontVariant: ["tabular-nums"],
           }}
         >
           {props.count}
@@ -361,12 +361,11 @@ export function Amount(props: {
     <Text
       style={[
         {
-          fontFamily: FONTS.mono,
           fontWeight: props.weight ?? "800",
           fontSize: props.size ?? 16,
           color: props.tone ?? COLORS.cardText,
           textAlign: props.align,
-          letterSpacing: 0.2,
+          fontVariant: ["tabular-nums"],
         },
         props.style,
       ]}

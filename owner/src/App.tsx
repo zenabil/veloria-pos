@@ -233,6 +233,8 @@ export function Root(): React.JSX.Element {
           generatedAt={generatedAt}
           offline={offline}
           demo={session.demo}
+          refreshing={refreshing}
+          onRefresh={() => void handleRefresh()}
           onAccount={() => setAccountOpen(true)}
         />
         <View
@@ -281,6 +283,8 @@ export function Root(): React.JSX.Element {
           generatedAt={generatedAt}
           offline={offline || refreshing}
           demo={session.demo}
+          refreshing={refreshing}
+          onRefresh={() => void handleRefresh()}
           onAccount={() => setAccountOpen(true)}
         />
       ) : null}
@@ -293,12 +297,7 @@ export function Root(): React.JSX.Element {
         ) : detail?.kind === "cashAudit" ? (
           <CashAuditScreen snapshot={snapshot} onBack={() => setDetail(null)} />
         ) : tab === "today" ? (
-          <TodayScreen
-            snapshot={snapshot}
-            refreshing={refreshing}
-            offline={offline}
-            onRefresh={() => void handleRefresh()}
-          />
+          <TodayScreen snapshot={snapshot} />
         ) : tab === "money" ? (
           <MoneyScreen
             snapshot={snapshot}

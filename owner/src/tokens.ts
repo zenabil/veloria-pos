@@ -41,11 +41,6 @@ export const RADIUS = {
 
 export const HAIRLINE = { borderWidth: 1, borderColor: COLORS.border } as const;
 
-export const FONTS = {
-  ui: "System",
-  mono: "monospace",
-} as const;
-
 /** Échelle du DESIGN.md — montants et titres en graisse forte. */
 export const TYPE = {
   hero: { fontSize: 30, lineHeight: 36, fontWeight: "800" },

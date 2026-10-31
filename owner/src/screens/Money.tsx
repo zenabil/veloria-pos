@@ -132,8 +132,7 @@ export function MoneyScreen(props: {
       contentContainerStyle={{ padding: SPACE.lg, paddingBottom: SIZES.dockInset + SPACE.lg }}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={{ ...TYPE.title, color: COLORS.cardText }}>Argent</Text>
-      <Text style={{ ...TYPE.label, color: COLORS.cardMuted, marginTop: 2 }}>
+      <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>
         {formatDateLongFr(props.snapshot.day.date)}
       </Text>
 
