@@ -24,6 +24,12 @@
       "ignoreExportsUsedInFile": true,
       "ignoreBinaries": ["eas"],
       "ignoreDependencies": ["expo-updates"]
+    },
+    "owner": {
+      "entry": ["src/App.tsx"],
+      "project": ["src/**/*.{ts,tsx}"],
+      "ignoreExportsUsedInFile": true,
+      "ignoreDependencies": ["expo-updates", "react-native-web"]
     }
   }
 }

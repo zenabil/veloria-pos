@@ -17,7 +17,11 @@ export default tseslint.config(
       "mobile/android/**",
       "mobile/ios/**",
       "mobile/.expo/**",
+      "owner/android/**",
+      "owner/ios/**",
+      "owner/.expo/**",
       "docs/archive/stitch/**",
+      "docs/archive/stitch_veloria_supervision_mobile/**",
       // Outillage vivant non committé (.gitignore) : hors périmètre lint.
       ".opencode/**",
     ],
@@ -58,6 +62,7 @@ export default tseslint.config(
             "scripts/e2e-mobile-shots.mjs",
             "mobile/index.js",
             "mobile/scripts/validate-env.mjs",
+            "owner/index.js",
             "cloud/supabase/functions/client-sync/index.ts",
           ],
           // 24+ scripts JS hors tsconfig : le service plafonne à 8 par
@@ -158,6 +163,11 @@ export default tseslint.config(
     // Mobile APK (Expo, toolchain séparée) : même statut que license-manager —
     // pas de règles type-aware ici ; la garde est vitest (logique pure).
     files: ["mobile/**/*.ts", "mobile/**/*.tsx"],
+    ...tseslint.configs.disableTypeChecked,
+  },
+  {
+    // App propriétaire (Expo séparé) : toolchain isolée, mêmes règles.
+    files: ["owner/**/*.ts", "owner/**/*.tsx"],
     ...tseslint.configs.disableTypeChecked,
   },
   {

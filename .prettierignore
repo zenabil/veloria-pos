@@ -11,7 +11,11 @@ node_modules/
 mobile/android/
 mobile/ios/
 mobile/.expo/
+owner/android/
+owner/ios/
+owner/.expo/
 docs/archive/stitch/
+docs/archive/stitch_veloria_supervision_mobile/
 *.log
 *.tsbuildinfo
 public/icons/

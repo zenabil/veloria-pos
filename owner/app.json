@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "Veloria Owner",
+    "slug": "veloria-owner",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/brand/veloria-owner.png",
+    "splash": {
+      "image": "./assets/brand/veloria-owner.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#051424"
+    },
+    "plugins": [
+      "expo-asset",
+      [
+        "expo-font",
+        {
+          "fonts": ["./assets/fonts/Ionicons.ttf"]
+        }
+      ]
+    ],
+    "android": {
+      "package": "dz.veloria.owner",
+      "blockedPermissions": ["android.permission.RECORD_AUDIO"],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/brand/veloria-owner-foreground.png",
+        "backgroundColor": "#051424"
+      }
+    }
+  }
+}
