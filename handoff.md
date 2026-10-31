@@ -16,6 +16,7 @@
 ## 1) État courant
 
 - Branche : `chore/root-layout` — tête **session 79** (application propriétaire, ADR-162). Avant elle session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 80 (2026-10-31)** : **écrans courts par onglets internes** — demande propriétaire : « قم بتبسيط الواجهات و اختسار الواجهات الطويلة بتبويبات ». Chaque écran long de `owner/` est découpé avec le sélecteur existant : Aujourd'hui (Synthèse / Opérations), Argent (Caisse / Dépenses / Dettes — filtre réel au lieu d'ancres de défilement), Périodes (Ventes / Marges / Top, plage 7/30 j en puces), Alertes (Stock / Créances / Système), fiche produit (Synthèse / Mouvements), fiche client (Encours / Factures), audit des caisses (Synthèse / Sessions). Simplifications : en-têtes dupliqués supprimés (fraîcheur portée par le seul bandeau), Stock ramené à une carte valeur + compteurs, libellés des contrôles secondaires raccourcis. Liasse de démo corrigée (sessions S-138→S-141 alignées sur 167 000/158 350/174 520/245 800 DZD). Portes : eslint owner 0 · `typecheck:owner` 0 · **owner-foundation 15/15** ; parcours réel Expo web : Synthèse/Opérations, Caisse/Dépenses/Dettes, Marges/Top, Système, Synthèse/Sessions. Détails §80.
 - **Session 79 (2026-10-31)** : **application propriétaire (ADR-162)** — demande : étudier les maquettes Stitch puis créer l'app mobile du propriétaire. Livré : nouveau projet Expo `owner/` (français uniquement, `dz.veloria.owner`), 5 onglets (Aujourd'hui, Argent, Stock, Périodes, Alertes) + connexion + 3 sous-écrans (fiche client avec téléphone/Appeler/WhatsApp, fiche produit avec mouvements, audit des caisses), liasse de démonstration identique aux maquettes, cache SecureStore/SQLite, contrat `owner-sync` (Supabase Auth + `fetch` injecté) prêt pour l'Edge Function à venir, mode démo sans endpoint. **Lecture seule stricte** : actualiser/déconnexion/appel uniquement, aucun bouton d'écriture. Portes : `typecheck:owner` 0 · eslint owner 0 · **owner-foundation 15/15** · `typecheck` racine 0 · bundle web Expo capturé (9 écrans). **Non fait** : Edge Function `owner-sync`, use case POS de publication + réglage de cadence, compte propriétaire, biométrie, APK. Détails §79.
 - **Session 78 (2026-10-31)** : **déploiement Supabase exécuté (ADR-160)** — demande : « نفّذ التغييرات على Supabase الآن ». Depuis la session navigateur Qoder (org Veloria) : `client-sync` **redéployé** depuis le fichier du dépôt (filtre direct `payload->sale->>id`, plus de `DETAIL_SCAN_LIMIT`, « Verify JWT with legacy secret » **OFF** confirmé) ; index `idx_client_payloads_customer_sale` **créé et vérifié** dans `pg_indexes`. Preuve de bout en bout via sonde temporaire (client 999999, facture 424242) : `saleId=424242` → **200** avec détail, vente inconnue → **404 NOT_FOUND**, mauvais PIN → **401 AUTH_ERROR** ; sonde supprimée (`access_left=0`, `payload_left=0`). Aucun changement de schéma/RLS/clé. Reste côté poste : installer POS 1.0.4 puis « Synchroniser » pour backfiller les factures existantes.
 - **Session 77 (2026-10-31)** : **version unique 1.0.4 + contrat de mise à jour (ADR-161)** — demande propriétaire : « غير اصدار pos و license الى 1.0.4 و يجب ان تدعم ... الترقية من اصدار الى اصدار جديد ». Constat : POS/Manager étaient en **1.0.0** (`package.json` racine, embarqué par electron-builder) alors que le client était en **1.0.4** (`app.json`/`build.gradle`), avec un libellé `appVersion` codé en dur, aucune version visible dans le Manager et des migrations de registre sans copie de sécurité. Décisions : `package.json` racine = **source unique 1.0.4** (POS + Manager) ; outil **`npm run version:check|version:set`** (`scripts/release/version.mjs`) qui aligne package/locks/app.json/Gradle/`App.tsx` et **incrémente `versionCode` Android** sans régression ; `verify` inclut `version:check` ; Manager : canal `manager.appInfo` + version dans l'en-tête, **snapshot `VACUUM INTO` avant migration** de colonnes (5 conservés, fail-closed), seules les colonnes absentes rejouées ; POS : contrat NSIS inchangé (appId stable, perMachine, données hors install, snapshots pré-migration) ; client : même `applicationId`/keystore, `versionCode` croissant, données SecureStore/SQLite conservées. **Pas d'auto-update en ligne** (aucun serveur, installateurs non signés). Preuves : **172 fichiers / 1 166 tests 0** ; lint/format/typechecks ✓ ; verify (dont version:check) ✓ ; `build` ✓ ; `build:electron` ✓ (manifeste signé 243, **v1.0.4**) ; `build:manager` ✓ ; **installateurs 1.0.4** produits et copiés dans `release/` ; `release:smoke` réparé (chemin `config/electron-builder/pos.yml`) et vert. **Non exécuté** : installation réelle 1.0.0 → 1.0.4 (UAC/perMachine) et rebuild APK (client déjà 1.0.4 code 5).
@@ -3496,3 +3497,46 @@ validés.
 
 **Git** : commit de la session (`feat(owner): application de supervision du
 propriétaire — ADR-162`) + ce `docs(handoff)`.
+
+---
+
+## 80) Session 2026-10-31 — Écrans courts par onglets internes (suite §79)
+
+**Demande** : « قم بتبسيط الواجهات و اختسار الواجهات الطويلة بتبويبات ».
+
+**Décision** : réutiliser le sélecteur `Segmented` du kit comme onglets internes,
+un seul onglet affiché à la fois (plus de défilement d'anatres), et supprimer
+les en-têtes redondants dont la fraîcheur est déjà dans le bandeau global.
+
+**Écrans découpés**
+
+| Écran             | Onglets                                                         |
+| ----------------- | --------------------------------------------------------------- |
+| Aujourd'hui       | Synthèse · Opérations (n)                                       |
+| Argent            | Caisse · Dépenses · Dettes (filtre réel)                        |
+| Périodes          | Ventes · Marges · Top (plage 7/30 j en puces)                   |
+| Alertes           | Stock (n) · Créances (n) · Système                              |
+| Fiche produit     | Synthèse · Mouvements (n)                                       |
+| Fiche client      | Encours · Factures (n)                                          |
+| Audit des caisses | Synthèse · Sessions (n)                                         |
+| Stock             | pas d'onglets ; en-tête condensé (une carte valeur + compteurs) |
+
+**Autres simplifications**
+
+- Bandeau de rafraîchissement réduit à « Données du jour / Actualiser ».
+- Suppression des puces de fraîcheur et « Consultation seule » locales
+  (redondantes avec le bandeau et la note de bas d'écran).
+- Alertes : bandeau d'anomalies fusionné dans la carte héro.
+- Audit : suppression des filtres décoratifs « 7 derniers jours / Caisses (01, 02) ».
+- Libellés de contrôles raccourcis (Attendu/Compté/Écart, Déclaré/Attendu/Écart).
+- Correctifs de données/affichage trouvés en revue : valeurs de session de démo
+  alignées sur les notes (167 000 / 158 350 / 174 520 / 245 800 DZD), signes
+  « + » réservés aux écarts, « reçu le », libellé « Mouvements » typographié.
+
+**Vérifications** : eslint owner **0** · `typecheck:owner` **0** ·
+`vitest` owner-foundation **15/15** · parcours Expo web réel (captures) des
+onglets Synthèse/Opérations, Caisse/Dépenses/Dettes, Ventes/Marges/Top,
+Stock/Créances/Système, Synthèse/Sessions.
+
+**Git** : commit (`refactor(owner): écrans courts par onglets internes`) + ce
+`docs(handoff)`.
