@@ -1744,6 +1744,72 @@ console.log("OK  0026 credit-revocation policy (refused with debt, allowed when 
   console.log("OK  0056 devis carton (snapshot) + retours fournisseur stock/abîmées");
 }
 
+// 0057 : annonces multi-médias + expiration (rebuild de 0032, données gardées).
+{
+  const annCols = db
+    .prepare("SELECT name FROM pragma_table_info('announcements')")
+    .all()
+    .map((r) => r.name);
+  for (const col of ["image_url", "ends_at", "sort", "updated_at"]) {
+    if (!annCols.includes(col)) {
+      console.error(`FAIL: 0057 announcements.${col} missing`);
+      process.exit(1);
+    }
+  }
+  // Texte seul, image seule : acceptés. Ligne vide : refusée.
+  db.prepare(
+    "INSERT INTO announcements (text, is_active, created_at) VALUES ('Texte 0057', 1, '2026-06-01')",
+  ).run();
+  db.prepare(
+    "INSERT INTO announcements (image_url, is_active, ends_at, created_at) VALUES ('https://example.com/promo.jpg', 1, '2026-07-01T00:00:00.000Z', '2026-06-01')",
+  ).run();
+  let emptyRejected = false;
+  try {
+    db.prepare("INSERT INTO announcements (is_active, created_at) VALUES (1, '2026-06-01')").run();
+  } catch {
+    emptyRejected = true;
+  }
+  if (!emptyRejected) {
+    console.error("FAIL: 0057 empty announcement accepted");
+    process.exit(1);
+  }
+  // Lien non https refusé ; texte > 120 toujours refusé après rebuild.
+  let httpRejected = false;
+  try {
+    db.prepare(
+      "INSERT INTO announcements (image_url, is_active, created_at) VALUES ('http://example.com/x.jpg', 1, '2026-06-01')",
+    ).run();
+  } catch {
+    httpRejected = true;
+  }
+  if (!httpRejected) {
+    console.error("FAIL: 0057 non-https image URL accepted");
+    process.exit(1);
+  }
+  let longTextRejected = false;
+  try {
+    db.prepare(
+      "INSERT INTO announcements (text, is_active, created_at) VALUES (?, 1, '2026-06-01')",
+    ).run("x".repeat(121));
+  } catch {
+    longTextRejected = true;
+  }
+  if (!longTextRejected) {
+    console.error("FAIL: 0057 over-long announcement accepted");
+    process.exit(1);
+  }
+  const idx57 = db
+    .prepare(
+      "SELECT COUNT(*) AS c FROM sqlite_master WHERE type='index' AND name='idx_announcements_active_sort'",
+    )
+    .get();
+  if (idx57.c !== 1) {
+    console.error("FAIL: 0057 idx_announcements_active_sort missing");
+    process.exit(1);
+  }
+  console.log("OK  0057 annonces médias + expiration (texte/image, https, bornes)");
+}
+
 // Integrity
 const ic = db.prepare("PRAGMA integrity_check").get();
 const fk = db.prepare("PRAGMA foreign_key_check").all();

@@ -70,8 +70,9 @@ const api = {
   },
   announcements: {
     save: (p: unknown) => invoke(IPC_CHANNELS["announcements.save"], p),
-    // Q1 (UI annonce) : lecture de l'annonce courante.
-    get: () => invoke(IPC_CHANNELS["announcements.get"]),
+    // ADR-165 : liste complète + suppression des annonces (Paramètres).
+    list: () => invoke(IPC_CHANNELS["announcements.list"]),
+    remove: (p: unknown) => invoke(IPC_CHANNELS["announcements.remove"], p),
   },
   categories: {
     list: () => invoke(IPC_CHANNELS["categories.list"]),

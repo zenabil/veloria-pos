@@ -25,6 +25,7 @@ import {
   type IconName,
 } from "../ui/kit.tsx";
 import { EmptyState } from "../ui/states.tsx";
+import { AnnouncementHero } from "../ui/announcement-hero.tsx";
 
 function statusLabel(l: Lang, status: string, overLimit: boolean): string {
   if (overLimit || status === "over_limit") return t(l, "overLimit");
@@ -357,27 +358,7 @@ export function HomeScreen(props: {
           </Tap>
         ) : null}
 
-        {h.announcement ? (
-          <View
-            style={{
-              flexDirection: flow(dir),
-              gap: SPACE.sm,
-              alignItems: "flex-start",
-              backgroundColor: COLORS.cardBg,
-              borderRadius: RADIUS.cardSm,
-              padding: SPACE.md,
-              marginTop: SPACE.md,
-              ...HAIRLINE,
-            }}
-          >
-            <Icon name="megaphone-outline" size={17} color={COLORS.debtOk} />
-            <Text
-              style={{ color: COLORS.announcementText, fontWeight: "600", flex: 1, fontSize: 13 }}
-            >
-              {h.announcement}
-            </Text>
-          </View>
-        ) : null}
+        <AnnouncementHero ads={h.announcements} lang={l} />
 
         {hasActivity ? (
           <>

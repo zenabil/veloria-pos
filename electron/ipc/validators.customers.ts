@@ -109,9 +109,16 @@ export const syncEnqueueSchema = z.object({
     .optional(),
 });
 
+// ADR-166 : création (id absent) ou mise à jour (id fourni) d'une annonce.
+// Texte OU image ; l'échéance est obligatoire et doit être future (domaine).
 export const announcementSaveSchema = z.object({
   operationId: z.uuid(),
-  text: z.string().min(1).max(120),
+  id: z.number().int().positive().nullable().optional(),
+  text: z.string().max(120).nullable().optional(),
+  imageUrl: z.string().max(500).nullable().optional(),
+  endsAt: z.string().min(10).max(40),
+  sort: z.number().int().min(0).max(99).default(0),
+  isActive: z.boolean().default(true),
 });
 
 // Synchro miroir (V1) : configuration merchant + poussée manuelle.

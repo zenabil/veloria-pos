@@ -96,6 +96,28 @@ const snapshot = {
     { name: "حليب كانديا 1L", quantity: 24, lastPriceMinor: 14000 },
   ],
   announcement: "تخفيضات نهاية الأسبوع على المواد الغذائية - 15%",
+  // ADR-166 : bandeau hero de l'APK. La 3e annonce est expirée : elle doit
+  // être masquée côté client (même si le serveur de démo l'envoie).
+  announcements: [
+    {
+      id: 1,
+      text: "تخفيضات نهاية الأسبوع على المواد الغذائية - 15%",
+      imageUrl: "https://placehold.co/800x400/15803d/ffffff/png",
+      endsAt: new Date(now.getTime() + 3 * 86_400_000 + 4 * 3_600_000).toISOString(),
+    },
+    {
+      id: 2,
+      text: "توصيل مجاني للطلبات فوق 5000 دج",
+      imageUrl: null,
+      endsAt: new Date(now.getTime() + 26 * 3_600_000).toISOString(),
+    },
+    {
+      id: 3,
+      text: "إعلان منتهي — لا يجب أن يظهر",
+      imageUrl: null,
+      endsAt: new Date(now.getTime() - 3_600_000).toISOString(),
+    },
+  ],
   shop: { name: "سوبرماركت البركة", phone: "0550123456", address: "حي النور، الجزائر العاصمة" },
 };
 

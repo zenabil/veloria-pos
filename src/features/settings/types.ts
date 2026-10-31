@@ -118,9 +118,9 @@ export const SETTINGS_CARDS: SettingsCardMeta[] = [
   {
     id: "announcement",
     section: "commerce",
-    title: "Annonce magasin",
-    description: "Message affiché dans l'application mobile",
-    keywords: "annonce message magasin apk mobile",
+    title: "Annonces du magasin",
+    description: "Bandeau de l'application mobile : texte ou image, expiration",
+    keywords: "annonce annonces message magasin apk mobile image expiration compte à rebours",
   },
   {
     id: "products",

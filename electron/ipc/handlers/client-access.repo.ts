@@ -45,6 +45,15 @@ const BUILDABLE_KINDS = [
 const MINOR_PER_POINT = 100_000;
 /** Garde-fou : aucun cliché ne dépasse 200 Ko (quota egress du miroir). */
 const MAX_PAYLOAD_CHARS = 200_000;
+/**
+ * Bornes annonces — MIROIR du domaine (ADR-166) : le main ne peut pas importer
+ * `src/domain` (tsconfig.electron rootDir). Tout écart = test contrat rouge.
+ */
+const ANNOUNCEMENT_ACTIVE_MAX = 4;
+const ANNOUNCEMENT_TEXT_MAX = 120;
+const ANNOUNCEMENT_IMAGE_MAX = 500;
+
+const ANNOUNCEMENT_LIMIT_MESSAGE = "4 annonces actives maximum — désactivez-en une d'abord.";
 
 export function sha256Hex(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex");
@@ -434,9 +443,20 @@ export function buildSnapshotPayload(
        FROM sale_payments WHERE customer_id = ? ORDER BY id DESC LIMIT 500`,
     )
     .all(customerId) as PaymentRow[];
-  const announcement = db
-    .prepare(`SELECT text FROM announcements WHERE is_active = 1 ORDER BY id DESC LIMIT 1`)
-    .get() as { text: string } | undefined;
+  const announcements = db
+    .prepare(
+      `SELECT id, text, image_url AS imageUrl, ends_at AS endsAt
+       FROM announcements
+       WHERE is_active = 1 AND (ends_at IS NULL OR ends_at > ?)
+       ORDER BY sort ASC, id DESC
+       LIMIT ?`,
+    )
+    .all(now, ANNOUNCEMENT_ACTIVE_MAX) as {
+    id: number;
+    text: string | null;
+    imageUrl: string | null;
+    endsAt: string | null;
+  }[];
   const company = db
     .prepare(
       `SELECT commercial_name, company_name, phone, address FROM company_profile WHERE id = 1`,
@@ -463,7 +483,10 @@ export function buildSnapshotPayload(
       settlement_day: customer.settlement_day,
     },
     syncedAt: now,
-    announcement: announcement?.text ?? null,
+    // L'APK historique (≤ 1.0.4) ne lit que ce champ texte : il reste servi
+    // avec le premier texte disponible ; les clients à jour lisent le tableau.
+    announcement: announcements.find((a) => a.text != null && a.text !== "")?.text ?? null,
+    announcements,
     syncIntervalMinutes: currentSyncIntervalMinutes(),
     shop: {
       name: company?.commercial_name || company?.company_name || "Veloria",
@@ -600,37 +623,146 @@ export function enqueueSnapshotAtomic(args: {
   }
 }
 
-/**
- * Annonce magasin COURANTE (lecture seule) : le texte pushed vers l'application
- * client (APK). Sans cette lecture, la saisie côté POS ne pourrait qu'ÉCRASER
- * l'annonce existante sans jamais la montrer au gérant (Q1 — tranche UI).
- */
-export function getCurrentAnnouncement(): { text: string | null } {
-  const db = getDb();
-  const row = db
-    .prepare(`SELECT text FROM announcements WHERE is_active = 1 ORDER BY id DESC LIMIT 1`)
-    .get() as { text: string } | undefined;
-  return { text: row?.text ?? null };
+/** Annonce telle que gérée dans Paramètres (lecture seule côté renderer). */
+export interface AnnouncementView {
+  id: number;
+  text: string | null;
+  imageUrl: string | null;
+  isActive: boolean;
+  endsAt: string | null;
+  sort: number;
+  createdAt: string;
+  updatedAt: string | null;
 }
 
-export function saveAnnouncementAtomic(args: { operationId: string; text: string; now: string }): {
-  announcementId: number;
-} {
+/**
+ * Liste COMPLÈTE (actives, inactives, expirées) pour l'écran Paramètres.
+ * L'APK ne reçoit que les actives non expirées via `buildSnapshotPayload`.
+ */
+export function listAnnouncements(): AnnouncementView[] {
+  const rows = getDb()
+    .prepare(
+      `SELECT id, text, image_url, is_active, ends_at, sort, created_at, updated_at
+       FROM announcements
+       ORDER BY is_active DESC, sort ASC, id DESC`,
+    )
+    .all() as {
+    id: number;
+    text: string | null;
+    image_url: string | null;
+    is_active: number;
+    ends_at: string | null;
+    sort: number;
+    created_at: string;
+    updated_at: string | null;
+  }[];
+  return rows.map((r) => ({
+    id: r.id,
+    text: r.text,
+    imageUrl: r.image_url,
+    isActive: r.is_active === 1,
+    endsAt: r.ends_at,
+    sort: r.sort,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  }));
+}
+
+function normalizeAnnouncementInput(args: {
+  text: string | null;
+  imageUrl: string | null;
+  endsAt: string;
+  now: string;
+}): { text: string | null; imageUrl: string | null; endsAt: string } {
+  const text = args.text?.trim() ?? "";
+  const imageUrl = args.imageUrl?.trim() ?? "";
+  if (text === "" && imageUrl === "") {
+    throw new Error("Annonce invalide (texte ou image requis).");
+  }
+  if (text !== "" && (text.length < 1 || text.length > ANNOUNCEMENT_TEXT_MAX)) {
+    throw new Error("Annonce invalide (1 à 120 caractères).");
+  }
+  if (
+    imageUrl !== "" &&
+    (imageUrl.length > ANNOUNCEMENT_IMAGE_MAX || !/^https:\/\/\S+$/i.test(imageUrl))
+  ) {
+    throw new Error("Lien d'image invalide (https, 500 caractères max).");
+  }
+  const ends = Date.parse(args.endsAt);
+  const now = Date.parse(args.now);
+  if (!Number.isFinite(ends) || !Number.isFinite(now)) {
+    throw new Error("Date de fin d'annonce invalide.");
+  }
+  if (ends <= now) {
+    throw new Error("La date de fin doit être dans le futur.");
+  }
+  return {
+    text: text === "" ? null : text,
+    imageUrl: imageUrl === "" ? null : imageUrl,
+    endsAt: new Date(ends).toISOString(),
+  };
+}
+
+function countLiveAnnouncements(now: string, excludeId: number | null): number {
+  const row = getDb()
+    .prepare(
+      `SELECT COUNT(*) AS n FROM announcements
+       WHERE is_active = 1 AND (ends_at IS NULL OR ends_at > ?)
+         AND (? IS NULL OR id <> ?)`,
+    )
+    .get(now, excludeId, excludeId) as { n: number };
+  return row.n;
+}
+
+/**
+ * Création OU mise à jour (id fourni) — une seule opération idempotente.
+ * Plafond ADR-166 vérifié DANS la transaction : 4 annonces actives non
+ * expirées maximum ; expirées/inactives ne comptent pas.
+ */
+export function saveAnnouncementAtomic(args: {
+  operationId: string;
+  id?: number | null;
+  text: string | null;
+  imageUrl: string | null;
+  endsAt: string;
+  sort: number;
+  isActive: boolean;
+  now: string;
+}): { announcementId: number } {
   const db = getDb();
   const replay = peekIdempotency<{ announcementId: number }>(
     args.operationId,
     "announcements.save",
   );
   if (replay) return replay;
-  const clean = args.text.trim();
-  if (clean.length < 1 || clean.length > 120) {
-    throw new Error("Annonce invalide (1 à 120 caractères).");
-  }
+  const clean = normalizeAnnouncementInput(args);
+  const sort = Number.isInteger(args.sort) && args.sort >= 0 && args.sort <= 99 ? args.sort : 0;
+  const active = args.isActive ? 1 : 0;
   const tx = db.transaction(() => {
     claimIdempotency(args.operationId, "announcements.save", args.now);
+    if (args.id != null) {
+      const exists = db.prepare(`SELECT id FROM announcements WHERE id = ?`).get(args.id) as
+        { id: number } | undefined;
+      if (!exists) throw new Error("Annonce introuvable.");
+      if (args.isActive && countLiveAnnouncements(args.now, args.id) >= ANNOUNCEMENT_ACTIVE_MAX) {
+        throw new Error(ANNOUNCEMENT_LIMIT_MESSAGE);
+      }
+      db.prepare(
+        `UPDATE announcements SET text = ?, image_url = ?, is_active = ?, ends_at = ?, sort = ?, updated_at = ? WHERE id = ?`,
+      ).run(clean.text, clean.imageUrl, active, clean.endsAt, sort, args.now, args.id);
+      const result = { announcementId: args.id };
+      storeIdempotencyResult(args.operationId, result);
+      return result;
+    }
+    if (args.isActive && countLiveAnnouncements(args.now, null) >= ANNOUNCEMENT_ACTIVE_MAX) {
+      throw new Error(ANNOUNCEMENT_LIMIT_MESSAGE);
+    }
     const r = db
-      .prepare(`INSERT INTO announcements (text, is_active, created_at) VALUES (?, 1, ?)`)
-      .run(clean, args.now);
+      .prepare(
+        `INSERT INTO announcements (text, image_url, is_active, ends_at, sort, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(clean.text, clean.imageUrl, active, clean.endsAt, sort, args.now, args.now);
     const result = { announcementId: Number(r.lastInsertRowid) };
     storeIdempotencyResult(args.operationId, result);
     return result;
@@ -646,6 +778,34 @@ export function saveAnnouncementAtomic(args: { operationId: string; text: string
         args.operationId,
         "announcements.save",
       );
+      if (retry) return retry;
+    }
+    throw err;
+  }
+}
+
+/** Suppression idempotente par valeur : déjà supprimée = succès au retry. */
+export function removeAnnouncementAtomic(args: { id: number; operationId: string; now: string }): {
+  removed: boolean;
+} {
+  const db = getDb();
+  const replay = peekIdempotency<{ removed: boolean }>(args.operationId, "announcements.remove");
+  if (replay) return replay;
+  const tx = db.transaction(() => {
+    claimIdempotency(args.operationId, "announcements.remove", args.now);
+    db.prepare(`DELETE FROM announcements WHERE id = ?`).run(args.id);
+    const result = { removed: true };
+    storeIdempotencyResult(args.operationId, result);
+    return result;
+  });
+  try {
+    return tx();
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
+    ) {
+      const retry = peekIdempotency<{ removed: boolean }>(args.operationId, "announcements.remove");
       if (retry) return retry;
     }
     throw err;

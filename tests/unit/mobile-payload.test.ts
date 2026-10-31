@@ -85,6 +85,8 @@ describe("payload miroir : view-model complet et affichable", () => {
       formatMinor(v, "fr");
     }
     expect(h.announcement).toBe("Fermé vendredi");
+    // ADR-165 : le repli legacy alimente le bandeau hero (sans échéance).
+    expect(h.announcements[0]?.text).toBe("Fermé vendredi");
     expect(h.shop.name).toBe("Épicerie");
   });
 });

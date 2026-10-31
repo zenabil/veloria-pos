@@ -8,7 +8,10 @@ import {
   FileText,
   Megaphone,
   Package,
+  Pencil,
+  Plus,
   ShoppingCart,
+  Trash2,
   Truck,
   UsersRound,
   Volume2,
@@ -19,7 +22,12 @@ import { api } from "@shared/types/ipc-client.ts";
 import { strictOrNeg } from "@shared/money/parse.ts";
 import { minorToInput } from "@domain/money/money.ts";
 import { newOperationId } from "@domain/common/ids.ts";
-import { assertValidAnnouncement } from "@domain/customer/client-access.ts";
+import {
+  assertValidAnnouncementInput,
+  CLIENT_ANNOUNCEMENT_ACTIVE_MAX,
+  CLIENT_ANNOUNCEMENT_MAX,
+  isAnnouncementExpired,
+} from "@domain/customer/client-access.ts";
 import { Button, Field, Select, TextArea, TextInput } from "@shared/ui/primitives.tsx";
 import { saveAppSettings, useAppSettings } from "@shared/settings/use-app-settings.ts";
 import { SaveBar, Section, Segmented, SettingsGroup, SwitchRow, useBusyFlag } from "./bits.tsx";
@@ -672,48 +680,161 @@ export function CustomersSection({
 }
 
 // ---------------------------------------------------------------------------
-// Annonce magasin (Q1) : message affiché en haut de l'application client.
+// Annonces du magasin (ADR-166) : bandeau « hero » de l'application client.
+// Jusqu'à 4 annonces actives, texte ou image hébergée (lien https), chacune
+// avec une échéance et un compte à rebours côté APK.
 // ---------------------------------------------------------------------------
 
-export function AnnouncementSection({ notify }: { notify: Notify }): React.JSX.Element {
-  const [text, setText] = useState("");
-  const [loading, setLoading] = useState(true);
-  const { busy, run } = useBusyFlag();
-  // Ref « vivant » : l Annonce peut être quittée avant la réponse IPC.
-  const alive = useRef(true);
+interface AnnouncementItem {
+  id: number;
+  text: string | null;
+  imageUrl: string | null;
+  isActive: boolean;
+  endsAt: string | null;
+  sort: number;
+  createdAt: string;
+  updatedAt: string | null;
+}
 
-  // Lecture de l'annonce courante : sans elle, le gérant écrirait dans le vide
-  // (Q1 — l'audit : « la saisie commerçante côté POS manque »).
+interface AnnouncementForm {
+  id: number | null;
+  text: string;
+  imageUrl: string;
+  endsAt: string;
+  sort: string;
+  isActive: boolean;
+}
+
+/** ISO → valeur d'un <input type="datetime-local"> (heure locale du poste). */
+function toDateTimeLocal(iso: string | null): string {
+  if (iso == null) return "";
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return "";
+  const pad = (n: number): string => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** datetime-local → ISO UTC ; null si la valeur est vide/illisible. */
+function fromDateTimeLocal(value: string): string | null {
+  const ms = Date.parse(value);
+  return Number.isFinite(ms) ? new Date(ms).toISOString() : null;
+}
+
+function formatAnnouncementDate(iso: string): string {
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return "—";
+  return d.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
+}
+
+export function AnnouncementSection({ notify }: { notify: Notify }): React.JSX.Element {
+  const [rows, setRows] = useState<AnnouncementItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState<AnnouncementForm | null>(null);
+  const [previewBroken, setPreviewBroken] = useState(false);
+  const { busy, run } = useBusyFlag();
+  // Ref « vivant » : la section peut être quittée avant la réponse IPC.
+  const alive = useRef(true);
+  const loadSeq = useRef(0);
+
+  async function reload(): Promise<void> {
+    const seq = ++loadSeq.current;
+    try {
+      const list = (await api.announcementList()) as AnnouncementItem[] | null;
+      if (!alive.current || seq !== loadSeq.current) return;
+      setRows(Array.isArray(list) ? list : []);
+    } catch (e) {
+      if (!alive.current || seq !== loadSeq.current) return;
+      notify(frError(e, "Annonces indisponibles."), "err");
+    } finally {
+      if (alive.current && seq === loadSeq.current) setLoading(false);
+    }
+  }
+
   useEffect(() => {
     alive.current = true;
-    void (async () => {
-      try {
-        const res = (await api.announcementGet()) as { text?: string | null };
-        if (!alive.current) return;
-        setText(typeof res.text === "string" ? res.text : "");
-      } catch (e) {
-        if (!alive.current) return;
-        notify(frError(e, "Annonce actuelle indisponible."), "err");
-      } finally {
-        if (alive.current) setLoading(false);
-      }
-    })();
+    void reload();
     return () => {
       alive.current = false;
     };
   }, [notify]);
 
+  const nowISO = new Date().toISOString();
+  const liveCount = rows.filter(
+    (r) => r.isActive && !isAnnouncementExpired(r.endsAt, nowISO),
+  ).length;
+
+  function startCreate(): void {
+    setPreviewBroken(false);
+    setForm({
+      id: null,
+      text: "",
+      imageUrl: "",
+      // Échéance par défaut : 7 jours (le gérant peut la changer).
+      endsAt: toDateTimeLocal(new Date(Date.now() + 7 * 86_400_000).toISOString()),
+      sort: "0",
+      isActive: true,
+    });
+  }
+
+  function startEdit(row: AnnouncementItem): void {
+    setPreviewBroken(false);
+    setForm({
+      id: row.id,
+      text: row.text ?? "",
+      imageUrl: row.imageUrl ?? "",
+      endsAt: toDateTimeLocal(row.endsAt),
+      sort: String(row.sort),
+      isActive: row.isActive,
+    });
+  }
+
   function save(): void {
+    if (!form) return;
     void run(async () => {
       try {
-        const clean = text.trim();
-        // Règle du domaine (1..120 caractères) : message FR immédiat, avant
-        // l'aller-retour IPC.
-        assertValidAnnouncement(clean);
-        await api.announcementSave({ operationId: newOperationId(), text: clean });
+        const text = form.text.trim();
+        const imageUrl = form.imageUrl.trim();
+        const endsAtISO = fromDateTimeLocal(form.endsAt);
+        // Règles du domaine : texte OU image, échéance future (message FR
+        // immédiat, avant l'aller-retour IPC).
+        assertValidAnnouncementInput({
+          text: text === "" ? null : text,
+          imageUrl: imageUrl === "" ? null : imageUrl,
+          endsAt: endsAtISO ?? "",
+          nowISO: new Date().toISOString(),
+        });
+        await api.announcementSave({
+          operationId: newOperationId(),
+          id: form.id,
+          text: text === "" ? null : text,
+          imageUrl: imageUrl === "" ? null : imageUrl,
+          endsAt: endsAtISO,
+          sort: Number(form.sort) || 0,
+          isActive: form.isActive,
+        });
         notify("Annonce enregistrée : elle partira à la prochaine synchronisation.", "ok");
+        setForm(null);
+        setLoading(true);
+        void reload();
       } catch (e) {
         notify(frError(e, "Annonce impossible à enregistrer."), "err");
+      }
+    });
+  }
+
+  function remove(row: AnnouncementItem): void {
+    if (!window.confirm("Supprimer cette annonce ? Cette action est irréversible.")) return;
+    void run(async () => {
+      try {
+        await api.announcementRemove({ id: row.id, operationId: newOperationId() });
+        notify(
+          "Annonce supprimée : les clients seront actualisés à la prochaine synchronisation.",
+          "ok",
+        );
+        if (form?.id === row.id) setForm(null);
+        void reload();
+      } catch (e) {
+        notify(frError(e, "Suppression de l'annonce impossible."), "err");
       }
     });
   }
@@ -721,22 +842,156 @@ export function AnnouncementSection({ notify }: { notify: Notify }): React.JSX.E
   return (
     <Section
       icon={<Megaphone size={16} aria-hidden="true" />}
-      title="Annonce magasin"
-      hint="Message affiché en haut de l'application client (APK). 120 caractères maximum."
-      badge={loading ? "Lecture…" : text.trim() === "" ? "Vide" : "Publiée"}
+      title="Annonces du magasin"
+      hint="Bandeau d'accueil de l'application client : texte ou image, avec compte à rebours. 4 annonces actives maximum."
+      badge={
+        loading
+          ? "Lecture…"
+          : liveCount === 0
+            ? "Aucune active"
+            : `${liveCount}/${CLIENT_ANNOUNCEMENT_ACTIVE_MAX} actives`
+      }
     >
-      <Field label="Annonce" hint={loading ? "Lecture…" : `${text.trim().length}/120 caractères`}>
-        <TextArea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows={3}
-          maxLength={120}
-          disabled={loading}
-          placeholder="Livraison exceptionnelle ce samedi."
-          aria-label="Annonce magasin"
-        />
-      </Field>
-      <SaveBar busy={busy} onSave={save} label="Enregistrer l'annonce" disabled={loading} />
+      {form ? (
+        <div className="space-y-3 rounded-xl border border-white/10 bg-black/25 p-3">
+          <Field
+            label="Texte de l'annonce (optionnel si image)"
+            hint={`${form.text.trim().length}/${CLIENT_ANNOUNCEMENT_MAX} caractères`}
+          >
+            <TextArea
+              value={form.text}
+              onChange={(e) => setForm({ ...form, text: e.target.value })}
+              rows={3}
+              maxLength={CLIENT_ANNOUNCEMENT_MAX}
+              placeholder="Livraison exceptionnelle ce samedi."
+              aria-label="Texte de l'annonce"
+            />
+          </Field>
+          <Field
+            label="Lien de l'image (optionnel si texte)"
+            hint="URL https directe (image seule, pas une page) — Supabase Storage ou hébergeur public."
+          >
+            <TextInput
+              type="url"
+              value={form.imageUrl}
+              onChange={(e) => {
+                setForm({ ...form, imageUrl: e.target.value });
+                setPreviewBroken(false);
+              }}
+              placeholder="https://…/promo.jpg"
+              aria-label="Lien de l'image"
+            />
+          </Field>
+          {form.imageUrl.trim() !== "" && !previewBroken ? (
+            <img
+              src={form.imageUrl.trim()}
+              alt="Aperçu de l'annonce"
+              onError={() => setPreviewBroken(true)}
+              className="max-h-40 w-full rounded-lg object-cover"
+            />
+          ) : null}
+          {previewBroken ? (
+            <p className="text-xs font-semibold text-amber-300">
+              Image indisponible : seul le texte sera affiché.
+            </p>
+          ) : null}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Fin de l'annonce" hint="Compte à rebours affiché côté client.">
+              <TextInput
+                type="datetime-local"
+                value={form.endsAt}
+                onChange={(e) => setForm({ ...form, endsAt: e.target.value })}
+                aria-label="Fin de l'annonce"
+              />
+            </Field>
+            <Field label="Ordre d'affichage" hint="0 = en premier.">
+              <TextInput
+                type="number"
+                min={0}
+                max={99}
+                value={form.sort}
+                onChange={(e) => setForm({ ...form, sort: e.target.value })}
+                aria-label="Ordre d'affichage"
+              />
+            </Field>
+          </div>
+          <SwitchRow
+            label="Annonce active"
+            hint="Les annonces inactives ne partent pas vers l'application client."
+            checked={form.isActive}
+            onChange={(v) => setForm({ ...form, isActive: v })}
+            ariaLabel="Annonce active"
+          />
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Button variant="ghost" onClick={() => setForm(null)} disabled={busy}>
+              Annuler
+            </Button>
+            <Button onClick={save} disabled={busy}>
+              {busy ? "Enregistrement…" : "Enregistrer l'annonce"}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button variant="secondary" onClick={startCreate} disabled={loading}>
+          <Plus size={15} aria-hidden="true" />
+          Nouvelle annonce
+        </Button>
+      )}
+
+      {loading ? (
+        <p className="text-sm text-slate-400">Lecture des annonces…</p>
+      ) : rows.length === 0 ? (
+        <p className="text-sm text-slate-400">Aucune annonce pour le moment.</p>
+      ) : (
+        <ul className="space-y-2">
+          {rows.map((row) => {
+            const expired = isAnnouncementExpired(row.endsAt, nowISO);
+            const status = expired ? "Expirée" : row.isActive ? "Publiée" : "Inactive";
+            return (
+              <li
+                key={row.id}
+                className="flex flex-wrap items-start gap-3 rounded-lg border border-white/10 bg-black/25 p-3"
+              >
+                {row.imageUrl ? (
+                  <img src={row.imageUrl} alt="" className="h-14 w-20 rounded object-cover" />
+                ) : null}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-slate-200">
+                    {row.text ?? (row.imageUrl ? "Annonce image" : "")}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {status}
+                    {row.endsAt
+                      ? ` · fin ${formatAnnouncementDate(row.endsAt)}`
+                      : " · sans échéance"}
+                    {row.sort !== 0 ? ` · ordre ${row.sort}` : ""}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    onClick={() => startEdit(row)}
+                    disabled={busy}
+                    aria-label={`Modifier l'annonce ${row.id}`}
+                  >
+                    <Pencil size={14} aria-hidden="true" />
+                    Modifier
+                  </Button>
+                  <Button
+                    variant="danger"
+                    onClick={() => remove(row)}
+                    disabled={busy}
+                    aria-label={`Supprimer l'annonce ${row.id}`}
+                  >
+                    <Trash2 size={14} aria-hidden="true" />
+                    Supprimer
+                  </Button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </Section>
   );
 }

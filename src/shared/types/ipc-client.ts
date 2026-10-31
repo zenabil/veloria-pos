@@ -47,8 +47,9 @@ export const api = {
   syncSaveConfig: (p: unknown) => call((a) => a.sync.saveConfig(p)),
   syncSaveOwnerAccount: (p: unknown) => call((a) => a.sync.saveOwnerAccount(p)),
   announcementSave: (p: unknown) => call((a) => a.announcements.save(p)),
-  /** Q1 : lecture de l'annonce magasin courante (POS → APK). */
-  announcementGet: () => call((a) => a.announcements.get()),
+  /** ADR-165 : liste complète des annonces (Paramètres). */
+  announcementList: () => call((a) => a.announcements.list()),
+  announcementRemove: (p: unknown) => call((a) => a.announcements.remove(p)),
   supplierUpdate: (p: unknown) => call((a) => a.suppliers.update(p)),
   printerSave: (p: unknown) => call((a) => a.printer.save(p)),
   printerTest: () => call((a) => a.printer.test()),

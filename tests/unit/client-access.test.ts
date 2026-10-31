@@ -210,12 +210,23 @@ describe("validateurs IPC (frontière Zod)", () => {
     expect(syncEnqueueSchema.safeParse({ ...base, kind: "access_revocation" }).success).toBe(true);
     expect(syncEnqueueSchema.safeParse({ ...base, monthKey: "09-2026" }).success).toBe(false);
   });
-  it("annonce : 1..120 caractères", () => {
-    expect(announcementSaveSchema.safeParse({ operationId: OP, text: "Fermé" }).success).toBe(true);
-    expect(announcementSaveSchema.safeParse({ operationId: OP, text: "" }).success).toBe(false);
+  it("annonce : texte 0..120 ou image, échéance obligatoire (ADR-165)", () => {
+    const base = { operationId: OP, endsAt: "2026-12-31T00:00:00.000Z" };
+    expect(announcementSaveSchema.safeParse({ ...base, text: "Fermé" }).success).toBe(true);
+    // Le texte vide est accepté à la frontière si une image est fournie ;
+    // le domaine tranche « texte OU image » après normalisation.
+    expect(announcementSaveSchema.safeParse({ ...base, text: "" }).success).toBe(true);
+    expect(announcementSaveSchema.safeParse({ ...base, text: "x".repeat(121) }).success).toBe(
+      false,
+    );
     expect(
-      announcementSaveSchema.safeParse({ operationId: OP, text: "x".repeat(121) }).success,
-    ).toBe(false);
+      announcementSaveSchema.safeParse({ ...base, imageUrl: "https://cdn.example.com/x.jpg" })
+        .success,
+    ).toBe(true);
+    // Échéance requise : un payload historique sans date est refusé.
+    expect(announcementSaveSchema.safeParse({ operationId: OP, text: "Fermé" }).success).toBe(
+      false,
+    );
   });
 });
 describe("#39 : paramètres canoniques de dérivation PIN (devinette lente)", () => {

@@ -42,15 +42,16 @@ const CRITICAL_OP_PREFIXES = [
   // "sync." enqueue/pushNow/saveConfig (markSent retiré ADR-119 : supersédé
   // par le UPDATE inliné de pushNowAtomic).
   // Vérification faite en complément : `announcements.save` n'a AUCUNE colonne
-  // operation_id (table announcements, 0032) → même classe de risque (double
-  // annonce après purge à 90 j).
+  // operation_id (table announcements, 0057) → même classe de risque (double
+  // annonce après purge à 90 j). ADR-166 : le préfixe couvre aussi
+  // l'upsert et `announcements.remove`.
   "zakat.save",
   "products.import",
   "customers.import",
   "purchase.",
   "customers.access",
   "sync.",
-  "announcements.save",
+  "announcements.",
 ];
 
 function isCriticalOpType(opType: string): boolean {

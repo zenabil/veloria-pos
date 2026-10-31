@@ -46,6 +46,14 @@ export interface InvoiceDetail {
   items: DetailItem[];
 }
 
+/** Annonce du bandeau hero (ADR-166) : texte OU image, échéance optionnelle. */
+export interface HomeAnnouncement {
+  id: number;
+  text: string | null;
+  imageUrl: string | null;
+  endsAt: string | null;
+}
+
 export interface HomeData {
   debtMinor: number;
   debtStatus: string;
@@ -67,6 +75,8 @@ export interface HomeData {
   syncIntervalMinutes: number;
   syncedAt: string | null;
   announcement: string | null;
+  /** Bandeau hero APK : jusqu'à 4 annonces actives non expirées. */
+  announcements: HomeAnnouncement[];
   shop: { name: string; phone: string | null; address: string | null };
 }
 
@@ -168,12 +178,112 @@ export function toHome(payload: unknown): HomeData {
     syncIntervalMinutes: syncInterval >= 5 && syncInterval <= 1440 ? syncInterval : 15,
     syncedAt: typeof p["syncedAt"] === "string" ? (p["syncedAt"] as string) : null,
     announcement: typeof p["announcement"] === "string" ? (p["announcement"] as string) : null,
+    announcements: parseAnnouncements(p),
     shop: {
       name: shopName,
       phone: typeof shopRaw["phone"] === "string" ? shopRaw["phone"] : null,
       address: typeof shopRaw["address"] === "string" ? shopRaw["address"] : null,
     },
   };
+}
+
+/** Borne miroir du domaine (4 annonces actives max, ADR-166). */
+export const HOME_ANNOUNCEMENT_MAX = 4;
+
+/** Une entrée corrompue est écartée ; un texte OU une image https est requis. */
+function toAnnouncement(raw: unknown): HomeAnnouncement | null {
+  if (raw == null || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const text = typeof r["text"] === "string" && r["text"].trim() !== "" ? r["text"].trim() : null;
+  const imageRaw = typeof r["imageUrl"] === "string" ? r["imageUrl"].trim() : "";
+  const imageUrl = /^https:\/\/\S+$/i.test(imageRaw) && imageRaw.length <= 500 ? imageRaw : null;
+  if (text == null && imageUrl == null) return null;
+  let endsAt: string | null = null;
+  if (typeof r["endsAt"] === "string") {
+    // Échéance illisible = annonce corrompue → écartée (fail-closed).
+    if (!Number.isFinite(Date.parse(r["endsAt"]))) return null;
+    endsAt = r["endsAt"];
+  }
+  return { id: num(r["id"]), text, imageUrl, endsAt };
+}
+
+/**
+ * Tableau `announcements` du cliché ; repli sur le champ texte historique
+ * (`announcement`, POS ≤ 1.0.4) pour qu'un ancien cliché reste affichable.
+ */
+export function parseAnnouncements(p: Record<string, unknown>): HomeAnnouncement[] {
+  const raw = (Array.isArray(p["announcements"]) ? p["announcements"] : []) as Record<
+    string,
+    unknown
+  >[];
+  const out: HomeAnnouncement[] = [];
+  for (const item of raw) {
+    const announcement = toAnnouncement(item);
+    if (announcement) out.push(announcement);
+    if (out.length >= HOME_ANNOUNCEMENT_MAX) break;
+  }
+  if (out.length === 0) {
+    const legacy = typeof p["announcement"] === "string" ? p["announcement"].trim() : "";
+    if (legacy !== "") out.push({ id: 0, text: legacy, imageUrl: null, endsAt: null });
+  }
+  return out;
+}
+
+/** Une annonce sans échéance (héritage) reste valable indéfiniment. */
+export function isAnnouncementLive(a: HomeAnnouncement, nowMs: number): boolean {
+  if (a.endsAt == null) return true;
+  const ends = Date.parse(a.endsAt);
+  return Number.isFinite(ends) && ends > nowMs;
+}
+
+/** Annonces affichables maintenant, bornées à 4 (défense miroir). */
+export function liveAnnouncements(list: HomeAnnouncement[], nowMs: number): HomeAnnouncement[] {
+  return list.filter((a) => isAnnouncementLive(a, nowMs)).slice(0, HOME_ANNOUNCEMENT_MAX);
+}
+
+export interface AnnouncementRemaining {
+  days: number;
+  hours: number;
+  minutes: number;
+}
+
+/** Compte à rebours arrondi à la minute supérieure (null = sans échéance). */
+export function announcementRemaining(
+  endsAt: string | null,
+  nowMs: number,
+): AnnouncementRemaining | null {
+  if (endsAt == null) return null;
+  const ends = Date.parse(endsAt);
+  if (!Number.isFinite(ends)) return null;
+  const diff = ends - nowMs;
+  if (diff <= 0) return null;
+  const totalMinutes = Math.ceil(diff / 60_000);
+  return {
+    days: Math.floor(totalMinutes / 1440),
+    hours: Math.floor((totalMinutes % 1440) / 60),
+    minutes: totalMinutes % 60,
+  };
+}
+
+/** Libellé complet bilingue : « Expire dans 3 j 4 h » / « ينتهي بعد 3 يوم 4 ساعة ». */
+export function announcementRemainingLabel(
+  l: Lang,
+  endsAt: string | null,
+  nowMs: number,
+): string | null {
+  const parts = announcementRemaining(endsAt, nowMs);
+  if (parts == null) return null;
+  const bits: string[] = [];
+  if (parts.days > 0) {
+    bits.push(`${parts.days} ${t(l, "daysShort")}`);
+    if (parts.hours > 0) bits.push(`${parts.hours} ${t(l, "hoursShort")}`);
+  } else if (parts.hours > 0) {
+    bits.push(`${parts.hours} ${t(l, "hoursShort")}`);
+    if (parts.minutes > 0) bits.push(`${parts.minutes} ${t(l, "minutesShort")}`);
+  } else {
+    bits.push(`${Math.max(1, parts.minutes)} ${t(l, "minutesShort")}`);
+  }
+  return `${t(l, "expireIn")} ${bits.join(" ")}`;
 }
 
 /** Libellé localisé d'un moyen de paiement (inconnu → valeur brute). */

@@ -4,7 +4,7 @@
 > l avancement en `reports/PHASE_*.md`. Ne jamais ecrire de rapport a la racine.
 > Conventions : `AGENTS.md` + `docs/STRUCTURE.md` (carte maintenance).
 
-## Decisions (ADR-001 a ADR-165 — tous saries, jamais supprimes)
+## Decisions (ADR-001 a ADR-166 — tous saries, jamais supprimes)
 
 - [ADR-001](./ADR-001-vite-renderer.md) Renderer Vite
 - [ADR-002](./ADR-002-native-versions.md) Versions natives
@@ -171,6 +171,7 @@
 - [ADR-163](./ADR-163-connexion-proprietaire-supabase-postgrest.md) Connexion de l'app propriétaire à Supabase (Auth + PostgREST)
 - [ADR-164](./ADR-164-compte-proprietaire-cree-depuis-pos.md) Compte propriétaire géré depuis le POS (création et mise à jour)
 - [ADR-165](./ADR-165-rafraichissement-periodique-client.md) Rafraîchissement périodique du client Android selon la cadence POS (snapshot `syncIntervalMinutes`, timer au premier plan, versionCode 6)
+- [ADR-166](./ADR-166-annonces-multi-medias-expiration.md) Annonces magasin multi-médias (4 actives max, texte ou image https, échéance) et bandeau hero de l'APK avec compte à rebours ; migration 0057, snapshot `announcements[]` + champ legacy, aucun changement cloud
 
 ## Ou ecrire quoi
 

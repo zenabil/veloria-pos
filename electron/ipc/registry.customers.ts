@@ -194,19 +194,32 @@ export function registerCustomersChannels(): void {
   handle(IPC_CHANNELS["announcements.save"], V.announcementSaveSchema, (input) => {
     const result = ClientAccess.saveAnnouncementAtomic({
       operationId: input.operationId,
-      text: input.text,
+      id: input.id ?? null,
+      text: input.text ?? null,
+      imageUrl: input.imageUrl ?? null,
+      endsAt: input.endsAt,
+      sort: input.sort,
+      isActive: input.isActive,
       now: new Date().toISOString(),
     });
-    // L'annonce est lue depuis le cliché `customer_snapshot` par l'APK :
+    // Les annonces sont lues depuis le cliché `customer_snapshot` par l'APK :
     // sans nouvelle mise en file, le miroir gardait l'ancienne annonce.
     enqueueAnnouncementRefresh();
     return result;
   });
-  // Q1 (UI annonce) : lecture de l'annonce courante — sans elle, le gérant
-  // écrirait dans le vide. Lecture seule, même permission que l'écriture.
-  handle(IPC_CHANNELS["announcements.get"], V.emptyPayloadSchema, () =>
-    ClientAccess.getCurrentAnnouncement(),
+  // ADR-166 : liste complète pour l'écran Paramètres (lecture seule).
+  handle(IPC_CHANNELS["announcements.list"], V.emptyPayloadSchema, () =>
+    ClientAccess.listAnnouncements(),
   );
+  handle(IPC_CHANNELS["announcements.remove"], V.idempotentIdSchema, (input) => {
+    const result = ClientAccess.removeAnnouncementAtomic({
+      id: input.id,
+      operationId: input.operationId,
+      now: new Date().toISOString(),
+    });
+    enqueueAnnouncementRefresh();
+    return result;
+  });
   // Poussée miroir : manuelle (bouton commerçant) + auto (timer 60 s).
   // Best-effort : un échec réseau rend une erreur FR, jamais de donnée perdue
   // (la file reste `pending` et sera rejouée).

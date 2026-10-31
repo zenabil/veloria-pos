@@ -61,8 +61,9 @@ export const IPC_CHANNELS = {
   // Compte Supabase Auth du propriétaire (app mobile) : création/mise à jour.
   "sync.saveOwnerAccount": "sync.saveOwnerAccount",
   "announcements.save": "announcements.save",
-  // Q1 (UI annonce) : lecture de l'annonce magasin courante (POS → APK).
-  "announcements.get": "announcements.get",
+  // ADR-166 : liste complète (Paramètres) + suppression idempotente.
+  "announcements.list": "announcements.list",
+  "announcements.remove": "announcements.remove",
   // categories (filtre catalogue)
   "categories.list": "categories.list",
   "categories.create": "categories.create",

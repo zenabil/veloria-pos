@@ -70,8 +70,9 @@ interface Window {
     };
     announcements: {
       save(p: unknown): Promise<VeloriaOutcome>;
-      /** Q1 : lecture de l'annonce magasin courante. */
-      get(): Promise<VeloriaOutcome>;
+      /** ADR-165 : liste complète des annonces (Paramètres). */
+      list(): Promise<VeloriaOutcome>;
+      remove(p: unknown): Promise<VeloriaOutcome>;
     };
     categories: { list(): Promise<VeloriaOutcome>; create(p: unknown): Promise<VeloriaOutcome> };
     settings: {

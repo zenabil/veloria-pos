@@ -1,5 +1,6 @@
 [
-  "announcements.get",
+  "announcements.list",
+  "announcements.remove",
   "announcements.save",
   "app.diagnostics",
   "app.restart",

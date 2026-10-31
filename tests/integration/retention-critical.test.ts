@@ -70,6 +70,9 @@ const CRITICAL_OPS = [
   "sync.pushNow",
   "sync.saveConfig",
   "announcements.save",
+  // ADR-166 : la suppression d'annonce est une mutation idempotente sans
+  // garde UNIQUE métier — même rétention longue que l'upsert.
+  "announcements.remove",
 ];
 
 describe("L4 : rétention des opérations idempotentes critiques", () => {

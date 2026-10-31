@@ -2,8 +2,10 @@
 import { describe, expect, it } from "vitest";
 import { formatMinor } from "../../mobile/src/format";
 import {
+  announcementRemainingLabel,
   buildShareText,
   filterInvoices,
+  liveAnnouncements,
   num,
   numQty,
   paymentMethodLabel,
@@ -51,6 +53,7 @@ describe("toHome", () => {
     expect(empty.debtStatus).toBe("none");
     expect(empty.syncedAt).toBeNull();
     expect(empty.announcement).toBeNull();
+    expect(empty.announcements).toEqual([]);
     expect(empty.shop.name).toBe("Veloria");
     expect(empty.invoiceCount).toBe(0);
     expect(empty.monthKey).toBe("");
@@ -72,6 +75,51 @@ describe("toHome", () => {
     expect(toHome({ syncIntervalMinutes: 1 }).syncIntervalMinutes).toBe(15);
     expect(toHome({ syncIntervalMinutes: 2000 }).syncIntervalMinutes).toBe(15);
     expect(toHome({}).syncIntervalMinutes).toBe(15);
+  });
+  it("annonces hero : tableau parsé, entrées corrompues écartées, repli legacy", () => {
+    const h = toHome({
+      announcements: [
+        {
+          id: 2,
+          text: "  Promo  ",
+          imageUrl: "https://cdn.example.com/a.jpg",
+          endsAt: "2026-12-31T00:00:00.000Z",
+        },
+        { id: 3, text: null, imageUrl: "http://non-https.jpg" },
+        { id: 4, text: null, imageUrl: "https://cdn.example.com/b.jpg", endsAt: "pas-une-date" },
+      ],
+    });
+    expect(h.announcements).toEqual([
+      {
+        id: 2,
+        text: "Promo",
+        imageUrl: "https://cdn.example.com/a.jpg",
+        endsAt: "2026-12-31T00:00:00.000Z",
+      },
+    ]);
+    const legacy = toHome({ announcement: "Fermé vendredi" });
+    expect(legacy.announcements).toEqual([
+      { id: 0, text: "Fermé vendredi", imageUrl: null, endsAt: null },
+    ]);
+    const many = Array.from({ length: 6 }, (_, i) => ({ id: i + 1, text: `A${i}` }));
+    expect(toHome({ announcements: many }).announcements).toHaveLength(4);
+  });
+  it("compte à rebours : actives seulement, libellé ar/fr, expirée → null", () => {
+    const now = Date.parse("2026-10-21T09:00:00.000Z");
+    const list = [
+      { id: 1, text: "Vivante", imageUrl: null, endsAt: "2026-10-24T09:00:00.000Z" },
+      { id: 2, text: "Expirée", imageUrl: null, endsAt: "2026-10-20T09:00:00.000Z" },
+      { id: 3, text: "Sans fin", imageUrl: null, endsAt: null },
+    ];
+    expect(liveAnnouncements(list, now).map((a) => a.id)).toEqual([1, 3]);
+    expect(announcementRemainingLabel("fr", "2026-10-24T09:00:00.000Z", now)).toBe(
+      "Expire dans 3 j",
+    );
+    expect(announcementRemainingLabel("ar", "2026-10-21T10:30:00.000Z", now)).toBe(
+      "ينتهي بعد 1 ساعة 30 دقيقة",
+    );
+    expect(announcementRemainingLabel("fr", "2026-10-20T09:00:00.000Z", now)).toBeNull();
+    expect(announcementRemainingLabel("fr", null, now)).toBeNull();
   });
 });
 

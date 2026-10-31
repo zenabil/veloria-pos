@@ -1,14 +1,6 @@
-// Veloria PoS — Q1 : tranche « annonce magasin » (POS → APK).
-//
-// La chaîne était complète côté main (canal `announcements.save`, repo
-// `saveAnnouncementAtomic`, domaine `assertValidAnnouncement`) mais la
-// LECTURE manquait : le gérant ne pouvait pas voir l'annonce en cours, il
-// pouvait seulement l'écraser. La tranche complète ajoute :
-//   - `getCurrentAnnouncement` (lecture, permission `settings`) ;
-//   - l'écran de saisie (Paramètres → Commerce).
-//
-// Ce test couvre le comportement métier : idempotence (rejeu du même
-// `operationId`), refus FR hors bornes, et lecture de l'annonce courante.
+// Veloria PoS — ADR-166 : annonces magasin multi-médias (texte OU image),
+// expiration et plafond de 4 actives. Couvre le repo RÉEL (idempotence,
+// transactions) + le cliché miroir consommé par l'APK.
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
@@ -87,12 +79,20 @@ vi.mock("../../electron/services/logger", () => ({
 }));
 
 import {
-  getCurrentAnnouncement,
+  buildSnapshotPayload,
+  listAnnouncements,
+  removeAnnouncementAtomic,
   saveAnnouncementAtomic,
 } from "../../electron/ipc/handlers/client-access.repo";
-import { assertValidAnnouncement } from "../../src/domain/customer/client-access.ts";
+import {
+  assertValidAnnouncement,
+  assertValidAnnouncementInput,
+} from "../../src/domain/customer/client-access.ts";
 
 const NOW = "2026-10-21T09:00:00.000Z";
+const FUTURE = "2026-12-31T23:59:00.000Z";
+const PAST = "2026-10-20T09:00:00.000Z";
+const LIMIT = /4 annonces actives maximum/;
 
 function openMigrated(dir: string): DatabaseSync {
   const db = new DatabaseSync(path.join(dir, "announcement.sqlite"));
@@ -108,15 +108,49 @@ function openMigrated(dir: string): DatabaseSync {
   return db;
 }
 
-describe("Q1 : annonce magasin (écriture, lecture, idempotence)", () => {
+function op(n: number): string {
+  return `${String(n).repeat(8)}-1111-4111-8111-111111111111`;
+}
+
+function save(
+  n: number,
+  text: string | null,
+  extra: Partial<{
+    imageUrl: string | null;
+    endsAt: string;
+    sort: number;
+    isActive: boolean;
+    id: number | null;
+  }> = {},
+): { announcementId: number } {
+  return saveAnnouncementAtomic({
+    operationId: op(n),
+    id: extra.id ?? null,
+    text,
+    imageUrl: extra.imageUrl ?? null,
+    endsAt: extra.endsAt ?? FUTURE,
+    sort: extra.sort ?? 0,
+    isActive: extra.isActive ?? true,
+    now: NOW,
+  });
+}
+
+describe("ADR-166 : annonces (texte/image, échéance, plafond, snapshot)", () => {
   let tmp: string;
   let db: DatabaseSync;
+  let customerId: number;
 
   beforeEach(() => {
     tmp = fs.mkdtempSync(path.join(os.tmpdir(), "veloria-announce-"));
     db = openMigrated(tmp);
     repoDb.current = db;
     repoDb.depth = 0;
+    const r = db
+      .prepare(
+        "INSERT INTO customers (uuid, first_name, last_name, search_name, created_at, updated_at) VALUES ('c1','Amine','Benali','amine benali','2026-01-01','2026-01-01')",
+      )
+      .run();
+    customerId = Number(r.lastInsertRowid);
   });
 
   afterEach(() => {
@@ -130,56 +164,130 @@ describe("Q1 : annonce magasin (écriture, lecture, idempotence)", () => {
   });
 
   it("aucune annonce au départ", () => {
-    expect(getCurrentAnnouncement().text).toBeNull();
+    expect(listAnnouncements()).toEqual([]);
   });
 
-  it("l'annonce enregistrée est lisible (aller-retour complet)", () => {
-    const res = saveAnnouncementAtomic({
-      operationId: "11111111-1111-4111-8111-111111111111",
-      text: "Livraison exceptionnelle ce samedi.",
-      now: NOW,
-    });
-    expect(res.announcementId).toBeGreaterThan(0);
-    expect(getCurrentAnnouncement().text).toBe("Livraison exceptionnelle ce samedi.");
-  });
-
-  it("rejouer le même operationId n'écrit qu'une fois", () => {
-    const args = {
-      operationId: "22222222-2222-4222-8222-222222222222",
-      text: "Annonce unique.",
-      now: NOW,
-    };
-    const first = saveAnnouncementAtomic(args);
-    const second = saveAnnouncementAtomic(args);
+  it("aller-retour texte + échéance, rejouer le même operationId n'écrit qu'une fois", () => {
+    const first = save(1, "Livraison exceptionnelle ce samedi.");
+    const second = save(1, "Livraison exceptionnelle ce samedi.");
     expect(second.announcementId).toBe(first.announcementId);
-    const count = db.prepare("SELECT COUNT(*) AS n FROM announcements").get() as { n: number };
-    expect(count.n).toBe(1);
+    const rows = listAnnouncements();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      id: first.announcementId,
+      text: "Livraison exceptionnelle ce samedi.",
+      imageUrl: null,
+      isActive: true,
+      endsAt: FUTURE,
+      sort: 0,
+    });
   });
 
-  it("la dernière annonce écrite est celle lue (remplace l'ancienne)", () => {
-    saveAnnouncementAtomic({
-      operationId: "33333333-3333-4333-8333-333333333333",
-      text: "Première annonce.",
-      now: NOW,
-    });
-    saveAnnouncementAtomic({
-      operationId: "44444444-4444-4444-8444-444444444444",
-      text: "Deuxième annonce.",
-      now: NOW,
-    });
-    expect(getCurrentAnnouncement().text).toBe("Deuxième annonce.");
+  it("image seule acceptée, texte seul accepté, rien du tout refusé", () => {
+    const image = save(2, null, { imageUrl: "https://cdn.example.com/promo.jpg" });
+    expect(image.announcementId).toBeGreaterThan(0);
+    expect(() => save(3, "   ")).toThrow(/texte ou image requis/);
+    expect(() => save(3, null)).toThrow(/texte ou image requis/);
+    expect(() => save(3, "Promo", { imageUrl: "http://cdn.example.com/x.jpg" })).toThrow(
+      /Lien d'image invalide/,
+    );
   });
 
-  it("le domaine refuse une annonce vide ou trop longue (FR)", () => {
+  it("refuse un texte > 120 caractères et une échéance passée (FR)", () => {
+    expect(() => save(4, "x".repeat(121))).toThrow(/1 à 120/);
+    expect(() => save(4, "Promo", { endsAt: PAST })).toThrow(/futur/);
+  });
+
+  it("met à jour une annonce existante (id fourni) et rafraîchit le compte à rebours", () => {
+    const created = save(5, "Ancien texte");
+    const updated = save(6, "Nouveau texte", { id: created.announcementId, endsAt: FUTURE });
+    expect(updated.announcementId).toBe(created.announcementId);
+    expect(listAnnouncements()[0]?.text).toBe("Nouveau texte");
+    expect(() => save(7, "Fantôme", { id: 999_999 })).toThrow(/Annonce introuvable/);
+  });
+
+  it("plafonne à 4 annonces actives non expirées", () => {
+    for (let i = 0; i < 4; i += 1) save(10 + i, `Annonce ${i}`);
+    expect(() => save(20, "La cinquième")).toThrow(LIMIT);
+    // Une annonce expirée ne compte plus : la place est libérée.
+    const expiredId = listAnnouncements()[0]?.id ?? 0;
+    expect(expiredId).toBeGreaterThan(0);
+    db.prepare("UPDATE announcements SET ends_at = ? WHERE id = ?").run(PAST, expiredId);
+    expect(() => save(20, "La cinquième")).not.toThrow();
+    // Désactiver libère aussi une place.
+    save(21, "Sixième", { isActive: false });
+    expect(listAnnouncements().length).toBe(6);
+  });
+
+  it("suppression idempotente (rejeu = succès, jamais d'erreur)", () => {
+    const created = save(30, "À supprimer");
+    const first = removeAnnouncementAtomic({
+      id: created.announcementId,
+      operationId: op(31),
+      now: NOW,
+    });
+    expect(first.removed).toBe(true);
+    expect(listAnnouncements()).toHaveLength(0);
+    const replay = removeAnnouncementAtomic({
+      id: created.announcementId,
+      operationId: op(31),
+      now: NOW,
+    });
+    expect(replay.removed).toBe(true);
+    // Supprimer un id déjà absent reste un no-op idempotent.
+    expect(removeAnnouncementAtomic({ id: 424_242, operationId: op(32), now: NOW }).removed).toBe(
+      true,
+    );
+  });
+
+  it("le cliché ne contient que les actives non expirées, ordonnées, bornées à 4", () => {
+    save(40, "Deuxième", { sort: 2 });
+    save(41, "Première", { sort: 1 });
+    save(42, "Expirée", { sort: 0 });
+    db.prepare("UPDATE announcements SET ends_at = ? WHERE text = 'Expirée'").run(PAST);
+    save(43, "Inactive", { sort: 0, isActive: false });
+    save(44, null, { sort: 3, imageUrl: "https://cdn.example.com/p.jpg" });
+
+    const payload = JSON.parse(
+      buildSnapshotPayload(customerId, "customer_snapshot", null, "2026-10", NOW),
+    ) as {
+      announcement: string | null;
+      announcements: { id: number; text: string | null; imageUrl: string | null }[];
+    };
+
+    expect(payload.announcements.map((a) => a.text)).toEqual(["Première", "Deuxième", null]);
+    expect(payload.announcements[2]?.imageUrl).toBe("https://cdn.example.com/p.jpg");
+    // Compatibilité APK historique : premier texte servi dans l'ancien champ.
+    expect(payload.announcement).toBe("Première");
+  });
+
+  it("domaine : validation complète (image https, échéance future)", () => {
     expect(() => assertValidAnnouncement("")).toThrow(/Annonce invalide/);
     expect(() => assertValidAnnouncement("x".repeat(121))).toThrow(/Annonce invalide/);
     expect(() => assertValidAnnouncement("x".repeat(120))).not.toThrow();
     expect(() =>
-      saveAnnouncementAtomic({
-        operationId: "55555555-5555-4555-8555-555555555555",
-        text: "   ",
-        now: NOW,
+      assertValidAnnouncementInput({
+        text: null,
+        imageUrl: null,
+        endsAt: FUTURE,
+        nowISO: NOW,
       }),
-    ).toThrow(/Annonce invalide/);
+    ).toThrow(/texte ou image requis/);
+    expect(() =>
+      assertValidAnnouncementInput({
+        text: "Promo",
+        imageUrl: "https://cdn.example.com/ok.jpg",
+        endsAt: PAST,
+        nowISO: NOW,
+      }),
+    ).toThrow(/futur/);
+    expect(() =>
+      assertValidAnnouncementInput({
+        text: "Promo",
+        imageUrl: null,
+        endsAt: FUTURE,
+        nowISO: NOW,
+      }),
+    ).not.toThrow();
   });
 });

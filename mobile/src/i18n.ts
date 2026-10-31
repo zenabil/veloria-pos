@@ -117,6 +117,12 @@ const STRINGS = {
   language: { ar: "اللغة", fr: "Langue" },
   requestCode: { ar: "طلب رمز عبر واتساب", fr: "Demander un code WhatsApp" },
   noAnnouncement: { ar: "لا إعلانات جديدة من المحل", fr: "Aucune annonce du magasin" },
+  // Bandeau hero (ADR-166) : compte à rebours d'expiration.
+  announcement: { ar: "إعلان", fr: "Annonce" },
+  expireIn: { ar: "ينتهي بعد", fr: "Expire dans" },
+  daysShort: { ar: "يوم", fr: "j" },
+  hoursShort: { ar: "ساعة", fr: "h" },
+  minutesShort: { ar: "دقيقة", fr: "min" },
   receiptNote: {
     ar: "شكراً لثقتكم. احتفظ بهذا الوصل.",
     fr: "Merci de votre confiance. Gardez ce reçu.",

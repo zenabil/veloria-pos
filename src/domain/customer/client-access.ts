@@ -10,6 +10,10 @@ export const CLIENT_SESSION_VALIDITY_DAYS = 90;
 export const CLIENT_MAX_FAILED_ATTEMPTS = 5;
 export const CLIENT_LOCK_MINUTES = 5;
 export const CLIENT_ANNOUNCEMENT_MAX = 120;
+/** 4 annonces actives (non expirées) maximum — plafond produit ADR-166. */
+export const CLIENT_ANNOUNCEMENT_ACTIVE_MAX = 4;
+/** Longueur maximale du lien d'image (URL https uniquement). */
+export const CLIENT_ANNOUNCEMENT_IMAGE_MAX = 500;
 
 /** PIN : exactement 6 chiffres ASCII (lisible par les seniors, sans 0/O ambigus). */
 export function assertValidPin(pin: string): void {
@@ -74,6 +78,50 @@ export function assertValidAnnouncement(text: string): void {
   if (t.length < 1 || t.length > CLIENT_ANNOUNCEMENT_MAX) {
     throw new DomainError("CUSTOMER_ERROR", "Annonce invalide (1 à 120 caractères).");
   }
+}
+
+/** Lien d'image d'annonce : https public uniquement (jamais de blob local). */
+export function assertValidAnnouncementImageUrl(url: string): void {
+  const u = url.trim();
+  if (u.length < 1 || u.length > CLIENT_ANNOUNCEMENT_IMAGE_MAX || !/^https:\/\/\S+$/i.test(u)) {
+    throw new DomainError("CUSTOMER_ERROR", "Lien d'image invalide (https, 500 caractères max).");
+  }
+}
+
+/**
+ * Annonce complète (ADR-166) : texte OU image, échéance future obligatoire.
+ * Le texte vide est normalisé côté repo (NULL) ; l'image seule est permise.
+ */
+export function assertValidAnnouncementInput(input: {
+  text: string | null;
+  imageUrl: string | null;
+  endsAt: string;
+  nowISO: string;
+}): void {
+  const text = input.text?.trim() ?? "";
+  const imageUrl = input.imageUrl?.trim() ?? "";
+  if (text !== "") assertValidAnnouncement(text);
+  if (imageUrl !== "") assertValidAnnouncementImageUrl(imageUrl);
+  if (text === "" && imageUrl === "") {
+    throw new DomainError("CUSTOMER_ERROR", "Annonce invalide (texte ou image requis).");
+  }
+  const ends = Date.parse(input.endsAt);
+  const now = Date.parse(input.nowISO);
+  if (!Number.isFinite(ends) || !Number.isFinite(now)) {
+    throw new DomainError("CUSTOMER_ERROR", "Date de fin d'annonce invalide.");
+  }
+  if (ends <= now) {
+    throw new DomainError("CUSTOMER_ERROR", "La date de fin doit être dans le futur.");
+  }
+}
+
+/** Une annonce sans échéance (héritage 0032) reste valable indéfiniment. */
+export function isAnnouncementExpired(endsAtISO: string | null, nowISO: string): boolean {
+  if (endsAtISO == null) return false;
+  const ends = Date.parse(endsAtISO);
+  const now = Date.parse(nowISO);
+  if (!Number.isFinite(ends) || !Number.isFinite(now)) return true;
+  return ends <= now;
 }
 
 /** URL Supabase embarquée dans le QR V2 (ADR-068) : whitelist stricte anti-phishing. */
