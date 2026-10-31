@@ -63,6 +63,8 @@ export interface HomeData {
   lastSales: HomeInvoice[];
   lastPayments: HomePayment[];
   topProducts: { name: string; quantity: number; lastPriceMinor: number }[];
+  /** Cadence de rafraîchissement auto choisie dans POS (5–1440 min, 15 par défaut). */
+  syncIntervalMinutes: number;
   syncedAt: string | null;
   announcement: string | null;
   shop: { name: string; phone: string | null; address: string | null };
@@ -137,6 +139,7 @@ export function toHome(payload: unknown): HomeData {
   // `invoiceCount` absent (ancien cliché) : la prévisualisation (3 max) reste
   // le meilleur minorant lisible — jamais 0 à côté de factures affichées.
   const invoiceCount = num(p["invoiceCount"]);
+  const syncInterval = num(p["syncIntervalMinutes"]);
   return {
     debtMinor: num(customer["outstanding_balance_minor"]),
     debtStatus: str(customer["debt_status"]) || "none",
@@ -162,6 +165,7 @@ export function toHome(payload: unknown): HomeData {
       quantity: numQty(x["quantity"]),
       lastPriceMinor: num(x["lastPriceMinor"]),
     })),
+    syncIntervalMinutes: syncInterval >= 5 && syncInterval <= 1440 ? syncInterval : 15,
     syncedAt: typeof p["syncedAt"] === "string" ? (p["syncedAt"] as string) : null,
     announcement: typeof p["announcement"] === "string" ? (p["announcement"] as string) : null,
     shop: {

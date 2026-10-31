@@ -66,6 +66,13 @@ describe("toHome", () => {
     expect(h.announcement).toBe("Fermé vendredi");
     expect(h.shop).toEqual({ name: "Épicerie", phone: "0550", address: null });
   });
+  it("cadence de synchro : 5–1440, défaut 15 (ancien cliché)", () => {
+    expect(toHome({ syncIntervalMinutes: 5 }).syncIntervalMinutes).toBe(5);
+    expect(toHome({ syncIntervalMinutes: 1440 }).syncIntervalMinutes).toBe(1440);
+    expect(toHome({ syncIntervalMinutes: 1 }).syncIntervalMinutes).toBe(15);
+    expect(toHome({ syncIntervalMinutes: 2000 }).syncIntervalMinutes).toBe(15);
+    expect(toHome({}).syncIntervalMinutes).toBe(15);
+  });
 });
 
 describe("filterInvoices", () => {

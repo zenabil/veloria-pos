@@ -4,7 +4,7 @@
 > l avancement en `reports/PHASE_*.md`. Ne jamais ecrire de rapport a la racine.
 > Conventions : `AGENTS.md` + `docs/STRUCTURE.md` (carte maintenance).
 
-## Decisions (ADR-001 a ADR-161 — tous saries, jamais supprimes)
+## Decisions (ADR-001 a ADR-165 — tous saries, jamais supprimes)
 
 - [ADR-001](./ADR-001-vite-renderer.md) Renderer Vite
 - [ADR-002](./ADR-002-native-versions.md) Versions natives
@@ -167,6 +167,10 @@
 - [ADR-159](./ADR-159-ventilation-paiements-fifo.md) Encaissement standalone ventilé FIFO sur les factures ouvertes (la plus ancienne d'abord) : dettes, échéances et solde client restent alignés, sans migration
 - [ADR-160](./ADR-160-detail-facture-apk-sans-fenetre.md) Détail de facture APK : poussée à chaque vente/paiement (y compris ventilation FIFO), lecture miroir directe par `saleId` sans fenêtre, synchronisation manuelle du relevé complet
 - [ADR-161](./ADR-161-version-unique-et-mises-a-jour.md) Version unique 1.0.4 (POS + License Manager + Client) : source `package.json`, outil `version:set` à `versionCode` croissant, sauvegarde pré-migration du registre Manager, contrat NSIS/APK, pas d'auto-update non signé
+- [ADR-162](./ADR-162-application-proprietaire-supervision-mobile.md) Application propriétaire (supervision mobile lecture seule)
+- [ADR-163](./ADR-163-connexion-proprietaire-supabase-postgrest.md) Connexion de l'app propriétaire à Supabase (Auth + PostgREST)
+- [ADR-164](./ADR-164-compte-proprietaire-cree-depuis-pos.md) Compte propriétaire géré depuis le POS (création et mise à jour)
+- [ADR-165](./ADR-165-rafraichissement-periodique-client.md) Rafraîchissement périodique du client Android selon la cadence POS (snapshot `syncIntervalMinutes`, timer au premier plan, versionCode 6)
 
 ## Ou ecrire quoi
 

@@ -2,7 +2,7 @@
 // Session persistée (SecureStore, repli mémoire) + clichés persistés
 // (expo-sqlite, repli mémoire) : l'appli rouvre sur les dernières données.
 import { useEffect, useRef, useState } from "react";
-import { BackHandler, Image, Linking, Modal, Platform, Pressable, Text, View } from "react-native";
+import { AppState, BackHandler, Image, Linking, Modal, Platform, Pressable, Text, View } from "react-native";
 import { Icon } from "./ui/Icon.tsx";
 import { COLORS, RADIUS, SHADOW, SIZES, SPACE, TYPE, tint } from "./tokens.ts";
 import { formatDateFr } from "./format.ts";
@@ -69,6 +69,11 @@ export function App(): React.JSX.Element {
   // Jeton de requête du détail : seule la dernière ouverture a le droit
   // d'écrire dans detailData/detailLoading/detailError.
   const detailReq = useRef(0);
+  // Mise à jour périodique : jamais deux syncNow en parallèle (timer + geste).
+  const refreshingRef = useRef(false);
+  const refreshRef = useRef<() => Promise<void>>(async () => {});
+  // Cadence choisie dans POS, portée par le cliché (5–1440 min, 15 par défaut).
+  const syncIntervalMinutes = home.syncIntervalMinutes;
 
   function nameOf(snapshot: unknown): string {
     const c = ((snapshot ?? {}) as Record<string, unknown>)["customer"] as
@@ -274,9 +279,39 @@ export function App(): React.JSX.Element {
   }
 
   async function refresh(): Promise<void> {
-    if (!session) return;
-    await refreshWith(session);
+    if (!session || refreshingRef.current) return;
+    refreshingRef.current = true;
+    try {
+      await refreshWith(session);
+    } finally {
+      refreshingRef.current = false;
+    }
   }
+
+  // Le timer lit toujours la dernière fermeture (session/lang à jour).
+  useEffect(() => {
+    refreshRef.current = refresh;
+  });
+
+  // Rafraîchissement automatique selon la cadence choisie dans POS. Le cliché
+  // est relu après chaque sync : un changement de cadence s'applique au cycle
+  // suivant sans redémarrer l'APK.
+  useEffect(() => {
+    if (!session) return;
+    const id = setInterval(() => {
+      void refreshRef.current();
+    }, syncIntervalMinutes * 60_000);
+    return () => clearInterval(id);
+  }, [session, syncIntervalMinutes]);
+
+  // Retour au premier plan : synchronisation immédiate (le timer a pu être
+  // suspendu par Android pendant l'arrière-plan).
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") void refreshRef.current();
+    });
+    return () => sub.remove();
+  }, []);
 
   /** Ferme tout et efface la session locale (PIN, cache, détails). */
   async function endSession(): Promise<void> {

@@ -392,6 +392,21 @@ interface PaymentRow {
   payment_date: string;
 }
 
+/** Cadence de poussée choisie dans POS (5–1440 min), 15 par défaut. */
+function currentSyncIntervalMinutes(): number {
+  try {
+    const row = getDb()
+      .prepare(`SELECT value_json FROM app_settings WHERE key = 'client_sync'`)
+      .get() as { value_json: string } | undefined;
+    if (!row) return 15;
+    const doc = JSON.parse(row.value_json) as { intervalMinutes?: unknown };
+    const n = doc.intervalMinutes;
+    return typeof n === "number" && Number.isInteger(n) && n >= 5 && n <= 1440 ? n : 15;
+  } catch {
+    return 15;
+  }
+}
+
 /** Cliché JSON poussé vers le miroir (même forme que le use-case applicatif). */
 export function buildSnapshotPayload(
   customerId: number,
@@ -449,6 +464,7 @@ export function buildSnapshotPayload(
     },
     syncedAt: now,
     announcement: announcement?.text ?? null,
+    syncIntervalMinutes: currentSyncIntervalMinutes(),
     shop: {
       name: company?.commercial_name || company?.company_name || "Veloria",
       phone: company?.phone ?? null,

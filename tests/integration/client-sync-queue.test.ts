@@ -157,17 +157,25 @@ describe("file miroir : détail de facture", () => {
     db.prepare(
       "INSERT INTO announcements (text, is_active, created_at) VALUES ('Promo test', 1, '2026-01-06')",
     ).run();
+    db.prepare(
+      "INSERT OR REPLACE INTO app_settings (key, value_json, updated_at) VALUES ('client_sync', ?, '2026-01-06')",
+    ).run(JSON.stringify({ intervalMinutes: 5 }));
 
     enqueueAnnouncementRefresh();
     const snapshots = db
       .prepare(
-        `SELECT customer_id, json_extract(payload_json, '$.announcement') AS announcement
+        `SELECT customer_id,
+                json_extract(payload_json, '$.announcement') AS announcement,
+                json_extract(payload_json, '$.syncIntervalMinutes') AS interval
          FROM sync_outbox WHERE kind = 'customer_snapshot' ORDER BY customer_id ASC`,
       )
-      .all() as unknown as { customer_id: number; announcement: string }[];
+      .all() as unknown as { customer_id: number; announcement: string; interval: number }[];
     expect(snapshots).toHaveLength(2);
     expect(snapshots.map((s) => s.customer_id)).toEqual([1, second]);
-    for (const row of snapshots) expect(row.announcement).toBe("Promo test");
+    for (const row of snapshots) {
+      expect(row.announcement).toBe("Promo test");
+      expect(row.interval).toBe(5);
+    }
 
     // Un accès révoqué ne reçoit plus de cliché d'annonce.
     db.prepare(`UPDATE customer_access SET revoked_at = '2026-01-07' WHERE customer_id = ?`).run(
