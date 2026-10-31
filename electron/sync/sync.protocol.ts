@@ -30,6 +30,36 @@ export interface SyncConfigView {
   lastPushAt: string | null;
   lastError: string | null;
   pendingCount: number;
+  /** Compte propriétaire (app mobile) — e-mail affiché, jamais le mot de passe. */
+  ownerEmail: string | null;
+  ownerUpdatedAt: string | null;
+}
+
+const OWNER_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+/**
+ * Valide les identifiants du compte propriétaire (création/mise à jour).
+ * Le mot de passe n'est jamais stocké : il part vers Supabase Auth.
+ */
+export function validateOwnerAccount(
+  rawEmail: unknown,
+  rawPassword: unknown,
+): { email: string; password: string } {
+  const email = typeof rawEmail === "string" ? rawEmail.trim().toLowerCase() : "";
+  const password = typeof rawPassword === "string" ? rawPassword : "";
+  if (email.length === 0 || email.length > 200 || !OWNER_EMAIL_RE.test(email)) {
+    throw new Error("Adresse e-mail du propriétaire invalide.");
+  }
+  if (password.length < 8 || password.length > 200) {
+    throw new Error("Mot de passe propriétaire : 8 à 200 caractères.");
+  }
+  return { email, password };
+}
+
+/** URL Admin Auth (Supabase) — `id` absent = création. */
+export function ownerAdminUsersUrl(baseUrl: string, id?: string): string {
+  const base = `${baseUrl.replace(/\/+$/, "")}/auth/v1/admin/users`;
+  return id ? `${base}/${encodeURIComponent(id)}` : base;
 }
 
 /** Valide la configuration (le renderer valide déjà via Zod : défense en profondeur). */
@@ -73,7 +103,13 @@ export function validateSyncConfig(raw: unknown): SyncConfig {
 /** Vue sans secret pour le renderer (jamais de clé vers l'UI). */
 export function maskConfig(
   cfg: SyncConfig,
-  meta: { lastPushAt: string | null; lastError: string | null; pendingCount: number },
+  meta: {
+    lastPushAt: string | null;
+    lastError: string | null;
+    pendingCount: number;
+    ownerEmail: string | null;
+    ownerUpdatedAt: string | null;
+  },
 ): SyncConfigView {
   return {
     enabled: cfg.enabled,
@@ -84,6 +120,8 @@ export function maskConfig(
     lastPushAt: meta.lastPushAt,
     lastError: meta.lastError,
     pendingCount: meta.pendingCount,
+    ownerEmail: meta.ownerEmail,
+    ownerUpdatedAt: meta.ownerUpdatedAt,
   };
 }
 

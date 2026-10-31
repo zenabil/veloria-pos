@@ -58,6 +58,8 @@ export const IPC_CHANNELS = {
   "sync.pushNow": "sync.pushNow",
   "sync.getConfig": "sync.getConfig",
   "sync.saveConfig": "sync.saveConfig",
+  // Compte Supabase Auth du propriétaire (app mobile) : création/mise à jour.
+  "sync.saveOwnerAccount": "sync.saveOwnerAccount",
   "announcements.save": "announcements.save",
   // Q1 (UI annonce) : lecture de l'annonce magasin courante (POS → APK).
   "announcements.get": "announcements.get",

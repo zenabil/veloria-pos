@@ -121,6 +121,7 @@ export const PAGE_GATED_CHANNELS: Readonly<Record<string, readonly string[]>> = 
   [IPC_CHANNELS["sync.pushNow"]]: ["customers"],
   [IPC_CHANNELS["sync.getConfig"]]: ["customers"],
   [IPC_CHANNELS["sync.saveConfig"]]: ["customers"],
+  [IPC_CHANNELS["sync.saveOwnerAccount"]]: ["customers"],
   [IPC_CHANNELS["announcements.save"]]: ["customers"],
   [IPC_CHANNELS["stock.overview"]]: ["stock"],
   [IPC_CHANNELS["stock.products"]]: ["stock"],

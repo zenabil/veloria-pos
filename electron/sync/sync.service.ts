@@ -20,7 +20,9 @@ import {
   buildMirrorRequests,
   isPushDue,
   maskConfig,
+  ownerAdminUsersUrl,
   requiresServiceKeyReentry,
+  validateOwnerAccount,
   validateSyncConfig,
   type AccessMirrorRow,
   type MirrorRequest,
@@ -36,6 +38,21 @@ import {
 } from "./sync-secrets";
 
 const SETTINGS_KEY = "client_sync";
+const OWNER_ACCOUNT_KEY = "owner_account";
+const OWNER_ACCOUNT_CHANNEL = "sync.saveOwnerAccount";
+
+interface OwnerAccountDoc {
+  email: string;
+  userId: string;
+  updatedAt: string;
+}
+
+export interface OwnerAccountResult {
+  email: string;
+  userId: string;
+  created: boolean;
+  updatedAt: string;
+}
 
 /** Backend de chiffrement (DPAPI en prod). */
 let secretBackend: SecretBackend | null = null;
@@ -93,6 +110,191 @@ function writeDoc(doc: SyncDoc, now: string): void {
   ).run(SETTINGS_KEY, JSON.stringify(stored), now);
 }
 
+function readOwnerAccount(): OwnerAccountDoc | null {
+  try {
+    const row = getDb()
+      .prepare(`SELECT value_json FROM app_settings WHERE key = ?`)
+      .get(OWNER_ACCOUNT_KEY) as { value_json: string } | undefined;
+    if (!row) return null;
+    const parsed = JSON.parse(row.value_json) as Partial<OwnerAccountDoc>;
+    if (
+      typeof parsed.email !== "string" ||
+      typeof parsed.userId !== "string" ||
+      typeof parsed.updatedAt !== "string"
+    ) {
+      return null;
+    }
+    return { email: parsed.email, userId: parsed.userId, updatedAt: parsed.updatedAt };
+  } catch (err) {
+    log("WARN", "sync", "owner_account_read_failed", { error: String(err) });
+    return null;
+  }
+}
+
+function writeOwnerAccount(doc: OwnerAccountDoc): void {
+  getDb()
+    .prepare(
+      `INSERT INTO app_settings (key, value_json, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at`,
+    )
+    .run(OWNER_ACCOUNT_KEY, JSON.stringify(doc), doc.updatedAt);
+}
+
+interface AdminResponse {
+  ok: boolean;
+  status: number;
+  json: () => Promise<unknown>;
+  text: () => Promise<string>;
+}
+
+async function adminAuthFetch(
+  url: string,
+  method: "GET" | "POST" | "PUT",
+  key: string,
+  body?: Record<string, unknown>,
+): Promise<AdminResponse> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 12_000);
+  try {
+    const res = await fetch(url, {
+      method,
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
+    return { ok: res.ok, status: res.status, json: () => res.json(), text: () => res.text() };
+  } catch {
+    throw new Error("Supabase injoignable. Vérifiez la connexion.");
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function findOwnerUserIdByEmail(
+  base: string,
+  key: string,
+  email: string,
+): Promise<string | null> {
+  const res = await adminAuthFetch(`${ownerAdminUsersUrl(base)}?page=1&per_page=200`, "GET", key);
+  if (!res.ok) return null;
+  const data = (await res.json().catch(() => null)) as { users?: unknown } | null;
+  const users = Array.isArray(data?.users) ? data.users : [];
+  for (const entry of users) {
+    const user = entry as { id?: unknown; email?: unknown };
+    if (
+      typeof user.id === "string" &&
+      typeof user.email === "string" &&
+      user.email.toLowerCase() === email
+    ) {
+      return user.id;
+    }
+  }
+  return null;
+}
+
+/**
+ * Crée ou met à jour le compte Supabase Auth du propriétaire (app mobile).
+ * Le mot de passe n'est jamais persisté localement ; seul l'e-mail + l'id
+ * Auth sont conservés dans `app_settings.owner_account`.
+ */
+export async function saveOwnerAccountAtomic(args: {
+  operationId: string;
+  email: unknown;
+  password: unknown;
+  now: string;
+}): Promise<OwnerAccountResult> {
+  const replay = peekIdempotency<OwnerAccountResult>(args.operationId, OWNER_ACCOUNT_CHANNEL);
+  if (replay) return replay;
+  const { email, password } = validateOwnerAccount(args.email, args.password);
+  const doc = readDoc();
+  const base = doc.supabaseUrl.trim();
+  const key = doc.serviceKey;
+  if (base === "" || key === "") {
+    throw new Error(
+      "Renseignez l'URL et la clé service du miroir avant de créer le compte propriétaire.",
+    );
+  }
+  const existing = readOwnerAccount();
+  let userId = existing?.userId ?? null;
+  let created = false;
+  const payload = { email, password, email_confirm: true };
+
+  if (userId) {
+    const res = await adminAuthFetch(ownerAdminUsersUrl(base, userId), "PUT", key, payload);
+    if (res.status === 404) {
+      userId = null;
+    } else if (!res.ok) {
+      if (res.status === 401 || res.status === 403) {
+        throw new Error("Clé service refusée par Supabase.");
+      }
+      const detail = await res.text().catch(() => "");
+      log("ERROR", "sync", "owner_account_update_failed", {
+        status: res.status,
+        detail: detail.slice(0, 300),
+      });
+      throw new Error(`Mise à jour du compte propriétaire impossible (HTTP ${res.status}).`);
+    }
+  }
+
+  if (!userId) {
+    const res = await adminAuthFetch(ownerAdminUsersUrl(base), "POST", key, payload);
+    if (res.ok) {
+      const data = (await res.json().catch(() => null)) as { id?: unknown } | null;
+      if (typeof data?.id !== "string" || data.id === "") {
+        throw new Error("Réponse Supabase inattendue (identifiant du compte manquant).");
+      }
+      userId = data.id;
+      created = true;
+    } else if (res.status === 422 || res.status === 409) {
+      const found = await findOwnerUserIdByEmail(base, key, email);
+      if (!found) throw new Error("Un compte existe déjà avec cet e-mail dans Supabase.");
+      const upd = await adminAuthFetch(ownerAdminUsersUrl(base, found), "PUT", key, payload);
+      if (!upd.ok) {
+        throw new Error(`Mise à jour du compte propriétaire impossible (HTTP ${upd.status}).`);
+      }
+      userId = found;
+    } else if (res.status === 401 || res.status === 403) {
+      throw new Error("Clé service refusée par Supabase.");
+    } else {
+      const detail = await res.text().catch(() => "");
+      log("ERROR", "sync", "owner_account_create_failed", {
+        status: res.status,
+        detail: detail.slice(0, 300),
+      });
+      throw new Error(`Création du compte propriétaire impossible (HTTP ${res.status}).`);
+    }
+  }
+
+  const finalUserId = userId;
+  const tx = getDb().transaction(() => {
+    claimIdempotency(args.operationId, OWNER_ACCOUNT_CHANNEL, args.now);
+    writeOwnerAccount({ email, userId: finalUserId, updatedAt: args.now });
+    const result: OwnerAccountResult = {
+      email,
+      userId: finalUserId,
+      created,
+      updatedAt: args.now,
+    };
+    storeIdempotencyResult(args.operationId, result);
+    return result;
+  });
+  try {
+    return tx();
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
+    ) {
+      const retry = peekIdempotency<OwnerAccountResult>(args.operationId, OWNER_ACCOUNT_CHANNEL);
+      if (retry) return retry;
+    }
+    throw err;
+  }
+}
+
 function pendingCount(): number {
   const db = getDb();
   try {
@@ -115,10 +317,13 @@ export function getSyncView(): SyncConfigView {
     anonKey: doc.anonKey,
     intervalMinutes: doc.intervalMinutes,
   };
+  const owner = readOwnerAccount();
   return maskConfig(cfg, {
     lastPushAt: doc.lastPushAt,
     lastError: doc.lastError,
     pendingCount: pendingCount(),
+    ownerEmail: owner?.email ?? null,
+    ownerUpdatedAt: owner?.updatedAt ?? null,
   });
 }
 

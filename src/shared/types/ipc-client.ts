@@ -45,6 +45,7 @@ export const api = {
   customerAccessRevoke: (p: unknown) => call((a) => a.customers.accessRevoke(p)),
   syncGetConfig: () => call((a) => a.sync.getConfig()),
   syncSaveConfig: (p: unknown) => call((a) => a.sync.saveConfig(p)),
+  syncSaveOwnerAccount: (p: unknown) => call((a) => a.sync.saveOwnerAccount(p)),
   announcementSave: (p: unknown) => call((a) => a.announcements.save(p)),
   /** Q1 : lecture de l'annonce magasin courante (POS → APK). */
   announcementGet: () => call((a) => a.announcements.get()),

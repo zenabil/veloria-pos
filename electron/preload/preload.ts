@@ -66,6 +66,7 @@ const api = {
     pushNow: (p: unknown) => invoke(IPC_CHANNELS["sync.pushNow"], p),
     getConfig: () => invoke(IPC_CHANNELS["sync.getConfig"]),
     saveConfig: (p: unknown) => invoke(IPC_CHANNELS["sync.saveConfig"], p),
+    saveOwnerAccount: (p: unknown) => invoke(IPC_CHANNELS["sync.saveOwnerAccount"], p),
   },
   announcements: {
     save: (p: unknown) => invoke(IPC_CHANNELS["announcements.save"], p),

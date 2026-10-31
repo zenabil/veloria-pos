@@ -16,7 +16,8 @@ Contenu prévu :
   policy d'écriture : seul le POS publie.
 - Lecture : `GET /rest/v1/owner_snapshots?shop_key=eq.veloria&select=payload,generated_at&order=generated_at.desc&limit=1`
   avec `apikey: <anon>` + `Authorization: Bearer <jeton Supabase Auth>`.
-- Compte : un utilisateur Auth créé par l'éditeur, inscriptions désactivées.
+- Compte : créé et modifiable depuis le POS (Paramètres → Miroir Android →
+  Compte propriétaire, ADR-164), inscriptions désactivées côté Supabase.
   Config app : `EXPO_PUBLIC_OWNER_SYNC_URL` / `EXPO_PUBLIC_OWNER_ANON_KEY`
   (profil EAS `owner/eas.json`).
 - Publication : le POS calcule la liasse depuis SQLite et l'insère avec la clé

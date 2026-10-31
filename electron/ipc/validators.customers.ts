@@ -129,3 +129,11 @@ export const syncConfigSchema = z.object({
 export const syncPushNowSchema = z.object({
   operationId: z.uuid(),
 });
+
+// Compte propriétaire (app mobile) : e-mail + mot de passe transmis à
+// Supabase Auth. Le mot de passe reste local à cet appel (jamais persisté).
+export const ownerAccountSaveSchema = z.object({
+  operationId: z.uuid(),
+  email: z.string().min(5).max(200),
+  password: z.string().min(8).max(200),
+});

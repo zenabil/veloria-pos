@@ -642,6 +642,8 @@ interface SyncView {
   lastPushAt: string | null;
   lastError: string | null;
   pendingCount: number;
+  ownerEmail?: string | null | undefined;
+  ownerUpdatedAt?: string | null | undefined;
 }
 
 export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Element {
@@ -650,6 +652,8 @@ export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Ele
   const [secret, setSecret] = useState("");
   const [anon, setAnon] = useState("");
   const [interval, setInterval] = useState("15");
+  const [ownerEmail, setOwnerEmail] = useState("");
+  const [ownerPassword, setOwnerPassword] = useState("");
   const [view, setView] = useState<SyncView | null>(null);
   const { busy, run } = useBusyFlag();
 
@@ -660,6 +664,8 @@ export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Ele
         setEnabled(v.enabled);
         setUrl(v.supabaseUrl);
         setInterval(String(v.intervalMinutes));
+        setOwnerEmail(v.ownerEmail ?? "");
+        setOwnerPassword("");
         setSecret("");
         setAnon("");
       })
@@ -708,6 +714,41 @@ export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Ele
         refresh();
       } catch (e) {
         notify(frError(e, "Enregistrement impossible."), "err");
+      }
+    });
+  }
+
+  function saveOwnerAccount(): void {
+    const email = ownerEmail.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      notify("Adresse e-mail du propriétaire invalide.", "err");
+      return;
+    }
+    if (ownerPassword.length < 8 || ownerPassword.length > 200) {
+      notify("Mot de passe du propriétaire : 8 à 200 caractères.", "err");
+      return;
+    }
+    if (!view?.hasKey || view.supabaseUrl.trim() === "") {
+      notify("Enregistrez d'abord l'URL et la clé service du miroir.", "err");
+      return;
+    }
+    void run(async () => {
+      try {
+        const r = (await api.syncSaveOwnerAccount({
+          operationId: newOperationId(),
+          email,
+          password: ownerPassword,
+        })) as { created?: boolean; email?: string };
+        setOwnerPassword("");
+        notify(
+          r.created
+            ? `Compte propriétaire créé (${r.email ?? email}).`
+            : `Compte propriétaire mis à jour (${r.email ?? email}).`,
+          "ok",
+        );
+        refresh();
+      } catch (e) {
+        notify(frError(e, "Enregistrement du compte propriétaire impossible."), "err");
       }
     });
   }
@@ -815,6 +856,46 @@ export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Ele
           </div>
           <Button type="button" variant="secondary" onClick={pushNow} disabled={busy}>
             Pousser maintenant
+          </Button>
+        </div>
+      </SettingsGroup>
+
+      <SettingsGroup title="Compte propriétaire (application mobile)">
+        <InfoRow label="Compte actuel" value={view?.ownerEmail ?? "Aucun"} />
+        <InfoRow
+          label="Dernière mise à jour"
+          value={view?.ownerUpdatedAt ? view.ownerUpdatedAt.slice(0, 16).replace("T", " ") : "—"}
+        />
+        <Field
+          label="E-mail du propriétaire"
+          hint="Compte Supabase Auth utilisé par l'application propriétaire (lecture seule)."
+        >
+          <TextInput
+            value={ownerEmail}
+            onChange={(e) => setOwnerEmail(e.target.value)}
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            placeholder="vous@exemple.dz"
+            aria-label="E-mail du propriétaire"
+          />
+        </Field>
+        <Field
+          label="Mot de passe du propriétaire"
+          hint="8 caractères minimum. Jamais stocké : transmis une fois à Supabase Auth."
+        >
+          <TextInput
+            value={ownerPassword}
+            onChange={(e) => setOwnerPassword(e.target.value)}
+            type="password"
+            autoComplete="new-password"
+            placeholder="Nouveau mot de passe"
+            aria-label="Mot de passe du propriétaire"
+          />
+        </Field>
+        <div className="flex justify-end">
+          <Button type="button" variant="secondary" onClick={saveOwnerAccount} disabled={busy}>
+            {view?.ownerEmail ? "Mettre à jour le compte" : "Créer le compte"}
           </Button>
         </div>
       </SettingsGroup>

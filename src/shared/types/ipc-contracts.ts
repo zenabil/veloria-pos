@@ -146,5 +146,7 @@ export const syncConfigViewSchema = z
     lastPushAt: z.string().nullable(),
     lastError: z.string().nullable(),
     pendingCount: z.number().int().min(0),
+    ownerEmail: z.string().nullable().optional(),
+    ownerUpdatedAt: z.string().nullable().optional(),
   })
   .loose();

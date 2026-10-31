@@ -40,7 +40,7 @@ const MODULES = [
 // ADR-136 (2026-10-25) : 122 → 125 (packagings produit : list/save/delete).
 // ADR-153 (2026-10-28, lot dead-code A) : 125 → 124 (`templateGetSchema`
 // retiré avec le canal mort `templates.get`).
-const FROZEN_SCHEMA_COUNT = 124;
+const FROZEN_SCHEMA_COUNT = 125;
 const FROZEN_MAX_LINES = 300;
 
 describe("Validators inventory (split guard)", () => {

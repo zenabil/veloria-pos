@@ -66,6 +66,7 @@ interface Window {
       pushNow(p: unknown): Promise<VeloriaOutcome>;
       getConfig(): Promise<VeloriaOutcome>;
       saveConfig(p: unknown): Promise<VeloriaOutcome>;
+      saveOwnerAccount(p: unknown): Promise<VeloriaOutcome>;
     };
     announcements: {
       save(p: unknown): Promise<VeloriaOutcome>;

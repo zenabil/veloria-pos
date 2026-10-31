@@ -128,6 +128,7 @@ const STAFF_CHANNEL_PERMISSION: Record<string, string> = {
   // que sa sœur `database.reset` est protégée par les trois. Alignée ici.
   [IPC_CHANNELS["database.optimize"]]: "settings",
   [IPC_CHANNELS["sync.saveConfig"]]: "settings",
+  [IPC_CHANNELS["sync.saveOwnerAccount"]]: "settings",
   // R2 RADICAL (P0) : mutations sortantes vers le miroir gardées — un
   // utilisateur sans `settings` ne pilote plus la file de synchro.
   [IPC_CHANNELS["sync.enqueue"]]: "settings",

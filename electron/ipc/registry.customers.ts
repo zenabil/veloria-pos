@@ -14,6 +14,7 @@ import {
   getShopEndpoint,
   getSyncView,
   pushNowAtomic,
+  saveOwnerAccountAtomic,
   saveSyncConfigAtomic,
 } from "../sync/sync.service";
 import { handle } from "./handle";
@@ -208,6 +209,14 @@ export function registerCustomersChannels(): void {
     pushNowAtomic({ operationId: input.operationId, now: new Date().toISOString() }),
   );
   handle(IPC_CHANNELS["sync.getConfig"], V.emptyPayloadSchema, () => getSyncView());
+  handle(IPC_CHANNELS["sync.saveOwnerAccount"], V.ownerAccountSaveSchema, (input) =>
+    saveOwnerAccountAtomic({
+      operationId: input.operationId,
+      email: input.email,
+      password: input.password,
+      now: new Date().toISOString(),
+    }),
+  );
   handle(IPC_CHANNELS["sync.saveConfig"], V.syncConfigSchema, (input) =>
     saveSyncConfigAtomic({
       config: {

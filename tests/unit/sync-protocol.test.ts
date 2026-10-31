@@ -4,6 +4,8 @@ import {
   buildMirrorRequests,
   isPushDue,
   maskConfig,
+  ownerAdminUsersUrl,
+  validateOwnerAccount,
   requiresServiceKeyReentry,
   syncHost,
   validateSyncConfig,
@@ -57,15 +59,45 @@ describe("validateSyncConfig", () => {
     expect(validateSyncConfig({ ...FULL, intervalMinutes: 30 }).intervalMinutes).toBe(30);
   });
   it("masque la clé au renderer", () => {
-    const view = maskConfig(FULL, { lastPushAt: null, lastError: "x", pendingCount: 2 });
+    const view = maskConfig(FULL, {
+      lastPushAt: null,
+      lastError: "x",
+      pendingCount: 2,
+      ownerEmail: "direction@exemple.dz",
+      ownerUpdatedAt: "2026-10-31T10:00:00.000Z",
+    });
     expect(view.hasKey).toBe(true);
     expect(view.hasAnonKey).toBe(false);
     expect(JSON.stringify(view)).not.toContain("k".repeat(40));
     expect(view.pendingCount).toBe(2);
+    expect(view.ownerEmail).toBe("direction@exemple.dz");
   });
   it("clé anon : acceptée vide, refusée trop courte", () => {
     expect(validateSyncConfig({ ...FULL, anonKey: "a".repeat(40) }).anonKey).toBe("a".repeat(40));
     expect(() => validateSyncConfig({ ...FULL, anonKey: "court" })).toThrow(/anon/);
+  });
+});
+
+describe("validateOwnerAccount", () => {
+  it("accepte un e-mail normalisé + mot de passe ≥ 8", () => {
+    expect(validateOwnerAccount("  Direction@Exemple.DZ  ", "motdepasse")).toEqual({
+      email: "direction@exemple.dz",
+      password: "motdepasse",
+    });
+  });
+  it("refuse e-mail invalide, mot de passe trop court ou trop long", () => {
+    expect(() => validateOwnerAccount("pas-un-email", "motdepasse")).toThrow(/e-mail/i);
+    expect(() => validateOwnerAccount("a@b.dz", "court")).toThrow(/Mot de passe/);
+    expect(() => validateOwnerAccount("a@b.dz", "x".repeat(201))).toThrow(/Mot de passe/);
+    expect(() => validateOwnerAccount("x".repeat(210) + "@b.dz", "motdepasse")).toThrow(/e-mail/i);
+  });
+  it("URLs Admin Auth sans double slash, identifiant encodé", () => {
+    expect(ownerAdminUsersUrl("https://x.supabase.co/")).toBe(
+      "https://x.supabase.co/auth/v1/admin/users",
+    );
+    expect(ownerAdminUsersUrl("https://x.supabase.co", "id 1")).toBe(
+      "https://x.supabase.co/auth/v1/admin/users/id%201",
+    );
   });
 });
 

@@ -163,6 +163,7 @@
   "sync.getConfig",
   "sync.pushNow",
   "sync.saveConfig",
+  "sync.saveOwnerAccount",
   "system.openDataFolder",
   "system.openLogsFolder",
   "system.selectFolder",

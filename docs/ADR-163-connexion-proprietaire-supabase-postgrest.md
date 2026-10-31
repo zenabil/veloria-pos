@@ -51,9 +51,9 @@ L'authentification reste `auth/v1/token` (e-mail + mot de passe).
 
 ### 4. Portée mono-boutique
 
-`shop_key` vaut `veloria`. Un seul compte propriétaire est créé dans Auth
-(inscriptions désactivées) ; la policy de lecture est ouverte aux utilisateurs
-authentifiés. En multi-boutique, remplacer par une table `owner_access`
+`shop_key` vaut `veloria`. Un seul compte propriétaire est créé dans Auth —
+depuis le POS (ADR-164), inscriptions désactivées — ; la policy de lecture est
+ouverte aux utilisateurs authentifiés. En multi-boutique, remplacer par une table `owner_access`
 (`user_id` → `shop_key`) et une policy basée sur elle.
 
 ## Conséquences
