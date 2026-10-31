@@ -16,6 +16,7 @@
 ## 1) État courant
 
 - Branche : `chore/root-layout` — tête **session 79** (application propriétaire, ADR-162). Avant elle session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 84 (2026-10-31)** : **suppression totale des données fictives (app propriétaire)** — demande : « احذف كل البيانات الوهمية من التطبيق ». `owner/src/demo.ts` **supprimé** ; mode démonstration retiré (`DEMO_MODE`, `DEMO_SNAPSHOT`, puce « DÉMONSTRATION », avis de connexion, branche `Session.demo`, repli démo au boot/refresh). Sans endpoint configuré, l'app affiche un **écran de configuration** et n'ouvre aucun accès. Chiffres codés en dur retirés ou calculés : `+2,1 %`, `+12,4 %`, `100 % audité`, « v4.2 · RO », initiales « YB » (dérivées de l'opérateur), conformité en badge (issue de la liasse). États vides ajoutés (journal, encaissements, sessions, dépenses, dettes, mouvements, périodes, alertes). Tests réécrits avec une **fixture locale** (aucune donnée fictive dans l'app). Portes : eslint owner 0 · `typecheck:owner` 0 · **owner-foundation 17/17** · knip owner 0. Détails §84.
 - **Session 83 (2026-10-31)** : **Argent, Stock, Périodes et Alertes enrichis** — demande : « قم بتطوير الصفحات المتبقية — Argent، Stock، Périodes، Alertes بجميع تبويباتها ». Argent : synthèse caisse (sessions, conformité, écart net), dépenses (moyenne/pièce, poste principal), dettes (part en retard critique via barre). Stock : onglets **Aperçu / Produits / Mouvements** ; flux global `recentMovements` (tri décroissant, ouverture fiche produit) ; ancienne liste déplacée dans Produits. Périodes : moyenne/jour + meilleur jour, marge en valeur par catégorie (CA en sous-ligne), part du CA de chaque top vente. Alertes : synthèse ruptures/sous-seuil + perte estimée, dossiers > 60 jours, dernier inventaire dans Système. Liasse : mouvements ajoutés à 5 produits (16 lignes au flux). Portes : eslint owner 0 · `typecheck:owner` 0 · **owner-foundation 17/17** · knip owner 0 ; vérification structurelle Expo web (snapshots) des quatre écrans, capture d'écran indisponible (surface navigateur masquée). Détails §83.
 - **Session 82 (2026-10-31)** : **Aujourd'hui enrichi + détails de transaction** — demande : « قم بتطوير صفحة Aujourd'hui، طوّر تبويب Synthèse و Opérations، وأضف تفاصيل المعاملة (فاتورة، مرتجع، تسديد) ». Contrat `TransactionDetail` ajouté au journal (vente : pièces, sous-total/remise/total, encaissement reçu/monnaie/crédit, caissier, session ; retour : facture d'origine, motif, lignes, remboursement et imputation dette ; versement : type, moyen, référence, opérateur ; dépense : catégorie, bénéficiaire, règlement, référence). Synthèse : barre de progression d'objectif + rappel des retours du jour. Opérations : filtres Toutes/Vente/Retour/Versement/Dépense avec compteurs, lignes tactiles → **fiche détail** en lecture seule ; état des onglets hissé dans `App` pour revenir sur Opérations après consultation. 8 détails de démo cohérents + test d'égalité (lignes = sous-total, encaissement = total, sorties = montant). Portes : eslint owner 0 · `typecheck:owner` 0 · **owner-foundation 16/16** · knip owner 0 ; captures Expo web (Synthèse, Opérations, vente, retour, versement). Détails §82.
 - **Session 81 (2026-10-31)** : **passe design v2 (app propriétaire)** — demande : « قم بتبسيط و تطوير واجهات تطبيق المالك ». Montants en police système + chiffres tabulaires (monospace retiré du kit et des jetons), actualisation unique dans l'en-tête (bouton or) au lieu du bandeau Aujourd'hui, titres d'écran dupliqués supprimés (Argent/Stock/Périodes/Alertes), Stock converti en **lignes groupées compactes** (une surface, filets, pastille d'état + quantité + valeur), fiche produit : carte « ÉCONOMIE » unique (marchandise/PAMP/PVC/PAMP unitaire) et disponibilité dépliée dans sa carte tonale. Portes : eslint owner 0 · `typecheck:owner` 0 · **owner-foundation 15/15** · knip owner 0 ; captures Expo web (Aujourd'hui, Stock, fiche produit). Détails §81.
@@ -3659,3 +3660,52 @@ navigateur masquée côté outil), rendu vérifié par l'arbre d'accessibilité.
 **Git** : commit (`feat(owner): Argent, Stock, Périodes et Alertes enrichis`)
 
 - ce `docs(handoff)`.
+
+---
+
+## 84) Session 2026-10-31 — Suppression des données fictives (owner)
+
+**Demande** : « احذف كل البيانات الوهمية من التطبيق ».
+
+**Suppressions**
+
+- `owner/src/demo.ts` supprimé (liasse, produits, dettes, sessions, etc.).
+- Mode démonstration supprimé : `DEMO_MODE`, `DEMO_SNAPSHOT`, puce
+  « DÉMONSTRATION » de l'en-tête, avis de démonstration sur la connexion,
+  branche `Session.demo` (store + cache), repli démo au démarrage et à
+  l'actualisation.
+- Connexion : placeholder e-mail neutre (`vous@exemple.dz`), aucune session
+  sans Supabase Auth.
+
+**Nouveau comportement sans endpoint**
+
+`config.isConfigured` = URL + clé publiques présentes. Sinon l'app affiche un
+écran « Supervision non configurée » (aucun accès, aucune donnée locale) et
+rappelle les variables `EXPO_PUBLIC_OWNER_*` à graver au build.
+
+**Chiffres codés en dur retirés / dérivés**
+
+- Aujourd'hui : `+2,1 %` (panier) et « 100 % audité » supprimés.
+- Périodes : badge `+12,4 %` supprimé.
+- Audit des caisses : badge de conformité calculé (`audit.conformityPercent`),
+  initiales de la session dérivées de l'opérateur.
+- Alertes : badge de version `v4.2 · RO` remplacé par `RO`.
+
+**États vides ajoutés**
+
+Journal, encaissements par mode, sessions clôturées, dépenses, clients
+débiteurs, alertes stock/créances, catégories/top/ jours des périodes. Les
+mouvements et produits avaient déjà leur état vide.
+
+**Tests**
+
+`tests/unit/owner-foundation.test.ts` réécrit avec une **fixture locale**
+(2 produits, 1 débiteur, 2 transactions) : les invariants du journal sont
+testés sans embarquer de données dans l'app.
+
+**Vérifications** : eslint owner **0** · `typecheck:owner` **0** ·
+`vitest` owner-foundation **17/17** · knip owner **0** · aucun `demo`/`DEMO`
+restant dans `owner/src` (hors écran de configuration qui explique l'absence).
+
+**Git** : commit (`chore(owner): suppression totale des données fictives`) +
+ce `docs(handoff)`.
