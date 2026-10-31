@@ -1,4 +1,4 @@
-# Handoff — Veloria POS (état au 2026-10-30)
+# Handoff — Veloria POS (état au 2026-10-31)
 
 > Document de continuité : tout ce qui a été fait, fichiers modifiés,
 > erreurs (fermées/ouvertes), en-attente, commandes. Sessions 2026-10-07
@@ -15,7 +15,8 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête **session 78** (déploiement Supabase ADR-160). Avant elle session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- Branche : `chore/root-layout` — tête **session 79** (application propriétaire, ADR-162). Avant elle session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 79 (2026-10-31)** : **application propriétaire (ADR-162)** — demande : étudier les maquettes Stitch puis créer l'app mobile du propriétaire. Livré : nouveau projet Expo `owner/` (français uniquement, `dz.veloria.owner`), 5 onglets (Aujourd'hui, Argent, Stock, Périodes, Alertes) + connexion + 3 sous-écrans (fiche client avec téléphone/Appeler/WhatsApp, fiche produit avec mouvements, audit des caisses), liasse de démonstration identique aux maquettes, cache SecureStore/SQLite, contrat `owner-sync` (Supabase Auth + `fetch` injecté) prêt pour l'Edge Function à venir, mode démo sans endpoint. **Lecture seule stricte** : actualiser/déconnexion/appel uniquement, aucun bouton d'écriture. Portes : `typecheck:owner` 0 · eslint owner 0 · **owner-foundation 15/15** · `typecheck` racine 0 · bundle web Expo capturé (9 écrans). **Non fait** : Edge Function `owner-sync`, use case POS de publication + réglage de cadence, compte propriétaire, biométrie, APK. Détails §79.
 - **Session 78 (2026-10-31)** : **déploiement Supabase exécuté (ADR-160)** — demande : « نفّذ التغييرات على Supabase الآن ». Depuis la session navigateur Qoder (org Veloria) : `client-sync` **redéployé** depuis le fichier du dépôt (filtre direct `payload->sale->>id`, plus de `DETAIL_SCAN_LIMIT`, « Verify JWT with legacy secret » **OFF** confirmé) ; index `idx_client_payloads_customer_sale` **créé et vérifié** dans `pg_indexes`. Preuve de bout en bout via sonde temporaire (client 999999, facture 424242) : `saleId=424242` → **200** avec détail, vente inconnue → **404 NOT_FOUND**, mauvais PIN → **401 AUTH_ERROR** ; sonde supprimée (`access_left=0`, `payload_left=0`). Aucun changement de schéma/RLS/clé. Reste côté poste : installer POS 1.0.4 puis « Synchroniser » pour backfiller les factures existantes.
 - **Session 77 (2026-10-31)** : **version unique 1.0.4 + contrat de mise à jour (ADR-161)** — demande propriétaire : « غير اصدار pos و license الى 1.0.4 و يجب ان تدعم ... الترقية من اصدار الى اصدار جديد ». Constat : POS/Manager étaient en **1.0.0** (`package.json` racine, embarqué par electron-builder) alors que le client était en **1.0.4** (`app.json`/`build.gradle`), avec un libellé `appVersion` codé en dur, aucune version visible dans le Manager et des migrations de registre sans copie de sécurité. Décisions : `package.json` racine = **source unique 1.0.4** (POS + Manager) ; outil **`npm run version:check|version:set`** (`scripts/release/version.mjs`) qui aligne package/locks/app.json/Gradle/`App.tsx` et **incrémente `versionCode` Android** sans régression ; `verify` inclut `version:check` ; Manager : canal `manager.appInfo` + version dans l'en-tête, **snapshot `VACUUM INTO` avant migration** de colonnes (5 conservés, fail-closed), seules les colonnes absentes rejouées ; POS : contrat NSIS inchangé (appId stable, perMachine, données hors install, snapshots pré-migration) ; client : même `applicationId`/keystore, `versionCode` croissant, données SecureStore/SQLite conservées. **Pas d'auto-update en ligne** (aucun serveur, installateurs non signés). Preuves : **172 fichiers / 1 166 tests 0** ; lint/format/typechecks ✓ ; verify (dont version:check) ✓ ; `build` ✓ ; `build:electron` ✓ (manifeste signé 243, **v1.0.4**) ; `build:manager` ✓ ; **installateurs 1.0.4** produits et copiés dans `release/` ; `release:smoke` réparé (chemin `config/electron-builder/pos.yml`) et vert. **Non exécuté** : installation réelle 1.0.0 → 1.0.4 (UAC/perMachine) et rebuild APK (client déjà 1.0.4 code 5).
 - **Session 76 (2026-10-30)** : **détails de facture APK rétablis (ADR-160)** — demande propriétaire : « تفاصيل الفواتير لا تظهر في تطبيق العملاء ما السبب ». Diagnostic (base réelle + code) : `sales.create` ne poussait que les trois clichés de listes (jamais `invoice_detail`), un encaissement standalone ventilé FIFO ne poussait pas le détail des factures soldées, et l'Edge ne cherchait le détail que dans les **50 derniers** clichés → 404 « التفاصيل غير متوفرة ». Correctifs : `enqueueSaleRefresh` après création de vente ; `recordCustomerPaymentAtomic` retourne `allocatedSaleIds` et le détail repart pour chaque facture ventilée (`enqueueInvoiceDetailRefresh`, sans dupliquer les listes) ; lecture miroir directe `payload->sale->>id` (plus de fenêtre 50, index d'expression) ; bouton « Synchroniser » couvre tout le relevé (≤100 ventes) au lieu des 10 dernières. Tests : 3 nouveaux (`client-sync-queue`) + 2 assertions FIFO ; **suite complète 171 fichiers / 1 158 tests 0** ; `build` ✓ · `build:electron` ✓ (manifeste signé **243**). **Déployé le 2026-10-31 (session 78)** : fonction Edge + index, vérifiés 200/404/401 et sonde nettoyée.
@@ -3433,3 +3434,65 @@ maintenant retrouvées sans fenêtre de 50.
 jamais demandé) ; installation POS/APK sur poste/téléphone.
 
 **Git** : ce `docs(handoff)`.
+
+---
+
+## 79) Session 2026-10-31 — Application propriétaire (ADR-162)
+
+**Demande** : « تصميمات واجهات تطبيق المالك موجودة في
+`docs/archive/stitch_veloria_supervision_mobile` — ادرسها ثم ابدأ في انشاء
+التطبيق. » Arbitrages de la discussion préalable : application séparée,
+lecture seule (« يشوف فقط »), français uniquement, téléphone du client débiteur,
+écran Stock avec mouvements, cadence pilotée par les réglages POS, 5 onglets
+validés.
+
+**Livré**
+
+- `owner/` : projet Expo autonome (SDK 52, RN 0.76), `dz.veloria.owner`,
+  profil EAS `preview`, assets marque + police Ionicons native.
+- `owner/src/tokens.ts` : jetons Stitch/POS (encre `#051424`, or `#fbbf24`,
+  surfaces `#F7F8FA`/`#FFFFFF`/`#EDF1F6`, filet `#E1E7EF`, rayons 18/14/10,
+  cible 48).
+- `owner/src/format.ts` : montants `1 234,56 DZD` (centimes entiers), dates
+  longues/courtes françaises, fraîcheur « il y a 12 min », pourcentages.
+- `owner/src/store.ts` : contrat `OwnerSnapshot` v1 (jour, argent + debtors,
+  stock + mouvements, périodes, alertes) + sélecteurs purs (`filterProducts`,
+  `productStatus`, `findProduct`, `findDebtor`).
+- `owner/src/demo.ts` : liasse de démonstration reprenant les valeurs des
+  captures (CA 482 650,00 DZD, session +600, SARL Oran Parfums, Sérum VL-412…).
+- `owner/src/ui/` : kit LTR français (Tap, Card, Group, Row, Button, Chip,
+  Badge, Amount, Field, Segmented, BarChart, ReadOnlyNote) + `AppHeader`,
+  `TabBar` 5 onglets, `PageBar`.
+- 9 écrans : Connexion, Aujourd'hui, Argent (ancres Caisse/Dépenses/Dettes),
+  Stock, Périodes, Alertes, Fiche client, Fiche produit, Audit des caisses.
+- `owner/src/cache.ts` : session SecureStore + liasse SQLite, repli mémoire.
+- `owner/src/api.ts` : `signInWithPassword` + `fetchOwnerSnapshot` purs
+  (`fetch` injecté, timeout, erreurs FR mappées, `isSnapshotShape`).
+- `owner/src/config.ts` : `EXPO_PUBLIC_OWNER_SYNC_URL/ANON_KEY` gravés au build ;
+  sans URL → mode démonstration (puce « DÉMONSTRATION »).
+- `tests/unit/owner-foundation.test.ts` : 15 tests (jetons, formateurs,
+  sélecteurs, contrat API, cache).
+- Racine : `typecheck:owner` (branché dans `check`), eslint `owner/**`
+  non type-aware, `owner/index.js` en allowlist, `owner/` ajouté à knip,
+  Prettier ignore `owner/{android,ios,.expo}` + les maquettes Stitch.
+
+**Vérifications**
+
+- `owner` typecheck **0** · eslint owner **0** · `vitest` owner-foundation
+  **15/15** · `typecheck` racine **0** (manifeste signé 243).
+- Bundle web réel (`expo start --web`, port 8092) puis captures navigateur des
+  9 écrans (connexion, aujourd'hui, argent, fiche client, stock, fiche produit,
+  périodes, alertes, audit) : rendu conforme aux maquettes, aucune écriture
+  possible.
+- Corrections faites après revue visuelle : signe des écarts (+600), « reçu le »,
+  libellé des barres, compteur « Tout » du filtre stock.
+
+**Non exécuté**
+
+- Edge Function `owner-sync` + RLS rôle propriétaire ; use case POS
+  `publishOwnerSnapshot` + réglage de cadence + compte propriétaire ;
+  biométrie (`expo-local-authentication` différé, bouton « BIENTÔT ») ;
+  build APK propriétaire ; police Plus Jakarta Sans (police système en v1).
+
+**Git** : commit de la session (`feat(owner): application de supervision du
+propriétaire — ADR-162`) + ce `docs(handoff)`.
