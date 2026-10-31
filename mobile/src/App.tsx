@@ -73,6 +73,7 @@ export function App(): React.JSX.Element {
   const refreshingRef = useRef(false);
   const refreshRef = useRef<() => Promise<void>>(async () => {});
   // Cadence choisie dans POS, portée par le cliché (5–1440 min, 15 par défaut).
+  const home = toHome(cache.snapshot);
   const syncIntervalMinutes = home.syncIntervalMinutes;
 
   function nameOf(snapshot: unknown): string {
@@ -475,7 +476,6 @@ export function App(): React.JSX.Element {
     { id: "payments", label: t(lang, "payments") },
     { id: "account", label: t(lang, "account") },
   ];
-  const home = toHome(cache.snapshot);
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.contentBg, paddingTop: 36 }}>
