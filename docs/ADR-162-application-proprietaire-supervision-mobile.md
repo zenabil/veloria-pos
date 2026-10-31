@@ -119,13 +119,16 @@ réglage POS ; l'app affiche seulement « Mis à jour il y a … ».
 - Aucun bouton d'écriture : les seules actions sont actualiser, se déconnecter,
   appeler, WhatsApp.
 
-### 5. Mode démonstration
+### 5. Aucune donnée fictive
 
-Tant que l'Edge Function `owner-sync` n'existe pas, l'app démarre en mode
-démonstration (aucune URL configurée) : toute adresse e-mail valide ouvre la
-liasse `DEMO_SNAPSHOT` (mêmes valeurs que les maquettes), avec une puce
-« DÉMONSTRATION » dans l'en-tête. Le contrat réseau (`auth/v1/token` +
-`functions/v1/owner-sync`) est déjà implémenté et testé avec `fetch` injecté.
+L'application **n'embarque aucune donnée de démonstration** (décision du
+2026-10-31). Sans `EXPO_PUBLIC_OWNER_SYNC_URL` / `EXPO_PUBLIC_OWNER_ANON_KEY`,
+elle affiche un écran « Supervision non configurée » et n'ouvre aucun accès.
+Toutes les sections vides (journal, caisse, dépenses, dettes, stock, périodes,
+alertes) affichent un état vide explicite ; aucun libellé ne présente un chiffre
+codé en dur (taux, version, conformité, initiales sont calculés ou issus de la
+liasse). Le contrat réseau (`auth/v1/token` + `functions/v1/owner-sync`) reste
+implémenté et testé avec `fetch` injecté.
 
 ### 6. Identité visuelle
 

@@ -298,6 +298,11 @@ export function MoneyScreen(props: {
             onPress={props.onOpenCashAudit}
           />
           <Group>
+            {money.sessions.length === 0 ? (
+              <Text style={{ ...TYPE.bodySm, color: COLORS.cardMuted, padding: SPACE.lg }}>
+                Aucune session clôturée publiée.
+              </Text>
+            ) : null}
             {money.sessions.map((s, i) => (
               <View key={s.id}>
                 {i > 0 ? <Divider inset={SPACE.lg} /> : null}
@@ -364,6 +369,13 @@ export function MoneyScreen(props: {
             </View>
           </View>
           <View style={{ marginTop: SPACE.sm }}>
+            {money.expenses.rows.length === 0 ? (
+              <Card>
+                <Text style={{ ...TYPE.bodySm, color: COLORS.cardMuted, textAlign: "center" }}>
+                  Aucune dépense publiée ce mois-ci.
+                </Text>
+              </Card>
+            ) : null}
             {money.expenses.rows.map((row) => (
               <ExpenseLine key={row.id} row={row} />
             ))}
@@ -422,6 +434,11 @@ export function MoneyScreen(props: {
             }
           />
           <Group>
+            {debts.rows.length === 0 ? (
+              <Text style={{ ...TYPE.bodySm, color: COLORS.cardMuted, padding: SPACE.lg }}>
+                Aucune créance client.
+              </Text>
+            ) : null}
             {debts.rows.map((d, i) => (
               <View key={d.id}>
                 {i > 0 ? <Divider inset={SPACE.lg} /> : null}

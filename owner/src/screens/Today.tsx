@@ -206,12 +206,7 @@ export function TodayScreen(props: {
               caption={day.ticketsDelta !== null ? `+${day.ticketsDelta} tickets` : undefined}
               captionTone={COLORS.statusOk}
             />
-            <KpiCard
-              label="Panier moyen"
-              value={formatMinor(day.basketMinor)}
-              caption="+2,1 %"
-              captionTone={COLORS.statusOk}
-            />
+            <KpiCard label="Panier moyen" value={formatMinor(day.basketMinor)} />
           </View>
           <View style={{ flexDirection: "row", gap: SPACE.md, marginTop: SPACE.md }}>
             <KpiCard
@@ -227,11 +222,13 @@ export function TodayScreen(props: {
             />
           </View>
 
-          <SectionHead
-            title="Encaissements par mode"
-            right={<Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>100 % audité</Text>}
-          />
+          <SectionHead title="Encaissements par mode" />
           <Card>
+            {day.methods.length === 0 ? (
+              <Text style={{ ...TYPE.bodySm, color: COLORS.cardMuted }}>
+                Aucun encaissement publié pour cette journée.
+              </Text>
+            ) : null}
             <View
               style={{
                 flexDirection: "row",

@@ -5,22 +5,12 @@ import { COLORS, RADIUS, SIZES, SPACE, TYPE } from "../tokens.ts";
 import {
   formatDateLongFr,
   formatDateShortFr,
-  formatDelta,
   formatMinor,
   formatNumber,
   formatPercent,
 } from "../format.ts";
 import type { OwnerSnapshot } from "../store.ts";
-import {
-  Amount,
-  Badge,
-  BarChart,
-  Card,
-  Chip,
-  ProgressBar,
-  ReadOnlyNote,
-  Segmented,
-} from "../ui/kit.tsx";
+import { Amount, BarChart, Card, Chip, ProgressBar, ReadOnlyNote, Segmented } from "../ui/kit.tsx";
 import { Icon } from "../ui/Icon.tsx";
 
 const SHORT_DAY = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
@@ -105,23 +95,9 @@ export function PeriodsScreen(props: { snapshot: OwnerSnapshot }): React.JSX.Ele
               </View>
 
               <Card style={{ marginTop: SPACE.md }}>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <Text style={{ ...TYPE.bodySm, color: COLORS.cardMuted }}>
-                    Chiffre d'affaires cumulé
-                  </Text>
-                  <Badge
-                    label={`↗ ${formatDelta(12.4)}`}
-                    color={COLORS.statusOk}
-                    dot={false}
-                    background={COLORS.okTone}
-                  />
-                </View>
+                <Text style={{ ...TYPE.bodySm, color: COLORS.cardMuted }}>
+                  Chiffre d'affaires cumulé
+                </Text>
                 <Amount text={formatMinor(p.totalMinor)} size={28} style={{ marginTop: 4 }} />
               </Card>
 
@@ -167,7 +143,13 @@ export function PeriodsScreen(props: { snapshot: OwnerSnapshot }): React.JSX.Ele
                   <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>Milliers DZD</Text>
                 </View>
                 <View style={{ marginTop: SPACE.lg }}>
-                  <BarChart bars={bars} />
+                  {p.days.length > 0 ? (
+                    <BarChart bars={bars} />
+                  ) : (
+                    <Text style={{ ...TYPE.bodySm, color: COLORS.cardMuted }}>
+                      Aucune journée publiée sur cette période.
+                    </Text>
+                  )}
                 </View>
                 {last ? (
                   <View
@@ -229,6 +211,11 @@ export function PeriodsScreen(props: { snapshot: OwnerSnapshot }): React.JSX.Ele
               </View>
 
               <View style={{ gap: SPACE.lg, marginTop: SPACE.lg }}>
+                {p.categories.length === 0 ? (
+                  <Text style={{ ...TYPE.bodySm, color: COLORS.cardMuted }}>
+                    Aucune marge publiée pour cette période.
+                  </Text>
+                ) : null}
                 {p.categories.map((c) => (
                   <View key={c.name}>
                     <View
@@ -276,6 +263,18 @@ export function PeriodsScreen(props: { snapshot: OwnerSnapshot }): React.JSX.Ele
 
           {view === "top" ? (
             <Card padded={false}>
+              {p.top.length === 0 ? (
+                <Text
+                  style={{
+                    ...TYPE.bodySm,
+                    color: COLORS.cardMuted,
+                    textAlign: "center",
+                    paddingVertical: SPACE.lg,
+                  }}
+                >
+                  Aucune vente publiée sur cette période.
+                </Text>
+              ) : null}
               {p.top.map((t, i) => (
                 <View
                   key={t.name}

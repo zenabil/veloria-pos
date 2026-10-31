@@ -91,6 +91,14 @@ export function CashAuditScreen(props: {
   const conform = closed.filter((s) => (s.varianceMinor ?? 0) === 0);
   const rows = filter === "gap" ? withGap : filter === "ok" ? conform : closed;
   const session = money.activeSession;
+  const initials = session
+    ? session.operator
+        .split(/\s+/)
+        .map((part) => part.charAt(0))
+        .join("")
+        .slice(0, 2)
+        .toUpperCase()
+    : "";
 
   return (
     <View style={{ flex: 1 }}>
@@ -99,7 +107,7 @@ export function CashAuditScreen(props: {
         onBack={props.onBack}
         badge={
           <Badge
-            label="100 % Audité"
+            label={`Conformité ${formatPercent(audit.conformityPercent)}`}
             color={COLORS.statusOk}
             dot={false}
             background={COLORS.okTone}
@@ -264,7 +272,7 @@ export function CashAuditScreen(props: {
                       }}
                     >
                       <Text style={{ fontSize: 11, fontWeight: "800", color: COLORS.cardMuted }}>
-                        YB
+                        {initials}
                       </Text>
                     </View>
                     <View style={{ flex: 1 }}>

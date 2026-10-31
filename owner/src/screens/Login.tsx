@@ -8,7 +8,6 @@ import { Icon } from "../ui/Icon.tsx";
 export function LoginScreen(props: {
   busy: boolean;
   error: string | null;
-  demo: boolean;
   initialEmail: string;
   onLogin: (email: string, password: string) => void;
   onForgot: () => void;
@@ -60,7 +59,7 @@ export function LoginScreen(props: {
           label="Adresse e-mail"
           value={email}
           onChangeText={setEmail}
-          placeholder="direction@veloria-boutique.dz"
+          placeholder="vous@exemple.dz"
           icon="at-outline"
           keyboardType="email-address"
           autoComplete="email"
@@ -88,24 +87,6 @@ export function LoginScreen(props: {
             </Tap>
           }
         />
-
-        {props.demo ? (
-          <View
-            style={{
-              backgroundColor: COLORS.navySoft,
-              borderRadius: RADIUS.control,
-              borderWidth: 1,
-              borderColor: COLORS.navyLine,
-              padding: SPACE.md,
-              marginBottom: SPACE.md,
-            }}
-          >
-            <Text style={{ color: COLORS.navyMuted, ...TYPE.label }}>
-              Mode démonstration : aucune endpoint n'est configurée. Toute adresse e-mail valide
-              ouvre la liasse de démonstration (lecture seule).
-            </Text>
-          </View>
-        ) : null}
 
         {props.error ? (
           <View

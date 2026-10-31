@@ -24,7 +24,6 @@ export function AppHeader(props: {
   screenLabel: string;
   generatedAt: string | null;
   offline: boolean;
-  demo: boolean;
   refreshing: boolean;
   onRefresh: () => void;
   onAccount: () => void;
@@ -95,20 +94,6 @@ export function AppHeader(props: {
                 : fresh}
             </Text>
           </View>
-          {props.demo ? (
-            <View
-              style={{
-                backgroundColor: COLORS.onNavyChip,
-                borderRadius: RADIUS.inner,
-                paddingHorizontal: SPACE.sm,
-                paddingVertical: 2,
-              }}
-            >
-              <Text style={{ color: COLORS.primary, fontSize: 10, fontWeight: "700" }}>
-                DÉMONSTRATION
-              </Text>
-            </View>
-          ) : null}
         </View>
       </View>
       <Tap

@@ -1,10 +1,10 @@
-// Veloria Owner — coquille : porte de connexion, 5 onglets, 3 sous-écrans.
+// Veloria Owner — coquille : porte de connexion, 5 onglets, 4 sous-écrans.
 // Lecture seule stricte : aucune mutation métier n'est possible ici.
+// Aucune donnée fictive : sans endpoint configuré, l'app refuse d'ouvrir.
 import { useEffect, useState } from "react";
 import { Modal, StatusBar, Text, View } from "react-native";
 import { COLORS, RADIUS, SIZES, SPACE, TYPE } from "./tokens.ts";
-import { DEMO_MODE, assertConfig } from "./config.ts";
-import { DEMO_SNAPSHOT } from "./demo.ts";
+import { assertConfig, isConfigured } from "./config.ts";
 import { fetchOwnerSnapshot, isSnapshotShape, OwnerError, signInWithPassword } from "./api.ts";
 import {
   clearSession,
@@ -89,9 +89,6 @@ export function Root(): React.JSX.Element {
           if (isSnapshotShape(cached.snapshot)) {
             setSnapshot(cached.snapshot as OwnerSnapshot);
             setGeneratedAt(cached.generatedAt ?? (cached.snapshot as OwnerSnapshot).generatedAt);
-          } else if (stored.demo) {
-            setSnapshot(DEMO_SNAPSHOT);
-            setGeneratedAt(DEMO_SNAPSHOT.generatedAt);
           }
         }
       } catch {
@@ -118,20 +115,6 @@ export function Root(): React.JSX.Element {
     setLoginBusy(true);
     setLoginError(null);
     try {
-      if (DEMO_MODE) {
-        const stored: Session = {
-          email: email.trim(),
-          accessToken: null,
-          demo: true,
-          lastLoginAt: new Date().toISOString(),
-        };
-        await saveSession(stored);
-        setSession(stored);
-        applySnapshot(DEMO_SNAPSHOT, DEMO_SNAPSHOT.generatedAt);
-        setTab("today");
-        setToast({ tone: "success", text: "Session de démonstration ouverte." });
-        return;
-      }
       const auth = await signInWithPassword(email, password, fetch);
       const res = await fetchOwnerSnapshot(auth.accessToken, fetch);
       if (!isSnapshotShape(res.snapshot)) {
@@ -140,7 +123,6 @@ export function Root(): React.JSX.Element {
       const stored: Session = {
         email: email.trim(),
         accessToken: auth.accessToken,
-        demo: false,
         lastLoginAt: new Date().toISOString(),
       };
       await saveSession(stored);
@@ -159,17 +141,12 @@ export function Root(): React.JSX.Element {
     if (!session) return;
     setRefreshing(true);
     try {
-      if (session.demo) {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        applySnapshot(DEMO_SNAPSHOT, new Date().toISOString());
-      } else {
-        if (!session.accessToken) throw new OwnerError("UNAUTHORIZED", "Session expirée.");
-        const res = await fetchOwnerSnapshot(session.accessToken, fetch);
-        if (!isSnapshotShape(res.snapshot)) {
-          throw new OwnerError("SERVER_ERROR", "Liasse de supervision invalide.");
-        }
-        applySnapshot(res.snapshot as OwnerSnapshot, res.generatedAt);
+      if (!session.accessToken) throw new OwnerError("UNAUTHORIZED", "Session expirée.");
+      const res = await fetchOwnerSnapshot(session.accessToken, fetch);
+      if (!isSnapshotShape(res.snapshot)) {
+        throw new OwnerError("SERVER_ERROR", "Liasse de supervision invalide.");
       }
+      applySnapshot(res.snapshot as OwnerSnapshot, res.generatedAt);
       setOffline(false);
       setToast({ tone: "success", text: "Données actualisées." });
     } catch (err) {
@@ -216,6 +193,10 @@ export function Root(): React.JSX.Element {
     );
   }
 
+  if (!isConfigured) {
+    return <ConfigScreen />;
+  }
+
   if (!session) {
     return (
       <>
@@ -223,7 +204,6 @@ export function Root(): React.JSX.Element {
         <LoginScreen
           busy={loginBusy}
           error={loginError}
-          demo={DEMO_MODE}
           initialEmail=""
           onLogin={(email, password) => void handleLogin(email, password)}
           onForgot={() =>
@@ -246,7 +226,6 @@ export function Root(): React.JSX.Element {
           screenLabel={TAB_LABEL[tab]}
           generatedAt={generatedAt}
           offline={offline}
-          demo={session.demo}
           refreshing={refreshing}
           onRefresh={() => void handleRefresh()}
           onAccount={() => setAccountOpen(true)}
@@ -297,7 +276,6 @@ export function Root(): React.JSX.Element {
           screenLabel={TAB_LABEL[tab]}
           generatedAt={generatedAt}
           offline={offline || refreshing}
-          demo={session.demo}
           refreshing={refreshing}
           onRefresh={() => void handleRefresh()}
           onAccount={() => setAccountOpen(true)}
@@ -390,6 +368,32 @@ export function Root(): React.JSX.Element {
   );
 }
 
+/** Endpoint absent : aucune donnée locale, aucun accès offert. */
+function ConfigScreen(): React.JSX.Element {
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: COLORS.headerBg,
+        padding: SPACE.xl,
+        justifyContent: "center",
+        gap: SPACE.md,
+      }}
+    >
+      <StatusBar barStyle="light-content" />
+      <Icon name="settings-outline" size={40} color={COLORS.primary} />
+      <Text style={{ color: COLORS.headerText, ...TYPE.title }}>Supervision non configurée</Text>
+      <Text style={{ color: COLORS.navyMuted, ...TYPE.bodySm }}>
+        Cette application ne contient aucune donnée locale. Renseignez EXPO_PUBLIC_OWNER_SYNC_URL et
+        EXPO_PUBLIC_OWNER_ANON_KEY au moment du build, puis reconstruisez l'application.
+      </Text>
+      <Text style={{ color: COLORS.navyMuted, ...TYPE.label }}>
+        Aucune donnée locale n'est embarquée dans l'application.
+      </Text>
+    </View>
+  );
+}
+
 function AccountModal(props: {
   open: boolean;
   session: Session;
@@ -414,9 +418,7 @@ function AccountModal(props: {
                 {props.session.email}
               </Text>
               <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>
-                {props.session.demo
-                  ? "Session de démonstration — lecture seule"
-                  : "Session propriétaire — lecture seule"}
+                Session propriétaire — lecture seule
               </Text>
             </View>
           </View>

@@ -291,7 +291,6 @@ export interface OwnerSnapshot {
 export interface Session {
   email: string;
   accessToken: string | null;
-  demo: boolean;
   lastLoginAt: string;
 }
 

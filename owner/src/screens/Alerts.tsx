@@ -112,6 +112,11 @@ export function AlertsScreen(props: {
             ) : null}
           </View>
           <Group>
+            {a.stock.length === 0 ? (
+              <Text style={{ ...TYPE.bodySm, color: COLORS.cardMuted, padding: SPACE.lg }}>
+                Aucune alerte de stock publiée.
+              </Text>
+            ) : null}
             {a.stock.map((s, i) => (
               <View key={s.id}>
                 {i > 0 ? <Divider inset={SPACE.lg} /> : null}
@@ -191,6 +196,11 @@ export function AlertsScreen(props: {
             </Text>
           </Card>
           <Group style={{ marginTop: SPACE.md }}>
+            {a.debts.length === 0 ? (
+              <Text style={{ ...TYPE.bodySm, color: COLORS.cardMuted, padding: SPACE.lg }}>
+                Aucune créance en souffrance.
+              </Text>
+            ) : null}
             {a.debts.map((d, i) => (
               <View key={d.debtorId}>
                 {i > 0 ? <Divider inset={SPACE.lg} /> : null}
@@ -331,12 +341,7 @@ export function AlertsScreen(props: {
                 Journal d'audit Veloria POS
               </Text>
             </View>
-            <Badge
-              label="v4.2 · RO"
-              color={COLORS.cardMuted}
-              dot={false}
-              background={COLORS.sunkenBg}
-            />
+            <Badge label="RO" color={COLORS.cardMuted} dot={false} background={COLORS.sunkenBg} />
           </View>
         </>
       ) : null}

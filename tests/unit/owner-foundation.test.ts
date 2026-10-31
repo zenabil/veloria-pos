@@ -1,5 +1,7 @@
 // Veloria Owner (app propriétaire) — fondations : jetons, formateurs,
-// filtres de stock, contrat API et cache local hors natif.
+// sélecteurs, contrat API et cache local hors natif.
+// La fixture ci-dessous vit uniquement dans le test : l'app ne contient
+// aucune donnée fictive.
 import { describe, expect, it } from "vitest";
 import { COLORS, SIZES } from "../../owner/src/tokens";
 import {
@@ -19,8 +21,10 @@ import {
   findProduct,
   productStatus,
   recentMovements,
+  type JournalRow,
+  type OwnerSnapshot,
+  type Product,
 } from "../../owner/src/store";
-import { DEMO_SNAPSHOT } from "../../owner/src/demo";
 import {
   assertLoginFields,
   fetchOwnerSnapshot,
@@ -36,6 +40,196 @@ import {
   saveSession,
   saveSnapshot,
 } from "../../owner/src/cache";
+
+function makeProduct(
+  input: Pick<Product, "id" | "ref" | "name" | "quantity" | "minLevel"> & Partial<Product>,
+): Product {
+  return {
+    ean: null,
+    subtitle: "Article de test",
+    unit: { singular: "flacon", plural: "flacons" },
+    valueMinor: 0,
+    purchaseUnitMinor: 100,
+    saleUnitMinor: 200,
+    marginUnitMinor: 100,
+    marginPercent: 50,
+    sold30: 0,
+    perDay: 0,
+    autonomyDays: 0,
+    suggestedRestock: 0,
+    lastInventoryAt: null,
+    movements: [],
+    ...input,
+  };
+}
+
+const PRODUCT_LOW = makeProduct({
+  id: "p-1",
+  ref: "VL-1",
+  name: "Produit sous seuil",
+  quantity: 2,
+  minLevel: 5,
+  valueMinor: 400,
+  movements: [
+    {
+      id: "m-1",
+      at: "2026-10-30T10:00:00",
+      kind: "vente",
+      ref: "Vente Ticket #1",
+      note: null,
+      badge: null,
+      qty: -1,
+      balance: 2,
+    },
+    {
+      id: "m-2",
+      at: "2026-10-29T09:00:00",
+      kind: "reception",
+      ref: "Réception BL-1",
+      note: null,
+      badge: null,
+      qty: 3,
+      balance: 3,
+    },
+  ],
+});
+const PRODUCT_OUT = makeProduct({
+  id: "p-2",
+  ref: "VL-2",
+  name: "Produit en rupture",
+  quantity: 0,
+  minLevel: 3,
+  movements: [
+    {
+      id: "m-3",
+      at: "2026-10-30T12:00:00",
+      kind: "vente",
+      ref: "Vente Ticket #2",
+      note: null,
+      badge: null,
+      qty: -1,
+      balance: 0,
+    },
+  ],
+});
+
+const SALE_ROW: JournalRow = {
+  id: "j-sale",
+  at: "2026-10-30T10:00:00",
+  kind: "sale",
+  ref: "Ticket #1",
+  detail: "Vente de test",
+  amountMinor: 1000,
+  tx: {
+    kind: "sale",
+    invoiceNumber: "FC-TEST-1",
+    lines: [{ name: "Produit test", qty: 1, unitMinor: 1000, totalMinor: 1000 }],
+    subtotalMinor: 1000,
+    discountMinor: 0,
+    totalMinor: 1000,
+    payment: { label: "Espèces", receivedMinor: 1200, changeMinor: 200, creditMinor: 0 },
+    cashier: "Opérateur",
+    session: "S-1",
+  },
+};
+const PAYMENT_ROW: JournalRow = {
+  id: "j-payment",
+  at: "2026-10-30T09:00:00",
+  kind: "payment",
+  ref: "Dépôt caisse",
+  detail: "Transfert test",
+  amountMinor: -5000,
+  tx: {
+    kind: "payment",
+    label: "Dépôt caisse",
+    method: "Versement trésorerie",
+    reference: "REF-1",
+    amountMinor: 5000,
+    operator: "Opérateur",
+    note: null,
+  },
+};
+
+const SNAPSHOT: OwnerSnapshot = {
+  version: 1,
+  shopName: "Magasin test",
+  generatedAt: "2026-10-30T18:00:00",
+  day: {
+    date: "2026-10-30T00:00:00",
+    salesMinor: 1000,
+    salesCount: 1,
+    returnsMinor: 0,
+    returnsCount: 0,
+    profitMinor: 500,
+    cashMinor: 1200,
+    basketMinor: 1000,
+    ticketsDelta: null,
+    objectiveMinor: null,
+    comparison: { previousLabel: "hier", deltaPercent: 0 },
+    methods: [],
+    journal: [SALE_ROW, PAYMENT_ROW],
+  },
+  money: {
+    audit: { fundsMinor: 0, varianceNetMinor: 0, conformityPercent: 100, activeRegisters: 0 },
+    activeSession: null,
+    sessions: [],
+    expenses: { monthLabel: "Octobre 2026", totalMinor: 0, count: 0, rows: [] },
+    debts: {
+      totalMinor: 1000,
+      overdueMinor: 0,
+      count: 1,
+      rows: [
+        {
+          id: "debt-1",
+          code: "CLT-1",
+          name: "Client test",
+          segment: "B2C",
+          manager: null,
+          phone: "+213000000000",
+          totalMinor: 1000,
+          overdueMinor: 0,
+          limitMinor: null,
+          lastPaymentMinor: null,
+          lastPaymentAt: null,
+          lastPaymentNote: null,
+          lateDays: 0,
+          aging: { d0to30Minor: 1000, d31to60Minor: 0, d60plusMinor: 0 },
+          invoices: [],
+        },
+      ],
+    },
+  },
+  stock: {
+    valueMinor: 400,
+    references: 2,
+    lowCount: 1,
+    outCount: 1,
+    deadCount: 0,
+    lastInventoryAt: null,
+    products: [PRODUCT_LOW, PRODUCT_OUT],
+  },
+  periods: {
+    range: 7,
+    totalMinor: 1000,
+    tickets: 1,
+    basketMinor: 1000,
+    marginTotalMinor: 500,
+    marginPercent: 50,
+    days: [{ date: "2026-10-30T00:00:00", totalMinor: 1000 }],
+    categories: [],
+    top: [],
+  },
+  alerts: {
+    critical: 0,
+    watch: 0,
+    ok: 0,
+    anomaliesTitle: "0 anomalie active",
+    anomaliesDetail: "",
+    stock: [],
+    debts: [],
+    system: [],
+  },
+};
 
 describe("jetons propriétaire", () => {
   it("identité Veloria : bleu nuit + or + cible tactile 48", () => {
@@ -78,37 +272,40 @@ describe("formateurs français", () => {
 
 describe("sélecteurs de la liasse", () => {
   it("statut produit : rupture, sous seuil, disponible", () => {
-    const serum = findProduct(DEMO_SNAPSHOT, "p-serum-412");
-    const creme = findProduct(DEMO_SNAPSHOT, "p-creme-215");
-    const nuit = findProduct(DEMO_SNAPSHOT, "p-nuit-100");
-    expect(serum && productStatus(serum)).toBe("low");
-    expect(creme && productStatus(creme)).toBe("out");
-    expect(nuit && productStatus(nuit)).toBe("ok");
+    const low = findProduct(SNAPSHOT, "p-1");
+    const out = findProduct(SNAPSHOT, "p-2");
+    const ok = makeProduct({
+      id: "p-3",
+      ref: "VL-3",
+      name: "Produit disponible",
+      quantity: 9,
+      minLevel: 5,
+    });
+    expect(low && productStatus(low)).toBe("low");
+    expect(out && productStatus(out)).toBe("out");
+    expect(productStatus(ok)).toBe("ok");
   });
   it("filtres stock + recherche référence/nom", () => {
-    const products = DEMO_SNAPSHOT.stock.products;
-    expect(filterProducts(products, "out", "").every((p) => p.quantity <= 0)).toBe(true);
-    expect(
-      filterProducts(products, "low", "").every((p) => p.quantity > 0 && p.quantity <= p.minLevel),
-    ).toBe(true);
-    expect(filterProducts(products, "all", "VL-412").map((p) => p.id)).toEqual(["p-serum-412"]);
-    expect(filterProducts(products, "all", "brume").map((p) => p.id)).toEqual(["p-brume-109"]);
+    const products = SNAPSHOT.stock.products;
+    expect(filterProducts(products, "out", "").map((p) => p.id)).toEqual(["p-2"]);
+    expect(filterProducts(products, "low", "").map((p) => p.id)).toEqual(["p-1"]);
+    expect(filterProducts(products, "all", "VL-1").map((p) => p.id)).toEqual(["p-1"]);
+    expect(filterProducts(products, "all", "rupture").map((p) => p.id)).toEqual(["p-2"]);
     expect(filterProducts(products, "all", "zzz")).toEqual([]);
   });
   it("flux des mouvements : tri décroissant, limite respectée", () => {
-    const feed = recentMovements(DEMO_SNAPSHOT, 5);
-    expect(feed).toHaveLength(5);
-    const ats = feed.map((r) => r.movement.at);
-    expect(ats).toEqual([...ats].sort().reverse());
-    expect(recentMovements(DEMO_SNAPSHOT, 100).length).toBeGreaterThan(5);
+    const feed = recentMovements(SNAPSHOT, 2);
+    expect(feed).toHaveLength(2);
+    expect(feed.map((r) => r.movement.id)).toEqual(["m-3", "m-1"]);
+    expect(recentMovements(SNAPSHOT, 100)).toHaveLength(3);
   });
   it("client débiteur retrouvé par identifiant", () => {
-    expect(findDebtor(DEMO_SNAPSHOT, "debt-oran")?.name).toBe("SARL Oran Parfums");
-    expect(findDebtor(DEMO_SNAPSHOT, "inconnu")).toBeNull();
+    expect(findDebtor(SNAPSHOT, "debt-1")?.name).toBe("Client test");
+    expect(findDebtor(SNAPSHOT, "inconnu")).toBeNull();
   });
   it("détails de transaction cohérents avec le journal", () => {
-    for (const row of DEMO_SNAPSHOT.day.journal) {
-      expect(findJournalEntry(DEMO_SNAPSHOT, row.id)?.id).toBe(row.id);
+    for (const row of SNAPSHOT.day.journal) {
+      expect(findJournalEntry(SNAPSHOT, row.id)?.id).toBe(row.id);
       expect(row.tx.kind).toBe(row.kind);
       if (row.tx.kind === "sale") {
         const lines = row.tx.lines.reduce((acc, l) => acc + l.totalMinor, 0);
@@ -121,25 +318,15 @@ describe("sélecteurs de la liasse", () => {
       if (row.tx.kind === "return") {
         expect(row.tx.totalMinor).toBe(-row.amountMinor);
         expect(row.tx.refund.amountMinor).toBe(row.tx.totalMinor);
-        expect(row.tx.lines.reduce((acc, l) => acc + l.totalMinor, 0)).toBe(row.tx.totalMinor);
       }
       if (row.tx.kind === "payment" || row.tx.kind === "expense") {
         expect(row.tx.amountMinor).toBe(-row.amountMinor);
       }
     }
-    expect(findJournalEntry(DEMO_SNAPSHOT, "inconnu")).toBeNull();
+    expect(findJournalEntry(SNAPSHOT, "inconnu")).toBeNull();
   });
-  it("cohérence de la liasse de démonstration", () => {
-    const day = DEMO_SNAPSHOT.day;
-    const sumMethods = day.methods.reduce((acc, m) => acc + m.totalMinor, 0);
-    expect(sumMethods).toBe(day.salesMinor);
-    expect(DEMO_SNAPSHOT.money.debts.overdueMinor).toBeLessThanOrEqual(
-      DEMO_SNAPSHOT.money.debts.totalMinor,
-    );
-    expect(
-      DEMO_SNAPSHOT.stock.products.every((p) => (p.quantity === 0 ? p.valueMinor === 0 : true)),
-    ).toBe(true);
-    expect(isSnapshotShape(DEMO_SNAPSHOT)).toBe(true);
+  it("forme de liasse : fixture valide, objet vide refusé", () => {
+    expect(isSnapshotShape(SNAPSHOT)).toBe(true);
     expect(isSnapshotShape({})).toBe(false);
   });
 });
@@ -191,8 +378,7 @@ describe("API propriétaire (fetch injecté)", () => {
       Promise.resolve({
         ok: true,
         status: 200,
-        json: () =>
-          Promise.resolve({ ok: true, data: { snapshot: DEMO_SNAPSHOT, generatedAt: "x" } }),
+        json: () => Promise.resolve({ ok: true, data: { snapshot: SNAPSHOT, generatedAt: "x" } }),
         text: () => Promise.resolve(""),
       });
     await expect(fetchOwnerSnapshot("", okFetch)).rejects.toMatchObject({ code: "UNAUTHORIZED" });
@@ -225,7 +411,7 @@ describe("cache local propriétaire", () => {
   it("liasse relisible puis purgée à la déconnexion", () => {
     clearSnapshot();
     expect(loadSnapshot().snapshot).toBeNull();
-    saveSnapshot(DEMO_SNAPSHOT, "2026-10-30T18:00:00");
+    saveSnapshot(SNAPSHOT, "2026-10-30T18:00:00");
     expect(loadSnapshot().generatedAt).toBe("2026-10-30T18:00:00");
     expect(isSnapshotShape(loadSnapshot().snapshot)).toBe(true);
     clearSnapshot();
@@ -237,7 +423,6 @@ describe("cache local propriétaire", () => {
     await saveSession({
       email: "direction@veloria.dz",
       accessToken: null,
-      demo: true,
       lastLoginAt: "2026-10-30T18:00:00",
     });
     expect((await loadSession())?.email).toBe("direction@veloria.dz");
