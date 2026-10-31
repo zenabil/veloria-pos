@@ -711,7 +711,7 @@ export function AnnouncementSection({ notify }: { notify: Notify }): React.JSX.E
         // l'aller-retour IPC.
         assertValidAnnouncement(clean);
         await api.announcementSave({ operationId: newOperationId(), text: clean });
-        notify("Annonce enregistrée : visible dans l'application client.", "ok");
+        notify("Annonce enregistrée : elle partira à la prochaine synchronisation.", "ok");
       } catch (e) {
         notify(frError(e, "Annonce impossible à enregistrer."), "err");
       }

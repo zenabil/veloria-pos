@@ -40,7 +40,11 @@ vi.mock("../../electron/services/logger", () => ({
   getLogFile: () => "",
 }));
 
-import { enqueueInvoiceDetailRefresh, enqueueSaleRefresh } from "../../electron/sync/sync.service";
+import {
+  enqueueAnnouncementRefresh,
+  enqueueInvoiceDetailRefresh,
+  enqueueSaleRefresh,
+} from "../../electron/sync/sync.service";
 
 function openMigrated(tmp: string): DatabaseSync {
   const db = new DatabaseSync(path.join(tmp, "sync-queue.sqlite"));
@@ -91,6 +95,19 @@ function seed(db: DatabaseSync): number {
   return saleId;
 }
 
+/** Deuxième client actif (aucune vente) pour l'annonce magasin. */
+function seedSecondCustomer(db: DatabaseSync): number {
+  db.prepare(
+    "INSERT INTO customers (uuid, first_name, last_name, search_name, credit_allowed, created_at, updated_at) VALUES ('csync2','Sara','Merah','sara merah',1,'2026-01-01','2026-01-01')",
+  ).run();
+  const id = (db.prepare("SELECT id FROM customers WHERE uuid = 'csync2'").get() as { id: number })
+    .id;
+  db.prepare(
+    "INSERT INTO customer_access (customer_id, phone_hash, pin_hash, created_at, updated_at) VALUES (?, 'ph2', 'pin2', '2026-01-01', '2026-01-01')",
+  ).run(id);
+  return id;
+}
+
 describe("file miroir : détail de facture", () => {
   let tmp: string;
   let db: DatabaseSync;
@@ -132,5 +149,37 @@ describe("file miroir : détail de facture", () => {
     enqueueSaleRefresh(saleId);
     enqueueInvoiceDetailRefresh(saleId);
     expect(queueRows(db)).toHaveLength(0);
+  });
+
+  it("annonce magasin : un snapshot par accès ACTIF, annonce incluse", () => {
+    seed(db);
+    const second = seedSecondCustomer(db);
+    db.prepare(
+      "INSERT INTO announcements (text, is_active, created_at) VALUES ('Promo test', 1, '2026-01-06')",
+    ).run();
+
+    enqueueAnnouncementRefresh();
+    const snapshots = db
+      .prepare(
+        `SELECT customer_id, json_extract(payload_json, '$.announcement') AS announcement
+         FROM sync_outbox WHERE kind = 'customer_snapshot' ORDER BY customer_id ASC`,
+      )
+      .all() as unknown as { customer_id: number; announcement: string }[];
+    expect(snapshots).toHaveLength(2);
+    expect(snapshots.map((s) => s.customer_id)).toEqual([1, second]);
+    for (const row of snapshots) expect(row.announcement).toBe("Promo test");
+
+    // Un accès révoqué ne reçoit plus de cliché d'annonce.
+    db.prepare(`UPDATE customer_access SET revoked_at = '2026-01-07' WHERE customer_id = ?`).run(
+      second,
+    );
+    enqueueAnnouncementRefresh();
+    const after = db
+      .prepare(
+        `SELECT customer_id FROM sync_outbox WHERE kind = 'customer_snapshot' ORDER BY id ASC`,
+      )
+      .all() as unknown as { customer_id: number }[];
+    expect(after).toHaveLength(3);
+    expect(after.filter((r) => r.customer_id === second)).toHaveLength(1);
   });
 });

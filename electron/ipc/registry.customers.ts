@@ -8,6 +8,7 @@ import { importCustomersAtomic } from "./handlers/import.repo";
 import * as ClientAccess from "./handlers/client-access.repo";
 import { getCurrentStaffUser } from "./handlers/staff-session";
 import {
+  enqueueAnnouncementRefresh,
   enqueueCustomerRefresh,
   enqueueInvoiceDetailRefresh,
   enqueueSaleRefresh,
@@ -190,13 +191,17 @@ export function registerCustomersChannels(): void {
       now: new Date().toISOString(),
     }),
   );
-  handle(IPC_CHANNELS["announcements.save"], V.announcementSaveSchema, (input) =>
-    ClientAccess.saveAnnouncementAtomic({
+  handle(IPC_CHANNELS["announcements.save"], V.announcementSaveSchema, (input) => {
+    const result = ClientAccess.saveAnnouncementAtomic({
       operationId: input.operationId,
       text: input.text,
       now: new Date().toISOString(),
-    }),
-  );
+    });
+    // L'annonce est lue depuis le cliché `customer_snapshot` par l'APK :
+    // sans nouvelle mise en file, le miroir gardait l'ancienne annonce.
+    enqueueAnnouncementRefresh();
+    return result;
+  });
   // Q1 (UI annonce) : lecture de l'annonce courante — sans elle, le gérant
   // écrirait dans le vide. Lecture seule, même permission que l'écriture.
   handle(IPC_CHANNELS["announcements.get"], V.emptyPayloadSchema, () =>

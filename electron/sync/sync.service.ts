@@ -590,6 +590,44 @@ export function enqueueInvoiceDetailRefresh(saleId: number): void {
 }
 
 /**
+ * Annonce magasin : l'annonce voyage dans le cliché `customer_snapshot`.
+ * Un cliché par accès mobile ACTIF — sans cela, l'enregistrement dans la
+ * table `announcements` n'atteignait jamais le miroir (l'APK gardait
+ * l'ancien snapshot, souvent `announcement: null`).
+ * Best-effort : un client en échec n'empêche pas les autres.
+ */
+export function enqueueAnnouncementRefresh(): void {
+  try {
+    const db = getDb();
+    const rows = db
+      .prepare(
+        `SELECT customer_id FROM customer_access WHERE revoked_at IS NULL ORDER BY customer_id ASC`,
+      )
+      .all() as { customer_id: number }[];
+    const now = new Date().toISOString();
+    const month = now.slice(0, 7);
+    for (const row of rows) {
+      try {
+        enqueueSnapshotAtomic({
+          operationId: randomUUID(),
+          customerId: row.customer_id,
+          kind: "customer_snapshot",
+          monthKey: month,
+          now,
+        });
+      } catch (err) {
+        log("WARN", "sync", "enqueue.announcement.failed", {
+          customerId: row.customer_id,
+          error: String(err),
+        });
+      }
+    }
+  } catch (err) {
+    log("WARN", "sync", "enqueue.announcement.failed", { error: String(err) });
+  }
+}
+
+/**
  * Rafraîchit la file d'une vente (résout le client, best-effort).
  * Pousse les trois clichés de listes + le détail de la vente (page détail APK)
  * quand elle appartient à un client non archivé.
