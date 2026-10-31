@@ -340,7 +340,7 @@ describe("API propriétaire (fetch injecté)", () => {
   }
   type MockFetch = (
     url: string,
-    init: { method: string; headers: Record<string, string>; body: string; signal?: AbortSignal },
+    init: { method: string; headers: Record<string, string>; body?: string; signal?: AbortSignal },
   ) => Promise<MockRes>;
   const okAuth: MockFetch = () =>
     Promise.resolve({
@@ -373,17 +373,25 @@ describe("API propriétaire (fetch injecté)", () => {
       signInWithPassword("direction@veloria.dz", "motdepasse", hanging, "", "", 20),
     ).rejects.toMatchObject({ code: "OFFLINE_ERROR" });
   });
-  it("liasse : jeton obligatoire, 401 → UNAUTHORIZED, réponse malformée → SERVER_ERROR", async () => {
-    const okFetch: MockFetch = () =>
-      Promise.resolve({
+  it("liasse : lecture PostgREST, jeton obligatoire, 401 → UNAUTHORIZED, vide → SERVER_ERROR", async () => {
+    let seenUrl = "";
+    let seenMethod = "";
+    const okFetch: MockFetch = (url, init) => {
+      seenUrl = url;
+      seenMethod = init.method;
+      return Promise.resolve({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({ ok: true, data: { snapshot: SNAPSHOT, generatedAt: "x" } }),
+        json: () => Promise.resolve([{ payload: SNAPSHOT, generated_at: "x" }]),
         text: () => Promise.resolve(""),
       });
+    };
     await expect(fetchOwnerSnapshot("", okFetch)).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     const r = await fetchOwnerSnapshot("tok-1", okFetch);
     expect(r.generatedAt).toBe("x");
+    expect(seenMethod).toBe("GET");
+    expect(seenUrl).toContain("/rest/v1/owner_snapshots");
+    expect(seenUrl).toContain("shop_key=eq.veloria");
     const unauthorized: MockFetch = () =>
       Promise.resolve({
         ok: false,
@@ -394,14 +402,14 @@ describe("API propriétaire (fetch injecté)", () => {
     await expect(fetchOwnerSnapshot("tok-1", unauthorized)).rejects.toMatchObject({
       code: "UNAUTHORIZED",
     });
-    const malformed: MockFetch = () =>
+    const empty: MockFetch = () =>
       Promise.resolve({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({ ok: true, data: {} }),
+        json: () => Promise.resolve([]),
         text: () => Promise.resolve(""),
       });
-    await expect(fetchOwnerSnapshot("tok-1", malformed)).rejects.toMatchObject({
+    await expect(fetchOwnerSnapshot("tok-1", empty)).rejects.toMatchObject({
       code: "SERVER_ERROR",
     });
   });

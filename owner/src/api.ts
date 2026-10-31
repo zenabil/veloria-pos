@@ -23,7 +23,7 @@ const MESSAGES: Record<OwnerErrorCode, string> = {
 
 type FetchImpl = (
   url: string,
-  init: { method: string; headers: Record<string, string>; body: string; signal?: AbortSignal },
+  init: { method: string; headers: Record<string, string>; body?: string; signal?: AbortSignal },
 ) => Promise<{
   ok: boolean;
   status: number;
@@ -130,7 +130,10 @@ export interface SnapshotResult {
   generatedAt: string;
 }
 
-/** Liasse agrégée — lecture seule, jamais d'écriture. */
+/**
+ * Liasse agrégée — lecture PostgREST (RLS `authenticated`), jamais d'écriture.
+ * La plus récente publication (`generated_at DESC`) est servie.
+ */
 export async function fetchOwnerSnapshot(
   accessToken: string,
   fetchImpl: FetchImpl,
@@ -141,15 +144,16 @@ export async function fetchOwnerSnapshot(
   if (accessToken.trim() === "") {
     throw new OwnerError("UNAUTHORIZED", MESSAGES.UNAUTHORIZED);
   }
-  const url = `${baseUrl.replace(/\/+$/, "")}/functions/v1/owner-sync`;
+  const url =
+    `${baseUrl.replace(/\/+$/, "")}/rest/v1/owner_snapshots` +
+    "?shop_key=eq.veloria&select=payload,generated_at&order=generated_at.desc&limit=1";
   let res: Awaited<ReturnType<FetchImpl>>;
   try {
     res = await withTimeout(
       (signal) =>
         fetchImpl(url, {
-          method: "POST",
+          method: "GET",
           headers: headers(anonKey, accessToken),
-          body: "{}",
           signal,
         }),
       timeoutMs,
@@ -163,14 +167,12 @@ export async function fetchOwnerSnapshot(
     }
     throw new OwnerError("SERVER_ERROR", MESSAGES.SERVER_ERROR);
   }
-  const data = (await res.json()) as {
-    ok?: boolean;
-    data?: { snapshot?: unknown; generatedAt?: string };
-  } | null;
-  if (!data || data.ok !== true || !data.data || typeof data.data.generatedAt !== "string") {
-    throw new OwnerError("SERVER_ERROR", "Réponse inattendue du service de supervision.");
+  const rows = (await res.json()) as { payload?: unknown; generated_at?: string }[] | null;
+  const row = Array.isArray(rows) ? rows[0] : undefined;
+  if (!row || typeof row.generated_at !== "string") {
+    throw new OwnerError("SERVER_ERROR", "Aucune liasse de supervision publiée.");
   }
-  return { snapshot: data.data.snapshot, generatedAt: data.data.generatedAt };
+  return { snapshot: row.payload ?? null, generatedAt: row.generated_at };
 }
 
 /** Garde de forme minimale : une liasse sans jour ni stock est inutilisable. */
