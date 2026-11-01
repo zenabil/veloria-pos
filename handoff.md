@@ -15,7 +15,8 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête **session 90** (purge ciblée post-audit, ADR-167). Avant elle session 89 (purge des artefacts obsolètes), session 88 (annonces multi-médias + bandeau hero APK, ADR-166), session 87 bis (rafraîchissement périodique de l'APK selon la cadence POS, ADR-165), session 87 (annonce magasin poussée aux clients, ADR-160). Avant elle session 86 (compte propriétaire, ADR-164), session 85 (connexion Supabase owner, ADR-163), session 84 (données fictives supprimées, owner), session 83 (Argent/Stock/Périodes/Alertes enrichis), session 82 (Aujourd'hui + détails de transaction), session 81 (passe design v2 owner), session 80 (écrans courts owner), session 79 (application propriétaire, ADR-162), session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- Branche : `chore/root-layout` — tête **session 91** (APK Native-max, ADR-168). Avant elle session 90 (purge ciblée post-audit, ADR-167), session 89 (purge des artefacts obsolètes), session 88 (annonces multi-médias + bandeau hero APK, ADR-166), session 87 bis (rafraîchissement périodique de l'APK selon la cadence POS, ADR-165), session 87 (annonce magasin poussée aux clients, ADR-160). Avant elle session 86 (compte propriétaire, ADR-164), session 85 (connexion Supabase owner, ADR-163), session 84 (données fictives supprimées, owner), session 83 (Argent/Stock/Périodes/Alertes enrichis), session 82 (Aujourd'hui + détails de transaction), session 81 (passe design v2 owner), session 80 (écrans courts owner), session 79 (application propriétaire, ADR-162), session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 91 (2026-11-01)** : **APK Native-max (ADR-168)** — demande : « اجعل تطبيقات apk native الى اقصى درجة ممكنة ». Choix : Native-max sur RN (pas de réécriture Kotlin). Client : **84,6 → 21,6 MiB (−74,4 %)** (R8, shrink, 2 ABIs ARM, libs compressées, `RECORD_AUDIO`/stockage/overlay retirés), signature vendor, hash `8ee498b5…` ; ancien APK 4 ABIs archivé. Owner : **premier APK 17,3 MiB** (2 ABIs, Dex 7,3 Mo, signature vendor, hash `e720ba19…`). Builds Gradle verts, `apksigner` vert. **Différé** : scanner QR ZXing natif (ML Kit reste) et New Architecture, faute d'appareil ADB. Portes `check`/`test`/`verify`/`knip` : §91.
 - **Session 90 (2026-11-01)** : **purge ciblée post-audit (ADR-167)** — demande : « قم بفحص المشروع من الأكواد الميتة ». Audit lecture seule (392 fichiers de production, ≈1 890 exports, 186 canaux IPC, `knip` 0) : **0 fichier sans importateur, 0 export orphelin, 0 canal IPC mort, 0 dépendance inutilisée**. Corrections approuvées : copie applicative V2 morte supprimée (le test cible désormais la version main exécutée), wrappers `allocateUnitCosts` (domaine + main) retirés, `formatDelta` retiré, 3 clés i18n mortes ; icônes maîtresses 1024/512 déplacées vers `resources/icons-src/` (≈2,2 Mo d'installeur économisés). Les 3 ignores `knip` (`expo-updates` ×2, `net`) se sont révélés **vivants** (app.json / E2E) et sont conservés. Conservés : 35 exports test-only/parité, 3 modules `verify:domain`, `pain`/`breadOrders`, SQLite lot D, 11 classes CSS. Portes : §90 (toutes vertes).
 - **Session 89 (2026-11-01)** : **purge des artefacts obsolètes** — demande : « قم بحذف كل الملفات القديمة و المحجورة التي لا حاجة لها في المشروع ». Audit d'abord (git propre, aucun fichier suivi touché) : suppression de l'ancien worktree temporaire `veloria-csv-run` (25 Mo, commit c30b5c6, propre), de `E:\veloria-build-final` (817 Mo, sorties electron-builder déjà copiées), des restes `E:\veloria-periodic-build`/`-stage`/backup, de `mobile/android/app/build` + `build` (420 Mo, APK déjà dans `release/`), des 5 sauvegardes `graphify-out/2026-*` (60 Mo, graphe actif conservé) et des dossiers vides `release/win-unpacked*`. **E: libre : 62 Mo → 8,0 Go.** Conservés : installateurs POS/Manager 1.0.4, APK 1.0.4 code 6, `dist`/`dist-electron` courants, `node_modules`, `.gradle` (cache), `private/` (clés/licences), archives docs, graphe actif. Aucun test/build relancé : aucune source modifiée.
 - **Session 88 (2026-10-31)** : **annonces multi-médias + bandeau hero APK (ADR-166)** — demande : bandeau hero en haut de l'accueil de l'application client, annonces **optionnelles** en texte **ou** image hébergée sur un site gratuit, **4 maximum**, avec un **compte à rebours d'expiration**. Migration **0057** (rebuild de 0032, lignes legacy conservées) : `image_url` https ≤ 500 (jamais de blob/base64), `ends_at`, `sort`, `updated_at`, `CHECK` texte OU image. Domaine : texte ≤ 120 ou image https, échéance future obligatoire, **4 actives non expirées** (comptées dans la transaction). Repo : `saveAnnouncementAtomic` devient un **upsert idempotent** (`id` optionnel), `removeAnnouncementAtomic` idempotent par valeur, `listAnnouncements` ; canaux `announcements.list`/`remove`, `announcements.get` supprimé ; gardes staff `settings` / licence `customers` ; rétention critique élargie au préfixe `announcements.`. Cliché : `announcements[]` (actives non expirées, tri `sort`, ≤ 4) **+** champ legacy `announcement` (premier texte) pour les APK ≤ 1.0.4 déjà installées. POS (Paramètres → Annonces du magasin) : liste, formulaire texte/image (aperçu, https, fin, ordre, actif), suppression confirmée, badge « x/4 actives ». APK : composant `announcement-hero.tsx` (image 2:1 + texte, compte à rebours rafraîchi chaque minute, pastilles si plusieurs, **repli texte** si l'image ne charge pas, annonce expirée masquée, repli sur l'ancien champ texte), i18n ar/fr et RTL. Portes : **173 fichiers / 1 194 tests 0** · lint 0 · typecheck / electron / mobile 0 · `verify` ✓ · `build` ✓ · `build:electron` ✓ (manifeste **244**) · vérification visuelle **Expo web** (image 800×400 chargée, « ينتهي بعد 3 يوم 3 ساعة », l'annonce expirée n'apparaît pas, bascule 1/2 → 2/2), serveurs de démo arrêtés. **Non exécuté** : reconstruction/installation de l'APK (le hero ne sera visible qu'après un nouveau build + install). Session concurrente : ADR-165 (rafraîchissement périodique) commitée avant, d'où la renumérotation en **ADR-166**. Commit `1dc3e46`.
@@ -4065,3 +4066,70 @@ objets SQLite morts (ADR-153 lot D), 11 classes CSS mortes (hors périmètre).
 **Non exécuté** : reconstruction des installateurs/APK — les artefacts de
 `release/` restent inchangés ; le gain de ≈2,2 Mo s'appliquera au prochain
 build. Le manifeste d'intégrité a été re-signé localement (235 fichiers).
+
+## 91) Session 2026-11-01 — APK Native-max (ADR-168)
+
+**Demande** : « اجعل تطبيقات apk native الى اقصى درجة ممكنة ». Choix
+explicite : **Native-max sur React Native** (pas de réécriture Kotlin).
+
+**Constat avant** : APK client 1.0.4 = **88 726 616 octets (84,6 MiB)**,
+4 ABIs, Dex 25,4 Mo, R8/shrink désactivés, libs non compressées, ML Kit
+~18 Mo, permissions audio/stockage/overlay. Owner : aucun projet Android ni
+APK.
+
+**Livré — client** :
+
+- `release/Veloria-Client-1.0.4.apk` : **22 677 056 octets (21,6 MiB)**,
+  **−74,4 %**.
+- ABIs `arm64-v8a` + `armeabi-v7a` uniquement (x86/x86_64 retirés via
+  `ndk.abiFilters` ; `reactNativeArchitectures` seul ne filtrait pas le
+  packaging des AAR Expo), Dex **9,3 Mo** (R8), libs ARM compressées
+  (`expo.useLegacyPackaging=true`).
+- Permissions dangereuses retirées : `RECORD_AUDIO` (réintroduite par l'AAR
+  `expo-camera`, retirée via `tools:node="remove"`), stockage externe,
+  `SYSTEM_ALERT_WINDOW`.
+- Signature vendor `CN=Veloria` vérifiée ; SHA-256 APK `8ee498b5…`.
+- Ancien APK 4 ABIs conservé : `release/Veloria-Client-1.0.4-4abi-legacy.apk`
+  (84,6 MiB).
+
+**Livré — owner** :
+
+- Premier APK : `release/Veloria-Owner-0.1.0.apk` — **18 101 035 octets
+  (17,3 MiB)**, 2 ABIs, Dex 7,3 Mo, permissions INTERNET/VIBRATE
+  (+ biométrie héritée de SecureStore), signature vendor, SHA-256
+  `e720ba19…`.
+- Projet natif généré `owner/android` (ignoré par git comme
+  `mobile/android`) : R8/shrink/compression/ABIs/signature + correctif
+  **Kotlin 1.9.25** (le template résolvait 1.9.24 alors que Compose Compiler
+  1.5.15 exige 1.9.25 → `expo-modules-core:compileReleaseKotlin` échouait).
+- Env Supabase public gravé via `.env` + variables
+  (`ynktschorbwukxovjzcz`) ; `.env` supprimé après build.
+
+**Builds** : `./gradlew assembleRelease` client **27 min 57 s** (après
+`clean`), owner **25 min 30 s** (après correction Kotlin) ; `-x lintVital…`
+pour éviter ~10 min de lint module par module. `apksigner verify` vert pour
+les deux.
+
+**Différé** :
+
+- Scanner QR **ZXing natif** pour retirer ML Kit (~7 Mo ARM) : la caméra/le
+  login QR doivent être validés sur appareil réel.
+- **New Architecture** : compatibilité Expo SDK 52 à mesurer sur appareil ;
+  le build actuel reste Hermes + ancienne architecture.
+- **Aucun appareil ADB connecté** : installation, démarrage, scan caméra et
+  runtime R8 non testés. Si crash R8 : ajouter le keep correspondant et
+  reconstruire.
+
+**Portes** : Gradle client/owner ✓ ; `apksigner` ✓ ; `npm run check` ✓ ;
+**`npm test` 173 fichiers / 1 194 tests 0** ; `npm run verify` ✓ (migrations,
+domaine, FR, encodage, perf, version, secret-scan) ; `npm run knip` ✓. Aucun
+fichier TS modifié → couverture non relancée.
+
+**Installation** : même version client 1.0.4 / code 6 et même signature que
+l'ancienne ; installer par-dessus ou désinstaller/réinstaller (le cache local
+et le login QR seront à refaire). Owner : package distinct
+`dz.veloria.owner`, installable à côté du client.
+
+**Git** : commit natif + ADR, puis ce `docs(handoff)`. Les APK et les projets
+natifs générés ne sont pas suivis ; la configuration native locale est
+documentée dans ADR-168 (à réappliquer après `expo prebuild --clean`).
