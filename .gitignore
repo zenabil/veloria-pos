@@ -71,6 +71,9 @@ full-inventory.txt
 mobile/android/
 mobile/ios/
 mobile/dist-web/
+owner/android/
+owner/ios/
+owner/.expo/
 *.keystore
 *.jks
 local.properties
