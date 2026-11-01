@@ -1,4 +1,4 @@
-# Handoff — Veloria POS (état au 2026-10-31)
+# Handoff — Veloria POS (état au 2026-11-02)
 
 > Document de continuité : tout ce qui a été fait, fichiers modifiés,
 > erreurs (fermées/ouvertes), en-attente, commandes. Sessions 2026-10-07
@@ -15,7 +15,8 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête **session 93** (diagnostic bandeau hero client). Avant elle session 92 (test appareil réel, CPH2235), session 91 (APK Native-max, ADR-168), session 90 (purge ciblée post-audit, ADR-167), session 89 (purge des artefacts obsolètes), session 88 (annonces multi-médias + bandeau hero APK, ADR-166), session 87 bis (rafraîchissement périodique de l'APK selon la cadence POS, ADR-165), session 87 (annonce magasin poussée aux clients, ADR-160). Avant elle session 86 (compte propriétaire, ADR-164), session 85 (connexion Supabase owner, ADR-163), session 84 (données fictives supprimées, owner), session 83 (Argent/Stock/Périodes/Alertes enrichis), session 82 (Aujourd'hui + détails de transaction), session 81 (passe design v2 owner), session 80 (écrans courts owner), session 79 (application propriétaire, ADR-162), session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- Branche : `chore/root-layout` — tête **session 94** (bootstrap de l'environnement sur poste neuf). Avant elle session 93 (diagnostic bandeau hero client), session 92 (test appareil réel, CPH2235), session 91 (APK Native-max, ADR-168), session 90 (purge ciblée post-audit, ADR-167), session 89 (purge des artefacts obsolètes), session 88 (annonces multi-médias + bandeau hero APK, ADR-166), session 87 bis (rafraîchissement périodique de l'APK selon la cadence POS, ADR-165), session 87 (annonce magasin poussée aux clients, ADR-160). Avant elle session 86 (compte propriétaire, ADR-164), session 85 (connexion Supabase owner, ADR-163), session 84 (données fictives supprimées, owner), session 83 (Argent/Stock/Périodes/Alertes enrichis), session 82 (Aujourd'hui + détails de transaction), session 81 (passe design v2 owner), session 80 (écrans courts owner), session 79 (application propriétaire, ADR-162), session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 94 (2026-11-02)** : **bootstrap de l'environnement de développement sur ce poste** — demande « قم بدراسة و فهم المشروع بعد ذلك ثبت البرامج و الأدوات اللازمة لتطوير المشروع ». Constat de départ : poste **sans aucun Node.js** (arbre copié depuis le compte Windows « zenagui bilal » → git refusait toute commande en « dubious ownership », `~/.gitconfig` inexistant, `mobile/android/local.properties` pointait sur l'ancien SDK). Installé et vérifié : Node **22.23.4** + npm **10.9.9** (`C:\\Users\\Admin\\tools\\node`, ZIP officiel contrôlé par SHA-256, au PATH utilisateur — conforme `.nvmrc`/`engines`/`packageManager`), JDK **Temurin 17.0.20** (`tools\\jdk17`, `JAVA_HOME`), **Android SDK** (`cmdline-tools` 13114758 → `platform-tools`, `platforms;android-35`, `build-tools;35.0.0`, `ndk;26.1.10909125`, 2,4 Go — exactly les versions exigées par `mobile/android/build.gradle`), redistribuable **VC++ 14.44** (sans lui le binding natif `oxc-resolver` de `knip` ne se charge pas), **graphify 0.9.100** via `uv tool install graphifyy` avec Python **3.12**. Portes **toutes vertes sur ce poste** (§94) : better-sqlite3 N-API · `electron --version` 45.1.0 sous Windows 10 1809 · typecheck ×5 · `verify` complet · `format:check` · lint `--max-warnings 0` · **vitest 173 fichiers / 1 194 tests** · builds renderer/electron/manager · `knip` 0 · **E2E réel `navigation-smoke` 1/1** (16 modules ouverts sans crash). **Aucun code modifié** ; seuls fichiers touchés : `handoff.md` et `mobile/android/local.properties` (git-ignoré). **Reste à faire** : redémarrer le terminal/Qoder pour le PATH ; relancer la suite E2E complète et `test:coverage` ; rebuild APK sur ce poste.
 - **Session 93 (2026-11-01)** : **diagnostic bandeau hero (client)** — le composant `AnnouncementHero` est présent dans l'APK (nouveau 22 Mo et ancien 85 Mo) ; le CPH2235 est actuellement sur l'**écran de login** (le hero n'est rendu qu'après login, dans Home). Base POS `E:\data\Veloria POS DB.sqlite` en **schema 56** (migration 0057 non appliquée) : table `announcements` texte seulement (3 doublons actifs), dernier `customer_snapshot` envoyé le 2026-10-31 20:30 avec le champ legacy `announcement` et **pas** `announcements[]`. À suivre : login réel + pull-to-refresh ; POS à jour (0057) + ré-enregistrement pour images/échéances ; capture/QR si le hero reste absent. **Aucun code modifié.**
 - **Session 92 (2026-11-01)** : **test appareil réel (CPH2235, Android 13)** — installation propre du client 1.0.4 (code 6) et de l'owner 0.1.0 (code 1) : `primaryCpuAbi=arm64-v8a`, aucun `RECORD_AUDIO`, démarrage d'activité ~0,33 s. Client : UI AR/FR, permission caméra + CameraX/ML Kit ouverts, erreur de login réelle « الهاتف أو الرمز غير صحيح ». Owner : login FR + erreur Supabase Auth réelle. **Aucune FATAL app**. **Non testé** : QR valide/login réussi, tableau de bord owner, stabilité longue. Captures : `release/screenshots/`. Aucun code modifié.
 - **Session 91 (2026-11-01)** : **APK Native-max (ADR-168)** — demande : « اجعل تطبيقات apk native الى اقصى درجة ممكنة ». Choix : Native-max sur RN (pas de réécriture Kotlin). Client : **84,6 → 21,6 MiB (−74,4 %)** (R8, shrink, 2 ABIs ARM, libs compressées, `RECORD_AUDIO`/stockage/overlay retirés), signature vendor, hash `8ee498b5…` ; ancien APK 4 ABIs archivé. Owner : **premier APK 17,3 MiB** (2 ABIs, Dex 7,3 Mo, signature vendor, hash `e720ba19…`). Builds Gradle verts, `apksigner` vert. **Différé** : scanner QR ZXing natif (ML Kit reste) et New Architecture, faute d'appareil ADB. Portes `check`/`test`/`verify`/`knip` : §91.
@@ -4217,3 +4218,92 @@ puis ce `docs(handoff)`.
    vérifier le cache/placement ; déplacer le hero en tête si nécessaire.
 
 **Aucun code modifié ; aucun APK reconstruit.** **Git** : ce `docs(handoff)`.
+
+## 94) Session 2026-11-02 — Bootstrap de l'environnement de développement
+
+**Demande** : « قم بدراسة و فهم المشروع بعد ذلك ثبت البرامج و الأدوات اللازمة لتطوير
+المشروع » — étudier le projet, puis installer les programmes et outils nécessaires.
+
+**État trouvé** (poste neuf, aucun outillage) :
+
+- **Node.js absent** de tout `C:` et `E:` (seul git était présent, fourni par
+  Qoder). `node_modules/` existait pourtant : l'arbre a été **copié** depuis une
+  autre machine, et `dist*/` + `release/` contenaient déjà les livrables.
+- **Git bloqué** : « detected dubious ownership » (le dépôt appartient au SID du
+  compte « zenagui bilal », la session tourne sous `Admin`) et `~/.gitconfig`
+  **n'existe pas** → ni `safe.directory`, ni identité, donc règle 10 impossible.
+- `mobile/android/local.properties` : `sdk.dir` pointait
+  `C:\\Users\\zenagui bilal\\AppData\\Local\\Android\\Sdk` (inexistant ici) ;
+  aucun JDK, aucun Android SDK, `graphify` absent du PATH alors qu'`AGENTS.md` et
+  les hooks `.claude/settings.json` l'invoquent.
+
+**Installé** (tout en périmètre **utilisateur**, aucun MSI système, admin non
+élevé sur le poste) :
+
+| Outil        | Version                                                                                                       | Emplacement                                               | Preuve                                                                                                                                   |
+| ------------ | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Node.js      | **22.23.4** (engines `>=22.12`, `.nvmrc` = 22)                                                                | `C:\\Users\\Admin\\tools\\node`                           | ZIP officiel, SHA-256 `cbc74b5e…5f20` **contrôlé** contre `SHASUMS256.txt`                                                               |
+| npm          | **10.9.9** = `packageManager` exact                                                                           | livré avec Node                                           | `npm ls --depth=0` sans paquet manquant/extrané                                                                                          |
+| JDK          | Temurin **17.0.20.1+1**                                                                                       | `C:\\Users\\Admin\\tools\\jdk17`                          | `java -version` + `gradlew --version` (Gradle 8.10.2, Launcher JVM 17)                                                                   |
+| Android SDK  | cmdline-tools `13114758`, `platform-tools`, `platforms;android-35`, `build-tools;35.0.0`, `ndk;26.1.10909125` | `C:\\Users\\Admin\\AppData\\Local\\Android\\Sdk` (2,4 Go) | versions lues dans `mobile/android/build.gradle` (`compileSdk 35`, `buildTools 35.0.0`, `ndkVersion 26.1.10909125`) ; licences acceptées |
+| Runtime VC++ | **14.44.35211**                                                                                               | `C:\\Windows\\System32`                                   | requis par le binding natif `oxc-resolver` (knip) ; sans lui : `ERR_DLOPEN_FAILED`                                                       |
+| graphify     | **0.9.100** (`graphify` + `graphify-mcp`)                                                                     | via `uv tool install graphifyy`, Python **3.12**          | `graphify query "…"` interroge le graphe existant (7 995 nœuds, produit par 0.9.78)                                                      |
+| uv           | dernier                                                                                                       | `C:\\Users\\Admin\\tools\\uv`                             | sert à installer les outils Python sans admin                                                                                            |
+
+Environnement persisté côté utilisateur : `PATH` += `tools\\node`,
+`tools\\jdk17\\bin`, `.local\\bin` ; `JAVA_HOME`, `ANDROID_HOME`. **Un
+redémarrage du terminal (ou de Qoder) est nécessaire** pour que le PATH
+utilisateur soit repris — dans cette session chaque commande exportait le PATH.
+
+**Décision sur graphify** : le paquet **npm** `graphify@1.0.0` est une
+bibliothèque de graphes mathématiques de **2015** (aucun `bin`) — sans rapport, et
+l'installer aurait masqué le vrai outil derrière les hooks
+`graphify hook-guard`. Le CLI réel du projet est le paquet **PyPI `graphifyy`**
+(0.9.78 ayant généré `graphify-out/`). Son installation par défaut échoue : avec
+le Python 3.14 choisi automatiquement, `tree-sitter` veut « Microsoft Visual C++
+14.0 or greater » → résolu par `uv tool install --python 3.12 graphifyy`
+(wheels précompilés, **aucun compilateur installé**).
+
+**Piège npm reproduit et défait** : `npm --prefix mobile install` (depuis la
+racine) **ajoute** `"veloria-pos": "file:.."` aux dépendances de `mobile/` et
+`owner/` et réécrit leurs deux lockfiles → 4 fichiers **suivis par git** modifiés
+par erreur. Restaurés depuis HEAD (`git restore`), liens symboliques
+`*/node_modules/veloria-pos` supprimés, vérifié `git status` propre. Les
+`node_modules` de `mobile/` et `owner/` étaient déjà complets (Expo 52.0.49,
+RN 0.76.0) : **aucune installation était nécessaire** — la commande correcte, si
+besoin, est `cd mobile && npm install`, jamais `--prefix`.
+
+**Portes exécutées sur ce poste** :
+
+- `better-sqlite3` 13.0.3 N-API chargée, SQLite **3.53.4** (aucun compilateur requis).
+- `npx electron --version` → **v45.1.0** (Chromium 156 fonctionne sous Windows 10 1809).
+- `npm run typecheck` · `typecheck:electron` · `typecheck:manager` ·
+  `typecheck:mobile` · `typecheck:owner` → **0**.
+- `npm run verify` → migrations **VERIFIED (57)**, domaine ✓, `verify:fr` ✓,
+  encodage **0** (980 fichiers), `verify:perf` ✓ (commit vente 9 ms),
+  `version:check` ✓ (1.0.4 aligné, Android code 6), `license:scan` ✓ (1 495 fichiers).
+- `npm run format:check` → **0** · `npm run lint` (`--max-warnings 0`) → **0**.
+- `npm test` → **173 fichiers / 1 194 tests** (1 165 passés au premier passage,
+  **5 fichiers en échec transitoire** : `npm install` ré-écrit `node_modules/electron`
+  et `path.txt` était absent pendant la lecture ; relancés seuls → **29/29 verts**).
+- `npm run build` ✓ · `build:electron` ✓ (manifeste d'intégrité signé **235**
+  fichiers, v1.0.4) · `build:manager-client` ✓ · `build:manager` ✓.
+- `npx playwright test --list` → **54 tests / 24 fichiers** (aucun navigateur à
+  télécharger : l'E2E pilote `_electron`).
+- **E2E réel** `navigation-smoke` → **1/1** (25,7 s) : l'application Electron se
+  lance, les 16 modules s'ouvrent sans crash, base de test vierge.
+- `npm run knip` → **0** (après installation du runtime VC++ ci-dessus).
+
+**Non exécuté ici** : suite E2E complète (~30 min, 1 worker),
+`test:coverage` / `test:coverage:features` (mêmes fichiers que `npm test`),
+`npm run package:win` / `package:manager`, build APK (`assembleRelease`),
+`graphify update .` (aucune source modifiée).
+
+**Fichiers touchés** : `handoff.md` (cette section + §1) et
+`mobile/android/local.properties` (`sdk.dir` réaligné sur `Admin` — **git-ignoré**,
+régénérable par `expo prebuild`). **Zéro source, zéro migration, zéro canal,
+zéro dépendance ajoutée** aux `package.json`.
+
+**Git** : `git config --global --add safe.directory` + identité
+`veloria-pos <veloria-pos@localhost>` (convention des commits existants),
+`core.autocrlf=false` ; puis ce `docs(handoff)` en commit propre (règle 10).
