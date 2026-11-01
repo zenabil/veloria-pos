@@ -18,10 +18,7 @@ import {
   assertValidAnnouncement,
   assertValidPin,
 } from "../../src/domain/customer/client-access";
-import {
-  buildActivationQrPayloadV2,
-  selectDetailSaleIds,
-} from "../../src/application/customers/client-access";
+import { selectDetailSaleIds } from "../../src/application/customers/client-access";
 import {
   announcementSaveSchema,
   clientAccessActivateSchema,
@@ -54,7 +51,9 @@ describe("PIN / activation", () => {
   });
 });
 
-describe("charge QR V2 universelle (ADR-068)", () => {
+// ADR-167 : la copie `src/application` a été supprimée ; on teste la version
+// main réellement appelée par `registry.customers.ts`.
+describe("charge QR V2 universelle (ADR-068) — fonction main exécutée", () => {
   function b64url(obj: unknown): string {
     return Buffer.from(JSON.stringify(obj), "utf8")
       .toString("base64")
@@ -69,7 +68,7 @@ describe("charge QR V2 universelle (ADR-068)", () => {
   const SERVICE = jwt("service_role");
   const URL = "https://abcxyz.supabase.co";
   it("construit VELORIA2|url|anon|phone|pin|code", () => {
-    expect(buildActivationQrPayloadV2(URL, ANON, "0550123456", "482916", QR)).toBe(
+    expect(ClientAccess.buildActivationQrPayloadV2(URL, ANON, "0550123456", "482916", QR)).toBe(
       `VELORIA2|${URL}|${ANON}|0550123456|482916|${QR}`,
     );
   });
@@ -80,11 +79,17 @@ describe("charge QR V2 universelle (ADR-068)", () => {
   });
   it("refuse URL piégée, anon courte et service_role", () => {
     expect(() =>
-      buildActivationQrPayloadV2("http://evil.com", ANON, "0550", "123456", QR),
+      ClientAccess.buildActivationQrPayloadV2("http://evil.com", ANON, "0550", "123456", QR),
     ).toThrow();
-    expect(() => buildActivationQrPayloadV2(URL, "court", "0550", "123456", QR)).toThrow();
-    expect(() => buildActivationQrPayloadV2(URL, SERVICE, "0550", "123456", QR)).toThrow();
-    expect(() => buildActivationQrPayloadV2(URL, ANON, "05|50", "123456", QR)).toThrow();
+    expect(() =>
+      ClientAccess.buildActivationQrPayloadV2(URL, "court", "0550", "123456", QR),
+    ).toThrow();
+    expect(() =>
+      ClientAccess.buildActivationQrPayloadV2(URL, SERVICE, "0550", "123456", QR),
+    ).toThrow();
+    expect(() =>
+      ClientAccess.buildActivationQrPayloadV2(URL, ANON, "05|50", "123456", QR),
+    ).toThrow();
   });
   it("domaine : whitelist URL + garde anon", () => {
     expect(() => assertValidSupabaseUrl(URL)).not.toThrow();

@@ -5,6 +5,8 @@
 // Méthode du plus grand reste compacte : au plus deux paliers de coût
 // unitaire (centimes entiers) dont la somme des quantités × coût reproduit
 // EXACTEMENT le total payé.
+// ADR-167 : le wrapper `allocateUnitCosts` (sans appelant) a été retiré ;
+// seule l'allocation par paliers est exécutée et testée.
 
 export interface UnitCostTier {
   quantity: number;
@@ -32,10 +34,4 @@ export function allocateUnitCostLayers(totalMinor: number, baseQty: number): Uni
     throw new Error("Répartition du coût d'achat incohérente.");
   }
   return tiers;
-}
-
-export function allocateUnitCosts(totalMinor: number, baseQty: number): number[] {
-  return [...new Set(allocateUnitCostLayers(totalMinor, baseQty).map((t) => t.unitCostMinor))].sort(
-    (a, b) => a - b,
-  );
 }

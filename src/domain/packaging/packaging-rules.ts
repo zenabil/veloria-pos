@@ -166,15 +166,9 @@ export function priceSaleLine(input: {
  * Coûts unitaires (centimes entiers) pour répartir un total sur des unités de
  * base. Méthode du plus grand reste compacte : au plus DEUX paliers.
  *
- * Ex. 10 000 centimes sur 3 pièces → `[3333, 3334]` (2 pièces à 3333 et
- * 1 pièce à 3334). `allocateUnitCostLayers` porte les quantités associées et
- * garantit Σ(quantité × coût) = total.
+ * Ex. 10 000 centimes sur 3 pièces → 2 pièces à 3333 et 1 pièce à 3334.
+ * Garantit Σ(quantité × coût) = total.
  */
-export function allocateUnitCosts(totalMinor: number, baseQty: number): number[] {
-  const tiers = allocateUnitCostLayers(totalMinor, baseQty);
-  return [...new Set(tiers.map((t) => t.unitCostMinor))].sort((a, b) => a - b);
-}
-
 export function allocateUnitCostLayers(totalMinor: number, baseQty: number): UnitCostTier[] {
   assertSafeTotal(totalMinor, "Total d'achat invalide");
   if (!Number.isFinite(baseQty) || baseQty <= 0) {

@@ -7,7 +7,6 @@ import { COLORS, SIZES } from "../../owner/src/tokens";
 import {
   formatDateLongFr,
   formatDateShortFr,
-  formatDelta,
   formatMinor,
   formatPercent,
   formatSignedMinor,
@@ -265,8 +264,6 @@ describe("formateurs français", () => {
   });
   it("pourcentages à la française", () => {
     expect(formatPercent(8.2)).toBe("8,2 %");
-    expect(formatDelta(8.2)).toBe("+8,2 %");
-    expect(formatDelta(-3.5)).toBe("-3,5 %");
   });
 });
 

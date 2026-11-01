@@ -2,7 +2,6 @@
 import { describe, it, expect } from "vitest";
 import {
   allocateUnitCostLayers,
-  allocateUnitCosts,
   priceSaleLine,
   splitQuantityByCarton,
 } from "@domain/packaging/packaging-rules.ts";
@@ -187,9 +186,8 @@ describe("priceSaleLine", () => {
   });
 });
 
-describe("allocateUnitCosts / layers", () => {
+describe("allocation des coûts par paliers", () => {
   it("répartit au plus grand reste en 1 ou 2 paliers exacts", () => {
-    expect(allocateUnitCosts(10000, 3)).toEqual([3333, 3334]);
     expect(allocateUnitCostLayers(10000, 3)).toEqual([
       { quantity: 2, unitCostMinor: 3333 },
       { quantity: 1, unitCostMinor: 3334 },
@@ -204,14 +202,13 @@ describe("allocateUnitCosts / layers", () => {
   it("total exact sur quantités décimales et total nul", () => {
     const layers = allocateUnitCostLayers(100000, 35.5);
     expect(layers.reduce((a, t) => a + t.quantity * t.unitCostMinor, 0)).toBe(100000);
-    expect(allocateUnitCosts(0, 4)).toEqual([0]);
     expect(allocateUnitCostLayers(0, 4)).toEqual([{ quantity: 4, unitCostMinor: 0 }]);
   });
 
   it("refuse un total ou une quantité invalide", () => {
-    expect(() => allocateUnitCosts(-1, 3)).toThrow();
-    expect(() => allocateUnitCosts(100, 0)).toThrow();
-    expect(() => allocateUnitCosts(1.5, 3)).toThrow();
+    expect(() => allocateUnitCostLayers(-1, 3)).toThrow();
+    expect(() => allocateUnitCostLayers(100, 0)).toThrow();
+    expect(() => allocateUnitCostLayers(1.5, 3)).toThrow();
   });
 });
 

@@ -1,45 +1,13 @@
 // Veloria PoS — Application: accès clients APK (PUR, sans IO).
-// Construit la charge d'activation V2 scannée par l'APK universel.
-// Zéro IO, zéro UUID généré ici : `operationId` est FOURNI par l'appelant
+// Sélection des factures dont le détail est poussé vers le miroir (page détail
+// APK). Zéro IO, zéro UUID généré ici : `operationId` est FOURNI par l'appelant
 // (même contrat que CreateSale).
 // ADR-153 (lot C) : les copies V1 du QR, la validation d'activation, le
 // cliché d'affichage et le wrapper d'annonce ont été retirés — aucun appelant
 // hors `tests/`, la règle exécutée vit côté main (`client-access.repo.ts`,
 // `clientAccessActivateSchema`, `assertValidAnnouncement` appelé en direct).
-
-import {
-  assertValidActivationCode,
-  assertValidAnonKey,
-  assertValidPin,
-  assertValidSupabaseUrl,
-} from "@domain/customer/client-access.ts";
-
-/** Préfixe V2 (ADR-068) : le QR embarque l'endpoint du magasin (build unique). */
-export const ACTIVATION_QR_PREFIX_V2 = "VELORIA2";
-
-/**
- * Charge QR V2 scannée par l'APK universel (ADR-068) :
- * `VELORIA2|<supabaseUrl>|<anonKey>|<phone>|<pin>|<code>`.
- * L'endpoint vient de la config sync du POS (jamais saisi à la main) ;
- * la clé `service_role` est refusée (anon uniquement).
- */
-export function buildActivationQrPayloadV2(
-  supabaseUrl: string,
-  anonKey: string,
-  phone: string,
-  pin: string,
-  code: string,
-): string {
-  assertValidSupabaseUrl(supabaseUrl);
-  assertValidAnonKey(anonKey);
-  const p = phone.trim();
-  if (p.length < 1 || p.length > 30 || p.includes("|")) {
-    throw new Error("Téléphone invalide pour le QR (1 à 30 caractères, sans |).");
-  }
-  assertValidPin(pin);
-  assertValidActivationCode(code);
-  return `${ACTIVATION_QR_PREFIX_V2}|${supabaseUrl.trim()}|${anonKey.trim()}|${p}|${pin}|${code}`;
-}
+// ADR-167 : la copie applicative de la charge V2 a rejoint le main ; le test
+// d'activation cible désormais la fonction réellement appelée.
 
 /** Ligne de facture ouverte (pour la sélection des détails à pousser). */
 export interface OpenSaleRow {

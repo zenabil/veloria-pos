@@ -108,12 +108,6 @@ export function formatPercent(value: number, digits = 1): string {
   return `${value.toFixed(digits).replace(".", ",")} %`;
 }
 
-/** « +8,2 % » pour les évolutions. */
-export function formatDelta(value: number, digits = 1): string {
-  const sign = value > 0 ? "+" : "";
-  return `${sign}${value.toFixed(digits).replace(".", ",")} %`;
-}
-
 /** « 3 flacons » / « 1 flacon » : unité accordée au singulier sous 2. */
 export function formatQuantity(qty: number, singular: string, plural: string): string {
   return `${qty} ${qty > 1 ? plural : singular}`;
