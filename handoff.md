@@ -15,7 +15,8 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête **session 89** (purge des artefacts obsolètes). Avant elle session 88 (annonces multi-médias + bandeau hero APK, ADR-166), session 87 bis (rafraîchissement périodique de l'APK selon la cadence POS, ADR-165), session 87 (annonce magasin poussée aux clients, ADR-160). Avant elle session 86 (compte propriétaire, ADR-164), session 85 (connexion Supabase owner, ADR-163), session 84 (données fictives supprimées, owner), session 83 (Argent/Stock/Périodes/Alertes enrichis), session 82 (Aujourd'hui + détails de transaction), session 81 (passe design v2 owner), session 80 (écrans courts owner), session 79 (application propriétaire, ADR-162), session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- Branche : `chore/root-layout` — tête **session 90** (purge ciblée post-audit, ADR-167). Avant elle session 89 (purge des artefacts obsolètes), session 88 (annonces multi-médias + bandeau hero APK, ADR-166), session 87 bis (rafraîchissement périodique de l'APK selon la cadence POS, ADR-165), session 87 (annonce magasin poussée aux clients, ADR-160). Avant elle session 86 (compte propriétaire, ADR-164), session 85 (connexion Supabase owner, ADR-163), session 84 (données fictives supprimées, owner), session 83 (Argent/Stock/Périodes/Alertes enrichis), session 82 (Aujourd'hui + détails de transaction), session 81 (passe design v2 owner), session 80 (écrans courts owner), session 79 (application propriétaire, ADR-162), session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 90 (2026-11-01)** : **purge ciblée post-audit (ADR-167)** — demande : « قم بفحص المشروع من الأكواد الميتة ». Audit lecture seule (392 fichiers de production, ≈1 890 exports, 186 canaux IPC, `knip` 0) : **0 fichier sans importateur, 0 export orphelin, 0 canal IPC mort, 0 dépendance inutilisée**. Corrections approuvées : copie applicative V2 morte supprimée (le test cible désormais la version main exécutée), wrappers `allocateUnitCosts` (domaine + main) retirés, `formatDelta` retiré, 3 clés i18n mortes ; icônes maîtresses 1024/512 déplacées vers `resources/icons-src/` (≈2,2 Mo d'installeur économisés). Les 3 ignores `knip` (`expo-updates` ×2, `net`) se sont révélés **vivants** (app.json / E2E) et sont conservés. Conservés : 35 exports test-only/parité, 3 modules `verify:domain`, `pain`/`breadOrders`, SQLite lot D, 11 classes CSS. Portes : §90 (toutes vertes).
 - **Session 89 (2026-11-01)** : **purge des artefacts obsolètes** — demande : « قم بحذف كل الملفات القديمة و المحجورة التي لا حاجة لها في المشروع ». Audit d'abord (git propre, aucun fichier suivi touché) : suppression de l'ancien worktree temporaire `veloria-csv-run` (25 Mo, commit c30b5c6, propre), de `E:\veloria-build-final` (817 Mo, sorties electron-builder déjà copiées), des restes `E:\veloria-periodic-build`/`-stage`/backup, de `mobile/android/app/build` + `build` (420 Mo, APK déjà dans `release/`), des 5 sauvegardes `graphify-out/2026-*` (60 Mo, graphe actif conservé) et des dossiers vides `release/win-unpacked*`. **E: libre : 62 Mo → 8,0 Go.** Conservés : installateurs POS/Manager 1.0.4, APK 1.0.4 code 6, `dist`/`dist-electron` courants, `node_modules`, `.gradle` (cache), `private/` (clés/licences), archives docs, graphe actif. Aucun test/build relancé : aucune source modifiée.
 - **Session 88 (2026-10-31)** : **annonces multi-médias + bandeau hero APK (ADR-166)** — demande : bandeau hero en haut de l'accueil de l'application client, annonces **optionnelles** en texte **ou** image hébergée sur un site gratuit, **4 maximum**, avec un **compte à rebours d'expiration**. Migration **0057** (rebuild de 0032, lignes legacy conservées) : `image_url` https ≤ 500 (jamais de blob/base64), `ends_at`, `sort`, `updated_at`, `CHECK` texte OU image. Domaine : texte ≤ 120 ou image https, échéance future obligatoire, **4 actives non expirées** (comptées dans la transaction). Repo : `saveAnnouncementAtomic` devient un **upsert idempotent** (`id` optionnel), `removeAnnouncementAtomic` idempotent par valeur, `listAnnouncements` ; canaux `announcements.list`/`remove`, `announcements.get` supprimé ; gardes staff `settings` / licence `customers` ; rétention critique élargie au préfixe `announcements.`. Cliché : `announcements[]` (actives non expirées, tri `sort`, ≤ 4) **+** champ legacy `announcement` (premier texte) pour les APK ≤ 1.0.4 déjà installées. POS (Paramètres → Annonces du magasin) : liste, formulaire texte/image (aperçu, https, fin, ordre, actif), suppression confirmée, badge « x/4 actives ». APK : composant `announcement-hero.tsx` (image 2:1 + texte, compte à rebours rafraîchi chaque minute, pastilles si plusieurs, **repli texte** si l'image ne charge pas, annonce expirée masquée, repli sur l'ancien champ texte), i18n ar/fr et RTL. Portes : **173 fichiers / 1 194 tests 0** · lint 0 · typecheck / electron / mobile 0 · `verify` ✓ · `build` ✓ · `build:electron` ✓ (manifeste **244**) · vérification visuelle **Expo web** (image 800×400 chargée, « ينتهي بعد 3 يوم 3 ساعة », l'annonce expirée n'apparaît pas, bascule 1/2 → 2/2), serveurs de démo arrêtés. **Non exécuté** : reconstruction/installation de l'APK (le hero ne sera visible qu'après un nouveau build + install). Session concurrente : ADR-165 (rafraîchissement périodique) commitée avant, d'où la renumérotation en **ADR-166**. Commit `1dc3e46`.
 - **Session 87 (2026-10-31)** : **annonce magasin poussée aux clients** — demande : l'annonce saisie dans POS n'arrive pas dans l'APK, et la synchro doit être automatique selon la cadence choisie. Diagnostic sur la base réelle : `announcements.save` écrivait seulement la table `announcements` (12:15 et 12:17), aucun `sync_outbox` correspondant ; le timer poussait bien (lastPushAt 12:22) mais **rien à envoyer**, et le `customer_snapshot` du miroir gardait l'ancienne annonce (`null`). Correctif : `enqueueAnnouncementRefresh()` (un `customer_snapshot` par accès mobile **actif**, révoqués exclus, best-effort) appelé après `announcements.save` ; message UI « partira à la prochaine synchronisation ». La cadence auto est inchangée (`startSyncTimer` tick 60 s + `isPushDue(intervalMinutes)`, réglage POS 5 min). Test de régression ajouté (4/4). Portes : **173 fichiers / 1 187 tests 0** ; format/lint/typechecks ✓ ; verify ✓ ; **POS 1.0.4 reconstruit** (Setup `e6f96ec6…`, Portable `50a733cc…`), `release:checksums` + `release:smoke` ✓. **À faire côté poste** : installer le nouveau POS 1.0.4, réenregistrer l'annonce existante une fois, attendre ≤5 min, rouvrir l'APK.
@@ -4015,3 +4016,52 @@ source, migration, test ou configuration modifiée. Espace libre sur `E:` :
 **62 Mo → 8,0 Go**. Aucun test/build relancé (inutile sans changement de code).
 
 **Git** : ce `docs(handoff)`.
+
+## 90) Session 2026-11-01 — Purge ciblée post-audit (ADR-167)
+
+**Demande** : « قم بفحص المشروع من الأكواد الميتة », puis approbation de la
+défense A + déplacement des icônes (les 11 classes CSS restent hors périmètre).
+
+**Audit (lecture seule)** : 392 fichiers de production, ≈1 890 exports, 186
+canaux IPC + 192 wrappers, 124 clés i18n, 22 classes CSS, assets, scripts,
+dépendances. Méthode : fermeture transitive depuis 11 points d'entrée
+d'exécution + index d'imports (barrels `export *` et collisions de noms
+résolus, pas une simple correspondance de noms) + carte IPC à trois niveaux.
+Résultat : `knip` 0 ; **0 fichier sans importateur** ; **0 export sans aucun
+référent** ; **0 canal IPC mort** ; **0 dépendance npm inutilisée** ; **0
+script sans référence**. 39 exports test-only : 4 nouveaux (V2 applicatif,
+2× `allocateUnitCosts`, `formatDelta`), 35 conservés (ADR-153/W6/parité/
+`verify:domain`).
+
+**Corrigé** :
+
+- `src/application/customers/client-access.ts` : copie V2 morte +
+  `ACTIVATION_QR_PREFIX_V2` supprimées ; le main exécute
+  `client-access.repo.ts:143`, appelé par `registry.customers.ts:175` ;
+  `tests/unit/client-access.test.ts` cible désormais la version main.
+- `allocateUnitCosts` (domaine + main) supprimés : seuls des tests les
+  utilisaient ; la parité porte sur `allocateUnitCostLayers` (exécutée).
+- `owner/src/format.ts` : `formatDelta` supprimé (aucun appelant).
+- `mobile/src/i18n.ts` : `invoiceNo`, `status`, `invoiceLabel` supprimées
+  (124 → 121 clés, ar/fr symétriques).
+- `public/icons/icon-1024x1024.png` + `icon-512x512.png` déplacées vers
+  `resources/icons-src/` (non empaqueté) : ≈2,2 Mo d'installeur économisés.
+- **Réfutation** : les 3 ignores `knip` (`expo-updates` ×2, `net`) ne sont
+  pas morts — `expo-updates` est requis par `app.json`, `net` par
+  `tests/e2e/helpers.ts`. `config/knip.json` reste inchangé.
+
+**Conservés** (décisions antérieures) : 3 modules de domaine non exécutés au
+runtime (215 lignes, références de `verify:domain`, ADR-153), 35 exports
+test-only/parité, `pain`/`breadOrders` (ADR-109), `multi-printer` legacy,
+objets SQLite morts (ADR-153 lot D), 11 classes CSS mortes (hors périmètre).
+
+**Portes** : format/lint/typechecks (root, electron, manager, mobile, owner) ✓ ;
+**173 fichiers / 1 194 tests 0** ; `test:coverage` **93,81 / 89,11 / 98,48 /
+96,30** ; `test:coverage:features` **164 fichiers / 1 132 tests**, fonctions
+**74,62 %** ; `build` ✓ ; `build:electron` ✓ (manifeste **235**) ; `knip` ✓ ;
+`verify` ✓ (migrations, domaine, FR, encodage, perf, version, secret-scan).
+
+**Git** : commit code + ADR, puis ce `docs(handoff)`.
+**Non exécuté** : reconstruction des installateurs/APK — les artefacts de
+`release/` restent inchangés ; le gain de ≈2,2 Mo s'appliquera au prochain
+build. Le manifeste d'intégrité a été re-signé localement (235 fichiers).
