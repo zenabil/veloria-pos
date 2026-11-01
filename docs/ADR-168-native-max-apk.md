@@ -80,12 +80,14 @@ fonctionnalités et réimpliquerait les contrats de synchronisation, le QR
 
 ## Risques et validation
 
-- **R8 runtime non testé sur appareil** : aucun ADB connecté pendant la
-  tranche. L'APK doit être installé et lancé sur le téléphone du vendor avant
-  diffusion ; en cas de crash (classe retirée), ajouter le keep correspondant
-  et reconstruire.
-- **Caméra/QR inchangée** : ML Kit reste embarqué ; le login QR doit être
-  vérifié au premier test.
+- **R8 runtime validé sur appareil le 2026-11-01** (CPH2235, Android 13,
+  arm64) : les deux APK s'installent et démarrent ; écrans, caméra
+  (CameraX/ML Kit) et erreurs de login réelles testés **sans crash app**. Voir
+  handoff §92. Restent à valider : scan d'un QR valide, login client réussi et
+  tableau de bord Owner.
+- **Caméra/QR** : la permission, l'ouverture de la caméra et l'analyseur ML
+  Kit sont validés à l'écran ; le décodage d'un QR réel et le login réussi
+  restent à tester avec une carte/QR valide.
 - **Owner** : première signature release avec la clé vendor existante ; le
   package est distinct (`dz.veloria.owner`), les mises à jour restent
   installables par-dessus.
@@ -108,6 +110,12 @@ fonctionnalités et réimpliquerait les contrats de synchronisation, le QR
 - L'ancien APK client 4 ABIs est conservé sous
   `release/Veloria-Client-1.0.4-4abi-legacy.apk` (84,6 MiB) pour retour
   arrière ; le nom canonique pointe désormais sur l'APK natif-max.
+- **Validation appareil réel (2026-11-01)** : CPH2235 Android 13 (SDK 33),
+  arm64-v8a, 1080×2400. Installation propre des deux APK
+  (`primaryCpuAbi=arm64-v8a`, aucun `RECORD_AUDIO`), démarrage d'activité
+  ~0,33 s, client AR/FR + caméra/ML Kit + erreur de login réelle, Owner login
+  - erreur Supabase Auth réelle, **aucune FATAL app**. Captures :
+    `release/screenshots/`.
 
 ## Reproductibilité
 
@@ -143,6 +151,9 @@ reconstruire. Les APK livrés vivent dans `release/` (non suivi) :
   secret-scan — **vert**.
 - `npm run knip` : **vert**.
 - Aucun fichier TS modifié : couverture non relancée.
-- **Non testé** : installation et lancement réels — aucun appareil ADB
-  connecté pendant la tranche ; caméra/QR et runtime R8 restent à valider au
-  premier test sur téléphone.
+- **Test appareil réel (2026-11-01, CPH2235/Android 13)** : installation,
+  lancement, UI AR/FR, permission caméra + ouverture CameraX/ML Kit, erreurs
+  de login client/owner réelles — **sans crash app** (détails et captures :
+  handoff §92, `release/screenshots/`).
+- **Non testé** : décodage d'un QR valide, login client réussi (QR/PIN client),
+  tableau de bord Owner (compte + liasse), stabilité longue.
