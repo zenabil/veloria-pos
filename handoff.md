@@ -15,7 +15,8 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête **session 91** (APK Native-max, ADR-168). Avant elle session 90 (purge ciblée post-audit, ADR-167), session 89 (purge des artefacts obsolètes), session 88 (annonces multi-médias + bandeau hero APK, ADR-166), session 87 bis (rafraîchissement périodique de l'APK selon la cadence POS, ADR-165), session 87 (annonce magasin poussée aux clients, ADR-160). Avant elle session 86 (compte propriétaire, ADR-164), session 85 (connexion Supabase owner, ADR-163), session 84 (données fictives supprimées, owner), session 83 (Argent/Stock/Périodes/Alertes enrichis), session 82 (Aujourd'hui + détails de transaction), session 81 (passe design v2 owner), session 80 (écrans courts owner), session 79 (application propriétaire, ADR-162), session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- Branche : `chore/root-layout` — tête **session 92** (test appareil réel, CPH2235). Avant elle session 91 (APK Native-max, ADR-168), session 90 (purge ciblée post-audit, ADR-167), session 89 (purge des artefacts obsolètes), session 88 (annonces multi-médias + bandeau hero APK, ADR-166), session 87 bis (rafraîchissement périodique de l'APK selon la cadence POS, ADR-165), session 87 (annonce magasin poussée aux clients, ADR-160). Avant elle session 86 (compte propriétaire, ADR-164), session 85 (connexion Supabase owner, ADR-163), session 84 (données fictives supprimées, owner), session 83 (Argent/Stock/Périodes/Alertes enrichis), session 82 (Aujourd'hui + détails de transaction), session 81 (passe design v2 owner), session 80 (écrans courts owner), session 79 (application propriétaire, ADR-162), session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 92 (2026-11-01)** : **test appareil réel (CPH2235, Android 13)** — installation propre du client 1.0.4 (code 6) et de l'owner 0.1.0 (code 1) : `primaryCpuAbi=arm64-v8a`, aucun `RECORD_AUDIO`, démarrage d'activité ~0,33 s. Client : UI AR/FR, permission caméra + CameraX/ML Kit ouverts, erreur de login réelle « الهاتف أو الرمز غير صحيح ». Owner : login FR + erreur Supabase Auth réelle. **Aucune FATAL app**. **Non testé** : QR valide/login réussi, tableau de bord owner, stabilité longue. Captures : `release/screenshots/`. Aucun code modifié.
 - **Session 91 (2026-11-01)** : **APK Native-max (ADR-168)** — demande : « اجعل تطبيقات apk native الى اقصى درجة ممكنة ». Choix : Native-max sur RN (pas de réécriture Kotlin). Client : **84,6 → 21,6 MiB (−74,4 %)** (R8, shrink, 2 ABIs ARM, libs compressées, `RECORD_AUDIO`/stockage/overlay retirés), signature vendor, hash `8ee498b5…` ; ancien APK 4 ABIs archivé. Owner : **premier APK 17,3 MiB** (2 ABIs, Dex 7,3 Mo, signature vendor, hash `e720ba19…`). Builds Gradle verts, `apksigner` vert. **Différé** : scanner QR ZXing natif (ML Kit reste) et New Architecture, faute d'appareil ADB. Portes `check`/`test`/`verify`/`knip` : §91.
 - **Session 90 (2026-11-01)** : **purge ciblée post-audit (ADR-167)** — demande : « قم بفحص المشروع من الأكواد الميتة ». Audit lecture seule (392 fichiers de production, ≈1 890 exports, 186 canaux IPC, `knip` 0) : **0 fichier sans importateur, 0 export orphelin, 0 canal IPC mort, 0 dépendance inutilisée**. Corrections approuvées : copie applicative V2 morte supprimée (le test cible désormais la version main exécutée), wrappers `allocateUnitCosts` (domaine + main) retirés, `formatDelta` retiré, 3 clés i18n mortes ; icônes maîtresses 1024/512 déplacées vers `resources/icons-src/` (≈2,2 Mo d'installeur économisés). Les 3 ignores `knip` (`expo-updates` ×2, `net`) se sont révélés **vivants** (app.json / E2E) et sont conservés. Conservés : 35 exports test-only/parité, 3 modules `verify:domain`, `pain`/`breadOrders`, SQLite lot D, 11 classes CSS. Portes : §90 (toutes vertes).
 - **Session 89 (2026-11-01)** : **purge des artefacts obsolètes** — demande : « قم بحذف كل الملفات القديمة و المحجورة التي لا حاجة لها في المشروع ». Audit d'abord (git propre, aucun fichier suivi touché) : suppression de l'ancien worktree temporaire `veloria-csv-run` (25 Mo, commit c30b5c6, propre), de `E:\veloria-build-final` (817 Mo, sorties electron-builder déjà copiées), des restes `E:\veloria-periodic-build`/`-stage`/backup, de `mobile/android/app/build` + `build` (420 Mo, APK déjà dans `release/`), des 5 sauvegardes `graphify-out/2026-*` (60 Mo, graphe actif conservé) et des dossiers vides `release/win-unpacked*`. **E: libre : 62 Mo → 8,0 Go.** Conservés : installateurs POS/Manager 1.0.4, APK 1.0.4 code 6, `dist`/`dist-electron` courants, `node_modules`, `.gradle` (cache), `private/` (clés/licences), archives docs, graphe actif. Aucun test/build relancé : aucune source modifiée.
@@ -4133,3 +4134,49 @@ et le login QR seront à refaire). Owner : package distinct
 **Git** : commit natif + ADR, puis ce `docs(handoff)`. Les APK et les projets
 natifs générés ne sont pas suivis ; la configuration native locale est
 documentée dans ADR-168 (à réappliquer après `expo prebuild --clean`).
+
+## 92) Session 2026-11-01 — Test appareil réel (CPH2235, Android 13)
+
+**Demande** : « جرب التطبيقات على جهاز حقيقي ».
+
+**Appareil** : CPH2235, Android 13 (SDK 33), arm64-v8a, 1080×2400, ADB ;
+aucune version Veloria préinstallée (installation propre).
+
+**Installation** : client 1.0.4 (code 6) et owner 0.1.0 (code 1) via
+`adb install -r` — succès ; `primaryCpuAbi=arm64-v8a` ; aucun `RECORD_AUDIO`
+demandé ; signature vendor (APK vérifiés).
+
+**Client** :
+
+- Démarrage d'activité **332 ms** (après force-stop), écran rendu.
+- UI arabe (défaut) et bascule **FR** OK ; RTL/LTR corrects.
+- QR : dialog de permission caméra puis **CameraX/ML Kit ouverts**
+  (`Camera2CameraImpl ... dz.veloria.client`), cadre de scan affiché ; aperçu
+  noir (caméra couverte/obscurité), **aucun crash**.
+- Login faux `0550000000` / `123456` : requête réelle au miroir Supabase,
+  erreur AR « الهاتف أو الرمز غير صحيح » (et équivalent FR) ; **aucun
+  crash**.
+- **Non testé** : scan d'un QR réel, login réussi (nécessite un QR/PIN client
+  valide), stabilité longue.
+
+**Owner** :
+
+- Démarrage d'activité **328 ms** (après force-stop), écran login FR.
+- Login faux `test@example.com` / `wrongpass` : Supabase Auth réel,
+  « Adresse e-mail ou mot de passe incorrect. » ; **aucun crash**.
+- **Non testé** : tableau de bord (compte propriétaire + liasse publiée).
+
+**Logs** : aucune `FATAL EXCEPTION` pour les deux apps. La seule FATAL du log
+est `com.android.commands.svc` (commande ADB `svc power stayon`, refus
+`WRITE_SETTINGS` par ColorOS), sans rapport avec les applications.
+
+**Écran** : ColorOS endort l'écran rapidement (ADB USB non chargeant), ce qui
+rend certains taps automatisés instables ; tests refaits avec wake/dismiss. Ce
+n'est pas un défaut des applications.
+
+**Captures** : `release/screenshots/` — `client-login-ar.png`,
+`client-login-fr.png`, `client-qr-permission.png`, `client-qr-scanner.png`,
+`client-login-error.png`, `owner-login.png`, `owner-login-error.png`.
+
+**Aucun changement de code** ; APK inchangés. **Git** : mise à jour ADR-168
+puis ce `docs(handoff)`.
