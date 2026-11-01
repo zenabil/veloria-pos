@@ -15,7 +15,8 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête **session 92** (test appareil réel, CPH2235). Avant elle session 91 (APK Native-max, ADR-168), session 90 (purge ciblée post-audit, ADR-167), session 89 (purge des artefacts obsolètes), session 88 (annonces multi-médias + bandeau hero APK, ADR-166), session 87 bis (rafraîchissement périodique de l'APK selon la cadence POS, ADR-165), session 87 (annonce magasin poussée aux clients, ADR-160). Avant elle session 86 (compte propriétaire, ADR-164), session 85 (connexion Supabase owner, ADR-163), session 84 (données fictives supprimées, owner), session 83 (Argent/Stock/Périodes/Alertes enrichis), session 82 (Aujourd'hui + détails de transaction), session 81 (passe design v2 owner), session 80 (écrans courts owner), session 79 (application propriétaire, ADR-162), session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- Branche : `chore/root-layout` — tête **session 93** (diagnostic bandeau hero client). Avant elle session 92 (test appareil réel, CPH2235), session 91 (APK Native-max, ADR-168), session 90 (purge ciblée post-audit, ADR-167), session 89 (purge des artefacts obsolètes), session 88 (annonces multi-médias + bandeau hero APK, ADR-166), session 87 bis (rafraîchissement périodique de l'APK selon la cadence POS, ADR-165), session 87 (annonce magasin poussée aux clients, ADR-160). Avant elle session 86 (compte propriétaire, ADR-164), session 85 (connexion Supabase owner, ADR-163), session 84 (données fictives supprimées, owner), session 83 (Argent/Stock/Périodes/Alertes enrichis), session 82 (Aujourd'hui + détails de transaction), session 81 (passe design v2 owner), session 80 (écrans courts owner), session 79 (application propriétaire, ADR-162), session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 93 (2026-11-01)** : **diagnostic bandeau hero (client)** — le composant `AnnouncementHero` est présent dans l'APK (nouveau 22 Mo et ancien 85 Mo) ; le CPH2235 est actuellement sur l'**écran de login** (le hero n'est rendu qu'après login, dans Home). Base POS `E:\data\Veloria POS DB.sqlite` en **schema 56** (migration 0057 non appliquée) : table `announcements` texte seulement (3 doublons actifs), dernier `customer_snapshot` envoyé le 2026-10-31 20:30 avec le champ legacy `announcement` et **pas** `announcements[]`. À suivre : login réel + pull-to-refresh ; POS à jour (0057) + ré-enregistrement pour images/échéances ; capture/QR si le hero reste absent. **Aucun code modifié.**
 - **Session 92 (2026-11-01)** : **test appareil réel (CPH2235, Android 13)** — installation propre du client 1.0.4 (code 6) et de l'owner 0.1.0 (code 1) : `primaryCpuAbi=arm64-v8a`, aucun `RECORD_AUDIO`, démarrage d'activité ~0,33 s. Client : UI AR/FR, permission caméra + CameraX/ML Kit ouverts, erreur de login réelle « الهاتف أو الرمز غير صحيح ». Owner : login FR + erreur Supabase Auth réelle. **Aucune FATAL app**. **Non testé** : QR valide/login réussi, tableau de bord owner, stabilité longue. Captures : `release/screenshots/`. Aucun code modifié.
 - **Session 91 (2026-11-01)** : **APK Native-max (ADR-168)** — demande : « اجعل تطبيقات apk native الى اقصى درجة ممكنة ». Choix : Native-max sur RN (pas de réécriture Kotlin). Client : **84,6 → 21,6 MiB (−74,4 %)** (R8, shrink, 2 ABIs ARM, libs compressées, `RECORD_AUDIO`/stockage/overlay retirés), signature vendor, hash `8ee498b5…` ; ancien APK 4 ABIs archivé. Owner : **premier APK 17,3 MiB** (2 ABIs, Dex 7,3 Mo, signature vendor, hash `e720ba19…`). Builds Gradle verts, `apksigner` vert. **Différé** : scanner QR ZXing natif (ML Kit reste) et New Architecture, faute d'appareil ADB. Portes `check`/`test`/`verify`/`knip` : §91.
 - **Session 90 (2026-11-01)** : **purge ciblée post-audit (ADR-167)** — demande : « قم بفحص المشروع من الأكواد الميتة ». Audit lecture seule (392 fichiers de production, ≈1 890 exports, 186 canaux IPC, `knip` 0) : **0 fichier sans importateur, 0 export orphelin, 0 canal IPC mort, 0 dépendance inutilisée**. Corrections approuvées : copie applicative V2 morte supprimée (le test cible désormais la version main exécutée), wrappers `allocateUnitCosts` (domaine + main) retirés, `formatDelta` retiré, 3 clés i18n mortes ; icônes maîtresses 1024/512 déplacées vers `resources/icons-src/` (≈2,2 Mo d'installeur économisés). Les 3 ignores `knip` (`expo-updates` ×2, `net`) se sont révélés **vivants** (app.json / E2E) et sont conservés. Conservés : 35 exports test-only/parité, 3 modules `verify:domain`, `pain`/`breadOrders`, SQLite lot D, 11 classes CSS. Portes : §90 (toutes vertes).
@@ -4180,3 +4181,39 @@ n'est pas un défaut des applications.
 
 **Aucun changement de code** ; APK inchangés. **Git** : mise à jour ADR-168
 puis ce `docs(handoff)`.
+
+## 93) Session 2026-11-01 — Diagnostic bandeau hero (client)
+
+**Demande** : « شريط hero غير ظاهر في تطبيق العملاء ».
+
+**Constats** :
+
+- `AnnouncementHero` est présent dans les deux APK (nouveau 22 Mo et ancien
+  85 Mo) ; le bundle contient le composant. Ce n'est pas une omission de
+  build.
+- Le CPH2235 est sur l'écran de **login** (essai téléphone/PIN factice) : le
+  hero n'est rendu que dans **Home, après login**, jamais sur l'écran de
+  connexion.
+- Base POS `E:\data\Veloria POS DB.sqlite` : `schema_migrations` s'arrête à
+  **56** (migration 0057 non appliquée). Table `announcements` =
+  `id/text/is_active/created_at` seulement, **3 lignes actives identiques**.
+  Dernier `customer_snapshot` (outbox id 17, envoyé 2026-10-31 20:30) :
+  champ `announcement` texte, **aucune clé `announcements[]`**.
+- Le fallback `parseAnnouncements` (champ `announcement`) est testé et doit
+  afficher un hero texte après login/refresh ; les images et le compte à
+  rebours exigent POS à jour (0057) + ré-enregistrement de l'annonce.
+- Le hero est placé après la carte « dernière facture » dans Home (peut être
+  sous la ligne de flottaison sur petit écran) ; non déplacé dans cette
+  session.
+
+**À suivre** :
+
+1. Se connecter avec un QR client réel sur le téléphone.
+2. Pull-to-refresh Home (ou attendre 5 min) : le snapshot du 20:30 contient
+   le texte legacy.
+3. Mettre POS à jour (migration 0057) et ré-enregistrer l'annonce pour
+   obtenir `announcements[]` (image/échéance) et supprimer les doublons.
+4. Si le hero reste absent après login/refresh : capture Home ou QR pour
+   vérifier le cache/placement ; déplacer le hero en tête si nécessaire.
+
+**Aucun code modifié ; aucun APK reconstruit.** **Git** : ce `docs(handoff)`.
