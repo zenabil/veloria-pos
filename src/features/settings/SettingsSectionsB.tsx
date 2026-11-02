@@ -20,6 +20,7 @@ import {
   type BackupFrequency,
 } from "./backup-frequency.ts";
 import { formatBytes } from "@shared/formatters/files.ts";
+import { formatDateTimeFr } from "@shared/formatters/format.ts";
 import { Field, Select, TextInput } from "@shared/ui/primitives.tsx";
 import { Button, Modal } from "@shared/ui/primitives.tsx";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
@@ -36,6 +37,7 @@ import { licenseStateLabel } from "@features/license/types.ts";
 import {
   callChecked,
   syncConfigViewSchema,
+  syncOwnerPushResultSchema,
   syncPushResultSchema,
 } from "@shared/types/ipc-contracts.ts";
 
@@ -644,7 +646,16 @@ interface SyncView {
   pendingCount: number;
   ownerEmail?: string | null | undefined;
   ownerUpdatedAt?: string | null | undefined;
+  /** ADR-171 : liasse de supervision (jamais de secret, jamais la liasse). */
+  ownerEnabled?: boolean | undefined;
+  ownerIntervalMinutes?: number | undefined;
+  lastOwnerPushAt?: string | null | undefined;
+  lastOwnerError?: string | null | undefined;
 }
+
+/** Bornes de cadence miroir de `sync.protocol` (OWNER_INTERVAL_MIN/MAX). */
+const OWNER_INTERVAL_MIN = 15;
+const OWNER_INTERVAL_MAX = 1440;
 
 export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Element {
   const [enabled, setEnabled] = useState(false);
@@ -654,6 +665,9 @@ export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Ele
   const [interval, setInterval] = useState("15");
   const [ownerEmail, setOwnerEmail] = useState("");
   const [ownerPassword, setOwnerPassword] = useState("");
+  // ADR-171 : liasse de supervision (défaut OFF — rien ne sort sans décision).
+  const [ownerLiasso, setOwnerLiasso] = useState(false);
+  const [ownerInterval, setOwnerInterval] = useState("60");
   const [view, setView] = useState<SyncView | null>(null);
   const { busy, run } = useBusyFlag();
 
@@ -666,6 +680,8 @@ export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Ele
         setInterval(String(v.intervalMinutes));
         setOwnerEmail(v.ownerEmail ?? "");
         setOwnerPassword("");
+        setOwnerLiasso(v.ownerEnabled);
+        setOwnerInterval(String(v.ownerIntervalMinutes));
         setSecret("");
         setAnon("");
       })
@@ -680,6 +696,26 @@ export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Ele
     const minutes = Number(interval);
     if (!Number.isInteger(minutes) || minutes < 5 || minutes > 1440) {
       notify("Cadence invalide (5 – 1440 minutes).", "err");
+      return;
+    }
+    // ADR-171 : cadence propre de la liasse, bornes plus hautes (quota egress).
+    const ownerMinutes = Number(ownerInterval);
+    if (
+      !Number.isInteger(ownerMinutes) ||
+      ownerMinutes < OWNER_INTERVAL_MIN ||
+      ownerMinutes > OWNER_INTERVAL_MAX
+    ) {
+      notify(
+        `Cadence de liasse invalide (${OWNER_INTERVAL_MIN} – ${OWNER_INTERVAL_MAX} minutes).`,
+        "err",
+      );
+      return;
+    }
+    if (ownerLiasso && !enabled) {
+      notify(
+        "Liasse propriétaire : activez d'abord la synchronisation du miroir (elle partage ses identifiants).",
+        "err",
+      );
       return;
     }
     if (enabled && !/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url.trim())) {
@@ -707,6 +743,8 @@ export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Ele
           serviceKey: secret,
           anonKey: anon,
           intervalMinutes: minutes,
+          ownerEnabled: ownerLiasso,
+          ownerIntervalMinutes: ownerMinutes,
         });
         setSecret("");
         setAnon("");
@@ -764,6 +802,30 @@ export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Ele
         refresh();
       } catch (e) {
         notify(frError(e, "Poussée impossible."), "err");
+        refresh();
+      }
+    });
+  }
+
+  /**
+   * ADR-171 : publication immédiate de la liasse de supervision. Une seule
+   * ligne insérée par jeton (idempotent côté main) ; le bouton ne
+   * télécharge jamais la liasse — seul son volume de caractères revient.
+   */
+  function publishOwnerSnapshot(): void {
+    void run(async () => {
+      try {
+        const r = await callChecked(
+          (a) => a.sync.pushOwnerSnapshot({ operationId: newOperationId() }),
+          syncOwnerPushResultSchema,
+        );
+        notify(
+          `Liasse publiée (${Math.round(r.chars / 1000)} Ko, ${r.generatedAt.slice(11, 16)}).`,
+          "ok",
+        );
+        refresh();
+      } catch (e) {
+        notify(frError(e, "Publication de la liasse impossible."), "err");
         refresh();
       }
     });
@@ -898,6 +960,49 @@ export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Ele
             {view?.ownerEmail ? "Mettre à jour le compte" : "Créer le compte"}
           </Button>
         </div>
+      </SettingsGroup>
+
+      <SettingsGroup title="Liasse de supervision (application propriétaire)">
+        <SwitchRow
+          label="Publier la liasse de supervision"
+          hint="Agrégat lecture seule (ventes, caisse, créances, stock, alertes) envoyé au même miroir. Désactivé par défaut : aucune donnée ne sort sans votre décision."
+          checked={ownerLiasso}
+          onChange={setOwnerLiasso}
+          ariaLabel="Publication de la liasse propriétaire"
+        />
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="min-w-[180px] flex-1">
+            <Field
+              label={`Cadence de publication (minutes, ${OWNER_INTERVAL_MIN} – ${OWNER_INTERVAL_MAX})`}
+              hint="60 = une liasse par heure. Plus court = davantage de données sortantes."
+            >
+              <TextInput
+                value={ownerInterval}
+                onChange={(e) => setOwnerInterval(e.target.value)}
+                inputMode="numeric"
+                placeholder="60"
+                aria-label="Cadence de publication de la liasse"
+              />
+            </Field>
+          </div>
+          <Button type="button" variant="secondary" onClick={publishOwnerSnapshot} disabled={busy}>
+            Publier maintenant
+          </Button>
+        </div>
+        <InfoRow
+          label="Dernière publication"
+          value={view?.lastOwnerPushAt ? formatDateTimeFr(view.lastOwnerPushAt) : "Jamais"}
+        />
+        <InfoRow
+          label="Cadence enregistrée"
+          value={`${view?.ownerIntervalMinutes ?? 60} minutes`}
+        />
+        {view?.lastOwnerError ? (
+          <InfoRow
+            label="Dernière erreur de publication"
+            value={frError(view.lastOwnerError, "Publication impossible.")}
+          />
+        ) : null}
       </SettingsGroup>
 
       <p className="text-xs text-slate-500">

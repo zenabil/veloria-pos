@@ -60,6 +60,7 @@ const REQUIRED_NAMES: readonly string[] = [
   "supplierPaySchema",
   "syncConfigSchema",
   "syncEnqueueSchema",
+  "syncOwnerPushSchema",
   "syncPushNowSchema",
   "templateActivateSchema",
   "templateRemoveSchema",
@@ -109,7 +110,9 @@ const ALL_SCHEMA_NAMES: readonly string[] = Object.keys(V)
 // retiré avec le canal mort `templates.get`).
 // ADR-170 (2026-11-02) : 125 → 129 (sessions de caisse : open/count/close
 // exigent `operationId`, `cashSessionListSchema` est une lecture sans jeton).
-const FROZEN_SCHEMA_TOTAL = 129;
+// ADR-171 (2026-11-02) : 129 → 130 (`syncOwnerPushSchema` — publication de la
+// liasse de supervision propriétaire, mutation sortante `operationId` REQUIS).
+const FROZEN_SCHEMA_TOTAL = 130;
 
 function schemaOf(name: string): unknown {
   return (V as unknown as Record<string, unknown>)[name];

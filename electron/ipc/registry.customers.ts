@@ -15,6 +15,7 @@ import {
   enqueueSaleRefresh,
   getShopEndpoint,
   getSyncView,
+  publishOwnerSnapshotAtomic,
   pushNowAtomic,
   saveOwnerAccountAtomic,
   saveSyncConfigAtomic,
@@ -227,6 +228,12 @@ export function registerCustomersChannels(): void {
   handle(IPC_CHANNELS["sync.pushNow"], V.syncPushNowSchema, (input) =>
     pushNowAtomic({ operationId: input.operationId, now: new Date().toISOString() }),
   );
+  // ADR-171 : publication de la liasse de supervision (append-only, même
+  // miroir, mêmes secrets). Gates identiques à `sync.pushNow` : c'est une
+  // écriture sortante, pas une lecture de réglage.
+  handle(IPC_CHANNELS["sync.pushOwnerSnapshot"], V.syncOwnerPushSchema, (input) =>
+    publishOwnerSnapshotAtomic({ operationId: input.operationId, now: new Date().toISOString() }),
+  );
   handle(IPC_CHANNELS["sync.getConfig"], V.emptyPayloadSchema, () => getSyncView());
   handle(IPC_CHANNELS["sync.saveOwnerAccount"], V.ownerAccountSaveSchema, (input) =>
     saveOwnerAccountAtomic({
@@ -244,6 +251,8 @@ export function registerCustomersChannels(): void {
         serviceKey: input.serviceKey,
         anonKey: input.anonKey,
         intervalMinutes: input.intervalMinutes,
+        ownerEnabled: input.ownerEnabled,
+        ownerIntervalMinutes: input.ownerIntervalMinutes,
       },
       operationId: input.operationId,
       now: new Date().toISOString(),

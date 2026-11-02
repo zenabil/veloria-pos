@@ -4,6 +4,8 @@
 //  - POST /rest/v1/client_payloads?on_conflict=operation_id (insert, doublons ignorés)
 //  - POST /functions/v1/client-sync (logique de la fonction Edge : condensats
 //    SHA-256, verrou 5 échecs/5 min, derniers clichés + détail par saleId)
+//  - POST/GET /rest/v1/owner_snapshots (ADR-171 : liasse de supervision,
+//    append-only, la plus récente gagne au tri `generated_at.desc`)
 // AUCUNE donnée réelle : ce relais ne sert qu'aux essais E2E en boucle locale.
 // Usage : node scripts/e2e-mirror-relay.mjs [port=8100]
 import { createHash, pbkdf2Sync } from "node:crypto";
@@ -43,6 +45,11 @@ const verifyPin = (pin, row) => {
 const access = new Map();
 /** operation_id -> payload row */
 const payloads = new Map();
+/**
+ * ADR-171 — liasses de supervision : liste EN APPEND ONLY (aucune contrainte
+ * d'unicité côté `cloud/supabase/owner.sql`), la plus récente gagne au tri.
+ */
+const ownerSnapshots = [];
 
 function send(res, status, obj) {
   const body = JSON.stringify(obj);
@@ -176,6 +183,7 @@ const server = http.createServer(async (req, res) => {
         service: "e2e-mirror-relay",
         access: access.size,
         payloads: payloads.size,
+        ownerSnapshots: ownerSnapshots.length,
       });
       return;
     }
@@ -193,6 +201,48 @@ const server = http.createServer(async (req, res) => {
         if (!payloads.has(r.operation_id)) payloads.set(r.operation_id, { ...r, id: ++seq });
       }
       send(res, 201, []);
+      return;
+    }
+    // ADR-171 — publication de liasse : INSERT simple, JAMAIS d'upsert (la
+    // table n'a aucune contrainte d'unicité). `Prefer: return=representation`
+    // → les lignes insérées sont rendues, comme PostgREST.
+    if (req.method === "POST" && req.url?.startsWith("/rest/v1/owner_snapshots")) {
+      const rows = await readJson(req);
+      const inserted = [];
+      for (const r of Array.isArray(rows) ? rows : [rows]) {
+        const row = {
+          id: ++seq,
+          shop_key: typeof r?.shop_key === "string" ? r.shop_key : "veloria",
+          payload: r?.payload ?? null,
+          generated_at:
+            typeof r?.generated_at === "string" ? r.generated_at : new Date().toISOString(),
+        };
+        ownerSnapshots.push(row);
+        inserted.push(row);
+      }
+      send(res, 201, inserted);
+      return;
+    }
+    // ADR-171 — lecture de la liasse la plus récente (miroir de
+    // `owner/src/api.ts` : `shop_key=eq.veloria&select=payload,generated_at
+    // &order=generated_at.desc&limit=1`).
+    if (req.method === "GET" && req.url?.startsWith("/rest/v1/owner_snapshots")) {
+      const params = new URL(req.url, "http://127.0.0.1").searchParams;
+      const shopFilter = params.get("shop_key") ?? "";
+      const shopKey = shopFilter.startsWith("eq.") ? shopFilter.slice(3) : "";
+      const rawLimit = Number(params.get("limit") ?? "1");
+      const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.trunc(rawLimit) : 1;
+      const cols = (params.get("select") ?? "").split(",").filter((c) => c !== "");
+      const rows = ownerSnapshots
+        .filter((r) => shopKey === "" || r.shop_key === shopKey)
+        .sort((a, b) => (a.generated_at < b.generated_at ? 1 : -1))
+        .slice(0, limit)
+        .map((r) =>
+          cols.length === 0
+            ? r
+            : Object.fromEntries(cols.filter((c) => c in r).map((c) => [c, r[c]])),
+        );
+      send(res, 200, rows);
       return;
     }
     if (req.method === "POST" && req.url === "/functions/v1/client-sync") {

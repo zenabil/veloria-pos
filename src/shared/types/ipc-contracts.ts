@@ -165,6 +165,21 @@ export const syncPushResultSchema = z
   .object({ pushed: z.number().int().min(0), access: z.number().int().min(0) })
   .loose();
 
+/**
+ * ADR-171 : publication de la liasse de supervision. Le contrat ne dit que ce
+ * que le main rend réellement : un drapeau, l'instant généré, la taille du
+ * corps envoyé (bornée par `MAX_LIASSE_CHARS`) et l'horodatage enregistré.
+ * JAMAIS la liasse ni un secret dans cette réponse.
+ */
+export const syncOwnerPushResultSchema = z
+  .object({
+    published: z.boolean(),
+    generatedAt: z.string().min(10).max(40),
+    chars: z.number().int().min(0).max(1_000_000),
+    lastOwnerPushAt: z.string().min(10).max(40),
+  })
+  .loose();
+
 /** Configuration de synchro (clé service toujours masquée). */
 export const syncConfigViewSchema = z
   .object({
@@ -178,5 +193,10 @@ export const syncConfigViewSchema = z
     pendingCount: z.number().int().min(0),
     ownerEmail: z.string().nullable().optional(),
     ownerUpdatedAt: z.string().nullable().optional(),
+    // ADR-171 : liasse de supervision (état de publication, jamais de secret).
+    ownerEnabled: z.boolean().optional().default(false),
+    ownerIntervalMinutes: z.number().int().min(15).max(1440).optional().default(60),
+    lastOwnerPushAt: z.string().nullable().optional(),
+    lastOwnerError: z.string().nullable().optional(),
   })
   .loose();

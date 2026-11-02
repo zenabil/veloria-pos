@@ -3,6 +3,10 @@
 // ne fait que lire la base, appeler fetch et marquer la file.
 // V1 : poussée seule (jamais de lecture financière depuis le cloud).
 
+/** Cadence de publication propriétaire : bornes basses hautes (quota egress). */
+export const OWNER_INTERVAL_MIN = 15;
+export const OWNER_INTERVAL_MAX = 1440;
+
 export interface SyncConfig {
   enabled: boolean;
   supabaseUrl: string;
@@ -11,6 +15,13 @@ export interface SyncConfig {
   anonKey: string;
   /** Cadence auto-poussée en minutes (défaut 15, min 5 — quota egress). */
   intervalMinutes: number;
+  /**
+   * ADR-171 : publication de la liasse de supervision propriétaire (app
+   * `owner/`). Défaut OFF — aucune donnée ne sort sans décision du gérant.
+   */
+  ownerEnabled: boolean;
+  /** Cadence de publication propriétaire en minutes (défaut 60, bornes 15..1440). */
+  ownerIntervalMinutes: number;
 }
 
 export const SYNC_DEFAULTS: SyncConfig = {
@@ -19,6 +30,8 @@ export const SYNC_DEFAULTS: SyncConfig = {
   serviceKey: "",
   anonKey: "",
   intervalMinutes: 15,
+  ownerEnabled: false,
+  ownerIntervalMinutes: 60,
 };
 
 export interface SyncConfigView {
@@ -33,6 +46,11 @@ export interface SyncConfigView {
   /** Compte propriétaire (app mobile) — e-mail affiché, jamais le mot de passe. */
   ownerEmail: string | null;
   ownerUpdatedAt: string | null;
+  /** ADR-171 : liasse de supervision (état de publication, jamais de secret). */
+  ownerEnabled: boolean;
+  ownerIntervalMinutes: number;
+  lastOwnerPushAt: string | null;
+  lastOwnerError: string | null;
 }
 
 const OWNER_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -78,6 +96,14 @@ export function validateSyncConfig(raw: unknown): SyncConfig {
     v.intervalMinutes <= 1440
       ? v.intervalMinutes
       : 15;
+  const ownerEnabled = v.ownerEnabled === true;
+  const ownerIntervalMinutes =
+    typeof v.ownerIntervalMinutes === "number" &&
+    Number.isInteger(v.ownerIntervalMinutes) &&
+    v.ownerIntervalMinutes >= OWNER_INTERVAL_MIN &&
+    v.ownerIntervalMinutes <= OWNER_INTERVAL_MAX
+      ? v.ownerIntervalMinutes
+      : SYNC_DEFAULTS.ownerIntervalMinutes;
   if (enabled) {
     const isCloud = /^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(supabaseUrl);
     // Relais local (essais E2E/boucle locale) : http réservé au loopback.
@@ -89,6 +115,14 @@ export function validateSyncConfig(raw: unknown): SyncConfig {
       throw new Error("Clé service invalide.");
     }
   }
+  // ADR-171 : la liasse part sur le MÊME miroir (mêmes identifiants, mêmes
+  // secrets) — l'activer sans destination est un non-sens, refusé ici aussi
+  // quand la synchro générale est coupée (défense en profondeur).
+  if (ownerEnabled && (!enabled || supabaseUrl === "" || serviceKey === "")) {
+    throw new Error(
+      "Liasse propriétaire : renseignez l'URL et la clé service du miroir avant de l'activer.",
+    );
+  }
   // Clé anon (QR V2) : optionnelle pour la poussée, obligatoire pour le QR.
   // Validée dès qu'elle est renseignée (même au repos) pour refuser aussitôt
   // une service_role collée par erreur à la place de l'anon.
@@ -97,7 +131,15 @@ export function validateSyncConfig(raw: unknown): SyncConfig {
       throw new Error("Clé anon invalide.");
     }
   }
-  return { enabled, supabaseUrl, serviceKey, anonKey, intervalMinutes };
+  return {
+    enabled,
+    supabaseUrl,
+    serviceKey,
+    anonKey,
+    intervalMinutes,
+    ownerEnabled,
+    ownerIntervalMinutes,
+  };
 }
 
 /** Vue sans secret pour le renderer (jamais de clé vers l'UI). */
@@ -109,6 +151,8 @@ export function maskConfig(
     pendingCount: number;
     ownerEmail: string | null;
     ownerUpdatedAt: string | null;
+    lastOwnerPushAt: string | null;
+    lastOwnerError: string | null;
   },
 ): SyncConfigView {
   return {
@@ -122,6 +166,10 @@ export function maskConfig(
     pendingCount: meta.pendingCount,
     ownerEmail: meta.ownerEmail,
     ownerUpdatedAt: meta.ownerUpdatedAt,
+    ownerEnabled: cfg.ownerEnabled,
+    ownerIntervalMinutes: cfg.ownerIntervalMinutes,
+    lastOwnerPushAt: meta.lastOwnerPushAt,
+    lastOwnerError: meta.lastOwnerError,
   };
 }
 
@@ -159,6 +207,33 @@ export function isPushDue(cfg: SyncConfig, lastPushAt: string | null, nowMs: num
   const last = Date.parse(lastPushAt);
   if (!Number.isFinite(last)) return true;
   return nowMs - last >= cfg.intervalMinutes * 60_000;
+}
+
+/**
+ * ADR-171 : publication de la liasse propriétaire due ? Indépendante de la
+ * cadence du miroir (le gérant n'a pas besoin d'un cliché APK toutes les
+ * heures, mais d'une liasse fraîche). Exactement à la borne = dû.
+ */
+export function isOwnerPushDue(
+  cfg: SyncConfig,
+  lastOwnerPushAt: string | null,
+  nowMs: number,
+): boolean {
+  if (!cfg.ownerEnabled) return false;
+  if (cfg.supabaseUrl === "" || cfg.serviceKey === "") return false;
+  if (lastOwnerPushAt == null) return true;
+  const last = Date.parse(lastOwnerPushAt);
+  if (!Number.isFinite(last)) return true;
+  return nowMs - last >= cfg.ownerIntervalMinutes * 60_000;
+}
+
+/**
+ * Table PostgREST des liasses (`cloud/supabase/owner.sql`) : append-only,
+ * aucune contrainte d'unicité → un POST simple, jamais d'upsert. La plus
+ * récente gagne, triée par l'app sur `generated_at DESC`.
+ */
+export function ownerSnapshotsUrl(baseUrl: string): string {
+  return `${baseUrl.replace(/\/+$/, "")}/rest/v1/owner_snapshots`;
 }
 
 export interface AccessMirrorRow {

@@ -140,6 +140,8 @@ const STAFF_CHANNEL_PERMISSION: Record<string, string> = {
   // utilisateur sans `settings` ne pilote plus la file de synchro.
   [IPC_CHANNELS["sync.enqueue"]]: "settings",
   [IPC_CHANNELS["sync.pushNow"]]: "settings",
+  // ADR-171 : publication de la liasse = écriture sortante, même porte.
+  [IPC_CHANNELS["sync.pushOwnerSnapshot"]]: "settings",
   [IPC_CHANNELS["announcements.save"]]: "settings",
   // ADR-166 : gestion des annonces (liste + suppression) — même porte que
   // l'écriture : c'est un contenu magasin, pas une lecture ouverte.

@@ -19,9 +19,11 @@ import { enqueueSnapshotAtomic, hasActiveClientAccess } from "../ipc/handlers/cl
 import {
   SYNC_DEFAULTS,
   buildMirrorRequests,
+  isOwnerPushDue,
   isPushDue,
   maskConfig,
   ownerAdminUsersUrl,
+  ownerSnapshotsUrl,
   requiresServiceKeyReentry,
   validateOwnerAccount,
   validateSyncConfig,
@@ -31,6 +33,7 @@ import {
   type SyncConfig,
   type SyncConfigView,
 } from "./sync.protocol";
+import { buildOwnerSnapshot } from "./owner-snapshot";
 import {
   decodeSecretWith,
   encodeSecret,
@@ -70,11 +73,38 @@ interface SyncDoc {
   intervalMinutes: number;
   lastPushAt: string | null;
   lastError: string | null;
+  /** ADR-171 : liasse de supervision propriétaire (clés absentes = défauts). */
+  ownerEnabled: boolean;
+  ownerIntervalMinutes: number;
+  lastOwnerPushAt: string | null;
+  lastOwnerError: string | null;
+}
+
+/** Vue `sync.getConfig` enrichie (ADR-171) — jamais de secret vers l'UI. */
+type SyncDocMeta = Pick<SyncDoc, "lastPushAt" | "lastError" | "lastOwnerPushAt" | "lastOwnerError">;
+
+function docMeta(doc: SyncDoc): SyncDocMeta {
+  return {
+    lastPushAt: doc.lastPushAt,
+    lastError: doc.lastError,
+    lastOwnerPushAt: doc.lastOwnerPushAt,
+    lastOwnerError: doc.lastOwnerError,
+  };
+}
+
+function docOf(cfg: SyncConfig, meta: SyncDocMeta): SyncDoc {
+  return { ...cfg, ...meta };
 }
 
 function readDoc(): SyncDoc {
   const db = getDb();
-  const fallback: SyncDoc = { ...SYNC_DEFAULTS, lastPushAt: null, lastError: null };
+  const fallback: SyncDoc = {
+    ...SYNC_DEFAULTS,
+    lastPushAt: null,
+    lastError: null,
+    lastOwnerPushAt: null,
+    lastOwnerError: null,
+  };
   try {
     const row = db
       .prepare(`SELECT value_json FROM app_settings WHERE key = ?`)
@@ -311,21 +341,32 @@ function pendingCount(): number {
 
 export function getSyncView(): SyncConfigView {
   const doc = readDoc();
-  const cfg: SyncConfig = {
-    enabled: doc.enabled,
-    supabaseUrl: doc.supabaseUrl,
-    serviceKey: doc.serviceKey,
-    anonKey: doc.anonKey,
-    intervalMinutes: doc.intervalMinutes,
-  };
   const owner = readOwnerAccount();
-  return maskConfig(cfg, {
+  return maskConfig(syncConfigOf(doc), {
     lastPushAt: doc.lastPushAt,
     lastError: doc.lastError,
     pendingCount: pendingCount(),
     ownerEmail: owner?.email ?? null,
     ownerUpdatedAt: owner?.updatedAt ?? null,
+    lastOwnerPushAt: doc.lastOwnerPushAt,
+    lastOwnerError: doc.lastOwnerError,
   });
+}
+
+/**
+ * SyncConfig complète lue depuis le doc persisté (une seule fabrique,
+ * utilisée par la poussée miroir, la publication propriétaire et le timer).
+ */
+function syncConfigOf(doc: SyncDoc): SyncConfig {
+  return {
+    enabled: doc.enabled,
+    supabaseUrl: doc.supabaseUrl,
+    serviceKey: doc.serviceKey,
+    anonKey: doc.anonKey,
+    intervalMinutes: doc.intervalMinutes,
+    ownerEnabled: doc.ownerEnabled,
+    ownerIntervalMinutes: doc.ownerIntervalMinutes,
+  };
 }
 
 /**
@@ -355,6 +396,8 @@ export function saveSyncConfigAtomic(args: { config: unknown; operationId: strin
       serviceKey?: unknown;
       anonKey?: unknown;
       intervalMinutes?: unknown;
+      ownerEnabled?: unknown;
+      ownerIntervalMinutes?: unknown;
     };
     // Clé vide + clé existante = conservation (le renderer ne relit jamais
     // le secret — voir maskConfig) ; sinon la nouvelle valeur s'applique.
@@ -367,6 +410,8 @@ export function saveSyncConfigAtomic(args: { config: unknown; operationId: strin
         incomingKey === "" && prev.serviceKey !== "" ? prev.serviceKey : incoming.serviceKey,
       anonKey: incomingAnon === "" && prev.anonKey !== "" ? prev.anonKey : incoming.anonKey,
       intervalMinutes: incoming.intervalMinutes,
+      ownerEnabled: incoming.ownerEnabled,
+      ownerIntervalMinutes: incoming.ownerIntervalMinutes,
     });
     if (
       requiresServiceKeyReentry({
@@ -380,7 +425,7 @@ export function saveSyncConfigAtomic(args: { config: unknown; operationId: strin
         "Changement d'adresse du miroir : ressaisissez la clé service pour confirmer la nouvelle destination.",
       );
     }
-    writeDoc({ ...cfg, lastPushAt: prev.lastPushAt, lastError: prev.lastError }, args.now);
+    writeDoc(docOf(cfg, docMeta(prev)), args.now);
     const result = { saved: true };
     storeIdempotencyResult(args.operationId, result);
     return result;
@@ -416,13 +461,7 @@ export async function pushNowAtomic(
   );
   if (replay) return replay;
   const doc = readDoc();
-  const cfg = validateSyncConfig({
-    enabled: doc.enabled,
-    supabaseUrl: doc.supabaseUrl,
-    serviceKey: doc.serviceKey,
-    anonKey: doc.anonKey,
-    intervalMinutes: doc.intervalMinutes,
-  });
+  const cfg = validateSyncConfig(syncConfigOf(doc));
   if (!cfg.enabled) throw new Error("Synchronisation désactivée : activez-la d'abord.");
   const outboxRows = db
     .prepare(
@@ -520,6 +559,118 @@ export async function pushNowAtomic(
         args.operationId,
         "sync.pushNow",
       );
+      if (retry) return retry;
+    }
+    throw err;
+  }
+}
+
+/**
+ * ADR-171 : publication de la liasse de supervision propriétaire.
+ * POST append-only vers `public.owner_snapshots` (aucun upsert : la table
+ * n'a aucune contrainte d'unicité, « la plus récente gagne » est un tri de
+ * l'app). Idempotent au `operationId` : un rejouement rend le PREMIER résultat
+ * sans insérer une seconde ligne.
+ */
+export interface OwnerPublishResult {
+  published: boolean;
+  /** Taille réellement envoyée du corps JSON (garde `MAX_LIASSE_CHARS`). */
+  chars: number;
+  generatedAt: string;
+  /** Instant enregistré dans `lastOwnerPushAt` (le renderer ne relit pas le doc). */
+  lastOwnerPushAt: string;
+}
+
+const OWNER_PUSH_CHANNEL = "sync.pushOwnerSnapshot";
+/** `shop_key` unique de la liasse (miroir de `cloud/supabase/owner.sql`). */
+const OWNER_SHOP_KEY = "veloria";
+
+export async function publishOwnerSnapshotAtomic(
+  args: { operationId: string; now: string },
+  transport?: Transport,
+): Promise<OwnerPublishResult> {
+  const db = getDb();
+  const replay = peekIdempotency<OwnerPublishResult>(args.operationId, OWNER_PUSH_CHANNEL);
+  if (replay) return replay;
+  const doc = readDoc();
+  // Portes lues sur le doc PERSISTÉ, avant toute validation : `validateSyncConfig`
+  // refuse déjà « liasse activée sans miroir » à l'ENREGISTREMENT, mais un doc
+  // hérité/altéré (miroir coupé après coup) doit rester refusé ICI, avec un
+  // message qui dit au gérant quoi réactiver (défense en profondeur, règle 6).
+  if (!doc.enabled || doc.supabaseUrl === "" || doc.serviceKey === "") {
+    throw new Error(
+      "Miroir non configuré : activez la synchronisation (Réglages → Miroir Android) avant de publier la liasse.",
+    );
+  }
+  if (!doc.ownerEnabled) {
+    throw new Error(
+      "Liasse de supervision désactivée : activez-la (Réglages → Miroir Android) pour publier.",
+    );
+  }
+  const cfg = validateSyncConfig(syncConfigOf(doc));
+  const snapshot = buildOwnerSnapshot(args.now);
+  const body = JSON.stringify([
+    { shop_key: OWNER_SHOP_KEY, payload: snapshot, generated_at: args.now },
+  ]);
+  const send: Transport =
+    transport ??
+    (async (url, init) => {
+      const res = await fetch(url, {
+        method: init.method,
+        headers: init.headers,
+        body: init.body,
+      });
+      return { ok: res.ok, status: res.status, text: () => res.text() };
+    });
+  const headers = {
+    apikey: cfg.serviceKey,
+    Authorization: `Bearer ${cfg.serviceKey}`,
+    "Content-Type": "application/json",
+    Prefer: "return=representation",
+  };
+  try {
+    const res = await send(ownerSnapshotsUrl(cfg.supabaseUrl), { method: "POST", headers, body });
+    if (!res.ok) {
+      // Règle 6 : le détail serveur brut reste au log, seul un message FR est
+      // persisté (`lastOwnerError`, lu par l'UI).
+      const detail = await res.text().catch(() => "");
+      log("ERROR", "sync", "owner_push.http", { status: res.status, detail: detail.slice(0, 500) });
+      throw new Error(`Publication de la liasse impossible (HTTP ${res.status}).`);
+    }
+  } catch (err) {
+    const msg = toUserMessage(err).message;
+    try {
+      writeDoc({ ...doc, lastOwnerError: msg }, args.now);
+    } catch {
+      /* meta best-effort */
+    }
+    log("ERROR", "sync", "owner_push.failed", { error: msg });
+    throw err instanceof Error ? err : new Error(msg);
+  }
+  const tx = db.transaction(() => {
+    claimIdempotency(args.operationId, OWNER_PUSH_CHANNEL, args.now);
+    try {
+      writeDoc({ ...doc, lastOwnerPushAt: args.now, lastOwnerError: null }, args.now);
+    } catch {
+      /* meta best-effort */
+    }
+    const result: OwnerPublishResult = {
+      published: true,
+      chars: body.length,
+      generatedAt: args.now,
+      lastOwnerPushAt: args.now,
+    };
+    storeIdempotencyResult(args.operationId, result);
+    return result;
+  });
+  try {
+    return tx();
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
+    ) {
+      const retry = peekIdempotency<OwnerPublishResult>(args.operationId, OWNER_PUSH_CHANNEL);
       if (retry) return retry;
     }
     throw err;
@@ -651,17 +802,21 @@ export function startSyncTimer(): void {
   syncTimer = setInterval(() => {
     try {
       const doc = readDoc();
-      const cfg: SyncConfig = {
-        enabled: doc.enabled,
-        supabaseUrl: doc.supabaseUrl,
-        serviceKey: doc.serviceKey,
-        anonKey: doc.anonKey,
-        intervalMinutes: doc.intervalMinutes,
-      };
-      if (!isPushDue(cfg, doc.lastPushAt, Date.now())) return;
-      void pushNowAtomic({ operationId: randomUUID(), now: new Date().toISOString() }).catch(() => {
-        /* déjà loggé dans le service */
-      });
+      const cfg = syncConfigOf(doc);
+      const nowMs = Date.now();
+      const now = new Date(nowMs).toISOString();
+      if (isPushDue(cfg, doc.lastPushAt, nowMs)) {
+        void pushNowAtomic({ operationId: randomUUID(), now }).catch(() => {
+          /* déjà loggé dans le service */
+        });
+      }
+      // ADR-171 : cadence PROPRE (le gérant n'attend pas la file APK pour
+      // avoir sa liasse). Best-effort strict : un échec ne remonte jamais.
+      if (isOwnerPushDue(cfg, doc.lastOwnerPushAt, nowMs)) {
+        void publishOwnerSnapshotAtomic({ operationId: randomUUID(), now }).catch(() => {
+          /* déjà loggé dans le service */
+        });
+      }
     } catch (err) {
       log("ERROR", "sync", "auto.failed", { error: String(err) });
     }

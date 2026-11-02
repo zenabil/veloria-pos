@@ -169,7 +169,8 @@ export const SETTINGS_CARDS: SettingsCardMeta[] = [
     section: "data",
     title: "Miroir Android",
     description: "Synchronisation vers l'application mobile",
-    keywords: "miroir android supabase synchronisation url clé service",
+    keywords:
+      "miroir android supabase synchronisation url clé service liasse supervision propriétaire publication cadence",
   },
   {
     id: "team-code",

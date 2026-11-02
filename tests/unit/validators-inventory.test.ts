@@ -40,7 +40,9 @@ const MODULES = [
 // ADR-136 (2026-10-25) : 122 → 125 (packagings produit : list/save/delete).
 // ADR-153 (2026-10-28, lot dead-code A) : 125 → 124 (`templateGetSchema`
 // retiré avec le canal mort `templates.get`).
-const FROZEN_SCHEMA_COUNT = 129;
+// ADR-171 (2026-11-02) : 129 → 130 (`syncOwnerPushSchema` — publication de la
+// liasse de supervision propriétaire, canal `sync.pushOwnerSnapshot`).
+const FROZEN_SCHEMA_COUNT = 130;
 const FROZEN_MAX_LINES = 300;
 
 describe("Validators inventory (split guard)", () => {

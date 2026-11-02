@@ -124,6 +124,9 @@ export const announcementSaveSchema = z.object({
 // Synchro miroir (V1) : configuration merchant + poussée manuelle.
 // La clé service ne transite que sur ce pont local (jamais vers le renderer
 // en lecture : getConfig la masque — voir maskConfig côté service).
+// ADR-171 : `ownerEnabled` + `ownerIntervalMinutes` (liasse de supervision).
+// Bornes MIROIR de `OWNER_INTERVAL_MIN|MAX` (sync.protocol) — la cadence
+// générale reste 5..1440, celle de la liasse 15..1440 (quota egress gratuit).
 export const syncConfigSchema = z.object({
   operationId: z.uuid(),
   enabled: z.boolean(),
@@ -131,9 +134,20 @@ export const syncConfigSchema = z.object({
   serviceKey: z.string().max(500),
   anonKey: z.string().max(500).optional().default(""),
   intervalMinutes: z.number().int().min(5).max(1440).default(15),
+  ownerEnabled: z.boolean().default(false),
+  ownerIntervalMinutes: z.number().int().min(15).max(1440).default(60),
 });
 
 export const syncPushNowSchema = z.object({
+  operationId: z.uuid(),
+});
+
+/**
+ * ADR-171 : publication manuelle de la liasse propriétaire. `operationId`
+ * REQUIS (mutation sortante) : le même jeton rejoué rend le PREMIER résultat
+ * sans insérer une seconde ligne dans `owner_snapshots`.
+ */
+export const syncOwnerPushSchema = z.object({
   operationId: z.uuid(),
 });
 

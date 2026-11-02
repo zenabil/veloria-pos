@@ -64,6 +64,8 @@ interface Window {
     sync: {
       enqueue(p: unknown): Promise<VeloriaOutcome>;
       pushNow(p: unknown): Promise<VeloriaOutcome>;
+      /** ADR-171 : publication de la liasse de supervision propriétaire. */
+      pushOwnerSnapshot(p: unknown): Promise<VeloriaOutcome>;
       getConfig(): Promise<VeloriaOutcome>;
       saveConfig(p: unknown): Promise<VeloriaOutcome>;
       saveOwnerAccount(p: unknown): Promise<VeloriaOutcome>;

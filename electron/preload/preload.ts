@@ -64,6 +64,8 @@ const api = {
   sync: {
     enqueue: (p: unknown) => invoke(IPC_CHANNELS["sync.enqueue"], p),
     pushNow: (p: unknown) => invoke(IPC_CHANNELS["sync.pushNow"], p),
+    // ADR-171 : publication de la liasse de supervision propriétaire.
+    pushOwnerSnapshot: (p: unknown) => invoke(IPC_CHANNELS["sync.pushOwnerSnapshot"], p),
     getConfig: () => invoke(IPC_CHANNELS["sync.getConfig"]),
     saveConfig: (p: unknown) => invoke(IPC_CHANNELS["sync.saveConfig"], p),
     saveOwnerAccount: (p: unknown) => invoke(IPC_CHANNELS["sync.saveOwnerAccount"], p),

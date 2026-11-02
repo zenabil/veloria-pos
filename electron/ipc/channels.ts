@@ -56,6 +56,8 @@ export const IPC_CHANNELS = {
   // file de synchro vers le miroir + annonces magasin
   "sync.enqueue": "sync.enqueue",
   "sync.pushNow": "sync.pushNow",
+  // ADR-171 : publication de la liasse de supervision (app propriétaire).
+  "sync.pushOwnerSnapshot": "sync.pushOwnerSnapshot",
   "sync.getConfig": "sync.getConfig",
   "sync.saveConfig": "sync.saveConfig",
   // Compte Supabase Auth du propriétaire (app mobile) : création/mise à jour.

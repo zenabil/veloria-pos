@@ -17,6 +17,9 @@ const FULL = {
   serviceKey: "k".repeat(40),
   anonKey: "",
   intervalMinutes: 15,
+  // ADR-171 : défaut OFF — la liasse ne sort jamais sans décision du gérant.
+  ownerEnabled: false,
+  ownerIntervalMinutes: 60,
 };
 
 describe("validateSyncConfig", () => {
@@ -38,6 +41,8 @@ describe("validateSyncConfig", () => {
       serviceKey: "",
       anonKey: "",
       intervalMinutes: 15,
+      ownerEnabled: false,
+      ownerIntervalMinutes: 60,
     });
   });
   it("activée : URL et clé exigées", () => {
@@ -65,12 +70,17 @@ describe("validateSyncConfig", () => {
       pendingCount: 2,
       ownerEmail: "direction@exemple.dz",
       ownerUpdatedAt: "2026-10-31T10:00:00.000Z",
+      lastOwnerPushAt: null,
+      lastOwnerError: null,
     });
     expect(view.hasKey).toBe(true);
     expect(view.hasAnonKey).toBe(false);
     expect(JSON.stringify(view)).not.toContain("k".repeat(40));
     expect(view.pendingCount).toBe(2);
     expect(view.ownerEmail).toBe("direction@exemple.dz");
+    // ADR-171 : l'état de publication de la liasse passe, jamais le secret.
+    expect(view.ownerEnabled).toBe(false);
+    expect(view.ownerIntervalMinutes).toBe(60);
   });
   it("clé anon : acceptée vide, refusée trop courte", () => {
     expect(validateSyncConfig({ ...FULL, anonKey: "a".repeat(40) }).anonKey).toBe("a".repeat(40));

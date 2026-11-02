@@ -46,6 +46,8 @@ export const api = {
   syncGetConfig: () => call((a) => a.sync.getConfig()),
   syncSaveConfig: (p: unknown) => call((a) => a.sync.saveConfig(p)),
   syncSaveOwnerAccount: (p: unknown) => call((a) => a.sync.saveOwnerAccount(p)),
+  /** ADR-171 : publication immédiate de la liasse de supervision. */
+  syncPushOwnerSnapshot: (p: unknown) => call((a) => a.sync.pushOwnerSnapshot(p)),
   announcementSave: (p: unknown) => call((a) => a.announcements.save(p)),
   /** ADR-165 : liste complète des annonces (Paramètres). */
   announcementList: () => call((a) => a.announcements.list()),

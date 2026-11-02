@@ -168,6 +168,7 @@
   "sync.enqueue",
   "sync.getConfig",
   "sync.pushNow",
+  "sync.pushOwnerSnapshot",
   "sync.saveConfig",
   "sync.saveOwnerAccount",
   "system.openDataFolder",

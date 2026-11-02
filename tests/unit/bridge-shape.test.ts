@@ -93,7 +93,9 @@ const NESTED_WITH_REASON: Record<string, string> = {
 // ADR-136 (2026-10-25) : 131 → 134 (3 schémas packaging produit).
 // ADR-153 (2026-10-28, dead-code lot A) : 134 → 133 (`templateGetSchema`
 // retiré avec le canal mort `templates.get`).
-const FROZEN_EXPORT_COUNT = 138;
+// ADR-171 (2026-11-02) : 138 → 139 (`syncOwnerPushSchema` — publication de la
+// liasse de supervision propriétaire).
+const FROZEN_EXPORT_COUNT = 139;
 
 describe("Preload bridge shape", () => {
   it("exposes every IPC channel", () => {
