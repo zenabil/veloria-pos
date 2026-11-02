@@ -8,6 +8,7 @@ import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { formatDzd } from "@domain/money/money.ts";
 import { downloadCsv } from "@shared/export/csv.ts";
 import { newOperationId } from "@domain/common/ids.ts";
+import { todayBusinessDate } from "@domain/common/business-day.ts";
 import { runBulk } from "@shared/ui/bulk-actions.ts";
 import {
   ErrorState,
@@ -264,7 +265,7 @@ export function ExpensesScreen({ notify }: { notify: Notify }): React.JSX.Elemen
         notify(`Export limité aux ${EXPORT_MAX} premières lignes (${res.total} au total).`, "err");
       }
       downloadCsv(
-        `depenses-${new Date().toISOString().slice(0, 10)}.csv`,
+        `depenses-${todayBusinessDate()}.csv`,
         res.rows.map((e) => ({
           Numero: expenseNumber(e.id),
           Date: e.created_at.slice(0, 10),

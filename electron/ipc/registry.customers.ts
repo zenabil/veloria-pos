@@ -7,6 +7,7 @@ import * as Customers from "./handlers/customers.repo";
 import { importCustomersAtomic } from "./handlers/import.repo";
 import * as ClientAccess from "./handlers/client-access.repo";
 import { getCurrentStaffUser } from "./handlers/staff-session";
+import { businessDayOf } from "../shared/business-day";
 import {
   enqueueAnnouncementRefresh,
   enqueueCustomerRefresh,
@@ -99,7 +100,7 @@ export function registerCustomersChannels(): void {
   handle(IPC_CHANNELS["customers.recordPayment"], V.recordPaymentSchema, (input) => {
     const now = new Date().toISOString();
     // P08: paymentDate est une businessDate YYYY-MM-DD — jamais un ISO datetime.
-    const paymentDate = input.paymentDate ?? now.slice(0, 10);
+    const paymentDate = input.paymentDate ?? businessDayOf(now);
     const { paymentId, allocatedSaleIds } = Customers.recordCustomerPaymentAtomic({
       operationId: input.operationId,
       customerId: input.customerId ?? null,

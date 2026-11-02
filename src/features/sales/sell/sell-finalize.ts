@@ -7,6 +7,7 @@ import { playSound } from "@shared/sound/sound.ts";
 import { minorToInputTotal, parseDzdInputTotal } from "@domain/money/money.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import { roundQuantity } from "@domain/common/quantity.ts";
+import { BUSINESS_TIME_ZONE } from "@domain/common/business-day.ts";
 import { isBilledByAmount } from "@domain/sales/sale-rules.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { formatCustomerCode } from "@shared/formatters/format.ts";
@@ -308,7 +309,7 @@ export async function finalizeSale(d: SellFlowDeps): Promise<void> {
     const sale: LastSale = {
       ...snapshot,
       invoice: res.invoiceNumber,
-      date: new Date().toLocaleString("fr-FR"),
+      date: new Date().toLocaleString("fr-FR", { timeZone: BUSINESS_TIME_ZONE }),
     };
     sale.balances =
       prevBalance != null

@@ -17,6 +17,7 @@ import {
 import { api } from "@shared/types/ipc-client.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { newOperationId } from "@domain/common/ids.ts";
+import { todayBusinessDate } from "@domain/common/business-day.ts";
 import { runBulk } from "@shared/ui/bulk-actions.ts";
 import { formatDzd } from "@domain/money/money.ts";
 import {
@@ -336,7 +337,7 @@ export function ProformasScreen({ notify }: { notify: Notify }): React.JSX.Eleme
     }
     try {
       downloadCsv(
-        `devis-${new Date().toISOString().slice(0, 10)}.csv`,
+        `devis-${todayBusinessDate()}.csv`,
         rows.map((p) => ({
           Numéro: p.proforma_number,
           Date: p.created_at.slice(0, 10),

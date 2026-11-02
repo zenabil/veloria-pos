@@ -2,6 +2,8 @@
 // Miroir local des 17 sortes (frontière renderer/main : pas d'import electron/).
 // Les montants restent en centimes (DZD) jusqu'au formatage.
 
+import { businessDayOf, businessTimeOf } from "@domain/common/business-day.ts";
+
 export type HistoryKind =
   | "sale"
   | "purchase"
@@ -127,11 +129,20 @@ export function rowKey(r: HistoryRow): string {
   return `${r.kind}:${r.entity_id}`;
 }
 
+/**
+ * Étiquette « date + heure » d'une ligne d'historique.
+ * E-35 : une colonne d'INSTANT (ISO UTC) est rendue en heure d'Alger — sinon
+ * une vente de 00:30 s'affiche la veille à 23:30 (G-18, POS ≠ APK ≠ ticket).
+ * Une colonne date-seule (aucun `T`) garde sa date et n'a pas d'heure.
+ */
 export function splitDateTime(iso: string): { date: string; time: string } {
-  if (iso.length >= 16 && iso[10] === "T") {
-    return { date: iso.slice(0, 10), time: iso.slice(11, 16).replace(":", "h") };
-  }
-  return { date: iso.slice(0, 10), time: "—" };
+  if (!iso.includes("T")) return { date: iso.slice(0, 10), time: "—" };
+  const date = businessDayOf(iso);
+  const time = businessTimeOf(iso);
+  return {
+    date: date === "" ? iso.slice(0, 10) : date,
+    time: time === "" ? "—" : time.replace(":", "h"),
+  };
 }
 
 /** Poste unique : voir CASHIER_LABEL partagé (P2 : HISTORY_USER supprimé). */

@@ -7,6 +7,7 @@ import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
 import { consumeLayers, createLayer, fifoValuation } from "./fifo";
 import { assertOrderClause } from "./sql-guard";
+import { businessDaySql } from "../../shared/business-day";
 import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./idempotency";
 import { allocateAmountByWeights } from "./amount-allocation";
 import { allocateUnitCostLayers } from "./cost-allocation";
@@ -974,11 +975,11 @@ export function listMovements(
   const conds = [`product_id = ?`];
   const params: unknown[] = [productId];
   if (opts.from) {
-    conds.push(`substr(created_at, 1, 10) >= ?`);
+    conds.push(`${businessDaySql("created_at")} >= ?`);
     params.push(opts.from);
   }
   if (opts.to) {
-    conds.push(`substr(created_at, 1, 10) <= ?`);
+    conds.push(`${businessDaySql("created_at")} <= ?`);
     params.push(opts.to);
   }
   const types = (opts.types ?? []).filter((t) => t !== "all");

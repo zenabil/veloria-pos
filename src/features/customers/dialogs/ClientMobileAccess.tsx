@@ -17,6 +17,7 @@ import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { runBulk } from "@shared/ui/bulk-actions.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import { newOperationId } from "@domain/common/ids.ts";
+import { businessMonthOf } from "@domain/common/business-day.ts";
 import { selectDetailSaleIds } from "../../../application/customers/client-access.ts";
 import { Badge, Button, Card, Field, TextInput } from "@shared/ui/primitives.tsx";
 import { fullName, type EnrichedCustomer } from "../types.ts";
@@ -143,7 +144,7 @@ export function ClientMobileAccess({
   async function syncNow(): Promise<void> {
     setBusy("sync");
     try {
-      const month = new Date().toISOString().slice(0, 7);
+      const month = businessMonthOf(new Date());
       const kinds = ["customer_snapshot", "invoice_list", "payment_list"] as const;
       let done = 0;
       // A-15 : lot à concurrence bornée (les 3 clichés + les détails étaient

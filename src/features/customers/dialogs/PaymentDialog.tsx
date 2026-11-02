@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { PAYMENT_METHOD_LABELS, formatCustomerCode } from "@shared/formatters/format.ts";
 import { formatDzd, minorToInput, parseDzdInputStrict } from "@domain/money/money.ts";
-import { todayUtcDate } from "@shared/dates/dates.ts";
+import { todayBusinessDate } from "@domain/common/business-day.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import { playSound } from "@shared/sound/sound.ts";
 import { newOperationId } from "@domain/common/ids.ts";
@@ -76,7 +76,7 @@ export function PaymentDialog({
         kind: "customer",
         partyLabel: `${fullName(customer)} — ${formatCustomerCode(customer.id)}`,
         reference: ack.paymentId > 0 ? `PAY-${String(ack.paymentId).padStart(5, "0")}` : "",
-        date: todayUtcDate(),
+        date: todayBusinessDate(),
         amountMinor: parsed,
         method,
         prevBalanceMinor: customer.outstanding_balance_minor,

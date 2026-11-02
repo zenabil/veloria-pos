@@ -2,6 +2,7 @@
 // Utilisé par l'historique et les dettes (une seule forme canonique).
 import { formatCustomerCode } from "@shared/formatters/format.ts";
 import { timbreQuittanceLf2025 } from "@domain/invoice/timbre-rules.ts";
+import { BUSINESS_TIME_ZONE } from "@domain/common/business-day.ts";
 
 type Cell = string | number | null | undefined;
 
@@ -38,7 +39,7 @@ function dateFr(v: Cell): string {
   const raw = text(v);
   const d = raw === "" ? new Date(Date.now()) : new Date(raw);
   if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleString("fr-FR");
+  return d.toLocaleString("fr-FR", { timeZone: BUSINESS_TIME_ZONE });
 }
 
 function num(v: Cell): number {

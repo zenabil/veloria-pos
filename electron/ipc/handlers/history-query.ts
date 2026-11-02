@@ -5,6 +5,7 @@
 // details_json? (noms des entités supprimées).
 
 import { assertOrderClause } from "./sql-guard";
+import { businessDayRangeUtc } from "../../shared/business-day";
 
 export const HISTORY_KINDS = [
   "sale",
@@ -269,14 +270,6 @@ function orderBy(sort: HistorySort): string {
   return `created_at DESC, kind ASC`;
 }
 
-/** Jour suivant d'une date métier « AAAA-MM-JJ » (borne haute exclusive). */
-function nextDay(day: string): string {
-  const d = new Date(`${day}T00:00:00.000Z`);
-  if (Number.isNaN(d.getTime())) return day;
-  d.setUTCDate(d.getUTCDate() + 1);
-  return d.toISOString().slice(0, 10);
-}
-
 /** Requête paginée + comptage (mêmes filtres). Params : [from?, to?, like?] + [limit, offset]. */
 /** R2 (0046) : staffUserId null = gérant (tout) ; sinon seules les lignes
  *  dont actor_id = l'utilisateur (les lignes sans auteur sont invisibles). */
@@ -293,17 +286,17 @@ export function buildHistoryQuery(
   const conds: string[] = [];
   const params: unknown[] = [];
   if (f.from) {
-    // W8 (F-06) : la borne basse devient une comparaison DIRECTE sur
-    // `created_at` (indexable) au lieu de `substr(created_at,1,10)` (qui
-    // interdisait tout index ⇒ parcours de table à chaque appel).
+    // W8 (F-06) : borne DIRECTE sur `created_at` (indexable).
+    // E-35 : la borne basse est minuit Africa/Algiers du jour choisi, soit
+    // `${from}T23:00:00.000Z` — une vente de 00:30 (heure d'Alger) reste dans
+    // sa journée, au lieu de basculer la veille en UTC.
     conds.push(`created_at >= ?`);
-    params.push(`${f.from}T00:00:00.000Z`);
+    params.push(businessDayRangeUtc(f.from).from);
   }
   if (f.to) {
-    // Borne haute EXCLUSIVE : jour suivant inclus (le jour `to` entier
-    // reste dans la fenêtre).
+    // Borne haute EXCLUSIVE : premier instant du jour métier suivant.
     conds.push(`created_at < ?`);
-    params.push(`${nextDay(f.to)}T00:00:00.000Z`);
+    params.push(businessDayRangeUtc(f.to).toExclusive);
   }
   const q = f.query.trim();
   if (q) {

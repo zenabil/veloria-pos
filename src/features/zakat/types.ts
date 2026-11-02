@@ -3,6 +3,8 @@
 // P3 : computeZakatLocal a déménagé vers @domain/zakat/zakat-rules.ts
 // (computeZakat) — la feature ne garde que le formulaire et l'UI.
 
+import { businessDayOf } from "@domain/common/business-day.ts";
+
 export interface ZakatSources {
   cash: { paid: number; total: number };
   inventory: { v: number };
@@ -46,7 +48,12 @@ export const HIJRI_YEARS = hijriYearsWindow();
 function hijriYearsWindow(): string[] {
   const HIJRI_EPOCH_MS = Date.UTC(622, 6, 16);
   const HIJRI_YEAR_DAYS = 354.367;
-  const current = Math.floor((Date.now() - HIJRI_EPOCH_MS) / 86400000 / HIJRI_YEAR_DAYS);
+  // E-35 : l'année hégirienne « courante » s'appuie sur le jour métier
+  // (Africa/Algiers) — la zakat se détermine au coucher du soleil local, pas à minuit UTC.
+  const today = businessDayOf(new Date());
+  const current = Math.floor(
+    (Date.parse(`${today}T00:00:00.000Z`) - HIJRI_EPOCH_MS) / 86400000 / HIJRI_YEAR_DAYS,
+  );
   return [current - 1, current, current + 1, current + 2].map(String);
 }
 

@@ -1,6 +1,8 @@
 // Veloria PoS — Feature Rapports : types partagés.
 // Les montants restent en centimes (DZD) jusqu'au formatage.
 
+import { businessMonthStart, todayBusinessDate } from "@domain/common/business-day.ts";
+
 export type ReportSection =
   | "all"
   | "sales"
@@ -77,6 +79,10 @@ export interface ClosingRow {
   closing_balance_minor: number;
 }
 
-export function monthStartUtc(d = new Date()): string {
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-01`;
+/**
+ * Premier jour du MOIS MÉTIER courant (Africa/Algiers) — défaut de la période
+ * « Ce mois-ci » des Rapports (E-35).
+ */
+export function currentBusinessMonthStart(): string {
+  return businessMonthStart(todayBusinessDate());
 }

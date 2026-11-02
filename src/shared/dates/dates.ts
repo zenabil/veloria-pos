@@ -1,11 +1,8 @@
-// Veloria PoS — Shared: dates (UTC ISO consistently).
-// Les horodatages SQLite sont en UTC ; les requêtes comparent
-// `substr(created_at,1,10)` (UTC), donc les défauts de formulaires utilisent
-// la date UTC pour rester cohérents (pas la date locale).
-
-export function todayUtcDate(date: Date = new Date()): string {
-  return date.toISOString().slice(0, 10);
-}
+// Veloria PoS — Shared: dates (frontière renderer).
+// Les horodatages SQLite sont des instants UTC ISO (`…Z`) ; le découpage métier
+// — jour, mois, clôture Z, rapports — suit Africa/Algiers (E-35) et vit dans
+// `@domain/common/business-day.ts`. Ce fichier ne garde que la validation
+// calendaire partagée avec le License Manager.
 
 /**
  * Vraie date calendaire AAAA-MM-JJ (pas seulement le format : mois/jours

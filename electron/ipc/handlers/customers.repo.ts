@@ -7,6 +7,7 @@
 import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
 import { debtStatusSql, liveDebtStatus, overdueSalesSql } from "./debt-status";
+import { businessDaysAgoSql, calendarDaySql } from "../../shared/business-day";
 import {
   auditOperationId,
   claimIdempotency,
@@ -369,7 +370,7 @@ export function getCustomerStats(): {
     .prepare(
       `SELECT COALESCE(SUM(sp.amount_minor), 0) AS p FROM sale_payments sp
        LEFT JOIN sales sa ON sa.id = sp.sale_id
-       WHERE substr(sp.payment_date, 1, 10) >= date('now', '-7 days')
+       WHERE ${calendarDaySql("sp.payment_date")} >= ${businessDaysAgoSql(7)}
          AND (sp.sale_id IS NULL OR COALESCE(sa.is_cancelled, 0) = 0)`,
     )
     .get() as { p: number };

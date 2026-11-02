@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
 import { log } from "../../services/logger";
 import { assertOrderClause } from "./sql-guard";
+import { businessDayOf, businessDaySql } from "../../shared/business-day";
 import { assertTotalMinor, priceLine } from "../money-guard";
 import { createSaleAtomic } from "./sales.repo";
 import { allocateAmountByWeights } from "./amount-allocation";
@@ -165,7 +166,7 @@ function allocateNumber(prefix: string, key: string, now: string): string {
   // `row.prefix` sur `undefined`) — message technique, pas un refus FR (R5).
   // Miroir de `allocateReturnNumber`, qui refuse déjà proprement.
   if (!row) throw new Error("Séquence de numérotation introuvable.");
-  const year = Number(String(now).slice(0, 4)) || new Date().getFullYear();
+  const year = Number(businessDayOf(String(now)).slice(0, 4)) || new Date().getFullYear();
   const num = formatProformaNumber(prefix || row.prefix, year, row.next_value);
   db.prepare(
     `UPDATE number_sequences SET next_value = next_value + 1, updated_at = ? WHERE sequence_key = ?`,
@@ -358,11 +359,11 @@ export function listProformas(
     params.push(opts.customer);
   }
   if (opts.from) {
-    conds.push(`substr(p.created_at, 1, 10) >= ?`);
+    conds.push(`${businessDaySql("p.created_at")} >= ?`);
     params.push(opts.from);
   }
   if (opts.to) {
-    conds.push(`substr(p.created_at, 1, 10) <= ?`);
+    conds.push(`${businessDaySql("p.created_at")} <= ?`);
     params.push(opts.to);
   }
   const where = conds.length > 0 ? `WHERE ${conds.join(" AND ")}` : "";

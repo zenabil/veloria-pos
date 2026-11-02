@@ -1810,6 +1810,63 @@ console.log("OK  0026 credit-revocation policy (refused with debt, allowed when 
   console.log("OK  0057 annonces médias + expiration (texte/image, https, bornes)");
 }
 
+{
+  // 0058 : le verrou de journée close suit le JOUR MÉTIER (Africa/Algiers, E-35).
+  const trg58 = db
+    .prepare(
+      "SELECT name, sql FROM sqlite_master WHERE type='trigger' AND instr(name,'closed_day') > 0",
+    )
+    .all();
+  if (trg58.length !== 15) {
+    console.error(`FAIL: 0058 closed-day guards missing (found ${trg58.length}/15)`);
+    process.exit(1);
+  }
+  const instantTriggers = trg58.filter((t) =>
+    /^trg_(sales|returns)_closed_day_(ins|upd|del)$/.test(t.name),
+  );
+  if (instantTriggers.length !== 6) {
+    console.error(`FAIL: 0058 expected 6 instant-column triggers, found ${instantTriggers.length}`);
+    process.exit(1);
+  }
+  for (const t of instantTriggers) {
+    if (!String(t.sql).includes("+1 hour")) {
+      console.error(`FAIL: 0058 ${t.name} ne décale pas l'instant vers le jour métier`);
+      process.exit(1);
+    }
+  }
+  // Les colonnes date-seule (payment_date, expense_date) ne sont JAMAIS décalées.
+  for (const t of trg58) {
+    if (instantTriggers.includes(t)) continue;
+    if (String(t.sql).includes("+1 hour")) {
+      console.error(`FAIL: 0058 ${t.name} décale une colonne date-seule`);
+      process.exit(1);
+    }
+  }
+  db.prepare(
+    "INSERT INTO daily_closings (uuid, business_date, cash_sales_minor, cash_payments_minor, customer_collections_minor, expenses_minor, refunds_minor, closing_balance_minor, closed_at) VALUES ('cl58','2026-05-01',0,0,0,0,0,0,'2026-05-01T22:00:00.000Z')",
+  ).run();
+  // 2026-04-30T23:30Z = 2026-05-01 00:30 heure d'Alger → journée CLOSE → refusé.
+  let edgeRefused = false;
+  let edgeMsg = "";
+  try {
+    db.prepare(
+      "INSERT INTO sales (uuid, invoice_number, customer_id, subtotal_minor, total_minor, amount_paid_minor, remaining_balance_minor, payment_status, created_at, updated_at) VALUES ('u58a','FAC-2026-0058A',1,1000,1000,1000,0,'paid','2026-04-30T23:30:00.000Z','2026-04-30T23:30:00.000Z')",
+    ).run();
+  } catch (e) {
+    edgeRefused = true;
+    edgeMsg = String(e.message);
+  }
+  if (!edgeRefused || !/clôturée/i.test(edgeMsg)) {
+    console.error(`FAIL: 0058 vente à 00:30 (Algiers) sur journée close acceptée (${edgeMsg})`);
+    process.exit(1);
+  }
+  // 2026-05-01T23:30Z = 2026-05-02 00:30 heure d'Alger → journée OUVERTE → acceptée.
+  db.prepare(
+    "INSERT INTO sales (uuid, invoice_number, customer_id, subtotal_minor, total_minor, amount_paid_minor, remaining_balance_minor, payment_status, created_at, updated_at) VALUES ('u58b','FAC-2026-0058B',1,1000,1000,1000,0,'paid','2026-05-01T23:30:00.000Z','2026-05-01T23:30:00.000Z')",
+  ).run();
+  console.log("OK  0058 verrou de clôture sur le jour métier Africa/Algiers");
+}
+
 // Integrity
 const ic = db.prepare("PRAGMA integrity_check").get();
 const fk = db.prepare("PRAGMA foreign_key_check").all();

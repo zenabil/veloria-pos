@@ -12,7 +12,7 @@ import { formatBytes } from "@shared/formatters/files.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { useOperationId } from "@shared/ui/use-operation-id.ts";
 import { runBulk } from "@shared/ui/bulk-actions.ts";
-import { todayUtcDate } from "@shared/dates/dates.ts";
+import { todayBusinessDate } from "@domain/common/business-day.ts";
 import { parseInvoiceText } from "@domain/ocr/parser.ts";
 import { confidenceLabelFr, matchByName, normalizeProductName } from "@domain/ocr/matcher.ts";
 import { parseOcrQuantity } from "@domain/ocr/numbers.ts";
@@ -125,7 +125,7 @@ export function OcrImportDialog({
   const [parsed, setParsed] = useState<OcrInvoice | null>(null);
   const [showRaw, setShowRaw] = useState(false);
   const [invoiceNumber, setInvoiceNumber] = useState("");
-  const [invoiceDate, setInvoiceDate] = useState(todayUtcDate());
+  const [invoiceDate, setInvoiceDate] = useState(todayBusinessDate());
   const [supplierId, setSupplierId] = useState<number | null>(null);
   const [supplierLabel, setSupplierLabel] = useState("");
   const [supplierQ, setSupplierQ] = useState("");
@@ -351,7 +351,7 @@ export function OcrImportDialog({
       productOpIds.current.clear();
       setRows(matched);
       setInvoiceNumber(invoice.number ?? "");
-      setInvoiceDate(invoice.date ?? todayUtcDate());
+      setInvoiceDate(invoice.date ?? todayBusinessDate());
       setSupplierId(null);
       setSupplierLabel("");
       setDuplicateWarn(false);

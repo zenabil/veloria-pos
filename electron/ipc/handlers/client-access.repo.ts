@@ -9,6 +9,7 @@ import { createHash, pbkdf2Sync, randomBytes, randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
 import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./idempotency";
 import { liveDebtStatus, overdueSalesSql } from "./debt-status";
+import { businessMonthOf } from "../../shared/business-day";
 
 /**
  * Union EXACTE du CHECK `sync_outbox.kind` de la migration
@@ -515,7 +516,9 @@ export function buildSnapshotPayload(
       .all(saleId);
     body = { sale, items };
   } else {
-    const monthSales = live.filter((s) => s.created_at.slice(0, 7) === monthKey);
+    // E-35 : le mois des clichés est le MOIS MÉTIER (Africa/Algiers) ;
+    // `payment_date` porte déjà une date métier.
+    const monthSales = live.filter((s) => businessMonthOf(s.created_at) === monthKey);
     const monthPayments = payments.filter((p) => p.payment_date.slice(0, 7) === monthKey);
     const totalPurchases = live.reduce((a, s) => a + s.total_minor, 0);
     const itemRows = db
@@ -595,7 +598,7 @@ export function enqueueSnapshotAtomic(args: {
   if (!(SYNC_KINDS as readonly string[]).includes(args.kind)) {
     throw new Error("Type de cliché invalide.");
   }
-  const month = args.monthKey ?? args.now.slice(0, 7);
+  const month = args.monthKey ?? businessMonthOf(args.now);
   const payload = buildSnapshotPayload(
     args.customerId,
     args.kind,

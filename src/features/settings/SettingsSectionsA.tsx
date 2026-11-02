@@ -22,6 +22,7 @@ import { api } from "@shared/types/ipc-client.ts";
 import { strictOrNeg } from "@shared/money/parse.ts";
 import { minorToInput } from "@domain/money/money.ts";
 import { newOperationId } from "@domain/common/ids.ts";
+import { BUSINESS_TIME_ZONE, businessWallClock } from "@domain/common/business-day.ts";
 import {
   assertValidAnnouncementInput,
   CLIENT_ANNOUNCEMENT_ACTIVE_MAX,
@@ -705,25 +706,37 @@ interface AnnouncementForm {
   isActive: boolean;
 }
 
-/** ISO → valeur d'un <input type="datetime-local"> (heure locale du poste). */
+/**
+ * ISO → valeur d'un <input type="datetime-local"> en heure MURALE du magasin
+ * (Africa/Algiers) — E-35 : sinon un poste réglé sur UTC ferait saisir et
+ * relire une heure décalée d'une heure.
+ */
 function toDateTimeLocal(iso: string | null): string {
   if (iso == null) return "";
-  const d = new Date(iso);
-  if (!Number.isFinite(d.getTime())) return "";
-  const pad = (n: number): string => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const { date, time } = businessWallClock(iso);
+  return date === "" ? "" : `${date}T${time}`;
 }
 
-/** datetime-local → ISO UTC ; null si la valeur est vide/illisible. */
+/**
+ * datetime-local → ISO UTC, en interprétant la saisie comme heure d'Alger
+ * (UTC+1 fixe, sans DST). `null` si la valeur est vide/illisible.
+ */
 function fromDateTimeLocal(value: string): string | null {
-  const ms = Date.parse(value);
+  const trimmed = value.trim();
+  if (trimmed === "") return null;
+  const withSeconds = trimmed.length === 16 ? `${trimmed}:00` : trimmed;
+  const ms = Date.parse(`${withSeconds}+01:00`);
   return Number.isFinite(ms) ? new Date(ms).toISOString() : null;
 }
 
 function formatAnnouncementDate(iso: string): string {
   const d = new Date(iso);
   if (!Number.isFinite(d.getTime())) return "—";
-  return d.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
+  return d.toLocaleString("fr-FR", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: BUSINESS_TIME_ZONE,
+  });
 }
 
 export function AnnouncementSection({ notify }: { notify: Notify }): React.JSX.Element {

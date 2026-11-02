@@ -1,6 +1,8 @@
 // Veloria PoS — Feature Stock : types partagés + helpers purs.
 // Les montants restent en centimes (DZD), les quantités en décimal, jusqu'au formatage.
 
+import { businessDayOf } from "@domain/common/business-day.ts";
+
 export interface StockRow {
   id: number;
   name: string;
@@ -74,8 +76,7 @@ export function suggestIntakeInvoiceNumber(
   at: Date = new Date(),
 ): string {
   const code = (supplierCode ?? "").trim().replace(/\s+/g, "-").toUpperCase() || "FRS";
-  const y = at.getFullYear();
-  const m = String(at.getMonth() + 1).padStart(2, "0");
-  const d = String(at.getDate()).padStart(2, "0");
-  return `BL-${code}-${y}${m}${d}`;
+  // E-35 : la date du bulletin suit le jour métier (Africa/Algiers), pas l'horloge locale.
+  const day = businessDayOf(at);
+  return `BL-${code}-${day.replace(/-/g, "")}`;
 }

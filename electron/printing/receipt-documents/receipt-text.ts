@@ -7,6 +7,7 @@ import {
   type ThermalWidth,
 } from "./common";
 import { amountInWordsFr, formatMinorDa, formatQtyFr, tvaBreakdown } from "./amounts";
+import { formatBusinessDateTimeFr } from "../../shared/business-day";
 import {
   thermalCenter,
   thermalCols,
@@ -132,7 +133,7 @@ export function toReceiptData(raw: unknown): ReceiptData {
     footerText: textOf(payload.footerText),
     thankYouMessage: textOf(payload.thankYouMessage),
     invoice: textOf(payload.invoice),
-    date: textOf(payload.date) || new Date().toLocaleString("fr-FR"),
+    date: textOf(payload.date) || formatBusinessDateTimeFr(),
     lines: toReceiptLines(payload.lines),
     subtotalMinor: toNumberOr(payload.subtotalMinor, 0),
     discountMinor: toNumberOr(payload.discountMinor, 0),

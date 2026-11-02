@@ -9,7 +9,7 @@ import { strictOrNeg } from "@shared/money/parse.ts";
 import { useOperationId } from "@shared/ui/use-operation-id.ts";
 
 import { RETURN_REASONS } from "@domain/returns/return-rules.ts";
-import { todayUtcDate } from "@shared/dates/dates.ts";
+import { todayBusinessDate } from "@domain/common/business-day.ts";
 import { Button, EmptyState, Field, Select, TextInput, cn } from "@shared/ui/primitives.tsx";
 import { FormSection } from "@shared/ui/form-section.tsx";
 import { type ItemCondition } from "../types.ts";
@@ -71,7 +71,7 @@ export function SupplierReturnDialog({
   const [method, setMethod] = useState<"cash" | "cheque" | "transfer">("cash");
   const [reason, setReason] = useState<string>(RETURN_REASONS[0] as string);
   const [notes, setNotes] = useState("");
-  const [date, setDate] = useState(todayUtcDate());
+  const [date, setDate] = useState(todayBusinessDate());
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
   // R8 : UUID figé à l'ouverture du dialogue — retry / double-clic = un seul

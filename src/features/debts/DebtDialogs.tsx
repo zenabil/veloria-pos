@@ -13,7 +13,7 @@ import { PaymentTicketModal, type PaymentTicketInput } from "@shared/documents/p
 import { strictOrNeg } from "@shared/money/parse.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { buildSaleTicketPayload } from "@shared/documents/sale-ticket.ts";
-import { todayUtcDate } from "@shared/dates/dates.ts";
+import { todayBusinessDate } from "@domain/common/business-day.ts";
 import {
   Badge,
   Button,
@@ -143,7 +143,7 @@ export function DebtDetailsDrawer({
     debtType === "customer" && typeof party?.["settlement_day"] === "number"
       ? party["settlement_day"]
       : null;
-  const settle = settleInfo(settleDay, todayUtcDate());
+  const settle = settleInfo(settleDay, todayBusinessDate());
   const toRow = (): DebtRow => ({
     debt_type: debtType,
     entity_id: Number(h["id"] ?? 0),
@@ -159,7 +159,7 @@ export function DebtDetailsDrawer({
     due_date: typeof h["due_date"] === "string" ? h["due_date"] : null,
     created_at: String(h["created_at"] ?? ""),
     status:
-      typeof h["due_date"] === "string" && h["due_date"].slice(0, 10) < todayUtcDate()
+      typeof h["due_date"] === "string" && h["due_date"].slice(0, 10) < todayBusinessDate()
         ? "overdue"
         : "due",
     settlement_day: settleDay,
@@ -317,7 +317,7 @@ export function DebtPaymentDialog({
 }): React.JSX.Element {
   const [amountText, setAmountText] = useState(minorToInput(row.remaining_minor));
   const [method, setMethod] = useState<"cash" | "cheque" | "transfer">("cash");
-  const [date, setDate] = useState(todayUtcDate());
+  const [date, setDate] = useState(todayBusinessDate());
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);

@@ -8,7 +8,7 @@ import { useDefaultMethod } from "@shared/settings/use-app-settings.ts";
 import { formatDzd, minorToInput, parseDzdInputStrict } from "@domain/money/money.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 
-import { todayUtcDate } from "@shared/dates/dates.ts";
+import { todayBusinessDate } from "@domain/common/business-day.ts";
 import { Button, Field, Modal, Select, TextInput } from "@shared/ui/primitives.tsx";
 
 import { PAYMENT_METHOD_LABELS, type Supplier } from "../types.ts";
@@ -36,7 +36,7 @@ export function SupplierPaymentDialog({
   const debt = supplier.outstanding_balance_minor;
   const [amount, setAmount] = useState(minorToInput(debt));
   const [method, setMethod] = useDefaultMethod();
-  const [date, setDate] = useState(todayUtcDate());
+  const [date, setDate] = useState(todayBusinessDate());
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);

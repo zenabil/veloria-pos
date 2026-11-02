@@ -35,9 +35,31 @@ const SHORT_MONTHS = [
   "déc.",
 ];
 
-function parseIso(iso: string): Date | null {
+/**
+ * E-35 : le magasin est en Africa/Algiers (UTC+1 fixe, sans heure d'été). Les
+ * instants reçus du POS sont en UTC ; ils s'affichent donc CALÉD sur ce fuseau,
+ * et non sur celui du téléphone (Hermes ne fournit pas `Intl` complet →
+ * arithmétique manuelle). `parseIso` rend une date dont les composantes UTC sont
+ * l'heure d'Alger ; `parseInstant` garde l'instant brut pour les durées.
+ */
+const BUSINESS_OFFSET_MS = 3_600_000;
+
+function parseInstant(iso: string): Date | null {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function parseIso(iso: string): Date | null {
+  const d = parseInstant(iso);
+  return d === null ? null : new Date(d.getTime() + BUSINESS_OFFSET_MS);
+}
+
+/** Un instant ISO → `AAAA-MM-JJ` du jour métier (une date seule n'est pas décalée). */
+export function businessDay(iso: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+  const d = parseIso(iso);
+  if (d === null) return "";
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
 }
 
 function pad(n: number): string {
@@ -61,39 +83,39 @@ export function formatSignedMinor(minor: number): string {
   return formatMinor(minor);
 }
 
-/** ISO → « Jeudi 30 octobre 2026 ». */
+/** ISO → « Jeudi 30 octobre 2026 » (heure d'Alger). */
 export function formatDateLongFr(iso: string): string {
   const d = parseIso(iso);
   if (!d) return "—";
-  const day = DAYS[d.getDay()] ?? "";
+  const day = DAYS[d.getUTCDay()] ?? "";
   const capitalized = day.charAt(0).toUpperCase() + day.slice(1);
-  return `${capitalized} ${d.getDate()} ${MONTHS[d.getMonth()] ?? ""} ${d.getFullYear()}`;
+  return `${capitalized} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()] ?? ""} ${d.getUTCFullYear()}`;
 }
 
-/** ISO → « Mer. 29 oct. ». */
+/** ISO → « Mer. 29 oct. » (heure d'Alger). */
 export function formatDateShortFr(iso: string): string {
   const d = parseIso(iso);
   if (!d) return "—";
-  return `${SHORT_DAYS[d.getDay()] ?? "—"} ${d.getDate()} ${SHORT_MONTHS[d.getMonth()] ?? ""}`;
+  return `${SHORT_DAYS[d.getUTCDay()] ?? "—"} ${d.getUTCDate()} ${SHORT_MONTHS[d.getUTCMonth()] ?? ""}`;
 }
 
-/** ISO → « 17:42 ». */
+/** ISO → « 17:42 » (heure d'Alger). */
 export function formatTime(iso: string): string {
   const d = parseIso(iso);
   if (!d) return "—";
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
 }
 
-/** ISO → « 30/10/2026 ». */
+/** ISO → « 30/10/2026 » (jour métier du magasin). */
 export function formatDateFr(iso: string): string {
-  const d = /^\d{4}-\d{2}-\d{2}/.test(iso) ? iso.slice(0, 10) : "";
-  if (!d) return "—";
+  const d = businessDay(iso);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return "—";
   return `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
 }
 
 /** « Mis à jour il y a 12 min » — fraîcheur de la dernière synchronisation. */
 export function freshnessLabel(iso: string, nowMs: number = Date.now()): string {
-  const d = parseIso(iso);
+  const d = parseInstant(iso);
   if (!d) return "Synchronisation inconnue";
   const minutes = Math.max(0, Math.floor((nowMs - d.getTime()) / 60_000));
   if (minutes < 1) return "Mis à jour à l'instant";

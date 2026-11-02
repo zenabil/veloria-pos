@@ -9,6 +9,7 @@ import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./ide
 import { assertOrderClause } from "./sql-guard";
 import { MONEY_MAX_SINGLE_MINOR, MONEY_MAX_TOTAL_MINOR } from "../money-guard";
 import { debtStatusSql } from "./debt-status";
+import { businessDaySql } from "../../shared/business-day";
 import {
   consumptionsOfSale,
   consumeLayers,
@@ -555,7 +556,7 @@ export function createReturnAtomic(args: {
            WHERE s.customer_id = ? AND s.is_cancelled = 0 AND s.remaining_balance_minor > 0
              AND NOT EXISTS (
                SELECT 1 FROM daily_closings dc
-               WHERE dc.business_date = substr(s.created_at, 1, 10)
+               WHERE dc.business_date = ${businessDaySql("s.created_at")}
              )
            ORDER BY CASE WHEN s.id = ? THEN 0 ELSE 1 END, s.created_at ASC, s.id ASC`,
         )
@@ -1093,11 +1094,11 @@ export function listReturnsUnified(
     params.push(status);
   }
   if (opts.from) {
-    conds.push(`substr(created_at, 1, 10) >= ?`);
+    conds.push(`${businessDaySql("created_at")} >= ?`);
     params.push(opts.from);
   }
   if (opts.to) {
-    conds.push(`substr(created_at, 1, 10) <= ?`);
+    conds.push(`${businessDaySql("created_at")} <= ?`);
     params.push(opts.to);
   }
   const q = query.trim();

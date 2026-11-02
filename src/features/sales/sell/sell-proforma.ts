@@ -3,6 +3,7 @@
 import { playSound } from "@shared/sound/sound.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import { newOperationId } from "@domain/common/ids.ts";
+import { BUSINESS_TIME_ZONE } from "@domain/common/business-day.ts";
 import { formatCustomerCode } from "@shared/formatters/format.ts";
 import { api } from "@shared/types/ipc-client.ts";
 import { proformaOperationKey } from "../proforma-op.ts";
@@ -55,7 +56,7 @@ export async function createProforma(d: SellFlowDeps): Promise<void> {
       customerAddress: "",
       customerCode: "",
       invoice: res.number,
-      date: new Date().toLocaleString("fr-FR"),
+      date: new Date().toLocaleString("fr-FR", { timeZone: BUSINESS_TIME_ZONE }),
       lines: buildProformaLines(d.cart),
       subtotalMinor: totals.subtotalMinor,
       discountMinor: totals.discountAmountMinor,

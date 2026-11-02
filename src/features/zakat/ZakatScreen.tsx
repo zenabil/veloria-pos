@@ -5,6 +5,7 @@ import { Calculator, Download, FileDown, History, Info, Printer, Scale } from "l
 import { api } from "@shared/types/ipc-client.ts";
 import { useCompany } from "@shared/company/use-company.ts";
 import { formatDzd } from "@domain/money/money.ts";
+import { todayBusinessDate } from "@domain/common/business-day.ts";
 import { formatDateFr } from "@shared/formatters/format.ts";
 import { downloadCsv } from "@shared/export/csv.ts";
 import {
@@ -114,7 +115,7 @@ export function ZakatScreen({ notify }: { notify: Notify }): React.JSX.Element {
     }
     try {
       downloadCsv(
-        `zakat-${new Date().toISOString().slice(0, 10)}.csv`,
+        `zakat-${todayBusinessDate()}.csv`,
         history.map((h) => ({
           Date: formatDateFr(h.calc_date),
           "Année hégirienne": h.hijri_year,

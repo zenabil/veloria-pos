@@ -28,18 +28,59 @@ export function formatMinor(minor: number, lang: Lang): string {
   return `${sign}${grouped},${String(cents).padStart(2, "0")} ${unit}`;
 }
 
+/**
+ * E-35 : les dates s'affichent dans le fuseau du MAGASIN (Africa/Algiers =
+ * UTC+1 fixe, sans heure d'été), jamais dans celui du téléphone — sinon la
+ * facture vue dans l'APK et le ticket rendu par la caisse affichent deux jours
+ * différents pour la même vente (audit G-18). Arithmétique manuelle : Hermes
+ * n'offre pas `Intl` complet.
+ */
+const BUSINESS_OFFSET_MS = 3_600_000;
+
+/** Un instant ISO UTC → ses composantes d'heure algérienne (`null` si illisible). */
+function algiersParts(iso: string): {
+  y: number;
+  mo: number;
+  d: number;
+  h: number;
+  mi: number;
+} | null {
+  const ms = Date.parse(iso);
+  if (!Number.isFinite(ms)) return null;
+  const shifted = new Date(ms + BUSINESS_OFFSET_MS);
+  return {
+    y: shifted.getUTCFullYear(),
+    mo: shifted.getUTCMonth() + 1,
+    d: shifted.getUTCDate(),
+    h: shifted.getUTCHours(),
+    mi: shifted.getUTCMinutes(),
+  };
+}
+
+const pad2 = (n: number): string => String(n).padStart(2, "0");
+
+/**
+ * ISO (instant OU date seule `AAAA-MM-JJ`) → `AAAA-MM-JJ` du jour métier.
+ * Une date seule est déjà une date métier : elle n'est jamais décalée.
+ */
+export function businessDay(iso: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+  const p = algiersParts(iso);
+  return p === null ? "" : `${p.y}-${pad2(p.mo)}-${pad2(p.d)}`;
+}
+
+/** ISO → « JJ/MM/AAAA » en jour métier ; invalide → « — ». */
 export function formatDateFr(iso: string): string {
-  const d = iso.slice(0, 10);
+  const d = businessDay(iso);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return "—";
   return `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
 }
 
-/** ISO → « JJ/MM HH:MM » (heure locale, fraîcheur de synchro) ; invalide → « — ». */
+/** ISO → « JJ/MM HH:MM » (heure d'Alger, fraîcheur de synchro) ; invalide → « — ». */
 export function formatDateTimeFr(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  const pad = (n: number): string => String(n).padStart(2, "0");
-  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const p = algiersParts(iso);
+  if (p === null) return "—";
+  return `${pad2(p.d)}/${pad2(p.mo)} ${pad2(p.h)}:${pad2(p.mi)}`;
 }
 
 const MONTHS: Record<Lang, string[]> = {

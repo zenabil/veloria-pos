@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Download, Eye, HandCoins, Pencil, SlidersHorizontal, X } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { formatDzd } from "@domain/money/money.ts";
+import { todayBusinessDate } from "@domain/common/business-day.ts";
 import { downloadCsv } from "@shared/export/csv.ts";
 import {
   ErrorState,
@@ -288,7 +289,7 @@ export function DebtsScreen({ notify }: { notify: Notify }): React.JSX.Element {
     }
     setExporting(true);
     try {
-      downloadCsv(`dettes-${new Date().toISOString().slice(0, 10)}.csv`, rowsToCsv(list));
+      downloadCsv(`dettes-${todayBusinessDate()}.csv`, rowsToCsv(list));
       notify(`${list.length} ligne(s) exportée(s).`, "ok");
     } catch {
       notify("Export impossible.", "err");
@@ -305,7 +306,7 @@ export function DebtsScreen({ notify }: { notify: Notify }): React.JSX.Element {
     }
     setExporting(true);
     try {
-      downloadCsv(`dettes-tout-${new Date().toISOString().slice(0, 10)}.csv`, rowsToCsv(rows));
+      downloadCsv(`dettes-tout-${todayBusinessDate()}.csv`, rowsToCsv(rows));
       notify(`${rows.length} ligne(s) exportée(s).`, "ok");
     } catch {
       notify("Export impossible.", "err");

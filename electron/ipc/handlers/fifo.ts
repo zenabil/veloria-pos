@@ -10,6 +10,7 @@
 
 import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
+import { businessDayOf } from "../../shared/business-day";
 
 const TH = 1000;
 
@@ -95,7 +96,7 @@ export function createLayer(args: {
       args.qty,
       args.qty,
       args.unitCostMinor,
-      args.purchaseDate ?? args.now.slice(0, 10),
+      args.purchaseDate ?? businessDayOf(args.now),
       args.reason,
       args.now,
     );

@@ -172,6 +172,9 @@
 - [ADR-164](./ADR-164-compte-proprietaire-cree-depuis-pos.md) Compte propriétaire géré depuis le POS (création et mise à jour)
 - [ADR-165](./ADR-165-rafraichissement-periodique-client.md) Rafraîchissement périodique du client Android selon la cadence POS (snapshot `syncIntervalMinutes`, timer au premier plan, versionCode 6)
 - [ADR-166](./ADR-166-annonces-multi-medias-expiration.md) Annonces magasin multi-médias (4 actives max, texte ou image https, échéance) et bandeau hero de l'APK avec compte à rebours ; migration 0057, snapshot `announcements[]` + champ legacy, aucun changement cloud
+- [ADR-167](./ADR-167-purge-ciblee-post-audit.md) Purge ciblée post-audit : copies mortes (V2, coûts), `formatDelta`, clés i18n et icônes maîtresses
+- [ADR-168](./ADR-168-native-max-apk.md) APK Native-max : R8 + shrinkResources, ABIs ARM seuls, compression des bibliothèques, permissions nettoyées, premier APK Owner
+- [ADR-169](./ADR-169-jour-metier-algiers.md) Jour métier Africa/Algiers (E-35, G-18, décision Q17) : instants UTC inchangés, découpage/affichage/verrou de clôture calés sur UTC+1 fixe, modules `business-day` jumeaux, migration 0058, gardes JS↔SQL et POS↔APK
 
 ## Ou ecrire quoi
 

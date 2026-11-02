@@ -24,7 +24,11 @@ import { useCompany } from "@shared/company/use-company.ts";
 import { formatDzdTotal, formatDzdTotalSigned } from "@domain/money/money.ts";
 import { formatDateFr, formatDateTimeFr } from "@shared/formatters/format.ts";
 import { BarChart } from "@shared/charts/BarChart.tsx";
-import { todayUtcDate } from "@shared/dates/dates.ts";
+import {
+  addCalendarDays,
+  businessMonthStart,
+  todayBusinessDate,
+} from "@domain/common/business-day.ts";
 import { downloadCsv } from "@shared/export/csv.ts";
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
 import { useLoadSeq } from "@shared/ui/use-load-seq.ts";
@@ -60,18 +64,18 @@ const PRESETS = [
 type PresetKind = (typeof PRESETS)[number]["kind"];
 
 function presetRange(kind: PresetKind): { from: string; to: string } {
-  const iso = (d: Date): string => d.toISOString().slice(0, 10);
-  const now = new Date();
-  const today = iso(now);
+  // E-35 : « aujourd'hui », « hier » et « 7 derniers jours » sont des JOURS
+  // MÉTIER (Africa/Algiers) — plus soustraits à l'horloge en millisecondes.
+  const today = todayBusinessDate();
   if (kind === "today") return { from: today, to: today };
   if (kind === "yesterday") {
-    const y = iso(new Date(now.getTime() - 86400000));
+    const y = addCalendarDays(today, -1);
     return { from: y, to: y };
   }
   if (kind === "week") {
-    return { from: iso(new Date(now.getTime() - 6 * 86400000)), to: today };
+    return { from: addCalendarDays(today, -6), to: today };
   }
-  return { from: today.slice(0, 8) + "01", to: today };
+  return { from: businessMonthStart(today), to: today };
 }
 
 const PCT_FR = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 });
@@ -245,8 +249,8 @@ export function DashboardScreen({
   onNavigate?: (module: ModuleId) => void;
   canNavigate?: (module: ModuleId) => boolean;
 }): React.JSX.Element {
-  const [from, setFrom] = useState(todayUtcDate());
-  const [to, setTo] = useState(todayUtcDate());
+  const [from, setFrom] = useState(todayBusinessDate());
+  const [to, setTo] = useState(todayBusinessDate());
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [detailsTab, setDetailsTab] = useState<DetailTab>("stock");
@@ -284,7 +288,7 @@ export function DashboardScreen({
 
   // Chargement initial (journée en cours).
   useEffect(() => {
-    const today = todayUtcDate();
+    const today = todayBusinessDate();
     setFrom(today);
     setTo(today);
     void load(today, today);
@@ -487,7 +491,7 @@ export function DashboardScreen({
             .map((p) => [p.name.slice(0, 60), String(p.quantity), String(p.min_stock_level)]),
         },
       ],
-      footer: `${companyName} — synthèse générée le ${formatDateFr(todayUtcDate())}.`,
+      footer: `${companyName} — synthèse générée le ${formatDateFr(todayBusinessDate())}.`,
     };
   }
 
@@ -567,8 +571,8 @@ export function DashboardScreen({
 
   /** Ventes du jour ; null = aujourd'hui hors période filtrée (jamais un « 0 » trompeur). */
   const todayMinor =
-    summary != null && from <= todayUtcDate() && todayUtcDate() <= to
-      ? (summary.daily.find((d) => d.d === todayUtcDate())?.t ?? 0)
+    summary != null && from <= todayBusinessDate() && todayBusinessDate() <= to
+      ? (summary.daily.find((d) => d.d === todayBusinessDate())?.t ?? 0)
       : null;
   const todayAnimated = useCountUp(todayMinor ?? 0);
 

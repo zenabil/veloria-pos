@@ -1,19 +1,31 @@
 // Veloria PoS — Dashboard repository (read-only, NET des retours).
 // Source de vérité : ventes non annulées − retours non annulés. Les retours
 // restockés réduisent le COGS ; les retours non restockés restent une perte.
-// Tous les agrégats utilisent des bornes de plage indexables (pas de substr
-// dans le WHERE) et les listes « récentes » excluent les opérations annulées.
+// Tous les agrégats utilisent des bornes de plage indexables et les listes
+// « récentes » excluent les opérations annulées.
+// E-35 : les bornes des colonnes d'INSTANT sont les bornes UTC des JOURS
+// MÉTIER (Africa/Algiers) ; les colonnes date-seule comparent des dates métier.
 import { getDb, getLastIntegrityResult } from "../../database/sqlite.service";
 import { backupStatus } from "../../backup/backup.service";
 import { fifoValuation } from "./fifo";
-
-const DAY_MS = 86_400_000;
+import {
+  addCalendarDays,
+  businessDayRangeUtc,
+  businessDaySql,
+  todayBusinessDate,
+} from "../../shared/business-day";
 
 interface Range {
+  /** Date métier de début (`AAAA-MM-JJ`) : clés de seaux + colonnes date-seule. */
   from: string;
+  /** Date métier de fin, incluse. */
   to: string;
-  /** Premier jour exclu : permet created_at >= from AND created_at < toExclusive. */
+  /** Jour métier suivant `to` : borne exclusive des colonnes date-seule. */
   toExclusive: string;
+  /** Premier instant UTC de la journée métier `from` (bornes des colonnes d'instant). */
+  fromInstant: string;
+  /** Premier instant UTC de la journée métier suivant `to` (borne exclusive). */
+  toInstantExclusive: string;
   spanDays: number;
 }
 
@@ -47,21 +59,24 @@ export interface DashboardCategoryRow {
   returnsMinor: number;
 }
 
-function addDays(date: string, days: number): string {
-  const ms = Date.parse(`${date}T00:00:00.000Z`);
-  if (!Number.isFinite(ms)) throw new Error("Date invalide.");
-  return new Date(ms + days * DAY_MS).toISOString().slice(0, 10);
-}
-
 function rangeOf(from: string, to: string): Range {
   if (from > to) throw new Error("Période invalide.");
   const start = Date.parse(`${from}T00:00:00.000Z`);
   const end = Date.parse(`${to}T00:00:00.000Z`);
-  const spanDays = Math.round((end - start) / DAY_MS) + 1;
+  const spanDays = Math.round((end - start) / 86_400_000) + 1;
   if (!Number.isFinite(start) || !Number.isFinite(end) || spanDays < 1 || spanDays > 366) {
     throw new Error("Période hors bornes (1-366 jours).");
   }
-  return { from, to, toExclusive: addDays(to, 1), spanDays };
+  const firstDay = businessDayRangeUtc(from);
+  const lastDay = businessDayRangeUtc(to);
+  return {
+    from,
+    to,
+    toExclusive: addCalendarDays(to, 1),
+    fromInstant: firstDay.from,
+    toInstantExclusive: lastDay.toExclusive,
+    spanDays,
+  };
 }
 
 /** Ajoute le filtre auteur à une requête déjà pourvue d'un WHERE. */
@@ -91,7 +106,7 @@ function netSalesFor(
   staffUserId: number | null,
 ): { n: number; gross: number; returns: number; net: number } {
   const r = rangeOf(from, to);
-  const sp: unknown[] = [r.from, r.toExclusive];
+  const sp: unknown[] = [r.fromInstant, r.toInstantExclusive];
   const saleStaff = staffCond("s", staffUserId, sp);
   const gross = getOne<SalesAgg>(
     `SELECT COUNT(*) AS n, COALESCE(SUM(s.total_minor), 0) AS t
@@ -99,7 +114,7 @@ function netSalesFor(
      WHERE s.is_cancelled = 0 AND s.created_at >= ? AND s.created_at < ?${saleStaff}`,
     sp,
   );
-  const rp: unknown[] = [r.from, r.toExclusive];
+  const rp: unknown[] = [r.fromInstant, r.toInstantExclusive];
   const returnStaff = staffCond("r", staffUserId, rp);
   const ret = getOne<{ t: number }>(
     `SELECT COALESCE(SUM(r.total_return_value_minor), 0) AS t
@@ -123,7 +138,7 @@ export function getDashboardSummary(
   const r = rangeOf(from, to);
 
   // Ventes + COGS de la période.
-  const sp: unknown[] = [r.from, r.toExclusive];
+  const sp: unknown[] = [r.fromInstant, r.toInstantExclusive];
   const saleStaff = staffCond("s", staffUserId, sp);
   const sales = getOne<SalesAgg>(
     `SELECT COUNT(*) AS n, COALESCE(SUM(s.total_minor), 0) AS t
@@ -131,7 +146,7 @@ export function getDashboardSummary(
      WHERE s.is_cancelled = 0 AND s.created_at >= ? AND s.created_at < ?${saleStaff}`,
     sp,
   );
-  const cp: unknown[] = [r.from, r.toExclusive];
+  const cp: unknown[] = [r.fromInstant, r.toInstantExclusive];
   const cogsStaff = staffCond("s", staffUserId, cp);
   const cogs = getOne<CogsAgg>(
     `SELECT COALESCE(SUM(li.cogs_minor), 0) AS c
@@ -141,7 +156,7 @@ export function getDashboardSummary(
   );
 
   // Retours non annulés : valeur, remboursements réels, COGS restocké.
-  const rp: unknown[] = [r.from, r.toExclusive];
+  const rp: unknown[] = [r.fromInstant, r.toInstantExclusive];
   const returnStaff = staffCond("r", staffUserId, rp);
   const returns = getOne<ReturnsAgg>(
     `SELECT COUNT(*) AS n,
@@ -151,7 +166,7 @@ export function getDashboardSummary(
      WHERE r.status != 'cancelled' AND r.created_at >= ? AND r.created_at < ?${returnStaff}`,
     rp,
   );
-  const rcp: unknown[] = [r.from, r.toExclusive];
+  const rcp: unknown[] = [r.fromInstant, r.toInstantExclusive];
   const returnCogsStaff = staffCond("r", staffUserId, rcp);
   const returnCogs = getOne<CogsAgg>(
     `SELECT COALESCE(SUM(ri.cogs_minor), 0) AS c
@@ -164,7 +179,7 @@ export function getDashboardSummary(
   const netCogs = Number(cogs.c) - Number(returnCogs.c);
 
   // Achats : uniquement les réceptions validées (jamais draft/cancelled).
-  const pp: unknown[] = [r.from, r.toExclusive];
+  const pp: unknown[] = [r.fromInstant, r.toInstantExclusive];
   const purchaseStaff = staffCond("si", staffUserId, pp);
   const purchases = getOne<SalesAgg>(
     `SELECT COUNT(*) AS n, COALESCE(SUM(si.total_minor), 0) AS t
@@ -235,7 +250,7 @@ export function getDashboardSummary(
      GROUP BY sp.method`,
     inflowP,
   );
-  const refundP: unknown[] = [r.from, r.toExclusive];
+  const refundP: unknown[] = [r.fromInstant, r.toInstantExclusive];
   const refundByMethodStaff = staffCond("r", staffUserId, refundP);
   const refunds = getAll<{ method: string; n: number; t: number }>(
     `SELECT COALESCE(r.refund_method, 'none') AS method, COUNT(*) AS n,
@@ -258,20 +273,20 @@ export function getDashboardSummary(
   const byMethod = [...methodMap.values()].filter((row) => row.n > 0).sort((a, b) => b.t - a.t);
 
   // Série journalière nette, remplie avec les jours sans vente (graphique fiable).
-  const dayP: unknown[] = [r.from, r.toExclusive];
+  const dayP: unknown[] = [r.fromInstant, r.toInstantExclusive];
   const dayStaff = staffCond("s", staffUserId, dayP);
   const salesByDay = getAll<{ d: string; n: number; t: number }>(
-    `SELECT substr(s.created_at, 1, 10) AS d, COUNT(*) AS n,
+    `SELECT ${businessDaySql("s.created_at")} AS d, COUNT(*) AS n,
        COALESCE(SUM(s.total_minor), 0) AS t
      FROM sales s
      WHERE s.is_cancelled = 0 AND s.created_at >= ? AND s.created_at < ?${dayStaff}
      GROUP BY 1`,
     dayP,
   );
-  const dayRetP: unknown[] = [r.from, r.toExclusive];
+  const dayRetP: unknown[] = [r.fromInstant, r.toInstantExclusive];
   const dayRetStaff = staffCond("r", staffUserId, dayRetP);
   const returnsByDay = getAll<{ d: string; t: number }>(
-    `SELECT substr(r.created_at, 1, 10) AS d,
+    `SELECT ${businessDaySql("r.created_at")} AS d,
        COALESCE(SUM(r.total_return_value_minor), 0) AS t
      FROM returns r
      WHERE r.status != 'cancelled' AND r.created_at >= ? AND r.created_at < ?${dayRetStaff}
@@ -282,7 +297,7 @@ export function getDashboardSummary(
   const returnDayMap = new Map(returnsByDay.map((row) => [row.d, Number(row.t)]));
   const daily: { d: string; t: number; n: number }[] = [];
   for (let i = 0; i < r.spanDays; i += 1) {
-    const d = addDays(r.from, i);
+    const d = addCalendarDays(r.from, i);
     const sale = salesDayMap.get(d);
     daily.push({
       d,
@@ -292,9 +307,9 @@ export function getDashboardSummary(
   }
 
   // Top rotations NETTES (une ligne retournée ne compte pas comme une vente).
-  const fp: unknown[] = [r.from, r.toExclusive];
+  const fp: unknown[] = [r.fromInstant, r.toInstantExclusive];
   const fastSaleStaff = staffCond("s", staffUserId, fp);
-  fp.push(r.from, r.toExclusive);
+  fp.push(r.fromInstant, r.toInstantExclusive);
   const fastReturnStaff = staffCond("r", staffUserId, fp);
   const fastMoving = getAll<{ name: string; qty: number; total: number }>(
     `SELECT product_id, name, SUM(qty) AS qty, SUM(total) AS total FROM (
@@ -320,7 +335,7 @@ export function getDashboardSummary(
     `SELECT id, name FROM categories ORDER BY name COLLATE NOCASE`,
     [],
   );
-  const csP: unknown[] = [r.from, r.toExclusive];
+  const csP: unknown[] = [r.fromInstant, r.toInstantExclusive];
   const catSaleStaff = staffCond("s", staffUserId, csP);
   const catSales = getAll<{ categoryId: number | null; salesMinor: number; cogsMinor: number }>(
     `SELECT li.category_id AS categoryId,
@@ -331,7 +346,7 @@ export function getDashboardSummary(
      GROUP BY li.category_id`,
     csP,
   );
-  const crP: unknown[] = [r.from, r.toExclusive];
+  const crP: unknown[] = [r.fromInstant, r.toInstantExclusive];
   const catReturnStaff = staffCond("r", staffUserId, crP);
   const catReturns = getAll<{
     categoryId: number | null;
@@ -411,8 +426,8 @@ export function getDashboardSummary(
   }
   byCategory.sort((a, b) => b.salesMinor - a.salesMinor || a.name.localeCompare(b.name));
 
-  const today = new Date().toISOString().slice(0, 10);
-  const in7 = addDays(today, 7);
+  const today = todayBusinessDate();
+  const in7 = addCalendarDays(today, 7);
   const overdueBase =
     "s.is_cancelled = 0 AND s.remaining_balance_minor > 0 AND s.due_date IS NOT NULL";
   const overdueP: unknown[] = [today];
@@ -552,8 +567,8 @@ export function getDashboardSummary(
     recentExpenseP,
   );
 
-  const prevFrom = addDays(from, -r.spanDays);
-  const prevTo = addDays(from, -1);
+  const prevFrom = addCalendarDays(from, -r.spanDays);
+  const prevTo = addCalendarDays(from, -1);
   const prev = netSalesFor(prevFrom, prevTo, staffUserId);
   const delta = prev.net > 0 ? Math.round(((netSales - prev.net) / prev.net) * 1000) / 10 : 0;
 

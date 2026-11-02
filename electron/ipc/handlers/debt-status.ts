@@ -24,10 +24,15 @@
 //
 // L'expression SQL est unique (`overdueSalesSql`) : les écritures et les
 // lectures l'emploient, donc elles ne peuvent pas diverger.
+//
+// E-35 : « aujourd'hui » est le JOUR MÉTIER (Africa/Algiers), pas le jour UTC —
+// une échéance à 00h30 heure d'Alger est échue à 00h30, pas à 01h00.
+
+import { sqlBusinessToday, calendarDaySql } from "../../shared/business-day";
 
 /** Le client a-t-il une vente ouverte dont l'échéance est dépassée ? */
 export function overdueSalesSql(customerIdExpr: string): string {
-  return `EXISTS (SELECT 1 FROM sales s WHERE s.customer_id = ${customerIdExpr} AND s.is_cancelled = 0 AND s.remaining_balance_minor > 0 AND s.due_date IS NOT NULL AND substr(s.due_date, 1, 10) < date('now'))`;
+  return `EXISTS (SELECT 1 FROM sales s WHERE s.customer_id = ${customerIdExpr} AND s.is_cancelled = 0 AND s.remaining_balance_minor > 0 AND s.due_date IS NOT NULL AND ${calendarDaySql("s.due_date")} < ${sqlBusinessToday()})`;
 }
 
 /**

@@ -3,6 +3,7 @@
 import { ipcMain } from "electron";
 import type { BrowserWindow } from "electron";
 import { log } from "../services/logger";
+import { formatBusinessDateTimeFr } from "../shared/business-day";
 import { IPC_CHANNELS } from "../ipc/channels";
 import { prodLicenseDeps } from "../licensing/prod-deps";
 import { requireLicensedMutation } from "../licensing/license-service";
@@ -157,7 +158,7 @@ export function registerReceiptIpc(getMainWindow: () => BrowserWindow | null): v
         footerText: "",
         thankYouMessage: "",
         invoice: "TEST",
-        date: new Date().toLocaleString("fr-FR"),
+        date: formatBusinessDateTimeFr(),
         lines: [
           {
             name: "Article de test",

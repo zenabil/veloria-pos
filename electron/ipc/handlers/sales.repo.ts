@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
 import { formatInvoiceNumber } from "./numbers";
 import { debtStatusSql } from "./debt-status";
+import { businessDayOf } from "../../shared/business-day";
 import {
   auditOperationId,
   claimIdempotency,
@@ -205,8 +206,9 @@ export function allocateInvoiceNumber(prefix: string, now: string): string {
   };
   const p = prefix.trim() || row.prefix || "FAC";
   // P15: année issue de la date métier `now` (ISO) plutôt que de l'horloge
-  // système brute — déterministe et testable.
-  const year = Number(String(now).slice(0, 4)) || new Date().getFullYear();
+  // système brute — déterministe et testable. E-35 : l'année est celle du
+  // JOUR MÉTIER (Africa/Algiers), pas celle du jour UTC.
+  const year = Number(businessDayOf(String(now)).slice(0, 4)) || new Date().getFullYear();
   const num = formatInvoiceNumber(p, year, row.next_value);
   db.prepare(
     `UPDATE number_sequences SET next_value = next_value + 1, updated_at = ? WHERE sequence_key = 'sale_invoice'`,

@@ -1,5 +1,6 @@
 // Veloria PoS — Domain: primitives de dates (framework-free, zéro import).
-// Les horodatages SQLite sont en UTC ; les dates métier sont AAAA-MM-JJ.
+// Les horodatages SQLite sont des instants UTC ; les dates métier sont
+// AAAA-MM-JJ et se découpent en Africa/Algiers (voir `business-day.ts`).
 
 /** Vraie date calendaire AAAA-MM-JJ (pas seulement le format : mois/jours réels). */
 export function isRealCalendarDate(value: string): boolean {

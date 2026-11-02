@@ -14,6 +14,7 @@ import {
   storeIdempotencyResult,
 } from "../ipc/handlers/idempotency";
 import { toUserMessage } from "../ipc/ipc-errors";
+import { businessMonthOf } from "../shared/business-day";
 import { enqueueSnapshotAtomic, hasActiveClientAccess } from "../ipc/handlers/client-access.repo";
 import {
   SYNC_DEFAULTS,
@@ -536,7 +537,7 @@ export function enqueueCustomerRefresh(customerId: number): void {
     // refuserait la ligne (FK client_access) et bloquerait TOUTE la poussée.
     if (!hasActiveClientAccess(customerId)) return;
     const now = new Date().toISOString();
-    const month = now.slice(0, 7);
+    const month = businessMonthOf(now);
     for (const kind of ["customer_snapshot", "invoice_list", "payment_list"] as const) {
       try {
         enqueueSnapshotAtomic({
@@ -605,7 +606,7 @@ export function enqueueAnnouncementRefresh(): void {
       )
       .all() as { customer_id: number }[];
     const now = new Date().toISOString();
-    const month = now.slice(0, 7);
+    const month = businessMonthOf(now);
     for (const row of rows) {
       try {
         enqueueSnapshotAtomic({

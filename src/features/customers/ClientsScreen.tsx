@@ -23,6 +23,7 @@ import {
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { formatDzd } from "@domain/money/money.ts";
 import { newOperationId } from "@domain/common/ids.ts";
+import { todayBusinessDate } from "@domain/common/business-day.ts";
 import { runBulk } from "@shared/ui/bulk-actions.ts";
 import { formatDateTimeFr } from "@shared/formatters/format.ts";
 import {
@@ -419,7 +420,7 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
       for (const rows of pages) {
         if (rows) all.push(...rows);
       }
-      const date = new Date().toISOString().slice(0, 10);
+      const date = todayBusinessDate();
       if (kind === "report") {
         downloadCsv(
           `clients-${date}.csv`,

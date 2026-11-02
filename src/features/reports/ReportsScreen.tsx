@@ -9,7 +9,11 @@ import { formatDateFr, formatDzdSigned } from "@shared/formatters/format.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import { playSound } from "@shared/sound/sound.ts";
 import { newOperationId } from "@domain/common/ids.ts";
-import { todayUtcDate } from "@shared/dates/dates.ts";
+import {
+  addCalendarDays,
+  businessMonthStart,
+  todayBusinessDate,
+} from "@domain/common/business-day.ts";
 import { useLoadSeq } from "@shared/ui/use-load-seq.ts";
 import { isAnyModalOpen } from "@shared/ui/use-busy.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
@@ -34,7 +38,7 @@ import {
 import { ReportExportDialog } from "./ReportDialogs.tsx";
 import {
   REPORT_SECTIONS,
-  monthStartUtc,
+  currentBusinessMonthStart,
   type ClosingRow,
   type ReportSection,
   type ReportSummary,
@@ -49,31 +53,37 @@ interface Category {
 
 type PresetKind = "month" | "prev" | "quarter" | "year";
 
-/** Bornes UTC des périodes prédéfinies (source unique : boutons + état actif). */
+/**
+ * Bornes du jour métier des périodes prédéfinies (source unique : boutons +
+ * état actif). E-35 : « ce mois-ci » commence au 1er du mois d'Alger.
+ */
 function presetRange(kind: PresetKind): { from: string; to: string } {
-  const now = new Date();
-  const y = now.getUTCFullYear();
-  const m = now.getUTCMonth();
-  const iso = (d: Date): string => d.toISOString().slice(0, 10);
+  const today = todayBusinessDate();
+  const thisMonthStart = businessMonthStart(today);
+  const monthIndex = Number(today.slice(5, 7)) - 1;
   if (kind === "month") {
-    return { from: iso(new Date(Date.UTC(y, m, 1))), to: todayUtcDate() };
+    return { from: thisMonthStart, to: today };
   }
   if (kind === "prev") {
-    return {
-      from: iso(new Date(Date.UTC(y, m - 1, 1))),
-      to: iso(new Date(Date.UTC(y, m, 0))),
-    };
+    const prevStart = monthStartOffset(today, -1);
+    return { from: prevStart, to: addCalendarDays(thisMonthStart, -1) };
   }
   if (kind === "quarter") {
-    const q = Math.floor(m / 3) * 3;
-    return { from: iso(new Date(Date.UTC(y, q, 1))), to: todayUtcDate() };
+    const quarterStartMonth = Math.floor(monthIndex / 3) * 3;
+    return { from: monthStartOffset(today, quarterStartMonth - monthIndex), to: today };
   }
-  return { from: iso(new Date(Date.UTC(y, 0, 1))), to: todayUtcDate() };
+  return { from: monthStartOffset(today, -monthIndex), to: today };
+}
+
+/** Premier jour du mois décalé de `delta` mois par rapport à `day` (arithmétique calendaire UTC). */
+function monthStartOffset(day: string, delta: number): string {
+  const d = new Date(Date.UTC(Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1 + delta, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-01`;
 }
 
 export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element {
-  const [from, setFrom] = useState(monthStartUtc());
-  const [to, setTo] = useState(todayUtcDate());
+  const [from, setFrom] = useState(currentBusinessMonthStart());
+  const [to, setTo] = useState(todayBusinessDate());
   const [section, setSection] = useState<ReportSection>("all");
   const [customerId, setCustomerId] = useState<number | null>(null);
   const [customerName, setCustomerName] = useState("");
@@ -100,7 +110,7 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
   } | null>(null);
   // Clôtures Z : la tranche `closings.*` (main + domaine) n'avait aucune UI.
   const [closings, setClosings] = useState<ClosingRow[]>([]);
-  const [closingDate, setClosingDate] = useState(todayUtcDate());
+  const [closingDate, setClosingDate] = useState(todayBusinessDate());
   const [openingText, setOpeningText] = useState("0,00");
   const [closingBusy, setClosingBusy] = useState(false);
   const [reopenBusy, setReopenBusy] = useState(false);
@@ -276,7 +286,7 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
   // Chargement initial.
   useEffect(() => {
     void loadCategories();
-    void load({ f: monthStartUtc(), t: todayUtcDate() });
+    void load({ f: currentBusinessMonthStart(), t: todayBusinessDate() });
   }, []);
 
   // Clôtures Z : au premier passage sur l'onglet, si la période a changé

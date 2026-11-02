@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Download, Eye, Printer, SlidersHorizontal, X } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { formatDzd } from "@domain/money/money.ts";
+import { todayBusinessDate } from "@domain/common/business-day.ts";
 import { downloadCsv } from "@shared/export/csv.ts";
 import { formatDateFr, paymentMethodLabel } from "@shared/formatters/format.ts";
 import {
@@ -330,7 +331,7 @@ export function HistoryScreen({
       if (res.total > EXPORT_MAX) {
         notify(`Export limité aux ${EXPORT_MAX} premières lignes (${res.total} au total).`, "err");
       }
-      const stamp = new Date().toISOString().slice(0, 10);
+      const stamp = todayBusinessDate();
       exportCsv(res.rows, `historique-${stamp}.csv`);
     } catch (e) {
       notify(frError(e, "Export impossible."), "err");
@@ -339,7 +340,7 @@ export function HistoryScreen({
 
   function exportSelection(): void {
     const list = rows.filter((r) => selection.has(rowKey(r)));
-    const stamp = new Date().toISOString().slice(0, 10);
+    const stamp = todayBusinessDate();
     exportCsv(list, `historique-selection-${stamp}.csv`);
   }
 

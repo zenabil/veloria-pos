@@ -121,10 +121,19 @@ describe("Stock Zod schemas", () => {
   });
 
   it("suggests an intake invoice number from the supplier code", () => {
-    expect(suggestIntakeInvoiceNumber("FOU-00001", new Date(2026, 8, 18))).toBe(
+    // E-35 : la date du bulletin est le JOUR MÉTIER (Africa/Algiers) — un
+    // instant UTC à 22:30 le 17 tombe le 18 à Alger.
+    expect(suggestIntakeInvoiceNumber("FOU-00001", new Date("2026-09-18T08:00:00.000Z"))).toBe(
       "BL-FOU-00001-20260918",
     );
-    expect(suggestIntakeInvoiceNumber(null, new Date(2026, 8, 18))).toBe("BL-FRS-20260918");
-    expect(suggestIntakeInvoiceNumber("  ", new Date(2026, 8, 18))).toBe("BL-FRS-20260918");
+    expect(suggestIntakeInvoiceNumber(null, new Date("2026-09-18T08:00:00.000Z"))).toBe(
+      "BL-FRS-20260918",
+    );
+    expect(suggestIntakeInvoiceNumber("  ", new Date("2026-09-18T08:00:00.000Z"))).toBe(
+      "BL-FRS-20260918",
+    );
+    expect(suggestIntakeInvoiceNumber("FOU-00001", new Date("2026-09-17T23:30:00.000Z"))).toBe(
+      "BL-FOU-00001-20260918",
+    );
   });
 });

@@ -6,6 +6,7 @@ import { Download, Eye, HandCoins, Plus, SlidersHorizontal, Undo2, X } from "luc
 import { api } from "@shared/types/ipc-client.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { newOperationId } from "@domain/common/ids.ts";
+import { todayBusinessDate } from "@domain/common/business-day.ts";
 import { runBulk } from "@shared/ui/bulk-actions.ts";
 import { formatDzd } from "@domain/money/money.ts";
 import { downloadCsv } from "@shared/export/csv.ts";
@@ -229,7 +230,7 @@ export function ReturnsScreen({ notify }: { notify: Notify }): React.JSX.Element
         notify(`Export limité aux 1000 premières lignes (${res.total} au total).`, "err");
       }
       downloadCsv(
-        `retours-${new Date().toISOString().slice(0, 10)}.csv`,
+        `retours-${todayBusinessDate()}.csv`,
         res.rows.map((r) => ({
           Numero: returnNumber(r.kind, r.number, r.entity_id),
           Date: r.created_at.slice(0, 10),

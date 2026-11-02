@@ -4,7 +4,7 @@ import { Calculator, Scale, Wallet } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { formatDzd, minorToInput, parseDzdInputStrict } from "@domain/money/money.ts";
 import { newOperationId } from "@domain/common/ids.ts";
-import { todayUtcDate } from "@shared/dates/dates.ts";
+import { todayBusinessDate } from "@domain/common/business-day.ts";
 import { Button, Field, Modal, TextArea, TextInput } from "@shared/ui/primitives.tsx";
 import { FormSection } from "@shared/ui/form-section.tsx";
 import { computeZakat } from "@domain/zakat/zakat-rules.ts";
@@ -104,7 +104,7 @@ export function ZakatCalculationDialog({
       await api.zakatSaveCalc({
         operationId: newOperationId(),
         hijriYear,
-        calcDate: todayUtcDate(),
+        calcDate: todayBusinessDate(),
         cashMinor: parsed.cashMinor,
         bankMinor: parsed.bankMinor,
         stockMinor: parsed.stockMinor,

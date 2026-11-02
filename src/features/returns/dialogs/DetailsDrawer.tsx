@@ -9,6 +9,7 @@ import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { buildCompanyHead } from "@shared/documents/sale-ticket.ts";
 
 import { newOperationId } from "@domain/common/ids.ts";
+import { BUSINESS_TIME_ZONE } from "@domain/common/business-day.ts";
 import { timbreQuittanceLf2025 } from "@domain/invoice/timbre-rules.ts";
 import { roundQuantity } from "@domain/common/quantity.ts";
 import { formatCustomerCode, formatDzdSafe } from "@shared/formatters/format.ts";
@@ -132,7 +133,9 @@ export function ReturnDetailsDrawer({
               ? h["recovery_method"]
               : null,
         invoice: num,
-        date: new Date(String(h["created_at"] ?? Date.now())).toLocaleString("fr-FR"),
+        date: new Date(String(h["created_at"] ?? Date.now())).toLocaleString("fr-FR", {
+          timeZone: BUSINESS_TIME_ZONE,
+        }),
         lines: data.items.map((l) => ({
           name: String(l.product_name_snapshot),
           qty: Number(l.quantity),
@@ -257,7 +260,9 @@ export function ReturnDetailsDrawer({
         customerCode: "",
         paymentMethod,
         invoice: String(h["original_invoice_number"] ?? h["intake_invoice_number"] ?? num),
-        date: Number.isNaN(dd.getTime()) ? rawDate.slice(0, 10) : dd.toLocaleString("fr-FR"),
+        date: Number.isNaN(dd.getTime())
+          ? rawDate.slice(0, 10)
+          : dd.toLocaleString("fr-FR", { timeZone: BUSINESS_TIME_ZONE }),
         lines,
         subtotalMinor: subtotal,
         discountMinor: 0,

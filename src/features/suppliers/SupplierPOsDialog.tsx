@@ -15,6 +15,7 @@ import { strictOrNeg } from "@shared/money/parse.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import { useOperationId } from "@shared/ui/use-operation-id.ts";
 import { roundQuantity } from "@domain/common/quantity.ts";
+import { BUSINESS_TIME_ZONE } from "@domain/common/business-day.ts";
 import { poStatusLabelFr } from "@domain/suppliers/po-rules.ts";
 import {
   Badge,
@@ -117,7 +118,7 @@ export function SupplierPOsDialog({
   function dateFr(raw: string | null): string {
     const d = new Date(raw ?? Date.now());
     if (Number.isNaN(d.getTime())) return (raw ?? "").slice(0, 10);
-    return d.toLocaleString("fr-FR");
+    return d.toLocaleString("fr-FR", { timeZone: BUSINESS_TIME_ZONE });
   }
 
   async function previewOrder(): Promise<void> {

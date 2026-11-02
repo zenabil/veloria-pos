@@ -7,6 +7,7 @@
 import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
 import { formatInvoiceNumber } from "./numbers";
+import { businessDayOf } from "../../shared/business-day";
 import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./idempotency";
 import { receiveStockAtomic } from "./inventory.repo";
 
@@ -36,7 +37,7 @@ function allocatePurchaseOrderNumber(now: string): string {
       `SELECT prefix, next_value FROM number_sequences WHERE sequence_key = 'purchase_order'`,
     )
     .get() as { prefix: string; next_value: number };
-  const year = Number(String(now).slice(0, 4)) || new Date().getFullYear();
+  const year = Number(businessDayOf(String(now)).slice(0, 4)) || new Date().getFullYear();
   const num = formatInvoiceNumber(seq.prefix || "CMD", year, seq.next_value);
   db.prepare(
     `UPDATE number_sequences SET next_value = next_value + 1, updated_at = ? WHERE sequence_key = 'purchase_order'`,
@@ -330,7 +331,7 @@ export function receivePurchaseOrderAtomic(args: {
     const intake = receiveStockAtomic({
       supplierId: Number(o["supplier_id"]),
       invoiceNumber: String(o["order_number"]),
-      invoiceDate: args.now.slice(0, 10),
+      invoiceDate: businessDayOf(args.now),
       shippingMinor: 0,
       notes: `Réception commande ${String(o["order_number"])}`,
       lines: intakeLines,

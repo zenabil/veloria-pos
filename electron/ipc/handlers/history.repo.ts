@@ -6,6 +6,7 @@ import { getDb } from "../../database/sqlite.service";
 import { getSaleDetail } from "./sales.repo";
 import { buildHistoryQuery, type HistoryFilters, type HistoryKind } from "./history-query";
 import { paymentMethodLabel } from "../../printing/receipt-documents";
+import { businessDaySql } from "../../shared/business-day";
 
 // RADICAL-FIX: garde allowlist pour les identifiants SQL interpolés (tables/colonnes
 // internes uniquement — jamais de saisie utilisateur). Échec fort si dérive future.
@@ -76,14 +77,16 @@ export function getHistoryStats(
       ? { cond: "", params: [] }
       : { cond: ` AND ${alias}.staff_user_id = ?`, params: [staffUserId] };
   const range = (col: string): { cond: string; params: unknown[] } => {
+    // E-35 : `col` est toujours une colonne d'INSTANT ici — le découpe suit le
+    // jour métier (Africa/Algiers), sinon une vente à 00:30 disparaît du jour.
     const conds: string[] = [];
     const params: unknown[] = [];
     if (from) {
-      conds.push(`substr(${col}, 1, 10) >= ?`);
+      conds.push(`${businessDaySql(col)} >= ?`);
       params.push(from);
     }
     if (to) {
-      conds.push(`substr(${col}, 1, 10) <= ?`);
+      conds.push(`${businessDaySql(col)} <= ?`);
       params.push(to);
     }
     return { cond: conds.length > 0 ? `WHERE ${conds.join(" AND ")}` : "", params };

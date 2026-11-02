@@ -8,6 +8,15 @@ import { claimIdempotency, peekIdempotency, storeIdempotencyResult } from "./ide
 import { getStaffRole } from "./staff.repo";
 import { assertOrderClause } from "./sql-guard";
 import { percentOfTotal } from "../money-guard";
+import {
+  SQL_BUSINESS_DATE_PREFIX,
+  businessDayRangeUtc,
+  businessDaySql,
+  businessWeekSql,
+  calendarDaySql,
+  calendarWeekSql,
+  sqlBusinessToday,
+} from "../../shared/business-day";
 
 export type DebtTypeFilter = "all" | "customer" | "supplier";
 export type DebtStatusFilter = "all" | "overdue" | "due";
@@ -27,9 +36,10 @@ export interface DebtListOptions {
  * Échéance mensuelle client (jour 1-31) : jour effectif du mois courant
  * (plafonné au dernier jour), bande 'overdue' (jour passé, dette restante),
  * 'soon' (≤ 7 j avant), 'ok', 'none' (sans jour fixé).
+ * E-35 : le calendrier de référence est le JOUR MÉTIER (Africa/Algiers).
  */
-const SETTLE_DATE = `date(min(date('now','start of month','+' || (c.settlement_day - 1) || ' days'), date('now','start of month','+1 month','-1 day')))`;
-const SETTLE_BAND = `(CASE WHEN c.settlement_day IS NULL THEN 'none' WHEN date('now') > (${SETTLE_DATE}) THEN 'overdue' WHEN date((${SETTLE_DATE}), '-7 days') <= date('now') THEN 'soon' ELSE 'ok' END)`;
+const SETTLE_DATE = `date(min(${SQL_BUSINESS_DATE_PREFIX},'start of month','+' || (c.settlement_day - 1) || ' days'), ${SQL_BUSINESS_DATE_PREFIX},'start of month','+1 month','-1 day')))`;
+const SETTLE_BAND = `(CASE WHEN c.settlement_day IS NULL THEN 'none' WHEN ${sqlBusinessToday()} > (${SETTLE_DATE}) THEN 'overdue' WHEN date((${SETTLE_DATE}), '-7 days') <= ${sqlBusinessToday()} THEN 'soon' ELSE 'ok' END)`;
 
 /**
  * Dettes unifiées (lecture seule) : créances clients au grain document
@@ -56,7 +66,7 @@ export function listDebtsUnified(
       s.total_minor AS original_minor, s.amount_paid_minor AS paid_minor,
       s.remaining_balance_minor AS remaining_minor,
       s.due_date AS due_date, s.created_at AS created_at,
-      CASE WHEN s.due_date IS NOT NULL AND substr(s.due_date, 1, 10) < date('now') THEN 'overdue' ELSE 'due' END AS status,
+      CASE WHEN s.due_date IS NOT NULL AND ${calendarDaySql("s.due_date")} < ${sqlBusinessToday()} THEN 'overdue' ELSE 'due' END AS status,
       c.settlement_day AS settlement_day, (${SETTLE_DATE}) AS next_settle, ${SETTLE_BAND} AS settle_band
     FROM sales s JOIN customers c ON c.id = s.customer_id
     WHERE s.is_cancelled = 0 AND s.remaining_balance_minor > 0`);
@@ -78,11 +88,11 @@ export function listDebtsUnified(
     conds.push(`status = ?`);
     params.push(status);
   }
-  if (due === "today") conds.push(`substr(due_date, 1, 10) = date('now')`);
+  if (due === "today") conds.push(`${calendarDaySql("due_date")} = ${sqlBusinessToday()}`);
   else if (due === "overdue")
-    conds.push(`due_date IS NOT NULL AND substr(due_date, 1, 10) < date('now')`);
+    conds.push(`due_date IS NOT NULL AND ${calendarDaySql("due_date")} < ${sqlBusinessToday()}`);
   else if (due === "upcoming")
-    conds.push(`due_date IS NOT NULL AND substr(due_date, 1, 10) > date('now')`);
+    conds.push(`due_date IS NOT NULL AND ${calendarDaySql("due_date")} > ${sqlBusinessToday()}`);
   if (settle === "watch") conds.push(`settle_band IN ('overdue','soon')`);
   else if (settle === "overdue") conds.push(`settle_band = 'overdue'`);
   else if (settle === "soon") conds.push(`settle_band = 'soon'`);
@@ -135,16 +145,16 @@ export function getDebtStats(): {
     .prepare(
       `SELECT COUNT(*) AS c FROM sales
        WHERE is_cancelled = 0 AND remaining_balance_minor > 0
-       AND due_date IS NOT NULL AND due_date >= date('now') AND due_date < date('now','+1 day')`,
+       AND due_date IS NOT NULL AND ${calendarDaySql("due_date")} = ${sqlBusinessToday()}`,
     )
     .get() as { c: number };
   // Clients au jour de règlement mensuel dépassé / proche (solde restant).
-  const settleDate = `date(min(date('now','start of month','+' || (settlement_day - 1) || ' days'), date('now','start of month','+1 month','-1 day')))`;
+  const settleDate = `date(min(${SQL_BUSINESS_DATE_PREFIX},'start of month','+' || (settlement_day - 1) || ' days'), ${SQL_BUSINESS_DATE_PREFIX},'start of month','+1 month','-1 day')))`;
   const settle = db
     .prepare(
       `SELECT
-        COALESCE(SUM(CASE WHEN date('now') > (${settleDate}) THEN 1 ELSE 0 END), 0) AS overdue,
-        COALESCE(SUM(CASE WHEN date('now') <= (${settleDate}) AND date((${settleDate}), '-7 days') <= date('now') THEN 1 ELSE 0 END), 0) AS soon
+        COALESCE(SUM(CASE WHEN ${sqlBusinessToday()} > (${settleDate}) THEN 1 ELSE 0 END), 0) AS overdue,
+        COALESCE(SUM(CASE WHEN ${sqlBusinessToday()} <= (${settleDate}) AND date((${settleDate}), '-7 days') <= ${sqlBusinessToday()} THEN 1 ELSE 0 END), 0) AS soon
        FROM customers WHERE deleted_at IS NULL AND outstanding_balance_minor > 0 AND settlement_day IS NOT NULL`,
     )
     .get() as { overdue: number; soon: number };
@@ -219,16 +229,20 @@ export function createDailyClosingAtomic(args: {
     // il est exclu. payment_method NULL = vente sans moyen de paiement
     // (amount_paid = 0 ⇒ contribution nulle) : traité comme espèces, sans
     // effet sur le total.
+    // E-35 : la journée clôturée est le jour MÉTIER — bornes UTC de la journée
+    // d'Algiers (23:00Z la veille → 23:00Z le jour même), comparables aux
+    // `created_at` ISO UTC stockés et indexables.
+    const day = businessDayRangeUtc(args.businessDate);
     const cash = db
       .prepare(
         `SELECT COALESCE(SUM(amount_paid_minor - credit_applied_minor),0) AS p FROM sales
-         WHERE substr(created_at,1,10) = ? AND is_cancelled = 0
+         WHERE created_at >= ? AND created_at < ? AND is_cancelled = 0
            AND COALESCE(payment_method, 'cash') = 'cash'`,
       )
-      .get(args.businessDate) as { p: number };
+      .get(day.from, day.toExclusive) as { p: number };
     const collections = db
       .prepare(
-        `SELECT COALESCE(SUM(amount_minor),0) AS c FROM sale_payments WHERE substr(payment_date,1,10) = ? AND sale_id IS NULL`,
+        `SELECT COALESCE(SUM(amount_minor),0) AS c FROM sale_payments WHERE ${calendarDaySql("payment_date")} = ? AND sale_id IS NULL`,
       )
       .get(args.businessDate) as { c: number };
     // Dépenses : seules les dépenses DÉCAISSÉES ('paid') diminuent le tiroir ;
@@ -242,14 +256,14 @@ export function createDailyClosingAtomic(args: {
     const refunds = db
       .prepare(
         `SELECT COALESCE(SUM(amount_refunded_minor),0) AS r FROM returns
-         WHERE substr(created_at,1,10) = ? AND status != 'cancelled'`,
+         WHERE created_at >= ? AND created_at < ? AND status != 'cancelled'`,
       )
-      .get(args.businessDate) as { r: number };
+      .get(day.from, day.toExclusive) as { r: number };
     // Paiements fournisseurs du jour (informatif : la formule de clôture du
     // domaine ne les soustrait pas — colonne conservée pour compatibilité).
     const supplierPayouts = db
       .prepare(
-        `SELECT COALESCE(SUM(amount_minor),0) AS s FROM supplier_payments WHERE substr(payment_date,1,10) = ?`,
+        `SELECT COALESCE(SUM(amount_minor),0) AS s FROM supplier_payments WHERE ${calendarDaySql("payment_date")} = ?`,
       )
       .get(args.businessDate) as { s: number };
     // Formule canonique (miroir de src/domain/closings/closing-rules.ts
@@ -599,7 +613,7 @@ export function getReportsSummary(args: ReportsSummaryInput): Record<string, unk
     .prepare(
       `SELECT COUNT(*) AS n, COALESCE(SUM(t.total_minor), 0) AS revenue FROM (
          SELECT DISTINCT s.id AS id, s.total_minor AS total_minor FROM ${saleFrom}
-         WHERE s.is_cancelled = 0 AND substr(s.created_at, 1, 10) BETWEEN ? AND ? ${saleCust}${staffCond}
+         WHERE s.is_cancelled = 0 AND ${businessDaySql("s.created_at")} BETWEEN ? AND ? ${saleCust}${staffCond}
        ) t`,
     )
     .get(...saleFromP, args.from, args.to, ...saleCustP, ...staffP) as {
@@ -613,7 +627,7 @@ export function getReportsSummary(args: ReportsSummaryInput): Record<string, unk
       `SELECT COALESCE(SUM(li.cogs_minor), 0) AS cogs
        FROM sale_items li JOIN sales s ON s.id = li.sale_id
        ${saleCat ? "JOIN products p ON p.id = li.product_id AND p.category_id = ?" : ""}
-       WHERE s.is_cancelled = 0 AND substr(s.created_at, 1, 10) BETWEEN ? AND ? ${saleCust}${staffCond}`,
+       WHERE s.is_cancelled = 0 AND ${businessDaySql("s.created_at")} BETWEEN ? AND ? ${saleCust}${staffCond}`,
     )
     .get(...(saleCat ? [args.categoryId] : []), args.from, args.to, ...saleCustP, ...staffP) as {
     cogs: number;
@@ -629,7 +643,7 @@ export function getReportsSummary(args: ReportsSummaryInput): Record<string, unk
     .prepare(
       `SELECT COUNT(*) AS n, COALESCE(SUM(t.total_minor), 0) AS total FROM (
          SELECT DISTINCT si.id AS id, si.total_minor AS total_minor FROM ${intakeFrom}
-         WHERE si.status != 'cancelled' AND substr(si.created_at, 1, 10) BETWEEN ? AND ? ${intakeSup}${intakeStaffCond}
+         WHERE si.status != 'cancelled' AND ${businessDaySql("si.created_at")} BETWEEN ? AND ? ${intakeSup}${intakeStaffCond}
        ) t`,
     )
     .get(...intakeFromP, args.from, args.to, ...intakeSupP, ...staffP) as {
@@ -640,26 +654,35 @@ export function getReportsSummary(args: ReportsSummaryInput): Record<string, unk
   const expenses = db
     .prepare(
       `SELECT COALESCE(SUM(amount_minor), 0) AS total FROM expenses
-       WHERE substr(expense_date, 1, 10) BETWEEN ? AND ?${args.staffUserId != null ? " AND staff_user_id = ?" : ""}`,
+       WHERE ${calendarDaySql("expense_date")} BETWEEN ? AND ?${args.staffUserId != null ? " AND staff_user_id = ?" : ""}`,
     )
     .get(
       ...(args.staffUserId != null ? [args.from, args.to, args.staffUserId] : [args.from, args.to]),
     ) as { total: number };
 
   // Séries temporelles (jour/semaine) : union des dates actives, montants par seau.
-  const dayOrWeek = (col: string): string =>
-    weekly ? `strftime('%Y-S%W', ${col})` : `substr(${col}, 1, 10)`;
+  // E-35 : les seaux des colonnes d'INSTANT suivent le jour métier algérien ;
+  // les colonnes date-seule sont déjà des dates métier (aucun décalage).
+  const dayOrWeek = (col: string, instant: boolean): string =>
+    instant
+      ? weekly
+        ? businessWeekSql(col)
+        : businessDaySql(col)
+      : weekly
+        ? calendarWeekSql(col)
+        : calendarDaySql(col);
   // R2 (0046) : périmètre auteur appliqué aux seaux ventes/achats/dépenses.
   const staffS2 = args.staffUserId != null ? ` AND s2.staff_user_id = ?` : "";
   const staff1T = args.staffUserId != null ? ` AND staff_user_id = ?` : "";
   const staffBP: unknown[] = args.staffUserId != null ? [args.staffUserId] : [];
+  const saleBucket = dayOrWeek("s2.created_at", true);
   const buckets = db
     .prepare(
       `SELECT d AS date,
-        COALESCE((SELECT SUM(t.total_minor) FROM (SELECT DISTINCT s2.id AS id, s2.total_minor AS total_minor FROM sales s2${saleCat ? " JOIN sale_items li2 ON li2.sale_id = s2.id JOIN products p2 ON p2.id = li2.product_id AND p2.category_id = ?" : ""} WHERE s2.is_cancelled = 0 AND ${weekly ? `strftime('%Y-S%W', s2.created_at)` : `substr(s2.created_at, 1, 10)`} = d ${saleCust.replace(/s\./g, "s2.")}${staffS2}) t), 0) AS sales
-       FROM (SELECT DISTINCT ${dayOrWeek("created_at")} AS d FROM sales WHERE substr(created_at, 1, 10) BETWEEN ? AND ?${staff1T}
-             UNION SELECT DISTINCT ${dayOrWeek("created_at")} FROM stock_intakes WHERE substr(created_at, 1, 10) BETWEEN ? AND ?${staff1T}
-             UNION SELECT DISTINCT ${dayOrWeek("expense_date")} FROM expenses WHERE substr(expense_date, 1, 10) BETWEEN ? AND ?${staff1T}
+        COALESCE((SELECT SUM(t.total_minor) FROM (SELECT DISTINCT s2.id AS id, s2.total_minor AS total_minor FROM sales s2${saleCat ? " JOIN sale_items li2 ON li2.sale_id = s2.id JOIN products p2 ON p2.id = li2.product_id AND p2.category_id = ?" : ""} WHERE s2.is_cancelled = 0 AND ${saleBucket} = d ${saleCust.replace(/s\./g, "s2.")}${staffS2}) t), 0) AS sales
+       FROM (SELECT DISTINCT ${dayOrWeek("created_at", true)} AS d FROM sales WHERE ${businessDaySql("created_at")} BETWEEN ? AND ?${staff1T}
+             UNION SELECT DISTINCT ${dayOrWeek("created_at", true)} FROM stock_intakes WHERE ${businessDaySql("created_at")} BETWEEN ? AND ?${staff1T}
+             UNION SELECT DISTINCT ${dayOrWeek("expense_date", false)} FROM expenses WHERE ${calendarDaySql("expense_date")} BETWEEN ? AND ?${staff1T}
              ORDER BY 1)`,
     )
     .all(
@@ -693,14 +716,16 @@ export function getReportsSummary(args: ReportsSummaryInput): Record<string, unk
     extra: string,
     extraP: unknown[],
     staffCol: string | null = null,
+    instant = true,
   ): Map<string, number> => {
-    const expr = weekly ? `strftime('%Y-S%W', ${dateCol})` : `substr(${dateCol}, 1, 10)`;
+    const bucket = dayOrWeek(dateCol, instant);
+    const range = instant ? businessDaySql(dateCol) : calendarDaySql(dateCol);
     const staffCond = staffCol && args.staffUserId != null ? ` AND ${staffCol} = ?` : "";
     const staffParam: unknown[] = staffCol && args.staffUserId != null ? [args.staffUserId] : [];
     const rows = db
       .prepare(
-        `SELECT ${expr} AS d, COALESCE(SUM(${col}), 0) AS s FROM ${table}
-         WHERE ${dateCol} IS NOT NULL AND substr(${dateCol}, 1, 10) BETWEEN ? AND ? ${extra}${staffCond} GROUP BY 1`,
+        `SELECT ${bucket} AS d, COALESCE(SUM(${col}), 0) AS s FROM ${table}
+         WHERE ${dateCol} IS NOT NULL AND ${range} BETWEEN ? AND ? ${extra}${staffCond} GROUP BY 1`,
       )
       .all(args.from, args.to, ...extraP, ...staffParam) as { d: string; s: number }[];
     return new Map(rows.map((r) => [r.d, r.s]));
@@ -712,16 +737,25 @@ export function getReportsSummary(args: ReportsSummaryInput): Record<string, unk
     `AND si.status != 'cancelled' ${intakeSup} ${intakeCat ? "AND EXISTS (SELECT 1 FROM stock_intake_items ii JOIN products p ON p.id = ii.product_id AND p.category_id = ? WHERE ii.stock_intake_id = si.id)" : ""}`,
     [...intakeSupP, ...(intakeCat ? [args.categoryId] : [])],
     "si.staff_user_id",
+    true,
   );
-  const expMap = byBucket("expenses", "amount_minor", "expense_date", "", [], "staff_user_id");
+  const expMap = byBucket(
+    "expenses",
+    "amount_minor",
+    "expense_date",
+    "",
+    [],
+    "staff_user_id",
+    false,
+  );
   const cogsMap = (() => {
-    const expr = weekly ? `strftime('%Y-S%W', s.created_at)` : `substr(s.created_at, 1, 10)`;
+    const expr = dayOrWeek("s.created_at", true);
     const rows = db
       .prepare(
         `SELECT ${expr} AS d, COALESCE(SUM(li.cogs_minor), 0) AS s
          FROM sale_items li JOIN sales s ON s.id = li.sale_id
          ${saleCat ? "JOIN products p ON p.id = li.product_id AND p.category_id = ?" : ""}
-         WHERE s.is_cancelled = 0 AND substr(s.created_at, 1, 10) BETWEEN ? AND ? ${saleCust}${staffCond}
+         WHERE s.is_cancelled = 0 AND ${businessDaySql("s.created_at")} BETWEEN ? AND ? ${saleCust}${staffCond}
          GROUP BY 1`,
       )
       .all(...(saleCat ? [args.categoryId] : []), args.from, args.to, ...saleCustP, ...staffP) as {
@@ -740,7 +774,7 @@ export function getReportsSummary(args: ReportsSummaryInput): Record<string, unk
     .prepare(
       `SELECT COALESCE(SUM(sp.amount_minor), 0) AS s FROM sale_payments sp
        LEFT JOIN sales sa ON sa.id = sp.sale_id
-       WHERE substr(sp.payment_date, 1, 10) BETWEEN ? AND ?
+       WHERE ${calendarDaySql("sp.payment_date")} BETWEEN ? AND ?
          AND (sp.sale_id IS NULL OR COALESCE(sa.is_cancelled, 0) = 0)${args.customerId != null ? " AND sp.customer_id = ?" : ""}${payStaffIn}`,
     )
     .get(
@@ -751,7 +785,7 @@ export function getReportsSummary(args: ReportsSummaryInput): Record<string, unk
   const payOut = db
     .prepare(
       `SELECT COALESCE(SUM(sp.amount_minor), 0) AS s FROM supplier_payments sp
-       WHERE substr(sp.payment_date, 1, 10) BETWEEN ? AND ?${args.supplierId != null ? " AND sp.supplier_id = ?" : ""}${payStaffIn}`,
+       WHERE ${calendarDaySql("sp.payment_date")} BETWEEN ? AND ?${args.supplierId != null ? " AND sp.supplier_id = ?" : ""}${payStaffIn}`,
     )
     .get(
       ...(args.supplierId != null
@@ -761,7 +795,7 @@ export function getReportsSummary(args: ReportsSummaryInput): Record<string, unk
   const returns = db
     .prepare(
       `SELECT COUNT(*) AS n, COALESCE(SUM(total_return_value_minor), 0) AS s FROM returns
-       WHERE status != 'cancelled' AND substr(created_at, 1, 10) BETWEEN ? AND ?${args.staffUserId != null ? " AND staff_user_id = ?" : ""}`,
+       WHERE status != 'cancelled' AND ${businessDaySql("created_at")} BETWEEN ? AND ?${args.staffUserId != null ? " AND staff_user_id = ?" : ""}`,
     )
     .get(
       ...(args.staffUserId != null ? [args.from, args.to, args.staffUserId] : [args.from, args.to]),
@@ -770,7 +804,7 @@ export function getReportsSummary(args: ReportsSummaryInput): Record<string, unk
     .prepare(
       `SELECT COALESCE(c.search_name, 'Passage') AS name, COALESCE(SUM(s.total_minor), 0) AS total
        FROM sales s LEFT JOIN customers c ON c.id = s.customer_id
-       WHERE s.is_cancelled = 0 AND substr(s.created_at, 1, 10) BETWEEN ? AND ? ${saleCust}${args.staffUserId != null ? " AND s.staff_user_id = ?" : ""}
+       WHERE s.is_cancelled = 0 AND ${businessDaySql("s.created_at")} BETWEEN ? AND ? ${saleCust}${args.staffUserId != null ? " AND s.staff_user_id = ?" : ""}
        GROUP BY COALESCE(c.search_name, 'Passage') ORDER BY total DESC LIMIT 5`,
     )
     .all(
@@ -782,7 +816,7 @@ export function getReportsSummary(args: ReportsSummaryInput): Record<string, unk
     .prepare(
       `SELECT COALESCE(s.name, 'Comptant') AS name, COALESCE(SUM(si.total_minor), 0) AS total
        FROM stock_intakes si LEFT JOIN suppliers s ON s.id = si.supplier_id
-       WHERE si.status != 'cancelled' AND substr(si.created_at, 1, 10) BETWEEN ? AND ? ${intakeSup}${args.staffUserId != null ? " AND si.staff_user_id = ?" : ""}
+       WHERE si.status != 'cancelled' AND ${businessDaySql("si.created_at")} BETWEEN ? AND ? ${intakeSup}${args.staffUserId != null ? " AND si.staff_user_id = ?" : ""}
        GROUP BY COALESCE(s.name, 'Comptant') ORDER BY total DESC LIMIT 5`,
     )
     .all(
@@ -797,7 +831,7 @@ export function getReportsSummary(args: ReportsSummaryInput): Record<string, unk
         COALESCE(SUM(li.line_total_minor), 0) AS total
        FROM sale_items li JOIN sales s ON s.id = li.sale_id
        ${saleCat ? "JOIN products p ON p.id = li.product_id AND p.category_id = ?" : ""}
-       WHERE s.is_cancelled = 0 AND substr(s.created_at, 1, 10) BETWEEN ? AND ? ${saleCust}${args.staffUserId != null ? " AND s.staff_user_id = ?" : ""}
+       WHERE s.is_cancelled = 0 AND ${businessDaySql("s.created_at")} BETWEEN ? AND ? ${saleCust}${args.staffUserId != null ? " AND s.staff_user_id = ?" : ""}
        GROUP BY li.product_name_snapshot ORDER BY total DESC LIMIT 5`,
     )
     .all(

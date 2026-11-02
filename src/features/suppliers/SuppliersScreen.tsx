@@ -17,6 +17,7 @@ import {
 import { api } from "@shared/types/ipc-client.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { newOperationId } from "@domain/common/ids.ts";
+import { todayBusinessDate } from "@domain/common/business-day.ts";
 import { formatDzd } from "@domain/money/money.ts";
 import {
   ErrorState,
@@ -329,7 +330,7 @@ export function SuppliersScreen({ notify }: { notify: Notify }): React.JSX.Eleme
     }
     try {
       downloadCsv(
-        `fournisseurs-${new Date().toISOString().slice(0, 10)}.csv`,
+        `fournisseurs-${todayBusinessDate()}.csv`,
         rows.map((s) => ({
           Code: supplierCode(s),
           Fournisseur: s.name,

@@ -111,21 +111,23 @@ describe("History query builder", () => {
       page: 2,
       pageSize: 20,
     });
-    // W8 (F-06) : les bornes de date sont désormais des TIMESTAMPS
-    // comparés directement à `created_at` (indexable) au lieu de
-    // `substr(created_at,1,10)` (non indexable). La borne haute est
-    // EXCLUSIVE : le jour `to` (2026-09-30) reste entièrement inclus.
+    // W8 (F-06) : les bornes de date sont des TIMESTAMPS comparés directement
+    // à `created_at` (indexable) au lieu de `substr(created_at,1,10)`.
+    // E-35 : ce sont les bornes UTC des JOURS MÉTIER — la journée du
+    // 2026-09-01 commence à 2026-08-31T23:00Z (minuit d'Alger) et la journée
+    // du 2026-09-30 s'arrête à 2026-09-30T23:00Z (borne EXCLUSIVE : le jour
+    // `to` reste entièrement inclus, une vente de 00:30 du 1er octobre sort).
     expect(q.params.slice(0, 5)).toEqual([
-      "2026-09-01T00:00:00.000Z",
-      "2026-10-01T00:00:00.000Z",
+      "2026-08-31T23:00:00.000Z",
+      "2026-09-30T23:00:00.000Z",
       "%FAC%",
       "%FAC%",
       "%FAC%",
     ]);
     expect(q.params.slice(-2)).toEqual([20, 20]);
     expect(q.countParams).toEqual([
-      "2026-09-01T00:00:00.000Z",
-      "2026-10-01T00:00:00.000Z",
+      "2026-08-31T23:00:00.000Z",
+      "2026-09-30T23:00:00.000Z",
       "%FAC%",
       "%FAC%",
       "%FAC%",
@@ -146,10 +148,20 @@ describe("History UI helpers", () => {
 
   it("keys rows and splits datetimes", () => {
     expect(rowKey(row({ kind: "sale", entity_id: 3 }))).toBe("sale:3");
+    // E-35 : l'instant UTC est rendu en heure du magasin (Africa/Algiers).
     expect(splitDateTime("2026-09-16T10:30:00.000Z")).toEqual({
       date: "2026-09-16",
-      time: "10h30",
+      time: "11h30",
     });
+    // 23:30Z du 16 = 00:30 du 17 à Alger : la ligne change de journée.
+    expect(splitDateTime("2026-09-16T23:30:00.000Z")).toEqual({
+      date: "2026-09-17",
+      time: "00h30",
+    });
+    // Colonne date-seule : date conservée, pas d'heure inventée.
+    expect(splitDateTime("2026-09-16")).toEqual({ date: "2026-09-16", time: "—" });
+    // Instant illisible : repli sur la chaîne brute, jamais d'exception.
+    expect(splitDateTime("2026-13-45T99:00:00.000Z")).toEqual({ date: "2026-13-45", time: "—" });
   });
 });
 

@@ -8,7 +8,7 @@ import { formatDzd, minorToInput, parseDzdInputStrict } from "@domain/money/mone
 import { frError } from "@shared/errors/fr-map.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { validateExpenseDraft } from "@domain/expenses/expense-rules.ts";
-import { todayUtcDate } from "@shared/dates/dates.ts";
+import { todayBusinessDate } from "@domain/common/business-day.ts";
 import {
   Badge,
   Button,
@@ -135,7 +135,7 @@ export function ExpenseFormDialog({
   notify: Notify;
 }): React.JSX.Element {
   const editing = expense != null;
-  const [date, setDate] = useState(expense?.expense_date.slice(0, 10) ?? todayUtcDate());
+  const [date, setDate] = useState(expense?.expense_date.slice(0, 10) ?? todayBusinessDate());
   const [category, setCategory] = useState(expense?.category ?? "");
   const [description, setDescription] = useState(expense?.description ?? "");
   const [amount, setAmount] = useState(expense ? minorToInput(expense.amount_minor) : "");

@@ -5,13 +5,18 @@ import { useEffect, useState } from "react";
 import { Bell, LogOut } from "lucide-react";
 import { LicenseBadge } from "@features/license/LicenseBadge.tsx";
 import type { LicenseStatusView } from "@features/license/use-license.ts";
+import { BUSINESS_TIME_ZONE } from "@domain/common/business-day.ts";
 
+// E-35 / G-18 : l'horloge du bandeau est celle du MAGASIN (Africa/Algiers),
+// pas celle de l'ordinateur — elle doit concorder avec les journées des
+// rapports et de la clôture Z affichées sous elle.
 function formatHeure(d: Date): string {
   return new Intl.DateTimeFormat("fr-DZ", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
     hourCycle: "h23",
+    timeZone: BUSINESS_TIME_ZONE,
   }).format(d);
 }
 
@@ -20,6 +25,7 @@ function formatDate(d: Date): string {
     weekday: "short",
     day: "2-digit",
     month: "short",
+    timeZone: BUSINESS_TIME_ZONE,
   }).format(d);
 }
 

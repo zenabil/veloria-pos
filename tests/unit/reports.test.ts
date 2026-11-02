@@ -1,6 +1,7 @@
 // Veloria PoS — Tests : rapports (sections, schémas, builders d'impression).
 import { describe, it, expect } from "vitest";
-import { REPORT_SECTIONS, monthStartUtc } from "@features/reports/types.ts";
+import { REPORT_SECTIONS, currentBusinessMonthStart } from "@features/reports/types.ts";
+import { businessMonthStart, todayBusinessDate } from "@domain/common/business-day.ts";
 import { reportPayloadSchema, reportSummarySchema } from "../../electron/ipc/validators.ts";
 import { buildReportHtml, toReportData } from "../../electron/printing/receipt-documents";
 
@@ -13,7 +14,10 @@ describe("Report UI helpers", () => {
     expect(REPORT_SECTIONS.some((s) => s.value === "closings")).toBe(true);
     expect(REPORT_SECTIONS.some((s) => s.value === "stock")).toBe(false);
     expect(REPORT_SECTIONS.some((s) => s.value === "returns")).toBe(false);
-    expect(monthStartUtc(new Date("2026-09-16T00:00:00Z"))).toBe("2026-09-01");
+    // E-35 : « ce mois-ci » démarre au 1er du MOIS MÉTIER (Africa/Algiers).
+    expect(businessMonthStart("2026-09-16")).toBe("2026-09-01");
+    expect(businessMonthStart("2026-09-16T23:30:00.000Z")).toBe("");
+    expect(currentBusinessMonthStart()).toBe(`${todayBusinessDate().slice(0, 7)}-01`);
   });
 });
 

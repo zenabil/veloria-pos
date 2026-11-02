@@ -1,6 +1,7 @@
 // Veloria PoS — Documents purs : recu de reglement (pur).
 
 import { paymentMethodLabel, type ThermalWidth } from "./common";
+import { formatBusinessDateTimeFr } from "../../shared/business-day";
 import { amountInWordsFr, formatMinorDa } from "./amounts";
 import {
   thermalCenter,
@@ -129,7 +130,7 @@ export function toPaymentTicketData(raw: unknown): PaymentTicketData {
     partyLabel: str(p["partyLabel"]),
     kind,
     reference: str(p["reference"]),
-    date: str(p["date"]) || new Date().toLocaleString("fr-FR"),
+    date: str(p["date"]) || formatBusinessDateTimeFr(),
     amountMinor: int(p["amountMinor"]),
     paymentMethod: str(p["paymentMethod"]),
     prevBalanceMinor: int(p["prevBalanceMinor"]),

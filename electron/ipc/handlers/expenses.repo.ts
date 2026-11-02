@@ -4,6 +4,7 @@
 import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
 import { assertOrderClause } from "./sql-guard";
+import { calendarDaySql, calendarMonthSql, sqlBusinessMonthNow } from "../../shared/business-day";
 import {
   auditOperationId,
   claimIdempotency,
@@ -265,11 +266,11 @@ export function listExpensesUnified(
     params.push(method);
   }
   if (opts.from) {
-    conds.push(`substr(e.expense_date, 1, 10) >= ?`);
+    conds.push(`${calendarDaySql("e.expense_date")} >= ?`);
     params.push(opts.from);
   }
   if (opts.to) {
-    conds.push(`substr(e.expense_date, 1, 10) <= ?`);
+    conds.push(`${calendarDaySql("e.expense_date")} <= ?`);
     params.push(opts.to);
   }
   const where = conds.length > 0 ? `WHERE ${conds.join(" AND ")}` : "";
@@ -306,7 +307,7 @@ export function getExpenseStats(): {
   const sums = db
     .prepare(
       `SELECT COALESCE(SUM(amount_minor), 0) AS total,
-        COALESCE(SUM(CASE WHEN substr(expense_date, 1, 7) = substr(date('now'), 1, 7) THEN amount_minor ELSE 0 END), 0) AS monthly,
+        COALESCE(SUM(CASE WHEN ${calendarMonthSql("expense_date")} = ${sqlBusinessMonthNow()} THEN amount_minor ELSE 0 END), 0) AS monthly,
         COALESCE(SUM(CASE WHEN status = 'paid' THEN amount_minor ELSE 0 END), 0) AS paid,
         COALESCE(SUM(CASE WHEN status = 'pending' THEN amount_minor ELSE 0 END), 0) AS pending
        FROM expenses`,

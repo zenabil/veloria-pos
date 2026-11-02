@@ -14,7 +14,7 @@ import {
 import { api } from "@shared/types/ipc-client.ts";
 import { formatDzd, minorToInput } from "@domain/money/money.ts";
 import { newOperationId } from "@domain/common/ids.ts";
-import { todayUtcDate } from "@shared/dates/dates.ts";
+import { todayBusinessDate } from "@domain/common/business-day.ts";
 import { unitLabel } from "@domain/units/units.ts";
 
 import {
@@ -184,7 +184,7 @@ export function StockIntakeDialog({
   >([]);
   const supplierTimer = useDebouncedTimer();
   const [invoiceNumber, setInvoiceNumber] = useState(initial?.invoiceNumber ?? "");
-  const [invoiceDate, setInvoiceDate] = useState(initial?.invoiceDate || todayUtcDate());
+  const [invoiceDate, setInvoiceDate] = useState(initial?.invoiceDate || todayBusinessDate());
   const [shipping, setShipping] = useState(
     initial != null && initial.shippingMinor > 0 ? minorToInput(initial.shippingMinor) : "",
   );

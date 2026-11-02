@@ -4,6 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { app } from "electron";
+import { businessDayOf } from "../shared/business-day";
 
 export type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR" | "FATAL";
 
@@ -40,7 +41,7 @@ export function initLogger(): string {
     const dir = path.join(app.getPath("userData"), "logs");
     fs.mkdirSync(dir, { recursive: true });
     pruneOldLogs(dir);
-    const day = new Date().toISOString().slice(0, 10);
+    const day = businessDayOf(new Date());
     logFile = path.join(dir, `veloria-${day}.log`);
   } catch {
     logFile = "";

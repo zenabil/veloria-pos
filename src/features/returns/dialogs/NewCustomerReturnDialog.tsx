@@ -16,7 +16,7 @@ import {
   netReturnLineValueSafe,
   previewReturnSettlement,
 } from "@domain/returns/return-rules.ts";
-import { todayUtcDate } from "@shared/dates/dates.ts";
+import { todayBusinessDate } from "@domain/common/business-day.ts";
 import {
   Button,
   EmptyState,
@@ -100,7 +100,7 @@ export function CustomerReturnDialog({
   const [method, setMethod] = useState<"cash" | "cheque" | "transfer">("cash");
   const [reason, setReason] = useState<string>(RETURN_REASONS[0] as string);
   const [notes, setNotes] = useState("");
-  const [date, setDate] = useState(todayUtcDate());
+  const [date, setDate] = useState(todayBusinessDate());
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
   // R8 : UUID figé à l'ouverture (retry = rejouement no-op, jamais 2 retours).

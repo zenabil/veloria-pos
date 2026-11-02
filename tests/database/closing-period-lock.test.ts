@@ -142,3 +142,97 @@ describe("E-21 : une journée clôturée est verrouillée (migration 0048)", () 
     expect(count.c).toBe(2);
   });
 });
+
+// E-35 : la frontière de la journée close est minuit d'Africa/Algiers, pas
+// minuit UTC. Avant la migration 0058, une vente à 00:30 heure du magasin
+// (23:30Z la veille) était ACCEPTÉE sur une journée déjà clôturée — le rapport
+// Z signé devenait faux sans qu'aucune garde ne parle.
+describe("E-35 : la journée clôturée commence à minuit d'Alger (migration 0058)", () => {
+  let tmp: string;
+  let db: DatabaseSync;
+
+  beforeEach(() => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), "veloria-closing-bizday-"));
+    db = openMigrated(tmp);
+    db.prepare(
+      `INSERT INTO customers (uuid, first_name, last_name, search_name, created_at, updated_at) VALUES ('c-bz','Nadia','Terrache','nadia terrache','2026-01-01','2026-01-01')`,
+    ).run();
+    db.prepare(
+      `INSERT INTO daily_closings (uuid, business_date, cash_sales_minor, cash_payments_minor, customer_collections_minor, expenses_minor, refunds_minor, closing_balance_minor, closed_at)
+       VALUES ('cl-bz', ?, 0, 0, 0, 0, 0, 0, ?)`,
+    ).run(DAY, `${DAY}T22:00:00.000Z`);
+  });
+
+  afterEach(() => {
+    try {
+      db.close();
+    } catch {
+      /* déjà fermée */
+    }
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
+
+  it("refuse la vente de 00:30 heure d'Alger (23:30Z de la veille)", () => {
+    const error = captureError(() => insertSale(db, "edge-in", "2026-02-28T23:30:00.000Z"));
+    expect(error).toMatch(/clôturée/i);
+    expect(
+      (db.prepare(`SELECT COUNT(*) AS c FROM sales WHERE uuid = 'edge-in'`).get() as { c: number })
+        .c,
+    ).toBe(0);
+  });
+
+  it("accepte la vente de 00:30 du jour suivant (23:30Z du jour close)", () => {
+    insertSale(db, "edge-out", `${DAY}T23:30:00.000Z`);
+    expect(
+      (
+        db.prepare(`SELECT COUNT(*) AS c FROM sales WHERE uuid = 'edge-out'`).get() as {
+          c: number;
+        }
+      ).c,
+    ).toBe(1);
+  });
+
+  it("refuse le retour de 00:30 heure d'Alger sur la journée close", () => {
+    insertSale(db, "seed-next", `${NEXT_DAY}T09:00:00.000Z`);
+    const error = captureError(() =>
+      db
+        .prepare(
+          `INSERT INTO returns (uuid, original_sale_id, original_invoice_number, customer_id, total_return_value_minor, amount_refunded_minor, credit_to_customer_minor, created_at, updated_at)
+           VALUES ('r-bz', 2, 'FAC-seed-next', 1, 500, 500, 500, ?, ?)`,
+        )
+        .run("2026-02-28T23:30:00.000Z", "2026-02-28T23:30:00.000Z"),
+    );
+    expect(error).toMatch(/clôturée/i);
+  });
+
+  it("les six triggers d'instant portent le modificateur métier", () => {
+    const rows = db
+      .prepare(
+        `SELECT name, sql FROM sqlite_master WHERE type = 'trigger'
+         AND name IN ('trg_sales_closed_day_ins','trg_sales_closed_day_upd','trg_sales_closed_day_del',
+                      'trg_returns_closed_day_ins','trg_returns_closed_day_upd','trg_returns_closed_day_del')`,
+      )
+      .all() as Array<{ name: string; sql: string }>;
+    expect(rows.length).toBe(6);
+    for (const row of rows) {
+      const side = row.name.endsWith("_del") ? "OLD" : "NEW";
+      expect(row.sql, row.name).toContain(`date(${side}.created_at, '+1 hour')`);
+      expect(row.sql, row.name).not.toMatch(/substr\((NEW|OLD)\.created_at, 1, 10\)/);
+    }
+  });
+
+  it("les neuf triggers date-seule restent sur leur date métier", () => {
+    const rows = db
+      .prepare(
+        `SELECT name, sql FROM sqlite_master WHERE type = 'trigger' AND instr(name,'closed_day') > 0
+         AND name NOT IN ('trg_sales_closed_day_ins','trg_sales_closed_day_upd','trg_sales_closed_day_del',
+                          'trg_returns_closed_day_ins','trg_returns_closed_day_upd','trg_returns_closed_day_del')`,
+      )
+      .all() as Array<{ name: string; sql: string }>;
+    expect(rows.length).toBe(9);
+    // payment_date / expense_date sont des dates métier : jamais décalées.
+    for (const row of rows) {
+      expect(row.sql, row.name).not.toContain("+1 hour");
+    }
+  });
+});
