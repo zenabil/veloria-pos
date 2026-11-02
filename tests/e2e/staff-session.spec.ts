@@ -52,7 +52,11 @@ test("porte session : code faux refusé, code initial impose le changement", asy
   // Secours affiché une fois : on l'acquitte, puis la coquille apparaît.
   await expect(page.getByRole("heading", { name: "Code de secours" })).toBeVisible();
   await page.getByRole("button", { name: "Je l'ai noté" }).click();
-  await expect(page.getByText(/Session :/)).toBeVisible();
+  // La coquille est ouverte : le bandeau rend l'opérateur connecté (contrôle
+  // « Changer d'utilisateur »). L'ancienne attente ciblait le texte
+  // « Session : », retiré de la coquille par la refonte visuelle (commit
+  // `9b7c564`, 2026-10-27) — le spec n'avait pas suivi depuis.
+  await expect(page.getByRole("button", { name: /^Changer d/ })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Navigation principale" })).toBeVisible();
 });
 
@@ -69,14 +73,22 @@ test("verrouillage : changer d'utilisateur rouvre la porte", async () => {
   await page.getByLabel("Confirmer le nouveau code").fill(E2E_STAFF_CODE);
   await page.getByRole("button", { name: "Enregistrer le code" }).click();
   await page.getByRole("button", { name: "Je l'ai noté" }).click();
-  await expect(page.getByText(/Session :/)).toBeVisible();
+  // La coquille est ouverte : le bandeau rend l'opérateur connecté (contrôle
+  // « Changer d'utilisateur »). L'ancienne attente ciblait le texte
+  // « Session : », retiré de la coquille par la refonte visuelle (commit
+  // `9b7c564`, 2026-10-27) — le spec n'avait pas suivi depuis.
+  await expect(page.getByRole("button", { name: /^Changer d/ })).toBeVisible();
 
   await page.getByRole("button", { name: "Changer d'utilisateur" }).click();
   await expect(page.getByRole("heading", { name: "Choisir l'utilisateur" })).toBeVisible();
 
   await page.getByLabel("Code à 6 chiffres").fill(E2E_STAFF_CODE);
   await page.getByRole("button", { name: "Ouvrir la session" }).click();
-  await expect(page.getByText(/Session :/)).toBeVisible();
+  // La coquille est ouverte : le bandeau rend l'opérateur connecté (contrôle
+  // « Changer d'utilisateur »). L'ancienne attente ciblait le texte
+  // « Session : », retiré de la coquille par la refonte visuelle (commit
+  // `9b7c564`, 2026-10-27) — le spec n'avait pas suivi depuis.
+  await expect(page.getByRole("button", { name: /^Changer d/ })).toBeVisible();
 });
 
 test("secours : code noté une fois puis récupération d'accès", async () => {
@@ -96,7 +108,11 @@ test("secours : code noté une fois puis récupération d'accès", async () => {
   const onceCode = ((await page.getByRole("status").textContent()) ?? "").replace(/\D/g, "");
   expect(onceCode).toMatch(/^[0-9]{8}$/);
   await page.getByRole("button", { name: "Je l'ai noté" }).click();
-  await expect(page.getByText(/Session :/)).toBeVisible();
+  // La coquille est ouverte : le bandeau rend l'opérateur connecté (contrôle
+  // « Changer d'utilisateur »). L'ancienne attente ciblait le texte
+  // « Session : », retiré de la coquille par la refonte visuelle (commit
+  // `9b7c564`, 2026-10-27) — le spec n'avait pas suivi depuis.
+  await expect(page.getByRole("button", { name: /^Changer d/ })).toBeVisible();
 
   // Oubli simulé : porte → Code oublié → secours + nouveau code.
   await page.getByRole("button", { name: "Changer d'utilisateur" }).click();
@@ -110,5 +126,9 @@ test("secours : code noté une fois puis récupération d'accès", async () => {
   await expect(page.getByRole("heading", { name: "Choisir l'utilisateur" })).toBeVisible();
   await page.getByLabel("Code à 6 chiffres").fill("654321");
   await page.getByRole("button", { name: "Ouvrir la session" }).click();
-  await expect(page.getByText(/Session :/)).toBeVisible();
+  // La coquille est ouverte : le bandeau rend l'opérateur connecté (contrôle
+  // « Changer d'utilisateur »). L'ancienne attente ciblait le texte
+  // « Session : », retiré de la coquille par la refonte visuelle (commit
+  // `9b7c564`, 2026-10-27) — le spec n'avait pas suivi depuis.
+  await expect(page.getByRole("button", { name: /^Changer d/ })).toBeVisible();
 });

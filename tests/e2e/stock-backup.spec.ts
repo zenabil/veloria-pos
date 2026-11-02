@@ -45,7 +45,9 @@ test("réception fournisseur : le stock augmente", async () => {
   const { page } = ctx;
   const name = uniqueTag("E2EStock");
   await createProduct(name, "100", "10");
-  expect(await stockQtyOf(name)).toMatch(/10 PIECE/);
+  // `textContent()` d'une ligne ne sépare pas les cellules par une espace ;
+  // l'unité arrive en code (`PIECE`) ou en libellé accentué selon la fiche.
+  expect(await stockQtyOf(name)).toMatch(/10\s*PI[EÈ]CE/i);
   await page.locator('button[title="Réception fournisseur (facture + livraison)"]').click();
   const dialog = page.getByRole("dialog", { name: /Réception/ });
   await dialog.getByLabel("Rechercher produit ligne 1", { exact: true }).fill(name);
@@ -58,7 +60,7 @@ test("réception fournisseur : le stock augmente", async () => {
   const toast = await readSuccessToast(page, /Réception #\d+ enregistrée/);
   expect(toast).toMatch(/Réception/);
   // 10 + 1 réceptionnée = 11.
-  expect(await stockQtyOf(name)).toMatch(/11 PIECE/);
+  expect(await stockQtyOf(name)).toMatch(/11\s*PI[EÈ]CE/i);
 });
 
 test("réception : Entrée ne valide pas et une ligne incomplète bloque", async () => {
@@ -124,6 +126,6 @@ test("restauration : la base revient à l'état sauvegardé", async () => {
   await readSuccessToast(page, /Base restaurée/);
   // Le produit post-sauvegarde a disparu.
   await gotoModule(page, "Catalogue");
-  await page.getByPlaceholder("Nom ou code-barres…").fill(name);
+  await page.getByPlaceholder("Rechercher… [F3]").fill(name);
   await expect(page.getByText("Aucun produit")).toBeVisible();
 });
