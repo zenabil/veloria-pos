@@ -15,7 +15,8 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête **session 95** (jour métier Africa/Algiers — E-35 corrigé radicalement). Avant elle session 94 (bootstrap de l'environnement sur poste neuf), session 93 (diagnostic bandeau hero client), session 92 (test appareil réel, CPH2235), session 91 (APK Native-max, ADR-168), session 90 (purge ciblée post-audit, ADR-167), session 89 (purge des artefacts obsolètes), session 88 (annonces multi-médias + bandeau hero APK, ADR-166), session 87 bis (rafraîchissement périodique de l'APK selon la cadence POS, ADR-165), session 87 (annonce magasin poussée aux clients, ADR-160). Avant elle session 86 (compte propriétaire, ADR-164), session 85 (connexion Supabase owner, ADR-163), session 84 (données fictives supprimées, owner), session 83 (Argent/Stock/Périodes/Alertes enrichis), session 82 (Aujourd'hui + détails de transaction), session 81 (passe design v2 owner), session 80 (écrans courts owner), session 79 (application propriétaire, ADR-162), session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- Branche : `chore/root-layout` — tête **session 96** (sessions de caisse réelles — préalable du publieur de liasse). Avant elle session 95 (jour métier Africa/Algiers, E-35 corrigé, ADR-169), session 94 (bootstrap de l'environnement sur poste neuf), session 93 (diagnostic bandeau hero client), session 92 (test appareil réel, CPH2235), session 91 (APK Native-max, ADR-168), session 90 (purge ciblée post-audit, ADR-167), session 89 (purge des artefacts obsolètes), session 88 (annonces multi-médias + bandeau hero APK, ADR-166), session 87 bis (rafraîchissement périodique de l'APK selon la cadence POS, ADR-165), session 87 (annonce magasin poussée aux clients, ADR-160). Avant elle session 86 (compte propriétaire, ADR-164), session 85 (connexion Supabase owner, ADR-163), session 84 (données fictives supprimées, owner), session 83 (Argent/Stock/Périodes/Alertes enrichis), session 82 (Aujourd'hui + détails de transaction), session 81 (passe design v2 owner), session 80 (écrans courts owner), session 79 (application propriétaire, ADR-162), session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 96 (2026-11-02)** : **sessions de caisse réelles (préalable du publieur de liasse)** — même demande « اصلح التالي جذريا » ; l'Owner affichait `money.audit` / `money.activeSession` / `money.sessions` alors que le POS ne connaissait qu'une clôture de journée (`daily_closings`, une ligne par `business_date`), sans poste, sans comptage physique, sans écart (`grep cash_session|counted_minor electron/` = 0). Décision opérateur : **de vraies sessions**, pas une projection de `daily_closings`. Tranche verticale complète : migration **0059** `cash_sessions` (poste 1-40, libellé, opérateur NULL toléré, `opening_float_minor`, `counted_minor`, `expected_minor`, `note`, instants `opened_at`/`closed_at`, un `CHECK` de forme — ouverte ⇒ ni clôture ni attente, fermée ⇒ les deux + comptage ; **index partiel UNIQUE sur `post` quand `status='open'`** ⇒ la base refuse deux sessions ouvertes du même poste) · domaine pur `src/domain/cash/session-rules.ts` (attente = fond + ventes espèces + encaissements − dépenses − remboursements, **même formule que le Z**, signe conservé ; écart **jamais stocké** = compté − attendu ; conformité ; nouveau code `CASH_SESSION_ERROR`) · repo transactionnel idempotent `electron/ipc/handlers/cash-session.repo.ts` (`open`/`count`/`close`/`getActiveCashSession`/`listCashSessions`/`getCashAuditSummary`, attente **calculée en direct** puis **figée à la fermeture** par un `UPDATE … WHERE status='open'`, fenêtre en **instants** comparés directement à `created_at`) · 5 canaux explicites `cash.open|count|close|current|list` + Zod + preload + façade + schémas de réponse · gates : licence `reports` + permission staff `closings` (**aucune 18ᵉ page de licence, aucune nouvelle permission**) · UI française `src/features/reports/CashSessionsSection.tsx` posée dans Rapports à côté des clôtures Z (ouverture, comptage, fermeture confirmée, liste avec écart signé ; `cash.current` rend une session ouverte **hier** fermable **aujourd'hui** indépendamment de la période). Inventaires gelés mis à jour : canaux 185→**190**, schémas 125→**129**, exports de validation 134→**138**, `operationId` requis +3, migrations 58→**59**. Portes : `npm run check` **vert** · **vitest 177 fichiers / 1 242 tests 0** (dont 19 tests consacrés : `tests/unit/cash-session.test.ts` 9 parité domaine↔main, `tests/integration/cash-sessions.test.ts` 10 sur base migrée réelle) · `verify:migrations` **59** avec `OK 0059 sessions de caisse…` · `verify` **vert** · `knip` **0**. Deux pièges d'atelier consignés §96 (collision d'`operationId` par troncature, `parseDzdInputStrict` qui **lève** au lieu de rendre `null`). **Non fait** : UI n'a pas été vue dans l'application réelle (`test:e2e` non relancé), liasse/publieur toujours absent (session 97), `maxDevices` reste informatif (décision consignée). ADR-170. Détails §96.
 - **Session 95 (2026-11-02)** : **jour métier Africa/Algiers (E-35/G-18 corrigé radicalement)** — demande : « اصلح التالي جذريا و اكمل هاته المزايا » sur six constats ; périmètre de cette session : le **découpage du temps**. Les horodatages SQLite restent des instants ISO UTC (stockage inchangé, aucune donnée migrée) ; tout ce qui découpe ou affiche — buckets de rapports, filtres de période, bornes de l'Historique, seuils d'endettement, bandes de règlement mensuel, mois des clés de miroir, numéros de facture (année), ticket de caisse, horloge du bandeau, exports CSV, `datetime-local` des annonces, dates de l'APK client et de l'APK propriétaire — suit désormais **UTC+1 fixe**. Deux modules jumeaux (frontière `rootDir`) portent la règle : `src/domain/common/business-day.ts` et `electron/shared/business-day.ts` (JS + fragments SQL `date(col,'+1 hour')`, `calendarDaySql` pour les colonnes date-seule, `businessDayRangeUtc` pour les bornes indexables) ; `todayUtcDate` et `monthStartUtc` sont **supprimés**, sans alias de compatibilité. **Migration 0058** : les six triggers d'instant du verrou de clôture (`sales`, `returns`) comparent `date(created_at,'+1 hour')` à `daily_closings.business_date` — une vente de 00:30 heure d'Alger sur une journée close est **refusée** (avant : elle passait et faussait le Z signé). Les neuf triggers date-seule sont inchangés ; 0048/0051 restent immuables. **Gardes automatiques** dans `tests/unit/business-day.test.ts` : parité des jumeaux, parité **JS ↔ SQL**, parité **POS ↔ APK client ↔ APK owner** (preuve G-18 : `2026-09-01T23:30Z` → `02/09/2026` et `00:30` des trois côtés), et interdiction dans `electron/`+`src/` de `substr(<instant>,1,10)`, `date('now'` nu, `toISOString().slice(0,10|7)`, `todayUtcDate`, `monthStartUtc`. `tests/integration/business-day-reports.test.ts` (6 tests, base migrée réelle) vérifie dashboard/rapports/clôture Z/historique sur la frontière 00:30. Portes : `npm run check` **vert** (format, lint 0, typecheck root/electron/manager/mobile/owner) · **vitest 175 fichiers / 1 223 tests 0** · `verify:migrations` **58** avec porte `OK 0058…` · `verify` complet **vert** · `knip` **0** · 4 tests d'ancienne convention mis à jour (`history`, `stock`, `reports`, `customer-payment-fifo` n'a pas eu à changer). **Non fait** : `npm run test:e2e`, `test:coverage`, `build`/`package:*` (les autres constats de la demande — liasse propriétaire, compte Supabase, 0057 chez le client, `maxDevices`, mises à jour — suivent en sessions 96+). ADR-169. Détails §95.
 - **Session 94 (2026-11-02)** : **bootstrap de l'environnement de développement sur ce poste** — demande « قم بدراسة و فهم المشروع بعد ذلك ثبت البرامج و الأدوات اللازمة لتطوير المشروع ». Constat de départ : poste **sans aucun Node.js** (arbre copié depuis le compte Windows « zenagui bilal » → git refusait toute commande en « dubious ownership », `~/.gitconfig` inexistant, `mobile/android/local.properties` pointait sur l'ancien SDK). Installé et vérifié : Node **22.23.4** + npm **10.9.9** (`C:\\Users\\Admin\\tools\\node`, ZIP officiel contrôlé par SHA-256, au PATH utilisateur — conforme `.nvmrc`/`engines`/`packageManager`), JDK **Temurin 17.0.20** (`tools\\jdk17`, `JAVA_HOME`), **Android SDK** (`cmdline-tools` 13114758 → `platform-tools`, `platforms;android-35`, `build-tools;35.0.0`, `ndk;26.1.10909125`, 2,4 Go — exactly les versions exigées par `mobile/android/build.gradle`), redistribuable **VC++ 14.44** (sans lui le binding natif `oxc-resolver` de `knip` ne se charge pas), **graphify 0.9.100** via `uv tool install graphifyy` avec Python **3.12**. Portes **toutes vertes sur ce poste** (§94) : better-sqlite3 N-API · `electron --version` 45.1.0 sous Windows 10 1809 · typecheck ×5 · `verify` complet · `format:check` · lint `--max-warnings 0` · **vitest 173 fichiers / 1 194 tests** · builds renderer/electron/manager · `knip` 0 · **E2E réel `navigation-smoke` 1/1** (16 modules ouverts sans crash). **Aucun code modifié** ; seuls fichiers touchés : `handoff.md` et `mobile/android/local.properties` (git-ignoré). **Reste à faire** : redémarrer le terminal/Qoder pour le PATH ; relancer la suite E2E complète et `test:coverage` ; rebuild APK sur ce poste.
 - **Session 93 (2026-11-01)** : **diagnostic bandeau hero (client)** — le composant `AnnouncementHero` est présent dans l'APK (nouveau 22 Mo et ancien 85 Mo) ; le CPH2235 est actuellement sur l'**écran de login** (le hero n'est rendu qu'après login, dans Home). Base POS `E:\data\Veloria POS DB.sqlite` en **schema 56** (migration 0057 non appliquée) : table `announcements` texte seulement (3 doublons actifs), dernier `customer_snapshot` envoyé le 2026-10-31 20:30 avec le champ legacy `announcement` et **pas** `announcements[]`. À suivre : login réel + pull-to-refresh ; POS à jour (0057) + ré-enregistrement pour images/échéances ; capture/QR si le hero reste absent. **Aucun code modifié.**
@@ -4439,3 +4440,114 @@ mis à jour : `history` (bornes), `stock` (numéro de BL), `reports`
 `npm run test:coverage`, `build` / `package:*` (les cinq autres constats de la
 demande restent à traiter), et le rendu sur un téléphone réellement réglé hors
 UTC+1 (aucun appareil connecté).
+
+## 96) Session 2026-11-02 — Sessions de caisse (migration 0059 — ADR-170)
+
+**Pourquoi cette session d'abord.** Le constat n°1 de la demande (« لياسّة
+المالك غير موجود … تطبيق المالك طبقة عرض فوقパイپلاين فارغ ») ne pouvait pas être
+traité directement : `owner/src/store.ts:269-289` exige `money.audit`,
+`money.activeSession`, `money.sessions` — donc des **sessions de caisse** (poste,
+comptage physique, écart, conformité). Le POS, lui, ne connaissait qu'une
+**clôture de journée** (`daily_closings`, migration 0001, une ligne par
+`business_date`, solde calculé et jamais confronté à un tiroir). Sans cet
+objet, publier une liasse « audit de caisse » aurait voulu dire publier des
+chiffres inventés. Choix opérateur explicite : **مزايا صندوق فعلية** — de vraies
+sessions, pas une projection de `daily_closings`.
+
+**Tranche verticale livrée (règle 7 : UI → use case → domaine → repo →
+migration → test).**
+
+- **Migration 0059** `database/migrations/0059_cash_sessions.sql`, purement
+  additive : une ligne par session d'un poste. Gardes en base — `*_minor`
+  INTEGER (règle 4), float et comptage ≥ 0, `status ∈ {open, closed}`, et un
+  `CHECK` de forme (ouverte ⇒ `closed_at`/`expected_minor` NULL ; fermée ⇒
+  `closed_at` + `expected_minor` + `counted_minor` non nuls). **Index partiel
+  UNIQUE** `(post) WHERE status='open'` : l'unicité du poste ouvert est décidée
+  par la base, pas par l'UI.
+- **Domaine pur** `src/domain/cash/session-rules.ts` : `computeSessionExpectedMinor`
+  (fond + ventes espèces + encaissements autonomes − dépenses payées −
+  remboursements — **la formule du Z**, deux grains), `computeSessionVarianceMinor`
+  (signé, jamais borné à 0), `assertCountedMinor`, `sessionConformityPercent`,
+  `totalVarianceMinor`. Nouveau code d'erreur `CASH_SESSION_ERROR`
+  (`src/domain/common/errors.ts`). Copie main dans le repo (frontière `rootDir`)
+  avec parité prouvée.
+- **Repo** `electron/ipc/handlers/cash-session.repo.ts` : une transaction par
+  mutation + `operationId` idempotent (`claimIdempotency`/`peekIdempotency`/
+  `storeIdempotencyResult`), refus FR explicites (« Une session est déjà ouverte
+  pour ce poste. », « Cette session de caisse est déjà fermée. », « Comptage
+  invalide. »). **Décision comptable** : l'attente est calculée en direct pour
+  une session ouverte, puis **figée** à la fermeture (`UPDATE … WHERE status =
+'open'`) — une écriture postérieure ne peut pas réécrire l'histoire ; l'écart
+  n'est **jamais** stocké. La fenêtre compare des **instants** (`created_at >=
+ouvert AND < clôture`) : le tiroir suit l'argent quand il bouge ; le jour
+  métier (ADR-169) ne s'applique qu'aux listes (`businessDaySql(opened_at)`).
+- **IPC** : 5 canaux explicites `cash.open|count|close|current|list`, validateurs
+  dans `validators.finance.ts` (barrel inchangé), handlers dans
+  `registry.finance.ts` (l'auteur = `getCurrentStaffUser()`, pas le périmètre
+  d'audit), bridge preload, façade `api.cashSession*`, schémas de réponse
+  `cashSession{Result,CurrentResult,ListResult}Schema` (+ type exported
+  `CashSessionRowView` pour le renderer).
+- **Gates** : mutations ajoutées à `LICENSE_PROTECTED_CHANNELS`, page licence
+  `reports` pour les 5 canaux, permission staff `closings` — **volontairement**
+  aucune nouvelle page de licence ni nouvelle permission : pas de 18ᵉ page dans
+  le manifeste, pas de refonte des rôles, pas de compteur de modules E2E à
+  revoir.
+- **UI française** `src/features/reports/CashSessionsSection.tsx`, rendue dans
+  Rapports juste après « Clôtures journalières (Z) » : ouverture (poste, libellé,
+  fond), comptage physique, fermeture avec confirmation (l'attente est figée),
+  table Poste / Libellé / Ouverture / Fond / Attente / Comptage / Écart / État,
+  pied de carte qui rappelle la formule et l'écart net de la période.
+  `cash.current` est justifié par la pratique : une caisse ouverte **hier** doit
+  être fermable **aujourd'hui** même si la période filtrée ne couvre pas
+  l'ouverture.
+
+**Inventaires gelés (la procedure documentaire de l'ADR-130/153).**
+
+- `tests/unit/__snapshots__/ipc-channels.json` : 185 → **190** canaux.
+- `validators-inventory` : 125 → **129** schémas.
+- `bridge-shape` G-05 : 134 → **138** exports de validation consommés.
+- `operation-id-coverage` : total 125 → **129**, et `cashSession{Open,Count,Close}Schema`
+  ajoutés à `REQUIRED_NAMES` (`cashSessionListSchema` est une lecture sans
+  jeton).
+- `tests/database/migrations.test.ts` : 58 → **59**, dernière version `^0059_`.
+
+**Pièges d'atelier (à ne pas refaire).**
+
+- **Collision d'`operationId` dans les tests.** Un helper `OP(seed)` qui
+  fabriquait un UUID en prenant les 8 premiers caractères de la graine, puis sa
+  version hex, a fait rejouer l'opération d'une **autre** session : trois tests
+  « rouges » qui accusaient à tort le repo. Leçon : tout `operationId` de test
+  doit être haché **en entier** (`sha256(graine)`), sinon l'idempotence —
+  littérale sur `operation_id` — masque ou duplique une écriture.
+- **`parseDzdInputStrict` LÈVE, il ne rend pas `null`** (contrairement à
+  l'usage que j'en avais fait d'abord) : `try/catch` + message FR côté
+  formulaire, sinon `@typescript-eslint/no-unnecessary-condition` tombe sur la
+  comparaison à `null` et, surtout, l'erreur brute remonterait à l'écran.
+- **`(tx as unknown as () => void)()`** : le motif historiquement copié depuis
+  `finance.repo.ts` est jugé « assertion inutile » par le lint moderne — un
+  `tx()` suffit dans ce repo. La copie d'un motif daté se paie en lint rouge.
+- Un composant neuf doit être **branché** (import + rendu) : `cashSessionCurrent
+ResultSchema` seul, non consommé, a fait rougir `knip` — la réponse correcte
+  était de l'utiliser (session active hors période), pas de le garder mort.
+
+**Portes.** `npm run check` **vert** (format, lint 0, typecheck ×5) · **vitest
+177 fichiers / 1 242 tests 0** · `verify:migrations` **59** avec
+`OK 0059 sessions de caisse (poste unique ouvert, forme, bornes)` · `verify`
+(domaine/FR/encodage/perf/version/secret-scan) **vert** · `knip` **0**.
+
+**Non fait / à reprendre.**
+
+- La carte n'a pas été **vue** dans l'application réelle : `npm run test:e2e`
+  (suite ~30 min) et `test:coverage` toujours reportés depuis §94.
+- **Le publieur de liasse (session 97)** : `publishOwnerSnapshot` reste à écrire
+  — il a maintenant ses sources (`getCashAuditSummary` + les repos de lecture
+  existants), sachant que `sync_outbox.kind` (CHECK de 0032, autoritaire) ne
+  peut PAS accueillir une liasse ⇒ `POST /rest/v1/owner_snapshots` direct.
+- Champs de la liasse toujours sans source SQL : `objectiveMinor`, aging
+  `d0to30/d31to60/d60plus`, `lateDays`, `sold30/perDay/autonomyDays/
+suggestedRestock/deadCount/lossPerDayMinor`.
+- `maxDevices` : décision opérateur « توثيق فقط » — ADR à écrire, pas de code.
+
+**Git** : commit `feat(cash)` (migration + domaine + main + IPC + UI + tests +
+ADR-170 + index) puis commit `docs(handoff)` séparé (règle 10), arbre sinon
+propre (`release/`, `graphify-out/`, `test-results/` non suivis).
