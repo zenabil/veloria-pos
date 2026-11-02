@@ -61,6 +61,13 @@ const STAFF_CHANNEL_PERMISSION: Record<string, string> = {
   // période (migration 0048) ⇒ permission `closings` exigée, et le repo
   // refuse en plus tout utilisateur qui n'est pas gérant.
   [IPC_CHANNELS["closings.reopen"]]: "closings",
+  // Sessions de caisse : la caisse relève de la permission de clôture
+  // (`closings`) — pas de nouvelle permission dans les rôles existants.
+  [IPC_CHANNELS["cash.open"]]: "closings",
+  [IPC_CHANNELS["cash.count"]]: "closings",
+  [IPC_CHANNELS["cash.close"]]: "closings",
+  [IPC_CHANNELS["cash.current"]]: "closings",
+  [IPC_CHANNELS["cash.list"]]: "closings",
   // Paramètres et matériel
   [IPC_CHANNELS["settings.get"]]: "settings",
   [IPC_CHANNELS["settings.save"]]: "settings",

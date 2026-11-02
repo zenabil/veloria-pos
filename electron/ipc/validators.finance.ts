@@ -226,6 +226,35 @@ export const closingReopenSchema = z.object({
   businessDate,
 });
 
+// Sessions de caisse (migration 0059) : ouverture d'un poste, comptage
+// physique, fermeture avec attente figée. `operationId` REQUIRED (mutations).
+
+export const cashSessionOpenSchema = z.object({
+  operationId: z.uuid(),
+  post: z.string().min(1).max(40),
+  label: z.string().min(1).max(60),
+  openingFloatMinor: moneyMinor.default(0),
+  note: z.string().max(500).nullable().optional(),
+});
+
+export const cashSessionCountSchema = z.object({
+  operationId: z.uuid(),
+  sessionId: z.number().int().positive(),
+  countedMinor: moneyMinor,
+});
+
+export const cashSessionCloseSchema = z.object({
+  operationId: z.uuid(),
+  sessionId: z.number().int().positive(),
+  countedMinor: moneyMinor,
+  note: z.string().max(500).nullable().optional(),
+});
+
+export const cashSessionListSchema = z.object({
+  from: businessDate,
+  to: businessDate,
+});
+
 // Import CSV (lignes déjà validées côté renderer, re-validées côté main)
 
 export const companyUpdateSchema = z.object({

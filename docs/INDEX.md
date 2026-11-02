@@ -175,6 +175,7 @@
 - [ADR-167](./ADR-167-purge-ciblee-post-audit.md) Purge ciblée post-audit : copies mortes (V2, coûts), `formatDelta`, clés i18n et icônes maîtresses
 - [ADR-168](./ADR-168-native-max-apk.md) APK Native-max : R8 + shrinkResources, ABIs ARM seuls, compression des bibliothèques, permissions nettoyées, premier APK Owner
 - [ADR-169](./ADR-169-jour-metier-algiers.md) Jour métier Africa/Algiers (E-35, G-18, décision Q17) : instants UTC inchangés, découpage/affichage/verrou de clôture calés sur UTC+1 fixe, modules `business-day` jumeaux, migration 0058, gardes JS↔SQL et POS↔APK
+- [ADR-170](./ADR-170-sessions-de-caisse.md) Sessions de caisse : `cash_sessions` (migration 0059), un poste = une session ouverte, attente figée à la fermeture, écart jamais stocké, formule du Z sur fenêtre d'instants, 5 canaux `cash.*`, UI Rapports — préalable du publieur de liasse propriétaire
 
 ## Ou ecrire quoi
 

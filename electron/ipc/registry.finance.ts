@@ -7,6 +7,7 @@ import * as Expenses from "./handlers/expenses.repo";
 import * as Company from "./handlers/company.repo";
 import * as History from "./handlers/history.repo";
 import * as Settings from "./handlers/settings.repo";
+import * as Cash from "./handlers/cash-session.repo";
 import { getCurrentStaffUser } from "./handlers/staff-session";
 import { getStaffRole } from "./handlers/staff.repo";
 import { readLogoDataUrlFromFile } from "../services/logo";
@@ -190,6 +191,43 @@ export function registerFinanceChannels(): void {
     }),
   );
   handle(IPC_CHANNELS["zakat.sources"], V.emptyPayloadSchema, () => Finance.getZakatSources());
+  // Sessions de caisse (migration 0059) : le poste, le comptage et l'écart.
+  // L'auteur est l'opérateur CONNECTÉ (pas le périmètre d'audit) : une session
+  // appartient à celui qui tient le tiroir.
+  handle(IPC_CHANNELS["cash.open"], V.cashSessionOpenSchema, (input) =>
+    Cash.openCashSessionAtomic({
+      post: input.post,
+      label: input.label,
+      openingFloatMinor: input.openingFloatMinor,
+      note: input.note ?? null,
+      actorUserId: getCurrentStaffUser(),
+      operationId: input.operationId,
+      now: new Date().toISOString(),
+    }),
+  );
+  handle(IPC_CHANNELS["cash.count"], V.cashSessionCountSchema, (input) =>
+    Cash.countCashSessionAtomic({
+      sessionId: input.sessionId,
+      countedMinor: input.countedMinor,
+      operationId: input.operationId,
+      now: new Date().toISOString(),
+    }),
+  );
+  handle(IPC_CHANNELS["cash.close"], V.cashSessionCloseSchema, (input) =>
+    Cash.closeCashSessionAtomic({
+      sessionId: input.sessionId,
+      countedMinor: input.countedMinor,
+      note: input.note ?? null,
+      operationId: input.operationId,
+      now: new Date().toISOString(),
+    }),
+  );
+  handle(IPC_CHANNELS["cash.current"], V.emptyPayloadSchema, () =>
+    Cash.getActiveCashSession(new Date().toISOString()),
+  );
+  handle(IPC_CHANNELS["cash.list"], V.cashSessionListSchema, (input) =>
+    Cash.listCashSessions({ from: input.from, to: input.to, now: new Date().toISOString() }),
+  );
   handle(IPC_CHANNELS["zakat.saveParams"], V.zakatParamsSchema, (input) => {
     Settings.saveZakatParams(
       {

@@ -1867,6 +1867,90 @@ console.log("OK  0026 credit-revocation policy (refused with debt, allowed when 
   console.log("OK  0058 verrou de clôture sur le jour métier Africa/Algiers");
 }
 
+{
+  // 0059 : sessions de caisse (poste, comptage, attente figée à la fermeture).
+  const cols59 = db
+    .prepare("SELECT name FROM pragma_table_info('cash_sessions')")
+    .all()
+    .map((r) => r.name);
+  for (const col of [
+    "uuid",
+    "post",
+    "label",
+    "staff_user_id",
+    "status",
+    "opening_float_minor",
+    "counted_minor",
+    "expected_minor",
+    "note",
+    "opened_at",
+    "closed_at",
+  ]) {
+    if (!cols59.includes(col)) {
+      console.error(`FAIL: 0059 cash_sessions.${col} missing`);
+      process.exit(1);
+    }
+  }
+  // Une seule session OUVERTE par poste (index partiel UNIQUE).
+  db.prepare(
+    "INSERT INTO cash_sessions (uuid, post, label, status, opening_float_minor, opened_at, created_at) VALUES ('cs59a','Caisse 1','Ouverture 59','open',5000,'2026-06-01T08:00:00.000Z','2026-06-01T08:00:00.000Z')",
+  ).run();
+  let secondOpenRejected = false;
+  try {
+    db.prepare(
+      "INSERT INTO cash_sessions (uuid, post, label, status, opening_float_minor, opened_at, created_at) VALUES ('cs59b','Caisse 1','Doublon 59','open',0,'2026-06-01T09:00:00.000Z','2026-06-01T09:00:00.000Z')",
+    ).run();
+  } catch {
+    secondOpenRejected = true;
+  }
+  if (!secondOpenRejected) {
+    console.error("FAIL: 0059 deux sessions ouvertes sur le même poste acceptées");
+    process.exit(1);
+  }
+  // Un poste différent reste ouvert en parallèle (plusieurs tiroirs = commerce réel).
+  db.prepare(
+    "INSERT INTO cash_sessions (uuid, post, label, status, opening_float_minor, opened_at, created_at) VALUES ('cs59c','Caisse 2','Seconde 59','open',0,'2026-06-01T09:00:00.000Z','2026-06-01T09:00:00.000Z')",
+  ).run();
+  // Session ouverte : `expected_minor` et `closed_at` INTERDITS (garde de forme).
+  let openWithExpectedRejected = false;
+  try {
+    db.prepare(
+      "INSERT INTO cash_sessions (uuid, post, label, status, opening_float_minor, expected_minor, opened_at, created_at) VALUES ('cs59d','Caisse 3','Forme 59','open',0,100,'2026-06-01T09:00:00.000Z','2026-06-01T09:00:00.000Z')",
+    ).run();
+  } catch {
+    openWithExpectedRejected = true;
+  }
+  if (!openWithExpectedRejected) {
+    console.error("FAIL: 0059 session ouverte avec expected_minor acceptée");
+    process.exit(1);
+  }
+  // Fermeture licite : statut + closed_at + attendu + comptage.
+  db.prepare(
+    "UPDATE cash_sessions SET status='closed', closed_at='2026-06-01T18:00:00.000Z', expected_minor=5200, counted_minor=5000 WHERE uuid='cs59a'",
+  ).run();
+  // Comptage négatif refusé.
+  let negativeCountedRejected = false;
+  try {
+    db.prepare(`UPDATE cash_sessions SET counted_minor = -1 WHERE uuid = 'cs59c'`).run();
+  } catch {
+    negativeCountedRejected = true;
+  }
+  if (!negativeCountedRejected) {
+    console.error("FAIL: 0059 comptage négatif accepté");
+    process.exit(1);
+  }
+  const idx59 = db
+    .prepare(
+      "SELECT COUNT(*) AS c FROM sqlite_master WHERE type='index' AND name IN ('idx_cash_sessions_open_post','idx_cash_sessions_opened_at')",
+    )
+    .get();
+  if (idx59.c !== 2) {
+    console.error(`FAIL: 0059 index cash_sessions manquants (${idx59.c}/2)`);
+    process.exit(1);
+  }
+  console.log("OK  0059 sessions de caisse (poste unique ouvert, forme, bornes)");
+}
+
 // Integrity
 const ic = db.prepare("PRAGMA integrity_check").get();
 const fk = db.prepare("PRAGMA foreign_key_check").all();

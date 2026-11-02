@@ -36,6 +36,7 @@ import {
   cn,
 } from "@shared/ui/primitives.tsx";
 import { ReportExportDialog } from "./ReportDialogs.tsx";
+import { CashSessionsSection } from "./CashSessionsSection.tsx";
 import {
   REPORT_SECTIONS,
   currentBusinessMonthStart,
@@ -892,6 +893,8 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
               </p>
             </ReportSectionCard>
           ) : null}
+          {/* Sessions de caisse (migration 0059) : le poste, le comptage, l'écart. */}
+          {show("closings") ? <CashSessionsSection from={from} to={to} notify={notify} /> : null}
         </>
       )}
 

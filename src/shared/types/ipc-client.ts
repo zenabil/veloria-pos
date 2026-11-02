@@ -178,6 +178,12 @@ export const api = {
   closingCreate: (p: unknown) => call((a) => a.closings.create(p)),
   /** E-21 : réouverture d'une journée close (gérant, tracé). */
   closingReopen: (p: unknown) => call((a) => a.closings.reopen(p)),
+  /** Sessions de caisse (migration 0059). */
+  cashSessionOpen: (p: unknown) => call((a) => a.cash.open(p)),
+  cashSessionCount: (p: unknown) => call((a) => a.cash.count(p)),
+  cashSessionClose: (p: unknown) => call((a) => a.cash.close(p)),
+  cashSessionCurrent: () => call((a) => a.cash.current()),
+  cashSessionList: (p: unknown) => call((a) => a.cash.list(p)),
   zakatSources: () => call((a) => a.zakat.sources()),
   zakatSave: (p: unknown) => call((a) => a.zakat.saveParams(p)),
   zakatHistory: (p: unknown) => call((a) => a.zakat.history(p)),

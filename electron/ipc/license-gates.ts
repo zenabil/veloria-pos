@@ -61,6 +61,10 @@ export const LICENSE_PROTECTED_CHANNELS: ReadonlySet<string> = new Set([
   IPC_CHANNELS["expenses.update"],
   IPC_CHANNELS["expenses.delete"],
   IPC_CHANNELS["closings.create"],
+  // Sessions de caisse : écritures d'argent (ouverture/comptage/fermeture).
+  IPC_CHANNELS["cash.open"],
+  IPC_CHANNELS["cash.count"],
+  IPC_CHANNELS["cash.close"],
   IPC_CHANNELS["zakat.saveParams"],
   IPC_CHANNELS["zakat.save"],
   // EL-04: écritures de configuration — un poste non activé/expiré/révoqué
@@ -164,6 +168,11 @@ export const PAGE_GATED_CHANNELS: Readonly<Record<string, readonly string[]>> = 
   [IPC_CHANNELS["dashboard.summary"]]: ["dashboard"],
   [IPC_CHANNELS["closings.get"]]: ["reports"],
   [IPC_CHANNELS["closings.create"]]: ["reports"],
+  [IPC_CHANNELS["cash.open"]]: ["reports"],
+  [IPC_CHANNELS["cash.count"]]: ["reports"],
+  [IPC_CHANNELS["cash.close"]]: ["reports"],
+  [IPC_CHANNELS["cash.current"]]: ["reports"],
+  [IPC_CHANNELS["cash.list"]]: ["reports"],
   [IPC_CHANNELS["zakat.sources"]]: ["zakat"],
   [IPC_CHANNELS["zakat.saveParams"]]: ["zakat"],
   [IPC_CHANNELS["zakat.history"]]: ["zakat"],

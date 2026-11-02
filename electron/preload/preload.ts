@@ -145,6 +145,14 @@ const api = {
     // E-21 : réouverture d'une journée close (gérant).
     reopen: (p: unknown) => invoke(IPC_CHANNELS["closings.reopen"], p),
   },
+  // Sessions de caisse (migration 0059).
+  cash: {
+    open: (p: unknown) => invoke(IPC_CHANNELS["cash.open"], p),
+    count: (p: unknown) => invoke(IPC_CHANNELS["cash.count"], p),
+    close: (p: unknown) => invoke(IPC_CHANNELS["cash.close"], p),
+    current: () => invoke(IPC_CHANNELS["cash.current"]),
+    list: (p: unknown) => invoke(IPC_CHANNELS["cash.list"], p),
+  },
   zakat: {
     sources: () => invoke(IPC_CHANNELS["zakat.sources"]),
     saveParams: (p: unknown) => invoke(IPC_CHANNELS["zakat.saveParams"], p),

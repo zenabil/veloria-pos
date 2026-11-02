@@ -114,6 +114,13 @@ export const IPC_CHANNELS = {
   // E-21 (P1) : réouverture d'une journée close (issue explicite du verrou
   // de période — migration 0048). Gérant uniquement, tracée, rejouable.
   "closings.reopen": "closings.reopen",
+  // Sessions de caisse (migration 0059) : poste ouvert, comptage physique,
+  // fermeture avec attente figée ; lecture = session active + historique.
+  "cash.open": "cash.open",
+  "cash.count": "cash.count",
+  "cash.close": "cash.close",
+  "cash.current": "cash.current",
+  "cash.list": "cash.list",
   "zakat.sources": "zakat.sources",
   "zakat.saveParams": "zakat.saveParams",
   "zakat.history": "zakat.history",

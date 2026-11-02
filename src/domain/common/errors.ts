@@ -16,6 +16,7 @@ export type DomainErrorCode =
   | "SUPPLIER_ERROR"
   | "STAFF_ERROR"
   | "CLOSING_ERROR"
+  | "CASH_SESSION_ERROR"
   | "IMPORT_ERROR"
   | "ZAKAT_ERROR"
   | "CONFLICTING_OPERATION";

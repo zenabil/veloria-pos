@@ -142,6 +142,14 @@ interface Window {
       /** E-21 : réouverture d'une journée close (gérant). */
       reopen(p: unknown): Promise<VeloriaOutcome>;
     };
+    /** Sessions de caisse (migration 0059) : poste, comptage, écart. */
+    cash: {
+      open(p: unknown): Promise<VeloriaOutcome>;
+      count(p: unknown): Promise<VeloriaOutcome>;
+      close(p: unknown): Promise<VeloriaOutcome>;
+      current(): Promise<VeloriaOutcome>;
+      list(p: unknown): Promise<VeloriaOutcome>;
+    };
     zakat: {
       sources(): Promise<VeloriaOutcome>;
       saveParams(p: unknown): Promise<VeloriaOutcome>;

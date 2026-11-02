@@ -101,6 +101,36 @@ const closingRowSchema = z
 
 export const closingsListSchema = z.object({ rows: z.array(closingRowSchema) });
 
+/**
+ * Session de caisse (migration 0059) : attentes et fonds en centimes signés
+ * (une session à perte rend un `expectedMinor` négatif), écart dérivé du
+ * comptage et jamais stocké.
+ */
+const cashSessionRowSchema = z
+  .object({
+    id: z.number().int().positive(),
+    uuid: z.string(),
+    post: z.string(),
+    label: z.string(),
+    staffUserId: z.number().int().nullable(),
+    status: z.enum(["open", "closed"]),
+    openingFloatMinor: z.number().int().min(0),
+    countedMinor: z.number().int().min(0).nullable(),
+    expectedMinor: z.number().int(),
+    varianceMinor: z.number().int().nullable(),
+    note: z.string().nullable(),
+    openedAt: z.string(),
+    closedAt: z.string().nullable(),
+  })
+  .loose();
+
+/** Vue renderer d'une session de caisse (montants en centimes, écart signé). */
+export type CashSessionRowView = z.infer<typeof cashSessionRowSchema>;
+
+export const cashSessionResultSchema = cashSessionRowSchema;
+export const cashSessionCurrentResultSchema = cashSessionRowSchema.nullable();
+export const cashSessionListResultSchema = z.object({ rows: z.array(cashSessionRowSchema) });
+
 /** Activation APK (le QR s'affiche une fois pour la carte d'activation). */
 export const accessActivateResultSchema = z
   .object({ activated: z.boolean(), activationCode: z.string().min(16) })
