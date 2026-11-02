@@ -160,9 +160,14 @@ export const syncEnqueueResultSchema = z
   .object({ queued: z.boolean(), existed: z.boolean() })
   .loose();
 
-/** Poussée miroir (compteurs, rejouable par operationId). */
+/** Poussée miroir (compteurs, rejouable par operationId). ADR-173 : `failed`
+ * = clichés écartés par le miroir (rejet définitif), jamais relus ensuite. */
 export const syncPushResultSchema = z
-  .object({ pushed: z.number().int().min(0), access: z.number().int().min(0) })
+  .object({
+    pushed: z.number().int().min(0),
+    access: z.number().int().min(0),
+    failed: z.number().int().min(0),
+  })
   .loose();
 
 /**

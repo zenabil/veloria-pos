@@ -178,6 +178,7 @@
 - [ADR-170](./ADR-170-sessions-de-caisse.md) Sessions de caisse : `cash_sessions` (migration 0059), un poste = une session ouverte, attente figée à la fermeture, écart jamais stocké, formule du Z sur fenêtre d'instants, 5 canaux `cash.*`, UI Rapports — préalable du publieur de liasse propriétaire
 - [ADR-171](./ADR-171-liasse-proprietaire-publication.md) Liasse de supervision propriétaire : constructeur `electron/sync/owner-snapshot.ts` (contrat v1 jumelé, bornes de volume, zéro donnée inventée), publication append-only directe vers `POST /rest/v1/owner_snapshots` (pas un kind de `sync_outbox`, immuable), cadence `ownerEnabled`/`ownerIntervalMinutes` défaut OFF, canal `sync.pushOwnerSnapshot`, UI Paramètres, `owner.sql` appliqué et inscriptions verrouillées
 - [ADR-172](./ADR-172-max-devices-informatif.md) `maxDevices` : mention contractuelle **non appliquée** (aucun registre d'appareils, offline-first) — exécute la décision Q15(ب) et clot G-17 ; la protection réelle reste la liaison matérielle, N postes = N licences liées
+- [ADR-173](./ADR-173-file-sync-lignes-condamnees.md) File de synchronisation : rejet **définitif** (400/404/409/410/415/422) vs **rejouable** (401/403/408/429/5xx/réseau), division binaire du lot `client_payloads` refusé, ligne condamnée → `status='failed'`, compteur `failed` dans `sync.pushNow` — une ligne incohérente ne gèle plus le miroir
 
 ## Ou ecrire quoi
 

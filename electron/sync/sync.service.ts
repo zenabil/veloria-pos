@@ -18,13 +18,16 @@ import { businessMonthOf } from "../shared/business-day";
 import { enqueueSnapshotAtomic, hasActiveClientAccess } from "../ipc/handlers/client-access.repo";
 import {
   SYNC_DEFAULTS,
+  MirrorRejectionError,
   buildMirrorRequests,
+  isPermanentMirrorRejection,
   isOwnerPushDue,
   isPushDue,
   maskConfig,
   ownerAdminUsersUrl,
   ownerSnapshotsUrl,
   requiresServiceKeyReentry,
+  splitMirrorRequest,
   validateOwnerAccount,
   validateSyncConfig,
   type AccessMirrorRow,
@@ -453,9 +456,9 @@ type Transport = (
 export async function pushNowAtomic(
   args: { operationId: string; now: string },
   transport?: Transport,
-): Promise<{ pushed: number; access: number }> {
+): Promise<{ pushed: number; access: number; failed: number }> {
   const db = getDb();
-  const replay = peekIdempotency<{ pushed: number; access: number }>(
+  const replay = peekIdempotency<{ pushed: number; access: number; failed: number }>(
     args.operationId,
     "sync.pushNow",
   );
@@ -497,7 +500,35 @@ export async function pushNowAtomic(
       // technique ; seul un message FR est persisté dans lastError (lu par
       // l'UI) — règle 6 (jamais d'exception brute à l'utilisateur).
       log("ERROR", "sync", "push.http", { status: res.status, detail: detail.slice(0, 500) });
+      // ADR-173 : le service doit distinguer ce qui est REJOUABLE de ce qui est
+      // CONDAMNÉ, sinon une seule ligne incohérente gèle toute la file.
+      if (isPermanentMirrorRejection(res.status)) {
+        throw new MirrorRejectionError(res.status, detail);
+      }
       throw new Error(`Miroir injoignable (HTTP ${res.status}).`);
+    }
+  };
+  // ADR-173 : les clichés écartés (rejet définitif sur LA ligne) ne bloquent
+  // plus les autres. Un lot refusé est divisé jusqu'à isoler la coupable.
+  const rejected: string[] = [];
+  const postPayloads = async (req: MirrorRequest): Promise<void> => {
+    try {
+      await post(req);
+    } catch (err) {
+      if (!(err instanceof MirrorRejectionError)) throw err;
+      const parts = splitMirrorRequest(req);
+      if (parts.length === 2) {
+        for (const part of parts) await postPayloads(part);
+        return;
+      }
+      const opId = req.rows[0]?.["operation_id"];
+      if (typeof opId !== "string" || opId === "") throw err;
+      rejected.push(opId);
+      log("WARN", "sync", "push.row_rejected", {
+        status: err.status,
+        operation_id: opId,
+        detail: err.detail.slice(0, 300),
+      });
     }
   };
   let accessCount = 0;
@@ -518,7 +549,10 @@ export async function pushNowAtomic(
       cursor = Number(batch[batch.length - 1]?.customer_id ?? 0);
       if (batch.length < 500) break;
     }
-    for (const req of buildMirrorRequests([], outboxRows)) await post(req);
+    // ADR-173 : les lignes condamnées sont écartées de la file, jamais la file
+    // arrêtée (les accès restent en behavior inchangé : un refus d'accès est
+    // structurel, il doit interrompre la poussée).
+    for (const req of buildMirrorRequests([], outboxRows)) await postPayloads(req);
   } catch (err) {
     // FIX-P1-03 : lastError affiché par l'UI → message FR garanti via la
     // source unique main (toUserMessage : technique → repli FR générique).
@@ -531,20 +565,43 @@ export async function pushNowAtomic(
     log("ERROR", "sync", "push.failed", { error: msg });
     throw err instanceof Error ? err : new Error(msg);
   }
+  const rejectedIds = new Set(rejected);
+  const delivered = outboxRows.filter((r) => !rejectedIds.has(r.operation_id));
   const tx = db.transaction(() => {
     claimIdempotency(args.operationId, "sync.pushNow", args.now);
-    for (const r of outboxRows) {
+    for (const r of delivered) {
       db.prepare(`UPDATE sync_outbox SET status = 'sent', sent_at = ? WHERE operation_id = ?`).run(
         args.now,
         r.operation_id,
       );
     }
+    // ADR-173 : une ligne écartée ne reste pas `pending` (elle repartirait
+    // éternellement au prochain tick) — `failed` est un état d'audit.
+    for (const operationId of rejectedIds) {
+      db.prepare(`UPDATE sync_outbox SET status = 'failed' WHERE operation_id = ?`).run(
+        operationId,
+      );
+    }
     try {
-      writeDoc({ ...doc, lastPushAt: args.now, lastError: null }, args.now);
+      writeDoc(
+        {
+          ...doc,
+          lastPushAt: args.now,
+          lastError:
+            rejectedIds.size === 0
+              ? null
+              : `${rejectedIds.size} cliché(s) écarté(s) par le miroir : données client incohérentes (accès correspondant absent).`,
+        },
+        args.now,
+      );
     } catch {
       /* meta best-effort */
     }
-    const result = { pushed: outboxRows.length, access: accessCount };
+    const result = {
+      pushed: delivered.length,
+      access: accessCount,
+      failed: rejectedIds.size,
+    };
     storeIdempotencyResult(args.operationId, result);
     return result;
   });
@@ -555,7 +612,7 @@ export async function pushNowAtomic(
       err instanceof Error &&
       /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
     ) {
-      const retry = peekIdempotency<{ pushed: number; access: number }>(
+      const retry = peekIdempotency<{ pushed: number; access: number; failed: number }>(
         args.operationId,
         "sync.pushNow",
       );

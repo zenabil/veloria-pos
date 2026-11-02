@@ -798,7 +798,12 @@ export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Ele
           (a) => a.sync.pushNow({ operationId: newOperationId() }),
           syncPushResultSchema,
         );
-        notify(`Miroir poussé : ${r.pushed} cliché(s), ${r.access} accès.`, "ok");
+        notify(
+          r.failed > 0
+            ? `Miroir poussé : ${r.pushed} cliché(s), ${r.access} accès — ${r.failed} écarté(s) (données client incohérentes).`
+            : `Miroir poussé : ${r.pushed} cliché(s), ${r.access} accès.`,
+          r.failed > 0 ? "err" : "ok",
+        );
         refresh();
       } catch (e) {
         notify(frError(e, "Poussée impossible."), "err");

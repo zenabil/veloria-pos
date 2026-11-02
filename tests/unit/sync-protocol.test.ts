@@ -1,14 +1,18 @@
 // Veloria — Protocole de synchro POS → miroir : validation, cadence, requêtes.
 import { describe, expect, it } from "vitest";
 import {
+  MirrorRejectionError,
   buildMirrorRequests,
+  isPermanentMirrorRejection,
   isPushDue,
   maskConfig,
   ownerAdminUsersUrl,
+  splitMirrorRequest,
   validateOwnerAccount,
   requiresServiceKeyReentry,
   syncHost,
   validateSyncConfig,
+  type MirrorRequest,
 } from "../../electron/sync/sync.protocol";
 
 const FULL = {
@@ -212,5 +216,49 @@ describe("buildMirrorRequests", () => {
         ],
       ),
     ).toThrow(/corrompu/);
+  });
+});
+
+// ADR-173 : la frontière « temporaire » / « définitif » est décidable sans IO,
+// donc ici — le service ne fait qu'appliquer le verdict.
+describe("ADR-173 : rejets du miroir, condamnés vs rejouables", () => {
+  it("les codes qui échoueraient à l'identique au centième essai", () => {
+    for (const status of [400, 404, 409, 410, 415, 422]) {
+      expect(isPermanentMirrorRejection(status)).toBe(true);
+    }
+  });
+  it("identité, RLS, saturation et panne restent REJOUABLES", () => {
+    for (const status of [401, 403, 408, 429, 500, 502, 503, 504]) {
+      expect(isPermanentMirrorRejection(status)).toBe(false);
+    }
+  });
+  it("divise un lot en deux moitiés à la taille impaire contrôlée", () => {
+    const rows = Array.from({ length: 5 }, (_, i) => ({ operation_id: `op-${i}` }));
+    const parts = splitMirrorRequest({
+      table: "client_payloads",
+      onConflict: "operation_id",
+      rows,
+    });
+    expect(parts.map((p) => p.rows.length)).toEqual([3, 2]);
+    expect(parts[0]?.table).toBe("client_payloads");
+    expect(parts[1]?.onConflict).toBe("operation_id");
+    // Rien n'est perdu ni réordonné : la reunion redonne le lot exact.
+    expect([...(parts[0]?.rows ?? []), ...(parts[1]?.rows ?? [])]).toEqual(rows);
+  });
+  it("une ligne seule ne se divise plus : c'est elle qui est condamnée", () => {
+    const one: MirrorRequest = {
+      table: "client_payloads",
+      onConflict: "operation_id",
+      rows: [{ operation_id: "op-1" }],
+    };
+    expect(splitMirrorRequest(one)).toEqual([]);
+    expect(splitMirrorRequest({ ...one, rows: [] })).toEqual([]);
+  });
+  it("le rejet typé porte le code et le détail serveur", () => {
+    const err = new MirrorRejectionError(409, "23503");
+    expect(err).toBeInstanceOf(Error);
+    expect(err.status).toBe(409);
+    expect(err.detail).toBe("23503");
+    expect(err.message).toMatch(/HTTP 409/);
   });
 });

@@ -266,6 +266,46 @@ export interface MirrorRequest {
 }
 
 /**
+ * ADR-173 : un rejet **définitif** du miroir se reconnaît au code HTTP seul.
+ * Ces requêtes échoueraient à l'identique au centième essai — contrainte
+ * étrangère (409 : `client_payloads.customer_id` sans ligne `client_access`),
+ * payload invalide (400/422), table absente (404), ressource partie (410),
+ * média non pris (415). Les 401/403 (identité, RLS) et les 5xx/réseau sont au
+ * contraire **temporaires** : la file doit rester rejouable, rien n'est écarté.
+ */
+const PERMANENT_MIRROR_REJECTION = new Set([400, 404, 409, 410, 415, 422]);
+
+export function isPermanentMirrorRejection(status: number): boolean {
+  return PERMANENT_MIRROR_REJECTION.has(status);
+}
+
+/** Rejet miroir définitif, typé : le service décide « écarter » ou « stopper ». */
+export class MirrorRejectionError extends Error {
+  constructor(
+    readonly status: number,
+    readonly detail: string,
+  ) {
+    super(`Miroir injoignable (HTTP ${status}).`);
+    this.name = "MirrorRejectionError";
+  }
+}
+
+/**
+ * Moitiés d'une requête. PostgREST applique un POST par lot en **une seule**
+ * instruction : une ligne condamnée fait échouer tout le lot. Diviser isole la
+ * coupable sans casser les autres (coût `k·log n` requêtes, `n ≤ 200`).
+ * Rend `[]` pour une ligne seule : c'est elle qui est condamnée.
+ */
+export function splitMirrorRequest(req: MirrorRequest): MirrorRequest[] {
+  if (req.rows.length < 2) return [];
+  const mid = Math.ceil(req.rows.length / 2);
+  return [
+    { table: req.table, onConflict: req.onConflict, rows: req.rows.slice(0, mid) },
+    { table: req.table, onConflict: req.onConflict, rows: req.rows.slice(mid) },
+  ];
+}
+
+/**
  * Requêtes REST vers le miroir : upserts idempotents (rejouables sans
  * doublons grâce aux UNIQUE operation_id / customer_id côté miroir).
  * `payload_json` est validé JSON ici (jamais de texte cassé poussé).
