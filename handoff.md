@@ -15,7 +15,8 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête **session 102** (seconde rebuild POS + License Manager + client : portes complètes vertes, installateurs neufs, **APK client identique octet pour octet** car Gradle était UP-TO-DATE ; série du matin archivée dans `release/_prev-2026-11-02b/`, **rien de supprimé** ; risque consigné : `mobile/android/` est entièrement git-ignoré, la config Native-max ne vit que sur ce poste). Avant elle session 101 (audit complet des **réglages Supabase vivants** depuis le tableau de bord : un seul réglage corrigé, `password_min_length` 6 → **8** ; la protection « mot de passe fugitif » est **refusée par le plan gratuit** — `402` + entitlement `hasAccess:false` ; trois décisions ADR-171 tranchées par l'opérateur et consignées). Avant elle session 100 (les trois applications **exécutées** : POS 51/51 après réparation de deux specs E2E obsolètes, License Manager lancé en réel, client Expo web avec hero live). Avant elle session 99 (quatre constructions d'artefacts + retrait des anciennes ; cause racine du verrou electron-builder sur `E:` trouvée et contournée). Avant elle session 98 (liasse propriétaire publiée par le POS, ADR-171, audit/corrections Supabase), session 97 (`maxDevices` documentée, ADR-172), session 96 (sessions de caisse, ADR-170), session 95 (jour métier Africa/Algiers, E-35 corrigé, ADR-169), session 94 (bootstrap de l'environnement sur poste neuf), session 93 (diagnostic bandeau hero client), session 92 (test appareil réel, CPH2235), session 91 (APK Native-max, ADR-168), session 90 (purge ciblée post-audit, ADR-167), session 89 (purge des artefacts obsolètes), session 88 (annonces multi-médias + bandeau hero APK, ADR-166), session 87 bis (rafraîchissement périodique de l'APK selon la cadence POS, ADR-165), session 87 (annonce magasin poussée aux clients, ADR-160). Avant elle session 86 (compte propriétaire, ADR-164), session 85 (connexion Supabase owner, ADR-163), session 84 (données fictives supprimées, owner), session 83 (Argent/Stock/Périodes/Alertes enrichis), session 82 (Aujourd'hui + détails de transaction), session 81 (passe design v2 owner), session 80 (écrans courts owner), session 79 (application propriétaire, ADR-162), session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- Branche : `chore/root-layout` — tête **session 103** (liaison POS → Supabase déboguée sur la machine réelle : ADR-173 — une ligne condamnée ne gèle plus la file ; 401 = clé mal saisie, la saisie reste manuelle ; file orpheline corrigée après sauvegarde ; POS reconstruit avec le correctif). Avant elle session 102 (seconde rebuild POS + License Manager + client : portes complètes vertes, installateurs neufs, **APK client identique octet pour octet** car Gradle était UP-TO-DATE ; série du matin archivée dans `release/_prev-2026-11-02b/`, **rien de supprimé** ; risque consigné : `mobile/android/` est entièrement git-ignoré, la config Native-max ne vit que sur ce poste). Avant elle session 101 (audit complet des **réglages Supabase vivants** depuis le tableau de bord : un seul réglage corrigé, `password_min_length` 6 → **8** ; la protection « mot de passe fugitif » est **refusée par le plan gratuit** — `402` + entitlement `hasAccess:false` ; trois décisions ADR-171 tranchées par l'opérateur et consignées). Avant elle session 100 (les trois applications **exécutées** : POS 51/51 après réparation de deux specs E2E obsolètes, License Manager lancé en réel, client Expo web avec hero live). Avant elle session 99 (quatre constructions d'artefacts + retrait des anciennes ; cause racine du verrou electron-builder sur `E:` trouvée et contournée). Avant elle session 98 (liasse propriétaire publiée par le POS, ADR-171, audit/corrections Supabase), session 97 (`maxDevices` documentée, ADR-172), session 96 (sessions de caisse, ADR-170), session 95 (jour métier Africa/Algiers, E-35 corrigé, ADR-169), session 94 (bootstrap de l'environnement sur poste neuf), session 93 (diagnostic bandeau hero client), session 92 (test appareil réel, CPH2235), session 91 (APK Native-max, ADR-168), session 90 (purge ciblée post-audit, ADR-167), session 89 (purge des artefacts obsolètes), session 88 (annonces multi-médias + bandeau hero APK, ADR-166), session 87 bis (rafraîchissement périodique de l'APK selon la cadence POS, ADR-165), session 87 (annonce magasin poussée aux clients, ADR-160). Avant elle session 86 (compte propriétaire, ADR-164), session 85 (connexion Supabase owner, ADR-163), session 84 (données fictives supprimées, owner), session 83 (Argent/Stock/Périodes/Alertes enrichis), session 82 (Aujourd'hui + détails de transaction), session 81 (passe design v2 owner), session 80 (écrans courts owner), session 79 (application propriétaire, ADR-162), session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 103 (2026-11-02)** : **liaison POS → Supabase déboguée sur la machine réelle (ADR-173)** — demande « صحح و اربط البرنامج ب supabase » après « Miroir injoignable (HTTP 401) ». Diagnostic par le journal du poste (`Roaming\Veloria PoS\logs`) et lecture **read-only** de la base vivante : le POS installé (`C:\Program Files\Veloria\Veloria PoS`) tourne en fait sur **`E:\data\backups\Veloria POS DB.sqlite`** (relocalisée 11:39, `database.relocated`) — **danger consigné** : la base réelle dort dans le dossier des snapshots. Deux échecs distincts : `21:08:00` **409** FK `23503` (le miroir avait donc **accepté** la clé) puis dès `21:08:53` **401** `Invalid API key` = la plateforme ne reconnaît pas la valeur saisie ; `client_sync` porte une clé de **100** octets de blob contre **336** dans la sauvegarde `avant-migrations…T04-36-37Z.vposdb` qui, elle, affiche `lastPushAt=2026-11-01T20:35:45Z` / `lastError:null`. **Non restaurée volontairement** : sonde hors-secret (`ProtectedData::Unprotect` + `GET /rest/v1`, sortie réduite à longueur/classe/statut) **échouée sur les deux blobs** — `safeStorage` d'Electron dépend de la clé maître du `Local State` de l'installation, et la sauvegarde vient de l'ancien compte Windows ; extraire la clé du tableau de bord l'aurait fait passer **dans la conversation**, refusé pour un `service_role`. Vérifié à la place : 4 clés au projet (`anon`, `service_role` legacy, `sb_publishable_SgUBW…`, `sb_secret_Kt8zQ…`) et **l'URL est la bonne** → la saisie reste un geste opérateur, avec la liste de ce qui reproduit le 401 (`publishable`, PAT `sbp_`, clé de l'ancien poste). **Deuxième mur, cause réelle du silence du miroir** : tout le lot part en **une seule instruction** PostgREST et la moindre ligne orpheline faisait échouer les 200 clichés — 6 orphelins du 13/10 (client 1 sans `customer_access`) **devant** 9 clichés sains du client 2 ⇒ rien jamais poussé, même clé valide. Corrigé : (a) données — `VACUUM INTO` `E:\data\backups\sauvegarde-avant-correction-file-2026-11-02T21-30-43-079Z.sqlite` puis 6 lignes en `status='failed'` (pas supprimées) ; (b) **racine, commit `2fe8be6`** — protocole `isPermanentMirrorRejection` (400/404/409/410/415/422 = condamné ; **401/403 = temporaire** pour ne rien écarter pendant qu'on se trompe de clé), `MirrorRejectionError`, `splitMirrorRequest` (bissection jusqu'à isoler la coupable), `sync_outbox` `failed` enfin écrit (état prévu par 0032/0038), contrat `sync.pushNow` → `{pushed, access, failed}` et ligne d'UI qui le dit. **Preuves** : `tests/integration/sync-push-queue.test.ts` 6 tests (9 poussés / 6 écartés / 0 en attente, idempotence, **503** et **401** laissent tout rejouable, bissection multi-requêtes) + 5 tests protocole. Pièges consignés : `dist-electron/**.d.ts` **périmé** (project references) faisait échouer `check` sur les nouveaux symboles → relancer `build:electron` ; trigger 0043 refuse `pbkdf2_sha256`, la constante est `pbkdf2-sha256-100k`. Portes : `check` **0** · **181 fichiers / 1 285 tests** · `verify` **0** · `knip` **0** · POS reconstruit avec le correctif. **En attente de l'opérateur** : coller la vraie `service_role` dans « Clé service » puis « Synchroniser maintenant », installer le nouvel exécutable, trancher le sort de la base parquée dans `E:\data\backups`. Détails §103.
 - **Session 102 (2026-11-02)** : **seconde rebuild POS + License Manager + client** (demande « اعد بناء pos license client » puis « أتمّم بناء License Manager ثم APK ») — depuis la tête §101, **sans aucun changement de production** depuis les constructions de §99, donc valeur = **preuve de reproductibilité**. Portes **avant** construction : `check` **0** · `test` **0** (180 fichiers, 243,79 s) · `verify` **0** (migrations 59, `version:check` 1.0.4 alignée, secret-scan 1 522 fichiers). **POS** et **Manager** construits hors espace de travail (`--config.directories.output=C:/veloria-build/…`, contournement du verrou d'indexeur §99), `PREBUILD_EXIT=0`/`BUILDER_EXIT=0` de part et d'autre, **les deux cibles** (nsis + portable) par appel car les `.yml` les déclarent ensemble ; staging POS revérifié : **59 migrations** dont 0057/0058/0059 + `resources/license` + `resources/ocr` ; manifeste Manager signé **21 fichiers**. Livrés : Setup POS **161 357 341** (`4596c15b…`), Portable POS **139 443 058** (`a9b4a9dc…`), Setup Manager **144 415 031** (`249615c1…`), Portable Manager **130 655 758** (`0907ea17…`). **Client** : `assembleRelease -x :app:lintVitalRelease` en **1m12s**, mais `createBundleReleaseJsAndAssets`, `shrinkReleaseRes`, `packageRelease` et tous les modules `:expo-*` **UP-TO-DATE** ⇒ APK **identique octet pour octet** au build 07:41 (`706f1371…`, 22 677 268 o), signature `CN=Veloria` / `c190b12a…` vérifiée par `apksigner`. Dénoncé **sans enjoliver** : ce n'est pas une construction fraîche ; `--rerun-tasks` (≈29 min) ne changerait que les horodatages du bloc de signature. `release:smoke` **0**, `release:checksums` régénéré (4 exes). **Filet de retour** : la série du matin **déplacée** (non supprimée) dans `release/_prev-2026-11-02b/` ≈595 Mo, hashes consignés dans `C:/veloria-build/before-hashes.txt` — purge sur un mot. **Risque de continuité découvert et écrit, rien changé** : `.gitignore:71` ignore **toute** `mobile/android/` (`git ls-files mobile/android` = vide), or les drapeaux qui font le poids et la signature de l'APK (`enableProguardInReleaseBuilds`, `enableShrinkResourcesInReleaseBuilds`, `expo.useLegacyPackaging`, `reactNativeArchitectures`, `versionCode 6`, `signingConfigs.release`) vivent sur **ce poste uniquement** ; un `expo prebuild` propre les perdrait. Pistes classées : graver ces réglages dans un **config plugin Expo suivi**, ou exceptions ciblées `.gitignore` **après** avoir sorti les `storePassword`/`keyPassword` en clair de `app/build.gradle:112-114`. **Non fait** : APK **owner** (hors demande, toujours 0.1.0 / versionCode 1 — l'écart ADR-161 reste ouvert), `test:e2e:installer`, installation appareil. Détails §102.
 - **Session 101 (2026-11-02)** : **audit des réglages Supabase vivants + un correctif** — demande « قم بفتح supabase في المتصفح و قم باعداد و تصحيح اعدادات supabase ». Lecture par l'API interne du tableau de bord (`/platform/auth/{ref}/config`, `/v1/projects/{ref}/config/auth`, `/api-keys`, `/network-restrictions`, `/platform/projects/{ref}/run-lints`, `/platform/projects-resource-warnings`, `/platform/organizations/{org}/entitlements`) + SQL Editor + preuves de comportement `curl`. **Tout le verrouillage de la session 98 tient** (`signup_disabled` 422, `42501` pour `anon`, `security_invoker=true`, politique unique `owner_snapshots_read`→`authenticated`, `client-sync` `verify_jwt=false` conforme `config.toml`, storage RLS ON / 0 politique / 0 bucket, base 11 Mo/500, miroir vivant 6 accès / 36 clichés / dernière poussée 2026-11-01T20:35Z, `ACTIVE_HEALTHY`). **Corrigé** : `password_min_length` **6 → 8** (`PATCH /v1/projects/…/config/auth` → 200), aligné sur les gardes locales déjà écrites (`src/features/settings/SettingsSectionsB.tsx:765` « 8 à 200 », `owner/src/api.ts:41` `< 8`) ; le serveur était plus faible que les deux applications. **Découverte bloquante** : le Warn Advisors « Leaked Password Protection Disabled » est **inhérent au plan gratuit** — `auth.password_hibp` et `auth.leaked_password_protection` en `hasAccess:false`, `PATCH { password_hibp_enabled: true }` → **402 Payment Required** ; la bascule exige Pro (25 $/mois) ou un SMTP/flux applicatif de contrôle. **Tranché par l'opérateur** (donc clos, à ne pas relancer) : politique `authenticated` **conservée** pas à pas de verrouillage `auth.uid()`, **aucune purge** de rétention `owner_snapshots` tant que le publieur n'est pas mesuré, **pas** de `ssl_enforced`/allowlist CIDR, **pas** de changement `site_url`. Constats **non agis** et écrits ici : `site_url=http://localhost:3000` (inoffensif — `owner/src/api.ts` n'a qu'un `grant_type=password`, aucun lien par e-mail), alerte plateforme `auth_restricted_email_sending=warning` avec `smtp_host=null` (l'envoi se fait par le SMTP Supabase limité), clés **legacy** `anon`/`service_role` encore actives à côté de `sb_publishable_`/`sb_secret_` (les APK construits portent l'anon legacy ⇒ **ne pas désactiver** avant une reconstruction), inbound DB `0.0.0.0/0` + `::/0`. **Zéro code modifié**, aucun fichier de dépôt hors `handoff.md` ; `git status` propre avant/après. Détails §101.
 - **Session 100 (2026-11-02)** : **les trois applications lancées pour de vrai** (demande « قم بتجريب تطبيقات pos و license و client »). **POS** : `npx playwright test` sur Electron réel = **45 passés / 6 échoués / 3 ignorés** (15,2 min), les 6 rouges **prouvées pré-existantes** avant toucher au code (`git grep -c "Session :" 41b0399 -- src` = absent dès la base ; la refonte visuelle `9b7c564` du 27/10 a retiré ce texte de la coquille sans que le spec suive ; `textContent()` ne sépare pas les cellules ; le champ Catalogue est `Rechercher… [F3]` ; `full-loop-client` demande le relais E2E). Corrigé dans les **specs seulement** : `tests/e2e/staff-session.spec.ts` (5 × attente texte « Session : » → `getByRole("button",{name:/^Changer d/})`) et `tests/e2e/stock-backup.spec.ts` (`/10\s*PI[EÈ]CE/i`, `/11\s*PI[EÈ]CE/i`, placeholder) → rejeu ciblé avec relais **8/8, `REAL_EXIT=0`** ; le POS est **51/51 exécutable**. **Manager** : `_electron` sur `dist-license-manager/…/main.js` (sonde hors dépôt `C:/veloria-build/mgr-probe.cjs`) — coquille rendue, aucune exception nue, 1 licence `VLIC-DCC493D2` lue ; l'en-tête `v45.1.0` vu en sonde **expliqué** : `license-manager/ipc/registry.ts:94` rend `app.getVersion()` et `dist-license-manager/package.json` ne porte que `{"type":"commonjs"}` (sans `version`, Electron rend la sienne) ⇒ l'installateur NSIS dira 1.0.4, à confirmer sur l'artefact installé. **Client** : appareil déconnecté ⇒ voie **Expo web** (:8083) contre le miroir de démo (:8099) ; `e2e-mobile-shots.mjs` **inexécutable ici** (aucun `%LOCALAPPDATA%\ms-playwright`, la suite du dépôt utilise le Chromium d'Electron) ⇒ pilotage par événements DOM réels + arbre d'accessibilité, **sans capture** (surface navigateur masquée, comme §83). Vérifié : **hero ADR-166 vivant** (image 800×400 réellement chargée, compte à rebours « ينتهي بعد 3 يوم 4 ساعة », pastilles 1/2↔2/2, annonce expirée **jamais rendue**), œil de confidentialité `•••` ↔ montants, format `45 250,00 دج` / crédit 75 %, filtres de factures à compteurs justes (dont **ملغاة 1** isolant `FAC-2026-0115`), **détail de facture** cohérent (8 450,00 − 5 200,00 = 3 250,00 + versement rattaché), paiements groupés par mois, compte (boutique, langue, « v1.0.4 · Veloria »), **bilingue ar↔fr**, refus serveurs **cartographiés en FR/AR sans exception nue** (mauvais PIN → « الهاتف أو الرمز غير صحيح » ; **miroir tué** → « لا اتصال بالإنترنت، أعد المحاولة لاحقاً ») puis **reprise** à la remise en ligne et rafraîchissement périodique observé. Retour à la connexion après rechargement = **voulu** (`mobile/src/cache.ts:3` : SecureStore sur appareil, mémoire sur web). **Reste** : `test:e2e:installer` (non lancé sans mot d'ordre — écrit dans `C:\Program Files`), installation réelle de l'APK client, `test:coverage`. Détails §100.
@@ -5152,3 +5153,123 @@ purge tant que le publieur n'est pas mesuré). Espace `E:` libre ≈ 14,4 Go apr
 
 **Git** : aucun fichier de production modifié ; ce `docs(handoff)` porte la
 session 102, arbre par ailleurs propre.
+
+## 103) Session 2026-11-02 — Liaison POS → Supabase déboguée pour de vrai (ADR-173)
+
+**Demande.** « صحح و اربط البرنامج ب supabase » après le message d'UI
+« Miroir injoignable (HTTP 401) ».
+
+**Où est le POS qui tourne (découvert, pas supposé).** Les processus
+`Veloria PoS.exe` viennent de `C:\Program Files\Veloria\Veloria PoS\`
+(installé), mais **pas** de la base de `C:\ProgramData` : le journal
+`Roaming\Veloria PoS\logs\veloria-2026-11-02.log` porte
+`database.relocated` de `C:\ProgramData\Veloria PoS\Data\…` vers
+**`E:\data\backups\Veloria POS DB.sqlite`** (11:39:13), et `database.opened`
+sur ce chemin à 11:40, 20:30, 20:46 — c'est donc **la base vivante du
+commerçant**, avec 35 ventes. **Danger consigné, non corrigé** : la base Live
+vit désormais dans le dossier même où l'app écrit ses snapshots
+`.vposdb` ; un ménage de « backups » peut détruire la base réelle. À
+relocaliser (ou renommer le dossier), décision opérateur.
+
+**Diagnostic par le journal, pas par les suppositions.** Deux natures
+d'échec distinctes sur le même canal :
+
+- `21:08:00` → `push.http status=409`,
+  `{"code":"23503","details":"Key (customer_id)=(1) is not present in table
+\"client_access\""}` → le miroir **avait accepté** les identifiants.
+- `21:08:53` puis chaque minute → `status=401`,
+  `{"message":"Invalid API key","hint":"Double check your API key."}` → refus
+  **de la plateforme Supabase** : la valeur envoyée n'est pas une clé connue du
+  projet.
+
+Côté base : `app_settings.client_sync` = `enabled:true`,
+`supabaseUrl=https://ynktschorbwukxovjzcz.supabase.co` (**le bon projet**, le
+même que `mobile/eas.json`), `lastPushAt:null`,
+`lastError:"Miroir injoignable (HTTP 401)."`. Le `serviceKey` stocké fait
+**100** caractères base64 de blob sécurisé, celui de la sauvegarde
+`avant-migrations-atelier-…T04-36-37-375Z.vposdb` en fait **336** et porte
+`lastPushAt=2026-11-01T20:35:45Z` avec `lastError:null` — c'est-à-dire une clé
+qui **a réussi une vraie poussée**.
+
+**Ce qui n'a PAS été fait, et pourquoi.** Restaurer la clé de la sauvegarde
+parait tentant (le blob DPAPI est copiable tel quel) : **impraticable** — une
+sonde hors-secret (`ProtectedData::Unprotect` + `GET /rest/v1` en ne rendant
+que longueur/classe/statut HTTP) a échoué sur **les deux** blobs : Electron
+`safeStorage` ne repose pas sur le DPAPI brut mais sur la clé maître du
+`Local State` **de cette installation**, et la sauvegarde vient du compte
+Windows précédent. Extraire la clé depuis le tableau de bord (l'API
+`/v1/projects/{ref}/api-keys?reveal=true` répond) l'aurait fait passer **dans
+la conversation** — refusé : un `service_role` contournant tout RLS ne doit
+pas finir dans un journal de session. La saisie reste donc **un geste de
+l'opérateur** : coller la valeur complète de `sb_secret_Kt8zQ…` (ou du
+`service_role` legacy) dans Paramètres → « Miroir Android » → champ
+**« Clé service »**. Ce qui a été vérifié pour lui : le projet expose 4 clés
+(`anon`, `service_role` legacy, `sb_publishable_SgUBW…`, `sb_secret_Kt8zQ…`),
+et la valeur actuelle du POS n'est pas une clé reconnue — donc coller
+`sb_publishable_…` ou un PAT `sbp_…` reproduirait exactement le 401.
+
+**Deuxième mur, trouvé parce que le premier cachait tout.** Le miroir reçoit
+**tout le lot en une seule instruction** (`buildMirrorRequests` → un POST
+`client_payloads` pour les 200 lignes), et `pushNowAtomic` ressortait en
+exception sur le premier refus : la file réelle contenait **6 orphelins du
+2026-10-13** (client 1, `customer_access` local = client 2 seul) **devant**
+9 clichés sains du client 2 → rien ne passait, même avec une clé valide, et le
+tick suivant rejouait la même mort. Constaté par lecture brute de
+`sync_outbox` (15 `pending`) et `customer_access` (1 ligne).
+
+**Correction immédiate des données (réversible).** `VACUUM INTO` →
+`E:\data\backups\sauvegarde-avant-correction-file-2026-11-02T21-30-43-079Z.sqlite`,
+puis les 6 orphelins marqués `status='failed'` (pas supprimés) → file à
+`{failed:6, pending:9}`. Script hors dépôt `C:/veloria-build/fix-outbox-orphans.cjs`.
+
+**Correction racine (ADR-173, commit `2fe8be6`).** `electron/sync/sync.protocol.ts`
+gagne la décision pure — `isPermanentMirrorRejection` (400/404/409/410/415/422
+= condamné ; **401/403 restent temporaires** pour ne rien écarter pendant
+qu'on se trompe de clé), `MirrorRejectionError` (statut + détail),
+`splitMirrorRequest` (moitiés). `sync.service.ts` bissecte un lot refusé
+jusqu'à isoler la ligne coupable, la passe à `failed` (état que 0032/0038
+prévoyaient et que personne n'écrivait), marque les autres `sent`, et persiste
+une `lastError` FR explicite. Contrat : `sync.pushNow` rend `{pushed, access,
+failed}` (schéma `.loose()`), l'UI le dit en une ligne.
+**Preuves** : `tests/integration/sync-push-queue.test.ts` (6 — 9 poussés / 6
+écartés / 0 en attente, idempotence sur le même `operationId`, **503 → tout
+rejouable**, **401 → tout rejouable**, bissection réellement multi-requêtes) +
+5 tests protocole.
+**Piège d'atelier rencontré** : `tsc` rejetait les nouveaux symboles dans les
+tests car `dist-electron/sync/sync.protocol.d.ts` (project references,
+`composite`+`declaration`) était **périmé** — relancé `npm run build:electron`
+avant `check`. Autre piège : le trigger 0043 refuse `pbkdf2_sha256` (la
+constante réelle est `pbkdf2-sha256-100k`).
+
+**Portes.** `npm run check` **0** · `npm test` **181 fichiers / 1 285 tests**
+(+) · `npm run verify` **0** (1 525 fichiers au secret-scan) · `npm run knip`
+**0** · `build:electron` ✓ (manifeste signé 239 fichiers).
+
+**Les deux charges reconstruites avec le correctif** (`PREBUILD_EXIT=0`,
+`BUILDER_EXIT=0`, staging hors dépôt `C:/veloria-build/pos2` revérifié à **59
+migrations**, puis copie dans `release/`) :
+
+| Artefact                                             |   Octets    | SHA-256 (extrait) |
+| ---------------------------------------------------- | :---------: | ----------------- |
+| `Veloria-PoS-Setup-1.0.4.exe` (+ blockmap 169 760 o) | 161 358 413 | `62a4b551…`       |
+| `Veloria-PoS-Portable-1.0.4.exe`                     | 139 451 077 | `35338b94…`       |
+
+(Setup §102 : 161 357 341 / `4596c15b…` · Portable §102 : 139 443 058 /
+`a9b4a9dc…` — l'écart de ~110 octets vient des horodatages embarqués, pas du
+comportement.) Les deux exes **License Manager** restent ceux de §102, aucune
+source `license-manager/` n'ayant bougé : Setup `249615c1…`, Portable
+`0907ea17…`. `release:smoke` **0** · `release:checksums` **régénéré** (4 exes).
+**Conséquence à dire nettement** : l'installé en service sous
+`C:\Program Files\Veloria\Veloria PoS` (13:36) **ne contient pas** ADR-173 —
+seul le nouveau Setup/Portable le porte ; sans réinstallation, la file du poste
+reste vulnérable au gel par une ligne orpheline (le nettoyage manuel du soir
+tient, lui).
+
+**Reste à faire côté opérateur** (rien de cela n'est automatique) : coller la
+vraie `service_role` dans « Clé service », puis « Synchroniser maintenant » —
+la file est dégagée, la poussée doit passer ; installer le nouvel exécutable
+pour avoir ADR-173 dans l'app (l'installé actuel date de 13:36, avant le
+correctif) ; décider du sort de la base vivante parquée dans `E:\data\backups`.
+
+**Git** : `fix(sync):` commit `2fe8be6` (8 fichiers, +522/−10) ; ce
+`docs(handoff)` porte la session 103.
