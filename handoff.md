@@ -15,7 +15,7 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête **session 98** (liasse propriétaire publiée par le POS — constat n°1 clos, ADR-171). Avant elle session 97 (`maxDevices` documentée, ADR-172), session 96 (sessions de caisse, ADR-170), session 95 (jour métier Africa/Algiers, E-35 corrigé, ADR-169), session 94 (bootstrap de l'environnement sur poste neuf), session 93 (diagnostic bandeau hero client), session 92 (test appareil réel, CPH2235), session 91 (APK Native-max, ADR-168), session 90 (purge ciblée post-audit, ADR-167), session 89 (purge des artefacts obsolètes), session 88 (annonces multi-médias + bandeau hero APK, ADR-166), session 87 bis (rafraîchissement périodique de l'APK selon la cadence POS, ADR-165), session 87 (annonce magasin poussée aux clients, ADR-160). Avant elle session 86 (compte propriétaire, ADR-164), session 85 (connexion Supabase owner, ADR-163), session 84 (données fictives supprimées, owner), session 83 (Argent/Stock/Périodes/Alertes enrichis), session 82 (Aujourd'hui + détails de transaction), session 81 (passe design v2 owner), session 80 (écrans courts owner), session 79 (application propriétaire, ADR-162), session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- Branche : `chore/root-layout` — tête **session 99** (quatre constructions d'artefacts + retrait des anciennes ; cause racine du verrou electron-builder sur `E:` trouvée et contournée). Avant elle session 98 (liasse propriétaire publiée par le POS, ADR-171, audit/corrections Supabase), session 97 (`maxDevices` documentée, ADR-172), session 96 (sessions de caisse, ADR-170), session 95 (jour métier Africa/Algiers, E-35 corrigé, ADR-169), session 94 (bootstrap de l'environnement sur poste neuf), session 93 (diagnostic bandeau hero client), session 92 (test appareil réel, CPH2235), session 91 (APK Native-max, ADR-168), session 90 (purge ciblée post-audit, ADR-167), session 89 (purge des artefacts obsolètes), session 88 (annonces multi-médias + bandeau hero APK, ADR-166), session 87 bis (rafraîchissement périodique de l'APK selon la cadence POS, ADR-165), session 87 (annonce magasin poussée aux clients, ADR-160). Avant elle session 86 (compte propriétaire, ADR-164), session 85 (connexion Supabase owner, ADR-163), session 84 (données fictives supprimées, owner), session 83 (Argent/Stock/Périodes/Alertes enrichis), session 82 (Aujourd'hui + détails de transaction), session 81 (passe design v2 owner), session 80 (écrans courts owner), session 79 (application propriétaire, ADR-162), session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
 - **Session 98 (2026-11-02)** : **liasse de supervision propriétaire publiée par le POS (ADR-171 — constat n°1 clos)** — `publishOwnerSnapshot` n'existait que dans les documents (`grep` main/renderer = 0) alors que `owner/src/store.ts:269-289` + `owner/src/api.ts:137-192` consomment le contrat `OwnerSnapshot` v1 dans 9 écrans. Tranche livrée : constructeur `electron/sync/owner-snapshot.ts` (contrat **jumelé** sur l'app Owner — frontière workspace ; réutilise `getDashboardSummary`/`listClosings`/`getCashAuditSummary` et n'ajoute que les lectures absentes : seaux d'ancienneté 0-30/31-60/60+, `lateDays`, dernier versement, `sold30`/`perDay`/`autonomyDays`/`suggestedRestock`/`deadCount`, mouvements par produit ; bornes `MAX_*` + garde `MAX_LIASSE_CHARS = 900_000` ; **zéro donnée inventée** : `objectiveMinor`/`manager` restent `null` faute de colonne) · publication **append-only directe** `POST /rest/v1/owner_snapshots` avec les en-têtes `service_role` du miroir — **pas** un kind `sync_outbox` (CHECK immuable 0032, « SOURCE AUTORITAIRE ») — idempotente par `operationId` (rejouement = une seule ligne), portes lues sur le **doc persisté** (miroir coupé après activation ⇒ refus FR sans requête), détail serveur au log seulement · cadence autonome `ownerEnabled` (**défaut OFF**) + `ownerIntervalMinutes` (60, 15-1440) dans le doc `client_sync` chiffré, crochet du timer 60 s en best-effort · 1 canal `sync.pushOwnerSnapshot` (Zod + preload + façade + réponse sans liasse ni secret), gates calqués sur `sync.pushNow`, UI « Liasse de supervision (application propriétaire) » dans Paramètres → Miroir Android (interrupteur, cadence, dernière publication, erreur courante, « Publier maintenant ») · relais E2E étendu (`POST`+`GET /rest/v1/owner_snapshots`) · **cloud audité et corrigé** : `owner.sql` appliqué (`relrowsecurity=true`, politique `owner_snapshots_read` SELECT→`authenticated`, `anon` sans droit vérifié par HTTP réel `42501`), vue `latest_client_payloads` **réalignée** `security_invoker=true` (dérive silencieuse depuis ADR-158), fonction `client-sync` déployée (répond son `AUTH_ERROR` FR), CHECK `kind` déjà conforme à 0032 avec `announcement`, **inscriptions publiques fermées** (faille réelle : n'importe quel compte `authenticated` aurait lu toute la liasse ; vérifié `signup_disabled`) et 1 compte Auth confirmé existant (**le handoff disait « jamais créé » — périmé** : `zenaguibilal2@gmail.com`, 31/10). **Base du client migrée 56 → 59** après sauvegarde `E:\data\backups\avant-migrations-atelier-2026-11-02T04-36-37-375Z.vposdb` (0057+0058+0059, `integrity_check=ok`, 0 FK, 59/59 checksums identiques aux fichiers, 1165 ventes/95 clients conservés). Deux agents délégués ont cassé en vol (limite de tours) ; le travail restant a été repris et terminé en main (2 erreurs de typage de test + 19 erreurs de lint réparées). Inventaires gelés : canaux 190→**191**, schémas/exports/classes mis à jour. Portes : `npm run check` **vert** · **vitest 180 fichiers / 1 274 tests 0** (dont 32 tests de la tranche : protocole 12, publication à transport injecté 7 — premier usage réel de l'injection — liasse sur base migrée 13) · `verify` **vert** (migrations 59, secret-scan 1 521 fichiers) · `knip` **0**. **Reste ouvert** (ADR-171) : rétention `owner_snapshots` (append-only sans purge, ~720 lignes/mois), durcissement `auth.uid()`, `objectiveMinor`/`manager` (décision produit + colonne). **Non fait** : `test:e2e`/`test:coverage`, boucle réelle POS→cloud→APK, et les 4 constructions d'artefacts (session 99). Détails §98.
 - **Session 97 (2026-11-02)** : **`maxDevices` documentée comme non appliquée (ADR-172 — clos G-17 / décision Q15)** — décision opérateur « توثيق فقط » (pas de registre d'appareils). Constat chiffré : la valeur est validée (`electron/licensing/protocol.ts:205-210`) mais `verifyLicenseChain()` ne la lit jamais ; `license-service.ts:291` la recopie dans `LicenseStatus` sans que `LicenseScreen.tsx:126-149` ni `LicenseBadge.tsx` ne l'affichent ni ne la comparent ; la table `licenses` du Manager ne porte qu'**une** colonne `hardware_fingerprint` que `rebindFingerprint()` écrase (`license-manager/ipc/licenses.ts:159-164`) — rien ne compte ; `signing.ts:227` omet même le champ s'il n'est pas nombre. L'**ADR promis par Q15 (ب) n'avait jamais été écrit** : le voici. Ce qui protège vraiment reste la liaison matérielle (`deviceBinding=true` ⇒ `INVALID_HARDWARE` sur une autre machine, changement de poste par `transfer`) ; la règle d'émission pour N postes = **N licences liées à N empreintes**, pas une flottante à `maxDevices = N`. Retrait explicite de la promesse fausse « appliqué à l'émission » dans `CAPABILITIES.md` (tableau + §9 Device binding), `LICENSE_FORMAT.md`, `HARDWARE_FINGERPRINT.md`, et des textes du Manager (`App.tsx` : placeholder, message de validation, ligne de détail « Appareils : … »). **Zéro modification de code de licence, zéro migration** : le comportement du POS est inchangé, le résidu (licence flottante multi-machines) est désormais **assumé et écrit** (`FINAL_REPAIR_REPORT.md:320-322`, `PHASE_8_REPORT.md:55`). Portes ciblées : `tsc -p tsconfig.manager.json --noEmit` 0 · `eslint license-manager --max-warnings 0` 0 · prettier vert sur les 4 documents · `tests/unit/license-manager.test.ts` **12/12** · `npm run build:manager` ✓ · `verify:licensing` sous Electron **OK** (2 avertissements attendus). Détails §97.
 - **Session 96 (2026-11-02)** : **sessions de caisse réelles (préalable du publieur de liasse)** — même demande « اصلح التالي جذريا » ; l'Owner affichait `money.audit` / `money.activeSession` / `money.sessions` alors que le POS ne connaissait qu'une clôture de journée (`daily_closings`, une ligne par `business_date`), sans poste, sans comptage physique, sans écart (`grep cash_session|counted_minor electron/` = 0). Décision opérateur : **de vraies sessions**, pas une projection de `daily_closings`. Tranche verticale complète : migration **0059** `cash_sessions` (poste 1-40, libellé, opérateur NULL toléré, `opening_float_minor`, `counted_minor`, `expected_minor`, `note`, instants `opened_at`/`closed_at`, un `CHECK` de forme — ouverte ⇒ ni clôture ni attente, fermée ⇒ les deux + comptage ; **index partiel UNIQUE sur `post` quand `status='open'`** ⇒ la base refuse deux sessions ouvertes du même poste) · domaine pur `src/domain/cash/session-rules.ts` (attente = fond + ventes espèces + encaissements − dépenses − remboursements, **même formule que le Z**, signe conservé ; écart **jamais stocké** = compté − attendu ; conformité ; nouveau code `CASH_SESSION_ERROR`) · repo transactionnel idempotent `electron/ipc/handlers/cash-session.repo.ts` (`open`/`count`/`close`/`getActiveCashSession`/`listCashSessions`/`getCashAuditSummary`, attente **calculée en direct** puis **figée à la fermeture** par un `UPDATE … WHERE status='open'`, fenêtre en **instants** comparés directement à `created_at`) · 5 canaux explicites `cash.open|count|close|current|list` + Zod + preload + façade + schémas de réponse · gates : licence `reports` + permission staff `closings` (**aucune 18ᵉ page de licence, aucune nouvelle permission**) · UI française `src/features/reports/CashSessionsSection.tsx` posée dans Rapports à côté des clôtures Z (ouverture, comptage, fermeture confirmée, liste avec écart signé ; `cash.current` rend une session ouverte **hier** fermable **aujourd'hui** indépendamment de la période). Inventaires gelés mis à jour : canaux 185→**190**, schémas 125→**129**, exports de validation 134→**138**, `operationId` requis +3, migrations 58→**59**. Portes : `npm run check` **vert** · **vitest 177 fichiers / 1 242 tests 0** (dont 19 tests consacrés : `tests/unit/cash-session.test.ts` 9 parité domaine↔main, `tests/integration/cash-sessions.test.ts` 10 sur base migrée réelle) · `verify:migrations` **59** avec `OK 0059 sessions de caisse…` · `verify` **vert** · `knip` **0**. Deux pièges d'atelier consignés §96 (collision d'`operationId` par troncature, `parseDzdInputStrict` qui **lève** au lieu de rendre `null`). **Non fait** : UI n'a pas été vue dans l'application réelle (`test:e2e` non relancé), liasse/publieur toujours absent (session 97), `maxDevices` reste informatif (décision consignée). ADR-170. Détails §96.
@@ -4734,3 +4734,94 @@ aucun poste marchand n'est couplé à ce projet depuis cet atelier.
 **Git** : un commit `feat(sync)` (constructeur + service + IPC + UI + relais +
 tests + ADR-171 + INDEX) puis le `docs(handoff)` de cette session ; la base de
 données réelle n'est pas versionnée, sa sauvegarde vit dans `E:\data\backups`.
+
+## 99) Session 2026-11-02 — Quatre constructions d'artefacts + retrait des anciennes
+
+**Demande.** « قم بالبناءات الاربعة » (POS, License Manager, client, owner) après
+les corrections de fond, « et supprimer les anciennes versions ».
+
+**Livrables dans `release/` (tous régénérés depuis la tête `chore/root-layout`).**
+
+| Artefact                                               | Taille      | Vérification                                                    |
+| ------------------------------------------------------ | ----------- | --------------------------------------------------------------- |
+| `Veloria-PoS-Setup-1.0.4.exe` (+ blockmap)             | 161 357 232 | NSIS, `SHA256SUMS.txt`                                          |
+| `Veloria-PoS-Portable-1.0.4.exe`                       | 139 450 353 | `SHA256SUMS.txt`                                                |
+| `Veloria-License-Manager-Setup-1.0.4.exe` (+ blockmap) | 144 414 971 | `SHA256SUMS.txt`                                                |
+| `Veloria-License-Manager-Portable-1.0.4.exe`           | 130 658 302 | `SHA256SUMS.txt`                                                |
+| `Veloria-Client-1.0.4.apk` (+ `.sha256`)               | 22 677 268  | signateur vendor `c190b12a…`, versionCode 6, sha256 `706f1371…` |
+| `Veloria-Owner-0.1.0.apk` (+ `.sha256`)                | 18 101 439  | même certificat vendor, sha256 `b8b2d315…`                      |
+
+**Preuve du point n°3 (bandeau hero) dans le paquet, pas seulement dans le code** :
+`release/win-unpacked/resources/database/migrations` (staging du build POS) alignait
+`0057_announcements_media_expiry.sql`,
+`0058_business_day_closing_lock.sql`, `0059_cash_sessions.sql` ⇒ un poste installé
+avec cet installateur migre sa base au démarrage (la sienne était restée à 56) et
+peut donc pousser `announcements[]` avec `imageUrl`/`endsAt`. Le portable et
+l'installateur étaient absents d'artefact 0057 (build du 31/10, antérieur à la
+migration) — c'était la cause réelle du hero muet signalé en §93.
+
+**Deux pannes de build, et leur vraie cause (à retenir).**
+
+1. `npm run package:manager` a échoué **deux fois** sur
+   `EBUSY: resource busy or locked, unlink '…\release\win-unpacked.tmp\resources\default_app.asar'`
+   (après cinq `EPERM: operation not permitted, rename win-unpacked.tmp →
+win-unpacked`). Première hypothèse — la concurrence avec le build Gradle lancé
+   en parallèle — **fausse** : la reproduction à vide l'a invalidée, et un
+   répertoire de sortie neuf (`release-mgr`) a échoué à l'identique. Cause retenue :
+   **l'indexation du workspace sur `E:`** (le dépôt est la racine de travail de
+   l'atelier) ouvre et retient `default_app.asar` dès qu'electron-builder l'écrit,
+   ce qui bloque à la fois le renommage du staging et sa suppression.
+   **Contournement appliqué** : `--config.directories.output=C:/veloria-build/manager`
+   (hors espace de travail) puis copie des `.exe`/`.blockmap` dans `release/` —
+   `REAL_EXIT=0`. À réappliquer pour tout futur `package:*` sur ce poste, ou
+   exclure `release/` de l'indexeur.
+2. **Le code de sortie était masqué** : mes commandes de build se terminaient par
+   `tail`, donc `$?` reflétait `tail` et la notification annonçait « exit 0 » sur
+   un build mort. Corrige en capturant `code=$?` et en écrivant `REAL_EXIT=$code`
+   dans le journal — c'est ce qui a révélé l'échec du premier Manager.
+
+**Temps mesurés.** POS (scan secrets → builds → intégrité → electron-builder) ≈
+7 min · Manager ≈ 6 min (après contournement) · `assembleRelease` client **29 min
+09 s** · owner **10 min 47 s** (incrémentiel, `build/` conservé, `-x
+:app:lintVitalRelease` per ADR-168).
+
+**Portes avant mise en ligne.** `npm run release:smoke` **vert** (main/preload des
+deux paquets, preloads sandbox-sûrs, `dist-*/package.json` `{type: commonjs}`,
+`dist-license-manager/integrity-manifest.json` présent) · `npm run
+release:checksums` **régénéré** (4 exes) · `apksigner verify` **vert** sur les deux
+APK, certificat `CN=Veloria` (`c190b12a…`, celui documenté en ADR-168) ·
+`npm run check`/`vitest`/`verify`/`knip` déjà passés au commit `1e278ca`
+(180 fichiers / 1 274 tests).
+
+**Nettoyage.** `release/_avant-rebuild-2026-11-02/` (595 Mo, ancienne série)
+**supprimé** sur demande explicite, après pose et vérification des nouveaux
+artefacts. Conservation volontaire : `Veloria-Client-1.0.4-4abi-legacy.apk`
+(88 Mo), le filet de retour arrière institué par ADR-168 — à supprimer sur mot
+dit. `release/win-unpacked`/`win-unpacked.tmp` (staging, non livrés) restent
+**verrouillés** par l'indexeur : supprimables dès que le handle est libéré
+(redémarrage de l'atelier ou exclusion du dossier), sans consequence sur les
+livrables. `C:\veloria-build` nettoyé. Espace libre `E:` : 15 Go.
+
+**Anomalie de contrat découverte en route (à trancher).** `owner/` est **hors du
+contrat de version** : `scripts/release/version.mjs` ne cible que
+`package.json`/lock, `mobile/package.json`+lock, `mobile/app.json`,
+`mobile/android/app/build.gradle` et la littérale `appVersion` de
+`mobile/src/App.tsx`. L'app Owner reste donc à `0.1.0`/**versionCode 1** — le même
+code que l'APK déjà diffusé, alors qu'ADR-161 exige un `versionCode` **strictement
+croissant** pour une mise à jour par-dessus. L'installation locale (`adb install
+-r`) passe, mais l'absence de progression casse la règle et endort
+`version:check`, qui valide pourtant la suite au vert. Correction proposta à
+valider : ajouter `owner/{package.json,app.json,android/app/build.gradle}` aux
+cibles de `version:set`/`version:check` (et décider 0.1.0 → 1.0.4 ou un
+`versionCode` 2). Non fait ici : ce sont des fichiers suivis, et changer
+silencieusement un numéro de version publié mérite un accord.
+
+**Reste ouvert (hérité des sessions 95-98).** `npm run test:e2e` complet et
+`npm run test:coverage` (reportés depuis §94) ; `test:e2e:installer` (viendra
+vérifier l'installateur NSIS maintenant reconstruit) ; rétention
+`owner_snapshots` ; durcissement de la politique par `auth.uid()` ;
+`objectiveMinor`/`Debtor.manager` (produit + colonne) ; boucle réelle
+POS → cloud → APK (jamais exercisée depuis cet atelier, relais E2E seulement).
+
+**Git** : ces artefacts ne sont pas versionnés (`release/` ignoré) ; ce
+`docs(handoff)` porte la session 99, arbre par ailleurs propre.
