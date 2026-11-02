@@ -523,7 +523,7 @@ export function ManagerApp(): React.JSX.Element {
         const n = Number(maxDevices.trim());
         if (!Number.isInteger(n) || n < 1 || n > 99) {
           say(
-            "Appareils max invalide : saisissez un nombre entier entre 1 et 99 (laissez vide pour 1 poste).",
+            "Appareils max invalide : saisissez un nombre entier entre 1 et 99 (ou laissez vide).",
           );
           return;
         }
@@ -935,8 +935,12 @@ export function ManagerApp(): React.JSX.Element {
                   <p>
                     Appareils :{" "}
                     {detail.license.device_binding === 0
-                      ? "Licence flottante"
-                      : `Licence liée${detail.license.max_devices ? ` (max ${detail.license.max_devices})` : ""}`}
+                      ? "Licence flottante (non liée à une machine)"
+                      : `Licence liée à ce poste${
+                          detail.license.max_devices
+                            ? ` — parc convenu : ${detail.license.max_devices} (mention contractuelle, non appliqué)`
+                            : ""
+                        }`}
                   </p>
                   <p className="break-all font-mono text-xs text-slate-400">
                     Empreinte : {detail.license.hardware_fingerprint}
@@ -1316,7 +1320,7 @@ export function ManagerApp(): React.JSX.Element {
                     id="licence-appareils-max"
                     value={maxDevices}
                     onChange={(e) => setMaxDevices(e.target.value)}
-                    placeholder="Ex. : 1 (vide = 1 poste)"
+                    placeholder="Ex. : 1 (mention contractuelle, non appliqué)"
                     inputMode="numeric"
                   />
                 </div>

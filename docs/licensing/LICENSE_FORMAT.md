@@ -15,7 +15,7 @@
 | `clientName`            | optionnel, ex. `Ahmed Benali`                                                              |
 | `storeName`             | optionnel, ex. `Épicerie Ennour`                                                           |
 | `deviceBinding`         | `false` = licence flottante (hardware ignoré) ; défaut `true`                              |
-| `maxDevices`            | optionnel, informatif (appliqué à l'émission)                                              |
+| `maxDevices`            | optionnel, informatif — **non appliqué** (ADR-172)                                         |
 | `hardwareFingerprint`   | SHA-256 hex (64)                                                                           |
 | `issuedAt` / `startsAt` | ISO UTC                                                                                    |
 | `expiresAt`             | ISO UTC, **absent** si `lifetime`                                                          |

@@ -16,6 +16,7 @@
 ## 1) État courant
 
 - Branche : `chore/root-layout` — tête **session 96** (sessions de caisse réelles — préalable du publieur de liasse). Avant elle session 95 (jour métier Africa/Algiers, E-35 corrigé, ADR-169), session 94 (bootstrap de l'environnement sur poste neuf), session 93 (diagnostic bandeau hero client), session 92 (test appareil réel, CPH2235), session 91 (APK Native-max, ADR-168), session 90 (purge ciblée post-audit, ADR-167), session 89 (purge des artefacts obsolètes), session 88 (annonces multi-médias + bandeau hero APK, ADR-166), session 87 bis (rafraîchissement périodique de l'APK selon la cadence POS, ADR-165), session 87 (annonce magasin poussée aux clients, ADR-160). Avant elle session 86 (compte propriétaire, ADR-164), session 85 (connexion Supabase owner, ADR-163), session 84 (données fictives supprimées, owner), session 83 (Argent/Stock/Périodes/Alertes enrichis), session 82 (Aujourd'hui + détails de transaction), session 81 (passe design v2 owner), session 80 (écrans courts owner), session 79 (application propriétaire, ADR-162), session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 97 (2026-11-02)** : **`maxDevices` documentée comme non appliquée (ADR-172 — clos G-17 / décision Q15)** — décision opérateur « توثيق فقط » (pas de registre d'appareils). Constat chiffré : la valeur est validée (`electron/licensing/protocol.ts:205-210`) mais `verifyLicenseChain()` ne la lit jamais ; `license-service.ts:291` la recopie dans `LicenseStatus` sans que `LicenseScreen.tsx:126-149` ni `LicenseBadge.tsx` ne l'affichent ni ne la comparent ; la table `licenses` du Manager ne porte qu'**une** colonne `hardware_fingerprint` que `rebindFingerprint()` écrase (`license-manager/ipc/licenses.ts:159-164`) — rien ne compte ; `signing.ts:227` omet même le champ s'il n'est pas nombre. L'**ADR promis par Q15 (ب) n'avait jamais été écrit** : le voici. Ce qui protège vraiment reste la liaison matérielle (`deviceBinding=true` ⇒ `INVALID_HARDWARE` sur une autre machine, changement de poste par `transfer`) ; la règle d'émission pour N postes = **N licences liées à N empreintes**, pas une flottante à `maxDevices = N`. Retrait explicite de la promesse fausse « appliqué à l'émission » dans `CAPABILITIES.md` (tableau + §9 Device binding), `LICENSE_FORMAT.md`, `HARDWARE_FINGERPRINT.md`, et des textes du Manager (`App.tsx` : placeholder, message de validation, ligne de détail « Appareils : … »). **Zéro modification de code de licence, zéro migration** : le comportement du POS est inchangé, le résidu (licence flottante multi-machines) est désormais **assumé et écrit** (`FINAL_REPAIR_REPORT.md:320-322`, `PHASE_8_REPORT.md:55`). Portes ciblées : `tsc -p tsconfig.manager.json --noEmit` 0 · `eslint license-manager --max-warnings 0` 0 · prettier vert sur les 4 documents · `tests/unit/license-manager.test.ts` **12/12** · `npm run build:manager` ✓ · `verify:licensing` sous Electron **OK** (2 avertissements attendus). Détails §97.
 - **Session 96 (2026-11-02)** : **sessions de caisse réelles (préalable du publieur de liasse)** — même demande « اصلح التالي جذريا » ; l'Owner affichait `money.audit` / `money.activeSession` / `money.sessions` alors que le POS ne connaissait qu'une clôture de journée (`daily_closings`, une ligne par `business_date`), sans poste, sans comptage physique, sans écart (`grep cash_session|counted_minor electron/` = 0). Décision opérateur : **de vraies sessions**, pas une projection de `daily_closings`. Tranche verticale complète : migration **0059** `cash_sessions` (poste 1-40, libellé, opérateur NULL toléré, `opening_float_minor`, `counted_minor`, `expected_minor`, `note`, instants `opened_at`/`closed_at`, un `CHECK` de forme — ouverte ⇒ ni clôture ni attente, fermée ⇒ les deux + comptage ; **index partiel UNIQUE sur `post` quand `status='open'`** ⇒ la base refuse deux sessions ouvertes du même poste) · domaine pur `src/domain/cash/session-rules.ts` (attente = fond + ventes espèces + encaissements − dépenses − remboursements, **même formule que le Z**, signe conservé ; écart **jamais stocké** = compté − attendu ; conformité ; nouveau code `CASH_SESSION_ERROR`) · repo transactionnel idempotent `electron/ipc/handlers/cash-session.repo.ts` (`open`/`count`/`close`/`getActiveCashSession`/`listCashSessions`/`getCashAuditSummary`, attente **calculée en direct** puis **figée à la fermeture** par un `UPDATE … WHERE status='open'`, fenêtre en **instants** comparés directement à `created_at`) · 5 canaux explicites `cash.open|count|close|current|list` + Zod + preload + façade + schémas de réponse · gates : licence `reports` + permission staff `closings` (**aucune 18ᵉ page de licence, aucune nouvelle permission**) · UI française `src/features/reports/CashSessionsSection.tsx` posée dans Rapports à côté des clôtures Z (ouverture, comptage, fermeture confirmée, liste avec écart signé ; `cash.current` rend une session ouverte **hier** fermable **aujourd'hui** indépendamment de la période). Inventaires gelés mis à jour : canaux 185→**190**, schémas 125→**129**, exports de validation 134→**138**, `operationId` requis +3, migrations 58→**59**. Portes : `npm run check` **vert** · **vitest 177 fichiers / 1 242 tests 0** (dont 19 tests consacrés : `tests/unit/cash-session.test.ts` 9 parité domaine↔main, `tests/integration/cash-sessions.test.ts` 10 sur base migrée réelle) · `verify:migrations` **59** avec `OK 0059 sessions de caisse…` · `verify` **vert** · `knip` **0**. Deux pièges d'atelier consignés §96 (collision d'`operationId` par troncature, `parseDzdInputStrict` qui **lève** au lieu de rendre `null`). **Non fait** : UI n'a pas été vue dans l'application réelle (`test:e2e` non relancé), liasse/publieur toujours absent (session 97), `maxDevices` reste informatif (décision consignée). ADR-170. Détails §96.
 - **Session 95 (2026-11-02)** : **jour métier Africa/Algiers (E-35/G-18 corrigé radicalement)** — demande : « اصلح التالي جذريا و اكمل هاته المزايا » sur six constats ; périmètre de cette session : le **découpage du temps**. Les horodatages SQLite restent des instants ISO UTC (stockage inchangé, aucune donnée migrée) ; tout ce qui découpe ou affiche — buckets de rapports, filtres de période, bornes de l'Historique, seuils d'endettement, bandes de règlement mensuel, mois des clés de miroir, numéros de facture (année), ticket de caisse, horloge du bandeau, exports CSV, `datetime-local` des annonces, dates de l'APK client et de l'APK propriétaire — suit désormais **UTC+1 fixe**. Deux modules jumeaux (frontière `rootDir`) portent la règle : `src/domain/common/business-day.ts` et `electron/shared/business-day.ts` (JS + fragments SQL `date(col,'+1 hour')`, `calendarDaySql` pour les colonnes date-seule, `businessDayRangeUtc` pour les bornes indexables) ; `todayUtcDate` et `monthStartUtc` sont **supprimés**, sans alias de compatibilité. **Migration 0058** : les six triggers d'instant du verrou de clôture (`sales`, `returns`) comparent `date(created_at,'+1 hour')` à `daily_closings.business_date` — une vente de 00:30 heure d'Alger sur une journée close est **refusée** (avant : elle passait et faussait le Z signé). Les neuf triggers date-seule sont inchangés ; 0048/0051 restent immuables. **Gardes automatiques** dans `tests/unit/business-day.test.ts` : parité des jumeaux, parité **JS ↔ SQL**, parité **POS ↔ APK client ↔ APK owner** (preuve G-18 : `2026-09-01T23:30Z` → `02/09/2026` et `00:30` des trois côtés), et interdiction dans `electron/`+`src/` de `substr(<instant>,1,10)`, `date('now'` nu, `toISOString().slice(0,10|7)`, `todayUtcDate`, `monthStartUtc`. `tests/integration/business-day-reports.test.ts` (6 tests, base migrée réelle) vérifie dashboard/rapports/clôture Z/historique sur la frontière 00:30. Portes : `npm run check` **vert** (format, lint 0, typecheck root/electron/manager/mobile/owner) · **vitest 175 fichiers / 1 223 tests 0** · `verify:migrations` **58** avec porte `OK 0058…` · `verify` complet **vert** · `knip` **0** · 4 tests d'ancienne convention mis à jour (`history`, `stock`, `reports`, `customer-payment-fifo` n'a pas eu à changer). **Non fait** : `npm run test:e2e`, `test:coverage`, `build`/`package:*` (les autres constats de la demande — liasse propriétaire, compte Supabase, 0057 chez le client, `maxDevices`, mises à jour — suivent en sessions 96+). ADR-169. Détails §95.
 - **Session 94 (2026-11-02)** : **bootstrap de l'environnement de développement sur ce poste** — demande « قم بدراسة و فهم المشروع بعد ذلك ثبت البرامج و الأدوات اللازمة لتطوير المشروع ». Constat de départ : poste **sans aucun Node.js** (arbre copié depuis le compte Windows « zenagui bilal » → git refusait toute commande en « dubious ownership », `~/.gitconfig` inexistant, `mobile/android/local.properties` pointait sur l'ancien SDK). Installé et vérifié : Node **22.23.4** + npm **10.9.9** (`C:\\Users\\Admin\\tools\\node`, ZIP officiel contrôlé par SHA-256, au PATH utilisateur — conforme `.nvmrc`/`engines`/`packageManager`), JDK **Temurin 17.0.20** (`tools\\jdk17`, `JAVA_HOME`), **Android SDK** (`cmdline-tools` 13114758 → `platform-tools`, `platforms;android-35`, `build-tools;35.0.0`, `ndk;26.1.10909125`, 2,4 Go — exactly les versions exigées par `mobile/android/build.gradle`), redistribuable **VC++ 14.44** (sans lui le binding natif `oxc-resolver` de `knip` ne se charge pas), **graphify 0.9.100** via `uv tool install graphifyy` avec Python **3.12**. Portes **toutes vertes sur ce poste** (§94) : better-sqlite3 N-API · `electron --version` 45.1.0 sous Windows 10 1809 · typecheck ×5 · `verify` complet · `format:check` · lint `--max-warnings 0` · **vitest 173 fichiers / 1 194 tests** · builds renderer/electron/manager · `knip` 0 · **E2E réel `navigation-smoke` 1/1** (16 modules ouverts sans crash). **Aucun code modifié** ; seuls fichiers touchés : `handoff.md` et `mobile/android/local.properties` (git-ignoré). **Reste à faire** : redémarrer le terminal/Qoder pour le PATH ; relancer la suite E2E complète et `test:coverage` ; rebuild APK sur ce poste.
@@ -4551,3 +4552,77 @@ suggestedRestock/deadCount/lossPerDayMinor`.
 **Git** : commit `feat(cash)` (migration + domaine + main + IPC + UI + tests +
 ADR-170 + index) puis commit `docs(handoff)` séparé (règle 10), arbre sinon
 propre (`release/`, `graphify-out/`, `test-results/` non suivis).
+
+## 97) Session 2026-11-02 — `maxDevices` : mention contractuelle, non appliquée (ADR-172)
+
+**Cadre.** La liste « niveau zéro » de la demande décrivait `maxDevices` comme une
+**théorie de revenus** (« ترخيص واحد يُستخدم على أي عدد من الأجهزة »). Question
+posée en début de session (modèle d'application : registre au moment de l'émission
+/ contrôle cloud / documenter seulement) → réponse opérateur : **« توثيق فقط »**.
+Cette session écrit donc ce que l'audit de 2026-10-19 devait déjà produire et n'a
+jamais produit : l'**ADR** exigé par la décision **Q15 (ب)** du plan
+(`docs/reports/FULL_AUDIT_2026-10-19_PLAN.md:529`), qui clos le finding **G-17**
+(`docs/reports/FULL_AUDIT_2026-10-19.md:1187` — Medium, PROUVÉ, « décision »).
+
+**Preuves techniques consignées dans l'ADR (tout relue dans le code).**
+
+- Validation sans application : le contrôle d'entier 1-99 est dans
+  `assertPayloadShape` (`electron/licensing/protocol.ts:205-210`), or l'ordre de
+  `verifyLicenseChain()` (`:291-327`) est forme → signature → statut → produit →
+  empreinte → dates, et **ne lit jamais `maxDevices`**.
+- Chaîne morte côté POS : `license-service.ts:291` recopie le champ dans
+  `LicenseStatus`, quatre canaux `license.*` le renvoient,
+  `src/features/license/use-license.ts:23,89,98,112` le type — **aucun
+  affichage, aucune comparaison** (`LicenseScreen.tsx:126-149`,
+  `LicenseBadge.tsx` : zéro occurrence).
+- Côté vendor : `licenses.hardware_fingerprint` est **unique** par ligne
+  (`license-manager/db/manager-db.ts:21-46`), `rebindFingerprint()`
+  (`license-manager/ipc/licenses.ts:159-164`) fait un `UPDATE` qui **écrase** ;
+  `license_events` est un journal, pas un registre. `signing.ts:227` **omet**
+  `maxDevices` s'il n'est pas un nombre (la licence locale du dépôt n'a donc pas
+  le champ).
+- Le format `.vlic` ne peut pas porter un parc : une seule empreinte signée
+  par fichier (`protocol.ts:30`).
+- Aucun concept d'appareil dans `cloud/supabase/**`, l'APK client ni l'APK owner.
+
+**Décision écrite (ADR-172), en six points** : mention contractuelle sans garde
+technique à aucun étage ; la protection réelle est la **liaison matérielle**
+(`deviceBinding=true` ⇒ `INVALID_HARDWARE`, changement de machine par réémission
+`transfer`) ; un client de N postes reçoit **N licences liées**, pas une
+flottante à `maxDevices = N` ; `deviceBinding=false` = exception sous suivi
+contractuel, résidu accepté ; **pas de registre, pas de compteur, pas de
+rapport d'activation** — les raisons (offline doctrine ADR-025/023, format
+signé à redéfinir `schemaVersion` 2, verrou local contournable qui punit les
+clients légitimes) sont écrites ; le dépassement relève de la régularisation
+commerciale, pas du code.
+
+**Textes corrigés (la promesse fausse disparaît).** « appliqué à l'émission »
+→ « **non appliqué** (ni à l'émission ni au POS) — mention contractuelle,
+ADR-172 » dans `docs/licensing/CAPABILITIES.md` (tableau des champs **et** §9
+Device binding, enrichi de la règle d'émission N postes = N licences),
+`docs/licensing/LICENSE_FORMAT.md`, `docs/licensing/HARDWARE_FINGERPRINT.md`.
+Dans le Manager (`license-manager/renderer/App.tsx`, **textes uniquement**) :
+placeholder « Ex. : 1 (mention contractuelle, non appliqué) », message de
+validation allégé de l'implicite « vide = 1 poste », et ligne de détail devenue
+« Licence liée à ce poste — parc convenu : N (mention contractuelle, non
+appliqué) » / « Licence flottante (non liée à une machine) ».
+
+**Aucun** fichier de `electron/licensing/**`, `src/features/license/**` ni
+`database/migrations/**` n'a été touché : la chaîne de vérification est
+strictement identique, seule sa documentation change.
+
+**Portes (ciblées, ce poste).** `npx tsc -p tsconfig.manager.json --noEmit` **0**
+· `npx eslint license-manager --max-warnings 0` **0** · prettier **vert** sur les
+4 documents · `npx vitest run tests/unit/license-manager.test.ts` **12/12** ·
+`npm run build:manager` **vert** ·
+`env -u ELECTRON_RUN_AS_NODE npx electron ./scripts/licensing/verify-licensing.cjs`
+→ **VÉRIFICATION LICENSING OK**, 2 avertissements attendus (aucune clé privée
+stockée par le Manager sur ce poste ; `private/Veloria-POS-LOCAL.vlic` liée à un
+autre matériel ⇒ `INVALID_HARDWARE`, exactement la garde décrite au §2 de l'ADR).
+
+**Reste ouvert (documenté, pas oublié).** Le risque résiduel est écrit : une
+licence flottante partagée n'est pas bloquée. Si un jour la protection doit être
+réelle, il faudra un canal d'activation en ligne **ou** un format signé `v2` avec
+liste d'empreintes — donc un ADR qui **abroge** celui-ci (noté dans « Statut »).
+`docs/INDEX.md` doit recevoir la ligne ADR-172 (ajoutée au commit suivant, avec
+la ligne ADR-171 du publieur de liasse).

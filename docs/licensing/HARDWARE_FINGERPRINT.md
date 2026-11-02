@@ -25,7 +25,7 @@ invalidé automatiquement). Voir TRANSFER.md.
 Le vendor peut émettre une licence **non liée** (case décochée dans le
 Manager) : le contrôle matériel est sauté à la vérification (même chaîne,
 même signature). Réservé aux parcs suivis contractuellement (`maxDevices`
-informatif, appliqué à l'émission) — le défaut reste la liaison stricte.
+informatif et **non appliqué** — ADR-172) — le défaut reste la liaison stricte.
 
 ## Limites
 

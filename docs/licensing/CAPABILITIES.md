@@ -27,18 +27,18 @@ Pages · Features → Route Guard + Feature Guards (main + UI)
 
 Champs historiques conservés (compatibilité ascendante) + extensions :
 
-| Champ                                     | Rôle                                                                            |
-| ----------------------------------------- | ------------------------------------------------------------------------------- |
-| `schemaVersion`, `licenseId`, `productId` | Protocole (inchangés)                                                           |
-| `edition`                                 | legacy (`basic/standard/professional/pro/enterprise/custom`)                    |
-| `plan`                                    | `BASIC/STANDARD/PRO/ENTERPRISE/CUSTOM` (preset d'émission, informatif)          |
-| `licenseType`                             | `term` (+`expiresAt`) ou `lifetime`                                             |
-| `licenseStatus`                           | `active` (défaut) / `suspended` / `revoked` — révocation **offline**            |
-| `clientId`, `clientName`, `storeName`     | Identité client affichée (badge/modal)                                          |
-| `deviceBinding`                           | `false` = licence flottante (hardware ignoré) ; défaut `true`                   |
-| `maxDevices`                              | Informatif, appliqué à l'émission                                               |
-| `pages`                                   | `Record<page, boolean>` — partiel = refus ; **absent = tout autorisé (legacy)** |
-| `features`                                | Liste signée (anciennes licences à 3 ids toujours valides)                      |
+| Champ                                     | Rôle                                                                                        |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `schemaVersion`, `licenseId`, `productId` | Protocole (inchangés)                                                                       |
+| `edition`                                 | legacy (`basic/standard/professional/pro/enterprise/custom`)                                |
+| `plan`                                    | `BASIC/STANDARD/PRO/ENTERPRISE/CUSTOM` (preset d'émission, informatif)                      |
+| `licenseType`                             | `term` (+`expiresAt`) ou `lifetime`                                                         |
+| `licenseStatus`                           | `active` (défaut) / `suspended` / `revoked` — révocation **offline**                        |
+| `clientId`, `clientName`, `storeName`     | Identité client affichée (badge/modal)                                                      |
+| `deviceBinding`                           | `false` = licence flottante (hardware ignoré) ; défaut `true`                               |
+| `maxDevices`                              | Informatif — **non appliqué** (ni à l'émission, ni au POS) : mention contractuelle, ADR-172 |
+| `pages`                                   | `Record<page, boolean>` — partiel = refus ; **absent = tout autorisé (legacy)**             |
+| `features`                                | Liste signée (anciennes licences à 3 ids toujours valides)                                  |
 
 Toute mutation d'un champ signé invalide la signature (`INVALID_SIGNATURE`).
 
@@ -110,6 +110,11 @@ sans détruire l'état. Pas d'horodatage réseau requis par vente.
 Empreinte SHA-256 (MachineGuid + SystemUUID + CPU + disque, ≥ 2 sources).
 `deviceBinding=false` → contrôle sauté (flottante). Mismatch →
 `INVALID_HARDWARE` (« autre ordinateur »).
+
+`maxDevices` n'est **pas** une garde : aucune machine ne compte un parc (un POS
+hors ligne ne voit pas les autres postes). C'est une mention contractuelle — voir
+ADR-172. Un client de N postes reçoit N licences liées à N empreintes, pas une
+licence flottante à `maxDevices = N`.
 
 ## 10. License Manager (outil vendor séparé)
 
