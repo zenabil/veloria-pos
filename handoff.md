@@ -15,7 +15,8 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête **session 94** (bootstrap de l'environnement sur poste neuf). Avant elle session 93 (diagnostic bandeau hero client), session 92 (test appareil réel, CPH2235), session 91 (APK Native-max, ADR-168), session 90 (purge ciblée post-audit, ADR-167), session 89 (purge des artefacts obsolètes), session 88 (annonces multi-médias + bandeau hero APK, ADR-166), session 87 bis (rafraîchissement périodique de l'APK selon la cadence POS, ADR-165), session 87 (annonce magasin poussée aux clients, ADR-160). Avant elle session 86 (compte propriétaire, ADR-164), session 85 (connexion Supabase owner, ADR-163), session 84 (données fictives supprimées, owner), session 83 (Argent/Stock/Périodes/Alertes enrichis), session 82 (Aujourd'hui + détails de transaction), session 81 (passe design v2 owner), session 80 (écrans courts owner), session 79 (application propriétaire, ADR-162), session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- Branche : `chore/root-layout` — tête **session 95** (jour métier Africa/Algiers — E-35 corrigé radicalement). Avant elle session 94 (bootstrap de l'environnement sur poste neuf), session 93 (diagnostic bandeau hero client), session 92 (test appareil réel, CPH2235), session 91 (APK Native-max, ADR-168), session 90 (purge ciblée post-audit, ADR-167), session 89 (purge des artefacts obsolètes), session 88 (annonces multi-médias + bandeau hero APK, ADR-166), session 87 bis (rafraîchissement périodique de l'APK selon la cadence POS, ADR-165), session 87 (annonce magasin poussée aux clients, ADR-160). Avant elle session 86 (compte propriétaire, ADR-164), session 85 (connexion Supabase owner, ADR-163), session 84 (données fictives supprimées, owner), session 83 (Argent/Stock/Périodes/Alertes enrichis), session 82 (Aujourd'hui + détails de transaction), session 81 (passe design v2 owner), session 80 (écrans courts owner), session 79 (application propriétaire, ADR-162), session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 95 (2026-11-02)** : **jour métier Africa/Algiers (E-35/G-18 corrigé radicalement)** — demande : « اصلح التالي جذريا و اكمل هاته المزايا » sur six constats ; périmètre de cette session : le **découpage du temps**. Les horodatages SQLite restent des instants ISO UTC (stockage inchangé, aucune donnée migrée) ; tout ce qui découpe ou affiche — buckets de rapports, filtres de période, bornes de l'Historique, seuils d'endettement, bandes de règlement mensuel, mois des clés de miroir, numéros de facture (année), ticket de caisse, horloge du bandeau, exports CSV, `datetime-local` des annonces, dates de l'APK client et de l'APK propriétaire — suit désormais **UTC+1 fixe**. Deux modules jumeaux (frontière `rootDir`) portent la règle : `src/domain/common/business-day.ts` et `electron/shared/business-day.ts` (JS + fragments SQL `date(col,'+1 hour')`, `calendarDaySql` pour les colonnes date-seule, `businessDayRangeUtc` pour les bornes indexables) ; `todayUtcDate` et `monthStartUtc` sont **supprimés**, sans alias de compatibilité. **Migration 0058** : les six triggers d'instant du verrou de clôture (`sales`, `returns`) comparent `date(created_at,'+1 hour')` à `daily_closings.business_date` — une vente de 00:30 heure d'Alger sur une journée close est **refusée** (avant : elle passait et faussait le Z signé). Les neuf triggers date-seule sont inchangés ; 0048/0051 restent immuables. **Gardes automatiques** dans `tests/unit/business-day.test.ts` : parité des jumeaux, parité **JS ↔ SQL**, parité **POS ↔ APK client ↔ APK owner** (preuve G-18 : `2026-09-01T23:30Z` → `02/09/2026` et `00:30` des trois côtés), et interdiction dans `electron/`+`src/` de `substr(<instant>,1,10)`, `date('now'` nu, `toISOString().slice(0,10|7)`, `todayUtcDate`, `monthStartUtc`. `tests/integration/business-day-reports.test.ts` (6 tests, base migrée réelle) vérifie dashboard/rapports/clôture Z/historique sur la frontière 00:30. Portes : `npm run check` **vert** (format, lint 0, typecheck root/electron/manager/mobile/owner) · **vitest 175 fichiers / 1 223 tests 0** · `verify:migrations` **58** avec porte `OK 0058…` · `verify` complet **vert** · `knip` **0** · 4 tests d'ancienne convention mis à jour (`history`, `stock`, `reports`, `customer-payment-fifo` n'a pas eu à changer). **Non fait** : `npm run test:e2e`, `test:coverage`, `build`/`package:*` (les autres constats de la demande — liasse propriétaire, compte Supabase, 0057 chez le client, `maxDevices`, mises à jour — suivent en sessions 96+). ADR-169. Détails §95.
 - **Session 94 (2026-11-02)** : **bootstrap de l'environnement de développement sur ce poste** — demande « قم بدراسة و فهم المشروع بعد ذلك ثبت البرامج و الأدوات اللازمة لتطوير المشروع ». Constat de départ : poste **sans aucun Node.js** (arbre copié depuis le compte Windows « zenagui bilal » → git refusait toute commande en « dubious ownership », `~/.gitconfig` inexistant, `mobile/android/local.properties` pointait sur l'ancien SDK). Installé et vérifié : Node **22.23.4** + npm **10.9.9** (`C:\\Users\\Admin\\tools\\node`, ZIP officiel contrôlé par SHA-256, au PATH utilisateur — conforme `.nvmrc`/`engines`/`packageManager`), JDK **Temurin 17.0.20** (`tools\\jdk17`, `JAVA_HOME`), **Android SDK** (`cmdline-tools` 13114758 → `platform-tools`, `platforms;android-35`, `build-tools;35.0.0`, `ndk;26.1.10909125`, 2,4 Go — exactly les versions exigées par `mobile/android/build.gradle`), redistribuable **VC++ 14.44** (sans lui le binding natif `oxc-resolver` de `knip` ne se charge pas), **graphify 0.9.100** via `uv tool install graphifyy` avec Python **3.12**. Portes **toutes vertes sur ce poste** (§94) : better-sqlite3 N-API · `electron --version` 45.1.0 sous Windows 10 1809 · typecheck ×5 · `verify` complet · `format:check` · lint `--max-warnings 0` · **vitest 173 fichiers / 1 194 tests** · builds renderer/electron/manager · `knip` 0 · **E2E réel `navigation-smoke` 1/1** (16 modules ouverts sans crash). **Aucun code modifié** ; seuls fichiers touchés : `handoff.md` et `mobile/android/local.properties` (git-ignoré). **Reste à faire** : redémarrer le terminal/Qoder pour le PATH ; relancer la suite E2E complète et `test:coverage` ; rebuild APK sur ce poste.
 - **Session 93 (2026-11-01)** : **diagnostic bandeau hero (client)** — le composant `AnnouncementHero` est présent dans l'APK (nouveau 22 Mo et ancien 85 Mo) ; le CPH2235 est actuellement sur l'**écran de login** (le hero n'est rendu qu'après login, dans Home). Base POS `E:\data\Veloria POS DB.sqlite` en **schema 56** (migration 0057 non appliquée) : table `announcements` texte seulement (3 doublons actifs), dernier `customer_snapshot` envoyé le 2026-10-31 20:30 avec le champ legacy `announcement` et **pas** `announcements[]`. À suivre : login réel + pull-to-refresh ; POS à jour (0057) + ré-enregistrement pour images/échéances ; capture/QR si le hero reste absent. **Aucun code modifié.**
 - **Session 92 (2026-11-01)** : **test appareil réel (CPH2235, Android 13)** — installation propre du client 1.0.4 (code 6) et de l'owner 0.1.0 (code 1) : `primaryCpuAbi=arm64-v8a`, aucun `RECORD_AUDIO`, démarrage d'activité ~0,33 s. Client : UI AR/FR, permission caméra + CameraX/ML Kit ouverts, erreur de login réelle « الهاتف أو الرمز غير صحيح ». Owner : login FR + erreur Supabase Auth réelle. **Aucune FATAL app**. **Non testé** : QR valide/login réussi, tableau de bord owner, stabilité longue. Captures : `release/screenshots/`. Aucun code modifié.
@@ -76,9 +77,9 @@
 - **Audit intégral EXÉCUTÉ (§18, 2026-10-19)** : 3 livrables — `docs/reports/FULL_AUDIT_2026-10-19.md` (rapport, 16 axes A→P, **228 findings** : 0 Critical · 23 High · 95 Medium · 110 Low) · `docs/reports/FULL_AUDIT_2026-10-19_PLAN.md` (plan en **11 vagues W0→W10**, ~11-13 j, 20 décisions owner) · `docs/ADR-120-*.md` (**proposé**, en attente d'approbation). Preuves brutes : `docs/reports/maintenance/audit-raw/`.
 - **Remédiation : vagues W1 → W10 EXÉCUTÉES et commitées** : `0e900f1` **W1** (logique financière) · `cd43aa2` **W2** (sécurité) · `833cea1` **W3** (base) · **W4** (couverture verte + gardes auto-dérivées) · `1e56547` **W5** (rendu/UI caissier + atelier impression) · **W6** (code mort trié — ADR-127) · `4a96938` **W9** (encodage + chiffres à jour) · `7086954` **W8** (chemins chauds indexés, N+1, bundle) · **W7** (règles uniques — ADR-128) · **W10** (état d'erreur persistant — ADR-129). **Plan d'audit : TERMINÉ** (les 11 vagues sont exécutées).
 - **Baseline gelé 2026-10-21 (mesuré, arbre propre)** : `tsc -b` **0** · `typecheck:electron` **0** · `eslint . --max-warnings 0` **exit 0** · `vitest` **142 fichiers / 976 tests** **0** · `test:db` **39 fichiers / 183 tests** **0** (isolé) · **`test:coverage` = EXIT 0 (VERT — 95,83 % lignes · 87,19 % branches · 100 % fonctions, seuils 80/75/88/80 par fichier ; aucun seuil abaissé)** · `knip` **0** (0 fichier, 0 export, 0 type, 0 dépendance) · `verify:migrations` **VERIFIED** · `verify:domain` **VERIFIED** · `verify:perf` **VERIFIED** · `verify:fr` **0** (322 fichiers, **plus de liste d'attente**) · `verify:encoding` **0** (868 fichiers) · `license:scan` **0** (1420 fichiers) · `format:check` **0** · `build` ✓ (12,1 s) · `build:electron` ✓ (manifeste signé **216 fichiers**).
-- **Nouveaux constats P1 (non corrigés, voir plan)** : jour métier en UTC au lieu de `Africa/Algiers` (E-35) · `verify:licensing` hors CI (bloqué : l'état local du Manager n'existe pas sur un runner) · **E2E rejoués le 2026-10-23 : 42 réussis / 3 ignorés / 0 échec**.
+- **Nouveaux constats P1 (non corrigés, voir plan)** : ~~jour métier en UTC au lieu de `Africa/Algiers` (E-35)~~ **CORRIGÉ session 95 (ADR-169, migration 0058)** · `verify:licensing` hors CI (bloqué : l'état local du Manager n'existe pas sur un runner) · **E2E rejoués le 2026-10-23 : 42 réussis / 3 ignorés / 0 échec**.
 - **Corrigé en W1→W10 (à ne plus re-signaler)** : `customers.accessQrSvg` sans staff-gate · `staffScope()` ⇒ «no session = gérant» · `database.optimize` sans gate · conversion Proforma→vente cassée si remise · clôture Z (chèque/transfert/dépenses/retours) · verrou de période close (W3) · unicité téléphone + `paginationSchema.page` borné (W3) · `test:coverage` rouge (W4) · `FROZEN_SCHEMA_COUNT` (W4) · extraction EAN-13/14 (W4) · `formatDzd` qui throw au rendu + double-submit + focus + lots bornés (W5) · atelier impression (W5) · code mort trié, `knip` à 0, `expo-constants` retirée, garde FR sans liste d'attente (W6) · chemins chauds indexés (migration 0050) + N+1 supprimés + bundle découpé (W8) · encodage réparé (W9) · **règles uniques (quantité/montant/date/normalisation) + état « en retard » produit (W7)** · **état d'erreur persistant dans 12 écrans (W10)**.
-- ADRs : 001→**166** (`134` = design du ticket de vente, `135` = export données réimportable, `136` = conditionnement carton, `137` = coût FIFO en caisse, `138` = retours dette d'abord, `139` = annulation/correction factures, `140` = carton devis/retours fournisseur, `141` = tarif de gros carton sans plancher, `142` = coût rendu produit/livraison, `143` = paramètres navigation/recherche, `144` = formulaires et code-barres, `145` = paramètres composants/sections, `146` = studio d'impression, `147` = tableau de bord, `148` = refonte visuelle transversale, `149` = code-barres carton). `docs/INDEX.md` **complété 142→149** (manquaient depuis les sessions 49/50/52/53).
+- ADRs : 001→**169** (`134` = design du ticket de vente, `135` = export données réimportable, `136` = conditionnement carton, `137` = coût FIFO en caisse, `138` = retours dette d'abord, `139` = annulation/correction factures, `140` = carton devis/retours fournisseur, `141` = tarif de gros carton sans plancher, `142` = coût rendu produit/livraison, `143` = paramètres navigation/recherche, `144` = formulaires et code-barres, `145` = paramètres composants/sections, `146` = studio d'impression, `147` = tableau de bord, `148` = refonte visuelle transversale, `149` = code-barres carton, `167` = purge ciblée post-audit, `168` = APK Native-max, `169` = jour métier Africa/Algiers). `docs/INDEX.md` **complété 142→149 puis 167→169**.
 - **3 bugs caisse signalés par le propriétaire (2026-10-21) — DIAGNOSTIC PROUVÉ puis CORRIGÉS (§23, ADR-131)** : (B1) focus qui revient au champ « Nom » de l'article libre — `useDialogFocus` rejouait son effet à chaque rendu (`onClose` inline = identité nouvelle) ⇒ **corrigé** (refs, dépendances `[boxRef]`) ; (B2) vente au poids en mode « Montant » : 50,00 DZD saisis mais **49,70 facturés** ⇒ **corrigé** (le montant saisi est facturé tel quel, `billedTotalMinor`) ; (B3) panier mixte : `CHECK constraint failed: discount_amount_minor >= 0` (7× dans le journal du 2026-10-21) — une **majoration** (prix de ligne > prix d'origine) produisait une remise négative, acceptée par le domaine mais **interdite par la base** ⇒ **corrigé** (migration **0051** : remise signée, table `sales` reconstruite + runner « FK off » ; garde des lignes AVANT l'INSERT ⇒ message FR au lieu du CHECK SQL). **Lien B1 → B3** (la saisie tronquée du prix forçait une correction par majoration). Packaging refait le 2026-10-23 (schéma 0051 inclus) ; constat secondaire non traité (4 ventes à `amount_paid_minor = 0`).
 - **Constats bloquants de la revue UI d'ADR-131 — CORRIGÉS (§25, ADR-132)** : (C1) éditer qté/prix d'une ligne « montant saisi » tuait l'écran Vente (`computeBilledTotal` levait au rendu) ⇒ ligne **verrouillée** (qté + prix, jamais fusionnée, `+`/`−` strictement sur la dernière ligne) + `safeLineTotal` (« — » + log, jamais d'exception) ; (C2) ticket **non imprimable** (remise négative refusée par `discountMinor`) ⇒ `moneyMinorSigned`, ticket « Remise −X »/« Majoration +X », « montant saisi » au lieu de qté × P.U., quantités FR, devis A4 à majoration visible ; (C3) couverture **E2E** du mode Montant. Revue ui-fr (3 risques corrigés) + db-guardian CLEAN (aucune migration).
 - Outillage : `knip.json` (§16) — `Unused files` **32 → 0** ; re-mesuré 2026-10-21 : **0 fichier · 0 export · 0 type · 0 dépendance** (la couverture `knip` s'étend désormais à `license-manager/**` et `cloud/**` — J-11).
@@ -4307,3 +4308,134 @@ zéro dépendance ajoutée** aux `package.json`.
 **Git** : `git config --global --add safe.directory` + identité
 `veloria-pos <veloria-pos@localhost>` (convention des commits existants),
 `core.autocrlf=false` ; puis ce `docs(handoff)` en commit propre (règle 10).
+
+## 95) Session 2026-11-02 — Jour métier Africa/Algiers (E-35, G-18 — ADR-169)
+
+**Demande.** « اصلح التالي جذريا و اكمل هاته المزايا » sur six constats de
+niveau zéro (liasse propriétaire sans publieur, SQL/compte propriétaire non
+déployés, migration 0057 non appliquée chez le client donc bandeau hero muet,
+`maxDevices` validé mais jamais appliqué, aucune mise à jour, journée calculée en
+UTC). Cette session traite le **dernier** — le plus transversal, parce que tous
+les agrégats de la liasse propriétaire et toutes les clôtures Z en dépendent.
+
+**Diagnostic mesuré (avant code).**
+
+- Stockage sain : `sales.created_at` & co. sont des instants ISO UTC avec `Z`
+  (`new Date().toISOString()`, 92 émissions dans `electron/ipc/registry.*.ts`).
+- Découpage faux : **37** `substr(<colonne>, 1, 10)` dans
+  `electron/ipc/handlers/` (dont 27 dans `finance.repo.ts`), **13** `date('now')`,
+  et les bornes `${from}T00:00:00.000Z` de `history-query.ts`. La journée
+  commençait à 01:00 heure d'Alger.
+- Verrou de clôture : les 15 triggers de `0048` (recréés pour `sales` par `0051`)
+  testaient `substr(NEW.created_at,1,10) = daily_closings.business_date` ⇒ une
+  vente de 00:30 (Algiers) sur une journée close passait.
+- Affichage (G-18, High/P1) : quatre conventions divergentes coexistaient —
+  `Intl.DateTimeFormat("fr-FR")` sans `timeZone` (POS, horloge de l'ordinateur),
+  `iso.slice(0,10)` (UTC) dans `mobile/src/format.ts`, getters **locaux** dans
+  `owner/src/format.ts`, troncature UTC brute dans `splitDateTime`
+  (`src/features/history/types.ts`). Deux dates différentes pour une même vente.
+- Aucune abstraction temps n'existait : `todayUtcDate` + 3 copies de
+  `isRealCalendarDate` + `nextDay` + `addDays` + `monthStartUtc`, et zéro
+  occurrence de `Africa/Algiers` dans tout le code.
+
+**Ce qui a été fait.**
+
+1. **Modules jumeaux** (frontière `rootDir`, parité prouvée) :
+   `src/domain/common/business-day.ts` et `electron/shared/business-day.ts`.
+   API : `BUSINESS_TIME_ZONE` / `BUSINESS_DAY_OFFSET_MS`, `instantToEpochMs`,
+   `businessDayOf`, `todayBusinessDate`, `businessMonthOf`, `businessTimeOf`,
+   `businessWallClock`, `addCalendarDays`, `businessMonthStart`,
+   `previousBusinessDay`, `nextBusinessDay`, `businessDayRangeUtc`. Côté main en
+   plus : `businessDaySql`, `businessWeekSql`, `businessMonthSql`,
+   `calendarDaySql`, `calendarWeekSql`, `calendarMonthSql`, `sqlBusinessToday`,
+   `sqlBusinessMonthNow`, `businessDaysAgoSql`, `SQL_BUSINESS_DATE_PREFIX`,
+   `formatBusinessDateTimeFr`. Une entrée illisible rend `""` (jamais d'exception
+   brute, règle 6) et une date irréelle (`2026-13-45`) est refusée par
+   `addCalendarDays` au lieu d'être normalisée en `2027-02-15`.
+2. **Deux catégories de colonnes, nommées explicitement** : instants →
+   `businessDaySql(col)` / `businessDayRangeUtc(jour)` ; date-seule
+   (`business_date`, `payment_date`, `expense_date`, `due_date`, `invoice_date`)
+   → `calendarDaySql(col)`, **jamais décalée**. Une erreur de catégorie est le
+   seul vrai risque du chantier ; les helpers la rendent lisible à la relecture.
+3. **Sweep main** : `finance.repo.ts` (Z, dettes, bandes de règlement mensuel,
+   rapports, séries jour/semaine, `byBucket(…, instant)`), `dashboard.repo.ts`
+   (`Range` étendu à `fromInstant` / `toInstantExclusive`), `debt-status.ts`,
+   `history.repo.ts`, `history-query.ts` (`nextDay` supprimé), `expenses.repo.ts`
+   (mois métier), `customers.repo.ts` (7 jours), `inventory.repo.ts`,
+   `proformas.repo.ts`, `returns.repo.ts`, `client-access.repo.ts` (clé de mois
+   des clichés), `fifo.ts`, `purchases.repo.ts`, `sales.repo.ts` (année des
+   numéros d'impression), `registry.customers.ts` (`paymentDate` par défaut),
+   `sync.service.ts` (`monthKey`), `services/logger.ts` (nom du fichier de log).
+4. **Sweep renderer** : `todayUtcDate` et `monthStartUtc` **supprimés** (23
+   fichiers migrent vers `todayBusinessDate` / `businessMonthStart` /
+   `addCalendarDays`), `presetRange` des Rapports et du Tableau de bord en jours
+   métier, `splitDateTime`, `TopBar` (horloge et date épinglées
+   `Africa/Algiers`), `formatDateTimeFr` / `formatDateFr`, `sale-ticket.ts`, les
+   4 `toLocaleString`, `suggestIntakeInvoiceNumber`, la fenêtre hégirienne de la
+   zakat (calcul en jours métier), et l'éditeur d'annonce (`toDateTimeLocal` /
+   `fromDateTimeLocal` en heure murale d'Alger, plus celle du poste).
+5. **APK** : `mobile/src/format.ts` et `owner/src/format.ts` reçoivent un
+   `businessDay(iso)` arithmétique (Hermes-safe) ; `owner` conserve
+   `parseInstant` pour les durées (la version décalée aurait faussé « mis à jour
+   il y a N min »).
+6. **Migration 0058**
+   `database/migrations/0058_business_day_closing_lock.sql` : `DROP`+`CREATE`
+   des 6 triggers d'instant avec `date(…,'+1 hour')`, les 9 autres inchangés.
+   0048/0051 non touchées (règle 12). `verify-migrations.mjs` reçoit sa porte
+   (15 triggers, répartition instant / date-seule, vente de 00:30 refusée, vente
+   du lendemain acceptée) ; `tests/database/migrations.test.ts` passe de 57 à
+   **58** (deux assertions).
+7. **Gardes** (`tests/unit/business-day.test.ts`, 18 tests) : jumeaux identiques,
+   SQL == JS (`date(col,'+1 hour')`, `%Y-%m`, `%Y-S%W`, `date('now',…)`, bornes
+   `[from, toExclusive)`), parité POS / client / owner sur les mêmes instants, et
+   **interdiction textuelle** dans `electron/` et `src/` de
+   `substr(<instant>,1,10)`, `date('now'` nu, `toISOString().slice(0,10|7)`,
+   `todayUtcDate`, `monthStartUtc`. Sans cette garde, la convention se fait
+   grignoter au premier `repo` nouveau.
+8. **Preuve d'intégration** (`tests/integration/business-day-reports.test.ts`,
+   6 tests, base migrée réelle + `node:sqlite`) : la vente de
+   `2026-09-01T23:30Z` (00:30 d'Alger) tombe dans le dashboard, les rapports
+   (`buckets`), la clôture Z et l'historique du **2** septembre, pas du 1er ; et
+   le trigger 0058 refuse une écriture de 00:30 sur une journée du 2 close.
+
+**Pièges rencontrés (utiles pour la suite).**
+
+- `businessDayRangeUtc` a d'abord été écrit `day T23:00Z → day+1 T23:00Z` : la
+  journée était décalée **d'un jour entier**. Le bucket croisé SQL vs bornes l'a
+  attrapé — c'est le test qui a fait le travail, pas la relecture.
+- `SQL_BUSINESS_DATE_PREFIX` est volontairement **ouvrant** (`date('now',
+'+1 hour'` sans fermante) pour composer les modificateurs calculés
+  (`settlement_day`). Oublier une fermante ne se voit qu'à l'exécution SQL :
+  `customer-payment-fifo` l'a signalé (`near "AS": syntax error`).
+- Les imports `electron/**` restent **sans extension** (tsc `node10`, sortie CJS)
+  alors que `src/**` et les tests emploient `.ts` : un `business-day.ts` importé
+  dans un repo main casserait le runtime empaqueté.
+- `VALUES (…),(…)` en sous-requête `FROM` n'est pas accepté par `node:sqlite`
+  dans ce contexte ; les tests SQL passent par une table de sondage réelle.
+- Un poste réglé sur **Europe/Paris** (cet atelier) diffère d'Alger en été : les
+  tests qui fabriquaient `new Date(2026, 8, 18)` (minuit local) dépendaient de
+  l'horloge machine. Remplacés par des instants ISO explicites.
+
+**Décisions propriétaires prises dans la même demande (à appliquer en session 96+).**
+
+- `maxDevices` reste **informatif** : pas de registre d'appareils (réponse
+  « توثيق فقط »). L'ADR que le plan d'audit exigeait en Q15 est à écrire — du
+  documentation, pas du code.
+- La liasse propriétaire exige de **vraies sessions de caisse** (réponse
+  « مزايا صندوق فعلية ») : migration + use cases + IPC + UI avant le publieur.
+- Supabase : exécution réelle autorisée (« نفّذ عبر المتصفح/API ») pour
+  `cloud/supabase/owner.sql` et la création du compte propriétaire.
+
+**Portes.** `npm run check` **vert** (format, lint `--max-warnings 0`, typecheck
+root / electron / manager / mobile / owner) · **vitest 175 fichiers / 1 223
+tests 0** · `verify:migrations` **58** avec `OK 0058 verrou de clôture sur le
+jour métier Africa/Algiers` · `verify` complet **vert** (domaine, FR, encodage,
+perf, version, secret-scan) · `knip` **0**. Quatre tests d'ancienne convention
+mis à jour : `history` (bornes), `stock` (numéro de BL), `reports`
+(`monthStartUtc` → `currentBusinessMonthStart`), `migrations` (compte 58) ;
+`customer-payment-fifo` n'a pas eu à changer une fois la parenthèse SQL réparée.
+
+**Non fait.** `npm run test:e2e` (suite complète, ~30 min),
+`npm run test:coverage`, `build` / `package:*` (les cinq autres constats de la
+demande restent à traiter), et le rendu sur un téléphone réellement réglé hors
+UTC+1 (aucun appareil connecté).
