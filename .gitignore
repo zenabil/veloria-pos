@@ -80,4 +80,7 @@ local.properties
 
 # Scratch electron-builder du License Manager (régénéré par package:manager ;
 # un app.asar peut y rester verrouillé par le scanneur après une build).
+# /release-mgr/ = même symptôme, répertoire de repli utilisé quand `release/`
+# est verrouillé en pleine build (sortie hors workspace puis copie).
 /release-manager-tmp/
+/release-mgr/

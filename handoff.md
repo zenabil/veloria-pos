@@ -4767,10 +4767,13 @@ migration) — c'était la cause réelle du hero muet signalé en §93.
    (après cinq `EPERM: operation not permitted, rename win-unpacked.tmp →
 win-unpacked`). Première hypothèse — la concurrence avec le build Gradle lancé
    en parallèle — **fausse** : la reproduction à vide l'a invalidée, et un
-   répertoire de sortie neuf (`release-mgr`) a échoué à l'identique. Cause retenue :
-   **l'indexation du workspace sur `E:`** (le dépôt est la racine de travail de
-   l'atelier) ouvre et retient `default_app.asar` dès qu'electron-builder l'écrit,
-   ce qui bloque à la fois le renommage du staging et sa suppression.
+   répertoire de sortie neuf (`release-mgr`) a échoué à l'identique. Cause retenue
+   (sans départage entre anti-virus et indexeur, tous deux suspects sur ce poste) :
+   un processus de sécurité/indexation **ouvre et retient `default_app.asar` dès
+   qu'electron-builder l'écrit**, ce qui bloque à la fois le renommage du staging
+   et sa suppression. Le dépôt connaissait déjà le symptôme (`.gitignore`, entrée
+   `/release-manager-tmp/` : « un app.asar peut y rester verrouillé par le
+   scanneur après une build ») — cette session ajoute `/release-mgr/`.
    **Contournement appliqué** : `--config.directories.output=C:/veloria-build/manager`
    (hors espace de travail) puis copie des `.exe`/`.blockmap` dans `release/` —
    `REAL_EXIT=0`. À réappliquer pour tout futur `package:*` sur ce poste, ou
