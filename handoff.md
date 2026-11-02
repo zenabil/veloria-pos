@@ -15,7 +15,8 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête **session 100** (les trois applications **exécutées** : POS 51/51 après réparation de deux specs E2E obsolètes, License Manager lancé en réel, client Expo web avec hero live). Avant elle session 99 (quatre constructions d'artefacts + retrait des anciennes ; cause racine du verrou electron-builder sur `E:` trouvée et contournée). Avant elle session 98 (liasse propriétaire publiée par le POS, ADR-171, audit/corrections Supabase), session 97 (`maxDevices` documentée, ADR-172), session 96 (sessions de caisse, ADR-170), session 95 (jour métier Africa/Algiers, E-35 corrigé, ADR-169), session 94 (bootstrap de l'environnement sur poste neuf), session 93 (diagnostic bandeau hero client), session 92 (test appareil réel, CPH2235), session 91 (APK Native-max, ADR-168), session 90 (purge ciblée post-audit, ADR-167), session 89 (purge des artefacts obsolètes), session 88 (annonces multi-médias + bandeau hero APK, ADR-166), session 87 bis (rafraîchissement périodique de l'APK selon la cadence POS, ADR-165), session 87 (annonce magasin poussée aux clients, ADR-160). Avant elle session 86 (compte propriétaire, ADR-164), session 85 (connexion Supabase owner, ADR-163), session 84 (données fictives supprimées, owner), session 83 (Argent/Stock/Périodes/Alertes enrichis), session 82 (Aujourd'hui + détails de transaction), session 81 (passe design v2 owner), session 80 (écrans courts owner), session 79 (application propriétaire, ADR-162), session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- Branche : `chore/root-layout` — tête **session 101** (audit complet des **réglages Supabase vivants** depuis le tableau de bord : un seul réglage corrigé, `password_min_length` 6 → **8** ; la protection « mot de passe fugitif » est **refusée par le plan gratuit** — `402` + entitlement `hasAccess:false` ; trois décisions ADR-171 tranchées par l'opérateur et consignées). Avant elle session 100 (les trois applications **exécutées** : POS 51/51 après réparation de deux specs E2E obsolètes, License Manager lancé en réel, client Expo web avec hero live). Avant elle session 99 (quatre constructions d'artefacts + retrait des anciennes ; cause racine du verrou electron-builder sur `E:` trouvée et contournée). Avant elle session 98 (liasse propriétaire publiée par le POS, ADR-171, audit/corrections Supabase), session 97 (`maxDevices` documentée, ADR-172), session 96 (sessions de caisse, ADR-170), session 95 (jour métier Africa/Algiers, E-35 corrigé, ADR-169), session 94 (bootstrap de l'environnement sur poste neuf), session 93 (diagnostic bandeau hero client), session 92 (test appareil réel, CPH2235), session 91 (APK Native-max, ADR-168), session 90 (purge ciblée post-audit, ADR-167), session 89 (purge des artefacts obsolètes), session 88 (annonces multi-médias + bandeau hero APK, ADR-166), session 87 bis (rafraîchissement périodique de l'APK selon la cadence POS, ADR-165), session 87 (annonce magasin poussée aux clients, ADR-160). Avant elle session 86 (compte propriétaire, ADR-164), session 85 (connexion Supabase owner, ADR-163), session 84 (données fictives supprimées, owner), session 83 (Argent/Stock/Périodes/Alertes enrichis), session 82 (Aujourd'hui + détails de transaction), session 81 (passe design v2 owner), session 80 (écrans courts owner), session 79 (application propriétaire, ADR-162), session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- **Session 101 (2026-11-02)** : **audit des réglages Supabase vivants + un correctif** — demande « قم بفتح supabase في المتصفح و قم باعداد و تصحيح اعدادات supabase ». Lecture par l'API interne du tableau de bord (`/platform/auth/{ref}/config`, `/v1/projects/{ref}/config/auth`, `/api-keys`, `/network-restrictions`, `/platform/projects/{ref}/run-lints`, `/platform/projects-resource-warnings`, `/platform/organizations/{org}/entitlements`) + SQL Editor + preuves de comportement `curl`. **Tout le verrouillage de la session 98 tient** (`signup_disabled` 422, `42501` pour `anon`, `security_invoker=true`, politique unique `owner_snapshots_read`→`authenticated`, `client-sync` `verify_jwt=false` conforme `config.toml`, storage RLS ON / 0 politique / 0 bucket, base 11 Mo/500, miroir vivant 6 accès / 36 clichés / dernière poussée 2026-11-01T20:35Z, `ACTIVE_HEALTHY`). **Corrigé** : `password_min_length` **6 → 8** (`PATCH /v1/projects/…/config/auth` → 200), aligné sur les gardes locales déjà écrites (`src/features/settings/SettingsSectionsB.tsx:765` « 8 à 200 », `owner/src/api.ts:41` `< 8`) ; le serveur était plus faible que les deux applications. **Découverte bloquante** : le Warn Advisors « Leaked Password Protection Disabled » est **inhérent au plan gratuit** — `auth.password_hibp` et `auth.leaked_password_protection` en `hasAccess:false`, `PATCH { password_hibp_enabled: true }` → **402 Payment Required** ; la bascule exige Pro (25 $/mois) ou un SMTP/flux applicatif de contrôle. **Tranché par l'opérateur** (donc clos, à ne pas relancer) : politique `authenticated` **conservée** pas à pas de verrouillage `auth.uid()`, **aucune purge** de rétention `owner_snapshots` tant que le publieur n'est pas mesuré, **pas** de `ssl_enforced`/allowlist CIDR, **pas** de changement `site_url`. Constats **non agis** et écrits ici : `site_url=http://localhost:3000` (inoffensif — `owner/src/api.ts` n'a qu'un `grant_type=password`, aucun lien par e-mail), alerte plateforme `auth_restricted_email_sending=warning` avec `smtp_host=null` (l'envoi se fait par le SMTP Supabase limité), clés **legacy** `anon`/`service_role` encore actives à côté de `sb_publishable_`/`sb_secret_` (les APK construits portent l'anon legacy ⇒ **ne pas désactiver** avant une reconstruction), inbound DB `0.0.0.0/0` + `::/0`. **Zéro code modifié**, aucun fichier de dépôt hors `handoff.md` ; `git status` propre avant/après. Détails §101.
 - **Session 100 (2026-11-02)** : **les trois applications lancées pour de vrai** (demande « قم بتجريب تطبيقات pos و license و client »). **POS** : `npx playwright test` sur Electron réel = **45 passés / 6 échoués / 3 ignorés** (15,2 min), les 6 rouges **prouvées pré-existantes** avant toucher au code (`git grep -c "Session :" 41b0399 -- src` = absent dès la base ; la refonte visuelle `9b7c564` du 27/10 a retiré ce texte de la coquille sans que le spec suive ; `textContent()` ne sépare pas les cellules ; le champ Catalogue est `Rechercher… [F3]` ; `full-loop-client` demande le relais E2E). Corrigé dans les **specs seulement** : `tests/e2e/staff-session.spec.ts` (5 × attente texte « Session : » → `getByRole("button",{name:/^Changer d/})`) et `tests/e2e/stock-backup.spec.ts` (`/10\s*PI[EÈ]CE/i`, `/11\s*PI[EÈ]CE/i`, placeholder) → rejeu ciblé avec relais **8/8, `REAL_EXIT=0`** ; le POS est **51/51 exécutable**. **Manager** : `_electron` sur `dist-license-manager/…/main.js` (sonde hors dépôt `C:/veloria-build/mgr-probe.cjs`) — coquille rendue, aucune exception nue, 1 licence `VLIC-DCC493D2` lue ; l'en-tête `v45.1.0` vu en sonde **expliqué** : `license-manager/ipc/registry.ts:94` rend `app.getVersion()` et `dist-license-manager/package.json` ne porte que `{"type":"commonjs"}` (sans `version`, Electron rend la sienne) ⇒ l'installateur NSIS dira 1.0.4, à confirmer sur l'artefact installé. **Client** : appareil déconnecté ⇒ voie **Expo web** (:8083) contre le miroir de démo (:8099) ; `e2e-mobile-shots.mjs` **inexécutable ici** (aucun `%LOCALAPPDATA%\ms-playwright`, la suite du dépôt utilise le Chromium d'Electron) ⇒ pilotage par événements DOM réels + arbre d'accessibilité, **sans capture** (surface navigateur masquée, comme §83). Vérifié : **hero ADR-166 vivant** (image 800×400 réellement chargée, compte à rebours « ينتهي بعد 3 يوم 4 ساعة », pastilles 1/2↔2/2, annonce expirée **jamais rendue**), œil de confidentialité `•••` ↔ montants, format `45 250,00 دج` / crédit 75 %, filtres de factures à compteurs justes (dont **ملغاة 1** isolant `FAC-2026-0115`), **détail de facture** cohérent (8 450,00 − 5 200,00 = 3 250,00 + versement rattaché), paiements groupés par mois, compte (boutique, langue, « v1.0.4 · Veloria »), **bilingue ar↔fr**, refus serveurs **cartographiés en FR/AR sans exception nue** (mauvais PIN → « الهاتف أو الرمز غير صحيح » ; **miroir tué** → « لا اتصال بالإنترنت، أعد المحاولة لاحقاً ») puis **reprise** à la remise en ligne et rafraîchissement périodique observé. Retour à la connexion après rechargement = **voulu** (`mobile/src/cache.ts:3` : SecureStore sur appareil, mémoire sur web). **Reste** : `test:e2e:installer` (non lancé sans mot d'ordre — écrit dans `C:\Program Files`), installation réelle de l'APK client, `test:coverage`. Détails §100.
 - **Session 98 (2026-11-02)** : **liasse de supervision propriétaire publiée par le POS (ADR-171 — constat n°1 clos)** — `publishOwnerSnapshot` n'existait que dans les documents (`grep` main/renderer = 0) alors que `owner/src/store.ts:269-289` + `owner/src/api.ts:137-192` consomment le contrat `OwnerSnapshot` v1 dans 9 écrans. Tranche livrée : constructeur `electron/sync/owner-snapshot.ts` (contrat **jumelé** sur l'app Owner — frontière workspace ; réutilise `getDashboardSummary`/`listClosings`/`getCashAuditSummary` et n'ajoute que les lectures absentes : seaux d'ancienneté 0-30/31-60/60+, `lateDays`, dernier versement, `sold30`/`perDay`/`autonomyDays`/`suggestedRestock`/`deadCount`, mouvements par produit ; bornes `MAX_*` + garde `MAX_LIASSE_CHARS = 900_000` ; **zéro donnée inventée** : `objectiveMinor`/`manager` restent `null` faute de colonne) · publication **append-only directe** `POST /rest/v1/owner_snapshots` avec les en-têtes `service_role` du miroir — **pas** un kind `sync_outbox` (CHECK immuable 0032, « SOURCE AUTORITAIRE ») — idempotente par `operationId` (rejouement = une seule ligne), portes lues sur le **doc persisté** (miroir coupé après activation ⇒ refus FR sans requête), détail serveur au log seulement · cadence autonome `ownerEnabled` (**défaut OFF**) + `ownerIntervalMinutes` (60, 15-1440) dans le doc `client_sync` chiffré, crochet du timer 60 s en best-effort · 1 canal `sync.pushOwnerSnapshot` (Zod + preload + façade + réponse sans liasse ni secret), gates calqués sur `sync.pushNow`, UI « Liasse de supervision (application propriétaire) » dans Paramètres → Miroir Android (interrupteur, cadence, dernière publication, erreur courante, « Publier maintenant ») · relais E2E étendu (`POST`+`GET /rest/v1/owner_snapshots`) · **cloud audité et corrigé** : `owner.sql` appliqué (`relrowsecurity=true`, politique `owner_snapshots_read` SELECT→`authenticated`, `anon` sans droit vérifié par HTTP réel `42501`), vue `latest_client_payloads` **réalignée** `security_invoker=true` (dérive silencieuse depuis ADR-158), fonction `client-sync` déployée (répond son `AUTH_ERROR` FR), CHECK `kind` déjà conforme à 0032 avec `announcement`, **inscriptions publiques fermées** (faille réelle : n'importe quel compte `authenticated` aurait lu toute la liasse ; vérifié `signup_disabled`) et 1 compte Auth confirmé existant (**le handoff disait « jamais créé » — périmé** : `zenaguibilal2@gmail.com`, 31/10). **Base du client migrée 56 → 59** après sauvegarde `E:\data\backups\avant-migrations-atelier-2026-11-02T04-36-37-375Z.vposdb` (0057+0058+0059, `integrity_check=ok`, 0 FK, 59/59 checksums identiques aux fichiers, 1165 ventes/95 clients conservés). Deux agents délégués ont cassé en vol (limite de tours) ; le travail restant a été repris et terminé en main (2 erreurs de typage de test + 19 erreurs de lint réparées). Inventaires gelés : canaux 190→**191**, schémas/exports/classes mis à jour. Portes : `npm run check` **vert** · **vitest 180 fichiers / 1 274 tests 0** (dont 32 tests de la tranche : protocole 12, publication à transport injecté 7 — premier usage réel de l'injection — liasse sur base migrée 13) · `verify` **vert** (migrations 59, secret-scan 1 521 fichiers) · `knip` **0**. **Reste ouvert** (ADR-171) : rétention `owner_snapshots` (append-only sans purge, ~720 lignes/mois), durcissement `auth.uid()`, `objectiveMinor`/`manager` (décision produit + colonne). **Non fait** : `test:e2e`/`test:coverage`, boucle réelle POS→cloud→APK, et les 4 constructions d'artefacts (session 99). Détails §98.
 - **Session 97 (2026-11-02)** : **`maxDevices` documentée comme non appliquée (ADR-172 — clos G-17 / décision Q15)** — décision opérateur « توثيق فقط » (pas de registre d'appareils). Constat chiffré : la valeur est validée (`electron/licensing/protocol.ts:205-210`) mais `verifyLicenseChain()` ne la lit jamais ; `license-service.ts:291` la recopie dans `LicenseStatus` sans que `LicenseScreen.tsx:126-149` ni `LicenseBadge.tsx` ne l'affichent ni ne la comparent ; la table `licenses` du Manager ne porte qu'**une** colonne `hardware_fingerprint` que `rebindFingerprint()` écrase (`license-manager/ipc/licenses.ts:159-164`) — rien ne compte ; `signing.ts:227` omet même le champ s'il n'est pas nombre. L'**ADR promis par Q15 (ب) n'avait jamais été écrit** : le voici. Ce qui protège vraiment reste la liaison matérielle (`deviceBinding=true` ⇒ `INVALID_HARDWARE` sur une autre machine, changement de poste par `transfer`) ; la règle d'émission pour N postes = **N licences liées à N empreintes**, pas une flottante à `maxDevices = N`. Retrait explicite de la promesse fausse « appliqué à l'émission » dans `CAPABILITIES.md` (tableau + §9 Device binding), `LICENSE_FORMAT.md`, `HARDWARE_FINGERPRINT.md`, et des textes du Manager (`App.tsx` : placeholder, message de validation, ligne de détail « Appareils : … »). **Zéro modification de code de licence, zéro migration** : le comportement du POS est inchangé, le résidu (licence flottante multi-machines) est désormais **assumé et écrit** (`FINAL_REPAIR_REPORT.md:320-322`, `PHASE_8_REPORT.md:55`). Portes ciblées : `tsc -p tsconfig.manager.json --noEmit` 0 · `eslint license-manager --max-warnings 0` 0 · prettier vert sur les 4 documents · `tests/unit/license-manager.test.ts` **12/12** · `npm run build:manager` ✓ · `verify:licensing` sous Electron **OK** (2 avertissements attendus). Détails §97.
@@ -4932,3 +4933,119 @@ sans mot d'ordre**), installation réelle de l'APK client dès que
 **Git** : deux fichiers de test modifiés (`tests/e2e/staff-session.spec.ts`,
 `tests/e2e/stock-backup.spec.ts`), commités sous `test(e2e):` avec cette
 entrée §100 ; `release/`, `test-results/` et `C:/veloria-build` non versionnés.
+
+## 101) Session 2026-11-02 — Audit des réglages Supabase vivants + un correctif
+
+**Demande** : « قم بفتح supabase في المتصفح و قم باعداد و تصحيح اعدادات supabase »
+(ouvrir Supabase dans le navigateur et configurer/corriger ses réglages).
+
+**Méthode — trois sources croisées, aucune ne se suffisait.** La session
+navigateur Qoder était encore connectée (org Veloria, projet `veloria-pos`,
+ref `ynktschorbwukxovjzcz`, Londres, `ACTIVE_HEALTHY`). Le panneau navigateur
+reste invisible ici (`take_screenshot` → `NATIVE_BROWSER_VIEWPORT_UNAVAILABLE`,
+arbre d'accessibilité quasi vide pour ce SPA) : tout a été lu par
+`evaluate_script`, et **l'interne API de la plateforme** appelée depuis la page
+avec le jeton de session (`localStorage['supabase.dashboard.auth.token']` →
+`access_token`, `credentials:'include'`) :
+
+| Ce qui a été lu                         | Endpoint                                                                                                                   |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Config Auth complète (242 clés)         | `/platform/auth/{ref}/config` (UPPER_SNAKE) et `/v1/projects/{ref}/config/auth` (snake_case, **c'est celui qui se patch**) |
+| Réglages projet, `ssl_enforced`, statut | `/platform/projects/{ref}/settings`                                                                                        |
+| Clés API (legacy + nouvelles)           | `/v1/projects/{ref}/api-keys?reveal=false`                                                                                 |
+| Fonctions Edge + `verify_jwt`           | `/v1/projects/{ref}/functions`                                                                                             |
+| Restrictions réseau DB                  | `/v1/projects/{ref}/network-restrictions`                                                                                  |
+| Linter Advisors (5 findings)            | `/platform/projects/{ref}/run-lints`                                                                                       |
+| Alertes plateforme                      | `/platform/projects-resource-warnings?ref={ref}`                                                                           |
+| **Droits du plan** (64 features)        | `/platform/organizations/{org}/entitlements` → `{entitlements:[{feature:{key},hasAccess,config}]}`                         |
+
+Puis **vérification par comportement réel** (`curl`, pas par état d'UI), et
+introspection SQL (`pg_class`/`pg_policies`/`information_schema.role_table_grants`/
+`reloptions`, tailles par `pg_total_relation_size`) dans l'éditeur Monaco.
+
+**Ce qui tient (rien à faire — le verrouillage de la session 98 est intact).**
+`disable_signup=true` et `POST /auth/v1/signup` → **422 `signup_disabled`** ;
+`GET /rest/v1/owner_snapshots` en anon → **401 / `42501 permission denied`** ;
+vue `latest_client_payloads` → `reloptions = {security_invoker=true}` ;
+**une seule** politique en `public` : `owner_snapshots.owner_snapshots_read
+[authenticated] SELECT USING true` ; `client_access` / `client_payloads` : RLS
+sans politique (refus total **voulu** par `cloud/supabase/rls.sql`) ; fonction
+`client-sync` ACTIVE v3 `verify_jwt=false` = `cloud/supabase/config.toml`, et
+elle répond bien son `AUTH_ERROR` français ; `external_email_enabled=true` et
+le grant password fonctionne (`400 invalid_credentials` sur identifiant faux) ;
+`mailer_autoconfirm=false`, `mailer_allow_unverified_email_sign_ins=false`,
+`refresh_token_rotation_enabled=true`, `jwt_exp=3600`. **Storage** : RLS activée
+sur les 8 tables (`buckets`, `objects`, `s3_multipart_uploads`…) avec **zéro
+politique** et **zéro bucket** — les privilèges `anon` hérités de Supabase sur
+`storage.*` sont donc sans objet, rien à révoquer. **Miroir vivant** : 6 accès,
+36 clichés, dernière poussée `2026-11-01T20:35Z` (cadence tenue ⇒ le projet ne
+s'endort pas) ; base **11 Mo** sur 500 ; `owner_snapshots` **0 ligne** (le
+publieur ADR-171 attend l'installation du POS reconstruit).
+
+**Le correctif appliqué : `password_min_length` 6 → 8.** Constat : le serveur
+acceptait 6 caractères alors que **les deux applications** en exigent déjà 8 —
+`src/features/settings/SettingsSectionsB.tsx:765` (`ownerPassword.length < 8 || > 200`,
+« Mot de passe du propriétaire : 8 à 200 caractères. ») et `owner/src/api.ts:41`
+(`password.length < 8`). La garde côté serveur était donc la plus faible des
+trois, et le compte unique de `auth.users` ouvre cash / stock / dettes de la
+boutique. `PATCH /v1/projects/{ref}/config/auth {"password_min_length":8}` →
+**200**, relecture confirmée `password_min_length=8`, **aucune autre clé
+déplacée** (`disable_signup=true`, `external_email_enabled=true`,
+`mailer_autoconfirm=false`, `site_url` inchangé) et les quatre sondes de
+comportement rejouées à l'identique après le changement. Choix de la valeur :
+**8 et non 12**, précisément pour ne pas contredire la borne déjà écrite dans
+le POS (un compte créé depuis le POS avec 8 caractères aurait été refusé par un
+serveur à 12 via l'Admin API, qui applique la même politique).
+
+**Ce qui ne peut PAS être corrigé ici — découverte à ne pas re-tenter.** Le
+seul **WARN** du linter, `auth_leaked_password_protection` (« protection contre
+les mots de passe compromis, HaveIBeenPwned »), est **payant** :
+`PATCH … {"password_hibp_enabled":true,…}` → **402 Payment Required**, et
+l'endpoint d'entitlements confirme `auth.password_hibp`,
+`auth.leaked_password_protection` **et** `auth.advanced_auth_settings` en
+`hasAccess:false` sur l'organisation. Sur le plan gratuit ce Warn reste
+allumé : ni néglence ni réglage oubli, une limite de plan (Pro = 25 $/mois).
+`security_captcha_enabled=false` relève du même plafond.
+
+**Tranché par l'opérateur pendant la session** (arbitrage en un tour de
+question — à ne pas relancer tant que l'état cloud ne change pas) :
+
+1. **Politique RLS** : `owner_snapshots_read USING (true)` pour `authenticated`
+   est **conservée**. Le verrouillage `auth.uid() = <uuid>` (option proposée)
+   est écarté : un unique compte `auth.users` + inscriptions fermées donnent
+   déjà le même résultat, et le verrouillage rendrait l'APK muet sans message
+   d'erreur si le compte était recréé avec un autre uid.
+2. **Rétention `owner_snapshots`** : **aucune purge** pour l'instant. Le
+   calendrier des ~720 lignes/mois ne court pas (0 ligne publiée), et la bonne
+   borne dépend du volume réel d'une liasse (~900 000 caractères de plafond
+   côté constructeur) — décision reportée **après** la première mesure.
+3. `objectiveMinor` / `Debtor.manager` : hors sujet ici (décision produit +
+   colonne), inchangés.
+
+**Constats écrits, non agis (et pourquoi).**
+
+- `site_url = http://localhost:3000`. Inoffensif en l'état : `owner/src/api.ts`
+  n'ouvre **que** `POST /auth/v1/token?grant_type=password` — pas de lien de
+  réinitialisation, pas de magic link, pas d'OAuth (vérifié dans le code, pas
+  présumé). Il deviendrait cassant **le jour** où une récupération par e-mail
+  est branchée ; la valeur juste serait alors un lien profond de l'app, qui
+  n'existe pas encore.
+- Alerte plateforme `auth_restricted_email_sending = "warning"`, `smtp_host`
+  et `smtp_admin_email` à `null` : l'envoi passe par le SMTP géré par Supabase,
+  throttlé. Impact réel aujourd'hui quasi nul (un seul compte **déjà** confirmé,
+  aucun flux e-mail dans l'app) ; corriger = fournir des credentials SMTP
+  (Resend/SES), donc une décision + une secret à stocker, pas un réglage.
+- **Clés legacy `anon`/`service_role` toujours actives** à côté des nouvelles
+  `sb_publishable_…`/`sb_secret_…` (deux jeux coexistent). Les quatre artefacts
+  construits en session 99 portent l'`anon` legacy gravé (`mobile/eas.json`,
+  `owner/eas.json`) : les désactiver maintenant **casserait les APK installés**.
+  La migration est un chantier de reconstruction, pas un bouton.
+- Inbound DB `dbAllowedCidrs ["0.0.0.0/0"]` / `dbAllowedCidrsV6 ["::/0"]` et
+  `ssl_enforced=false`, refusés par l'opérateur : rien ne se connecte en
+  Postgres direct (tout passe par HTTPS/`service_role`), donc le bénéfice est
+  nul pour un risque sur l'outillage futur (`supabase db push`, diagnostic).
+
+**Portes** : aucune à faire tourner — **zéro ligne de code du dépôt modifiée**,
+`git status` propre avant et pendant, les portes de la session 100 restent
+valables. Seuls `handoff.md` et la mémoire de projet portent cette session.
+`graphify update` sans objet (aucun symbole touché).
