@@ -1,6 +1,6 @@
 {
   "name": "veloria-owner",
-  "version": "0.1.0",
+  "version": "1.0.4",
   "private": true,
   "description": "Veloria Owner — supervision mobile du propriétaire (lecture seule, français)",
   "main": "index.js",

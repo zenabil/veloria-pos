@@ -14,6 +14,7 @@ import { formatCustomerCode } from "@shared/formatters/format.ts";
 import { api } from "@shared/types/ipc-client.ts";
 import { callChecked, saleResultSchema } from "@shared/types/ipc-contracts.ts";
 import { buildSalePayload } from "@/application/sales/create-sale.ts";
+import { pickSaleOperationId } from "../sale-op.ts";
 import { toCartDraftTabs } from "./cart-drafts.ts";
 import type { RefObject } from "react";
 import { MAX_CART_TABS, type ActiveCart } from "../cart-store.ts";
@@ -33,8 +34,6 @@ export interface SellFlowDeps {
   notify: Notify;
   company: CompanyFields;
   totals: SellTotals | null;
-  payOperationId: string;
-  setPayOperationId: (v: string) => void;
   settleOperationId: string;
   setSettleOperationId: (v: string) => void;
   finalizeGuard: { current: boolean };
@@ -98,6 +97,34 @@ export function flowDepsFrom(
   return { ...s, cart, notify, company, ...extra };
 }
 
+/**
+ * Identité d'opération de la tentative d'encaissement (M-1 côté vente).
+ * Liée au CONTENU soumis : un retry (double-clic, timeout, crash + reprise)
+ * rejoue la MÊME opération, tandis qu'une correction du panier (ligne, client,
+ * montant donné) ouvre une NOUVELLE opération. Sans cette liaison, le main
+ * rejouerait l'ancienne vente déjà committée pendant que la caisse imprime et
+ * annonce le panier corrigé.
+ *
+ * POINT DE GÉNÉRATION UNIQUE : au commit, sur le contenu exact envoyé. Résoudre
+ * plus tôt (à l'ouverture du dialogue) figerait l'empreinte sur un montant
+ * SUPPOSÉ — le caissier saisit-il un versement partiel que l'empreinte change,
+ * et le retry après réponse perdue rouvrirait une seconde vente au lieu de
+ * rejouer la première.
+ */
+function saleAttempt(d: SellFlowDeps, amountPaidMinor: number): string {
+  const attempt = pickSaleOperationId(d.cart, {
+    customerId: d.cart.customerId,
+    lines: d.cart.lines,
+    amountPaidMinor,
+    deliveryFeeMinor: d.cart.deliveryFeeMinor,
+    paymentMethod: d.cart.paymentMethod,
+  });
+  // Écriture seulement quand le contenu diverge : réécrire à chaque appel ferait
+  // vibrer le store (et le brouillon autosauvegardé) pour rien.
+  if (attempt.rotated) d.cart.setSaleOperation(attempt.key, attempt.operationId);
+  return attempt.operationId;
+}
+
 export function openPay(d: SellFlowDeps): void {
   if (d.cart.lines.length === 0 || d.totals == null) {
     d.notify("Panier vide : ajoutez au moins un article.", "err");
@@ -109,11 +136,6 @@ export function openPay(d: SellFlowDeps): void {
   }
   d.setPaidText(minorToInputTotal(d.totals.totalMinor));
   d.setDueDate("");
-  // Une seule identité d'opération par tentative de panier : un retry (même
-  // après fermeture du dialogue) rejoue la même opération, jamais une seconde.
-  const operationId = d.cart.saleOperationId ?? newOperationId();
-  if (d.cart.saleOperationId == null) d.cart.setSaleOperationId(operationId);
-  d.setPayOperationId(operationId);
   d.setLimitOverride(false);
   d.setPayOpen(true);
 }
@@ -269,12 +291,18 @@ export async function finalizeSale(d: SellFlowDeps): Promise<void> {
         /* aperçu sans soldes plutôt que pas de vente */
       }
     }
+    // Identité de la tentative résolue sur le contenu FINAL (montant réellement
+    // appliqué compris) : c'est lui que le main va committer.
+    const operationId = saleAttempt(d, appliedPaidMinor);
     // Persister l'identité de la tentative AVANT le commit : si l'application
     // meurt entre le commit et le nettoyage du panier, le brouillon rejouera
-    // le même operationId et `createSaleAtomic` reconnaîtra la vente.
-    if (d.cart.saleOperationId == null) d.cart.setSaleOperationId(d.payOperationId);
+    // le même operationId et `createSaleAtomic` reconnaîtra la vente. Le montant
+    // appliqué est écrit explicitement (les onglets du store sont encore ceux du
+    // rendu courant) pour que le brouillon décrive exactement cette vente.
     const draftTabs = toCartDraftTabs(d.cart.tabs).map((t) =>
-      t.tabId === d.cart.activeId ? { ...t, saleOperationId: d.payOperationId } : t,
+      t.tabId === d.cart.activeId
+        ? { ...t, saleOperationId: operationId, amountPaidMinor: appliedPaidMinor }
+        : t,
     );
     try {
       await api.cartsSave({ operationId: newOperationId(), tabs: draftTabs });
@@ -287,7 +315,7 @@ export async function finalizeSale(d: SellFlowDeps): Promise<void> {
       (a) =>
         a.sales.create(
           buildSalePayload({
-            operationId: d.payOperationId,
+            operationId,
             lines: d.cart.lines,
             deliveryFeeMinor: d.cart.deliveryFeeMinor,
             amountPaidMinor: appliedPaidMinor,

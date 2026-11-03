@@ -2,7 +2,7 @@
 // Extrait de `ClientDialogs.tsx` (découpage sans changement de comportement).
 import { useState } from "react";
 import { PAYMENT_METHOD_LABELS, formatCustomerCode } from "@shared/formatters/format.ts";
-import { formatDzd, minorToInput, parseDzdInputStrict } from "@domain/money/money.ts";
+import { formatDzd, minorToInputTotal, parseDzdInputTotal } from "@domain/money/money.ts";
 import { todayBusinessDate } from "@domain/common/business-day.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import { playSound } from "@shared/sound/sound.ts";
@@ -21,7 +21,9 @@ export function PaymentDialog({
   notify,
 }: PaymentDialogProps): React.JSX.Element {
   const [amount, setAmount] = useState(
-    customer.outstanding_balance_minor > 0 ? minorToInput(customer.outstanding_balance_minor) : "",
+    customer.outstanding_balance_minor > 0
+      ? minorToInputTotal(customer.outstanding_balance_minor)
+      : "",
   );
   const [method, setMethod] = useState<"cash" | "cheque" | "transfer">("cash");
   const [busy, setBusy] = useState(false);
@@ -35,7 +37,7 @@ export function PaymentDialog({
   let parsed = 0;
   let parsedOk = true;
   try {
-    parsed = parseDzdInputStrict(amount.trim() === "" ? "0" : amount, "Montant");
+    parsed = parseDzdInputTotal(amount.trim() === "" ? "0" : amount, "Montant");
   } catch {
     parsedOk = false;
   }

@@ -2,7 +2,14 @@
 import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { COLORS, RADIUS, SIZES, SPACE, TYPE } from "../tokens.ts";
-import { formatDateLongFr, formatDateShortFr, formatMinor, formatTime } from "../format.ts";
+import {
+  formatDateLongFr,
+  formatDateShortFr,
+  formatMinorSafe,
+  formatPercent,
+  formatSignedMinorSafe,
+  formatTime,
+} from "../format.ts";
 import type { CashSession, ExpenseRow, OwnerSnapshot } from "../store.ts";
 import {
   Amount,
@@ -33,7 +40,9 @@ function varianceLabel(v: number | null): string {
 
 function varianceText(v: number | null): string {
   if (v === null) return "—";
-  return v > 0 ? `+${formatMinor(v)}` : formatMinor(v);
+  // Signe + montant en UN seul appel : un chiffre corrompu rend « — » nu,
+  // jamais un « +— » hérité d'une concaténation.
+  return formatSignedMinorSafe(v);
 }
 
 function expenseIcon(category: string): IconName {
@@ -113,7 +122,7 @@ function ExpenseLine(props: { row: ExpenseRow }): React.JSX.Element {
           {formatDateShortFr(props.row.at)} · {props.row.category}
         </Text>
       </View>
-      <Amount text={formatMinor(-props.row.amountMinor)} size={14} tone={COLORS.criticalText} />
+      <Amount text={formatMinorSafe(-props.row.amountMinor)} size={14} tone={COLORS.criticalText} />
     </View>
   );
 }
@@ -183,7 +192,7 @@ export function MoneyScreen(props: {
             >
               <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>Conformité</Text>
               <Text style={{ ...TYPE.bodySm, color: COLORS.statusOk, fontWeight: "800" }}>
-                {money.audit.conformityPercent.toFixed(2).replace(".", ",")} %
+                {formatPercent(money.audit.conformityPercent, 2)}
               </Text>
             </View>
             <View
@@ -268,7 +277,7 @@ export function MoneyScreen(props: {
                           ? "—"
                           : tile.signed
                             ? varianceText(tile.value)
-                            : formatMinor(tile.value)
+                            : formatMinorSafe(tile.value)
                       }
                       size={13}
                       tone={tile.tone}
@@ -329,7 +338,7 @@ export function MoneyScreen(props: {
                   TOTAL ENGAGÉ · {money.expenses.monthLabel.toUpperCase()}
                 </Text>
                 <Amount
-                  text={formatMinor(money.expenses.totalMinor)}
+                  text={formatMinorSafe(money.expenses.totalMinor)}
                   size={26}
                   style={{ marginTop: 4 }}
                 />
@@ -352,7 +361,7 @@ export function MoneyScreen(props: {
               }}
             >
               <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>Moyenne / pièce</Text>
-              <Amount text={formatMinor(expenseAverage)} size={13} />
+              <Amount text={formatMinorSafe(expenseAverage)} size={13} />
             </View>
             <View
               style={{
@@ -395,7 +404,7 @@ export function MoneyScreen(props: {
               }}
             >
               <Text style={{ ...TYPE.bodySm, color: COLORS.cardMuted }}>Total portefeuille dû</Text>
-              <Amount text={formatMinor(debts.totalMinor)} size={20} />
+              <Amount text={formatMinorSafe(debts.totalMinor)} size={20} />
             </View>
             <View
               style={{
@@ -412,7 +421,11 @@ export function MoneyScreen(props: {
               <Text style={{ ...TYPE.label, color: COLORS.statusWatch, fontWeight: "700" }}>
                 dont retard critique (+30 j)
               </Text>
-              <Amount text={formatMinor(debts.overdueMinor)} size={13} tone={COLORS.statusWatch} />
+              <Amount
+                text={formatMinorSafe(debts.overdueMinor)}
+                size={13}
+                tone={COLORS.statusWatch}
+              />
             </View>
             <View style={{ marginTop: SPACE.md }}>
               <ProgressBar
@@ -470,7 +483,7 @@ export function MoneyScreen(props: {
                         Échéance dépassée · Retard {d.lateDays} jours
                       </Text>
                     </View>
-                    <Amount text={formatMinor(d.totalMinor)} size={14} />
+                    <Amount text={formatMinorSafe(d.totalMinor)} size={14} />
                     <Icon name="chevron-forward" size={16} color={COLORS.cardMuted} />
                   </View>
                 </Tap>

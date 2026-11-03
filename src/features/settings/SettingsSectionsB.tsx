@@ -11,8 +11,8 @@ import {
 } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { useLoadSeq } from "@shared/ui/use-load-seq.ts";
-import { strictOrNeg } from "@shared/money/parse.ts";
-import { minorToInput } from "@domain/money/money.ts";
+import { strictOrNegTotal } from "@shared/money/parse.ts";
+import { minorToInputTotal } from "@domain/money/money.ts";
 import {
   BACKUP_FREQUENCIES,
   backupFrequencyFromAuto,
@@ -1346,7 +1346,7 @@ export function ZakatSettingsSection({ notify }: { notify: Notify }): React.JSX.
       .then((s) => {
         const p = (s as { params: ZakatParams }).params;
         setRate(String(p.ratePercent).replace(".", ","));
-        setNisab(p.nisabMinor > 0 ? minorToInput(p.nisabMinor) : "");
+        setNisab(p.nisabMinor > 0 ? minorToInputTotal(p.nisabMinor) : "");
         setHawl(p.hawlDate ?? "");
         setMethod(p.nisabMethod);
       })
@@ -1356,7 +1356,7 @@ export function ZakatSettingsSection({ notify }: { notify: Notify }): React.JSX.
   function save(): void {
     const rateNum = Number(rate.replace(",", "."));
     // P1-5 : strict (bornes H-1, jamais NaN).
-    const nisabMinor = strictOrNeg(nisab, "Nisab");
+    const nisabMinor = strictOrNegTotal(nisab, "Nisab");
     if (!Number.isFinite(rateNum) || rateNum < 0.1 || rateNum > 100) {
       notify("Taux invalide (0,1 – 100).", "err");
       return;

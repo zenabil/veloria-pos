@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@shared/types/ipc-client.ts";
 
-import { newOperationId } from "@domain/common/ids.ts";
+import { useContentOperationId } from "@shared/ui/use-operation-id.ts";
 import { buildAdjustStockPayload } from "@/application/stock/adjust-stock.ts";
 
 import {
@@ -66,6 +66,10 @@ export function StockAdjustmentDialog({
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
+  // Identité liée au MOUVEMENT soumis (produit, sens, quantité, motif) : un
+  // retry rejoue le même ajustement, un mouvement corrigé en ouvre un nouveau
+  // (jamais `newOperationId()` au clic, qui laisserait le stock bouger deux fois).
+  const contentOperationId = useContentOperationId();
   const searchTimer = useDebouncedTimer();
 
   useEffect(() => {
@@ -128,6 +132,17 @@ export function StockAdjustmentDialog({
       reference: string | null;
     };
     try {
+      const operationId = contentOperationId(
+        `stock.adjust:${JSON.stringify({
+          productId: picked.id,
+          currentQty: picked.quantity,
+          kind: toKind,
+          quantity: qty,
+          reason: reason.trim(),
+          notes: notes.trim(),
+          reference: reference.trim(),
+        })}`,
+      );
       payload = buildAdjustStockPayload({
         productId: picked.id,
         currentQty: picked.quantity,
@@ -137,7 +152,7 @@ export function StockAdjustmentDialog({
         reason,
         notes,
         reference,
-        operationId: newOperationId(),
+        operationId,
       });
     } catch (e) {
       notify(frError(e, "Ajustement invalide."), "err");

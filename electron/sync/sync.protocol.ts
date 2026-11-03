@@ -200,13 +200,33 @@ export function requiresServiceKeyReentry(args: {
 }
 
 /** Poussée due ? (désactivée, jamais poussée, ou cadence dépassée). */
-export function isPushDue(cfg: SyncConfig, lastPushAt: string | null, nowMs: number): boolean {
+/**
+ * Cadence de poussée due ? `lastPushAt` seul était insuffisant : il n'est écrit
+ * qu'au SUCCÈS, donc un miroir injoignable (clé refusée, réseau HS) relançait
+ * une poussée complète à chaque tick de 60 s, indéfiniment. E-43 ajoute
+ * `lastAttemptAt` (horodaté succès ET échec) : la gate prend le plus récent
+ * des deux, la cadence `intervalMinutes` est donc réellement respectée.
+ */
+export function isPushDue(
+  cfg: SyncConfig,
+  lastPushAt: string | null,
+  nowMs: number,
+  lastAttemptAt?: string | null,
+): boolean {
   if (!cfg.enabled) return false;
   if (cfg.supabaseUrl === "" || cfg.serviceKey === "") return false;
-  if (lastPushAt == null) return true;
-  const last = Date.parse(lastPushAt);
+  const latest = latestIso(lastPushAt, lastAttemptAt ?? null);
+  if (latest == null) return true;
+  const last = Date.parse(latest);
   if (!Number.isFinite(last)) return true;
   return nowMs - last >= cfg.intervalMinutes * 60_000;
+}
+
+/** Le plus récent de deux horodatages ISO (null si les deux sont absents). */
+function latestIso(a: string | null, b: string | null): string | null {
+  if (a == null) return b;
+  if (b == null) return a;
+  return Date.parse(b) > Date.parse(a) ? b : a;
 }
 
 /**
@@ -218,11 +238,13 @@ export function isOwnerPushDue(
   cfg: SyncConfig,
   lastOwnerPushAt: string | null,
   nowMs: number,
+  lastOwnerAttemptAt?: string | null,
 ): boolean {
   if (!cfg.ownerEnabled) return false;
   if (cfg.supabaseUrl === "" || cfg.serviceKey === "") return false;
-  if (lastOwnerPushAt == null) return true;
-  const last = Date.parse(lastOwnerPushAt);
+  const latest = latestIso(lastOwnerPushAt, lastOwnerAttemptAt ?? null);
+  if (latest == null) return true;
+  const last = Date.parse(latest);
   if (!Number.isFinite(last)) return true;
   return nowMs - last >= cfg.ownerIntervalMinutes * 60_000;
 }
@@ -288,6 +310,66 @@ export class MirrorRejectionError extends Error {
     super(`Miroir injoignable (HTTP ${status}).`);
     this.name = "MirrorRejectionError";
   }
+}
+
+/**
+ * E-42 (radical) — un rejet définitif n'est pas forcément **de la faute d'une
+ * ligne**. `ADR-173` divise le lot jusqu'à isoler « la coupable » : efficace
+ * pour une contrainte étrangère (409) ou un payload invalide (400/422),
+ * catastrophique pour une table absente (mauvais projet, schéma non provisionné) :
+ * la bissection condamnait UNE PAR UNE les 200 clichés en `failed` — perte
+ * silencieuse et **définitive** de tout l'historique client, pour une simple
+ * erreur de configuration.
+ *
+ * La distinction est dans le détail PostgREST, donc elle est décidable ici
+ * (pur, testable) : `42P01` / `PGRST205` / « relation … does not exist » /
+ * « Could not find the … table » parlent de la **table**, jamais d'une ligne.
+ */
+export type MirrorRejectionKind = "row" | "table" | "transient";
+
+const TABLE_LEVEL_DETAIL_RE =
+  /does not exist|could not find the (?:table|view|relation)|relation "?[a-z0-9_.]+"?|schema cache|\b42P01\b|\bPGRST205\b|\bPGRST111\b/i;
+
+export function classifyMirrorRejection(status: number, detail: string): MirrorRejectionKind {
+  if (!isPermanentMirrorRejection(status)) return "transient";
+  if (status === 404) return "table";
+  if (TABLE_LEVEL_DETAIL_RE.test(detail)) return "table";
+  return "row";
+}
+
+/**
+ * E-41 (radical) — un `payload_json` illisible DANS LA FILE gelait toute la
+ * poussée : `buildMirrorRequests` levait, donc la file entière restait
+ * `pending` et le tick suivant mourait sur la même ligne (miroir jamais à
+ * jour, aucune erreur nouvelle). Comme pour le rejet HTTP, la ligne coupable
+ * est écartée et les autres partent.
+ *
+ * Sépare donc la file en « poussable » / « corrompue » AVANT construction des
+ * requêtes. La corruption est locale (disque), elle n'a rien de temporaire :
+ * ces lignes-là sont condamnées, avec raison FR, et non rejouées indéfiniment.
+ */
+export function partitionOutboxRows(rows: readonly OutboxMirrorRow[]): {
+  valid: OutboxMirrorRow[];
+  corruptedOperationIds: string[];
+} {
+  const valid: OutboxMirrorRow[] = [];
+  const corruptedOperationIds: string[] = [];
+  for (const row of rows) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(row.payload_json) as unknown;
+    } catch {
+      corruptedOperationIds.push(row.operation_id);
+      continue;
+    }
+    // Un JSON légal mais vide/nul n'est pas un cliché : même traitement.
+    if (parsed === null || parsed === "") {
+      corruptedOperationIds.push(row.operation_id);
+      continue;
+    }
+    valid.push(row);
+  }
+  return { valid, corruptedOperationIds };
 }
 
 /**

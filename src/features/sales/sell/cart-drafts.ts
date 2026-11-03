@@ -3,6 +3,7 @@
 // La persistance (debounce 800 ms + appel IPC) reste dans l'écran ; ici seule
 // la projection `CartTab[]` → charge IPC, testée unitairement.
 
+import { persistedSaleOperationId } from "../sale-op.ts";
 import type { CartTab } from "../cart-store.ts";
 
 export interface CartDraftLinePayload {
@@ -40,10 +41,8 @@ export interface CartDraftTabPayload {
 
 /** Projection pure des onglets vers la charge `carts.save` (mêmes champs, même ordre). */
 export function toCartDraftTabs(tabs: CartTab[]): CartDraftTabPayload[] {
-  return tabs.map((t) => ({
-    tabId: t.id,
-    name: t.name,
-    lines: t.lines.map((l) => ({
+  return tabs.map((tab) => {
+    const lines: CartDraftLinePayload[] = tab.lines.map((l) => ({
       key: l.key,
       productId: l.productId,
       productName: l.productName,
@@ -59,13 +58,27 @@ export function toCartDraftTabs(tabs: CartTab[]): CartDraftTabPayload[] {
       packagingSellingPriceMinor: l.packagingSellingPriceMinor ?? null,
       packagingAutoCartonPricing: l.packagingAutoCartonPricing === true,
       packagingPriceOverridden: l.packagingPriceOverridden === true,
-    })),
-    customerId: t.customerId,
-    customerLabel: t.customerLabel,
-    amountPaidMinor: t.amountPaidMinor,
-    paymentMethod: t.paymentMethod,
-    deliveryFeeMinor:
-      Number.isInteger(t.deliveryFeeMinor) && t.deliveryFeeMinor >= 0 ? t.deliveryFeeMinor : 0,
-    saleOperationId: t.saleOperationId ?? null,
-  }));
+    }));
+    const payload: Omit<CartDraftTabPayload, "saleOperationId"> = {
+      tabId: tab.id,
+      name: tab.name,
+      lines,
+      customerId: tab.customerId,
+      customerLabel: tab.customerLabel,
+      amountPaidMinor: tab.amountPaidMinor,
+      paymentMethod: tab.paymentMethod,
+      deliveryFeeMinor:
+        Number.isInteger(tab.deliveryFeeMinor) && tab.deliveryFeeMinor >= 0
+          ? tab.deliveryFeeMinor
+          : 0,
+    };
+    return {
+      ...payload,
+      // L'identité d'encaissement n'est persistée que si elle est toujours
+      // figée sur CE contenu : un panier modifié doit ressortir sans UUID (une
+      // NOUVELLE opération), sinon le vieux UUID ferait rejouer l'ancienne
+      // vente après un rechargement, ticket neuf à l'appui.
+      saleOperationId: persistedSaleOperationId(tab, payload),
+    };
+  });
 }

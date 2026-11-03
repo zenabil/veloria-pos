@@ -2,7 +2,13 @@
 import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { COLORS, RADIUS, SIZES, SPACE, TYPE } from "../tokens.ts";
-import { formatDateShortFr, formatMinor, formatPercent, formatTime } from "../format.ts";
+import {
+  formatDateShortFr,
+  formatMinorSafe,
+  formatPercent,
+  formatSignedMinorSafe,
+  formatTime,
+} from "../format.ts";
 import type { CashSession, OwnerSnapshot } from "../store.ts";
 import { Amount, Badge, Card, Chip, ReadOnlyNote, Segmented } from "../ui/kit.tsx";
 import { Icon } from "../ui/Icon.tsx";
@@ -24,7 +30,9 @@ function varianceBadge(v: number | null): { label: string; color: string; bg: st
 
 function varianceText(v: number | null): string {
   if (v === null) return "—";
-  return v > 0 ? `+${formatMinor(v)}` : formatMinor(v);
+  // Signe + montant en UN seul appel : jamais de « +— » quand la valeur est
+  // illisible — le signe est posé par le formatateur, pas à l'extérieur.
+  return formatSignedMinorSafe(v);
 }
 
 function SessionCard(props: { s: CashSession }): React.JSX.Element {
@@ -58,11 +66,17 @@ function SessionCard(props: { s: CashSession }): React.JSX.Element {
       >
         <View style={{ flex: 1 }}>
           <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>Déclaré</Text>
-          <Amount text={s.countedMinor === null ? "—" : formatMinor(s.countedMinor)} size={12} />
+          <Amount
+            text={s.countedMinor === null ? "—" : formatMinorSafe(s.countedMinor)}
+            size={12}
+          />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>Attendu</Text>
-          <Amount text={s.expectedMinor === null ? "—" : formatMinor(s.expectedMinor)} size={12} />
+          <Amount
+            text={s.expectedMinor === null ? "—" : formatMinorSafe(s.expectedMinor)}
+            size={12}
+          />
         </View>
         <View style={{ flex: 1, alignItems: "flex-end" }}>
           <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>Écart</Text>
@@ -151,7 +165,11 @@ export function CashAuditScreen(props: {
                   <Text style={{ ...TYPE.badge, color: COLORS.cardMuted, letterSpacing: 0.6 }}>
                     FONDS MANIPULÉS (7 J)
                   </Text>
-                  <Amount text={formatMinor(audit.fundsMinor)} size={26} style={{ marginTop: 4 }} />
+                  <Amount
+                    text={formatMinorSafe(audit.fundsMinor)}
+                    size={26}
+                    style={{ marginTop: 4 }}
+                  />
                 </View>
                 <View
                   style={{
@@ -294,7 +312,7 @@ export function CashAuditScreen(props: {
                       }}
                     >
                       <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>Attendu</Text>
-                      <Amount text={formatMinor(session.expectedMinor ?? 0)} size={12} />
+                      <Amount text={formatMinorSafe(session.expectedMinor ?? 0)} size={12} />
                     </View>
                     <View
                       style={{
@@ -305,7 +323,7 @@ export function CashAuditScreen(props: {
                       }}
                     >
                       <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>Comptage</Text>
-                      <Amount text={formatMinor(session.countedMinor ?? 0)} size={12} />
+                      <Amount text={formatMinorSafe(session.countedMinor ?? 0)} size={12} />
                     </View>
                   </View>
                   <View

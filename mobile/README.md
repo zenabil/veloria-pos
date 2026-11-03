@@ -45,6 +45,9 @@ Dossiers réels : `src/tokens.ts`, `src/i18n.ts`, `src/screens/`, `src/ui/`,
 
 ```powershell
 node scripts/demo-client-sync-server.mjs              # miroir faux : 0550123456 / 123456
+# Le bundle ne grave AUCUN repli (#29) : sans ces variables, l'APK affiche le
+# bandeau « non configuré » au lieu de mimer une panne réseau.
+$env:EXPO_PUBLIC_SYNC_URL="http://127.0.0.1:8099"; $env:EXPO_PUBLIC_ANON_KEY="demo"
 cd mobile && npx expo start --web --port 8083         # rendu react-native-web
 PHONE=0550123456 PIN=123456 node scripts/e2e-mobile-shots.mjs   # test-results/e2e-loop/m-*.png
 ```

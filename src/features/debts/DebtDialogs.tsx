@@ -6,11 +6,11 @@ import { api } from "@shared/types/ipc-client.ts";
 import { callChecked, paymentAckSchema } from "@shared/types/ipc-contracts.ts";
 import { useCompany } from "@shared/company/use-company.ts";
 import { useAppSettings } from "@shared/settings/use-app-settings.ts";
-import { formatDzd, minorToInput } from "@domain/money/money.ts";
+import { formatDzd, minorToInputTotal } from "@domain/money/money.ts";
 import { formatDzdSafe } from "@shared/formatters/format.ts";
 import { DocumentPreviewModal } from "@shared/documents/DocumentPreviewModal.tsx";
 import { PaymentTicketModal, type PaymentTicketInput } from "@shared/documents/payment-preview.tsx";
-import { strictOrNeg } from "@shared/money/parse.ts";
+import { strictOrNegTotal } from "@shared/money/parse.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { buildSaleTicketPayload } from "@shared/documents/sale-ticket.ts";
 import { todayBusinessDate } from "@domain/common/business-day.ts";
@@ -315,7 +315,7 @@ export function DebtPaymentDialog({
   onSaved: () => void;
   notify: Notify;
 }): React.JSX.Element {
-  const [amountText, setAmountText] = useState(minorToInput(row.remaining_minor));
+  const [amountText, setAmountText] = useState(minorToInputTotal(row.remaining_minor));
   const [method, setMethod] = useState<"cash" | "cheque" | "transfer">("cash");
   const [date, setDate] = useState(todayBusinessDate());
   const [reference, setReference] = useState("");
@@ -337,7 +337,7 @@ export function DebtPaymentDialog({
   }, [supplierDefaults]);
 
   // P1-5 : strict (bornes H-1, jamais NaN) ; invalide → -1 = refusé par `valid`.
-  const amount = strictOrNeg(amountText, "Montant");
+  const amount = strictOrNegTotal(amountText, "Montant");
   const valid = Number.isInteger(amount) && amount > 0 && amount <= row.remaining_minor;
 
   async function save(): Promise<void> {

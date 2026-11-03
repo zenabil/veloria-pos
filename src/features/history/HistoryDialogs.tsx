@@ -7,7 +7,7 @@ import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { useCompany } from "@shared/company/use-company.ts";
 import { formatDzd } from "@domain/money/money.ts";
 import { formatDateFr } from "@shared/formatters/format.ts";
-import { newOperationId } from "@domain/common/ids.ts";
+import { useContentOperationId } from "@shared/ui/use-operation-id.ts";
 import { usePendingSaleEdit, type PendingSaleEdit } from "@shared/sales/pending-sale-edit.ts";
 import { buildSaleTicketPayload } from "@shared/documents/sale-ticket.ts";
 import { Badge, Button, Card, Drawer, InfoRow } from "@shared/ui/primitives.tsx";
@@ -47,6 +47,13 @@ export function HistoryDetailsDrawer({
   const [deliveryBusy, setDeliveryBusy] = useState(false);
   const [cancelBusy, setCancelBusy] = useState(false);
   const [reopenBusy, setReopenBusy] = useState(false);
+  // Idempotence par VENTE et par ACTION (jamais par clic) : `sales.cancel` et
+  // `sales.reopen` annulent/retouchent stock, FIFO et soldes. Un retry après
+  // réponse perdue doit REJOUER le résultat stocké, pas rejouer l'effet.
+  // UN cache par opération : les deux s'ignorent mutuellement (cancel puis
+  // reopen puis cancel reconduit bien l'identité du premier cancel).
+  const cancelOperationId = useContentOperationId();
+  const reopenOperationId = useContentOperationId();
   const confirmAsync = useConfirm();
   // Fiche entreprise : source unique partagée (ticket).
   const { record: companyRecord } = useCompany();
@@ -166,7 +173,10 @@ export function HistoryDetailsDrawer({
       return;
     setCancelBusy(true);
     try {
-      await api.saleCancel({ id: detail.ticketSaleId, operationId: newOperationId() });
+      await api.saleCancel({
+        id: detail.ticketSaleId,
+        operationId: cancelOperationId(`sales.cancel:${detail.ticketSaleId}`),
+      });
       notify(`Vente ${detail.reference} annulée.`, "ok");
       onChanged();
       onClose();
@@ -194,7 +204,7 @@ export function HistoryDetailsDrawer({
     try {
       const draft = (await api.saleReopen({
         id: detail.ticketSaleId,
-        operationId: newOperationId(),
+        operationId: reopenOperationId(`sales.reopen:${detail.ticketSaleId}`),
       })) as PendingSaleEdit;
       usePendingSaleEdit.getState().set(draft);
       notify(

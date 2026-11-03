@@ -8,6 +8,7 @@ import {
 } from "@/features/sales/sell/sell-search.ts";
 import { bumpLastQty, openPay } from "@/features/sales/sell/sell-finalize.ts";
 import { shouldIgnoreBump } from "@/features/sales/sell/useSellShortcuts.ts";
+import { minorToInputTotal } from "@domain/money/money.ts";
 import type { CartLine } from "@/application/sales/create-sale.ts";
 import type { SearchRow } from "@/features/sales/sell/sell-types.ts";
 
@@ -96,13 +97,27 @@ describe("stockGuardMessage : alerte FR précoce (le main retranche)", () => {
   });
 });
 
-describe("openPay : identité d'opération stable par panier", () => {
-  it("réutilise l'operationId du panier après fermeture/réouverture", () => {
-    const cart: {
+describe("openPay : préparation du dialogue d'encaissement", () => {
+  // L'identité d'opération n'est plus figée à l'ouverture du dialogue : elle
+  // naît au COMMIT, sur le contenu réellement envoyé (see
+  // sale-operation-id-content-key.test.ts). Ouvrir le dialogue ne doit donc
+  // JAMAIS créer d'opération — sinon le montant supposé (le total) divergerait
+  // du versement saisi et le retry rouvrirait une seconde vente.
+  function panierPourEncaissement(): {
+    cart: {
       lines: CartLine[];
+      customerId: number | null;
+      amountPaidMinor: number;
+      paymentMethod: "cash" | "cheque" | "transfer" | null;
+      deliveryFeeMinor: number;
       saleOperationId: string | null;
-      setSaleOperationId: (id: string | null) => void;
-    } = {
+      saleOperationKey: string | null;
+      setSaleOperation: (key: string, id: string) => void;
+    };
+    setSaleOperation: ReturnType<typeof vi.fn>;
+  } {
+    const setSaleOperation = vi.fn();
+    const cart = {
       lines: [
         {
           key: "l1",
@@ -113,31 +128,64 @@ describe("openPay : identité d'opération stable par panier", () => {
           unitPriceMinor: 1000,
           purchasePriceMinor: 500,
           quantity: 1,
-        },
+        } as CartLine,
       ],
-      saleOperationId: null,
-      setSaleOperationId: (id) => {
+      customerId: null,
+      amountPaidMinor: 0,
+      paymentMethod: "cash" as const,
+      deliveryFeeMinor: 0,
+      saleOperationId: null as string | null,
+      saleOperationKey: null as string | null,
+      setSaleOperation: (key: string, id: string) => {
+        setSaleOperation(key, id);
+        cart.saleOperationKey = key;
         cart.saleOperationId = id;
       },
     };
+    return { cart, setSaleOperation };
+  }
+
+  it("préremplit le total dû, ouvre le dialogue, ne fige aucune opération", () => {
+    const { cart, setSaleOperation } = panierPourEncaissement();
     const setPaidText = vi.fn();
-    const setPayOperationId = vi.fn();
+    const setPayOpen = vi.fn();
     const deps = {
       cart,
       totals: { totalMinor: 1000, remainingMinor: 1000 },
       deliveryError: "",
       setPaidText,
       setDueDate: vi.fn(),
-      setPayOperationId,
       setLimitOverride: vi.fn(),
-      setPayOpen: vi.fn(),
+      setPayOpen,
     };
     openPay(deps as never);
-    const first = setPayOperationId.mock.calls[0]?.[0] as string;
-    expect(first).toBeTruthy();
-    expect(cart.saleOperationId).toBe(first);
+    expect(setPaidText).toHaveBeenCalledWith(minorToInputTotal(1000));
+    expect(setPayOpen).toHaveBeenCalledWith(true);
+    expect(setSaleOperation).not.toHaveBeenCalled();
+    expect(cart.saleOperationId).toBeNull();
+    // Réouverture (après une réponse perdue) : toujours aucune opération de plus.
     openPay(deps as never);
-    expect(setPayOperationId).toHaveBeenLastCalledWith(first);
+    expect(setSaleOperation).not.toHaveBeenCalled();
+  });
+
+  it("panier vide : refus en français, aucun dialogue ouvert", () => {
+    const { cart, setSaleOperation } = panierPourEncaissement();
+    cart.lines = [];
+    const notify = vi.fn();
+    const setPayOpen = vi.fn();
+    openPay({
+      cart,
+      totals: { totalMinor: 0, remainingMinor: 0 },
+      notify,
+      deliveryError: "",
+      setPaidText: vi.fn(),
+      setDueDate: vi.fn(),
+      setLimitOverride: vi.fn(),
+      setPayOpen,
+    } as never);
+    expect(notify).toHaveBeenCalledWith("Panier vide : ajoutez au moins un article.", "err");
+    expect(setPayOpen).not.toHaveBeenCalled();
+    expect(setSaleOperation).not.toHaveBeenCalled();
   });
 });
 

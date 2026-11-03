@@ -51,11 +51,24 @@ export function assertSafeTotal(value: number, label = "Total invalide"): void {
   }
 }
 
-/** Overflow-safe sum of N safe minors (invoices with 200+ lines). */
+/**
+ * Overflow-safe sum of N safe minors (invoices with 200+ lines).
+ *
+ * E-37 (radical) — les ADDENDAS sont des TOTAUX DE LIGNE, pas des valeurs
+ * unitaires : `multiplyMinorByQuantity` les autorise jusqu'à
+ * `MAX_MINOR_TOTAL` (1e11) et refusait au-delà. Valider chaque addenda avec
+ * `assertSafeMinor` (plafond unitaire 1e9) créait une incohérence de contrat :
+ * un line total légal de 1,5e9 centimes passait la garde de ligne puis
+ * échouait ici avec « Sous-total invalide : hors bornes [0, 1000000000] » —
+ * un message qui accuse à tort une ligne correcte. La borne d'un addenda est
+ * donc `MAX_MINOR_TOTAL` (entier sûrs, ≥ 0) ; c'est l'ACCUMULATEUR qui reste
+ * borné, et l'addition elle-même ne peut pas dépasser `MAX_MINOR_TOTAL`.
+ * Pour des valeurs SIGNÉES, utiliser `sumSignedMinors`.
+ */
 export function sumSafeMinors(values: readonly number[], label = "Sous-total invalide"): number {
   let acc = 0;
   for (const v of values) {
-    assertSafeMinor(v, { label });
+    assertSafeTotal(v, label);
     acc += v;
     if (!Number.isSafeInteger(acc) || acc < 0 || acc > MAX_MINOR_TOTAL) {
       throw new MoneyError(`${label} : dépassement de capacité.`);
@@ -112,9 +125,19 @@ export function fromDzd(major: number): number {
 }
 
 /**
- * H-1 §24 — Strict parser: valid input → valid Money, invalid → controlled
- * MoneyError (jamais NaN). SEUL parseur d'entrée (P1-5 : l'ancien
+ * H-1 §24 + E-34 — Strict parser: valid input → valid Money, invalid →
+ * controlled MoneyError (jamais NaN). SEUL parseur d'entrée (P1-5 : l'ancien
  * `dzdInputToMinor` NaN a été supprimé après migration des 28 appelants).
+ *
+ * E-36 (radical) — AUCUNE COERCION `Number()` sur la saisie brute :
+ * `Number("0x10")=16`, `Number("1e3")=1000`, `Number("+7")=7` étaient ACCEPTÉS
+ * (un prix de fournisseur « 1.5E3 » importé en CSV devenait 150 DA sans
+ * erreur). La politique d'entrée est donc la même que `parseQuantityInput`
+ * (gate regex) : décimale simple uniquement, groupement français toléré
+ * (espace, U+00A0, U+202F produits par `Intl fr-FR`), virgule OU point
+ * décimal, un seul séparateur. Le conversion en centimes est ensuite faite
+ * SUR LA CHAÎNE (entiers uniquement), ce qui supprime aussi le double
+ * arrondi `toFixed(6)` (10.0049999 → 1000, non 1001).
  */
 export function parseDzdInputStrict(
   raw: string,
@@ -122,18 +145,20 @@ export function parseDzdInputStrict(
   maxMinor = MAX_MINOR_SINGLE,
 ): number {
   if (typeof raw !== "string") throw new MoneyError(`${label}.`);
-  if (raw.trim().length === 0) throw new MoneyError(`${label} : saisie vide.`);
-  const n = Number(raw.replace(",", ".").trim());
-  if (!Number.isFinite(n)) throw new MoneyError(`${label} : saisie non numérique.`);
-  if (n < 0) throw new MoneyError(`${label} : montant négatif interdit.`);
-  if (n * MINOR_PER_MAJOR > maxMinor + 50) {
-    throw new MoneyError(`${label} : montant trop élevé.`);
+  const compact = raw.replace(/[\s\u00A0\u202F\u2007\u2009]/g, "");
+  if (compact.length === 0) throw new MoneyError(`${label} : saisie vide.`);
+  if (compact.startsWith("-")) throw new MoneyError(`${label} : montant négatif interdit.`);
+  if (!/^(?:\d+(?:[.,]\d*)?|[.,]\d+)$/.test(compact)) {
+    throw new MoneyError(`${label} : saisie non numérique.`);
   }
-  // E-34 : arrondi AU CENTIÈME SUPÉRIEUR (half away from zero) sans passer
-  // par un float. `n * 100` sur un flottant perd le centime à mi-chemin
-  // (10.005 → 1000.4999999999999 → 1000 : un centime perdu). On travaille
-  // donc sur la chaîne décimale : partie entière × 100 + centimes arrondis.
-  const out = decimalToMinorStrict(n);
+  const parts = compact.replace(",", ".").split(".");
+  const intPart = parts[0] ?? "";
+  const fracPart = parts[1] ?? "";
+  const digits = intPart.replace(/^0+/, "");
+  // Garde de capacité AVANT la conversion : 13 chiffres entiers dépassent
+  // tout plafond connu (1e11 centimes = 11 chiffres entiers de dinars).
+  if (digits.length > 13) throw new MoneyError(`${label} : montant trop élevé.`);
+  const out = decimalStringToMinor(digits, fracPart);
   assertSafeMinor(out, { label, max: maxMinor });
   return out;
 }
@@ -147,23 +172,31 @@ export function parseDzdInputTotal(raw: string, label = "Montant invalide"): num
 }
 
 /**
- * Conversion exacte d'un nombre décimal en centimes, arrondie AU DESSUS à
- * mi-chemin (convention DZD) et sans erreur de représentation binaire.
- * `12.5` → 1250 · `10.005` → 1001 (et non 1000).
+ * Conversion EXACTE chaîne → centimes, arrondie AU CENTIÈME SUPÉRIEUR à
+ * mi-chemin (convention DZD), sans jamais multiplier un flottant.
+ * `12.5` → 1250 · `10.005` → 1001 · `10.0049999` → 1000 · `2.675` → 268.
+ * Le premier chiffre abandonné (3ᵉ décimale) décide seul : ≥ 5 ⇒ on arrondit
+ * vers le haut (« half away from zero » sur une valeur déjà positive).
+ */
+function decimalStringToMinor(intDigits: string, fracDigits: string): number {
+  const cents = fracDigits.slice(0, 2).padEnd(2, "0");
+  const roundUp = Number(fracDigits[2] ?? "0") >= 5;
+  const majorMinor = Number(intDigits.length === 0 ? "0" : intDigits) * MINOR_PER_MAJOR;
+  if (!Number.isSafeInteger(majorMinor)) throw new MoneyError("Montant invalide : hors bornes.");
+  return majorMinor + Number(cents) + (roundUp ? 1 : 0);
+}
+
+/**
+ * Conversion d'un FLOTTANT (déjà hors de la saisie utilisateur) en centimes,
+ * même règle d'arrondi. Forme canonique via `toString()` (représentation
+ * aller-retour la plus courte) ; `toFixed(6)` en repli pour les exponentielles.
  */
 function decimalToMinorStrict(value: number): number {
-  // Représentation décimale canonique (6 décimales), reconstruite depuis la
-  // chaîne pour éviter l'erreur de représentation binaire.
-  const s = value.toFixed(6);
-  const m = /^(-?)(\d+)(?:\.(\d*))?$/.exec(s);
+  const canonical: string = String(value);
+  const m = /^(-?)(\d+)(?:\.(\d*))?$/.exec(canonical.includes("e") ? value.toFixed(6) : canonical);
   if (!m) return Math.round(value * MINOR_PER_MAJOR);
   const sign = m[1] === "-" ? -1 : 1;
-  const intPart = m[2] ?? "0";
-  const frac = (m[3] ?? "").padEnd(6, "0");
-  // Centimes = 2 décimales ; la 3ᵉ décide de l'arrondi (≥ 5 ⇒ +1 centime).
-  const cents = Number(intPart) * MINOR_PER_MAJOR + Number(frac.slice(0, 2));
-  const roundUp = Number(frac[2] ?? "0") >= 5;
-  return sign * (cents + (roundUp ? 1 : 0));
+  return sign * decimalStringToMinor((m[2] ?? "0").replace(/^0+(?=\d)/, ""), m[3] ?? "");
 }
 
 /** Format minor units for French UI: "1 250,00 DZD" — SANS FLOAT.

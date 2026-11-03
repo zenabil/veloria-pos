@@ -6,6 +6,7 @@ import { create } from "zustand";
 import { roundQuantity } from "@domain/common/quantity.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { isBilledByAmount } from "@domain/sales/sale-rules.ts";
+import { saleOperationKey } from "./sale-op.ts";
 import type { CartLine } from "@/application/sales/create-sale.ts";
 
 export interface CartTab {
@@ -19,10 +20,16 @@ export interface CartTab {
   deliveryFeeMinor: number;
   /**
    * Identité d'une tentative d'encaissement pour CE panier. Réutilisée tant
-   * que la vente n'a pas abouti (retry/double-clic = même opération), puis
-   * effacée avec le panier. Évite un second brouillon d'opération.
+   * que le contenu ne change pas (retry/double-clic = même opération rejouée
+   * par le main), puis effacée avec le panier.
    */
   saleOperationId?: string | null;
+  /**
+   * Empreinte du contenu auquel `saleOperationId` a été figé (mémoire seule,
+   * jamais persistée). Porte la liaison contenu ↔ opération : le panier change,
+   * l'empreinte diverge, une nouvelle opération naît.
+   */
+  saleOperationKey?: string | null;
 }
 
 type TotalsPatch = Partial<Pick<CartTab, "amountPaidMinor" | "paymentMethod" | "deliveryFeeMinor">>;
@@ -58,7 +65,8 @@ interface CartsStore {
   clear: () => void;
   setCustomer: (id: number | null, label: string) => void;
   setTotals: (patch: TotalsPatch) => void;
-  setSaleOperationId: (id: string | null) => void;
+  /** Fige l'opération d'encaissement AVEC l'empreinte du contenu soumis. */
+  setSaleOperation: (key: string, id: string) => void;
   /** P4 : remplace les onglets par les brouillons persistés (démarrage). */
   hydrate: (tabs: CartTab[]) => void;
 }
@@ -94,6 +102,7 @@ function makeTab(name: string): CartTab {
     paymentMethod: "cash",
     deliveryFeeMinor: 0,
     saleOperationId: null,
+    saleOperationKey: null,
   };
 }
 
@@ -144,6 +153,7 @@ export const useCartsStore = create<CartsStore>((set) => ({
                   paymentMethod: "cash",
                   deliveryFeeMinor: draft.deliveryFeeMinor,
                   saleOperationId: null,
+                  saleOperationKey: null,
                 }
               : t,
           ),
@@ -161,6 +171,7 @@ export const useCartsStore = create<CartsStore>((set) => ({
         paymentMethod: "cash",
         deliveryFeeMinor: draft.deliveryFeeMinor,
         saleOperationId: null,
+        saleOperationKey: null,
       };
       opened = true;
       return { tabs: [...s.tabs, tab], activeId: tab.id };
@@ -295,6 +306,7 @@ export const useCartsStore = create<CartsStore>((set) => ({
         customerId: null,
         customerLabel: "Client de passage",
         saleOperationId: null,
+        saleOperationKey: null,
       })),
     })),
   setCustomer: (id, label) =>
@@ -309,9 +321,13 @@ export const useCartsStore = create<CartsStore>((set) => ({
     set((s) => ({
       tabs: patchActive(s.tabs, s.activeId, (t) => ({ ...t, ...patch })),
     })),
-  setSaleOperationId: (id) =>
+  setSaleOperation: (key, id) =>
     set((s) => ({
-      tabs: patchActive(s.tabs, s.activeId, (t) => ({ ...t, saleOperationId: id })),
+      tabs: patchActive(s.tabs, s.activeId, (t) => ({
+        ...t,
+        saleOperationKey: key,
+        saleOperationId: id,
+      })),
     })),
   hydrate: (tabs) =>
     set(() => {
@@ -320,13 +336,8 @@ export const useCartsStore = create<CartsStore>((set) => ({
       const clean = tabs
         .filter((t) => Number.isInteger(t.id) && t.id > 0 && Array.isArray(t.lines))
         .slice(0, MAX_CART_TABS)
-        .map((t) => ({
-          id: t.id,
-          name:
-            typeof t.name === "string" && t.name.length > 0
-              ? t.name.slice(0, 40)
-              : `Panier ${t.id}`,
-          lines: t.lines
+        .map((t) => {
+          const lines = t.lines
             .filter(
               (l) =>
                 typeof l.key === "string" &&
@@ -334,23 +345,49 @@ export const useCartsStore = create<CartsStore>((set) => ({
                 Number.isFinite(l.quantity) &&
                 l.quantity > 0,
             )
-            .slice(0, MAX_CART_LINES),
-          customerId: t.customerId ?? null,
-          customerLabel: t.customerLabel || "Client de passage",
-          amountPaidMinor:
-            Number.isInteger(t.amountPaidMinor) && t.amountPaidMinor >= 0 ? t.amountPaidMinor : 0,
-          paymentMethod: t.paymentMethod ?? null,
-          deliveryFeeMinor:
+            .slice(0, MAX_CART_LINES);
+          const customerId = t.customerId ?? null;
+          const amountPaidMinor =
+            Number.isInteger(t.amountPaidMinor) && t.amountPaidMinor >= 0 ? t.amountPaidMinor : 0;
+          const paymentMethod = t.paymentMethod ?? null;
+          const deliveryFeeMinor =
             Number.isInteger(t.deliveryFeeMinor) && t.deliveryFeeMinor >= 0
               ? t.deliveryFeeMinor
-              : 0,
-          // Le brouillon reprend l'identité d'encaissement éventuelle : un
-          // retry après crash rejoue la même vente au lieu d'en créer une 2e.
-          saleOperationId:
+              : 0;
+          const saleOperationId =
             typeof t.saleOperationId === "string" && t.saleOperationId.length > 0
               ? t.saleOperationId
-              : null,
-        }))
+              : null;
+          return {
+            id: t.id,
+            name:
+              typeof t.name === "string" && t.name.length > 0
+                ? t.name.slice(0, 40)
+                : `Panier ${t.id}`,
+            lines,
+            customerId,
+            customerLabel: t.customerLabel || "Client de passage",
+            amountPaidMinor,
+            paymentMethod,
+            deliveryFeeMinor,
+            // Le brouillon reprend l'identité d'encaissement éventuelle : un
+            // retry après crash rejoue la même vente au lieu d'en créer une 2e.
+            // L'empreinte est recalée sur le CONTENU rechargé (mêmes champs que
+            // la projection du brouillon) — sinon la liaison contenu ↔ opération
+            // serait perdue et toute vente rechargée serait traitée comme neuve.
+            saleOperationId,
+            saleOperationKey:
+              saleOperationId == null
+                ? null
+                : saleOperationKey({
+                    customerId,
+                    lines,
+                    amountPaidMinor,
+                    deliveryFeeMinor,
+                    paymentMethod,
+                  }),
+          };
+        })
         .filter((t) => t.lines.length > 0);
       if (clean.length === 0) return {};
       let maxTab = tabSeq;
@@ -388,6 +425,6 @@ export function useCart(): ActiveCart {
     clear: store.clear,
     setCustomer: store.setCustomer,
     setTotals: store.setTotals,
-    setSaleOperationId: store.setSaleOperationId,
+    setSaleOperation: store.setSaleOperation,
   };
 }

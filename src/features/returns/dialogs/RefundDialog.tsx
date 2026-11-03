@@ -4,8 +4,8 @@ import { useState } from "react";
 
 import { api } from "@shared/types/ipc-client.ts";
 
-import { formatDzd, minorToInput } from "@domain/money/money.ts";
-import { strictOrNeg } from "@shared/money/parse.ts";
+import { formatDzd, minorToInputTotal } from "@domain/money/money.ts";
+import { strictOrNegTotal } from "@shared/money/parse.ts";
 import { useOperationId } from "@shared/ui/use-operation-id.ts";
 
 import { Button, Field, Modal, Select, TextInput } from "@shared/ui/primitives.tsx";
@@ -31,12 +31,12 @@ export function ReturnRefundDialog({
   notify: Notify;
 }): React.JSX.Element {
   const remaining = row.total_minor - row.settled_minor;
-  const [amountText, setAmountText] = useState(minorToInput(remaining));
+  const [amountText, setAmountText] = useState(minorToInputTotal(remaining));
   const [method, setMethod] = useState<"cash" | "cheque" | "transfer">("cash");
   const [busy, setBusy] = useState(false);
   // R8 : UUID figé à l'ouverture — retry / double-clic = un seul règlement.
   const { operationId, regen } = useOperationId();
-  const amount = strictOrNeg(amountText, "Montant");
+  const amount = strictOrNegTotal(amountText, "Montant");
   const valid = Number.isInteger(amount) && amount > 0 && amount <= remaining;
 
   async function save(): Promise<void> {

@@ -4,11 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { HandCoins, ReceiptText, Search, Undo2 } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 
-import { formatDzd, minorToInput } from "@domain/money/money.ts";
+import { formatDzd, minorToInputTotal } from "@domain/money/money.ts";
 import { cartonScanUnits } from "@domain/packaging/carton-barcodes.ts";
 import { normalizeBarcodeValue, uppercaseBarcodeInput } from "@shared/ui/barcode-input.ts";
 import { formatDzdSafe } from "@shared/formatters/format.ts";
-import { strictOrNeg } from "@shared/money/parse.ts";
+import { strictOrNegTotal } from "@shared/money/parse.ts";
 import { useOperationId } from "@shared/ui/use-operation-id.ts";
 
 import {
@@ -200,11 +200,11 @@ export function CustomerReturnDialog({
   const maxRefund = settlement.maxCashRefundMinor;
   const outstandingAfter = customerOutstandingMinor == null ? null : outstanding - autoCredit;
   // P1-5 : strict (bornes H-1, jamais NaN) ; invalide → -1 = refusé par les gardes.
-  const refund = strictOrNeg(refundText, "Remboursement");
+  const refund = strictOrNegTotal(refundText, "Remboursement");
   useEffect(() => {
     // Téléphone l'excédent tant que l'opérateur n'a pas modifié le champ.
     if (refundTouched) return;
-    setRefundText(maxRefund > 0 ? minorToInput(maxRefund) : "");
+    setRefundText(maxRefund > 0 ? minorToInputTotal(maxRefund) : "");
   }, [maxRefund, refundTouched]);
 
   const lastScanRef = useRef("");

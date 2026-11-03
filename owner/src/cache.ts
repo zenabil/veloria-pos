@@ -128,6 +128,7 @@ export async function loadSession(): Promise<Session | null> {
     return {
       email: o.email,
       accessToken: typeof o.accessToken === "string" ? o.accessToken : null,
+      expiresAt: typeof o.expiresAt === "string" ? o.expiresAt : null,
       lastLoginAt: typeof o.lastLoginAt === "string" ? o.lastLoginAt : new Date().toISOString(),
     };
   } catch {

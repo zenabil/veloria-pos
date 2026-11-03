@@ -18,7 +18,7 @@ import { COLORS, RADIUS, SHADOW, SIZES, SPACE, TYPE, tint } from "./tokens.ts";
 import { formatDateFr } from "./format.ts";
 import { t, type Lang } from "./i18n.ts";
 import { SyncError, fetchInvoiceDetail, syncNow } from "./api.ts";
-import { ANON_KEY, SYNC_URL } from "./config.ts";
+import { ANON_KEY, SYNC_URL, isConfigured } from "./config.ts";
 import { EMPTY_CACHE, type MirrorCache, type Session } from "./store.ts";
 import {
   clearCache,
@@ -222,6 +222,13 @@ export function App(): React.JSX.Element {
     const used = endpoint ?? remembered;
     const baseUrl = used?.supabaseUrl ?? SYNC_URL;
     const anon = used?.anonKey ?? ANON_KEY;
+    // Aucun endpoint (build non gravé ET aucun QR mémorisé) : ce n'est PAS une
+    // panne réseau. Le dire comme tel — sinon chaque saisie finissait en
+    // « hors connexion », un faux diagnostic qui rendait le défaut introuvable.
+    if (baseUrl === "" || anon === "") {
+      setError(t(lang, "notConfiguredTitle"));
+      return;
+    }
     try {
       const data = await syncNow(baseUrl, anon, phone, pin, fetch);
       setSession({
@@ -264,6 +271,14 @@ export function App(): React.JSX.Element {
     },
     l: Lang = lang,
   ): Promise<void> {
+    // Session sans endpoint et build non gravé : la synchro ne peut pas aboutir
+    // un jour — état TERMINAL (ferme la session) plutôt qu'un « copie locale
+    // affichée » éternel (même règle que l'erreur d'accès ci-dessous).
+    if ((sess.supabaseUrl ?? SYNC_URL) === "" || (sess.anonKey ?? ANON_KEY) === "") {
+      setError(t(l, "notConfiguredTitle"));
+      await endSession();
+      return;
+    }
     try {
       const data = await syncNow(
         sess.supabaseUrl ?? SYNC_URL,
@@ -445,13 +460,16 @@ export function App(): React.JSX.Element {
 
   if (!session) {
     return (
-      <LoginScreen
-        lang={lang}
-        onLang={setLang}
-        onLogin={login}
-        error={error}
-        rememberedPhone={rememberedPhone}
-      />
+      <View style={{ flex: 1, backgroundColor: COLORS.headerBg }}>
+        {!isConfigured ? <NotConfiguredBanner lang={lang} /> : null}
+        <LoginScreen
+          lang={lang}
+          onLang={setLang}
+          onLogin={login}
+          error={error}
+          rememberedPhone={rememberedPhone}
+        />
+      </View>
     );
   }
 
@@ -828,6 +846,42 @@ export function App(): React.JSX.Element {
       {!detailRow ? (
         <TabBar lang={lang} active={tab} tabs={tabs} onChange={(id) => setTab(id)} />
       ) : null}
+    </View>
+  );
+}
+
+/**
+ * Build sans endpoint gravé : bandeau NON fermable au-dessus de la connexion.
+ * L'ancienne conduite (repli silencieux sur `127.0.0.1:8099` + clé « demo »)
+ * transformait un défaut de build en panne réseau imaginaire — le client
+ * appelait le magasin, le magasin n'avait rien vu passer. Le QR du magasin
+ * (ADR-068) reste le chemin normal : il apporte son propre endpoint, donc
+ * rien n'est bloqué, c'est seulement dit.
+ */
+function NotConfiguredBanner(props: { lang: Lang }): React.JSX.Element {
+  const l = props.lang;
+  return (
+    <View
+      accessibilityLiveRegion="polite"
+      style={{
+        flexDirection: flow(l === "ar" ? "rtl" : "ltr"),
+        alignItems: "center",
+        gap: SPACE.sm,
+        backgroundColor: COLORS.dangerTone,
+        borderBottomWidth: 1,
+        borderColor: tint(COLORS.debtOverdue, "33"),
+        padding: SPACE.md,
+      }}
+    >
+      <Icon name="alert-circle" size={18} color={COLORS.debtOverdue} />
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text style={{ color: COLORS.dangerText, fontWeight: "800", fontSize: 13 }}>
+          {t(l, "notConfiguredTitle")}
+        </Text>
+        <Text style={{ color: COLORS.cardMuted, fontSize: 11, lineHeight: 15 }}>
+          {t(l, "notConfiguredHint")}
+        </Text>
+      </View>
     </View>
   );
 }

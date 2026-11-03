@@ -1,7 +1,7 @@
 // Veloria PoS - Zod: depenses + societe + rapports + dettes + clotures + zakat (extrait de validators.ts, deplacement pur).
 
 import { z } from "zod";
-import { moneyMinor, moneyMinorPositive, moneyTotalPositive } from "./validators.common";
+import { moneyMinor, moneyTotal, moneyTotalPositive } from "./validators.common";
 import { businessDate } from "./validators.common";
 import { optionalOperationId } from "./validators.common";
 
@@ -31,7 +31,9 @@ export const expenseCreateSchema = z.object({
   operationId: z.uuid(),
   description: z.string().min(2).max(300),
   category: z.string().min(1).max(100),
-  amountMinor: moneyMinorPositive,
+  // E-40 : un montant de dépense est un PAIEMENT (grandeur totale), comme le
+  // règlement client ci-dessus — pas une valeur unitaire bornée à 1e9.
+  amountMinor: moneyTotalPositive,
   expenseDate: businessDate,
   supplierId: z.number().int().positive().nullable().optional(),
   paymentMethod: z.enum(["cash", "cheque", "transfer"]).nullable().optional(),
@@ -188,7 +190,9 @@ export const closingCreateSchema = z.object({
 
 export const zakatParamsSchema = z.object({
   ratePercent: z.number().min(0.1).max(100).default(2.5),
-  nisabMinor: moneyMinor.default(0),
+  // E-40 : nisab + SOURCES de la zakat sont des AGRÉGATS (stock, créances,
+  // dettes) — le plafond d'une valeur UNITAIRE (1e9) les rendait refusables.
+  nisabMinor: moneyTotal.default(0),
   hawlDate: businessDate.nullable().optional(),
   nisabMethod: z.enum(["gold", "silver", "other"]).default("gold"),
   operationId: optionalOperationId,
@@ -198,13 +202,13 @@ export const zakatCalculationSchema = z.object({
   operationId: z.uuid(),
   hijriYear: z.string().min(4).max(10),
   calcDate: businessDate,
-  cashMinor: moneyMinor.default(0),
-  bankMinor: moneyMinor.default(0),
-  stockMinor: moneyMinor.default(0),
-  receivablesMinor: moneyMinor.default(0),
-  otherMinor: moneyMinor.default(0),
-  liabilitiesMinor: moneyMinor.default(0),
-  nisabMinor: moneyMinor.default(0),
+  cashMinor: moneyTotal.default(0),
+  bankMinor: moneyTotal.default(0),
+  stockMinor: moneyTotal.default(0),
+  receivablesMinor: moneyTotal.default(0),
+  otherMinor: moneyTotal.default(0),
+  liabilitiesMinor: moneyTotal.default(0),
+  nisabMinor: moneyTotal.default(0),
   ratePercent: z.number().min(0.1).max(100).default(2.5),
   notes: z.string().max(500).nullable().optional(),
 });

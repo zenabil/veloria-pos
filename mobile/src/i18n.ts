@@ -180,6 +180,16 @@ const STRINGS = {
   typeLabel: { ar: "النوع", fr: "Type" },
   refLabel: { ar: "المرجع", fr: "Référence" },
   statementTitle: { ar: "كشف حساب", fr: "Relevé" },
+  // Build sans endpoint gravé (#29) : le dire FORT plutôt que simuler une panne
+  // réseau. Le QR du magasin reste le chemin de connexion normal (ADR-068).
+  notConfiguredTitle: {
+    ar: "التطبيق غير مُعدّ: لا يوجد خادم في هذا البناء",
+    fr: "Application non configurée : aucun serveur dans ce build",
+  },
+  notConfiguredHint: {
+    ar: "امسح رمز المتجر (QR) للاتصال، أو أدخل EXPO_PUBLIC_SYNC_URL وEXPO_PUBLIC_ANON_KEY عند البناء ثم أعد بناء التطبيق.",
+    fr: "Scannez le QR du magasin pour vous connecter, ou renseignez EXPO_PUBLIC_SYNC_URL / EXPO_PUBLIC_ANON_KEY au moment du build, puis reconstruisez l'application.",
+  },
 } as const;
 
 export type StringKey = keyof typeof STRINGS;

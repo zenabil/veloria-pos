@@ -104,4 +104,9 @@ if (offenders.length > 0) {
   console.error("Réparer à la source (jamais de Set-Content / PowerShell sur du texte UTF-8).");
   process.exit(1);
 }
+// E-54 — même plancher de non-vacuité : 0 fichier scanné = garde cassée.
+if (scanned < 300) {
+  console.error(`FAIL: garde encodage — seulement ${scanned} fichiers scannés (seuil 300).`);
+  process.exit(1);
+}
 console.log(`OK  encodage : ${scanned} fichiers scannés, 0 caractère U+FFFD.`);

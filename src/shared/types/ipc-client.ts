@@ -9,7 +9,24 @@ function bridge(): NonNullable<Window["veloria"]> {
 export async function call<T>(
   fn: (api: NonNullable<Window["veloria"]>) => Promise<VeloriaOutcome>,
 ): Promise<T> {
-  const res = await fn(bridge());
+  let res: VeloriaOutcome;
+  try {
+    res = await fn(bridge());
+  } catch (err) {
+    // E-51 (radical) — un REJET brut du pont (canal sans répondant, fenêtre en
+    // cours de fermeture, rejet hors `try` du main) arrive ici préfixé par
+    // Electron : `Error invoking remote method 'sales.create': Error: …`.
+    // Texte ANGLAIS + nom de canal, non reconnu par la liste noire de
+    // `frError` ⇒ déjà affiché tel quel à l'opérateur (règle 6 violée). La
+    // règle n'est pas un motif de plus : le pont est LA frontière, ce qu'il
+    // rejette est technique par construction → message FR + trace technique.
+    try {
+      console.error("[Veloria] IPC reject", err);
+    } catch {
+      /* journal best effort */
+    }
+    throw new Error("Réponse du programme de caisse perdue : réessayez.", { cause: err });
+  }
   if (!res.ok) {
     const err = new Error(res.message || "Erreur inattendue.");
     if (res.code) (err as Error & { code?: string }).code = res.code;

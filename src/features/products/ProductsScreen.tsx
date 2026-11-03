@@ -21,6 +21,7 @@ import { parseProductsCsv } from "@domain/import/csv-import.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { formatDzd } from "@domain/money/money.ts";
 import { newOperationId } from "@domain/common/ids.ts";
+import { useContentOperationId } from "@shared/ui/use-operation-id.ts";
 import { todayBusinessDate } from "@domain/common/business-day.ts";
 import { runBulk } from "@shared/ui/bulk-actions.ts";
 import { uppercaseBarcodeInput } from "@shared/ui/barcode-input.ts";
@@ -78,6 +79,17 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
   const [sort, setSort] = useState<ProductSort>("name_asc");
   const [includeArchived, setIncludeArchived] = useState(false);
   const [page, setPage] = useState(1);
+  /**
+   * E-59 — la page AFFICHÉE par le pager est celle des lignes réellement
+   * committées, pas celle demandée : `page` (intention) et `rows` (résultat)
+   * sont deux sources distinctes, et une réponse plus lente (recherche debouncée
+   * qui part après un clic « Suivant », IPC concurrent) pouvait écraser les
+   * lignes de la page 2 avec celles de la page 1 — le pager affichait alors
+   * « Page 2 sur 2 » au-dessus des produits de la page 1. Un caissier qui coche
+   * puis imprime ou exporte annoncerait alors un jeu de lignes différent de
+   * celui affiché.
+   */
+  const [loadedPage, setLoadedPage] = useState(1);
   const [rows, setRows] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -166,6 +178,7 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
       if (seq !== loadSeq.current) return;
       setRows(res.rows);
       setTotal(res.total);
+      setLoadedPage(p);
     } catch (err) {
       if (seq !== loadSeq.current) return;
       const loadErrorMessage = frError(err, "Chargement impossible.");
@@ -193,12 +206,17 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
   }
 
   function changeCategory(cat: string): void {
+    // E-59 — annule la recherche debouncée EN COURS : sinon elle part APRÈS ce
+    // chargeur, gagne le garde `loadSeq` et remplace les lignes de la page
+    // demandée par celles de la page 1 de l'ancienne requête.
+    queryTimer.cancel();
     setCategoryId(cat);
     setPage(1);
     void load(query, cat, status, includeArchived, 1);
   }
 
   function changeStatus(st: StockFilter): void {
+    queryTimer.cancel();
     setStatus(st);
     setPage(1);
     void load(query, categoryId, st, includeArchived, 1);
@@ -206,6 +224,7 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
 
   function toggleArchived(): void {
     const next = !includeArchived;
+    queryTimer.cancel();
     setIncludeArchived(next);
     setPage(1);
     setSelection(new Map());
@@ -213,11 +232,13 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
   }
 
   function changePage(p: number): void {
+    queryTimer.cancel();
     setPage(p);
     void load(query, categoryId, status, includeArchived, p);
   }
 
   function refresh(): void {
+    queryTimer.cancel();
     setSelection(new Map());
     void loadStats();
     void loadCategories();
@@ -225,6 +246,7 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
   }
 
   function resetFilters(): void {
+    queryTimer.cancel();
     setQuery("");
     setCategoryId("");
     setStatus("all");
@@ -265,34 +287,51 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
   }
 
   const csvInputRef = useRef<HTMLInputElement | null>(null);
+  // Anti-double-soumission de l'import : `importing` grise le bouton/champ, la
+  // ref tranche de façon SYNCHRONE (deux picks dans le même tick verraient tous
+  // deux `importing === false`), comme les gardes de la caisse (F-01).
+  const [importing, setImporting] = useState(false);
+  const importGuard = useRef(false);
+  const contentOperationId = useContentOperationId();
 
   /** P3 : import CSV catalogue (parse domaine FR + commit atomique main). */
   async function importCsvFile(file: File): Promise<void> {
-    let rows: ReturnType<typeof parseProductsCsv>;
+    if (importGuard.current) return;
+    importGuard.current = true;
+    setImporting(true);
     try {
-      rows = parseProductsCsv(await file.text());
-    } catch (e) {
-      notify(frError(e, "Fichier CSV invalide."), "err");
-      return;
-    }
-    if (!(await confirmAsync(`Importer ${rows.length} produit(s) depuis « ${file.name} » ?`))) {
-      return;
-    }
-    try {
-      const res = (await api.productsImport({
-        operationId: newOperationId(),
-        rows: rows.map((r) => ({
-          name: r.name,
-          sellingPriceMinor: r.sellingPriceMinor,
-          purchasePriceMinor: r.purchasePriceMinor,
-          quantity: r.quantity,
-          barcode: r.barcode,
-        })),
-      })) as { imported: number; skipped: number };
-      notify(`${res.imported} produit(s) importé(s).`, "ok");
-      refresh();
-    } catch (e) {
-      notify(frError(e, "Import impossible."), "err");
+      let rows: ReturnType<typeof parseProductsCsv>;
+      try {
+        rows = parseProductsCsv(await file.text());
+      } catch (e) {
+        notify(frError(e, "Fichier CSV invalide."), "err");
+        return;
+      }
+      if (!(await confirmAsync(`Importer ${rows.length} produit(s) depuis « ${file.name} » ?`))) {
+        return;
+      }
+      const payloadRows = rows.map((r) => ({
+        name: r.name,
+        sellingPriceMinor: r.sellingPriceMinor,
+        purchasePriceMinor: r.purchasePriceMinor,
+        quantity: r.quantity,
+        barcode: r.barcode,
+      }));
+      try {
+        const res = (await api.productsImport({
+          // Identité figée sur le LOT importé : le même fichier revérifié après
+          // une réponse perdue REJOUVE l'import au lieu de dupliquer le catalogue.
+          operationId: contentOperationId(`products.import:${JSON.stringify(payloadRows)}`),
+          rows: payloadRows,
+        })) as { imported: number; skipped: number };
+        notify(`${res.imported} produit(s) importé(s).`, "ok");
+        refresh();
+      } catch (e) {
+        notify(frError(e, "Import impossible."), "err");
+      }
+    } finally {
+      importGuard.current = false;
+      setImporting(false);
     }
   }
 
@@ -444,6 +483,7 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
               ref={csvInputRef}
               type="file"
               accept=".csv,.txt"
+              disabled={importing}
               className="hidden"
               aria-label="Fichier CSV à importer"
               onChange={(e) => {
@@ -567,9 +607,11 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
           <Button
             variant="ghost"
             onClick={() => csvInputRef.current?.click()}
+            disabled={importing}
             title="Importer un catalogue CSV (nom;vente;achat;quantité[;code-barres])"
           >
-            <Upload size={15} aria-hidden="true" /> Import CSV
+            <Upload size={15} aria-hidden="true" />
+            {importing ? "Import en cours…" : "Import CSV"}
           </Button>
         </div>
       </Toolbar>
@@ -786,7 +828,7 @@ export function ProductsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
           )}
         </div>
         <div className="flex items-center justify-between gap-2 border-t border-white/[0.07] px-4 py-3">
-          <Pager page={page} pageSize={PAGE_SIZE} total={total} onPage={changePage} />
+          <Pager page={loadedPage} pageSize={PAGE_SIZE} total={total} onPage={changePage} />
           {loading ? (
             <span className="text-xs text-slate-500" role="status">
               Chargement…

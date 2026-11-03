@@ -222,7 +222,9 @@ describe("ADR-173 : la file survit aux lignes condamnées", () => {
     await pushNowAtomic({ operationId: OP("push-2"), now: NOW }, mirrorWithOneBadCustomer());
     const doc = storedDoc();
     expect(doc["lastPushAt"]).toBe(NOW);
-    expect(String(doc["lastError"])).toMatch(/écarté\(s\) par le miroir/);
+    // Formulation E-41 : le motif est désormais distingué (refus du miroir vs
+    // cliché illisible en local), le garde reste « ce que le miroir a écarté ».
+    expect(String(doc["lastError"])).toMatch(/par le miroir/);
     // La file est vidée des `pending` : le tick suivant ne rejoue plus rien.
     expect(statuses()["pending"] ?? 0).toBe(0);
   });

@@ -24,6 +24,7 @@ import {
 } from "./store.ts";
 import { AppHeader, TabBar, type TabId } from "./ui/nav.tsx";
 import { Button, Card, Tap } from "./ui/kit.tsx";
+import { OwnerErrorBoundary } from "./ui/error-boundary.tsx";
 import { Icon } from "./ui/Icon.tsx";
 import { LoginScreen } from "./screens/Login.tsx";
 import { TodayScreen } from "./screens/Today.tsx";
@@ -63,7 +64,22 @@ function errorText(err: unknown): string {
   return "Opération impossible. Vérifiez votre connexion.";
 }
 
-export function Root(): React.JSX.Element {
+/** Liasse driftée : phrase française affichée, jamais de rendu ni d'exception brute. */
+const INVALID_LIASSE_TEXT = "Liasse de supervision invalide ou de version incompatible.";
+
+/**
+ * Un jeton dont l'expiration est connue et dépassée est MORT : on ne le rejoue
+ * pas contre le réseau (401 garanti), on ferme la session. `expiresAt` absent
+ * (session ancienne) = on tente, le 401 fermera la session de toute façon.
+ */
+function isExpired(session: Session, nowMs: number): boolean {
+  const raw = session.expiresAt;
+  if (typeof raw !== "string") return false;
+  const expires = Date.parse(raw);
+  return Number.isFinite(expires) && expires <= nowMs;
+}
+
+export function App(): React.JSX.Element {
   const [booted, setBooted] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [snapshot, setSnapshot] = useState<OwnerSnapshot | null>(null);
@@ -83,12 +99,22 @@ export function Root(): React.JSX.Element {
     void (async () => {
       try {
         const stored = await loadSession();
-        if (stored) {
+        if (stored && isExpired(stored, Date.now())) {
+          // Session morte en cache : elle ne rouvre aucune donnée périmée.
+          setLoginError("Session expirée. Veuillez vous réauthentifier.");
+          await endSession();
+        } else if (stored) {
           setSession(stored);
           const cached = loadSnapshot();
           if (isSnapshotShape(cached.snapshot)) {
-            setSnapshot(cached.snapshot as OwnerSnapshot);
-            setGeneratedAt(cached.generatedAt ?? (cached.snapshot as OwnerSnapshot).generatedAt);
+            const valid = cached.snapshot;
+            setSnapshot(valid);
+            setGeneratedAt(cached.generatedAt ?? valid.generatedAt);
+          } else if (cached.snapshot !== null) {
+            // Liasse driftée en cache : purgée tout de suite. Sans ce nettoyage
+            // elle serait re-testée à chaque lancement — et c'est exactement
+            // comme ça qu'une seule valeur flottante faisait planter l'app.
+            clearSnapshot();
           }
         }
       } catch {
@@ -118,16 +144,19 @@ export function Root(): React.JSX.Element {
       const auth = await signInWithPassword(email, password, fetch);
       const res = await fetchOwnerSnapshot(auth.accessToken, fetch);
       if (!isSnapshotShape(res.snapshot)) {
-        throw new OwnerError("SERVER_ERROR", "Liasse de supervision invalide.");
+        throw new OwnerError("SERVER_ERROR", INVALID_LIASSE_TEXT);
       }
       const stored: Session = {
         email: email.trim(),
         accessToken: auth.accessToken,
+        // L'expiration est CONSERVÉE : sans elle, l'app ne peut pas savoir que
+        // son jeton est mort et le rejoue contre le réseau à chaque geste.
+        expiresAt: auth.expiresAt,
         lastLoginAt: new Date().toISOString(),
       };
       await saveSession(stored);
       setSession(stored);
-      applySnapshot(res.snapshot as OwnerSnapshot, res.generatedAt);
+      applySnapshot(res.snapshot, res.generatedAt);
       setTab("today");
       setToast({ tone: "success", text: "Données de supervision chargées." });
     } catch (err) {
@@ -139,17 +168,34 @@ export function Root(): React.JSX.Element {
 
   async function handleRefresh(): Promise<void> {
     if (!session) return;
+    if (isExpired(session, Date.now())) {
+      setLoginError("Session expirée. Veuillez vous réauthentifier.");
+      await endSession();
+      return;
+    }
     setRefreshing(true);
     try {
       if (!session.accessToken) throw new OwnerError("UNAUTHORIZED", "Session expirée.");
       const res = await fetchOwnerSnapshot(session.accessToken, fetch);
       if (!isSnapshotShape(res.snapshot)) {
-        throw new OwnerError("SERVER_ERROR", "Liasse de supervision invalide.");
+        // Liasse driftée : on GARDE la dernière liasse saine et on le dit.
+        // Rien de cette réponse n'est rendu — c'est elle qui déclenchait le
+        // crash bouclé (montant flottant ou absent publié par le POS).
+        setOffline(true);
+        setToast({ tone: "error", text: `${INVALID_LIASSE_TEXT} Dernières données conservées.` });
+        return;
       }
-      applySnapshot(res.snapshot as OwnerSnapshot, res.generatedAt);
+      applySnapshot(res.snapshot, res.generatedAt);
       setOffline(false);
       setToast({ tone: "success", text: "Données actualisées." });
     } catch (err) {
+      if (err instanceof OwnerError && err.code === "UNAUTHORIZED") {
+        // Terminal, comme l'APK : un 401 ne se rejoue pas en « hors ligne » à
+        // vie — la session est fermée et la liasse cachée purgée.
+        setLoginError(err.message);
+        await endSession();
+        return;
+      }
       setOffline(true);
       setToast({ tone: "error", text: errorText(err) });
     } finally {
@@ -157,15 +203,26 @@ export function Root(): React.JSX.Element {
     }
   }
 
-  async function handleLogout(): Promise<void> {
+  /**
+   * Ferme tout : session SecureStore + liasse en cache + écrans ouverts.
+   * Une copie locale ne survit JAMAIS à une session terminale (sinon l'app
+   * rouvrirait des chiffres que le magasin n'a plus autorisés à consulter).
+   */
+  async function endSession(): Promise<void> {
     await clearSession();
     clearSnapshot();
-    setAccountOpen(false);
-    setDetail(null);
     setSession(null);
     setSnapshot(null);
     setGeneratedAt(null);
+    setDetail(null);
+    setAccountOpen(false);
+    setTab("today");
     setOffline(false);
+  }
+
+  async function handleLogout(): Promise<void> {
+    setLoginError(null);
+    await endSession();
   }
 
   function handleTab(next: TabId): void {
@@ -365,6 +422,20 @@ export function Root(): React.JSX.Element {
         onLogout={() => void handleLogout()}
       />
     </View>
+  );
+}
+
+/**
+ * Point d'entrée enregistré par `index.js` (même montage que l'APK) : une
+ * exception au rendu affiche l'écran de secours français au lieu de tuer
+ * l'appli, et « effacer les données synchronisées » casse la boucle de crash
+ * entretenue par la liasse mise en cache par `cache.ts`.
+ */
+export function Root(): React.JSX.Element {
+  return (
+    <OwnerErrorBoundary onClearCachedData={clearSnapshot}>
+      <App />
+    </OwnerErrorBoundary>
   );
 }
 

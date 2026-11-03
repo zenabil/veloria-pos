@@ -5,9 +5,10 @@ import { COLORS, RADIUS, SIZES, SPACE, TYPE } from "../tokens.ts";
 import {
   formatDateLongFr,
   formatDateShortFr,
-  formatMinor,
+  formatMinorSafe,
   formatNumber,
   formatPercent,
+  parseIso,
 } from "../format.ts";
 import type { OwnerSnapshot } from "../store.ts";
 import { Amount, BarChart, Card, Chip, ProgressBar, ReadOnlyNote, Segmented } from "../ui/kit.tsx";
@@ -27,11 +28,16 @@ export function PeriodsScreen(props: { snapshot: OwnerSnapshot }): React.JSX.Ele
     (best, day) => (best && best.totalMinor >= day.totalMinor ? best : day),
     p.days[0],
   );
+  // E-35 / ADR-169 : `d.date` est un `AAAA-MM-JJ` du jour métier. `new Date()`
+  // le lisait en UTC puis `getDay()`/`getDate()` le relisaient en heure du
+  // téléphone — à l'ouest d'UTC le jour reculait de 24 h (libellé « Jeu. » sur
+  // une journée « Vendredi »). `parseIso` cale sur Africa/Algiers et les getters
+  // restent UTC : aucun temps local ne touche une date métier.
   const bars = p.days.map((d) => {
-    const date = new Date(d.date);
+    const date = parseIso(d.date);
     return {
-      label: SHORT_DAY[date.getDay()] ?? "—",
-      sub: String(date.getDate()),
+      label: date === null ? "—" : (SHORT_DAY[date.getUTCDay()] ?? "—"),
+      sub: date === null ? "—" : String(date.getUTCDate()),
       valueMinor: d.totalMinor,
       highlight: d.date === last?.date,
     };
@@ -98,7 +104,7 @@ export function PeriodsScreen(props: { snapshot: OwnerSnapshot }): React.JSX.Ele
                 <Text style={{ ...TYPE.bodySm, color: COLORS.cardMuted }}>
                   Chiffre d'affaires cumulé
                 </Text>
-                <Amount text={formatMinor(p.totalMinor)} size={28} style={{ marginTop: 4 }} />
+                <Amount text={formatMinorSafe(p.totalMinor)} size={28} style={{ marginTop: 4 }} />
               </Card>
 
               <View style={{ flexDirection: "row", gap: SPACE.md, marginTop: SPACE.md }}>
@@ -116,14 +122,18 @@ export function PeriodsScreen(props: { snapshot: OwnerSnapshot }): React.JSX.Ele
                     <Icon name="basket-outline" size={15} color={COLORS.cardMuted} />
                     <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>Panier moyen</Text>
                   </View>
-                  <Amount text={formatMinor(p.basketMinor)} size={17} style={{ marginTop: 4 }} />
+                  <Amount
+                    text={formatMinorSafe(p.basketMinor)}
+                    size={17}
+                    style={{ marginTop: 4 }}
+                  />
                 </Card>
               </View>
 
               <Card tone={COLORS.toneBg} style={{ marginTop: SPACE.md }}>
                 <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
                   <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>Moyenne / jour</Text>
-                  <Amount text={formatMinor(averageDay)} size={13} />
+                  <Amount text={formatMinorSafe(averageDay)} size={13} />
                 </View>
                 <View
                   style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 6 }}
@@ -131,7 +141,7 @@ export function PeriodsScreen(props: { snapshot: OwnerSnapshot }): React.JSX.Ele
                   <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>
                     Meilleur jour{bestDay ? ` (${formatDateShortFr(bestDay.date)})` : ""}
                   </Text>
-                  {bestDay ? <Amount text={formatMinor(bestDay.totalMinor)} size={13} /> : null}
+                  {bestDay ? <Amount text={formatMinorSafe(bestDay.totalMinor)} size={13} /> : null}
                 </View>
               </Card>
 
@@ -175,7 +185,7 @@ export function PeriodsScreen(props: { snapshot: OwnerSnapshot }): React.JSX.Ele
                     <Text style={{ ...TYPE.label, color: COLORS.cardText, flex: 1 }}>
                       Aujourd'hui ({formatDateShortFr(last.date)})
                     </Text>
-                    <Amount text={formatMinor(last.totalMinor)} size={13} />
+                    <Amount text={formatMinorSafe(last.totalMinor)} size={13} />
                   </View>
                 ) : null}
               </Card>
@@ -203,7 +213,7 @@ export function PeriodsScreen(props: { snapshot: OwnerSnapshot }): React.JSX.Ele
                   </Text>
                 </View>
                 <View style={{ alignItems: "flex-end" }}>
-                  <Amount text={formatMinor(p.marginTotalMinor)} size={16} />
+                  <Amount text={formatMinorSafe(p.marginTotalMinor)} size={16} />
                   <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>
                     Marge moy. {formatPercent(p.marginPercent)}
                   </Text>
@@ -232,9 +242,9 @@ export function PeriodsScreen(props: { snapshot: OwnerSnapshot }): React.JSX.Ele
                         {c.name}
                       </Text>
                       <View style={{ alignItems: "flex-end" }}>
-                        <Amount text={formatMinor(c.profitMinor)} size={13} />
+                        <Amount text={formatMinorSafe(c.profitMinor)} size={13} />
                         <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>
-                          CA {formatMinor(c.salesMinor)}
+                          CA {formatMinorSafe(c.salesMinor)}
                         </Text>
                       </View>
                     </View>
@@ -323,7 +333,7 @@ export function PeriodsScreen(props: { snapshot: OwnerSnapshot }): React.JSX.Ele
                       % du CA
                     </Text>
                   </View>
-                  <Amount text={formatMinor(t.totalMinor)} size={14} />
+                  <Amount text={formatMinorSafe(t.totalMinor)} size={14} />
                 </View>
               ))}
             </Card>

@@ -4,9 +4,9 @@ import { ScrollView, Text, View } from "react-native";
 import { COLORS, RADIUS, SIZES, SPACE, TYPE } from "../tokens.ts";
 import {
   formatDateLongFr,
-  formatMinor,
+  formatMinorSafe,
   formatPercent,
-  formatSignedMinor,
+  formatSignedMinorSafe,
   formatTime,
 } from "../format.ts";
 import type { JournalRow, OwnerSnapshot, SaleKind } from "../store.ts";
@@ -97,7 +97,7 @@ function JournalLine(props: { row: JournalRow; onPress: () => void }): React.JSX
           </Text>
         </View>
         <Amount
-          text={formatSignedMinor(props.row.amountMinor)}
+          text={formatSignedMinorSafe(props.row.amountMinor)}
           size={14}
           tone={
             props.row.kind === "return" || props.row.kind === "expense"
@@ -127,6 +127,14 @@ export function TodayScreen(props: {
     day.objectiveMinor && day.objectiveMinor > 0
       ? Math.round((day.salesMinor / day.objectiveMinor) * 100)
       : null;
+  // Marge / CA : division GARDÉE. Avant la première vente du jour, `salesMinor`
+  // vaut 0 → `0/0` rendait « NaN % » (et un CA nul avec marge « Infinity % »).
+  // Même convention que `Periods` / `Money` / `ProductDetail` : 0 quand le
+  // dénominateur est nul, jamais un tiers comportement.
+  const marginSharePercent =
+    day.salesMinor > 0
+      ? ((day.profitMinor / day.salesMinor) * 100).toFixed(1).replace(".", ",")
+      : "0,0";
 
   return (
     <ScrollView
@@ -176,7 +184,7 @@ export function TodayScreen(props: {
               />
             </View>
             <Amount
-              text={formatMinor(day.salesMinor)}
+              text={formatMinorSafe(day.salesMinor)}
               size={30}
               tone={COLORS.primary}
               style={{ marginTop: SPACE.sm }}
@@ -186,7 +194,7 @@ export function TodayScreen(props: {
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                   <Icon name="checkmark-circle-outline" size={15} color={COLORS.navyMuted} />
                   <Text style={{ color: COLORS.navyMuted, ...TYPE.label, flex: 1 }}>
-                    Objectif atteint à {objectivePct} % · {formatMinor(day.objectiveMinor)} fixé
+                    Objectif atteint à {objectivePct} % · {formatMinorSafe(day.objectiveMinor)} fixé
                   </Text>
                 </View>
                 <ProgressBar
@@ -206,17 +214,17 @@ export function TodayScreen(props: {
               caption={day.ticketsDelta !== null ? `+${day.ticketsDelta} tickets` : undefined}
               captionTone={COLORS.statusOk}
             />
-            <KpiCard label="Panier moyen" value={formatMinor(day.basketMinor)} />
+            <KpiCard label="Panier moyen" value={formatMinorSafe(day.basketMinor)} />
           </View>
           <View style={{ flexDirection: "row", gap: SPACE.md, marginTop: SPACE.md }}>
             <KpiCard
               label="Marge brute"
-              value={formatMinor(day.profitMinor)}
-              caption={`${((day.profitMinor / day.salesMinor) * 100).toFixed(1).replace(".", ",")} % du CA`}
+              value={formatMinorSafe(day.profitMinor)}
+              caption={`${marginSharePercent} % du CA`}
             />
             <KpiCard
               label="Espèces caisse"
-              value={formatMinor(day.cashMinor)}
+              value={formatMinorSafe(day.cashMinor)}
               caption="Session active"
               captionTone={COLORS.statusOk}
             />
@@ -269,7 +277,7 @@ export function TodayScreen(props: {
                       {m.label}
                     </Text>
                   </View>
-                  <Amount text={formatMinor(m.totalMinor)} size={13} style={{ marginTop: 4 }} />
+                  <Amount text={formatMinorSafe(m.totalMinor)} size={13} style={{ marginTop: 4 }} />
                   <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>{m.sharePercent} %</Text>
                 </View>
               ))}
@@ -293,7 +301,11 @@ export function TodayScreen(props: {
               <Text style={{ ...TYPE.label, color: COLORS.statusWatch, flex: 1 }}>
                 {day.returnsCount} retour{day.returnsCount > 1 ? "s" : ""} sur la journée
               </Text>
-              <Amount text={formatMinor(-day.returnsMinor)} size={12} tone={COLORS.statusWatch} />
+              <Amount
+                text={formatMinorSafe(-day.returnsMinor)}
+                size={12}
+                tone={COLORS.statusWatch}
+              />
             </View>
           ) : null}
 

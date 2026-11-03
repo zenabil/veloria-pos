@@ -5,7 +5,7 @@ import { COLORS, RADIUS, SIZES, SPACE, TYPE } from "../tokens.ts";
 import {
   formatDateLongFr,
   formatDateShortFr,
-  formatMinor,
+  formatMinorSafe,
   formatQuantity,
   formatTime,
 } from "../format.ts";
@@ -63,8 +63,11 @@ export function StockScreen(props: {
   const [query, setQuery] = useState("");
   const stock = props.snapshot.stock;
   const rows = filterProducts(stock.products, filter, query);
-  const lowCount = stock.products.filter((p) => p.quantity > 0 && p.quantity <= p.minLevel).length;
-  const outCount = stock.products.filter((p) => p.quantity <= 0).length;
+  // Compteurs des pastilles = MÊME prédicat que le filtre et que la badge de
+  // ligne (`productStatus`) : un produit surstocké-vendu (quantité négative)
+  // compte donc bien en « Rupture », comme il est badgé.
+  const lowCount = stock.products.filter((p) => productStatus(p) === "low").length;
+  const outCount = stock.products.filter((p) => productStatus(p) === "out").length;
   const feed = recentMovements(props.snapshot);
 
   return (
@@ -101,7 +104,11 @@ export function StockScreen(props: {
                 <Text style={{ ...TYPE.bodySm, color: COLORS.cardMuted }}>
                   Valeur totale du stock
                 </Text>
-                <Amount text={formatMinor(stock.valueMinor)} size={26} style={{ marginTop: 4 }} />
+                <Amount
+                  text={formatMinorSafe(stock.valueMinor)}
+                  size={26}
+                  style={{ marginTop: 4 }}
+                />
               </View>
               <IconBubble
                 icon="layers-outline"
@@ -262,7 +269,7 @@ export function StockScreen(props: {
                           {formatQuantity(p.quantity, p.unit.singular, p.unit.plural)}
                         </Text>
                         <Amount
-                          text={formatMinor(p.valueMinor)}
+                          text={formatMinorSafe(p.valueMinor)}
                           size={12}
                           tone={COLORS.cardMuted}
                         />

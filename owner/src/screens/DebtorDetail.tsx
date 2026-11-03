@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Linking, ScrollView, Text, View } from "react-native";
 import { COLORS, RADIUS, SIZES, SPACE, TYPE } from "../tokens.ts";
-import { formatDateFr, formatDateShortFr, formatMinor } from "../format.ts";
+import { formatDateFr, formatDateShortFr, formatMinorSafe } from "../format.ts";
 import type { Debtor } from "../store.ts";
 import {
   Amount,
@@ -137,7 +137,7 @@ export function DebtorDetailScreen(props: {
                   background={COLORS.criticalTone}
                 />
               </View>
-              <Amount text={formatMinor(d.totalMinor)} size={28} style={{ marginTop: 4 }} />
+              <Amount text={formatMinorSafe(d.totalMinor)} size={28} style={{ marginTop: 4 }} />
 
               {d.limitMinor && limitPct !== null ? (
                 <View
@@ -150,7 +150,7 @@ export function DebtorDetailScreen(props: {
                 >
                   <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
                     <Text style={{ ...TYPE.bodySm, color: COLORS.cardText }}>
-                      Plafond : {formatMinor(d.limitMinor)}
+                      Plafond : {formatMinorSafe(d.limitMinor)}
                     </Text>
                     <Text
                       style={{ ...TYPE.bodySm, color: COLORS.statusCritical, fontWeight: "700" }}
@@ -185,7 +185,9 @@ export function DebtorDetailScreen(props: {
                       DERNIER ENCAISSEMENT
                     </Text>
                     <Text style={{ ...TYPE.bodySm, color: COLORS.cardText, marginTop: 2 }}>
-                      <Text style={{ fontWeight: "800" }}>{formatMinor(d.lastPaymentMinor)}</Text>{" "}
+                      <Text style={{ fontWeight: "800" }}>
+                        {formatMinorSafe(d.lastPaymentMinor)}
+                      </Text>{" "}
                       reçu le {formatDateShortFr(d.lastPaymentAt)}
                     </Text>
                     {d.lastPaymentNote ? (
@@ -261,7 +263,7 @@ export function DebtorDetailScreen(props: {
                       />
                       <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>{t.label}</Text>
                     </View>
-                    <Amount text={formatMinor(t.value)} size={12} style={{ marginTop: 4 }} />
+                    <Amount text={formatMinorSafe(t.value)} size={12} style={{ marginTop: 4 }} />
                     <Text style={{ ...TYPE.label, color: t.ink }}>
                       {pct(t.value)} % · {t.tag}
                     </Text>
@@ -309,15 +311,15 @@ export function DebtorDetailScreen(props: {
                 >
                   <View style={{ flex: 1 }}>
                     <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>Total</Text>
-                    <Amount text={formatMinor(inv.totalMinor)} size={13} />
+                    <Amount text={formatMinorSafe(inv.totalMinor)} size={13} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>Acompte</Text>
-                    <Amount text={formatMinor(inv.depositMinor)} size={13} />
+                    <Amount text={formatMinorSafe(inv.depositMinor)} size={13} />
                   </View>
                   <View style={{ flex: 1.2, alignItems: "flex-end" }}>
                     <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>Reste dû</Text>
-                    <Amount text={formatMinor(inv.remainingMinor)} size={14} />
+                    <Amount text={formatMinorSafe(inv.remainingMinor)} size={14} />
                   </View>
                 </View>
               </View>

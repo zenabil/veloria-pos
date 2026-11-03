@@ -6,11 +6,11 @@ import { api } from "@shared/types/ipc-client.ts";
 import { DocumentPreviewModal } from "@shared/documents/DocumentPreviewModal.tsx";
 import { useCompany } from "@shared/company/use-company.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
-import { formatDzd, minorToInput } from "@domain/money/money.ts";
+import { formatDzd, minorToInput, minorToInputTotal } from "@domain/money/money.ts";
 import { formatDzdSafe } from "@shared/formatters/format.ts";
-import { strictOrNeg } from "@shared/money/parse.ts";
+import { strictOrNeg, strictOrNegTotal } from "@shared/money/parse.ts";
 import { computeLineTotal } from "@domain/sales/sale-rules.ts";
-import { newOperationId } from "@domain/common/ids.ts";
+import { useContentOperationId } from "@shared/ui/use-operation-id.ts";
 import {
   Badge,
   Button,
@@ -58,6 +58,11 @@ export function ProformaDetailsDrawer({
 }): React.JSX.Element {
   const p = data.proforma;
   const [busy, setBusy] = useState(false);
+  // Une identité par action confirmée (devis + transition visée) : figée sur la
+  // cible, reconduite au retry, jamais regénérée au clic. Une instance par
+  // opération pour que chaque action garde SON UUID, découplé des autres.
+  const statusOperationId = useContentOperationId();
+  const deleteOperationId = useContentOperationId();
   // Fiche entreprise : source unique partagée (devis).
   const { record: companyRecord } = useCompany();
   // Confirmation non bloquante (modale applicative).
@@ -70,7 +75,10 @@ export function ProformaDetailsDrawer({
   async function setStatus(to: "sent" | "cancelled"): Promise<void> {
     setBusy(true);
     try {
-      await api.proformaStatus({ id: p.id, to, operationId: newOperationId() });
+      // M-1 : identité figée sur L'ACTION (devis + transition visée), jamais au
+      // clic — un retry après réponse perdue rejoue la même transition.
+      const operationId = statusOperationId(`proforma.status:${p.id}:${to}`);
+      await api.proformaStatus({ id: p.id, to, operationId });
       notify(to === "sent" ? "Devis envoyé." : "Devis annulé.", "ok");
       onChanged();
       onClose();
@@ -86,7 +94,11 @@ export function ProformaDetailsDrawer({
     setBusy(true);
     try {
       // M-2: caller-owned operation (one confirmed action = one operation).
-      await api.proformaDelete({ id: p.id, operationId: newOperationId() });
+      // Idem `setStatus` : une suppression = une identité, reconduite au retry.
+      await api.proformaDelete({
+        id: p.id,
+        operationId: deleteOperationId(`proforma.delete:${p.id}`),
+      });
       notify("Devis supprimé.", "ok");
       onChanged();
       onClose();
@@ -395,6 +407,11 @@ export function ProformaFormDialog({
     typeof source?.proforma.terms === "string" ? source.proforma.terms : "",
   );
   const [busy, setBusy] = useState(false);
+  // Identités d'opération liées au contenu (création de devis + envoi). Une
+  // instance par opération : `save` émet les deux dans la même commande, chacune
+  // garde son UUID propre et le reconduit au retry.
+  const createOperationId = useContentOperationId();
+  const sendOperationId = useContentOperationId();
 
   async function searchCustomers(): Promise<void> {
     if (customerQ.trim().length < 2) return;
@@ -531,8 +548,7 @@ export function ProformaFormDialog({
       notify("Conditions trop longues.", "err");
       return;
     }
-    const payload = {
-      operationId: newOperationId(),
+    const content = {
       customerId,
       lines: parsed
         .filter((l) => l.wanted > 0)
@@ -552,6 +568,14 @@ export function ProformaFormDialog({
       notes: notes.trim() === "" ? null : notes.trim(),
       terms: terms.trim() === "" ? null : terms.trim(),
     };
+    // M-1 : le devis naît du CONTENU du formulaire, pas du clic. Deux clics sur
+    // le même formulaire = une seule création (le main rejoue le résultat
+    // stocké) ; un formulaire corrigé après une réponse perdue = devis distinct,
+    // sinon la correction resterait invendue et l'ancien devis rejoué.
+    const payload = {
+      operationId: createOperationId(`proforma.create:${JSON.stringify(content)}`),
+      ...content,
+    };
     setBusy(true);
     try {
       if (editing) {
@@ -561,7 +585,11 @@ export function ProformaFormDialog({
         const res = (await api.proformaCreate(payload)) as { number: string; id: number };
         if (send) {
           try {
-            await api.proformaStatus({ id: res.id, to: "sent", operationId: newOperationId() });
+            await api.proformaStatus({
+              id: res.id,
+              to: "sent",
+              operationId: sendOperationId(`proforma.status:${res.id}:sent`),
+            });
           } catch {
             notify(`Devis ${res.number} créé (envoi impossible).`, "err");
             onSaved();
@@ -863,10 +891,15 @@ export function ProformaConversionDialog({
 }): React.JSX.Element {
   const p = data.proforma;
   const total = Number(p.total_minor);
-  const [amountText, setAmountText] = useState(minorToInput(total));
+  const [amountText, setAmountText] = useState(minorToInputTotal(total));
   const [method, setMethod] = useState<"cash" | "cheque" | "transfer" | null>("cash");
   const [busy, setBusy] = useState(false);
-  const amount = strictOrNeg(amountText, "Montant");
+  // La conversion crée facture + sortie de stock + dette client : son identité
+  // est figée sur le DEVIS et le MONTANT validés (jamais au clic). Deux clics =
+  // une seule facture ; montant corrigé après une réponse perdue = nouvelle
+  // opération, sinon le main rejouerait la facture du montant précédent.
+  const contentOperationId = useContentOperationId();
+  const amount = strictOrNegTotal(amountText, "Montant");
   const valid = Number.isInteger(amount) && amount >= 0 && amount <= total;
 
   async function convert(): Promise<void> {
@@ -876,11 +909,14 @@ export function ProformaConversionDialog({
     }
     setBusy(true);
     try {
+      const paymentMethod = amount > 0 ? method : null;
       const res = (await api.proformaConvert({
-        operationId: newOperationId(),
+        operationId: contentOperationId(
+          `proforma.convert:${p.id}:${amount}:${paymentMethod ?? "none"}`,
+        ),
         proformaId: p.id,
         amountPaidMinor: amount,
-        paymentMethod: amount > 0 ? method : null,
+        paymentMethod,
       })) as { invoiceNumber: string };
       notify(`Facture ${res.invoiceNumber} créée.`, "ok");
       // P5 : conversion en facture = succès.

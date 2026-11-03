@@ -8,16 +8,28 @@
 // Un build EAS les surcharge sans toucher aux sources (voir mobile/eas.json) :
 //   eas build -p android --profile preview
 //   → profile.preview.env.EXPO_PUBLIC_SYNC_URL / EXPO_PUBLIC_ANON_KEY
-// En l'absence de variable (développement local), repli sur le miroir de démo
-// `scripts/demo-client-sync-server.mjs` (127.0.0.1:8099, clé « demo »).
+// AUCUN repli gravé (#29 renforcé) : avant, un build sans variable EAS
+// démarrait en silence sur `http://127.0.0.1:8099` + clé « demo », et chaque
+// connexion échouait sous un message « magasin hors ligne » — un faux panne
+// réseau cachant un vrai build non configuré. Le bundle non configuré
+// s'affiche maintenant comme TEL (bandeau « non configuré », voir App.tsx) et
+// refuse la connexion manuelle. En local, on passe les variables explicites :
+//   EXPO_PUBLIC_SYNC_URL=http://127.0.0.1:8099 EXPO_PUBLIC_ANON_KEY=demo npx expo start
 // NB : Android bloque le HTTP clair (cleartext) en production — toute URL de
 // production doit être HTTPS, idéalement celle du projet Supabase.
 
-/** URL de base du service `client-sync` (sans slash final). */
-export const SYNC_URL: string = process.env.EXPO_PUBLIC_SYNC_URL ?? "http://127.0.0.1:8099";
+/** URL de base du service `client-sync` (sans slash final) ; "" = non gravé. */
+export const SYNC_URL: string = process.env.EXPO_PUBLIC_SYNC_URL ?? "";
 
 /** Clé `anon` (publique) envoyée en `apikey` + `Authorization: Bearer`. */
-export const ANON_KEY: string = process.env.EXPO_PUBLIC_ANON_KEY ?? "demo";
+export const ANON_KEY: string = process.env.EXPO_PUBLIC_ANON_KEY ?? "";
+
+/**
+ * Le miroir d'activation (QR V2, ADR-068) peut fournir URL + clé : un build
+ * non gravé reste donc UTILISABLE par scan. Ce drapeau ne commande que la
+ * connexion manuelle téléphone + PIN, qui n'a aucun autre endpoint.
+ */
+export const isConfigured: boolean = SYNC_URL !== "" && ANON_KEY !== "";
 
 // RADICAL (#29) : garde-fou d'exécution — un bundle avec placeholder ou HTTP
 // clair distant DOIT échouer FORT au démarrage (jamais de PIN envoyé dans le

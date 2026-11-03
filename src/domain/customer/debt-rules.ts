@@ -106,21 +106,35 @@ export interface CreditLimitInput {
   limitOverrideApproved?: boolean;
 }
 
-/** Plafond : solde + reste > plafond (> 0) = refus sauf accord vendeur. */
+/** Plafond : solde + reste > plafond (> 0) = refus sauf accord vendeur.
+ *
+ * E-38 (radical) — le garde ne doit jamais **échouer ouvert**. Le solde est
+ * fourni par le renderer (`draft.customerOutstandingMinor`) : une valeur non
+ * entière (corruption, float d'un miroir) sautait entièrement le contrôle de
+ * plafond, alors que `computeDebtStatus` et `applyPaymentToBalance` LÈVENT sur
+ * la même donnée. Politique unique désormais : illisible → refus FR ; négatif
+ * (avoir sur le solde) → ramené à 0, comme `return-rules` (`Math.max(0, …)`),
+ * donc le plafond reste appliqué. `null`/absent continue d'ignorer le contrôle
+ * (compatibility documentée ci-dessus) : l'autorité reste la revalidation
+ * `sales.repo` DANS la transaction + le trigger SQL.
+ */
 export function assertCreditLimitNotExceeded(input: CreditLimitInput): void {
   const outstanding = input.outstandingMinor;
   const limit = input.creditLimitMinor;
   if (outstanding == null || limit == null) return;
-  if (!Number.isSafeInteger(outstanding) || outstanding < 0) return;
+  if (!Number.isSafeInteger(outstanding)) {
+    throw new DomainError("CUSTOMER_ERROR", "Solde client invalide.");
+  }
   if (!Number.isSafeInteger(limit) || limit < 0) {
     throw new DomainError("CUSTOMER_ERROR", "Plafond de crédit invalide.");
   }
   if (limit === 0) return;
   if (input.limitOverrideApproved === true) return;
+  const balance = Math.max(0, outstanding);
   let projected = 0;
   try {
-    assertSafeTotal(outstanding + input.remainingMinor, "Solde projeté invalide");
-    projected = outstanding + input.remainingMinor;
+    assertSafeTotal(balance + input.remainingMinor, "Solde projeté invalide");
+    projected = balance + input.remainingMinor;
   } catch {
     throw new DomainError("SALE_ERROR", "Solde projeté invalide.");
   }

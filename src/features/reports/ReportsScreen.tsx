@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { Download, FileDown, Printer, X } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { callChecked, closingsListSchema } from "@shared/types/ipc-contracts.ts";
-import { formatDzd, parseDzdInputStrict } from "@domain/money/money.ts";
-import { formatDateFr, formatDzdSigned } from "@shared/formatters/format.ts";
+import { formatDzdTotal, formatDzdTotalSigned, parseDzdInputStrict } from "@domain/money/money.ts";
+import { formatDateFr } from "@shared/formatters/format.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import { playSound } from "@shared/sound/sound.ts";
 import { newOperationId } from "@domain/common/ids.ts";
@@ -674,37 +674,37 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
             <Kpi
               label="Marge Brute Globale"
-              value={formatDzdSigned(k.profitMinor)}
+              value={formatDzdTotalSigned(k.profitMinor)}
               sub="Ventes − achats revendus"
               accent="#4edea3"
             />
             <Kpi
               label="Ventes"
-              value={formatDzd(k.salesMinor)}
+              value={formatDzdTotal(k.salesMinor)}
               sub={`${k.salesCount} facture(s)`}
               accent="#fbbf24"
             />
             <Kpi
               label="Achats"
-              value={formatDzd(k.purchasesMinor)}
+              value={formatDzdTotal(k.purchasesMinor)}
               sub={`${k.purchasesCount} entrée(s)`}
               accent="#8ed0ff"
             />
             <Kpi
               label="Dépenses"
-              value={formatDzd(k.expensesMinor)}
+              value={formatDzdTotal(k.expensesMinor)}
               sub="Charges"
               accent="#ffb4ab"
             />
             <Kpi
               label="Créances"
-              value={formatDzd(k.customerDebtMinor)}
+              value={formatDzdTotal(k.customerDebtMinor)}
               sub="Clients"
               accent="#cde8ff"
             />
             <Kpi
               label="Dettes"
-              value={formatDzd(k.supplierDebtMinor)}
+              value={formatDzdTotal(k.supplierDebtMinor)}
               sub="Fournisseurs"
               accent="#ffb4ab"
             />
@@ -736,7 +736,7 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
                         net >= 0 ? "text-emerald-300" : "text-red-300",
                       )}
                     >
-                      {formatDzdSigned(net)}
+                      {formatDzdTotalSigned(net)}
                     </p>
                   </div>
                 </div>
@@ -784,10 +784,10 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
 
           {/* Sections */}
           {show("sales") ? (
-            <ReportSectionCard title={`Ventes · ${formatDzd(k.salesMinor)} (${k.salesCount})`}>
+            <ReportSectionCard title={`Ventes · ${formatDzdTotal(k.salesMinor)} (${k.salesCount})`}>
               <MiniTable
                 headers={["Client", "Total"]}
-                rows={summary.tops.customers.map((t) => [t.name, formatDzd(t.total)])}
+                rows={summary.tops.customers.map((t) => [t.name, formatDzdTotal(t.total)])}
                 empty="Aucune vente sur la période."
               />
               <MiniTable
@@ -795,7 +795,7 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
                 rows={summary.tops.products.map((t) => [
                   t.name,
                   String(t.qty ?? 0),
-                  formatDzd(t.total),
+                  formatDzdTotal(t.total),
                 ])}
                 empty="Aucun article vendu."
               />
@@ -803,17 +803,17 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
           ) : null}
           {show("purchases") ? (
             <ReportSectionCard
-              title={`Achats · ${formatDzd(k.purchasesMinor)} (${k.purchasesCount})`}
+              title={`Achats · ${formatDzdTotal(k.purchasesMinor)} (${k.purchasesCount})`}
             >
               <MiniTable
                 headers={["Fournisseur", "Total"]}
-                rows={summary.tops.suppliers.map((t) => [t.name, formatDzd(t.total)])}
+                rows={summary.tops.suppliers.map((t) => [t.name, formatDzdTotal(t.total)])}
                 empty="Aucun achat sur la période."
               />
             </ReportSectionCard>
           ) : null}
           {show("customerDebt") ? (
-            <ReportSectionCard title={`Dettes clients · ${formatDzd(k.customerDebtMinor)}`}>
+            <ReportSectionCard title={`Dettes clients · ${formatDzdTotal(k.customerDebtMinor)}`}>
               <p className="px-4 pb-3 text-xs text-slate-500">
                 Soldes exacts, relances et règlements dans la page Dettes.
               </p>
@@ -824,8 +824,8 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
               <MiniTable
                 headers={["Sens", "Montant"]}
                 rows={[
-                  ["Encaissé (clients)", formatDzd(summary.payments.inMinor)],
-                  ["Payé (fournisseurs)", formatDzd(summary.payments.outMinor)],
+                  ["Encaissé (clients)", formatDzdTotal(summary.payments.inMinor)],
+                  ["Payé (fournisseurs)", formatDzdTotal(summary.payments.outMinor)],
                 ]}
                 empty=""
               />
@@ -877,12 +877,12 @@ export function ReportsScreen({ notify }: { notify: Notify }): React.JSX.Element
                 ]}
                 rows={closings.map((c) => [
                   formatDateFr(c.business_date),
-                  formatDzd(c.opening_balance_minor),
-                  formatDzd(c.cash_sales_minor),
-                  formatDzd(c.customer_collections_minor),
-                  formatDzd(c.expenses_minor),
-                  formatDzd(c.refunds_minor),
-                  formatDzd(c.closing_balance_minor),
+                  formatDzdTotal(c.opening_balance_minor),
+                  formatDzdTotal(c.cash_sales_minor),
+                  formatDzdTotal(c.customer_collections_minor),
+                  formatDzdTotal(c.expenses_minor),
+                  formatDzdTotal(c.refunds_minor),
+                  formatDzdTotalSigned(c.closing_balance_minor),
                 ])}
                 empty="Aucune clôture sur la période."
               />

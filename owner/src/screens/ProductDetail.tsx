@@ -4,7 +4,7 @@ import { ScrollView, Text, View } from "react-native";
 import { COLORS, RADIUS, SIZES, SPACE, TYPE } from "../tokens.ts";
 import {
   formatDateShortFr,
-  formatMinor,
+  formatMinorSafe,
   formatPercent,
   formatQuantity,
   formatTime,
@@ -145,24 +145,24 @@ export function ProductDetailScreen(props: {
                 }}
               >
                 <Text style={{ ...TYPE.bodySm, color: COLORS.cardMuted }}>Valeur marchandise</Text>
-                <Amount text={formatMinor(p.valueMinor)} size={15} />
+                <Amount text={formatMinorSafe(p.valueMinor)} size={15} />
               </View>
               <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 6 }}>
                 <Text style={{ ...TYPE.bodySm, color: COLORS.cardMuted }}>
                   Valeur d'achat (PAMP)
                 </Text>
-                <Amount text={formatMinor(p.quantity * p.purchaseUnitMinor)} size={15} />
+                <Amount text={formatMinorSafe(p.quantity * p.purchaseUnitMinor)} size={15} />
               </View>
               <View
                 style={{ height: 1, backgroundColor: COLORS.divider, marginVertical: SPACE.sm }}
               />
               <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
                 <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>PVC unitaire</Text>
-                <Amount text={formatMinor(p.saleUnitMinor)} size={12} />
+                <Amount text={formatMinorSafe(p.saleUnitMinor)} size={12} />
               </View>
               <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 4 }}>
                 <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>PAMP unitaire</Text>
-                <Amount text={formatMinor(p.purchaseUnitMinor)} size={12} />
+                <Amount text={formatMinorSafe(p.purchaseUnitMinor)} size={12} />
               </View>
             </Card>
 
@@ -189,7 +189,7 @@ export function ProductDetailScreen(props: {
                   />
                 </View>
                 <Amount
-                  text={`+${formatMinor(p.marginUnitMinor)} / ${p.unit.singular}`}
+                  text={`+${formatMinorSafe(p.marginUnitMinor)} / ${p.unit.singular}`}
                   size={20}
                   tone={COLORS.primary}
                   style={{ marginTop: SPACE.sm }}

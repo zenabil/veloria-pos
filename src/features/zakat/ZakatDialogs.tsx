@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Calculator, Scale, Wallet } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
-import { formatDzd, minorToInput, parseDzdInputStrict } from "@domain/money/money.ts";
+import { formatDzd, minorToInputTotal, parseDzdInputTotal } from "@domain/money/money.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { todayBusinessDate } from "@domain/common/business-day.ts";
 import { Button, Field, Modal, TextArea, TextInput } from "@shared/ui/primitives.tsx";
@@ -16,7 +16,7 @@ import { frError } from "@shared/errors/fr-map.ts";
 function parseDzd(text: string): number | null {
   if (text.trim() === "") return 0;
   try {
-    return parseDzdInputStrict(text, "Montant");
+    return parseDzdInputTotal(text, "Montant");
   } catch {
     return null;
   }
@@ -37,14 +37,14 @@ export function ZakatCalculationDialog({
 }): React.JSX.Element {
   const [cash, setCash] = useState("");
   const [bank, setBank] = useState("");
-  const [stock, setStock] = useState(minorToInput(sources.inventory.v));
-  const [receivables, setReceivables] = useState(minorToInput(sources.customerDebts.d));
+  const [stock, setStock] = useState(minorToInputTotal(sources.inventory.v));
+  const [receivables, setReceivables] = useState(minorToInputTotal(sources.customerDebts.d));
   const [other, setOther] = useState("");
   const [liabilities, setLiabilities] = useState(
-    sources.supplierDebts.d > 0 ? minorToInput(sources.supplierDebts.d) : "",
+    sources.supplierDebts.d > 0 ? minorToInputTotal(sources.supplierDebts.d) : "",
   );
   const [nisab, setNisab] = useState(
-    sources.params.nisabMinor > 0 ? minorToInput(sources.params.nisabMinor) : "",
+    sources.params.nisabMinor > 0 ? minorToInputTotal(sources.params.nisabMinor) : "",
   );
   const [rate, setRate] = useState(String(sources.params.ratePercent).replace(".", ","));
   const [notes, setNotes] = useState("");

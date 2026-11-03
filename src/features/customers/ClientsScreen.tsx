@@ -23,6 +23,7 @@ import {
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
 import { formatDzd } from "@domain/money/money.ts";
 import { newOperationId } from "@domain/common/ids.ts";
+import { useContentOperationId } from "@shared/ui/use-operation-id.ts";
 import { todayBusinessDate } from "@domain/common/business-day.ts";
 import { runBulk } from "@shared/ui/bulk-actions.ts";
 import { formatDateTimeFr } from "@shared/formatters/format.ts";
@@ -455,6 +456,12 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
   }
 
   const csvInputRef = useRef<HTMLInputElement | null>(null);
+  // Anti-double-soumission de l'import : `importing` grise le bouton/champ, la
+  // ref tranche de façon SYNCHRONE (deux picks dans le même tick verraient tous
+  // deux `importing === false`), comme les gardes de la caisse (F-01).
+  const [importing, setImporting] = useState(false);
+  const importGuard = useRef(false);
+  const contentOperationId = useContentOperationId();
 
   /**
    * Import CSV clients (format `prenom;nom[telephone]`, en-tete optionnel).
@@ -462,29 +469,40 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
    * ecrit), puis commit atomique dans le main (une transaction).
    */
   async function importCsvFile(file: File): Promise<void> {
-    let rows: ReturnType<typeof parseCustomersCsv>;
+    if (importGuard.current) return;
+    importGuard.current = true;
+    setImporting(true);
     try {
-      rows = parseCustomersCsv(await file.text());
-    } catch (e) {
-      notify(frError(e, "Fichier CSV invalide."), "err");
-      return;
-    }
-    if (!(await confirmAsync(`Importer ${rows.length} client(s) depuis « ${file.name} » ?`))) {
-      return;
-    }
-    try {
-      const res = (await api.customerImport({
-        operationId: newOperationId(),
-        rows: rows.map((r) => ({
-          firstName: r.firstName,
-          lastName: r.lastName,
-          phone: r.phone,
-        })),
-      })) as { imported: number; skipped: number };
-      notify(`${res.imported} client(s) importé(s).`, "ok");
-      refresh();
-    } catch (e) {
-      notify(frError(e, "Import impossible."), "err");
+      let rows: ReturnType<typeof parseCustomersCsv>;
+      try {
+        rows = parseCustomersCsv(await file.text());
+      } catch (e) {
+        notify(frError(e, "Fichier CSV invalide."), "err");
+        return;
+      }
+      if (!(await confirmAsync(`Importer ${rows.length} client(s) depuis « ${file.name} » ?`))) {
+        return;
+      }
+      const payloadRows = rows.map((r) => ({
+        firstName: r.firstName,
+        lastName: r.lastName,
+        phone: r.phone,
+      }));
+      try {
+        const res = (await api.customerImport({
+          // Identité figée sur le LOT importé : le même fichier revérifié après
+          // une réponse perdue REJOUVE l'import au lieu de dupliquer les fiches.
+          operationId: contentOperationId(`customers.import:${JSON.stringify(payloadRows)}`),
+          rows: payloadRows,
+        })) as { imported: number; skipped: number };
+        notify(`${res.imported} client(s) importé(s).`, "ok");
+        refresh();
+      } catch (e) {
+        notify(frError(e, "Import impossible."), "err");
+      }
+    } finally {
+      importGuard.current = false;
+      setImporting(false);
     }
   }
 
@@ -517,6 +535,7 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
               ref={csvInputRef}
               type="file"
               accept=".csv,.txt"
+              disabled={importing}
               className="hidden"
               aria-label="Fichier CSV de clients à importer"
               onChange={(e) => {
@@ -619,9 +638,11 @@ export function ClientsScreen({ notify }: { notify: Notify }): React.JSX.Element
           <Button
             variant="ghost"
             onClick={() => csvInputRef.current?.click()}
+            disabled={importing}
             title="Importer un fichier CSV (prénom;nom;téléphone)"
           >
-            <Upload size={15} aria-hidden="true" /> Import CSV
+            <Upload size={15} aria-hidden="true" />
+            {importing ? "Import en cours…" : "Import CSV"}
           </Button>
         </div>
       </Toolbar>

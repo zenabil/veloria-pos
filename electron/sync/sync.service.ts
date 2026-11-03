@@ -20,12 +20,14 @@ import {
   SYNC_DEFAULTS,
   MirrorRejectionError,
   buildMirrorRequests,
+  classifyMirrorRejection,
   isPermanentMirrorRejection,
   isOwnerPushDue,
   isPushDue,
   maskConfig,
   ownerAdminUsersUrl,
   ownerSnapshotsUrl,
+  partitionOutboxRows,
   requiresServiceKeyReentry,
   splitMirrorRequest,
   validateOwnerAccount,
@@ -75,22 +77,41 @@ interface SyncDoc {
   anonKey: string;
   intervalMinutes: number;
   lastPushAt: string | null;
+  /**
+   * E-43 : horodatage de la DERNIÈRE TENTATIVE (succès ou échec). Sans lui, la
+   * cadence `intervalMinutes` n'était respectée qu'après un succès : un miroir
+   * injoignable relançait une poussée complète toutes les 60 s du timer, à
+   * vie (quota egress, logs inutiles, file jamais reposée).
+   */
+  lastAttemptAt: string | null;
   lastError: string | null;
   /** ADR-171 : liasse de supervision propriétaire (clés absentes = défauts). */
   ownerEnabled: boolean;
   ownerIntervalMinutes: number;
   lastOwnerPushAt: string | null;
+  /** Tentative la plus récente de publication (succès ou échec) — cadence. */
+  lastOwnerAttemptAt: string | null;
   lastOwnerError: string | null;
 }
 
 /** Vue `sync.getConfig` enrichie (ADR-171) — jamais de secret vers l'UI. */
-type SyncDocMeta = Pick<SyncDoc, "lastPushAt" | "lastError" | "lastOwnerPushAt" | "lastOwnerError">;
+type SyncDocMeta = Pick<
+  SyncDoc,
+  | "lastPushAt"
+  | "lastAttemptAt"
+  | "lastError"
+  | "lastOwnerPushAt"
+  | "lastOwnerAttemptAt"
+  | "lastOwnerError"
+>;
 
 function docMeta(doc: SyncDoc): SyncDocMeta {
   return {
     lastPushAt: doc.lastPushAt,
+    lastAttemptAt: doc.lastAttemptAt,
     lastError: doc.lastError,
     lastOwnerPushAt: doc.lastOwnerPushAt,
+    lastOwnerAttemptAt: doc.lastOwnerAttemptAt,
     lastOwnerError: doc.lastOwnerError,
   };
 }
@@ -99,13 +120,24 @@ function docOf(cfg: SyncConfig, meta: SyncDocMeta): SyncDoc {
   return { ...cfg, ...meta };
 }
 
+/**
+ * E-44 — un échec de LECTURE (DPAPI indisponible, JSON illisible) n'est pas un
+ * réglage « désactivé » : l'ancienne chute sur `SYNC_DEFAULTS` faisait dire à
+ * l'écran que le miroir n'avait JAMAIS été configuré, alors que la
+ * configuration était intacte en base. L'erreur est donc mémorisée et rendue
+ * visible par `getSyncView` au lieu d'être silencieusement absorbée.
+ */
+let docReadError: string | null = null;
+
 function readDoc(): SyncDoc {
   const db = getDb();
   const fallback: SyncDoc = {
     ...SYNC_DEFAULTS,
     lastPushAt: null,
+    lastAttemptAt: null,
     lastError: null,
     lastOwnerPushAt: null,
+    lastOwnerAttemptAt: null,
     lastOwnerError: null,
   };
   try {
@@ -118,13 +150,16 @@ function readDoc(): SyncDoc {
     // lecture, réchiffré à la prochaine écriture). Le reste du service ne
     // manipule QUE du clair en mémoire, jamais persisté tel quel.
     const backend = secrets();
+    docReadError = null;
     return {
       ...fallback,
       ...parsed,
+      lastAttemptAt: parsed.lastAttemptAt ?? null,
       serviceKey: decodeSecretWith(backend, parsed.serviceKey),
       anonKey: decodeSecretWith(backend, parsed.anonKey),
     };
   } catch (err) {
+    docReadError = "Réglages de synchronisation illisibles sur ce poste : ressaisissez la clé.";
     log("WARN", "sync", "read_failed", { error: String(err) });
     return fallback;
   }
@@ -347,7 +382,7 @@ export function getSyncView(): SyncConfigView {
   const owner = readOwnerAccount();
   return maskConfig(syncConfigOf(doc), {
     lastPushAt: doc.lastPushAt,
-    lastError: doc.lastError,
+    lastError: docReadError ?? doc.lastError,
     pendingCount: pendingCount(),
     ownerEmail: owner?.email ?? null,
     ownerUpdatedAt: owner?.updatedAt ?? null,
@@ -452,8 +487,54 @@ type Transport = (
   init: { method: string; headers: Record<string, string>; body: string },
 ) => Promise<{ ok: boolean; status: number; text: () => Promise<string> }>;
 
-/** Poussée complète : accès (tous, auto-réparant) + file en attente. */
+/**
+ * E-45 — la poussée miroir n'avait NI délai d'échéance NI verrou d'exclusion :
+ * le `fetch` nu pouvait rester pendu (peer TCP qui ne répond pas), et le timer
+ * de 60 s relançait une poussée COMPLÈTE par tick au-dessus de la précédente.
+ * Résultat : POST concurrents des mêmes lignes et écritures concurrentes de
+ * `app_settings.client_sync` (perte d'updates sur `lastPushAt`/`lastError`).
+ * `adminAuthFetch` avait déjà ces deux gardes — le miroir, non.
+ */
+const MIRROR_TIMEOUT_MS = 20_000;
+
+let mirrorInFlight = false;
+
+/** Transport par défaut : HTTP avec échéance (jamais de requête suspendue). */
+const mirrorTransport: Transport = async (url, init) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), MIRROR_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      method: init.method,
+      headers: init.headers,
+      body: init.body,
+      signal: controller.signal,
+    });
+    return { ok: res.ok, status: res.status, text: () => res.text() };
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
+/**
+ * Point d'entrée public (timer + clic « Pousser maintenant ») : verrou
+ * d'exclusion strict, une seule tentative réseau à la fois.
+ */
 export async function pushNowAtomic(
+  args: { operationId: string; now: string },
+  transport?: Transport,
+): Promise<{ pushed: number; access: number; failed: number }> {
+  if (mirrorInFlight) throw new Error("Poussée déjà en cours : réessayez dans un instant.");
+  mirrorInFlight = true;
+  try {
+    return await pushNowOnce(args, transport);
+  } finally {
+    mirrorInFlight = false;
+  }
+}
+
+/** Poussée complète : accès (tous, auto-réparant) + file en attente. */
+async function pushNowOnce(
   args: { operationId: string; now: string },
   transport?: Transport,
 ): Promise<{ pushed: number; access: number; failed: number }> {
@@ -466,21 +547,35 @@ export async function pushNowAtomic(
   const doc = readDoc();
   const cfg = validateSyncConfig(syncConfigOf(doc));
   if (!cfg.enabled) throw new Error("Synchronisation désactivée : activez-la d'abord.");
-  const outboxRows = db
+  const queuedRows = db
     .prepare(
       `SELECT operation_id, customer_id, kind, payload_json, created_at FROM sync_outbox WHERE status = 'pending' ORDER BY id ASC LIMIT 200`,
     )
     .all() as OutboxMirrorRow[];
-  const send: Transport =
-    transport ??
-    (async (url, init) => {
-      const res = await fetch(url, {
-        method: init.method,
-        headers: init.headers,
-        body: init.body,
-      });
-      return { ok: res.ok, status: res.status, text: () => res.text() };
+  // E-41 : une ligne localement corrompue est écartée, elle ne gèle plus la
+  // file (avant : `buildMirrorRequests` levait, la poussée entière mourait, la
+  // même ligne était re-sélectionnée au tick suivant — pour toujours).
+  const { valid: outboxRows, corruptedOperationIds } = partitionOutboxRows(queuedRows);
+  // E-41 : une ligne localement illisible ne sera JAMAIS poussable — condamnée
+  // tout de suite (et pas à la prochaine poussée chanceuse), avec traçabilité.
+  if (corruptedOperationIds.length > 0) {
+    const condemn = db.transaction(() => {
+      for (const operationId of corruptedOperationIds) {
+        db.prepare(`UPDATE sync_outbox SET status = 'failed' WHERE operation_id = ?`).run(
+          operationId,
+        );
+      }
     });
+    try {
+      condemn();
+    } catch (err) {
+      log("ERROR", "sync", "push.condemn_failed", { error: String(err) });
+    }
+    for (const operationId of corruptedOperationIds) {
+      log("ERROR", "sync", "push.payload_corrupted", { operation_id: operationId });
+    }
+  }
+  const send: Transport = transport ?? mirrorTransport;
   const headers = {
     apikey: cfg.serviceKey,
     Authorization: `Bearer ${cfg.serviceKey}`,
@@ -516,6 +611,15 @@ export async function pushNowAtomic(
       await post(req);
     } catch (err) {
       if (!(err instanceof MirrorRejectionError)) throw err;
+      // E-42 : rejet de TABLE = configuration, pas une ligne coupable. On
+      // stoppe net (file inchangée, donc rejouable) au lieu de condamner les
+      // 200 clichés un par un — perte silencieuse et définitive sinon.
+      if (classifyMirrorRejection(err.status, err.detail) === "table") {
+        throw new Error(
+          `Miroir incomplet : la table « ${req.table} » est absente ou illisible du projet configuré.`,
+          { cause: err },
+        );
+      }
       const parts = splitMirrorRequest(req);
       if (parts.length === 2) {
         for (const part of parts) await postPayloads(part);
@@ -532,6 +636,40 @@ export async function pushNowAtomic(
     }
   };
   let accessCount = 0;
+  // E-58 — une ligne d'ACCÈS refusée condamnait toute la poussée AVANT que la
+  // file des clichés ne parte : l'ordre est une dépendance réelle (la FK
+  // `client_payloads.customer_id` exige la ligne d'accès côté miroir), donc les
+  // accès passent TOUJOURS en premier — mais un refus sur UNE ligne d'accès ne
+  // doit plus affamer les 200 clichés. La ligne d'accès est rejouable (elle est
+  // relue dans `customer_access` au tick suivant), elle est donc écartée sans
+  // état `failed` à tracer.
+  const rejectedAccess: string[] = [];
+  const postAccess = async (req: MirrorRequest): Promise<void> => {
+    try {
+      await post(req);
+    } catch (err) {
+      if (!(err instanceof MirrorRejectionError)) throw err;
+      if (classifyMirrorRejection(err.status, err.detail) === "table") {
+        throw new Error(
+          `Miroir incomplet : la table « ${req.table} » est absente ou illisible du projet configuré.`,
+          { cause: err },
+        );
+      }
+      const parts = splitMirrorRequest(req);
+      if (parts.length === 2) {
+        for (const part of parts) await postAccess(part);
+        return;
+      }
+      const customerId = req.rows[0]?.["customer_id"];
+      if (typeof customerId !== "number") throw err;
+      rejectedAccess.push(String(customerId));
+      log("WARN", "sync", "push.access_rejected", {
+        status: err.status,
+        customer_id: customerId,
+        detail: err.detail.slice(0, 300),
+      });
+    }
+  };
   try {
     // Pagination par customer_id : les comptes au-delà du 500e ne sont plus
     // affamés. Chaque lot est borné ; un échec laisse la file rejouable.
@@ -545,7 +683,7 @@ export async function pushNowAtomic(
         .all(cursor) as AccessMirrorRow[];
       if (batch.length === 0) break;
       accessCount += batch.length;
-      for (const req of buildMirrorRequests(batch, [])) await post(req);
+      for (const req of buildMirrorRequests(batch, [])) await postAccess(req);
       cursor = Number(batch[batch.length - 1]?.customer_id ?? 0);
       if (batch.length < 500) break;
     }
@@ -558,7 +696,9 @@ export async function pushNowAtomic(
     // source unique main (toUserMessage : technique → repli FR générique).
     const msg = toUserMessage(err).message;
     try {
-      writeDoc({ ...doc, lastError: msg }, args.now);
+      // E-43 : l'échec horodate aussi la TENTATIVE, sinon la cadence
+      // `intervalMinutes` est ignorée et le timer repart toutes les 60 s.
+      writeDoc({ ...doc, lastError: msg, lastAttemptAt: args.now }, args.now);
     } catch {
       /* meta best-effort */
     }
@@ -566,7 +706,8 @@ export async function pushNowAtomic(
     throw err instanceof Error ? err : new Error(msg);
   }
   const rejectedIds = new Set(rejected);
-  const delivered = outboxRows.filter((r) => !rejectedIds.has(r.operation_id));
+  const condemned = new Set([...rejectedIds, ...corruptedOperationIds]);
+  const delivered = outboxRows.filter((r) => !condemned.has(r.operation_id));
   const tx = db.transaction(() => {
     claimIdempotency(args.operationId, "sync.pushNow", args.now);
     for (const r of delivered) {
@@ -577,20 +718,30 @@ export async function pushNowAtomic(
     }
     // ADR-173 : une ligne écartée ne reste pas `pending` (elle repartirait
     // éternellement au prochain tick) — `failed` est un état d'audit.
-    for (const operationId of rejectedIds) {
+    for (const operationId of condemned) {
       db.prepare(`UPDATE sync_outbox SET status = 'failed' WHERE operation_id = ?`).run(
         operationId,
       );
     }
     try {
+      const condemnedCount = condemned.size;
       writeDoc(
         {
           ...doc,
           lastPushAt: args.now,
+          lastAttemptAt: args.now,
           lastError:
-            rejectedIds.size === 0
+            condemnedCount === 0
               ? null
-              : `${rejectedIds.size} cliché(s) écarté(s) par le miroir : données client incohérentes (accès correspondant absent).`,
+              : `${condemnedCount} cliché(s) écarté(s) définitivement de la file : ${
+                  corruptedOperationIds.length > 0
+                    ? `${corruptedOperationIds.length} illisible(s) en local`
+                    : ""
+                }${corruptedOperationIds.length > 0 && rejectedIds.size > 0 ? " · " : ""}${
+                  rejectedIds.size > 0
+                    ? `${rejectedIds.size} refusé(s) par le miroir (données client incohérentes : accès correspondant absent)`
+                    : ""
+                }.`,
         },
         args.now,
       );
@@ -600,7 +751,7 @@ export async function pushNowAtomic(
     const result = {
       pushed: delivered.length,
       access: accessCount,
-      failed: rejectedIds.size,
+      failed: condemned.size,
     };
     storeIdempotencyResult(args.operationId, result);
     return result;
@@ -669,16 +820,9 @@ export async function publishOwnerSnapshotAtomic(
   const body = JSON.stringify([
     { shop_key: OWNER_SHOP_KEY, payload: snapshot, generated_at: args.now },
   ]);
-  const send: Transport =
-    transport ??
-    (async (url, init) => {
-      const res = await fetch(url, {
-        method: init.method,
-        headers: init.headers,
-        body: init.body,
-      });
-      return { ok: res.ok, status: res.status, text: () => res.text() };
-    });
+  // E-45 : même transport gardé que la file client (échéance + pas de requête
+  // suspendue) — la duplication d'un `fetch` nu était le même défaut.
+  const send: Transport = transport ?? mirrorTransport;
   const headers = {
     apikey: cfg.serviceKey,
     Authorization: `Bearer ${cfg.serviceKey}`,
@@ -697,7 +841,8 @@ export async function publishOwnerSnapshotAtomic(
   } catch (err) {
     const msg = toUserMessage(err).message;
     try {
-      writeDoc({ ...doc, lastOwnerError: msg }, args.now);
+      // E-43 : cadence respectée aussi en échec (sinon 60 s de re-tentatives).
+      writeDoc({ ...doc, lastOwnerError: msg, lastOwnerAttemptAt: args.now }, args.now);
     } catch {
       /* meta best-effort */
     }
@@ -707,7 +852,15 @@ export async function publishOwnerSnapshotAtomic(
   const tx = db.transaction(() => {
     claimIdempotency(args.operationId, OWNER_PUSH_CHANNEL, args.now);
     try {
-      writeDoc({ ...doc, lastOwnerPushAt: args.now, lastOwnerError: null }, args.now);
+      writeDoc(
+        {
+          ...doc,
+          lastOwnerPushAt: args.now,
+          lastOwnerAttemptAt: args.now,
+          lastOwnerError: null,
+        },
+        args.now,
+      );
     } catch {
       /* meta best-effort */
     }
@@ -862,14 +1015,14 @@ export function startSyncTimer(): void {
       const cfg = syncConfigOf(doc);
       const nowMs = Date.now();
       const now = new Date(nowMs).toISOString();
-      if (isPushDue(cfg, doc.lastPushAt, nowMs)) {
+      if (isPushDue(cfg, doc.lastPushAt, nowMs, doc.lastAttemptAt)) {
         void pushNowAtomic({ operationId: randomUUID(), now }).catch(() => {
           /* déjà loggé dans le service */
         });
       }
       // ADR-171 : cadence PROPRE (le gérant n'attend pas la file APK pour
       // avoir sa liasse). Best-effort strict : un échec ne remonte jamais.
-      if (isOwnerPushDue(cfg, doc.lastOwnerPushAt, nowMs)) {
+      if (isOwnerPushDue(cfg, doc.lastOwnerPushAt, nowMs, doc.lastOwnerAttemptAt)) {
         void publishOwnerSnapshotAtomic({ operationId: randomUUID(), now }).catch(() => {
           /* déjà loggé dans le service */
         });

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Pencil, Search, Trash2 } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
 import { useConfirm } from "@shared/ui/confirm-dialog.tsx";
-import { formatDzd, minorToInput, parseDzdInputStrict } from "@domain/money/money.ts";
+import { formatDzd, minorToInputTotal, parseDzdInputTotal } from "@domain/money/money.ts";
 import { frError } from "@shared/errors/fr-map.ts";
 import { newOperationId } from "@domain/common/ids.ts";
 import { validateExpenseDraft } from "@domain/expenses/expense-rules.ts";
@@ -138,7 +138,7 @@ export function ExpenseFormDialog({
   const [date, setDate] = useState(expense?.expense_date.slice(0, 10) ?? todayBusinessDate());
   const [category, setCategory] = useState(expense?.category ?? "");
   const [description, setDescription] = useState(expense?.description ?? "");
-  const [amount, setAmount] = useState(expense ? minorToInput(expense.amount_minor) : "");
+  const [amount, setAmount] = useState(expense ? minorToInputTotal(expense.amount_minor) : "");
   const [method, setMethod] = useState<"cash" | "cheque" | "transfer" | "">(
     (expense?.payment_method as "cash" | "cheque" | "transfer" | null) ?? "cash",
   );
@@ -179,7 +179,7 @@ export function ExpenseFormDialog({
     // P1-5 : parse strict ( bornes H-1, jamais NaN) — erreur FR mappée.
     let minor = 0;
     try {
-      minor = parseDzdInputStrict(amount.trim() === "" ? "0" : amount, "Montant");
+      minor = parseDzdInputTotal(amount.trim() === "" ? "0" : amount, "Montant");
     } catch (e) {
       notify(frError(e, "Montant invalide."), "err");
       return;

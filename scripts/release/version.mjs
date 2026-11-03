@@ -20,6 +20,13 @@ const MOBILE_LOCK = path.join(root, "mobile", "package-lock.json");
 const MOBILE_APP = path.join(root, "mobile", "app.json");
 const MOBILE_GRADLE = path.join(root, "mobile", "android", "app", "build.gradle");
 const MOBILE_APP_TSX = path.join(root, "mobile", "src", "App.tsx");
+// E-55 — l'app PROPRIÉTAIRE était hors de la porte de version : elle restait à
+// 0.1.0 pendant que la suite sortait en 1.0.4 (écart consigné §99/§102, jamais
+// fermé). Elle devient cible, comme le client.
+const OWNER_PKG = path.join(root, "owner", "package.json");
+const OWNER_LOCK = path.join(root, "owner", "package-lock.json");
+const OWNER_APP = path.join(root, "owner", "app.json");
+const OWNER_GRADLE = path.join(root, "owner", "android", "app", "build.gradle");
 
 const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
@@ -54,48 +61,86 @@ function appVersionLiteralOf(source) {
   return m[1];
 }
 
-/** Toutes les cibles qui doivent porter le même numéro. */
+/**
+ * Toutes les cibles qui doivent porter le même numéro.
+ *
+ * E-56 — les `android/`客户端 et propriétaire sont 100 % gitignorés (`.gitignore`
+ * « Expo local (jamais committé) ») : `version:check` les lisait SANS
+ * condition, donc un clone propre plantait sur `ENOENT` avec une stack Node
+ * nue — la chaîne `verify` (et donc la CI) était rouge PAR CONSTRUCTION, et
+ * personne ne le savait faute de dépôt distant. Le fichier est désormais
+ * OPTIONNEL : présent (poste vendor) il est exigé ; absent, il est déclaré
+ * explicitement ignoré — jamais silencieusement, jamais en crash.
+ */
+function gradleTargets(file, label) {
+  if (!fs.existsSync(file)) {
+    console.log(`SKIP ${label} : ${path.relative(root, file)} non versionné (poste vendor seul)`);
+    return { name: null, code: null };
+  }
+  const gradle = fs.readFileSync(file, "utf-8");
+  return { name: versionNameOf(gradle), code: versionCodeOf(gradle) };
+}
+
 function snapshot() {
-  const gradle = fs.readFileSync(MOBILE_GRADLE, "utf-8");
-  const appJson = readJson(MOBILE_APP);
+  const mobileGradle = gradleTargets(MOBILE_GRADLE, "versionCode client (Android)");
+  const ownerGradle = gradleTargets(OWNER_GRADLE, "versionCode owner (Android)");
   return {
     rootPackage: readJson(ROOT_PKG).version,
     rootLock: readJson(ROOT_LOCK).version,
     rootLockWorkspace: readJson(ROOT_LOCK).packages?.[""]?.version ?? null,
     mobilePackage: readJson(MOBILE_PKG).version,
-    mobileLock: readJson(MOBILE_LOCK).version,
-    mobileLockWorkspace: readJson(MOBILE_LOCK).packages?.[""]?.version ?? null,
-    mobileApp: appJson.expo?.version ?? null,
-    mobileGradleName: versionNameOf(gradle),
-    mobileGradleCode: versionCodeOf(gradle),
+    mobileLock: fs.existsSync(MOBILE_LOCK) ? readJson(MOBILE_LOCK).version : null,
+    mobileLockWorkspace: fs.existsSync(MOBILE_LOCK)
+      ? (readJson(MOBILE_LOCK).packages?.[""]?.version ?? null)
+      : null,
+    mobileApp: readJson(MOBILE_APP).expo?.version ?? null,
+    mobileGradleName: mobileGradle.name,
+    mobileGradleCode: mobileGradle.code,
     mobileAppTsx: appVersionLiteralOf(fs.readFileSync(MOBILE_APP_TSX, "utf-8")),
+    ownerPackage: readJson(OWNER_PKG).version,
+    ownerLock: fs.existsSync(OWNER_LOCK) ? readJson(OWNER_LOCK).version : null,
+    ownerApp: readJson(OWNER_APP).expo?.version ?? null,
+    ownerGradleName: ownerGradle.name,
+    ownerGradleCode: ownerGradle.code,
   };
 }
+
+/** Valeurs comparées au numéro racine (`null` = cible absente, donc ignorée). */
+const ALIGNED_KEYS = [
+  "rootLock",
+  "rootLockWorkspace",
+  "mobilePackage",
+  "mobileLock",
+  "mobileLockWorkspace",
+  "mobileApp",
+  "mobileGradleName",
+  "mobileAppTsx",
+  "ownerPackage",
+  "ownerLock",
+  "ownerApp",
+  "ownerGradleName",
+];
 
 function check() {
   const s = snapshot();
   if (!SEMVER.test(s.rootPackage)) fail(`version racine invalide : ${s.rootPackage}`);
   const mismatches = [];
-  for (const key of [
-    "rootLock",
-    "rootLockWorkspace",
-    "mobilePackage",
-    "mobileLock",
-    "mobileLockWorkspace",
-    "mobileApp",
-    "mobileGradleName",
-    "mobileAppTsx",
-  ]) {
+  for (const key of ALIGNED_KEYS) {
+    if (s[key] === null) continue;
     if (s[key] !== s.rootPackage) mismatches.push(`${key}=${String(s[key])}`);
   }
-  if (!Number.isInteger(s.mobileGradleCode) || s.mobileGradleCode <= 0) {
-    mismatches.push(`versionCode=${String(s.mobileGradleCode)}`);
+  for (const [label, code] of [
+    ["client", s.mobileGradleCode],
+    ["owner", s.ownerGradleCode],
+  ]) {
+    if (code === null) continue;
+    if (!Number.isInteger(code) || code <= 0) mismatches.push(`versionCode ${label}=${String(code)}`);
   }
   if (mismatches.length > 0) {
     fail(`versions désalignées sur ${s.rootPackage} : ${mismatches.join(", ")}`);
   }
   console.log(
-    `OK  version ${s.rootPackage} alignée (POS + License Manager = package.json, Android code ${s.mobileGradleCode})`,
+    `OK  version ${s.rootPackage} alignée (POS + License Manager = package.json, Client + Owner, Android code client ${String(s.mobileGradleCode)} / owner ${String(s.ownerGradleCode)}).`,
   );
 }
 
@@ -106,53 +151,75 @@ function bumpLock(file, version) {
   writeJson(file, lock);
 }
 
+/** Réécriture ciblée d'un `build.gradle` Android (present-only : non versionné). */
+function applyGradle(file, newVersion, code) {
+  if (!fs.existsSync(file)) {
+    console.log(`SKIP ${path.relative(root, file)} absent (poste vendor seul)`);
+    return null;
+  }
+  const gradle = fs.readFileSync(file, "utf-8");
+  const next = gradle
+    .replace(/versionCode\s+\d+/, `versionCode ${code}`)
+    .replace(/versionName\s+"[^"]*"/, `versionName "${newVersion}"`);
+  fs.writeFileSync(file, next);
+  return code;
+}
+
+/** `app.json` : remplacement ciblé, jamais de réécriture JSON (format Prettier). */
+function applyAppJson(file, newVersion) {
+  if (!fs.existsSync(file)) return;
+  if (readJson(file).expo?.version === newVersion) return;
+  const appSource = fs.readFileSync(file, "utf-8");
+  fs.writeFileSync(file, appSource.replace(/("version"\s*:\s*")[^"]*(")/, `$1${newVersion}$2`));
+}
+
 function set(newVersion, explicitCode) {
   if (!SEMVER.test(newVersion)) fail(`version invalide « ${newVersion} » (attendu x.y.z)`);
   const current = snapshot();
-  const gradle = fs.readFileSync(MOBILE_GRADLE, "utf-8");
   const sameMobileVersion = current.mobileApp === newVersion;
-  const currentCode = current.mobileGradleCode;
+  const currentCode = current.mobileGradleCode ?? 0;
   const code = explicitCode ?? (sameMobileVersion ? currentCode : currentCode + 1);
   if (!Number.isInteger(code) || code <= 0) fail(`versionCode invalide : ${String(code)}`);
-  if (code < currentCode) {
-    fail(`versionCode ${code} < ${currentCode} : Android refuserait la mise à jour`);
+  if (current.mobileGradleCode !== null && code < current.mobileGradleCode) {
+    fail(`versionCode ${code} < ${current.mobileGradleCode} : Android refuserait la mise à jour`);
   }
+  // E-55/E-56 : le code owner suit la même loi de croissance (jamais régressif).
+  const ownerCode = current.ownerGradleCode === null ? null : current.ownerGradleCode + 1;
 
   const pkg = readJson(ROOT_PKG);
   pkg.version = newVersion;
   writeJson(ROOT_PKG, pkg);
   bumpLock(ROOT_LOCK, newVersion);
 
-  const mobilePkg = readJson(MOBILE_PKG);
-  mobilePkg.version = newVersion;
-  writeJson(MOBILE_PKG, mobilePkg);
-  bumpLock(MOBILE_LOCK, newVersion);
-
-  // Remplacement ciblé (pas de réécriture JSON complète) : app.json est formaté
-  // par Prettier avec des tableaux compacts ; un JSON.stringify le ferait
-  // échouer à `format:check`.
-  if (readJson(MOBILE_APP).expo?.version !== newVersion) {
-    const appSource = fs.readFileSync(MOBILE_APP, "utf-8");
-    const nextApp = appSource.replace(
-      /("version"\s*:\s*")[^"]*(")/,
-      `$1${newVersion}$2`,
-    );
-    fs.writeFileSync(MOBILE_APP, nextApp);
+  for (const [target, lock] of [
+    [MOBILE_PKG, MOBILE_LOCK],
+    [OWNER_PKG, OWNER_LOCK],
+  ]) {
+    if (!fs.existsSync(target)) continue;
+    const json = readJson(target);
+    json.version = newVersion;
+    writeJson(target, json);
+    if (fs.existsSync(lock)) bumpLock(lock, newVersion);
   }
 
-  const nextGradle = gradle
-    .replace(/versionCode\s+\d+/, `versionCode ${code}`)
-    .replace(/versionName\s+"[^"]*"/, `versionName "${newVersion}"`);
-  fs.writeFileSync(MOBILE_GRADLE, nextGradle);
+  applyAppJson(MOBILE_APP, newVersion);
+  applyAppJson(OWNER_APP, newVersion);
+  applyGradle(MOBILE_GRADLE, newVersion, code);
+  if (ownerCode !== null) applyGradle(OWNER_GRADLE, newVersion, ownerCode);
 
-  const appTsx = fs
-    .readFileSync(MOBILE_APP_TSX, "utf-8")
-    .replace(/appVersion="[^"]*"/, `appVersion="${newVersion}"`);
-  fs.writeFileSync(MOBILE_APP_TSX, appTsx);
+  if (fs.existsSync(MOBILE_APP_TSX)) {
+    const appTsx = fs
+      .readFileSync(MOBILE_APP_TSX, "utf-8")
+      .replace(/appVersion="[^"]*"/, `appVersion="${newVersion}"`);
+    fs.writeFileSync(MOBILE_APP_TSX, appTsx);
+  }
 
   console.log(`OK  version ${newVersion} écrite`);
   console.log(`    POS + License Manager : ${newVersion} (package.json racine)`);
   console.log(`    Client Android       : ${newVersion} (code ${code})`);
+  console.log(
+    `    Owner Android        : ${newVersion}${ownerCode === null ? " (gradle absent)" : ` (code ${ownerCode})`}`,
+  );
   check();
 }
 

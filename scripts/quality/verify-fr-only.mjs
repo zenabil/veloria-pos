@@ -85,6 +85,12 @@ if (hits.length > 0) {
   for (const h of hits) console.error(`  ${h.file}:${h.line}  ${h.text}`);
   process.exit(1);
 }
+// E-54 — plancher de non-vacuité : une porte qui scanne 0 fichier est une
+// porte cassée, pas une porte verte (dossier renommé, glob inversé).
+if (scanned < 300) {
+  console.error(`ÉCHEC: garde FR — seulement ${scanned} fichiers scannés (seuil 300).`);
+  process.exit(1);
+}
 console.log(
   `OK  garde FR : ${scanned} fichiers scannés (src/ + electron/), 0 littéral arabe ni « € ».`,
 );

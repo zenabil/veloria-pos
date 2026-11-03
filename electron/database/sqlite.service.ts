@@ -151,6 +151,77 @@ function snapshotBeforeMigration(sourcePath: string): void {
   }
 }
 
+/**
+ * E-47 (radical) — le reset d'usine supprimait le fichier vif SANS filet
+ * préalable : `checkpointAndClose()` → `unlinkSync()`. Les seules copies
+ * existantes étaient les `*.vposdb` **automatiques**, et l'auto-save est
+ * best-effort (un disque plein, un poste jamais sauvegardé, une base relocalisée
+ * la veille = aucune copie exploitable). Un clic sur « Réinitialiser » pouvait
+ * donc détruire définitivement ventes, stock et dettes.
+ *
+ * Désormais : snapshot VACUUM INTO (cohérent, WAL-sûr) OBLIGATOIRE avant toute
+ * suppression, avec la même politique échec-fermé que la pré-migration.
+ * Préfixe propre (`veloria-avant-reinitialisation-`) pour que la rotation des
+ * snapshots de migration ne les mélange pas.
+ */
+function snapshotBeforeFactoryReset(sourcePath: string): string {
+  const dir = path.join(app.getPath("userData"), "backups");
+  fs.mkdirSync(dir, { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const dest = path.join(dir, `veloria-avant-reinitialisation-${stamp}.sqlite`);
+  try {
+    if (db) {
+      // `VACUUM INTO` sur la poignée vivante : image cohérente sans copier le WAL.
+      const esc = dest.replace(/'/g, "''");
+      db.exec(`VACUUM INTO '${esc}'`);
+    } else {
+      // Base déjà fermée/illisible par le reset : copie simple + compagnons.
+      fs.copyFileSync(sourcePath, dest);
+      for (const suffix of ["-wal", "-shm", "-journal"]) {
+        const src = `${sourcePath}${suffix}`;
+        if (fs.existsSync(src)) {
+          try {
+            fs.copyFileSync(src, `${dest}${suffix}`);
+          } catch {
+            /* compagnon illisible : image principale conservée */
+          }
+        }
+      }
+    }
+    const written = fs.statSync(dest);
+    if (!written.isFile() || written.size === 0) {
+      throw new Error("snapshot vide");
+    }
+    try {
+      const snaps = fs
+        .readdirSync(dir)
+        .filter((f) => f.startsWith("veloria-avant-reinitialisation-") && f.endsWith(".sqlite"))
+        .sort();
+      while (snaps.length > 5) {
+        const oldest = snaps.shift();
+        if (!oldest) break;
+        for (const suffix of ["", "-wal", "-shm", "-journal"]) {
+          try {
+            fs.unlinkSync(path.join(dir, `${oldest}${suffix}`));
+          } catch {
+            /* absent : cas nominal */
+          }
+        }
+      }
+    } catch {
+      /* rotation best effort */
+    }
+    log("INFO", "database", "factory_reset.snapshot", { dest });
+    return dest;
+  } catch (err) {
+    log("FATAL", "database", "factory_reset.snapshot_failed", { error: String(err) });
+    throw new Error(
+      "Réinitialisation annulée : la sauvegarde de sécurité est impossible. Vérifiez l'espace disque.",
+      { cause: err },
+    );
+  }
+}
+
 function currentSchemaVersion(database: BetterSqlite3DB): number {
   ensureMigrationTable(database);
   const row = database.prepare(`SELECT MAX(version) AS v FROM schema_migrations`).get() as {
@@ -455,6 +526,10 @@ export function factoryResetDatabase(operationId?: string | null): {
     }
   }
   const target = db ? dbPath : getConfiguredDbPath();
+  // E-47 : aucun fichier supprimé sans image de sécurité vérifiée au préalable.
+  if (db || fs.existsSync(target)) {
+    snapshotBeforeFactoryReset(target);
+  }
   log("WARN", "database", "database.factory_reset", { path: target });
   checkpointAndClose();
   removeWalCompanions(target);

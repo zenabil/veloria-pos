@@ -26,10 +26,31 @@ import { prodLicenseDeps } from "../licensing/prod-deps";
 import { handle } from "./handle";
 import { friendlyOsLabel } from "./ipc-errors";
 
+/**
+ * E-48 — `PRAGMA integrity_check` + `foreign_key_check` parcourent TOUTE la
+ * base, SYNCHRONEMENT sur le thread principal (celui de toutes les fenêtres et
+ * de la saisie caisse). Le canal n'était gardé par rien : ni session, ni
+ * permission, ni licence (contrairement à `database.optimize`, aligné en K-05).
+ * Un renderer répétant l'appel gelait le poste entier.
+ *
+ * Le résultat est donc mémoïsé 30 s : le contrôle d'intégrité du DÉMARRAGE
+ * reste systématique et frais (chaque boot repart d'un cache vide), et
+ * l'écran Réglages ne peut plus déclencher un scan par clic.
+ */
+const HEALTH_TTL_MS = 30_000;
+let healthCache: { atMs: number; integrity: string; foreignKeys: unknown[] } | null = null;
+
 export function registerSystemChannels(): void {
   handle(IPC_CHANNELS["database.health"], V.emptyPayloadSchema, () => {
     const db = openDatabase();
-    const check = integrityCheck();
+    const nowMs = Date.now();
+    const cached = healthCache;
+    if (cached === null || nowMs - cached.atMs >= HEALTH_TTL_MS) {
+      const check = integrityCheck();
+      healthCache = { atMs: nowMs, integrity: check.integrity, foreignKeys: check.foreignKeys };
+    }
+    const fresh = healthCache;
+    if (fresh === null) throw new Error("Contrôle de santé indisponible.");
     // Version moteur réelle (le renderer l'affiche dans la barre d'état —
     // jamais de version codée en dur côté UI, cf. ADR-038).
     let sqliteVersion: string | null = null;
@@ -43,8 +64,8 @@ export function registerSystemChannels(): void {
     }
     return {
       ...db,
-      integrity: check.integrity,
-      foreignKeyViolations: check.foreignKeys,
+      integrity: fresh.integrity,
+      foreignKeyViolations: fresh.foreignKeys,
       sqliteVersion,
     };
   });

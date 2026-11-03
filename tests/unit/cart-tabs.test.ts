@@ -183,7 +183,7 @@ describe("Caisse : retrait, vidage et identité d'encaissement", () => {
     state().addLine(makeLine("a"));
     state().setCustomer(12, "Karim");
     state().setTotals({ amountPaidMinor: 5000, paymentMethod: "cheque", deliveryFeeMinor: 200 });
-    state().setSaleOperationId(OP_ID);
+    state().setSaleOperation("empreinte-panier", OP_ID);
     state().clear();
     const t = active();
     expect(t?.lines).toEqual([]);
@@ -194,15 +194,17 @@ describe("Caisse : retrait, vidage et identité d'encaissement", () => {
     // Vente aboutie ⇒ l'identité d'opération ne survit pas au vidage (un
     // nouveau panier doit porter une NOUVELLE opération, jamais rejouer celle-ci).
     expect(t?.saleOperationId).toBeNull();
+    expect(t?.saleOperationKey).toBeNull();
   });
 
-  it("setSaleOperationId reste collé à SON onglet quand un nouveau panier s'ouvre", () => {
+  it("setSaleOperation reste collé à SON onglet quand un nouveau panier s'ouvre", () => {
     state().addLine(makeLine("a"));
-    state().setSaleOperationId(OP_ID);
+    state().setSaleOperation("empreinte-panier", OP_ID);
     const firstId = state().activeId;
     state().newTab();
     expect(state().tabs.find((t) => t.id === firstId)?.saleOperationId).toBe(OP_ID);
     expect(active()?.saleOperationId ?? null).toBeNull();
+    expect(active()?.saleOperationKey ?? null).toBeNull();
   });
 
   it("hydrate : brouillon corrompu ignoré, champs bornés, opération reprise", () => {

@@ -4,9 +4,9 @@ import { ScrollView, Text, View } from "react-native";
 import { COLORS, SIZES, SPACE, TYPE } from "../tokens.ts";
 import {
   formatDateShortFr,
-  formatMinor,
+  formatMinorSafe,
   formatQuantity,
-  formatSignedMinor,
+  formatSignedMinorSafe,
   formatTime,
 } from "../format.ts";
 import type { JournalRow, SaleKind, TransactionDetail } from "../store.ts";
@@ -67,10 +67,10 @@ function Lines(props: { tx: TransactionDetail }): React.JSX.Element | null {
                 {line.name}
               </Text>
               <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>
-                {formatQuantity(line.qty, "unité", "unités")} × {formatMinor(line.unitMinor)}
+                {formatQuantity(line.qty, "unité", "unités")} × {formatMinorSafe(line.unitMinor)}
               </Text>
             </View>
-            <Amount text={formatMinor(line.totalMinor)} size={14} />
+            <Amount text={formatMinorSafe(line.totalMinor)} size={14} />
           </View>
         </View>
       ))}
@@ -88,13 +88,17 @@ function SaleDetails(props: {
       <Card style={{ marginTop: SPACE.md }}>
         <InfoRow
           label="Sous-total"
-          value={<Amount text={formatMinor(tx.subtotalMinor)} size={14} />}
+          value={<Amount text={formatMinorSafe(tx.subtotalMinor)} size={14} />}
         />
         {tx.discountMinor > 0 ? (
           <InfoRow
             label="Remise"
             value={
-              <Amount text={formatMinor(-tx.discountMinor)} size={14} tone={COLORS.statusWatch} />
+              <Amount
+                text={formatMinorSafe(-tx.discountMinor)}
+                size={14}
+                tone={COLORS.statusWatch}
+              />
             }
           />
         ) : null}
@@ -103,7 +107,7 @@ function SaleDetails(props: {
           style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
         >
           <Text style={{ ...TYPE.headlineSm, color: COLORS.cardText }}>Total payé</Text>
-          <Amount text={formatMinor(tx.totalMinor)} size={18} />
+          <Amount text={formatMinorSafe(tx.totalMinor)} size={18} />
         </View>
       </Card>
 
@@ -115,12 +119,12 @@ function SaleDetails(props: {
           <InfoRow label="Mode" value={tx.payment.label} />
           <InfoRow
             label="Reçu"
-            value={<Amount text={formatMinor(tx.payment.receivedMinor)} size={13} />}
+            value={<Amount text={formatMinorSafe(tx.payment.receivedMinor)} size={13} />}
           />
           {tx.payment.changeMinor > 0 ? (
             <InfoRow
               label="Monnaie rendue"
-              value={<Amount text={formatMinor(tx.payment.changeMinor)} size={13} />}
+              value={<Amount text={formatMinorSafe(tx.payment.changeMinor)} size={13} />}
             />
           ) : null}
           {tx.payment.creditMinor > 0 ? (
@@ -128,7 +132,7 @@ function SaleDetails(props: {
               label="À crédit"
               value={
                 <Amount
-                  text={formatMinor(tx.payment.creditMinor)}
+                  text={formatMinorSafe(tx.payment.creditMinor)}
                   size={13}
                   tone={COLORS.statusWatch}
                 />
@@ -164,14 +168,14 @@ function ReturnDetails(props: {
           <InfoRow label="Mode" value={tx.refund.label} />
           <InfoRow
             label="Montant"
-            value={<Amount text={formatMinor(tx.refund.amountMinor)} size={14} />}
+            value={<Amount text={formatMinorSafe(tx.refund.amountMinor)} size={14} />}
           />
           {tx.refund.toDebtMinor > 0 ? (
             <InfoRow
               label="Imputé à la dette"
               value={
                 <Amount
-                  text={formatMinor(tx.refund.toDebtMinor)}
+                  text={formatMinorSafe(tx.refund.toDebtMinor)}
                   size={13}
                   tone={COLORS.statusWatch}
                 />
@@ -181,7 +185,7 @@ function ReturnDetails(props: {
           <View style={{ height: 1, backgroundColor: COLORS.divider, marginVertical: SPACE.sm }} />
           <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
             <Text style={{ ...TYPE.headlineSm, color: COLORS.cardText }}>Total retourné</Text>
-            <Amount text={formatMinor(tx.totalMinor)} size={16} tone={COLORS.statusWatch} />
+            <Amount text={formatMinorSafe(tx.totalMinor)} size={16} tone={COLORS.statusWatch} />
           </View>
         </View>
       </Card>
@@ -198,7 +202,10 @@ function PaymentDetails(props: {
       <InfoRow label="Type" value={tx.label} />
       <InfoRow label="Moyen" value={tx.method} />
       <InfoRow label="Référence" value={tx.reference} />
-      <InfoRow label="Montant" value={<Amount text={formatMinor(tx.amountMinor)} size={14} />} />
+      <InfoRow
+        label="Montant"
+        value={<Amount text={formatMinorSafe(tx.amountMinor)} size={14} />}
+      />
       <View style={{ height: 1, backgroundColor: COLORS.divider, marginVertical: SPACE.sm }} />
       <InfoRow label="Opérateur" value={tx.operator} />
       {tx.note ? <InfoRow label="Note" value={tx.note} /> : null}
@@ -216,7 +223,10 @@ function ExpenseDetails(props: {
       <InfoRow label="Bénéficiaire" value={tx.payee} />
       <InfoRow label="Règlement" value={tx.method} />
       <InfoRow label="Référence" value={tx.reference} />
-      <InfoRow label="Montant" value={<Amount text={formatMinor(tx.amountMinor)} size={14} />} />
+      <InfoRow
+        label="Montant"
+        value={<Amount text={formatMinorSafe(tx.amountMinor)} size={14} />}
+      />
       <View style={{ height: 1, backgroundColor: COLORS.divider, marginVertical: SPACE.sm }} />
       <InfoRow label="Opérateur" value={tx.operator} />
       {tx.note ? <InfoRow label="Note" value={tx.note} /> : null}
@@ -253,7 +263,7 @@ export function TransactionDetailScreen(props: {
           <Text style={{ ...TYPE.headline, color: COLORS.cardText, marginTop: 2 }}>{r.ref}</Text>
           <Text style={{ ...TYPE.label, color: COLORS.cardMuted }}>{r.detail}</Text>
           <Amount
-            text={formatSignedMinor(r.amountMinor)}
+            text={formatSignedMinorSafe(r.amountMinor)}
             size={26}
             tone={negative ? COLORS.criticalText : COLORS.cardText}
             style={{ marginTop: SPACE.sm }}

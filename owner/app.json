@@ -2,7 +2,7 @@
   "expo": {
     "name": "Veloria Owner",
     "slug": "veloria-owner",
-    "version": "0.1.0",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/brand/veloria-owner.png",
     "splash": {

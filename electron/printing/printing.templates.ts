@@ -6,6 +6,7 @@ import { getActiveTemplate } from "../ipc/handlers/templates.repo";
 import { templateSettingsSchema, type ParsedTemplateSettings } from "../ipc/validators";
 import { getThermalWidth, printOptions } from "./printing.printer-settings";
 import { measureContentPx, thermalPageSize } from "./printing.page-size";
+import { printWithWatchdog } from "./printing.watchdog";
 import { factorySettingsMirror, neutralizeForDocType } from "./printing.capabilities";
 import { enrichReceipt } from "./printing.enrich";
 import {
@@ -270,12 +271,9 @@ export async function printHtmlPages(pages: PrintPage[], waitMs: number): Promis
       const printOpts = size
         ? { ...base, pageSize: size, margins: { marginType: "none" as const } }
         : base;
-      await new Promise<void>((resolve, reject) => {
-        printWin.webContents.print(printOpts, (success, err) => {
-          if (!success) reject(new Error(err || "print failed"));
-          else resolve();
-        });
-      });
+      // E-49 : échéance obligatoire sur la commande au pilote (spouleur bloqué
+      // = callback jamais rappelé), voir `printing.watchdog`.
+      await printWithWatchdog(printWin.webContents, printOpts);
     }
   } finally {
     printWin.destroy();

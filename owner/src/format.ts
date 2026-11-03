@@ -49,7 +49,12 @@ function parseInstant(iso: string): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-function parseIso(iso: string): Date | null {
+/**
+ * Exporté pour les écrans : une date de liasse (`AAAA-MM-JJ` ou instant UTC) se
+ * lit TOUJOURS en UTC sur ce fuseau (E-35). Un `getDay()`/`getDate()` local est
+ * interdit — à l'ouest d'UTC il décale le jour d'une unité.
+ */
+export function parseIso(iso: string): Date | null {
   const d = parseInstant(iso);
   return d === null ? null : new Date(d.getTime() + BUSINESS_OFFSET_MS);
 }
@@ -77,10 +82,26 @@ export function formatMinor(minor: number): string {
   return `${sign}${grouped},${pad(cents)} DZD`;
 }
 
+/**
+ * Rendu ÉCRAN d'un montant (même règle que `formatDzdSafe` du POS et le
+ * « — » de l'APK) : une valeur corrompue venue du cloud dégrade en « — »,
+ * jamais en exception au render. `formatMinor` reste strict pour les chemins
+ * non affichés (calcul, journal, tests).
+ */
+export function formatMinorSafe(value: unknown): string {
+  return typeof value === "number" && Number.isSafeInteger(value) ? formatMinor(value) : "—";
+}
+
 /** Montant signé pour les journaux : « +6 800,00 DZD » / « -1 200,00 DZD ». */
 export function formatSignedMinor(minor: number): string {
   if (minor > 0) return `+${formatMinor(minor)}`;
   return formatMinor(minor);
+}
+
+/** Variante d'affichage de `formatSignedMinor` : corrompu → « — ». */
+export function formatSignedMinorSafe(value: unknown): string {
+  if (typeof value !== "number" || !Number.isSafeInteger(value)) return "—";
+  return formatSignedMinor(value);
 }
 
 /** ISO → « Jeudi 30 octobre 2026 » (heure d'Alger). */
@@ -125,18 +146,21 @@ export function freshnessLabel(iso: string, nowMs: number = Date.now()): string 
   return `Mis à jour le ${formatDateFr(iso)} à ${formatTime(iso)}`;
 }
 
-/** « 8,2 % » — virgule française. */
-export function formatPercent(value: number, digits = 1): string {
+/** « 8,2 % » — virgule française ; valeur illisible → « — » (rendu total). */
+export function formatPercent(value: unknown, digits = 1): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "—";
   return `${value.toFixed(digits).replace(".", ",")} %`;
 }
 
 /** « 3 flacons » / « 1 flacon » : unité accordée au singulier sous 2. */
-export function formatQuantity(qty: number, singular: string, plural: string): string {
+export function formatQuantity(qty: unknown, singular: string, plural: string): string {
+  if (typeof qty !== "number" || !Number.isFinite(qty)) return "—";
   return `${qty} ${qty > 1 ? plural : singular}`;
 }
 
-/** 42 000 → « 42 000 » (sans devise, pour les tableaux). */
-export function formatNumber(value: number): string {
+/** 42 000 → « 42 000 » (sans devise, pour les tableaux) ; illisible → « — ». */
+export function formatNumber(value: unknown): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "—";
   return Math.round(value)
     .toString()
     .replace(/\B(?=(\d{3})+(?!\d))/g, " ");

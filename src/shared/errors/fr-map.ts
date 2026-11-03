@@ -11,9 +11,15 @@ const TECHNICAL_RE =
 const TECHNICAL_ENGINE_RE =
   /\b(database is locked|not a database|disk I\/O error|readonly database|out of memory|segmentation fault|terminating|connection (refused|reset|closed)|socket hang up|timed? ?out|broken pipe|too many open files|protocol error|bad (file )?descriptor|cannot allocate|address already in use|invalid argument)\b/i;
 
+// E-51 : rejets d'infrastructure (Electron/IPC) et DOM/fetch qui n'étaient
+// couverts par AUCUN motif et sortaient donc en anglais à la caisse
+// (« Error invoking remote method 'sales.create' … », « Failed to fetch »).
+const TECHNICAL_INFRA_RE =
+  /\b(error invoking remote method|no handler registered|could not be cloned|maximum call stack|rangeerror|stack overflow|failed to fetch|networkerror|aborterror|notstructurederror|securityerror|timeouterror|script error|webview|ipc renderer|window is not defined)\b/i;
+
 /** true si le message est technique brut (jamais affichable tel quel). */
 export function isTechnicalMessage(msg: string): boolean {
-  return TECHNICAL_RE.test(msg) || TECHNICAL_ENGINE_RE.test(msg);
+  return TECHNICAL_RE.test(msg) || TECHNICAL_ENGINE_RE.test(msg) || TECHNICAL_INFRA_RE.test(msg);
 }
 
 /**

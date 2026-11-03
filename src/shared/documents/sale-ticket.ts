@@ -34,10 +34,19 @@ function text(v: Cell): string {
   return v == null ? "" : String(v);
 }
 
-/** Date FR sûre : invalide → "—" (jamais "Invalid Date" anglais sur ticket). */
+/**
+ * Date FR sûre : invalide **ou absente** → "—" (jamais "Invalid Date" anglais
+ * sur un ticket, jamais une date inventée).
+ *
+ * E-39 (radical) — l'ancien repli `new Date(Date.now())` imprimait l'horloge
+ * du poste comme date de vente quand `created_at` était absent : une pièce
+ * comptable avec une date fabriquée, et l'anomalie devenait invisible. Une
+ * vente sans date est une anomalie : elle doit SE VOIR sur le ticket.
+ */
 function dateFr(v: Cell): string {
   const raw = text(v);
-  const d = raw === "" ? new Date(Date.now()) : new Date(raw);
+  if (raw === "") return "—";
+  const d = new Date(raw);
   if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleString("fr-FR", { timeZone: BUSINESS_TIME_ZONE });
 }

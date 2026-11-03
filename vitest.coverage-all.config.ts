@@ -64,16 +64,18 @@ export default defineConfig({
         "**/*.test.ts",
       ],
       // RATCHET, pas cible de vanité : planchers posés JUSTE sous la mesure
-      // réelle du 2026-11-03 (51,84 % instructions / 50,84 % branches /
-      // 44,94 % fonctions / 53,90 % lignes sur 15 283 instructions). Une
-      // régression de la couche logique fait donc échouer `test:coverage:all`,
-      // tandis qu'un progrès reste gratuit. Les relever demande une mesure
-      // nouvelle — jamais un édit à la main de ces chiffres.
+      // réelle. 2026-11-03 (1ʳᵉ mesure) : 51,84 / 50,84 / 44,94 / 53,90 sur
+      // 15 283 instructions. 2026-11-03 (après audit ADR-174 + tests de
+      // renfort) : 51,98 instructions / 51,45 branches / 45,23 fonctions /
+      // 54,06 lignes sur 15 546 instructions (245 fichiers). Une régression de
+      // la couche logique fait donc échouer `test:coverage:all`, tandis qu'un
+      // progrès reste gratuit. Les relever demande une mesure nouvelle — jamais
+      // un édit à la main de ces chiffres.
       thresholds: {
         statements: 51,
-        branches: 50,
-        functions: 44,
-        lines: 53,
+        branches: 51,
+        functions: 45,
+        lines: 54,
       },
     },
     testTimeout: 60000,

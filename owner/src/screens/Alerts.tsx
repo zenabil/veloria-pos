@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { COLORS, RADIUS, SIZES, SPACE, TYPE } from "../tokens.ts";
-import { formatDateShortFr, formatMinor, formatTime } from "../format.ts";
+import { formatDateShortFr, formatMinorSafe, formatTime } from "../format.ts";
 import type { OwnerSnapshot } from "../store.ts";
 import { Amount, Badge, Card, Divider, Group, ReadOnlyNote, Segmented, Tap } from "../ui/kit.tsx";
 import { Icon } from "../ui/Icon.tsx";
@@ -107,7 +107,7 @@ export function AlertsScreen(props: {
             </Text>
             {estimatedLoss > 0 ? (
               <Text style={{ ...TYPE.label, color: COLORS.statusCritical, fontWeight: "700" }}>
-                Perte ~{formatMinor(estimatedLoss)}/j
+                Perte ~{formatMinorSafe(estimatedLoss)}/j
               </Text>
             ) : null}
           </View>
@@ -186,7 +186,7 @@ export function AlertsScreen(props: {
               <Icon name="calendar-outline" size={18} color={COLORS.criticalText} />
             </View>
             <Amount
-              text={formatMinor(props.snapshot.money.debts.overdueMinor)}
+              text={formatMinorSafe(props.snapshot.money.debts.overdueMinor)}
               size={26}
               tone={COLORS.statusCritical}
               style={{ marginTop: 4 }}
@@ -239,7 +239,7 @@ export function AlertsScreen(props: {
                       Retard de {d.lateDays} jours (
                       {d.lateDays > 60 ? "+60 j critique" : "échéance dépassée"})
                     </Text>
-                    <Amount text={formatMinor(d.remainingMinor)} size={15} />
+                    <Amount text={formatMinorSafe(d.remainingMinor)} size={15} />
                   </View>
                 </Tap>
               </View>

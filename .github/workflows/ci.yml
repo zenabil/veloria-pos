@@ -1,8 +1,17 @@
-# Veloria PoS — CI (P3) : garde-fous AGENTS.md §8 sur chaque push/PR Windows.
-# `check` et `verify` sont les sources uniques des portes locales (format,
-# typecheck ×3, lint, licence, migrations/domaine/perf) — CI et poste vendor
-# exécutent les mêmes commandes. Le packaging strict (`license:integrity` nu)
-# reste réservé aux scripts `package*` sur le poste vendor.
+# Veloria PoS — CI : garde-fous AGENTS.md §8 sur chaque push/PR Windows.
+#
+# E-57 (radical) — cette CI était rouge PAR CONSTRUCTION et n'a donc jamais
+# rien garanti : `npm run check` appelle `typecheck:mobile` / `typecheck:owner`
+# dont le `tsconfig` `extends: "expo/tsconfig.base"` exige `mobile/node_modules`
+# et `owner/node_modules` — jamais installés par un `npm ci` racine (le dépôt
+# n'est pas un workspace). Pire, `version:check` lisait
+# `mobile/android/app/build.gradle`, 100 % gitignoré ⇒ `verify` plantait sur un
+# `ENOENT` avec une stack Node nue. Démontré sur un `git archive HEAD` :
+# les deux échecs étaient reproductibles, et l'absence de dépôt distant a
+# caché le fait (299 commits sans un seul run CI).
+#
+# Les dépendances des deux apps Expo sont donc installées ICI, et la porte de
+# version ne peut plus dépendre d'un fichier non versionné.
 name: ci
 
 on:
@@ -20,22 +29,74 @@ permissions:
 jobs:
   quality:
     runs-on: windows-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version-file: ".nvmrc"
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
+            owner/package-lock.json
       - run: npm ci
+      # Les deux apps Expo sont typecheckées par `npm run check` : sans leurs
+      # dépendances, `expo/tsconfig.base` est introuvable et le job échoue
+      # avant même de regarder le code.
+      - run: npm ci
+        working-directory: mobile
+      - run: npm ci
+        working-directory: owner
       - run: node -e "const Database=require('better-sqlite3');const db=new Database(':memory:');db.prepare('SELECT 1 AS x').get();db.close();console.log('OK better-sqlite3 N-API')"
       - run: npm run check
       - run: npm run knip
       - run: npm test
       - run: npm run test:coverage
       - run: npm run test:coverage:features
+      # Ratchet de couverture de TOUTE la couche logique (electron/, shared/,
+      # mobile/, owner/ inclus) : sans ce run, la porte « 51/50/44/53 » était
+      # mesurable mais jamais exercée, donc un recul passait inaperçu.
+      - run: npm run test:coverage:all
       - run: npm run verify
       - run: npm run build
       - run: npm run build:electron
       - run: npm run build:manager-client
       - run: npm run build:manager
+
+  # E2E sur l'application RÉELLE (Electron + base isolée). Les scénarios de
+  # licence exigent la clé privée vendor : sans le secret, `skipIfNoVendorKey`
+  # saute ces specs — le job reste vert mais le journal le dit. Volontairement
+  # SANS `continue-on-error` : un échec de caisse doit casser la CI.
+  e2e:
+    needs: quality
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      VELORIA_VENDOR_PRIVATE_KEY_B64: ${{ secrets.VELORIA_VENDOR_PRIVATE_KEY_B64 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm run build:electron
+      - name: Matériel de licence vendor (optionnel)
+        shell: pwsh
+        run: |
+          if ($env:VELORIA_VENDOR_PRIVATE_KEY_B64) {
+            New-Item -ItemType Directory -Force -Path private/vendor-keys | Out-Null
+            [IO.File]::WriteAllBytes("private/vendor-keys/private.key", [Convert]::FromBase64String($env:VELORIA_VENDOR_PRIVATE_KEY_B64))
+            Write-Output "OK  clé vendor restaurée : les specs de licence seront exécutées"
+          } else {
+            Write-Output "WARN  secret VELORIA_VENDOR_PRIVATE_KEY_B64 absent : les specs qui émettent une licence se sauteront d'elles-mêmes."
+          }
+      # `tests/e2e/full-loop-client` pilote le miroir par un relais de
+      # boucle (:8100) — sans lui l'échec ne dirait RIEN du code de synchro.
+      - name: Relais de miroir (boucle :8100)
+        shell: pwsh
+        run: Start-Process -FilePath "node" -ArgumentList "scripts/e2e-mirror-relay.mjs" -WindowStyle Hidden
+      - run: npm run test:e2e

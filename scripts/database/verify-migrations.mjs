@@ -41,6 +41,85 @@ if (files.length < 5) {
   }
 }
 
+// ─── E-53 (radical) — immutabilité RÉELLE par loquet sha256 commité ─────────
+// Règle 12 promet « checksum guard refuses to open drifted databases ». Ce
+// garde n'existait QUE dans l'application (la base vivante compare le fichier
+// au hash qu'ELLE a enregistré). Le `verify-migrations` de CI recalculait le
+// sha256 des fichiers du disque et le stockait tel quel : éditer en place une
+// migration déjà appliquée laissait `verify:migrations` VERT, `sign-integrity`
+// resigner silencieusement la dérive, et une BASE NEUVE l'appliquer sans mot
+// dire. Le loquet est désormais la source de vérité auditée, et il est testé
+// AVANT toute application.
+const LOCK_FILE = path.join(root, "database", "migrations.lock.json");
+const sha256 = (text) => crypto.createHash("sha256").update(text).digest("hex");
+const fileSql = new Map();
+const fileChecksum = new Map();
+for (const f of files) {
+  const sql = fs.readFileSync(path.join(migDir, f), "utf-8");
+  fileSql.set(f, sql);
+  fileChecksum.set(f, sha256(sql));
+}
+
+if (process.argv.includes("--write-lock")) {
+  const lock = {
+    schema: 1,
+    algorithm: "sha256",
+    note: "Immuable (AGENTS.md règle 12). Une migration appliquée ne se réédite PAS en place : elle se corrige par une NOUVELLE migration. `npm run verify:migrations:lock` régénère ce fichier, uniquement dans le commit qui ajoute la migration.",
+    files: Object.fromEntries(files.map((f) => [f, fileChecksum.get(f)])),
+  };
+  fs.writeFileSync(LOCK_FILE, `${JSON.stringify(lock, null, 2)}\n`, "utf-8");
+  console.log(`OK  loquet écrit : ${files.length} migrations → database/migrations.lock.json`);
+  process.exit(0);
+}
+
+{
+  if (!fs.existsSync(LOCK_FILE)) {
+    console.error(
+      "FAIL: database/migrations.lock.json absent — l'immutabilité n'est plus auditable (`npm run verify:migrations:lock`).",
+    );
+    process.exit(1);
+  }
+  let lock;
+  try {
+    lock = JSON.parse(fs.readFileSync(LOCK_FILE, "utf-8"));
+  } catch (err) {
+    console.error(`FAIL: loquet de migrations illisible : ${String(err)}`);
+    process.exit(1);
+  }
+  const locked = lock?.files;
+  if (!locked || typeof locked !== "object" || Array.isArray(locked)) {
+    console.error("FAIL: loquet de migrations sans champ `files` objet.");
+    process.exit(1);
+  }
+  const drift = [];
+  for (const f of files) {
+    const expected = locked[f];
+    if (typeof expected !== "string") {
+      console.error(
+        `FAIL: migration ${f} absente du loquet — tout changement de schéma = nouvelle migration + loquet régénéré dans le MÊME commit.`,
+      );
+      process.exit(1);
+    }
+    if (expected !== fileChecksum.get(f)) drift.push(f);
+  }
+  for (const f of Object.keys(locked)) {
+    if (!fileChecksum.has(f)) {
+      console.error(
+        `FAIL: le loquet connaît ${f} mais le fichier a disparu de database/migrations/.`,
+      );
+      process.exit(1);
+    }
+  }
+  if (drift.length > 0) {
+    console.error(
+      `FAIL: migration(s) MODIFIÉE(S) en place après release (règle 12 violée) : ${drift.join(", ")}.`,
+    );
+    console.error("      Corriger par une NOUVELLE migration numérotée, jamais en place.");
+    process.exit(1);
+  }
+  console.log(`OK  loquet sha256 : ${files.length} migrations intactes (aucune dérive).`);
+}
+
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "veloria-verify-"));
 const dbFile = path.join(tmp, "Veloria POS DB.sqlite");
 const db = new DatabaseSync(dbFile);
@@ -53,8 +132,8 @@ db.exec(
 );
 
 for (const f of files) {
-  const sql = fs.readFileSync(path.join(migDir, f), "utf-8");
-  const checksum = crypto.createHash("sha256").update(sql).digest("hex");
+  const sql = fileSql.get(f);
+  const checksum = fileChecksum.get(f);
   const m = f.match(/^(\d+)_/);
   const version = Number(m[1]);
   db.exec(sql);

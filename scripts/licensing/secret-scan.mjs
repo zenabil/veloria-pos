@@ -40,6 +40,12 @@ const SCAN_DIRS = [
   // fonctions Edge (cloud), CI (.github), docs, sorties manager, exécution
   // release + exports de design Stitch. Aucun d'eux n'était analysé.
   "mobile",
+  // E-54 — l'app PROPRIÉTAIRE était hors périmètre : c'est pourtant elle qui
+  // porte la connexion Supabase (e-mail/mot de passe Auth) et son `eas.json`.
+  "owner",
+  // E-54 — `config/` : les .yml electron-builder et le playwright.config sont
+  // embarqués dans le livrable ; un token y atterrit par copier-coller.
+  "config",
   "cloud",
   ".github",
   "docs",
@@ -94,7 +100,44 @@ const SECRET_PATTERNS = [
   new RegExp("DEV" + "_MODE_" + "UNLOCK", "i"),
   new RegExp("DEBUG" + "[-_]?" + "LICENSE", "i"),
   new RegExp("SKIP" + "[-_]?" + "LICENSE" + "[-_]?" + "CHECK", "i"),
+  // E-54 — classe de fuite RÉELLE de ce projet (miroir Supabase) : la clé de
+  // service et les jetons d'API plateforme. Motifs assemblés par concaténation
+  // pour que le scanner ne se signale pas lui-même.
+  new RegExp(`["']sb_${"sec" + "ret"}[_A-Za-z0-9-]{8,}`),
+  new RegExp(`${"service" + "_role"}\\s*[:=]\\s*["'][A-Za-z0-9_-]{20,}`),
 ];
+
+/**
+ * E-54 — un JWT `eyJ…` n'est PAS un secret en soi : la clé `anon` de Supabase
+ * est publique par conception (elle est dans l'APK). Ce qui doit faire échec,
+ * c'est un jeton dont le payload déclare un rôle PRIVILÉGIÉ. Le contrôle est
+ * donc sémantique : on décode le segment 2 et on lit `role`, au lieu de
+ * refuser tout jeton (ce qui rendrait le garde inutilisable et ignoré).
+ */
+const PRIVILEGED_JWT_ROLES = new Set([
+  "service" + "_role",
+  "supabase_admin",
+  "supabase_auth_admin",
+  "supabase_storage_admin",
+  "authenticator",
+]);
+
+function privilegedJwtHits(text) {
+  const hits = [];
+  for (const m of text.matchAll(/eyJ[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{4,}/g)) {
+    const payload = m[0].split(".")[1];
+    let role = null;
+    try {
+      const json = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+      role = typeof json?.["ro" + "le"] === "string" ? json["ro" + "le"] : null;
+    } catch {
+      /* jeton non décodable : hors sujet (les motifs bruts couvrent le reste) */
+    }
+    if (role !== null && PRIVILEGED_JWT_ROLES.has(role))
+      hits.push(`${m[0].slice(0, 24)}… :: role=${role}`);
+  }
+  return hits;
+}
 
 const BYPASS_ENV = [
   /process\.env\[["'](?:BYPASS|SKIP|DEBUG)[A-Z_]*LICENSE/i,
@@ -157,6 +200,8 @@ for (const f of files) {
   for (const re of [...SECRET_PATTERNS, ...BYPASS_ENV]) {
     if (re.test(text)) FAIL.push(`${rel} :: ${re}`);
   }
+  // E-54 — rôles JWT privilégiés (le jeton `anon` public n'est PAS une faute).
+  for (const hit of privilegedJwtHits(text)) FAIL.push(`${rel} :: ${hit}`);
 }
 
 // 2. Fichiers interdits dans l'arbre POS (clés, env, artefacts debug).
@@ -176,6 +221,14 @@ if (!fs.existsSync(path.join(root, "resources", "license", "public.key"))) {
 
 if (WARN.length > 0) {
   for (const w of WARN) console.log(`WARN ${w}`);
+}
+// E-54 — une porte qui ne regarde RIEN doit échouer, pas sourire : sans ce
+// plancher, un `SCAN_DIRS` vidé ou un chemin mal orthographié donnait un
+// « aucun secret » parfaitement vert sur zéro fichier.
+if (files.length < 600) {
+  FAIL.push(
+    `secret-scan :: seulement ${files.length} fichiers analysés (seuil 600) — périmètre cassé`,
+  );
 }
 if (FAIL.length > 0) {
   console.error("SECRET-SCAN ÉCHEC :");

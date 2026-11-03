@@ -3,7 +3,7 @@
 
 import { DomainError } from "../common/errors.ts";
 import { isRealCalendarDate } from "../common/dates.ts";
-import { assertSafeMinor } from "../money/money.ts";
+import { assertSafeMinor, MAX_MINOR_TOTAL } from "../money/money.ts";
 
 export interface ExpenseDraft {
   description: string;
@@ -23,7 +23,13 @@ export function validateExpenseDraft(d: ExpenseDraft): void {
     throw new DomainError("VALIDATION_ERROR", "Date de dépense invalide (AAAA-MM-JJ).");
   }
   try {
-    assertSafeMinor(d.amountMinor, { min: 1, label: "Montant de dépense invalide" });
+    // Une dépense est un TOTAL (achat ponctuel > 10M DZD possible) : plafond
+    // `MAX_MINOR_TOTAL`, aligné sur le validateur IPC `moneyTotalPositive`.
+    assertSafeMinor(d.amountMinor, {
+      min: 1,
+      max: MAX_MINOR_TOTAL,
+      label: "Montant de dépense invalide",
+    });
   } catch {
     throw new DomainError("VALIDATION_ERROR", "Montant de dépense invalide.");
   }

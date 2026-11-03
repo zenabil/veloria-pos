@@ -291,12 +291,24 @@ export interface OwnerSnapshot {
 export interface Session {
   email: string;
   accessToken: string | null;
+  /**
+   * Expiration du jeton (Supabase `expires_at`), en ISO. Facultative à
+   * l'écriture : une session plus ancienne n'a jamais eu ce champ, et
+   * `null`/absent = expiration inconnue (on ne dévinera pas une date).
+   */
+  expiresAt?: string | null;
   lastLoginAt: string;
 }
 
 export type ProductFilter = "all" | "low" | "out";
 
-/** Liste filtrée + recherche (nom, référence, code-barres) — pure. */
+/**
+ * Liste filtrée + recherche (nom, référence, code-barres) — pure.
+ * Le filtre « Rupture » et la pastille « Rupture » viennent du MÊME prédicat
+ * (`productStatus`) : un produit surstocké-vendu (quantité négative) est donc
+ * filtré exactement comme il est badgé (ancien écart : `quantity !== 0` vs
+ * `quantity <= 0`, le négatif disparaissait du filtre en restant badgé).
+ */
 export function filterProducts(
   products: Product[],
   filter: ProductFilter,
@@ -304,8 +316,7 @@ export function filterProducts(
 ): Product[] {
   const q = query.trim().toLowerCase();
   return products.filter((p) => {
-    if (filter === "low" && !(p.quantity > 0 && p.quantity <= p.minLevel)) return false;
-    if (filter === "out" && p.quantity !== 0) return false;
+    if (filter !== "all" && productStatus(p) !== filter) return false;
     if (q === "") return true;
     return (
       p.name.toLowerCase().includes(q) ||

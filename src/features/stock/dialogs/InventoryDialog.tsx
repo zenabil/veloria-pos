@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 
 import { api } from "@shared/types/ipc-client.ts";
 
-import { newOperationId } from "@domain/common/ids.ts";
+import { useContentOperationId } from "@shared/ui/use-operation-id.ts";
 
 import { Button, Field, Modal, TextInput, cn } from "@shared/ui/primitives.tsx";
 import type { InventoryPreset } from "../StockScreen.tsx";
@@ -36,6 +36,10 @@ export function InventoryDialog({
   const [rows, setRows] = useState<InventoryRowState[]>(initial.map((r) => ({ ...r, actual: "" })));
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
+  // L'inventaire retranche/ajoute du stock : identité figée sur le comptage
+  // soumis (deux clics = une seule application ; comptage corrigé = opération
+  // nouvelle, sinon l'écart précédent serait rejoué à la place du nouveau).
+  const contentOperationId = useContentOperationId();
 
   const needle = q.trim().toLowerCase();
   const visible = useMemo(
@@ -78,7 +82,7 @@ export function InventoryDialog({
     setBusy(true);
     try {
       const res = (await api.stockInventory({
-        operationId: newOperationId(),
+        operationId: contentOperationId(`stock.inventory:${JSON.stringify({ items, reason })}`),
         items,
         reason: reason.trim(),
       })) as {
