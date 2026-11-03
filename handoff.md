@@ -5730,3 +5730,52 @@ hors de cette session ; elles sont conservées telles quelles.
 pas et 299 commits restent sur un seul disque), RLS `owner_snapshots` par `auth.uid()`,
 keystore → `keystore.properties`, versionner `.opencode/skills`, migration `0060` pour
 `attempts`/`last_error` sur `sync_outbox`.
+
+### Les quatre applications construites, dans l'ordre demandé
+
+Sériel (jamais deux constructions lourdes en parallèle sur ce poste), sortie
+**hors workspace** (`--config.directories.output=C:/veloria-build/b3/…`) pour échapper au
+verrou d'indexeur sur `default_app.asar` (§99/§102), puis copie dans `release/`. La série
+précédente a été **déplacée** (non supprimée) dans `release/_prev-2026-11-03/` avec ses
+hashes `AVANT` consignés dans le journal ; `Veloria-Client-1.0.4-4abi-legacy.apk` (88 Mo)
+est resté en place.
+
+| #   | Livrable                                                                | Exit  | Taille neuve | Ancienne           |
+| --- | ----------------------------------------------------------------------- | ----- | ------------ | ------------------ |
+| 1   | `Veloria-PoS-Setup-1.0.4.exe` (nsis, perMachine)                        | **0** | 161 363 678  | 161 358 413        |
+| 1   | `Veloria-PoS-Portable-1.0.4.exe`                                        | **0** | 139 488 014  | 139 451 077        |
+| 2   | `Veloria-License-Manager-Setup-1.0.4.exe`                               | **0** | 144 415 205  | 144 415 031        |
+| 2   | `Veloria-License-Manager-Portable-1.0.4.exe`                            | **0** | 130 650 708  | 130 655 758        |
+| 3   | `Veloria-Client-1.0.4.apk` (`assembleRelease -x :app:lintVitalRelease`) | **0** | 22 678 264   | 22 677 268         |
+| 4   | `Veloria-Owner-1.0.4.apk` (même recette)                                | **0** | 18 105 047   | 18 101 439 (0.1.0) |
+
+Vérifications faites **sur les artefacts**, pas supposées :
+
+- Les six fichiers **changent de taille et de hash** par rapport à la série archivée : ce
+  sont de vraies constructions fraîches, pas le phénomène §102 où Gradle UP-TO-DATE
+  reproduisait un APK **identique octet pour octet**. Hash client neuf
+  `dcb11601…` (ancien `706f1371…`), hash owner `ccc07c6c…`.
+- `aapt dump badging` : `dz.veloria.client` versionCode **6** / 1.0.4 ·
+  `dz.veloria.owner` versionCode **2** / **1.0.4** — l'écart de version owner, ouvert
+  depuis §99, est **fermé** par la porte `version:check` élargie (E-55) et non par un edit
+  manuel.
+- `apksigner verify --print-certs` sur les deux APK : signataire
+  `CN=Veloria, OU=Mobile, O=Veloria, L=Algiers, ST=Algiers, C=DZ`, cert SHA-256
+  `c190b12a6c…16a29f` (même clé que la série précédente — `owner/android` signe avec
+  `../../../mobile/veloria-release.keystore`).
+- `release:smoke` **0** (mains/preloads des deux paquets, preloads sandbox-sûrs,
+  `dist-*/package.json {type: commonjs}`, manifeste d'intégrité du Manager) ·
+  `release:checksums` **0** (4 `.exe` régénérés ; les APK hachés à la main ci-dessus,
+  `checksums.js` n'inspectant que `release/*.exe`).
+- `integrity-manifest` du POS signé sur **240** fichiers (239 avant) : le delta est
+  `electron/printing/printing.watchdog.ts`, la preuve que le manifeste suit le découpage.
+
+**Risque non réglé, écrit** : ces artefacts ne sont poussés NULLE PART (`release/` ignoré,
+aucun dépôt distant) et les réglages Native-max des APK (`gradle.properties`,
+`signingConfigs`, `versionCode`) ne vivent que sur ce poste — une reconstruction sur une
+autre machine donnerait d'autres fichiers, et un `expo prebuild --clean` les perdrait.
+**Git** : trois commits — `45264a1 fix(audit)` (76 fichiers, +3 530 / −493),
+`dd5d35f docs(handoff)` (session 105), `4eb350d docs(agents)` (règle 15 +
+isolation parallèle, ajout opérateur hors de cette session, conservé tel quel). Arbre
+**propre** après les constructions (rien de traîné : `release/`, `dist*/`, `coverage/`,
+`mobile|owner/android/` sont ignorés).
