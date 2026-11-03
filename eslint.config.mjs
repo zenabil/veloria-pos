@@ -52,6 +52,8 @@ export default tseslint.config(
             // W9 : porte d'encodage (U+FFFD) + config de couverture interface.
             "scripts/quality/verify-encoding.mjs",
             "vitest.features.config.ts",
+            // Porte de mesure de couverture de TOUTE la couche logique.
+            "vitest.coverage-all.config.ts",
             "scripts/release/checksums.js",
             "scripts/release/smoke.js",
             "scripts/release/stamp-electron-pkg.js",

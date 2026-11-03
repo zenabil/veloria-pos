@@ -31,6 +31,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:coverage:features": "vitest run --config vitest.features.config.ts --coverage",
+    "test:coverage:all": "vitest run --config vitest.coverage-all.config.ts",
     "test:db": "vitest run tests/database tests/integration",
     "test:e2e": "playwright test --config config/playwright.config.ts",
     "test:e2e:installer": "playwright test --config config/playwright.config.ts tests/e2e/installer.spec.ts",
