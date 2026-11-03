@@ -15,7 +15,44 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête **session 104** (première **mesure** de couverture de toute la couche logique — 48,98 % — puis densification : 5 modules sortis de 0 %, +69 cas, porte `test:coverage:all` avec **ratchet**, et les sessions de caisse enfin vues dans l'app réelle). Avant elle session 103 (liaison POS → Supabase déboguée sur la machine réelle : ADR-173 — une ligne condamnée ne gèle plus la file ; 401 = clé mal saisie, la saisie reste manuelle ; file orpheline corrigée après sauvegarde ; POS reconstruit avec le correctif). Avant elle session 102 (seconde rebuild POS + License Manager + client : portes complètes vertes, installateurs neufs, **APK client identique octet pour octet** car Gradle était UP-TO-DATE ; série du matin archivée dans `release/_prev-2026-11-02b/`, **rien de supprimé** ; risque consigné : `mobile/android/` est entièrement git-ignoré, la config Native-max ne vit que sur ce poste). Avant elle session 101 (audit complet des **réglages Supabase vivants** depuis le tableau de bord : un seul réglage corrigé, `password_min_length` 6 → **8** ; la protection « mot de passe fugitif » est **refusée par le plan gratuit** — `402` + entitlement `hasAccess:false` ; trois décisions ADR-171 tranchées par l'opérateur et consignées). Avant elle session 100 (les trois applications **exécutées** : POS 51/51 après réparation de deux specs E2E obsolètes, License Manager lancé en réel, client Expo web avec hero live). Avant elle session 99 (quatre constructions d'artefacts + retrait des anciennes ; cause racine du verrou electron-builder sur `E:` trouvée et contournée). Avant elle session 98 (liasse propriétaire publiée par le POS, ADR-171, audit/corrections Supabase), session 97 (`maxDevices` documentée, ADR-172), session 96 (sessions de caisse, ADR-170), session 95 (jour métier Africa/Algiers, E-35 corrigé, ADR-169), session 94 (bootstrap de l'environnement sur poste neuf), session 93 (diagnostic bandeau hero client), session 92 (test appareil réel, CPH2235), session 91 (APK Native-max, ADR-168), session 90 (purge ciblée post-audit, ADR-167), session 89 (purge des artefacts obsolètes), session 88 (annonces multi-médias + bandeau hero APK, ADR-166), session 87 bis (rafraîchissement périodique de l'APK selon la cadence POS, ADR-165), session 87 (annonce magasin poussée aux clients, ADR-160). Avant elle session 86 (compte propriétaire, ADR-164), session 85 (connexion Supabase owner, ADR-163), session 84 (données fictives supprimées, owner), session 83 (Argent/Stock/Périodes/Alertes enrichis), session 82 (Aujourd'hui + détails de transaction), session 81 (passe design v2 owner), session 80 (écrans courts owner), session 79 (application propriétaire, ADR-162), session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
+- Branche : `chore/root-layout` — tête **session 105** (audit intégral à portes
+  ouvertes, **ADR-174** : les portes étaient vertes et mentaient sur quatre
+  points — `verify:migrations` ne contrôlait pas l'immutabilité (loquet sha256
+  ajouté et **prouvé rouge sur une dérive**), la CI était **rouge par
+  construction** (`typecheck:mobile|owner` sans `node_modules`, `version:check`
+  lisant un `build.gradle` gitignoré → crash `ENOENT`) et n'a **jamais tourné**
+  (aucun dépôt distant, 299 commits), `verify-fr-only`/`verify-encoding`
+  passaient sur **0 fichier scanné**, `secret-scan` ignorait `owner/`, `config/`
+  et toute la classe `sb_secret_`/`service_role`/JWT. Defauts applicatifs
+  corrigés en profondeur : E-36 parseur d'argent via `Number()` (`0x10` → 16,
+  `1.5E3` importé en CSV), E-37/E-40 plafonds agrégats (six dialogues faisaient
+  **mourir l'écran** au-delà de 10 M DZD, `ReportsScreen` affichait `—` sur 11
+  totaux valides), E-38 garde de crédit **échouant ouvert**, E-39 date de ticket
+  **inventée** depuis l'horloge, M-1/M-2/M-3 `operationId` non lié au contenu +
+  générés au clic (facture dupliquée, ticket ≠ facture), E-41/E-42/E-43/E-44/
+  E-45/E-58 file miroir (une ligne corrompue la gelait pour toujours ; un 404 de
+  table condamnait **les 200 clichés** — 6 lignes `failed` orphelines déjà en
+  base réelle ; cadence ignorée en échec ; `fetch` sans échéance ni verrou),
+  E-47 reset d'usine **sans snapshot**, E-48 `database.health` sans garde (scan
+  complet du thread principal), E-49 impression sans échéance (IPC pendu +
+  fenêtre qui fuit), E-50 chemin PDF absolu fourni par le renderer (liste blanche
+  `realpath`), E-51 rejet IPC anglais affiché à l'opérateur, et le **crash-loop
+  Owner** (formatteur qui lève + `isSnapshotShape` à 3 champs + zéro
+  `ErrorBoundary`, liasse en cache = plus aucune ouverture possible). Mesures
+  après correctifs : `format`/`lint`/5 `typecheck`/**191 fichiers–1 395 tests**/
+  6 `verify`/`knip`/**3 portes de couverture** toutes vertes, ratchet relevé sur
+  mesure nouvelle (51,98 / 51,45 / 45,23 / 54,06), E2E complet rejoué. Owner
+  aligné 0.1.0 → **1.0.4** (`versionCode` 1 → 2) parce que `version:check` en
+  fait désormais une cible. **Restes-à-faire écrits, pas cachés** (ADR-174 §6) :
+  `sync_outbox` sans `attempts`/`last_error` (migration 0060), aucun dépôt
+  distant, clé `service_role` jamais saisie, base vivante dans
+  `E:\data\backups`, RLS `owner_snapshots` en `USING (true)`, mots de passe
+  keystore en clair dans un `build.gradle` non versionné, `phone_hash` non salé,
+  `.opencode/` (les trois skills obligatoires de la règle 13) hors git. Avant
+  elle session 104 (première **mesure** de couverture de toute la couche logique
+  — 48,98 % — puis densification : 5 modules sortis de 0 %, +69 cas, porte
+  `test:coverage:all` avec **ratchet**, et les sessions de caisse enfin vues dans
+  l'app réelle). Avant elle session 103 (liaison POS → Supabase déboguée sur la machine réelle : ADR-173 — une ligne condamnée ne gèle plus la file ; 401 = clé mal saisie, la saisie reste manuelle ; file orpheline corrigée après sauvegarde ; POS reconstruit avec le correctif). Avant elle session 102 (seconde rebuild POS + License Manager + client : portes complètes vertes, installateurs neufs, **APK client identique octet pour octet** car Gradle était UP-TO-DATE ; série du matin archivée dans `release/_prev-2026-11-02b/`, **rien de supprimé** ; risque consigné : `mobile/android/` est entièrement git-ignoré, la config Native-max ne vit que sur ce poste). Avant elle session 101 (audit complet des **réglages Supabase vivants** depuis le tableau de bord : un seul réglage corrigé, `password_min_length` 6 → **8** ; la protection « mot de passe fugitif » est **refusée par le plan gratuit** — `402` + entitlement `hasAccess:false` ; trois décisions ADR-171 tranchées par l'opérateur et consignées). Avant elle session 100 (les trois applications **exécutées** : POS 51/51 après réparation de deux specs E2E obsolètes, License Manager lancé en réel, client Expo web avec hero live). Avant elle session 99 (quatre constructions d'artefacts + retrait des anciennes ; cause racine du verrou electron-builder sur `E:` trouvée et contournée). Avant elle session 98 (liasse propriétaire publiée par le POS, ADR-171, audit/corrections Supabase), session 97 (`maxDevices` documentée, ADR-172), session 96 (sessions de caisse, ADR-170), session 95 (jour métier Africa/Algiers, E-35 corrigé, ADR-169), session 94 (bootstrap de l'environnement sur poste neuf), session 93 (diagnostic bandeau hero client), session 92 (test appareil réel, CPH2235), session 91 (APK Native-max, ADR-168), session 90 (purge ciblée post-audit, ADR-167), session 89 (purge des artefacts obsolètes), session 88 (annonces multi-médias + bandeau hero APK, ADR-166), session 87 bis (rafraîchissement périodique de l'APK selon la cadence POS, ADR-165), session 87 (annonce magasin poussée aux clients, ADR-160). Avant elle session 86 (compte propriétaire, ADR-164), session 85 (connexion Supabase owner, ADR-163), session 84 (données fictives supprimées, owner), session 83 (Argent/Stock/Périodes/Alertes enrichis), session 82 (Aujourd'hui + détails de transaction), session 81 (passe design v2 owner), session 80 (écrans courts owner), session 79 (application propriétaire, ADR-162), session 78 (déploiement Supabase ADR-160), session 77 (version unique 1.0.4 + mises à jour, ADR-161), session 76 (détails de facture APK, ADR-160), session 75 (encaissement standalone ventilé FIFO, ADR-159), session 74 (passe UX mobile 2026), session 69 (Installateurs POS + License Manager), session 68 (APK client signé), session 67 (Miroir Supabase opérationnel, ADR-158), session 66 (Développement des interfaces, ADR-157), session 65 (Organisation du tronc racine, ADR-156), session 64 (Montée de gamme de l'outillage, ADR-155), session 63 (Tableau de bord simplifié, ADR-154), session 62 (purge dead-code en trois lots, ADR-153), session 61 (login client V6 « Connexion développée », ADR-152), sessions 60 (login V5 « Connexion directe », ADR-151), 59 (client mobile V4 « Daylight plat », ADR-150), 58 (purge +1,4 Go), 57 (pied d'arbre, docs), 56 (code-barres carton, ADR-149) et 54 (audit transversal, 21 findings, 4 P1 corrigés). Les sessions 41 (retours dette d'abord) et 45 (carton devis/retours fournisseur), jusque-là **non commitées** dans l'arbre de travail, ont été figées en **checkpoint `7f98e44`** sur décision du propriétaire avant l'audit : le commit rend le travail réversible, il ne vaut **pas** la validation produit, qui reste due. **Arbre propre** (hors `release/`, `graphify-out/` et artefacts de navigateur, non versionnés).
 - **Session 104 (2026-11-03)** : **le projet mesuré pour la première fois, puis densifié** (demande « جرب التطبيق و عمم الاختبارات و كثفها على كل المشروع 100% » puis « اصلح الاخطاء »). Réponse d'abord honnête : **le 100 % n'est pas livré**, et la raison est structurelle — **aucune porte ne mesurait le projet** (`test:coverage` = `src/domain`+`src/application` seuls à 94 %, `test:coverage:features` = aideurs purs) ; 223 fichiers exécutables n'étaient jamais interrogés. Ajout de **`npm run test:coverage:all`** (`vitest.coverage-all.config.ts`, `all: true`, `src/domain|application|shared|features` + `electron/**` + `license-manager/**` + `mobile/src` + `owner/src`) : **première vérité = 48,98 % instructions / 48,12 % branches / 43,22 % fonctions / 50,92 % lignes** sur 15 283 instructions, avec l'écart que la moyenne cachait (`src/domain` 94,0 · `mobile/src` 82,8 · `owner/src` 83,9 · `electron/sync` 75,3 · `electron/ipc` 48,0 · `src/features` 31,6 · `src/shared` 20,7 · `electron/main` 11,6 · `electron/backup` 3,6 · `license-manager/*` 2-17 · `electron/ocr` **0** · `electron/preload` **0**). Planchers en **ratchet** posés SOUS la mesure (51/50/44/53) : une régression casse la porte, un progrès est gratuit, les relever exige une nouvelle mesure (jamais un édit de chiffres). Densification : **5 fichiers de test, +69 cas** — `ipc/handle` 0 → **94,87 %** (12 : gates licence, refus `operationId` vide, verrou `must_change_code` côté main + ses 3 exceptions, **régression ZodUUID** de session 64), `ocr/ocr-files` 0 → **90,16 %** (11 : signatures PNG/JPEG/PDF exigées — un `.png` rempli de texte est refusé, 15 Mo, copie rangée sous `<userData>/ocr-temp` sans évasion, expiration, normalisation bornée + cache, purges), `expenses.repo` 0 → **88,23 %** (16 : montants entiers, moyen de paiement si payée, replay = une ligne/audit, échappement LIKE, recherche `DEP-<id>`, tris, pagination, stats), `suppliers.repo` 0 → **79,72 %** (16 : code `FOU-#####`, doublon refusé, **paiement atomique** + dépassement de dette refusé, 6 verrous de suppression, lot >100 refusé et idempotent), `credit-gates` 7,89 → **100 %** (14 : comptant = 0 capability, crédit = `debt-management`, partiel = les deux, total de porte aux **prix facturés** (A2), base verrouillée = **fail-closed FR** (A1), retour fournisseur ne lit pas la dette client). Suite : **181 → 186 fichiers, 1 285 → 1 354 cas** ; couverture **52,07 % / 51,23 % / 44,94 % / 54,14 %**. Trial de l'app : `test:e2e` complet **52/2/3** — les 2 échecs étaient **dans mon matériel, pas dans l'app**, prouvé avant correction : (1) j'attendais `+20,00 DZD` alors que `formatDzdSigned` ne préfixe pas le positif (le snapshot DOM montrait la ligne rendue `500,00/500,00/520,00/20,00 Fermée`), (2) `full-loop-client` refuse en 37 ms si le relais `:8100` n'est pas lancé — comportement voulu du spec. Relais lancé + attente corrigée → **4/4**, total session **54 passés / 3 ignorés**, et les **sessions de caisse (ADR-170) vues et faites dans l'app réelle pour la première fois** (ouverture, comptage, fermeture confirmée, double session refusée, comptage vide refusé). Pièges d'outillage consignés : `vitest run --config` **n'active pas** la couverture sans `coverage.enabled: true` (une porte qui ne mesure rien est pire que pas de porte — symptôme : durée identique à la suite nue, aucun dossier `coverage/`), `reportsDirectory` et non `reportsOutputDir`, un config racine doit entrer dans `allowDefaultProject` d'ESLint, `exactOptionalPropertyTypes` refuse `error?: string` alimenté par `?.`, un trigger impose `code` aux fournisseurs dès l'INSERT brut, et une stats **mensuelle** doit suivre l'horloge réelle (`strftime('%Y-%m','now','+1 hour')`). **Reste à 0 %** : 36 fichiers ≥ 20 instructions — collage de pont/preload et mains glue (preuve réelle = E2E), 7 `registry.*`, hooks React exclus par ADR-155, `staff.repo` 3,72 %, `templates.repo` 5,93 %, `products.repo` 30,7 %, `electron/backup` 3,6 %, `settings.repo`/`company.repo` 0 ; pour les 40 `.tsx`, l'option honnête est Playwright (ou installer `jsdom`+testing-library, absent du projet), pas un pourcentage V8 de rendu. **Zéro code de production modifié** (+1 536 lignes = tests/outillage). Ouverts (repris de §103) : clé `service_role` à coller, installateur contenant ADR-173, base vivante dans `E:\data\backups`, `test:e2e:installer`, APK client sur appareil. Détails §104.
 - **Session 103 (2026-11-02)** : **liaison POS → Supabase déboguée sur la machine réelle (ADR-173)** — demande « صحح و اربط البرنامج ب supabase » après « Miroir injoignable (HTTP 401) ». Diagnostic par le journal du poste (`Roaming\Veloria PoS\logs`) et lecture **read-only** de la base vivante : le POS installé (`C:\Program Files\Veloria\Veloria PoS`) tourne en fait sur **`E:\data\backups\Veloria POS DB.sqlite`** (relocalisée 11:39, `database.relocated`) — **danger consigné** : la base réelle dort dans le dossier des snapshots. Deux échecs distincts : `21:08:00` **409** FK `23503` (le miroir avait donc **accepté** la clé) puis dès `21:08:53` **401** `Invalid API key` = la plateforme ne reconnaît pas la valeur saisie ; `client_sync` porte une clé de **100** octets de blob contre **336** dans la sauvegarde `avant-migrations…T04-36-37Z.vposdb` qui, elle, affiche `lastPushAt=2026-11-01T20:35:45Z` / `lastError:null`. **Non restaurée volontairement** : sonde hors-secret (`ProtectedData::Unprotect` + `GET /rest/v1`, sortie réduite à longueur/classe/statut) **échouée sur les deux blobs** — `safeStorage` d'Electron dépend de la clé maître du `Local State` de l'installation, et la sauvegarde vient de l'ancien compte Windows ; extraire la clé du tableau de bord l'aurait fait passer **dans la conversation**, refusé pour un `service_role`. Vérifié à la place : 4 clés au projet (`anon`, `service_role` legacy, `sb_publishable_SgUBW…`, `sb_secret_Kt8zQ…`) et **l'URL est la bonne** → la saisie reste un geste opérateur, avec la liste de ce qui reproduit le 401 (`publishable`, PAT `sbp_`, clé de l'ancien poste). **Deuxième mur, cause réelle du silence du miroir** : tout le lot part en **une seule instruction** PostgREST et la moindre ligne orpheline faisait échouer les 200 clichés — 6 orphelins du 13/10 (client 1 sans `customer_access`) **devant** 9 clichés sains du client 2 ⇒ rien jamais poussé, même clé valide. Corrigé : (a) données — `VACUUM INTO` `E:\data\backups\sauvegarde-avant-correction-file-2026-11-02T21-30-43-079Z.sqlite` puis 6 lignes en `status='failed'` (pas supprimées) ; (b) **racine, commit `2fe8be6`** — protocole `isPermanentMirrorRejection` (400/404/409/410/415/422 = condamné ; **401/403 = temporaire** pour ne rien écarter pendant qu'on se trompe de clé), `MirrorRejectionError`, `splitMirrorRequest` (bissection jusqu'à isoler la coupable), `sync_outbox` `failed` enfin écrit (état prévu par 0032/0038), contrat `sync.pushNow` → `{pushed, access, failed}` et ligne d'UI qui le dit. **Preuves** : `tests/integration/sync-push-queue.test.ts` 6 tests (9 poussés / 6 écartés / 0 en attente, idempotence, **503** et **401** laissent tout rejouable, bissection multi-requêtes) + 5 tests protocole. Pièges consignés : `dist-electron/**.d.ts` **périmé** (project references) faisait échouer `check` sur les nouveaux symboles → relancer `build:electron` ; trigger 0043 refuse `pbkdf2_sha256`, la constante est `pbkdf2-sha256-100k`. Portes : `check` **0** · **181 fichiers / 1 285 tests** · `verify` **0** · `knip` **0** · POS reconstruit avec le correctif. **En attente de l'opérateur** : coller la vraie `service_role` dans « Clé service » puis « Synchroniser maintenant », installer le nouvel exécutable, trancher le sort de la base parquée dans `E:\data\backups`. Détails §103.
 - **Session 102 (2026-11-02)** : **seconde rebuild POS + License Manager + client** (demande « اعد بناء pos license client » puis « أتمّم بناء License Manager ثم APK ») — depuis la tête §101, **sans aucun changement de production** depuis les constructions de §99, donc valeur = **preuve de reproductibilité**. Portes **avant** construction : `check` **0** · `test` **0** (180 fichiers, 243,79 s) · `verify` **0** (migrations 59, `version:check` 1.0.4 alignée, secret-scan 1 522 fichiers). **POS** et **Manager** construits hors espace de travail (`--config.directories.output=C:/veloria-build/…`, contournement du verrou d'indexeur §99), `PREBUILD_EXIT=0`/`BUILDER_EXIT=0` de part et d'autre, **les deux cibles** (nsis + portable) par appel car les `.yml` les déclarent ensemble ; staging POS revérifié : **59 migrations** dont 0057/0058/0059 + `resources/license` + `resources/ocr` ; manifeste Manager signé **21 fichiers**. Livrés : Setup POS **161 357 341** (`4596c15b…`), Portable POS **139 443 058** (`a9b4a9dc…`), Setup Manager **144 415 031** (`249615c1…`), Portable Manager **130 655 758** (`0907ea17…`). **Client** : `assembleRelease -x :app:lintVitalRelease` en **1m12s**, mais `createBundleReleaseJsAndAssets`, `shrinkReleaseRes`, `packageRelease` et tous les modules `:expo-*` **UP-TO-DATE** ⇒ APK **identique octet pour octet** au build 07:41 (`706f1371…`, 22 677 268 o), signature `CN=Veloria` / `c190b12a…` vérifiée par `apksigner`. Dénoncé **sans enjoliver** : ce n'est pas une construction fraîche ; `--rerun-tasks` (≈29 min) ne changerait que les horodatages du bloc de signature. `release:smoke` **0**, `release:checksums` régénéré (4 exes). **Filet de retour** : la série du matin **déplacée** (non supprimée) dans `release/_prev-2026-11-02b/` ≈595 Mo, hashes consignés dans `C:/veloria-build/before-hashes.txt` — purge sur un mot. **Risque de continuité découvert et écrit, rien changé** : `.gitignore:71` ignore **toute** `mobile/android/` (`git ls-files mobile/android` = vide), or les drapeaux qui font le poids et la signature de l'APK (`enableProguardInReleaseBuilds`, `enableShrinkResourcesInReleaseBuilds`, `expo.useLegacyPackaging`, `reactNativeArchitectures`, `versionCode 6`, `signingConfigs.release`) vivent sur **ce poste uniquement** ; un `expo prebuild` propre les perdrait. Pistes classées : graver ces réglages dans un **config plugin Expo suivi**, ou exceptions ciblées `.gitignore` **après** avoir sorti les `storePassword`/`keyPassword` en clair de `app/build.gradle:112-114`. **Non fait** : APK **owner** (hors demande, toujours 0.1.0 / versionCode 1 — l'écart ADR-161 reste ouvert), `test:e2e:installer`, installation appareil. Détails §102.
@@ -5430,3 +5467,266 @@ l'installation du client sur appareil.
 
 **Git** : `test:` commit `c368871` (9 fichiers, +1 536) ; ce `docs(handoff)`
 porte la session 104.
+
+## 105) Session 2026-11-03 — Audit intégral à portes ouvertes (ADR-174) : les gates mentaient, les défauts sont corrigés à la racine
+
+**Demande opérateur** : « فحص المشروع بدقة و عمق شديدين من كل المشاكل و الاخطاء الموجودة في كل
+المشروع شاملا و كل تطبيقاته و اعداد خطة اصلاح جذرية قوية جدا لا اريد اصلاحات سطحية …
+قم بأقصى عدد من الاختبارات … ان وجدت اي اخطاء بعد الاختبارات ابحث عن سببها الحقيقي و
+اصلحا جذريا و لا تخفي الاخطاء و المشاكل ابدا », puis « بعد انتهاء المهمة الاصلاحية قم
+بتحديث الوثائق و commit و بناء كل تطبيقات المشروع الاربعة بالترتيب ».
+
+**Mesure AVANT correction** (poste réel, aucune supposition) — c'est le point qui
+donne son sens à la session : `format:check` 0 · `lint` 0 · `typecheck` ×5 0 ·
+`npm test` **186 fichiers / 1 354 tests**, 0 échec (595,78 s) · `verify:migrations`
+(59) + `verify:domain` + `verify:fr` + `verify:encoding` + `verify:perf` +
+`version:check` + `license:scan` + `knip` tous 0 · `npm run build` 0 · **E2E complet**
+(25 specs, relais `:8100` lancé) **54 passed / 3 skipped / 0 failed**, 19 min 18 s ·
+bases réelles sondées en **lecture seule sur copie** (`integrity_check=ok`, 0 violation
+FK, 0 solde incohérent, 0 facture dupliquée, 0 montant non entier, 0 stock négatif).
+Donc : **tout était vert, et il restait des défauts réels.** Six audits parallèles
+(domaine/application, electron, mobile+owner, base+licence+cloud, portes+CI, renderer)
+plus des sondages directs ont produit la liste ci-dessous ; ADR-174 §4 écrit ce qui a
+été **refusé** plutôt qu'enjolivé.
+
+### Portes mensongères (la cause racine du « vert »)
+
+- **E-53 — `verify:migrations` ne contrôlait pas l'immutabilité.** La règle 12 promet
+  un « checksum guard » ; `verify-migrations.mjs:57` recalculait le sha256 **du disque**
+  dans une base temporaire, sans aucun enregistrement figé : éditer en place une
+  migration appliquée laissait la porte verte, `sign-integrity` resignait la dérive, et
+  une base neuve l'appliquait sans un mot. Le vrai garde n'existait que dans
+  `sqlite.service.ts:252-264`, base par base. → `database/migrations.lock.json`
+  (sha256 par fichier) exigé et comparé, plus `npm run verify:migrations:lock`.
+  **Prouvé** : une ligne ajoutée dans `0059_cash_sessions.sql` donne `FAIL:
+migration(s) MODIFIÉE(S) en place après release (règle 12 violée)`, puis vert après
+  restauration. **État réel vérifié** : 4 bases du poste comparées fichier par
+  fichier → **0 dérive aujourd'hui** (garde préventif, pas un accident survenu).
+- **E-57 — la CI était rouge par construction et n'a jamais tourné.** Deux échecs
+  reproductibles sur `git archive HEAD` : (1) `npm run check` → `typecheck:mobile` /
+  `typecheck:owner`, dont `extends: "expo/tsconfig.base"` exige `mobile/node_modules` et
+  `owner/node_modules` qu'un `npm ci` racine n'installe pas (pas de `workspaces`) →
+  `TS2307 Cannot find module 'react'` ; (2) `npm run verify` → `version.mjs:59` qui
+  lisait `mobile/android/app/build.gradle`, intégralement gitignoré → plantage `ENOENT`
+  avec **stack Node nue** (règle 6 violée). Et `git remote -v` est **vide** : 299
+  commits, zéro exécution CI, zéro copie hors du poste — c'est ce qui a caché les deux.
+  → CI installe `mobile` et `owner` (cache sur les trois lockfiles), job `e2e` séparé
+  avec relais et **sans** `continue-on-error` ; `version:check` rend le gradle
+  optionnel et **annoncé** (`SKIP … non versionné (poste vendor seul)`).
+- **E-54 — gardes silencieusement vides ou aveugles.** `verify-fr-only.mjs:83` et
+  `verify-encoding.mjs:101` n'échouaient que sur une faute : **0 fichier scanné = vert**
+  (dossier renommé, glob inversé). `secret-scan.mjs` ne scaniait **pas `owner/`** (l'app
+  qui porte les identifiants Supabase) ni `config/`, et ses motifs ignoraient la classe
+  réellement présente ici : `sb_secret_`, `service_role`, jetons `eyJ…`. → planchers
+  `< 300` fichiers (FR/encodage) et `< 600` (secret-scan) = échec ; dossiers ajoutés ;
+  motifs ajoutés avec distinction **sémantique** (un JWT n'est fautif que si son payload
+  décodé déclare un rôle privilégié ; la clé `anon` est publique par conception).
+  Mesure : **1 712 fichiers** analysés (1 522 avant), 0 secret.
+- **Ratchet jamais exercé.** `test:coverage:all` — seule porte qui mesure `electron/`,
+  `src/shared`, `mobile/`, `owner/` — n'était câblée **ni** dans `npm run ci` **ni** dans
+  la CI : mesurable mais non enforceable. → ajouté aux deux. Planchers relevés **sur
+  mesure nouvelle** : 51,84 / 50,84 / 44,94 / 53,90 → **51,98 / 51,45 / 45,23 / 54,06**
+  (15 546 instructions, 245 fichiers) → `51/51/45/54`.
+- **E-55/E-56 — `owner/` hors de la porte de version.** Quatre cibles restaient à
+  **0.1.0** pendant que la suite sortait en 1.0.4 (écart signalé §99/§102, jamais
+  fermé). → `owner` (package.json, package-lock, app.json, gradle) devient cible de
+  `check` **et** de `set` avec la même loi de croissance du `versionCode`. Appliqué :
+  owner **1.0.4**, `versionCode` 1 → **2** sur ce poste.
+
+### Défauts applicatifs corrigés à la racine
+
+- **Argent.** **E-36** `parseDzdInputStrict` faisait `Number(raw.replace(",", "."))` :
+  `0x10` → 16, `1e3` → 1000, `+7` → 7 acceptés ; via `csv-import.ts:29`, un tarif
+  fournisseur « 1.5E3 » entrait en base comme 150,00 DZD **sans erreur** ; le même code
+  refusait « 1 234,56 » (remplacement non global). Réécriture en **conversion chaîne
+  exacte**, gate regex identique à `parseQuantityInput`, groupement français accepté
+  (espace, U+00A0, U+202F — le séparé produit par `Intl fr-FR`), ce qui supprime aussi
+  le double arrondi `toFixed(6)` (`10.0049999` → 1000, plus 1001). **E-37** `sumSafeMinors`
+  validait chaque addenda au plafond **unitaire** alors que `multiplyMinorByQuantity`
+  produit des totaux de ligne jusqu'à 1e11 → un total légal de 1 500 000 000 centimes
+  était refusé comme « Sous-total invalide ». **E-40** le plafond était appliqué à la
+  mauvaise grandeur dans les deux sens : `nisabMinor`, les six **sources** zakat et
+  `amountMinor` de dépense en `moneyMinor` ; et six dialogues pré-remplissaient un
+  agrégat avec `minorToInput`, qui **lève**, dans un `useState` → **écran mort devant le
+  commerçant** (Zakat ×4, paiement client, paiement fournisseur, dettes, avoir,
+  remboursement, conversion de devis, dépense, nisab) ; `ReportsScreen` affichait « — »
+  sur 11 agrégats valides dont le solde de clôture négatif, pendant que le Dashboard
+  montrait la même donnée correctement. **Mesuré sur la base réelle** : stock à l'achat
+  882 754,37 DZD → défaut **latent** sur ce poste, déclenché au premier franchissement
+  des 10 M DZD. **E-38** `assertCreditLimitNotExceeded` **échouait ouvert** (solde non
+  entier ou négatif → contrôle de plafond sauté) alors que le reste du fichier lève →
+  illisible = refus FR, négatif = `Math.max(0, …)` comme `return-rules`. **Vérifié avant
+  de conclure** : `sales.repo.ts:366-377` recontrôle le plafond dans la transaction à
+  partir de la base, plus trigger SQL — la garde renderer n'était qu'une défense en
+  profondeur, donc rien n'a été surfondé. **E-39** `sale-ticket.ts:40` imprimait
+  **l'horloge du poste** comme date de vente quand `created_at` manquait : pièce
+  comptable à date inventée → affiche `—`, l'anomalie se voit.
+- **Idempotence.** **M-1** `sell-finalize.ts:114` figeait l'UUID par panier **sans
+  liaison au contenu** : après réponse perdue, une ligne corrigée puis revalidée faisait
+  rejouer la vente **stockée** tandis que la caisse imprimait le panier **nouveau**
+  (ticket ≠ facture, correction jamais vendue, panier vidé en silence) → nouveau module
+  `sale-op.ts` (`saleOperationKey` / `pickSaleOperationId` / `persistedSaleOperationId`),
+  même loi que `proforma-op.ts`, empreinte résolue **au commit** sur le montant
+  réellement appliqué. **M-2** `newOperationId()` **au clic** supprimé de
+  `proformas.convert` (facture + sortie stock + dette client → facture dupliquée), de
+  deux autres emplacements du même dialogue, `InventoryDialog`, `AdjustmentDialog`,
+  `saleCancel`, `saleReopen` ; `useContentOperationId` (cache par empreinte, purgé au
+  démontage) devient le point de génération unique. **M-3** imports CSV catalogue et
+  clients : aucun état d'envoi, bouton non désactivé, UUID par clic → re-choisir le
+  fichier pendant l'envoi duppliait des lignes ; `importing` + bouton désactivé
+  - opération par contenu.
+- **File miroir.** **E-41** un `payload_json` illisible **gelait la file pour toujours**
+  (`buildMirrorRequests` levait avant l'écriture de `lastPushAt`, la même ligne
+  revenait au tick suivant) — ADR-173 n'isolait que les rejets HTTP → `partitionOutboxRows`
+  écarte et condamne la ligne corrompue (raison FR, journalisée), les autres partent.
+  **E-42** `PERMANENT_MIRROR_REJECTION` contient 404 : une table absente (projet
+  différent, schéma non provisionné) voyait ses **200 clichés condamnés un par un** en
+  `failed`, état définitif après ~400 POST → `classifyMirrorRejection` distingue
+  **row / table / transient** (`42P01`, `PGRST205`, « relation … does not exist », 404)
+  et **arrête** la poussée en laissant toute la file `pending`. **Constat réel** : 6
+  lignes `failed` du 13/10 en base vivante sans le moindre motif enregistrable (aucune
+  colonne `attempts` ni `last_error`) et 9 lignes `pending` du 02/11. **E-43**
+  `lastPushAt` n'étant écrit qu'au succès, un miroir injoignable relançait une poussée
+  complète **toutes les 60 s** au lieu de `intervalMinutes` → `lastAttemptAt` (écrit
+  succès **et** échec, file client et liasse owner) gouverne la gate. **E-45** `fetch` nu
+  sans `AbortController` ni verrou → `mirrorTransport` partagé (échéance 20 s) + verrou
+  d'exclusion, aussi pour la publication owner. **E-58** un refus sur une ligne d'**accès**
+  interrompait la poussée avant la file : la dépendance accès→clichés (FK côté miroir) est
+  conservée dans l'ordre — inversion **refusée** car elle aurait cassé le miroir — et
+  `postAccess` bissecte puis écarte la ligne fautive (re-dérivée de `customer_access` au
+  tick suivant). **E-44** `readDoc` avalait un échec DPAPI dans `SYNC_DEFAULTS` → l'écran
+  prétendait « miroir jamais configuré » alors que la configuration était intacte ;
+  l'erreur est désormais rendue visible par `getSyncView`.
+- **SQLite, impression, chemins.** **E-47** `factoryResetDatabase` enchaînait
+  `checkpointAndClose()` → `unlinkSync()` **sans snapshot** (seul filet : l'auto-sauvegarde,
+  elle-même best-effort — disque plein, poste jamais sauvegardé, base relocalisée la
+  veille = aucune copie exploitable) → `snapshotBeforeFactoryReset` (`VACUUM INTO`
+  vérifié, échec-fermé, préfixe et rotation propres) précède toute suppression.
+  **E-48** `database.health` (`PRAGMA integrity_check` + `foreign_key_check`, scan
+  complet synchrone du thread principal) n'était gardé **par rien** (ni session, ni
+  permission, ni licence) contrairement à sa sœur `database.optimize` (K-05) ; appelé au
+  démarrage, donc corrigé par **mémoïsation 30 s** (le contrôle de boot reste
+  systématique) plutôt que par une garde qui aurait cassé le boot. **E-49**
+  `webContents.print` sans échéance : spouleur bloqué = callback jamais rappelé =
+  `await` éternel, `finally printWin.destroy()` jamais exécuté → invoke IPC pendu
+  **pour toujours** et une fenêtre cachée qui fuit à chaque tentative →
+  `printing.watchdog.ts` (extraction qui respecte le cap de 300 lignes, message FR).
+  **E-50** l'export PDF acceptait un **chemin absolu fourni par le renderer** (le garde
+  n'était qu'une liste noire de dossiers système) : `writeFileSync` écrasait
+  silencieusement n'importe quel `.pdf` d'un dossier utilisateur, hors boîte
+  d'enregistrement → confinement en **liste blanche** (`realpath` sous `userData` ou
+  dossier temporaire), la boîte native reprenant la main ailleurs ; le spec E2E existant
+  (qui écrit dans son répertoire isolé) continue de passer. **E-51** le rejet brut
+  d'Electron (`Error invoking remote method 'sales.create': Error: …`) traversait
+  `frError` (liste noire non couvrante) et s'affichait **en anglais avec le nom du
+  canal** à la caisse (règle 6 violée) : le pont est la frontière, donc tout rejet du
+  pont devient un message FR (cause conservée, détail technique journalisé) et
+  `TECHNICAL_INFRA_RE` attrape la même classe venue d'ailleurs.
+- **Owner / Client.** **Crash-loop owner** : `formatMinor` **lève** sur un montant non
+  entier, `isSnapshotShape` ne vérifiait que 3 champs de premier niveau, `Root`
+  n'avait **aucun** `ErrorBoundary` (mobile a les deux) — une seule valeur REAL publiée
+  par le POS tuait le rendu, et comme la liasse est **en cache local**, chaque relance
+  rechutait sans issue pour le commerçant. Trois corrections jointes :
+  `owner/src/ui/error-boundary.tsx` (écran FR, « Réessayer », **purge du cache** — c'est
+  ce qui casse la boucle), validation structurelle complète (`version === 1`, tout
+  `*Minor` en `Number.isSafeInteger`, tableaux et objets nidés, type predicate qui
+  supprime 4 assertions `as OwnerSnapshot`) qui **conserve la dernière liasse saine** au
+  lieu de rendre, et formatteurs de rendu **totaux** (`formatMinorSafe` → `—`,
+  convention mobile) sur les 8 écrans. Parité : `NaN %` / `Infinity %` chaque matin
+  avant la première vente (`Today.tsx:215`), date `YYYY-MM-DD` lue en heure **locale**
+  dans `Periods.tsx` (contredisait E-35/ADR-169, décalage d'un jour à l'ouest de UTC),
+  session expirée = impasse (401 permanent, `expiresAt` calculé puis jeté, pas de
+  `endSession`) alors que `mobile/src/App.tsx:279-286` ferme la session, et filtre
+  « Rupture » (`quantity !== 0`) en contradiction avec badge/compteur (`quantity <= 0`) :
+  un produit en stock négatif était badgé rupture mais absent de la liste. Côté client :
+  `config.ts` masquait un build mal configuré (`?? 127.0.0.1:8099`, `?? "demo"` que son
+  propre regex de placeholder ne reconnaissait pas) → chaque connexion échouait en
+  « Magasin hors ligne » ; valeurs par défaut silencieuses supprimées, bandeau
+  non dissipable bilingue (une porte bloquante aurait cassé le QR V2, où c'est le QR qui
+  apporte l'URL et la clé `anon`).
+
+### Ce qui a été REFUSÉ (écrit, pas caché)
+
+`minorToInput` n'est **pas** rendu tolérant (c'est le contrat des chemins d'écriture ;
+les sites fautifs passent sur la variante totale existante). La détection FR ne passe
+**pas** en liste blanche stricte (232 appelants `frError` fabriquent des messages FR
+localement ; la frontière est réparée **à sa source**, liste noire élargie en
+complément). `backup.restore` n'est **pas** confiné à `backupDir()` : boîte native de
+l'opérateur, permission `settings`, snapshot déjà préalable — le confiner casserait la
+reprise sur disque externe, régression déguisée en durcissement. `phone_hash` **non
+salé** (SHA-256 sur un espace de ~10⁸) et `service_role` dans une base sous
+`%PROGRAMDATA%` ne sont pas « corrigés » ici : le salage casserait la recherche exacte
+de l'Edge `client-sync`, et la relocalisation de la base est un geste opérateur.
+
+### Mesures APRES corrections
+
+`format:check` **0** (53 s) · `lint` **0** (les 6 premières erreurs étaient dans mes
+propres fichiers — assertion inutile, `cause` manquante, deux `void` ineptes, retour non
+typé — corrigées à la source, pas `--fix`-ées à l'aveugle) · `typecheck` **0** ·
+`typecheck:electron` / `:manager` / `:mobile` / `:owner` **0** · `npm test` **191
+fichiers / 1 395 tests**, 0 échec (333 s) soit **+5 fichiers / +41 cas** ·
+`verify:migrations` (+ loquet sha256) **0** · `verify:domain` **0** · `verify:fr` **0** ·
+`verify:encoding` **0** · `verify:perf` **0** · `version:check` **0** (owner aligné) ·
+`license:scan` **0** (1 712 fichiers) · `knip` **0** · `test:coverage` **0** (93,83 %
+instructions sur domaine+application) · `test:coverage:features` **0** ·
+`test:coverage:all` **0** sur le ratchet **relevé** (re-mesuré identique après le
+correctif E-59 : 51,98 / 51,45 / 45,23 / 54,06 sur 15 546 instructions, 245 fichiers) ·
+`verify` **0** (18 s) · **E2E complet rejoué après reconstruction : 54 passed / 3 skipped
+/ 0 failed en 17 min 16 s** (relais `:8100` actif, `workers: 1`, reconstruction complète
+`build` + `build:electron` avant le run — cf. le piège du manifeste périmé ci-dessus).
+
+**Nouveaux tests écrits pour être ROUGES sans le correctif** :
+`tests/unit/money-parse-strict-input.test.ts` (E-36), `tests/unit/money-total-scope.test.ts`
+(E-40), `tests/unit/sync-mirror-resilience.test.ts` (E-41/E-42/E-43 purs),
+`tests/integration/sync-push-resilience.test.ts` (les trois sur base migrée réelle +
+transport injecté, dont « table absente → 0 condamnation »),
+`tests/unit/sale-operation-id-content-key.test.ts` (M-1), plus les cas owner/mobile de la
+session. Une assertion de `tests/integration/sync-push-queue.test.ts` a été adaptée au
+nouveau wording FR de `lastError` (motif distinct : refus du miroir vs cliché illisible
+en local), sans changer le comportement testé.
+
+**Livrables** : `docs/ADR-174-audit-integral-2026-11-03.md` (décisions, preuves, refus,
+7 restes-à-faire) + son entrée dans `docs/INDEX.md`. AGENTS.md portait en parallèle la
+règle 15 (périmètre strict) et la section « Parallel work — scratch isolation » ajoutées
+hors de cette session ; elles sont conservées telles quelles.
+
+### Découverts PENDANT la re-vérification (après le premier vert)
+
+- **E-59 — le pager du Catalogue pouvait annoncer une page dont les lignes
+  n'étaient pas affichées.** Le premier E2E complet rejoué après les correctifs a
+  fait tomber `catalogue-labels.spec.ts` : snapshot au moment de l'échec =
+  « Page 2 sur 2 · 21 élément(s) », « Suivant » désactivé, **mais le tableau
+  contenait encore les articles 01→20 (page 1)**. Cause racine, reconstituée sans
+  approximation : `page` (intention, mise à jour immédiatement) et `rows` (résultat,
+  mis à jour par `load()` sous garde `loadSeq`) sont **deux sources de vérité
+  distinctes**, et les chargeurs sont impératifs sur plusieurs chemins — le
+  debounce de recherche (250 ms, qui recharge `page: 1` en dur) peut partir
+  **après** un clic « Suivant », gagner le garde de séquence et écraser la page 2
+  avec la page 1. Le test n'a fait que rendre visible un défaut de production :
+  un caissier qui coche des lignes à cet instant imprime ou exporte un jeu de
+  lignes différent de la page annoncée. Corrigé à la racine, pas au symptôme :
+  (1) `loadedPage` est committé **avec** `rows`/`total` sous le même garde de
+  séquence, et le `Pager` affiche `loadedPage` — le pied de page ne peut plus
+  prétendre à une page dont les lignes ne sont pas à l'écran ; (2) chaque
+  chargeur annule le debounce en attente (`queryTimer.cancel()` sur page,
+  catégorie, filtre, archivés, refresh, réinitialisation), donc aucune requête
+  obsolète n'est même émise. Les 5 specs Catalogue/Clients import-export
+  repassent. **Ce défaut n'était couvert par AUCUN test avant** — c'est le
+  test E2E qui l'a débusqué, d'où la règle : ne jamais déclarer une porte
+  « verte » sans l'avoir rejouée après chaque correctif.
+- **Piège de reconstruction (consigné pour la prochaine session, pas un défaut
+  produit).** Relancer seulement `npm run build` laisse `integrity-manifest.json`
+  **périmé** (il est resigné par `build:electron`, qui porte
+  `sign-integrity.mjs`) : l'app refuse alors sa licence de test et les 5 specs
+  tombent avec `license.import_integrity_failed / verdict: tampered`, ce qui
+  ressemble exactement à une régression de licence ou d'import CSV. Les E2E
+  exigent donc **`npm run build` PUIS `npm run build:electron`** après toute
+  modification de `src/**` ou `electron/**`. Le nombre de fichiers du manifeste
+  est lui-même un témoin utile : 239 → **240** après l'ajout de
+  `printing.watchdog.ts`.
+
+**En attente de l'opérateur** : coller la vraie `service_role`, sortir la base vivante de
+`E:\data\backups`, créer un dépôt distant (sans quoi la CI corrigée ne tournera toujours
+pas et 299 commits restent sur un seul disque), RLS `owner_snapshots` par `auth.uid()`,
+keystore → `keystore.properties`, versionner `.opencode/skills`, migration `0060` pour
+`attempts`/`last_error` sur `sync_outbox`.
