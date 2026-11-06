@@ -243,6 +243,10 @@ describe("E-42 : une table absente ne condamne pas la file", () => {
   });
 });
 
+/** Miroir qui refuse l'identité elle-même (clé inconnue du projet). */
+const mirrorRefusingKey = () => () =>
+  reply(401, '{"message":"Invalid API key","hint":"Double check your API key."}');
+
 describe("E-43 : la cadence est respectée même en échec", () => {
   beforeEach(() => {
     seed();
@@ -265,3 +269,70 @@ function statusOfFirstPending(): string {
     { status: string } | undefined;
   return row?.status ?? "absent";
 }
+
+describe("E-60 : une clé refusée par Supabase le dit", () => {
+  beforeEach(() => {
+    seed();
+  });
+
+  it("401 « Invalid API key » : faute de CLÉ, file intacte et rejouable", async () => {
+    const ids = [
+      queueRow(2, "customer_snapshot", "key1", '{"demo":1}'),
+      queueRow(2, "invoice_list", "key2", '{"demo":2}'),
+    ];
+
+    await expect(
+      pushNowAtomic({ operationId: OP("push-401"), now: NOW }, mirrorRefusingKey()),
+    ).rejects.toThrow(/Clé de service refusée/);
+
+    for (const id of ids) expect(statusOf(id)).toBe("pending");
+    expect(countsByStatus()["failed"] ?? 0).toBe(0);
+    const doc = storedDoc();
+    expect(String(doc["lastError"])).toMatch(/ressaisissez-la/);
+    expect(String(doc["lastError"])).not.toMatch(/injoignable/);
+    expect(doc["lastAttemptAt"]).toBe(NOW);
+  });
+
+  it("401 « permission denied » (clé publiable collée en service) : même diagnostic", async () => {
+    queueRow(2, "customer_snapshot", "rls", '{"demo":1}');
+    await expect(
+      pushNowAtomic({ operationId: OP("push-rls"), now: NOW }, () =>
+        reply(
+          401,
+          '{"code":"42501","message":"permission denied for table client_access","hint":"Grant the required privileges to the current role with: GRANT SELECT ON public.client_access TO anon;"}',
+        ),
+      ),
+    ).rejects.toThrow(/Clé de service refusée/);
+  });
+
+  it("503 : reste « miroir injoignable » (panne réseau, pas une clé)", async () => {
+    queueRow(2, "customer_snapshot", "net", '{"demo":1}');
+    await expect(
+      pushNowAtomic({ operationId: OP("push-net"), now: NOW }, mirrorDown()),
+    ).rejects.toThrow(/injoignable/);
+  });
+
+  it("clé publiable déjà stockée : refusée avant tout HTTP, et lisible à l'écran", async () => {
+    queueRow(2, "customer_snapshot", "pub", '{"demo":1}');
+    raw()
+      .prepare(`UPDATE app_settings SET value_json = ? WHERE key = 'client_sync'`)
+      .run(
+        JSON.stringify({
+          ...storedDoc(),
+          serviceKey: "sb_publishable_SgUBW2s81KNo-m9OsmB_DA_IDGwEhnY",
+        }),
+      );
+    // Le timer avale les exceptions : sans écriture de `lastError`, la garde de
+    // clé ferait disparaître l'erreur plutôt que de la rendre actionnable.
+    const noHttp = (): Promise<Reply> => {
+      throw new Error("Requête interdite : la clé est refusée avant le réseau.");
+    };
+    await expect(pushNowAtomic({ operationId: OP("push-pub"), now: NOW }, noHttp)).rejects.toThrow(
+      /clé publique/i,
+    );
+    const doc = storedDoc();
+    expect(String(doc["lastError"])).toMatch(/clé publique/i);
+    expect(doc["lastAttemptAt"]).toBe(NOW);
+    expect(statusOfFirstPending()).toBe("pending");
+  });
+});

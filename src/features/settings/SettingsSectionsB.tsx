@@ -876,7 +876,7 @@ export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Ele
         </Field>
         <Field
           label="Clé de service (rôle service)"
-          hint="Collée une fois, jamais réaffichée. Vide = conserver."
+          hint="Projet Supabase → API Keys → Secret key (sb_secret_…), ou l'onglet Legacy → service_role. Jamais la clé publiable. Collée une fois, jamais réaffichée. Vide = conserver."
         >
           <TextInput
             value={secret}
@@ -887,7 +887,7 @@ export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Ele
         </Field>
         <Field
           label="Clé anon (publique)"
-          hint="Projet Supabase → Settings → API → anon public. Embarquée dans le QR V2. Vide = conserver."
+          hint="Projet Supabase → API Keys → Publishable key (sb_publishable_…), ou l'onglet Legacy → anon. Embarquée dans le QR V2 : jamais la clé secrète. Vide = conserver."
         >
           <TextInput
             value={anon}

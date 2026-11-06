@@ -19,8 +19,10 @@ import { enqueueSnapshotAtomic, hasActiveClientAccess } from "../ipc/handlers/cl
 import {
   SYNC_DEFAULTS,
   MirrorRejectionError,
+  assertAnonKeyPublic,
   buildMirrorRequests,
   classifyMirrorRejection,
+  isMirrorAuthRejection,
   isPermanentMirrorRejection,
   isOwnerPushDue,
   isPushDue,
@@ -49,6 +51,10 @@ import {
 const SETTINGS_KEY = "client_sync";
 const OWNER_ACCOUNT_KEY = "owner_account";
 const OWNER_ACCOUNT_CHANNEL = "sync.saveOwnerAccount";
+/** Message unique : l'identité refusée par Supabase se répare à l'écran, pas au routeur. */
+const SERVICE_KEY_REFUSED =
+  "Clé de service refusée par Supabase : ressaisissez-la (Réglages → Miroir Android).";
+const SYNC_DISABLED_MESSAGE = "Synchronisation désactivée : activez-la d'abord.";
 
 interface OwnerAccountDoc {
   email: string;
@@ -408,6 +414,34 @@ function syncConfigOf(doc: SyncDoc): SyncConfig {
 }
 
 /**
+ * E-60 : un refus HORS HTTP (clé de la mauvaise classe, configuration
+ * incomplète, synchro coupée) doit être visible à l'écran, pas seulement au
+ * clic. Sans cette écriture, la garde de clé faisait RECULER l'observabilité :
+ * le timer d'auto-poussée avale l'exception, `lastError` restait figée sur
+ * l'ancienne panne réseau — désormais fausse. Renvoie l'erreur à propager.
+ */
+function noteConfigRejection(
+  doc: SyncDoc,
+  now: string,
+  err: Error,
+  lane: "mirror" | "owner",
+): Error {
+  const message = toUserMessage(err).message;
+  try {
+    writeDoc(
+      lane === "owner"
+        ? { ...doc, lastOwnerError: message, lastOwnerAttemptAt: now }
+        : { ...doc, lastError: message, lastAttemptAt: now },
+      now,
+    );
+  } catch {
+    /* meta best-effort */
+  }
+  log("ERROR", "sync", `push.config_rejected.${lane}`, { error: message });
+  return new Error(message);
+}
+
+/**
  * Endpoint public du magasin pour le QR V2 (ADR-068) : URL + clé `anon`
  * (jamais la `service_role`). Lu depuis `app_settings` côté main uniquement.
  */
@@ -441,6 +475,10 @@ export function saveSyncConfigAtomic(args: { config: unknown; operationId: strin
     // le secret — voir maskConfig) ; sinon la nouvelle valeur s'applique.
     const incomingKey = typeof incoming.serviceKey === "string" ? incoming.serviceKey.trim() : "";
     const incomingAnon = typeof incoming.anonKey === "string" ? incoming.anonKey.trim() : "";
+    // E-60 : contrôle de la VALEUR SAISIE uniquement. Une clé déjà en base ne
+    // doit jamais faire échouer une poussée en cours ; en revanche coller la
+    // clé secrète dans le champ public l'enverrait dans le QR V2.
+    if (incomingAnon !== "") assertAnonKeyPublic(incomingAnon);
     const cfg = validateSyncConfig({
       enabled: incoming.enabled,
       supabaseUrl: incoming.supabaseUrl,
@@ -545,8 +583,19 @@ async function pushNowOnce(
   );
   if (replay) return replay;
   const doc = readDoc();
-  const cfg = validateSyncConfig(syncConfigOf(doc));
-  if (!cfg.enabled) throw new Error("Synchronisation désactivée : activez-la d'abord.");
+  let cfg: SyncConfig;
+  try {
+    cfg = validateSyncConfig(syncConfigOf(doc));
+  } catch (err) {
+    throw noteConfigRejection(
+      doc,
+      args.now,
+      err instanceof Error ? err : new Error(String(err)),
+      "mirror",
+    );
+  }
+  if (!cfg.enabled)
+    throw noteConfigRejection(doc, args.now, new Error(SYNC_DISABLED_MESSAGE), "mirror");
   const queuedRows = db
     .prepare(
       `SELECT operation_id, customer_id, kind, payload_json, created_at FROM sync_outbox WHERE status = 'pending' ORDER BY id ASC LIMIT 200`,
@@ -595,6 +644,12 @@ async function pushNowOnce(
       // technique ; seul un message FR est persisté dans lastError (lu par
       // l'UI) — règle 6 (jamais d'exception brute à l'utilisateur).
       log("ERROR", "sync", "push.http", { status: res.status, detail: detail.slice(0, 500) });
+      // E-60 : un refus d'IDENTITÉ n'est pas une panne réseau. Sans ce cas, le
+      // gérant voyait « miroir injoignable » pour une clé mal collée et
+      // cherchait la faute du côté de sa connexion.
+      if (isMirrorAuthRejection(res.status, detail)) {
+        throw new Error(SERVICE_KEY_REFUSED);
+      }
       // ADR-173 : le service doit distinguer ce qui est REJOUABLE de ce qui est
       // CONDAMNÉ, sinon une seule ligne incohérente gèle toute la file.
       if (isPermanentMirrorRejection(res.status)) {
@@ -806,16 +861,36 @@ export async function publishOwnerSnapshotAtomic(
   // hérité/altéré (miroir coupé après coup) doit rester refusé ICI, avec un
   // message qui dit au gérant quoi réactiver (défense en profondeur, règle 6).
   if (!doc.enabled || doc.supabaseUrl === "" || doc.serviceKey === "") {
-    throw new Error(
-      "Miroir non configuré : activez la synchronisation (Réglages → Miroir Android) avant de publier la liasse.",
+    throw noteConfigRejection(
+      doc,
+      args.now,
+      new Error(
+        "Miroir non configuré : activez la synchronisation (Réglages → Miroir Android) avant de publier la liasse.",
+      ),
+      "owner",
     );
   }
   if (!doc.ownerEnabled) {
-    throw new Error(
-      "Liasse de supervision désactivée : activez-la (Réglages → Miroir Android) pour publier.",
+    throw noteConfigRejection(
+      doc,
+      args.now,
+      new Error(
+        "Liasse de supervision désactivée : activez-la (Réglages → Miroir Android) pour publier.",
+      ),
+      "owner",
     );
   }
-  const cfg = validateSyncConfig(syncConfigOf(doc));
+  let cfg: SyncConfig;
+  try {
+    cfg = validateSyncConfig(syncConfigOf(doc));
+  } catch (err) {
+    throw noteConfigRejection(
+      doc,
+      args.now,
+      err instanceof Error ? err : new Error(String(err)),
+      "owner",
+    );
+  }
   const snapshot = buildOwnerSnapshot(args.now);
   const body = JSON.stringify([
     { shop_key: OWNER_SHOP_KEY, payload: snapshot, generated_at: args.now },
@@ -836,6 +911,9 @@ export async function publishOwnerSnapshotAtomic(
       // persisté (`lastOwnerError`, lu par l'UI).
       const detail = await res.text().catch(() => "");
       log("ERROR", "sync", "owner_push.http", { status: res.status, detail: detail.slice(0, 500) });
+      if (isMirrorAuthRejection(res.status, detail)) {
+        throw new Error(SERVICE_KEY_REFUSED);
+      }
       throw new Error(`Publication de la liasse impossible (HTTP ${res.status}).`);
     }
   } catch (err) {

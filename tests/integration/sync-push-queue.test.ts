@@ -249,8 +249,9 @@ describe("ADR-173 : la file survit aux lignes condamnées", () => {
   it("un 401 d'identité arrête la poussée sans condamner une seule ligne", async () => {
     const always401 = (): Promise<Reply> =>
       reply(401, '{"message":"Invalid API key","hint":"Double check your API key."}');
+    // E-60 : le diagnostic nomme la CLÉ (actionnable à l'écran), plus le réseau.
     await expect(pushNowAtomic({ operationId: OP("push-5"), now: NOW }, always401)).rejects.toThrow(
-      /HTTP 401/,
+      /Clé de service refusée/,
     );
     expect(statuses()).toEqual({ pending: 15 });
   });

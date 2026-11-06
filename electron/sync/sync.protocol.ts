@@ -53,6 +53,81 @@ export interface SyncConfigView {
   lastOwnerError: string | null;
 }
 
+/**
+ * Un rejet 401/403 du miroir n'est PAS une panne réseau. Le corps le dit :
+ * `Invalid API key` = valeur inconnue du projet, `42501 permission denied` =
+ * identité valide mais sans droits (clé publiable à la place de la secrète).
+ * Les deux se règlent de la même façon — ressaisir la clé — et le message
+ * générique « miroir injoignable » enverrait le gérant vérifier son Internet.
+ * La file reste rejouable : rien n'est condamné sur un problème d'identité.
+ */
+export function isMirrorAuthRejection(status: number, detail: string): boolean {
+  if (status !== 401 && status !== 403) return false;
+  return /invalid api key|permission denied|"42501"|jwt expired|missing authorization/i.test(
+    detail,
+  );
+}
+
+/** Ce que la forme d'une clé API Supabase révèle d'elle-même (jamais sa valeur). */
+export type ApiKeyClass = "publishable" | "secret" | "role-anon" | "role-service" | "unknown";
+
+/**
+ * Classe d'une clé sans jamais en exposer le contenu : les clés modernes se
+ * reconnaissent à leur préfixe, les clés legacy sont des JWT dont le claim
+ * `role` est en lecture seule (non vérifié, pur classement).
+ */
+export function classifyApiKey(key: unknown): ApiKeyClass {
+  if (typeof key !== "string") return "unknown";
+  const value = key.trim();
+  if (value.startsWith("sb_publishable_")) return "publishable";
+  if (value.startsWith("sb_secret_")) return "secret";
+  const parts = value.split(".");
+  const claims = parts.length === 3 ? parts[1] : undefined;
+  if (claims === undefined || !value.startsWith("eyJ")) return "unknown";
+  try {
+    const role = (
+      JSON.parse(Buffer.from(claims, "base64url").toString("utf8")) as {
+        role?: unknown;
+      }
+    ).role;
+    if (role === "anon") return "role-anon";
+    if (role === "service_role") return "role-service";
+  } catch {
+    /* JWT illisible : classement inconnu, jamais de refus sur une forme exotique. */
+  }
+  return "unknown";
+}
+
+/**
+ * Le miroir n'accepte d'écrire qu'avec une clé `service_role` : une clé
+ * **publiable** (ou une `anon` legacy) y est refusée par RLS avec un 401 qui
+ * ressemble à s'y méprendre à une panne de réseau. Refuser à la saisie plutôt
+ * que de stocker une clé qui ne poussera jamais.
+ */
+export function assertServiceKeyUsable(serviceKey: string): void {
+  const kind = classifyApiKey(serviceKey);
+  if (kind === "publishable" || kind === "role-anon") {
+    throw new Error(
+      "Clé de service refusée : c'est une clé publique. Collez la clé secrète (sb_secret_…) ou la clé service_role legacy.",
+    );
+  }
+}
+
+/**
+ * La clé `anon` est embarquée dans le QR V2, donc diffusée : une clé secrète
+ * à cette place reviendrait à donner l'écriture totale du miroir au premier
+ * acheteur de scans. Contrôlée uniquement à la SAISIE (une valeur déjà
+ * enregistrée ne doit jamais bloquer une poussée en cours).
+ */
+export function assertAnonKeyPublic(anonKey: string): void {
+  const kind = classifyApiKey(anonKey);
+  if (kind === "secret" || kind === "role-service") {
+    throw new Error(
+      "Clé anon refusée : cette clé donne tous les droits et part dans le QR public. Utilisez la clé publiable (sb_publishable_…).",
+    );
+  }
+}
+
 const OWNER_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 /**
@@ -114,6 +189,7 @@ export function validateSyncConfig(raw: unknown): SyncConfig {
     if (serviceKey.length < 20 || serviceKey.length > 500) {
       throw new Error("Clé service invalide.");
     }
+    assertServiceKeyUsable(serviceKey);
   }
   // ADR-171 : la liasse part sur le MÊME miroir (mêmes identifiants, mêmes
   // secrets) — l'activer sans destination est un non-sens, refusé ici aussi

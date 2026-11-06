@@ -2,7 +2,11 @@
 import { describe, expect, it } from "vitest";
 import {
   MirrorRejectionError,
+  assertAnonKeyPublic,
+  assertServiceKeyUsable,
   buildMirrorRequests,
+  classifyApiKey,
+  isMirrorAuthRejection,
   isPermanentMirrorRejection,
   isPushDue,
   maskConfig,
@@ -260,5 +264,58 @@ describe("ADR-173 : rejets du miroir, condamnés vs rejouables", () => {
     expect(err.status).toBe(409);
     expect(err.detail).toBe("23503");
     expect(err.message).toMatch(/HTTP 409/);
+  });
+});
+
+/** JWT legacy reconstitué : seul le claim `role` sert au classement. */
+function legacyJwt(role: string): string {
+  const b64 = (o: Record<string, unknown>): string =>
+    Buffer.from(JSON.stringify(o)).toString("base64url");
+  return `${b64({ alg: "HS256", typ: "JWT" })}.${b64({ iss: "supabase", ref: "abcxyz", role })}.${"s".repeat(43)}`;
+}
+
+const PUBLISHABLE = "sb_publishable_SgUBW2s81KNo-m9OsmB_DA_IDGwEhnY";
+const SECRET = "sb_secret_Kt8zQ3pR7vX1nB4mY6cD2fH9jL0wS5aE8gI";
+
+describe("E-60 : classe d'une clé API et diagnostic d'identité", () => {
+  it("préfixes modernes et rôles legacy", () => {
+    expect(classifyApiKey(PUBLISHABLE)).toBe("publishable");
+    expect(classifyApiKey(SECRET)).toBe("secret");
+    expect(classifyApiKey(legacyJwt("anon"))).toBe("role-anon");
+    expect(classifyApiKey(legacyJwt("service_role"))).toBe("role-service");
+    expect(classifyApiKey("k".repeat(40))).toBe("unknown");
+    expect(classifyApiKey("eyJ.pas-un-jwt")).toBe("unknown");
+    expect(classifyApiKey(undefined)).toBe("unknown");
+  });
+
+  it("la clé de service refuse une clé publique", () => {
+    expect(() => assertServiceKeyUsable(PUBLISHABLE)).toThrow(/clé publique/i);
+    expect(() => assertServiceKeyUsable(legacyJwt("anon"))).toThrow(/clé publique/i);
+    expect(() => assertServiceKeyUsable(SECRET)).not.toThrow();
+    expect(() => assertServiceKeyUsable(legacyJwt("service_role"))).not.toThrow();
+    expect(() => assertServiceKeyUsable("k".repeat(40))).not.toThrow();
+  });
+
+  it("la clé anon refuse une clé qui donne tous les droits", () => {
+    expect(() => assertAnonKeyPublic(SECRET)).toThrow(/tous les droits/);
+    expect(() => assertAnonKeyPublic(legacyJwt("service_role"))).toThrow(/tous les droits/);
+    expect(() => assertAnonKeyPublic(PUBLISHABLE)).not.toThrow();
+    expect(() => assertAnonKeyPublic(legacyJwt("anon"))).not.toThrow();
+  });
+
+  it("validateSyncConfig refuse la publiable avant qu'elle ne soit stockée", () => {
+    expect(() => validateSyncConfig({ ...FULL, serviceKey: PUBLISHABLE })).toThrow(/clé publique/i);
+    expect(() => validateSyncConfig({ ...FULL, serviceKey: SECRET })).not.toThrow();
+    // Une clé déjà en base de forme inconnue ne casse pas une poussée qui marche.
+    expect(validateSyncConfig({ ...FULL }).serviceKey).toBe("k".repeat(40));
+  });
+
+  it("isMirrorAuthRejection : 401 d'identité, ni 401 réseau ni 409 de ligne", () => {
+    expect(isMirrorAuthRejection(401, '{"message":"Invalid API key"}')).toBe(true);
+    expect(isMirrorAuthRejection(401, '{"code":"42501","message":"permission denied"}')).toBe(true);
+    expect(isMirrorAuthRejection(403, "jwt expired")).toBe(true);
+    expect(isMirrorAuthRejection(401, "<html>502 bad gateway</html>")).toBe(false);
+    expect(isMirrorAuthRejection(503, "Invalid API key")).toBe(false);
+    expect(isMirrorAuthRejection(409, "23503 foreign key violation")).toBe(false);
   });
 });
