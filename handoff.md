@@ -1,4 +1,4 @@
-# Handoff — Veloria POS (état au 2026-11-02)
+# Handoff — Veloria POS (état au 2026-11-06)
 
 > Document de continuité : tout ce qui a été fait, fichiers modifiés,
 > erreurs (fermées/ouvertes), en-attente, commandes. Sessions 2026-10-07
@@ -15,7 +15,7 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête **session 105** (audit intégral à portes
+- Branche : `chore/root-layout` — tête **session 106** (Supabase ouvert dans le navigateur, **réglages vérifiés en réel** : le cloud est **conforme** à `cloud/supabase/*.sql`, `signup_disabled` 422, RLS sans politique = voulu, `security_invoker=true`, 4 clés listées, `client-sync` ACTIVE v3, advisors = 4 INFO + 2 INFO **volontaires** + 1 WARN **plafond Free** ; la casse est **côté poste** : la clé service enregistrée est refusée `HTTP 401`. Corrigé — **E-60 / ADR-175** : `isMirrorAuthRejection` (le **corps** du 401 dit si c'est la clé ou le réseau) remplace « Miroir injoignable » par « Clé de service refusée par Supabase : ressaisissez-la », `classifyApiKey` + `assertServiceKeyUsable` interdisent désormais une **publiable** au champ secret (le blob DPAPI stocké fait 100 caractères base64 — soit ~45 en clair, la longueur d'une `sb_publishable_…` — contre 336 pour la clé qui a réellement poussé le 2026-11-01T20:35Z) et `assertAnonKeyPublic` interdit une **secrète** dans le champ anon qui part dans le QR V2 (fuite à pleine puissance), `noteConfigRejection` écrit `lastError`/`lastOwnerError` **même quand aucune requête n'est partie** (sinon la nouvelle garde, levée avant le HTTP, faisait _disparaître_ l'erreur avalée par le timer), et les deux champs disent où chercher la clé. Politique de file d'ADR-173 **inchangée** : 401/403 ne condamnent toujours rien. **Le lien reste à fermer par l'opérateur** — coller la Secret key puis « Pousser maintenant » (9 clichés `pending`) ; `ownerEnabled=false`, donc `owner_snapshots` reste à 0 ligne. Avant elle **session 105** (audit intégral à portes
   ouvertes, **ADR-174** : les portes étaient vertes et mentaient sur quatre
   points — `verify:migrations` ne contrôlait pas l'immutabilité (loquet sha256
   ajouté et **prouvé rouge sur une dérive**), la CI était **rouge par
@@ -5779,3 +5779,141 @@ autre machine donnerait d'autres fichiers, et un `expo prebuild --clean` les per
 isolation parallèle, ajout opérateur hors de cette session, conservé tel quel). Arbre
 **propre** après les constructions (rien de traîné : `release/`, `dist*/`, `coverage/`,
 `mobile|owner/android/` sont ignorés).
+
+## 106) Session 2026-11-06 — Supabase vérifié en réel, lien POS diagnostiqué à sa vraie cause (E-60, ADR-175)
+
+**Demande opérateur** : « قم بالتالي : فتح supabase في المتصفح، التحقق من اعداداتها، ربطها
+مع pos، ان وجدت اخطاء صححها ».
+
+### Mesure — cloud (navigateur interne + API platform du dashboard, ref `ynktschorbwukxovjzcz`)
+
+`ACTIVE_HEALTHY`, `eu-west-2`, base **11 Mo** / 500. **Aucun réglage cloud n'a eu à être
+corrigé** — tout était conforme à `cloud/supabase/*.sql` :
+
+| Contrôlé                                    | Mesuré                                                                                                                                                                                      |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /auth/v1/signup`                      | `422 signup_disabled` (la faille d'inscription de la session 98 reste fermée)                                                                                                               |
+| `config/auth`                               | `disable_signup=true` · `password_min_length=8` · `site_url=http://localhost:3000` · `smtp_host=null` · `password_hibp_enabled=false`                                                       |
+| `api-keys`                                  | 4 clés : legacy `anon`, legacy `service_role`, `sb_publishable_SgUBW…`, `sb_secret_Kt8zQ…`                                                                                                  |
+| `functions`                                 | `client-sync` ACTIVE v3, `verify_jwt=false` — `POST /functions/v1/client-sync/sync {}` → `401 AUTH_ERROR` « Téléphone ou code incorrect. »                                                  |
+| RLS live (`pg_class` / `pg_policies`)       | `client_access` + `client_payloads` : RLS ON **sans politique** (refus voulu, `rls.sql`) ; `owner_snapshots_read[SELECT\|authenticated]` ; `latest_client_payloads` `security_invoker=true` |
+| Lecture directe avec `anon` / `publishable` | `42501 permission denied` sur `client_access` **et** `owner_snapshots`                                                                                                                      |
+| CHECK `client_payloads.kind`                | 6 kinds, `announcement` + `access_revocation` inclus                                                                                                                                        |
+| Données                                     | `client_access` 7 lignes · `client_payloads` 36 · **`owner_snapshots` 0**                                                                                                                   |
+| Advisors `run-lints`                        | 4 `unused_index` INFO · 2 `rls_enabled_no_policy` INFO (**volontaires**) · 1 `auth_leaked_password_protection` WARN (**plafond Free, ADR-171, relancé puis refusé à nouveau**)              |
+| `projects-resource-warnings`                | seul `auth_restricted_email_sending = warning`                                                                                                                                              |
+
+**Découverte d'outillage, à retenir** : `GET /platform/projects/{ref}/settings` ET
+`GET /v1/projects/{ref}/api-keys?reveal=false` renvoient **les deux clés legacy en clair** —
+`reveal=false` ne masque que la paire `sb_secret_`. La technique des sessions 103/105
+(« préfixes seuls, jamais la valeur ») **ne tenait pas sur le legacy** ; la clé `service_role`
+de ce projet est donc présente dans la transcription de cette session. Constat, pas accident
+de manipulation : la consigne reste valable (ne jamais `reveal=true` pour récupérer la paire
+nouvelle), mais elle ne protège plus le legacy. **Rotation = décision opérateur**, et elle
+casserait les 4 builds de la session 99 qui portent l'`anon` legacy.
+
+### Mesure — poste du commerçant (sonde **hors secret** sur copie lue seule de `E:\data\backups\Veloria POS DB.sqlite`)
+
+`enabled=true` · `supabaseUrl=https://ynktschorbwukxovjzcz.supabase.co` (**la bonne**) ·
+`intervalMinutes=5` · **`ownerEnabled=false`** · `lastPushAt=null` ·
+`lastError="Miroir injoignable (HTTP 401)."` · `lastAttemptAt=2026-11-06T20:48:23Z` ·
+`serviceKey=dpapi1:BLOB(107)` · `anonKey=dpapi1:BLOB(111)` · `sync_outbox` **9 pending / 6
+failed** · `customer_access` local **1** ligne · `owner_account` **absent** (jamais créé depuis
+ce poste) · `announcements` 0.
+
+**Le lien est cassé d'un seul côté : la clé de service enregistrée sur ce poste est refusée par
+Supabase.** Le cloud, lui, est prêt à recevoir.
+
+### Cause racine corrigée (E-60)
+
+1. **Deux natures d'échec, un seul message.** `pushNowOnce` ne lisait que le **code HTTP**, or
+   401 recouvre « `Invalid API key` » (valeur inconnue du projet) et « `42501 permission
+denied` » (valeur valide mais **publiable**, donc sans aucun droit d'écriture sur des tables
+   verrouillées par RLS) — et les deux rendaient la phrase `Miroir injoignable (HTTP 401).`,
+   mot pour mot identique à la panne réseau. **Le diagnostic envoyait le gérant vérifier son
+   Internet alors que la solution tenait dans un champ de saisie.** La sonde croisée le prouve
+   sans secret : `sb_publishable_…` et legacy `anon` → `42501` (elles s'authentifient donc),
+   une valeur inventée → `Invalid API key` — **même code 401 dans les trois cas**.
+2. **La validation ne regardait pas la nature de la clé.** `validateSyncConfig` contrôlait
+   longueur (20–500) et charset ; une publiable — voire une legacy `anon` — entrait donc
+   parfaitement au champ « Clé de service (rôle service) » et y restait sans effet jusqu'à
+   l'interprétation d'un 401 des semaines plus tard. Le blob DPAPI du poste fait 100 caractères
+   base64 (≈ 45 en clair = la longueur exacte d'une `sb_publishable_…`) contre 336 pour la clé
+   qui a réellement poussé le 2026-11-01T20:35Z : tout concorde avec ce scénario, **sans avoir
+   déchiffré ni affiché quoi que ce soit**.
+3. **Le symétrique était une fuite.** Le champ « Clé anon (publique) » n'avait aucune garde de
+   nature, et sa valeur part dans l'endpoint public du QR V2 (`getShopEndpoint`). Y coller une
+   `sb_secret_…` ou une legacy `service_role` — confusion d'autant plus probable que le
+   formulaire ne disait **pas où** chercher ces clés dans le dashboard — publierait une clé à
+   **pleine puissance (bypass RLS)** dans un QR posé sur le comptoir.
+
+### Corrections livrées
+
+- `electron/sync/sync.protocol.ts` : `isMirrorAuthRejection(status, detail)` (401/403 **et** un
+  détail qui parle d'identité), `classifyApiKey(key)` (préfixes `sb_publishable_` /
+  `sb_secret_`, claim `role` des JWT legacy décodé **sans vérifier la signature** — classement
+  seul, jamais une valeur exposée), `assertServiceKeyUsable` (appelé par `validateSyncConfig`)
+  et `assertAnonKeyPublic` (appelé par `saveSyncConfigAtomic`, **sur la valeur tapée
+  uniquement** : une clé déjà en base ne doit jamais faire échouer des poussées qui marchaient).
+- `electron/sync/sync.service.ts` : `SERVICE_KEY_REFUSED` (« Clé de service refusée par
+  Supabase : ressaisissez-la (Réglages → Miroir Android). ») sur la poussée miroir **et** sur la
+  publication de liasse, et `noteConfigRejection(doc, now, err, lane)` qui écrit
+  `lastError`+`lastAttemptAt` (lane `mirror`) ou `lastOwnerError`+`lastOwnerAttemptAt` (lane
+  `owner`) **même quand aucune requête n'est partie**. Ce point n'était pas cosmétique :
+  `startSyncTimer` avale les exceptions en best-effort, donc la nouvelle garde — levée avant le
+  HTTP — aurait fait _disparaître_ l'erreur de l'écran, resté figé sur l'ancienne panne réseau.
+  Une garde qui rend muet ce qu'elle diagnostique est un recul.
+- `src/features/settings/SettingsSectionsB.tsx` : les deux champs nomment l'endroit (API Keys →
+  Secret key / Publishable key, onglet Legacy pour les builds expédiés) **et** le préfixe
+  attendu. La racine du malentendu était documentaire.
+- **Politique de file d'ADR-173 inchangée** : `isPermanentMirrorRejection` garde
+  `{400,404,409,410,415,422}`, 401/403 restent temporaires, rien n'est condamné pendant qu'on se
+  trompe de clé — seul le **message** change. Vérifié par une assertion d'invariance
+  (`pending: 15`) sur le test existant, pas par une promesse.
+
+### Refusé (écrit, pas caché)
+
+- **Scripter la bonne clé dans l'application** : un `service_role` déchiffre la liasse entière ;
+  sa valeur ne devait pas entrer dans une transcription (et le legacy y est entré **par l'API du
+  dashboard**, pas par un choix — voir la découverte ci-dessus). La saisie reste un geste
+  opérateur.
+- **Ajouter des politiques RLS sur `client_access`/`client_payloads`** pour faire taire les 2
+  `rls_enabled_no_policy` : c'est le modèle d'accès V1 écrit dans `rls.sql` (« aucune politique
+  créée volontairement »). Les « corriger » rouvrirait la fuite close en sessions 98/101.
+- **Activer `ownerEnabled` à la place du gérant** (ADR-171, défaut OFF) : `owner_snapshots` à 0
+  ligne est la conséquence de ce réglage et du 401, pas un défaut du cloud.
+- `password_hibp_enabled` (402), `site_url`, SMTP, `ssl_enforced`/CIDR : déjà tranchés session
+  101, non relancés.
+
+### Portes mesurées après correction
+
+`prettier --write` sur les fichiers touchés · `tsc -b` **0** · eslint `--max-warnings 0` sur les
+6 fichiers code/test touchés **0** · **`npx vitest run` complet : 191 fichiers / 1 404 cas
+passés, 0 échec (322,60 s)** · suite ciblée sync **64/64** · `verify:fr` **341 fichiers, 0** ·
+`verify:encoding` **1 017 fichiers, 0 U+FFFD** · `npm run build` **✓** (renderer 3,40 s).
+**Non relancés, et dit comme tel** : `typecheck:mobile|owner|manager` (aucun de ces workspaces
+modifié), `verify:migrations` (aucune migration), `test:e2e`, `knip`, `test:coverage:all`.
+
+**Preuves des corrections** : `tests/unit/sync-protocol.test.ts` +5 cas E-60 (les 4 formes de clé
+
+- `unknown`, refus croisé dans les deux sens, `validateSyncConfig` refuse la publiable **avant**
+  stockage mais accepte une forme inconnue, `isMirrorAuthRejection` ne confond ni un 401 de
+  passerelle ni un 503 ni un 409 de ligne) ; `tests/integration/sync-push-resilience.test.ts` +4
+  cas E-60 sur base migrée + transport injecté (401 « Invalid API key » ⇒ message de **clé**,
+  `pending` conservés, `failed` absent, `lastAttemptAt` horodaté ; 401 « 42501 » ⇒ même diagnostic ;
+  503 ⇒ **reste** « injoignable » ; clé publiable déjà stockée ⇒ refusée **avant toute requête** —
+  le transport lève si on l'appelle — **et** `lastError` écrite quand même) ;
+  `tests/integration/sync-push-queue.test.ts` : l'assertion 401 existante suit le nouveau message,
+  invariance `pending: 15` inchangée.
+
+### Ce qui reste ouvert pour l'opérateur
+
+1. **Fermer le lien** : coller la **Secret key** (`sb_secret_…`, ou legacy `service_role`) dans
+   Réglages → Miroir Android → « Clé de service », puis « Pousser maintenant ». Les 9 clichés
+   `pending` partent ; les 6 `failed` restent en audit (ADR-173). Si une publiable est collée,
+   c'est **refusé à l'instant** avec le motif, au lieu d'un 401 muet.
+2. **`ownerEnabled=false`** : l'app Owner continuera d'afficher un pipeline vide tant que le
+   gérant n'active pas la liasse.
+3. **Rotation des clés legacy** : à décider en connaissance de cause (elles sont passées dans une
+   transcription, et ce sont elles que portent les 4 builds de la session 99).
+4. `auth_restricted_email_sending` : exige un SMTP et ses identifiants — décision + secret.
