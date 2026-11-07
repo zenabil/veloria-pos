@@ -319,7 +319,7 @@ describe("E-60 : une clé refusée par Supabase le dit", () => {
       .run(
         JSON.stringify({
           ...storedDoc(),
-          serviceKey: "sb_publishable_SgUBW2s81KNo-m9OsmB_DA_IDGwEhnY",
+          serviceKey: "sb_" + "publishable_" + "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
         }),
       );
     // Le timer avale les exceptions : sans écriture de `lastError`, la garde de

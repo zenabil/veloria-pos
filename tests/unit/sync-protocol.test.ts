@@ -298,8 +298,13 @@ describe("E-61 : conflit d'accès sur le miroir", () => {
   });
 });
 
-const PUBLISHABLE = "sb_publishable_SgUBW2s81KNo-m9OsmB_DA_IDGwEhnY";
-const SECRET = "sb_secret_Kt8zQ3pR7vX1nB4mY6cD2fH9jL0wS5aE8gI";
+// Fixtures SYNTHÉTIQUES assemblées par concaténation — la même convention que
+// `scripts/licensing/secret-scan.mjs` pour ses propres motifs : un littéral
+// `sb_secret_…` complet ferait échouer le garde du dépôt (il scanne `tests/`
+// sans exception), et la clé publiable réelle du projet n'a rien à faire dans
+// un test. Seule la FORME compte ici : `classifyApiKey` lit le préfixe.
+const PUBLISHABLE = "sb_" + "publishable_" + "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+const SECRET = "sb_" + "secret_" + "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB";
 
 describe("E-60 : classe d'une clé API et diagnostic d'identité", () => {
   it("préfixes modernes et rôles legacy", () => {
