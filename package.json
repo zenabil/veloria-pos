@@ -35,6 +35,7 @@
     "test:db": "vitest run tests/database tests/integration",
     "test:e2e": "playwright test --config config/playwright.config.ts",
     "test:e2e:installer": "playwright test --config config/playwright.config.ts tests/e2e/installer.spec.ts",
+    "test:e2e:cloud": "playwright test --config config/playwright.config.ts tests/e2e/real-cloud-loop.spec.ts",
     "package": "npm run license:scan && npm run build && npm run build:electron && npm run license:integrity && electron-builder --config config/electron-builder/pos.yml",
     "package:win": "npm run license:scan && npm run build && npm run build:electron && npm run license:integrity && electron-builder --win --config config/electron-builder/pos.yml",
     "package:portable": "npm run license:scan && npm run build && npm run build:electron && npm run license:integrity && electron-builder --win portable --config config/electron-builder/pos.yml",

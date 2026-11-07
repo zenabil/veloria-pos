@@ -62,14 +62,40 @@ async function pbkdf2PinHex(pin: string, saltHex: string): Promise<string> {
   return [...new Uint8Array(bits)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+/**
+ * En-têtes CORS communs à TOUTES les réponses (succès, erreur, preflight).
+ * Valeurs alignées sur les relais locaux du même contrat — `Prefer` est
+ * requis par PostgREST et l'app l'envoie aussi.
+ */
+const CORS_HEADERS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "apikey, authorization, Content-Type, Prefer",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+  "Access-Control-Max-Age": "86400",
+};
+
 function fail(code: string, message: string, status: number): Response {
   return new Response(JSON.stringify({ ok: false, code, message }), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...CORS_HEADERS },
   });
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
+  // CORS : la build WEB de l'app client (Expo `--web`, et tout navigateur)
+  // précède le POST d'un OPTIONS et lit la réponse CORS. Sans ces en-têtes,
+  // Chromium bloque : l'app affiche « لا اتصال بالإنترنت » (OFFLINE_ERROR,
+  // seul repli possible d'un `fetch` rejeté) alors que le serveur répond
+  // 200 hors navigateur. Les deux relais locaux du MÊME contrat
+  // (`scripts/e2e-mirror-relay.mjs`, `scripts/demo-client-sync-server.mjs`)
+  // envoient déjà ces en-têtes — c'est précisément pourquoi l'E2E ne pouvait
+  // pas voir ce défaut : il n'existait que contre le cloud réel.
+  // Les réponses d'ERREUR les portent aussi : l'app cartographie `AUTH_ERROR` /
+  // `LOCKED_ERROR` / `REVOKED_ERROR` depuis le CORPS, qu'un navigateur ne
+  // peut lire qu'avec l'origine autorisée.
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: CORS_HEADERS });
+  }
   if (req.method !== "POST") return fail("METHOD_ERROR", "Méthode invalide.", 405);
   let body: Json;
   try {
@@ -209,7 +235,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         ok: true,
         data: { detail: (match.payload ?? {}) as Json, syncedAt: now.toISOString() },
       }),
-      { headers: { "Content-Type": "application/json" } },
+      { headers: { "Content-Type": "application/json", ...CORS_HEADERS } },
     );
   }
   return new Response(
@@ -222,6 +248,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
         syncedAt: now.toISOString(),
       },
     }),
-    { headers: { "Content-Type": "application/json" } },
+    { headers: { "Content-Type": "application/json", ...CORS_HEADERS } },
   );
 });

@@ -19,10 +19,12 @@ import { enqueueSnapshotAtomic, hasActiveClientAccess } from "../ipc/handlers/cl
 import {
   SYNC_DEFAULTS,
   MirrorRejectionError,
+  MIRROR_PHONE_CONFLICT_MESSAGE,
   assertAnonKeyPublic,
   buildMirrorRequests,
   classifyMirrorRejection,
   isMirrorAuthRejection,
+  isMirrorPhoneConflict,
   isPermanentMirrorRejection,
   isOwnerPushDue,
   isPushDue,
@@ -704,6 +706,12 @@ async function pushNowOnce(
       await post(req);
     } catch (err) {
       if (!(err instanceof MirrorRejectionError)) throw err;
+      // E-61 : conflit d'accès = état du MIROIR, pas ligne coupable. La
+      // bissection n'aboutirait qu'à condamner un accès après l'autre, et la
+      // poussée repartirait chaque tick sur le même 409 sans rien dire.
+      if (isMirrorPhoneConflict(err.status, err.detail)) {
+        throw new Error(MIRROR_PHONE_CONFLICT_MESSAGE, { cause: err });
+      }
       if (classifyMirrorRejection(err.status, err.detail) === "table") {
         throw new Error(
           `Miroir incomplet : la table « ${req.table} » est absente ou illisible du projet configuré.`,

@@ -24,6 +24,17 @@ CREATE TABLE IF NOT EXISTS client_access (
 );
 CREATE INDEX IF NOT EXISTS idx_client_access_phone ON client_access(phone_hash);
 
+-- Invariant MIROIR de la migration SQLite 0034 (au plus un accès ACTIF par
+-- numéro). Sans lui, une ligne restée après la suppression locale du client
+-- (reset d'usine, restauration d'une autre base, reprise d'un numéro) laisse
+-- DEUX lignes actives sur le même `phone_hash` : `client-sync` refuse
+-- fermement ce cas (ambiguïté d'identité) et le client réel reçoit alors un
+-- 500 « Service de synchronisation indisponible » sans que rien ne le laisse
+-- voir depuis le POS. Mesuré et cassé sur le projet veloria-pos le 2026-11-06.
+CREATE UNIQUE INDEX IF NOT EXISTS client_access_active_phone_uq
+  ON client_access (phone_hash)
+  WHERE revoked_at IS NULL;
+
 -- 2) Clichés poussés par le POS (un par operationId, rejouables).
 CREATE TABLE IF NOT EXISTS client_payloads (
   id SERIAL PRIMARY KEY,

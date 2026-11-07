@@ -104,11 +104,20 @@ describe("#39 : parité KDF PIN — preuve COMPORTEMENTALE (4 implémentations)"
     expect(keylenBits / 8).toBe(PIN_KDF_KEYLEN_BYTES);
     // La fonction Edge est EXÉCUTÉE (webcrypto dispo en Node) après retrait des
     // annotations TypeScript : le condensat comparé est bien celui du Edge.
-    const start = src.indexOf("function hexToBytes");
-    const end = src.indexOf("function fail(");
-    if (start < 0 || end <= start) throw new Error("Code Edge introuvable.");
-    const snippet = src
-      .slice(start, end)
+    // Tranche BORGNÉE AUX DEUX FONCTIONS KDF, chacune prise jusqu'à son accolade
+    // fermante : une constante ajoutée à côté (ex. `CORS_HEADERS`) ne doit pas
+    // faire échouer la parité — coupler le test à l'ordre des déclarations du
+    // fichier, c'est une porte qui rougit quand on range le code.
+    function sliceFn(name: string): string {
+      const plain = src.indexOf(`function ${name}`);
+      const asyncAt = src.indexOf(`async function ${name}`);
+      // `async` doit rester dans la tranche : le corps contient des `await`.
+      const start = asyncAt >= 0 && asyncAt === plain - 6 ? asyncAt : plain;
+      const end = src.indexOf("\n}", start);
+      if (start < 0 || end <= start) throw new Error(`Code Edge « ${name} » introuvable.`);
+      return src.slice(start, end + 2);
+    }
+    const snippet = (sliceFn("hexToBytes") + "\n" + sliceFn("pbkdf2PinHex"))
       .replace(/:\s*Uint8Array/g, "")
       .replace(/:\s*Promise<string>/g, "")
       .replace(/:\s*string/g, "");

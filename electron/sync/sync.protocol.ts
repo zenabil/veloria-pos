@@ -54,6 +54,27 @@ export interface SyncConfigView {
 }
 
 /**
+ * E-61 — conflit d'ACCÈS sur le miroir. `client_access_active_phone_uq`
+ * (`cloud/supabase/schema.sql`, invariant miroir de la migration 0034) refuse
+ * deux lignes actives du même numéro : un accès resté sur le miroir après la
+ * suppression locale du client (reset d'usine, restauration d'une autre base,
+ * numéro réattribué) fait rejeter la ligne d'accès réelle. Or une ligne
+ * d'accès refusée n'est **jamais** condamnée (elle est relue à chaque tick) :
+ * sans ce cas explicite, la poussée repartait éternellement sur le même 409
+ * en silence, et le client voyait un 500 « service indisponible » pendant que
+ * l'écran du POS ne disait rien.
+ */
+const PHONE_CONFLICT_DETAIL_RE = /client_access_active_phone_uq|unique constraint|duplicate key/i;
+
+export function isMirrorPhoneConflict(status: number, detail: string): boolean {
+  return status === 409 && PHONE_CONFLICT_DETAIL_RE.test(detail);
+}
+
+/** Message unique : la purge du miroir est une opération support, pas client. */
+export const MIRROR_PHONE_CONFLICT_MESSAGE =
+  "Le miroir garde un accès mobile plus ancien pour ce numéro : la purge du miroir est requise (Réglages → Miroir Android, aucune donnée locale perdue).";
+
+/**
  * Un rejet 401/403 du miroir n'est PAS une panne réseau. Le corps le dit :
  * `Invalid API key` = valeur inconnue du projet, `42501 permission denied` =
  * identité valide mais sans droits (clé publiable à la place de la secrète).

@@ -336,3 +336,45 @@ describe("E-60 : une clé refusée par Supabase le dit", () => {
     expect(statusOfFirstPending()).toBe("pending");
   });
 });
+
+describe("E-61 : un accès en conflit sur le miroir se dit", () => {
+  beforeEach(() => {
+    seed();
+  });
+
+  it("409 client_access_active_phone_uq : message de purge, file intacte, rien de condamné", async () => {
+    const id = queueRow(2, "customer_snapshot", "confit", '{"demo":1}');
+    const conflict = (url: string): Promise<Reply> =>
+      url.includes("client_access")
+        ? reply(
+            409,
+            '{"code":"23505","message":"duplicate key value violates unique constraint \u0022client_access_active_phone_uq\u0022"}',
+          )
+        : reply(201, "[]");
+
+    await expect(
+      pushNowAtomic({ operationId: OP("push-confit"), now: NOW }, conflict),
+    ).rejects.toThrow(/purge du miroir/);
+
+    expect(statusOf(id)).toBe("pending");
+    expect(countsByStatus()["failed"] ?? 0).toBe(0);
+    expect(String(storedDoc()["lastError"])).toMatch(/purge du miroir/);
+  });
+
+  it("409 de clé étrangère sur un cliché : la ligne coupable, pas la purge", async () => {
+    const bad = queueRow(2, "customer_snapshot", "fk", '{"demo":1}');
+    const fk = (url: string): Promise<Reply> =>
+      url.includes("client_payloads")
+        ? reply(
+            409,
+            '{"code":"23503","message":"insert or update on table \u0022client_payloads\u0022 violates foreign key constraint"}',
+          )
+        : reply(201, "[]");
+    // ADR-173 inchangé : ce cas-là SE RESOUT en écartant la ligne (rien à
+    // purger, et surtout pas le message E-61 qui égare le gérant).
+    const result = await pushNowAtomic({ operationId: OP("push-fk"), now: NOW }, fk);
+    expect(result.failed).toBe(1);
+    expect(statusOf(bad)).toBe("failed");
+    expect(String(storedDoc()["lastError"])).not.toMatch(/purge du miroir/);
+  });
+});

@@ -7,6 +7,7 @@ import {
   buildMirrorRequests,
   classifyApiKey,
   isMirrorAuthRejection,
+  isMirrorPhoneConflict,
   isPermanentMirrorRejection,
   isPushDue,
   maskConfig,
@@ -273,6 +274,29 @@ function legacyJwt(role: string): string {
     Buffer.from(JSON.stringify(o)).toString("base64url");
   return `${b64({ alg: "HS256", typ: "JWT" })}.${b64({ iss: "supabase", ref: "abcxyz", role })}.${"s".repeat(43)}`;
 }
+
+describe("E-61 : conflit d'accès sur le miroir", () => {
+  it("409 sur l'index des accès actifs = conflit de numéro", () => {
+    expect(
+      isMirrorPhoneConflict(
+        409,
+        'duplicate key value violates unique constraint "client_access_active_phone_uq"',
+      ),
+    ).toBe(true);
+  });
+  it("un 409 de clé étrangère reste une ligne coupable, pas un conflit", () => {
+    expect(
+      isMirrorPhoneConflict(
+        409,
+        'insert or update on table "client_payloads" violates foreign key constraint "client_payloads_customer_id_fkey"',
+      ),
+    ).toBe(false);
+  });
+  it("ni 401 ni 500 ne sont un conflit de numéro", () => {
+    expect(isMirrorPhoneConflict(401, "duplicate key value")).toBe(false);
+    expect(isMirrorPhoneConflict(500, "unique constraint")).toBe(false);
+  });
+});
 
 const PUBLISHABLE = "sb_publishable_SgUBW2s81KNo-m9OsmB_DA_IDGwEhnY";
 const SECRET = "sb_secret_Kt8zQ3pR7vX1nB4mY6cD2fH9jL0wS5aE8gI";
