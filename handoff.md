@@ -1,4 +1,4 @@
-# Handoff — Veloria POS (état au 2026-11-06)
+# Handoff — Veloria POS (état au 2026-11-07)
 
 > Document de continuité : tout ce qui a été fait, fichiers modifiés,
 > erreurs (fermées/ouvertes), en-attente, commandes. Sessions 2026-10-07
@@ -15,7 +15,7 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête **session 106** (Supabase ouvert dans le navigateur, **réglages vérifiés en réel** : le cloud est **conforme** à `cloud/supabase/*.sql`, `signup_disabled` 422, RLS sans politique = voulu, `security_invoker=true`, 4 clés listées, `client-sync` ACTIVE v3, advisors = 4 INFO + 2 INFO **volontaires** + 1 WARN **plafond Free** ; la casse est **côté poste** : la clé service enregistrée est refusée `HTTP 401`. Corrigé — **E-60 / ADR-175** : `isMirrorAuthRejection` (le **corps** du 401 dit si c'est la clé ou le réseau) remplace « Miroir injoignable » par « Clé de service refusée par Supabase : ressaisissez-la », `classifyApiKey` + `assertServiceKeyUsable` interdisent désormais une **publiable** au champ secret (le blob DPAPI stocké fait 100 caractères base64 — soit ~45 en clair, la longueur d'une `sb_publishable_…` — contre 336 pour la clé qui a réellement poussé le 2026-11-01T20:35Z) et `assertAnonKeyPublic` interdit une **secrète** dans le champ anon qui part dans le QR V2 (fuite à pleine puissance), `noteConfigRejection` écrit `lastError`/`lastOwnerError` **même quand aucune requête n'est partie** (sinon la nouvelle garde, levée avant le HTTP, faisait _disparaître_ l'erreur avalée par le timer), et les deux champs disent où chercher la clé. Politique de file d'ADR-173 **inchangée** : 401/403 ne condamnent toujours rien. **Le lien reste à fermer par l'opérateur** — coller la Secret key puis « Pousser maintenant » (9 clichés `pending`) ; `ownerEnabled=false`, donc `owner_snapshots` reste à 0 ligne. Avant elle **session 105** (audit intégral à portes
+- Branche : `chore/root-layout` — tête **session 107** (la boucle réelle **POS → Supabase → app client** exécutée pour la première fois contre le cloud, et non contre un relais : `tests/e2e/real-cloud-loop.spec.ts` + `npm run test:e2e:cloud`, identifiants par variables d'environnement, skip annoncé sans eux — instance isolée, aucune donnée du commerçant touchée par les clics. **Trois défauts réels trouvés et corrigés à la racine** : (1) la build **web** de l'app client ne pouvait pas se connecter du tout — `OPTIONS /functions/v1/client-sync` répondait **405 sans en-tête CORS**, l'app affichant « hors ligne » alors que le même POST hors navigateur renvoyait 200 avec la facture ; ce défaut n'existait QUE contre le cloud parce que les deux relais locaux du même contrat envoyaient déjà ces en-têtes et que React Native n'applique pas CORS → `CORS_HEADERS` + branche OPTIONS + en-têtes sur **toutes** les réponses (les erreurs, dont l'app lit le `code`, aussi), **déployé v3 → v4**, parité des trois implémentations verrouillée par `tests/unit/client-sync-cors.test.ts` ; (2) le miroir gardait les accès des clients supprimés localement (7 lignes pour 1 côté POS) dont **deux actives sur le même numéro** → `client-sync` refuse fermement l'ambiguïté : **le client réel du commerçant était hors service, silencieusement** → sauvegarde exportée puis purge sur accord opérateur + index partiel UNIQUE `client_access_active_phone_uq` (invariant déjà écrit en migration 0034) posé en live **et** dans `cloud/supabase/schema.sql`, état final vérifié `ca=1 / cp=0` ; (3) ce nouveau 409 de duplicata serait devenu une poussée échouant éternellement en silence (une ligne d'accès n'est pas dans `sync_outbox`) → `isMirrorPhoneConflict` + `MIRROR_PHONE_CONFLICT_MESSAGE` (**E-61**), file intacte, ADR-173 vérifié inchangé dans l'autre sens. Trouvé aussi et corrigé : `tests/unit/pin-kdf-parity.test.ts` découpait la source Edge **par positions** et rougissait parce que la constante avait été placée à côté → tranche bornée à chaque fonction KDF. Mesuré en bout de course : `tsc -b` 0 · eslint 0 · **192 fichiers / 1 412 cas, 0 échec (243,01 s)** · `verify:fr` 341 · `verify:encoding` 1 020 · `verify:migrations` **MIGRATIONS VERIFIED** · build ✓ · `test:e2e:cloud` **1 passed** (30,4 s) avec facture `FAC-…` rendue dans l'app client à `500,00 دج` après déverrouillage de confidentialité. **Ouverts, écrits** : `shop_key` sur le miroir client (**prérequis d'une purge automatique sûre** — sans lui, une seconde instance ou une base de test effacerait les accès réels, ADR-176 §6), Secret key à coller dans le POS installé du commerçant, et **jetons de session passés dans la transcription** en fin de run (page `sign-in-mfa` du tableau de bord, expiration 30 min pour le jeton Supabase, `gho_…` GitHub + refresh à révoquer si doute). Détails §107. Avant elle **session 106** (Supabase ouvert dans le navigateur, **réglages vérifiés en réel** : le cloud est **conforme** à `cloud/supabase/*.sql`, `signup_disabled` 422, RLS sans politique = voulu, `security_invoker=true`, 4 clés listées, `client-sync` ACTIVE v3, advisors = 4 INFO + 2 INFO **volontaires** + 1 WARN **plafond Free** ; la casse est **côté poste** : la clé service enregistrée est refusée `HTTP 401`. Corrigé — **E-60 / ADR-175** : `isMirrorAuthRejection` (le **corps** du 401 dit si c'est la clé ou le réseau) remplace « Miroir injoignable » par « Clé de service refusée par Supabase : ressaisissez-la », `classifyApiKey` + `assertServiceKeyUsable` interdisent désormais une **publiable** au champ secret (le blob DPAPI stocké fait 100 caractères base64 — soit ~45 en clair, la longueur d'une `sb_publishable_…` — contre 336 pour la clé qui a réellement poussé le 2026-11-01T20:35Z) et `assertAnonKeyPublic` interdit une **secrète** dans le champ anon qui part dans le QR V2 (fuite à pleine puissance), `noteConfigRejection` écrit `lastError`/`lastOwnerError` **même quand aucune requête n'est partie** (sinon la nouvelle garde, levée avant le HTTP, faisait _disparaître_ l'erreur avalée par le timer), et les deux champs disent où chercher la clé. Politique de file d'ADR-173 **inchangée** : 401/403 ne condamnent toujours rien. **Le lien reste à fermer par l'opérateur** — coller la Secret key puis « Pousser maintenant » (9 clichés `pending`) ; `ownerEnabled=false`, donc `owner_snapshots` reste à 0 ligne. Avant elle **session 105** (audit intégral à portes
   ouvertes, **ADR-174** : les portes étaient vertes et mentaient sur quatre
   points — `verify:migrations` ne contrôlait pas l'immutabilité (loquet sha256
   ajouté et **prouvé rouge sur une dérive**), la CI était **rouge par
@@ -5917,3 +5917,101 @@ modifié), `verify:migrations` (aucune migration), `test:e2e`, `knip`, `test:cov
 3. **Rotation des clés legacy** : à décider en connaissance de cause (elles sont passées dans une
    transcription, et ce sont elles que portent les 4 builds de la session 99).
 4. `auth_restricted_email_sending` : exige un SMTP et ses identifiants — décision + secret.
+
+## 107) Session 2026-11-07 — La boucle réelle POS → Supabase → app client exécutée pour la première fois (E-61, ADR-176)
+
+**Demande opérateur** : « قم بالاختبارات : ادخال قيم supabase في pos، انشاء عميل، ربطه
+بالتطبيق، انشاء عملية بيع، تحقق من المعاملة في تطبيق العميل، اكتشف الأخطاء و صحح جذريا ».
+
+### Ce qui a tourné, où, et avec quoi
+
+Instance **isolée** (base + `userData` temporaires via `launchActivatedApp`, licence
+d'essai réelle signée avec la clé vendor du poste) — le POS installé du commerçant tourne
+pendant ce temps sur `E:\data\backups`, **aucune de ses données n'a été touchée par les
+clics de test**. Identifiants passés par variables d'environnement, jamais par le dépôt.
+`tests/e2e/real-cloud-loop.spec.ts` (nouveau, `npm run test:e2e:cloud`) : URL + clé anon +
+clé service saisies dans Réglages → Miroir Android, client créé, accès mobile activé (PIN),
+produit, vente encaissée 500 DZD, « Synchroniser », « Pousser maintenant », puis assertions
+**contre le projet réel** (REST + contrat `client-sync`). **1 passed en 30,4 s** :
+« Miroir poussé : 8 cliché(s) », `client_access` 1 ligne active au `phone_hash` attendu,
+8 clichés (les 4 kinds), login APK réel → `FAC-2026-00001` à `total_minor=50000`, détail de
+facte servi, mauvais PIN → `401 AUTH_ERROR`. Puis **app client rendue** (Expo web `:8083` +
+Chromium Electron sans fenêtre, distribution d'événements RNW) : après déverrouillage de
+confidentialité, `500,00 دج`, reste `0,00 دج`, paiement `+500,00 دج`, produit `250,00 دج ×2`,
+8 masques → 0.
+
+### Erreur n°1 (P1, production réelle, aucune suite ne pouvait la voir)
+
+La build **web** de l'app client ne pouvait pas se connecter : « لا اتصال بالإنترنت » alors
+que le même POST hors navigateur répondait 200 avec la facture. Preuve : `OPTIONS
+/functions/v1/client-sync` → **405 sans aucun en-tête CORS** ; le POST portait 200 mais sans
+`Access-Control-Allow-Origin`. **Cause structurelle du masque** : les deux serveurs locaux
+qui émulent ce contrat (`scripts/e2e-mirror-relay.mjs`, `scripts/demo-client-sync-server.mjs`)
+envoient déjà ces en-têtes — le défaut n'existait que contre le cloud, et React Native
+n'applique pas CORS, donc ni l'E2E ni l'APK ne pouvaient le croiser. Corrigé dans le contrat
+(`cloud/supabase/functions/client-sync/index.ts`) : `CORS_HEADERS` (mêmes valeurs que les
+relais), branche `OPTIONS → 204` **avant** la garde de méthode, en-têtes sur **toutes** les
+réponses y compris `fail()` (l'app map `AUTH_ERROR`/`LOCKED_ERROR`/`REVOKED_ERROR` depuis le
+CORPS ; un corps bloqué par le navigateur = faux panne réseau). **Déployé v3 → v4** via le
+tableau de bord sur accord opérateur, revérifié en réel. Garde ajoutée :
+`tests/unit/client-sync-cors.test.ts` verrouille la parité des TROIS implémentations du
+contrat et refuse toute réponse produite sans `CORS_HEADERS`.
+
+### Erreur n°2 (le client réel du commerçant était hors service, silencieusement)
+
+Le POS local ne contient qu'**un** accès actif (client 2, `phone_hash a53ac26f6f…`) ; le
+miroir en contenait **sept** (2,3,4,5,6,94,95) — six lignes de clients disparus localement
+(reset d'usine, restauration d'une autre base, purge des données fictives) — dont **deux
+actives sur le même numéro** (2 et 95). Or `client-sync`, face à plusieurs lignes actives
+pour un `phone_hash`, **refuse fermement** (`500` « Service de synchronisation
+indisponible. ») : le vrai client ne pouvait plus se connecter, sans rien d'affiché côté POS
+et sans auto-réparation possible (le POS ne pousse que ce qu'il connaît ; rien ne retire du
+miroir ce que le master a oublié). Actions : export de sauvegarde (8 accès + 44 clichés →
+`RESTORE.sql`), puis `DELETE … WHERE customer_id <> 2` sur accord opérateur, puis **index
+partiel UNIQUE** `client_access_active_phone_uq (phone_hash) WHERE revoked_at IS NULL` —
+l'invariant déjà écrit dans la migration SQLite 0034, posé en live **et** ajouté à
+`cloud/supabase/schema.sql` (parité dépôt↔cloud, la classe de dérive silencieuse de session 98).
+État vérifié en fin de session : `rows=1 (2|act)`, `payloads=0` — le miroir est redevenu
+exactement la vérité locale.
+
+### Erreur n°3 (le nouveau refus devait être nommé, pas silencieux) — E-61
+
+Un 409 de duplicata sur cet index tombait dans la classification ADR-173 (`409 = définitif`
+→ bissection → condamnation)… mais une ligne d'accès n'est **pas** dans `sync_outbox` : elle
+est relue dans `customer_access` à chaque tick. Sans traitement explicite, la poussée
+aurait échoué éternellement sur la même ligne avec un message générique pendant que le
+client voyait un 500. Ajouté : `isMirrorPhoneConflict(status, detail)` (pur — duplicata
+d'identité ≠ clé étrangère `23503`), et `postAccess` interrompt net sur
+`MIRROR_PHONE_CONFLICT_MESSAGE` (« le miroir garde un accès mobile plus ancien pour ce
+numéro : la purge du miroir est requise ») **sans condamner** le moindre cliché. Un test
+jumeau maintient ADR-173 dans l'autre sens (409 FK → ligne écartée, `failed=1`, jamais le
+message de purge).
+
+### Refusé, écrit
+
+- **Prune automatique sans identité de boutique** : une seconde installation (ou une base de
+  test) pointée sur le même projet aurait effacé les accès RÉELS du commerçant. La purge
+  sûre exige `shop_key` sur le miroir client (comme `owner_snapshots` le porte déjà) →
+  ADR-176 §6, à faire en slice complète (schema + protocole + poussée + fonction + tests).
+- **Faire confiance au relais E2E comme preuve du cloud** — c'est précisément ce qui a masqué
+  l'erreur n°1.
+- **Taper la clé service dans l'instance installée du commerçant** (geste opérateur, sessions
+  103/106) ; **publier une liasse de test** dans `owner_snapshots` (fausse image de
+  l'étité du commerce — `ownerEnabled` reste OFF).
+
+### Incident de sécurité de session, consigné tel quel
+
+En fin de session, la redirection du tableau de bord vers
+`/dashboard/sign-in-mfa?…#access_token=…&provider_token=…&refresh_token=…` a fait passer le
+jeton de session Supabase, un `gho_…` GitHub et un refresh token **dans la transcription**.
+Le jeton de session expire en 30 min ; le `provider_token` GitHub et le refresh token sont
+plus durables. À révoquer côté GitHub / re-login Supabase si le doute subsiste — c'est un
+effet de l'outil de navigation interne, pas d'un choix de manipulation.
+
+### Portes mesurées
+
+`prettier --write` sur les fichiers touchés · `tsc -b` **0** · eslint `--max-warnings 0` sur
+`electron/sync` + les 4 fichiers de test **0** · suite complète `npx vitest run`
+**192 fichiers / 1 412 cas, 0 échec (243,01 s)** · `verify:fr` · `verify:encoding` · build ✓
+(premier run : **1 411/1 412**, un échec `pin-kdf-parity` dû à une tranche de source couplée à l'ordre
+déclarations — corrigé à la racine puis rejoué, voir ci-dessus) · `test:e2e:cloud` **1 passed** contre le cloud réel.
