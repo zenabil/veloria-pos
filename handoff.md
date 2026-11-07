@@ -15,7 +15,7 @@
 
 ## 1) État courant
 
-- Branche : `chore/root-layout` — tête **session 107** (la boucle réelle **POS → Supabase → app client** exécutée pour la première fois contre le cloud, et non contre un relais : `tests/e2e/real-cloud-loop.spec.ts` + `npm run test:e2e:cloud`, identifiants par variables d'environnement, skip annoncé sans eux — instance isolée, aucune donnée du commerçant touchée par les clics. **Trois défauts réels trouvés et corrigés à la racine** : (1) la build **web** de l'app client ne pouvait pas se connecter du tout — `OPTIONS /functions/v1/client-sync` répondait **405 sans en-tête CORS**, l'app affichant « hors ligne » alors que le même POST hors navigateur renvoyait 200 avec la facture ; ce défaut n'existait QUE contre le cloud parce que les deux relais locaux du même contrat envoyaient déjà ces en-têtes et que React Native n'applique pas CORS → `CORS_HEADERS` + branche OPTIONS + en-têtes sur **toutes** les réponses (les erreurs, dont l'app lit le `code`, aussi), **déployé v3 → v4**, parité des trois implémentations verrouillée par `tests/unit/client-sync-cors.test.ts` ; (2) le miroir gardait les accès des clients supprimés localement (7 lignes pour 1 côté POS) dont **deux actives sur le même numéro** → `client-sync` refuse fermement l'ambiguïté : **le client réel du commerçant était hors service, silencieusement** → sauvegarde exportée puis purge sur accord opérateur + index partiel UNIQUE `client_access_active_phone_uq` (invariant déjà écrit en migration 0034) posé en live **et** dans `cloud/supabase/schema.sql`, état final vérifié `ca=1 / cp=0` ; (3) ce nouveau 409 de duplicata serait devenu une poussée échouant éternellement en silence (une ligne d'accès n'est pas dans `sync_outbox`) → `isMirrorPhoneConflict` + `MIRROR_PHONE_CONFLICT_MESSAGE` (**E-61**), file intacte, ADR-173 vérifié inchangé dans l'autre sens. Trouvé aussi et corrigé : `tests/unit/pin-kdf-parity.test.ts` découpait la source Edge **par positions** et rougissait parce que la constante avait été placée à côté → tranche bornée à chaque fonction KDF. Mesuré en bout de course : `tsc -b` 0 · eslint 0 · **192 fichiers / 1 412 cas, 0 échec (243,01 s)** · `verify:fr` 341 · `verify:encoding` 1 020 · `verify:migrations` **MIGRATIONS VERIFIED** · build ✓ · `test:e2e:cloud` **1 passed** (30,4 s) avec facture `FAC-…` rendue dans l'app client à `500,00 دج` après déverrouillage de confidentialité. **Ouverts, écrits** : `shop_key` sur le miroir client (**prérequis d'une purge automatique sûre** — sans lui, une seconde instance ou une base de test effacerait les accès réels, ADR-176 §6), Secret key à coller dans le POS installé du commerçant, et **jetons de session passés dans la transcription** en fin de run (page `sign-in-mfa` du tableau de bord, expiration 30 min pour le jeton Supabase, `gho_…` GitHub + refresh à révoquer si doute). Détails §107. Avant elle **session 106** (Supabase ouvert dans le navigateur, **réglages vérifiés en réel** : le cloud est **conforme** à `cloud/supabase/*.sql`, `signup_disabled` 422, RLS sans politique = voulu, `security_invoker=true`, 4 clés listées, `client-sync` ACTIVE v3, advisors = 4 INFO + 2 INFO **volontaires** + 1 WARN **plafond Free** ; la casse est **côté poste** : la clé service enregistrée est refusée `HTTP 401`. Corrigé — **E-60 / ADR-175** : `isMirrorAuthRejection` (le **corps** du 401 dit si c'est la clé ou le réseau) remplace « Miroir injoignable » par « Clé de service refusée par Supabase : ressaisissez-la », `classifyApiKey` + `assertServiceKeyUsable` interdisent désormais une **publiable** au champ secret (le blob DPAPI stocké fait 100 caractères base64 — soit ~45 en clair, la longueur d'une `sb_publishable_…` — contre 336 pour la clé qui a réellement poussé le 2026-11-01T20:35Z) et `assertAnonKeyPublic` interdit une **secrète** dans le champ anon qui part dans le QR V2 (fuite à pleine puissance), `noteConfigRejection` écrit `lastError`/`lastOwnerError` **même quand aucune requête n'est partie** (sinon la nouvelle garde, levée avant le HTTP, faisait _disparaître_ l'erreur avalée par le timer), et les deux champs disent où chercher la clé. Politique de file d'ADR-173 **inchangée** : 401/403 ne condamnent toujours rien. **Le lien reste à fermer par l'opérateur** — coller la Secret key puis « Pousser maintenant » (9 clichés `pending`) ; `ownerEnabled=false`, donc `owner_snapshots` reste à 0 ligne. Avant elle **session 105** (audit intégral à portes
+- Branche : `chore/root-layout` — tête **session 108** (client installé et testé sur l'appareil réel CPH2235 — signature `apksigner` vérifiée, `versionCode 6 / 1.0.4`, login téléphone+PIN contre le vrai Supabase, **facture `FAC-2026-00001` rendue à l'écran avec `500,00 دج` / reste `0,00` / `2 × 250,00`**, les quatre onglets joués, session conservée après `force-stop` via SecureStore ; puis **reconstruction des quatre livrables** : POS Setup **161 365 482**, POS Portable **139 455 969**, Manager Setup **144 415 273**, Manager Portable **130 673 603** — tous en octets nouveaux ; Client et Owner APK **identiques octet pour octet** aux précédents car `mobile/`/`owner/` n'ont pas changé, dit sans le faire passer pour du neuf. Quatre défauts trouvés et corrigés à la racine : `secret-scan` a **refusé le build** à cause d'un littéral `sb_secret_` complet et de la **vraie** clé publiable que j'avais mis dans un test (fix : fixtures synthétiques assemblées, `054434c`) ; Gradle refuse le démon sur ce poste (`BindException` sans aucun processus java vivant) → `--no-daemon` ; **`release:checksums` ne hachait que les `.exe`** et les sidecars APK étaient périmés (`706f1371…` publié pour un fichier `dcb11601…`, donc un opérateur aurait rejeté un bon binaire) → périmètre `exe|apk` + empreintes réécrites à chaque run, 7 livrables contrôlés un à un ; `./gradlew` appelé au mauvais niveau de dossier (mon erreur, sans effet). Deux incidents d'atelier écrits : l'écran rendormi a dévié des tapes vers le composeur ColorOS — **journal d'appels contrôlé : aucun appel émis** — et guard de focus ajouté depuis ; `svc power stayon`/`settings put system` sont refusés par ColorOS. Miroir rendu à l'état validé : `client_access rows=1` (client réel 2), `payloads=0`. Non bouclé : la passe écran « PIN erroné » (appareil déconnecté en fin de session) — le `401` reste prouvé au niveau contrat. Portes : `package:win`/`package:manager` 0 · `release:smoke` 0 · `release:checksums` 0 (7) · `version:check` 0 · manifeste intégrité **240 fichiers** · `secret-scan` 1724 · `verify:fr` 341 · `verify:encoding` 1020 · `verify:migrations` VERT · `tsc -b` 0 · eslint 0 · **299 cas** ciblés verts, suite complète déjà rejouée verte en §107. Avant elle **session 107** (la boucle réelle **POS → Supabase → app client** exécutée pour la première fois contre le cloud, et non contre un relais : `tests/e2e/real-cloud-loop.spec.ts` + `npm run test:e2e:cloud`, identifiants par variables d'environnement, skip annoncé sans eux — instance isolée, aucune donnée du commerçant touchée par les clics. **Trois défauts réels trouvés et corrigés à la racine** : (1) la build **web** de l'app client ne pouvait pas se connecter du tout — `OPTIONS /functions/v1/client-sync` répondait **405 sans en-tête CORS**, l'app affichant « hors ligne » alors que le même POST hors navigateur renvoyait 200 avec la facture ; ce défaut n'existait QUE contre le cloud parce que les deux relais locaux du même contrat envoyaient déjà ces en-têtes et que React Native n'applique pas CORS → `CORS_HEADERS` + branche OPTIONS + en-têtes sur **toutes** les réponses (les erreurs, dont l'app lit le `code`, aussi), **déployé v3 → v4**, parité des trois implémentations verrouillée par `tests/unit/client-sync-cors.test.ts` ; (2) le miroir gardait les accès des clients supprimés localement (7 lignes pour 1 côté POS) dont **deux actives sur le même numéro** → `client-sync` refuse fermement l'ambiguïté : **le client réel du commerçant était hors service, silencieusement** → sauvegarde exportée puis purge sur accord opérateur + index partiel UNIQUE `client_access_active_phone_uq` (invariant déjà écrit en migration 0034) posé en live **et** dans `cloud/supabase/schema.sql`, état final vérifié `ca=1 / cp=0` ; (3) ce nouveau 409 de duplicata serait devenu une poussée échouant éternellement en silence (une ligne d'accès n'est pas dans `sync_outbox`) → `isMirrorPhoneConflict` + `MIRROR_PHONE_CONFLICT_MESSAGE` (**E-61**), file intacte, ADR-173 vérifié inchangé dans l'autre sens. Trouvé aussi et corrigé : `tests/unit/pin-kdf-parity.test.ts` découpait la source Edge **par positions** et rougissait parce que la constante avait été placée à côté → tranche bornée à chaque fonction KDF. Mesuré en bout de course : `tsc -b` 0 · eslint 0 · **192 fichiers / 1 412 cas, 0 échec (243,01 s)** · `verify:fr` 341 · `verify:encoding` 1 020 · `verify:migrations` **MIGRATIONS VERIFIED** · build ✓ · `test:e2e:cloud` **1 passed** (30,4 s) avec facture `FAC-…` rendue dans l'app client à `500,00 دج` après déverrouillage de confidentialité. **Ouverts, écrits** : `shop_key` sur le miroir client (**prérequis d'une purge automatique sûre** — sans lui, une seconde instance ou une base de test effacerait les accès réels, ADR-176 §6), Secret key à coller dans le POS installé du commerçant, et **jetons de session passés dans la transcription** en fin de run (page `sign-in-mfa` du tableau de bord, expiration 30 min pour le jeton Supabase, `gho_…` GitHub + refresh à révoquer si doute). Détails §107. Avant elle **session 106** (Supabase ouvert dans le navigateur, **réglages vérifiés en réel** : le cloud est **conforme** à `cloud/supabase/*.sql`, `signup_disabled` 422, RLS sans politique = voulu, `security_invoker=true`, 4 clés listées, `client-sync` ACTIVE v3, advisors = 4 INFO + 2 INFO **volontaires** + 1 WARN **plafond Free** ; la casse est **côté poste** : la clé service enregistrée est refusée `HTTP 401`. Corrigé — **E-60 / ADR-175** : `isMirrorAuthRejection` (le **corps** du 401 dit si c'est la clé ou le réseau) remplace « Miroir injoignable » par « Clé de service refusée par Supabase : ressaisissez-la », `classifyApiKey` + `assertServiceKeyUsable` interdisent désormais une **publiable** au champ secret (le blob DPAPI stocké fait 100 caractères base64 — soit ~45 en clair, la longueur d'une `sb_publishable_…` — contre 336 pour la clé qui a réellement poussé le 2026-11-01T20:35Z) et `assertAnonKeyPublic` interdit une **secrète** dans le champ anon qui part dans le QR V2 (fuite à pleine puissance), `noteConfigRejection` écrit `lastError`/`lastOwnerError` **même quand aucune requête n'est partie** (sinon la nouvelle garde, levée avant le HTTP, faisait _disparaître_ l'erreur avalée par le timer), et les deux champs disent où chercher la clé. Politique de file d'ADR-173 **inchangée** : 401/403 ne condamnent toujours rien. **Le lien reste à fermer par l'opérateur** — coller la Secret key puis « Pousser maintenant » (9 clichés `pending`) ; `ownerEnabled=false`, donc `owner_snapshots` reste à 0 ligne. Avant elle **session 105** (audit intégral à portes
   ouvertes, **ADR-174** : les portes étaient vertes et mentaient sur quatre
   points — `verify:migrations` ne contrôlait pas l'immutabilité (loquet sha256
   ajouté et **prouvé rouge sur une dérive**), la CI était **rouge par
@@ -6015,3 +6015,121 @@ effet de l'outil de navigation interne, pas d'un choix de manipulation.
 **192 fichiers / 1 412 cas, 0 échec (243,01 s)** · `verify:fr` · `verify:encoding` · build ✓
 (premier run : **1 411/1 412**, un échec `pin-kdf-parity` dû à une tranche de source couplée à l'ordre
 déclarations — corrigé à la racine puis rejoué, voir ci-dessus) · `test:e2e:cloud` **1 passed** contre le cloud réel.
+
+## 108) Session 2026-11-07 — Client installé et testé sur l'appareil réel, puis reconstruction des quatre livrables
+
+**Demande opérateur** : « ثبت تطبيق العملاء على الهاتف المربوط بالحاسوب و قم بالاختبارات اللازمة »,
+puis « اعد بناء التطبيقات الاربعة ».
+
+### Appareil réel (OPPO CPH2235, Android 13 / SDK 33, `arm64-v8a`)
+
+`adb devices` = `c74c7c64 device` (autorisé). Vérifications **avant** installation :
+signature `apksigner verify --print-certs` → `CN=Veloria, OU=Mobile, O=Veloria, …, C=DZ`,
+certificat `c190b12a6c…16a29f` ; `adb install -r -t Veloria-Client-1.0.4.apk` → `Success`,
+`dumpsys package dz.veloria.client` → **versionCode=6 / versionName=1.0.4**, minSdk 24,
+targetSdk 34. Aucun paquet Veloria n'était présent (installation propre).
+
+**Déroulé piloté par UI réelle** (hiérarchie `uiautomator` lue avant chaque tape, frapper
+uniquement si `package="dz.veloria.client"`, jamais d'InputKeys vers l'autre session) :
+saisie téléphone + PIN, validation → l'app **arrive** sur le détail de facture
+`تفاصيل الفاتورة` `FAC-2026-00001 · Veloria` : `مدفوعة`, client `Nuage3em2sf Test3em2au`,
+`الإجمالي 500,00 دج`, `المدفوع 500,00 دج`, `الباقي 0,00 دج`, `الكمية: 2 × 250,00 دج`,
+`دفعة فاتورة +500,00 دج · نقدي · 07/11/2026`, `التاريخ · 07/11/2026`. Puis les quatre
+onglets (icônes du bas, **aucun texte** sur les nœuds de barre — repérés par position) :
+`فواتيري` → `غير مدفوعة 0 | جزئية 0 | مدفوعة 1 | الكل 1` + la facture ; `دفعاتي` →
+`ملخص السداد الشهري 500,00 دج` + `+500,00 دج · نقدي` ; `حسابي` → `موثّق`,
+`0556482041`, `المحل Veloria`, `اللغة العربية`, `v1.0.4 · Veloria`, `خروج`, `تغيير الرمز` ;
+`الرئيسية` → KPI d'accueil. Après `am force-stop` + relance, l'app reste **connectée**
+(SecureStore sur appareil — comportement documenté de `mobile/src/cache.ts`, la session
+web en mémoire est l'autre branche).
+
+Deux incidents d'atelier, écrits plutôt qu'enjolivés :
+
+1. l'écran s'est rendormi en cours de route (`mWakefulness=Asleep`) et les tapes sont
+   tombées sur le composeur ColorOS — vérification immédiate du journal d'appels :
+   **aucun appel émis** (deux lignes anciennes vers `112`, `duration=0`, dates 2025 et
+   17/01/2026, aucune au moment du run) ; guard de focus ajouté depuis (`package=` lu dans
+   le dump) et plus aucune tape hors de l'app.
+2. `svc power stayon true` et `settings put system …` sont **refusés** sur ce poste
+   (ColorOS tue `svc` avec exit 137, puis `SecurityException WRITE_SETTINGS`) — la veille
+   ne peut pas être prolongée depuis shell ; se réveiller avant chaque lecture suffit.
+
+**Non terminé** : la passe « logout → PIN erroné → PIN correct » à l'écran (l'appareil s'est
+déconnecté d'USB avant — `adb devices` vide après `kill-server`/`start-server`) ; le refus
+d'un PIN erroné reste prouvé au niveau contrat (`401 AUTH_ERROR`) par `test:e2e:cloud` et
+par `curl`, pas par la capture de l'écran. L'identité md5 du binaire installé sur l'appareil
+n'a donc pas pu être comparée non plus.
+
+### Reconstruction des quatre livrables (sérialisée, hors espace de travail)
+
+Archivage d'abord : les 6 artefacts + `SHA256SUMS.txt` **déplacés** (rien de supprimé) dans
+`release/_prev-2026-11-07/`. Sorties via `--config.directories.output=C:/veloria-build/2026-11-07/…`.
+
+| Livrable         | Nouveau                       | Archivé                     | Verdict                                            |
+| ---------------- | ----------------------------- | --------------------------- | -------------------------------------------------- |
+| POS Setup        | **161 365 482** `79170587d6…` | 161 357 341                 | octets nouveaux (contient E-60/E-61)               |
+| POS Portable     | **139 455 969** `028ce11a16…` | 139 443 058                 | octets nouveaux                                    |
+| Manager Setup    | **144 415 273** `a2d18679e6…` | 144 415 205                 | octets nouveaux                                    |
+| Manager Portable | **130 673 603** `47d3205ee3…` | 130 655 758                 | octets nouveaux                                    |
+| Client APK       | 22 678 264 `dcb11601f7…`      | **identique** `dcb11601f7…` | Gradle 1m15s, 22 tâches exécutées / 371 up-to-date |
+| Owner APK        | 18 105 047 `ccc07c6cb6…`      | **identique** `ccc07c6cb6…` | Gradle 1m05s, 21 / 337 up-to-date                  |
+
+**Dit sans enjoliver** : les deux APK ressortent **octet pour octet identiques** parce que
+`mobile/` et `owner/` n'ont subi **aucun changement** depuis les builds du 2026-11-03 — pas
+de re-signature, pas de nouveau bundle. C'est le résultat correct d'un build reproductible,
+pas une relivraison de code neuf. Le risque déjà consigné reste debout : les réglages
+Native-max (`reactNativeArchitectures=armeabi-v7a,arm64-v8a`, ProGuard/shrinkResources,
+`expo.useLegacyPackaging`, `versionCode 6`/`2`, keystore) vivent sur **ce poste uniquement**
+(`mobile/android/` entièrement git-ignoré, `owner/android/local.properties` absent — seul
+`ANDROID_HOME` le rattrape).
+
+Côté correctif CORS d'hier : il vit **dans la fonction Edge**, pas dans l'APK — un
+changement de build du client n'y change rien (React Native n'applique pas CORS).
+
+### Quatre défauts trouvés pendant cette session, corrigés à la racine
+
+1. **Le build POS a été refusé par la propre garde du dépôt** : `secret-scan` a rougeé sur
+   `tests/unit/sync-protocol.test.ts` parce que j'y avais écrit un littéral `sb_secret_…`
+   complet **et la clé publiable réelle du projet**. Le garde n'a aucune exception pour
+   `tests/` — c'est voulu — et documente lui-même l'idiome (motifs assemblés par
+   concaténation pour ne pas se détecter lui-même). Fix : fixtures **synthétiques** et
+   assemblées (`"sb_" + "secret_" + "BBBB…"`), forme testée inchangée, plus aucune valeur
+   réelle dans le dépôt. Commit `054434c`. La porte a fonctionné ; c'est mon test qui était
+   mal écrit.
+2. **Gradle ne démarre pas avec démon sur ce poste** : `java.net.BindException: Address
+already in use: bind`, alors qu'**aucun processus java** ne tournait (vérifié) et aucune
+   plage de ports exclue listée par `netsh`. Contournement documenté et mesuré :
+   `--no-daemon` → `BUILD SUCCESSFUL`. À appliquer d'emblée aux prochaines builds APK ici.
+3. **`release:checksums` était aveugle aux APK** : il ne filtrait que `*.exe`, et les
+   sidecars `*.apk.sha256` écrits à la main étaient **périmés** — `Veloria-Client-1.0.4.apk.sha256`
+   publiait `706f1371…` pour un fichier `dcb11601…`. Un opérateur qui vérifie le livrable
+   avec ces fichiers-là **rejette un bon binaire**. Corrigé dans le script : le périmètre
+   devient `\.(exe|apk)`, chaque empreinte est **réécrite à chaque run**, et l'échec parle.
+   Vérifié : 7 lignes dans `SHA256SUMS.txt`, les 7 sidecars cohérents avec leur fichier
+   (contrôle boucle-à-boucle, pas un « OK » de principe).
+4. Erreur d'atelier mienne : `./gradlew` appelé depuis `mobile/` au lieu de `mobile/android/`
+   (le wrapper est dans le sous-dossier android) — première tentative perdue, sans effet.
+
+### État du miroir rendu à la décision de l'opérateur
+
+Les lignes du client de test de l'appareil (`0556482041`) ont été supprimées par REST après
+les tests : `client_access rows=1` (`2`, actif, le client réel) et `client_payloads` **0** —
+exactement l'état « ne garder que la ligne 2 » validé en §107. La sauvegarde des orphelins
+de la veille reste sous `E:\data\backups\mirror-orphelins-2026-11-06\`.
+
+### Portes mesurées
+
+`package:win` / `package:manager` (chacun enchaîne `license:scan` → `build` →
+`build:electron` → `license:integrity` → electron-builder) **0** · `release:smoke` **0**
+(preloads sandbox-sûrs, `dist-*/package.json {type: commonjs}`, manifeste manager) ·
+`release:checksums` **0** (7 livrables) · `version:check` **0** (1.0.4 aligné, Android
+client 6 / owner 2) · manifeste d'intégrité POS signé sur **240 fichiers** v1.0.4 ·
+`secret-scan` **1724 fichiers, 0** · `verify:fr` 341 · `verify:encoding` 1020 ·
+`verify:migrations` **MIGRATIONS VERIFIED** · `tsc -b` 0 · eslint `--max-warnings 0` 0 sur
+les fichiers touchés · `vitest run tests/integration + sync-protocol` **299 cas, 0 échec** ·
+suite complète rejouée en §107 (**192 fichiers / 1 412 cas**).
+
+**Ouverts, inchangés et écrits** : `shop_key` sur le miroir client (prérequis d'une purge
+automatique sûre, ADR-176 §6) ; Secret key à coller dans le POS installé du commerçant ;
+parité texte dépôt↔cloud de la fonction v4 ; passe « PIN erroné à l'écran » non bouclée faute
+d'appareil connecté.
