@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Contact — Veloria</title>
+    <meta
+      name="description"
+      content="Demander une démonstration, un tarif de licence ou du support."
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="wrap header-in">
+        <a class="brand" href="index.html"
+          ><img src="assets/logo.svg" alt="Veloria" width="34" height="34" /> Veloria</a
+        >
+        <button
+          class="nav-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="main-nav"
+          data-nav-toggle
+        >
+          Menu
+        </button>
+        <nav id="main-nav" class="main-nav" aria-label="Navigation principale">
+          <a href="index.html">Accueil</a>
+          <a href="pos.html">POS</a>
+          <a href="client.html">Client</a>
+          <a href="pricing.html">Tarifs</a>
+          <a href="contact.html" aria-current="page">Contact</a>
+          <a class="btn btn-primary" href="contact.html">Demander une démo</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="wrap">
+          <p class="eyebrow">Démonstration • Licence • Support</p>
+          <h1>Parlez-nous de <span class="grad">votre caisse.</span></h1>
+          <p class="lead">
+            Démonstration gratuite, tarif exact, support : écrivez-nous ou passez par WhatsApp.
+          </p>
+          <div class="cta-row">
+            <a class="btn btn-wa" href="https://wa.me/213770204047" target="_blank" rel="noopener"
+              >WhatsApp +213 770 20 40 47</a
+            >
+            <a class="btn btn-glass" href="mailto:zenaguibilal2@gmail.com"
+              >zenaguibilal2@gmail.com</a
+            >
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="wrap split">
+          <form class="form" data-contact-form novalidate>
+            <h2>Écrire un message</h2>
+            <div class="field">
+              <label for="name">Nom</label>
+              <input id="name" name="name" type="text" autocomplete="name" required />
+            </div>
+            <div class="field">
+              <label for="email">E-mail</label>
+              <input id="email" name="email" type="email" autocomplete="email" required />
+            </div>
+            <div class="field">
+              <label for="topic">Sujet</label>
+              <select id="topic" name="topic" required>
+                <option value="demo">Demande de démonstration</option>
+                <option value="pos">Veloria POS</option>
+                <option value="client">Veloria Client</option>
+                <option value="license">Licence et renouvellement</option>
+                <option value="support">Support</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="message">Message</label>
+              <textarea id="message" name="message" rows="6" required></textarea>
+            </div>
+            <p class="form-error" data-form-error role="alert" hidden></p>
+            <button class="btn btn-primary" type="submit">Envoyer</button>
+            <p class="muted">
+              Votre messagerie s'ouvrira avec le message pré-rempli (aucune donnée stockée sur ce
+              site).
+            </p>
+          </form>
+          <div class="mini">
+            <h3>FAQ rapide</h3>
+            <details>
+              <summary>La caisse marche-t-elle sans internet ?</summary>
+              <p>Oui. Données SQLite locales ; le réseau ne sert qu'au miroir client.</p>
+            </details>
+            <details>
+              <summary>Le client paie-t-il depuis son téléphone ?</summary>
+              <p>Non — lecture seule. L'encaissement reste en caisse.</p>
+            </details>
+            <details>
+              <summary>Comment obtenir le téléchargement ?</summary>
+              <p>Écrivez-nous : nous fournissons l'installeur et la licence.</p>
+            </details>
+            <h3>Contact direct</h3>
+            <p>
+              <a href="mailto:zenaguibilal2@gmail.com">zenaguibilal2@gmail.com</a><br />
+              <a href="https://wa.me/213770204047" target="_blank" rel="noopener"
+                >WhatsApp +213 770 20 40 47</a
+              >
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-in">
+        <p><strong>Veloria</strong> — POS hors-ligne &amp; application client.</p>
+        <nav aria-label="Pied de page">
+          <a href="index.html">Accueil</a><a href="pos.html">POS</a><a href="client.html">Client</a
+          ><a href="pricing.html">Tarifs</a><a href="contact.html">Contact</a>
+        </nav>
+      </div>
+    </footer>
+    <script src="app.js" defer></script>
+  </body>
+</html>

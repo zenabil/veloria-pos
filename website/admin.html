@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Admin — Veloria (accès restreint)</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="wrap header-in">
+        <a class="brand" href="index.html"
+          ><img src="assets/logo.svg" alt="Veloria" width="34" height="34" /> Veloria</a
+        >
+        <nav class="main-nav" aria-label="Administration">
+          <a href="index.html">← Retour au site</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="section">
+        <div class="wrap">
+          <h2>Espace administration <span class="muted">(secret — non lié)</span></h2>
+          <div id="gate" class="form">
+            <p class="muted">
+              Cette page est réservée. Entrez le code d'accès pour voir les messages des clients et
+              gérer les liens de téléchargement.
+            </p>
+            <div class="field">
+              <label for="code">Code d'accès</label>
+              <input id="code" type="password" autocomplete="off" />
+            </div>
+            <p class="form-error" id="gate-error" hidden>Code incorrect.</p>
+            <button class="btn btn-primary" id="unlock" type="button">Déverrouiller</button>
+            <p class="muted">
+              Code par défaut : <code>veloria-admin</code> — changez-le dans
+              <code>app.js</code> (<code>ADMIN_CODE</code>).
+            </p>
+          </div>
+
+          <div id="panel" hidden>
+            <div class="split">
+              <div class="inbox">
+                <h3>Messages clients</h3>
+                <div id="messages">
+                  <p class="muted">
+                    Aucun message reçu sur ce navigateur (les envois via le formulaire sont
+                    enregistrés localement).
+                  </p>
+                </div>
+              </div>
+              <form class="form" id="links-form">
+                <h3>Liens de téléchargement</h3>
+                <div class="field">
+                  <label for="pos-link">Veloria POS (URL)</label>
+                  <input id="pos-link" type="url" />
+                </div>
+                <div class="field">
+                  <label for="client-link">Veloria Client (URL APK / Play)</label>
+                  <input id="client-link" type="url" />
+                </div>
+                <div class="field">
+                  <label for="wa-link">WhatsApp (URL)</label>
+                  <input id="wa-link" type="url" />
+                </div>
+                <button class="btn btn-primary" type="submit">Enregistrer les liens</button>
+                <p class="muted">
+                  Les liens s'appliquent immédiatement sur tout le site (boutons avec
+                  <code>data-download</code>).
+                </p>
+              </form>
+            </div>
+            <p style="margin-top: 16px">
+              <button class="btn btn-glass" id="lock" type="button">Verrouiller</button>
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>

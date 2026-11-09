@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <title>Client</title>
+    <style>
+      body {
+        background: #f8fafc;
+        font-family: system-ui, sans-serif;
+        padding: 20px;
+      }
+      .c {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 16px;
+        margin: 10px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>مرحبا، أمين</h1>
+    <div class="c">فاتورة FAC-2026-00001 — مدفوعة 500,00 دج</div>
+    <div class="c">المتبقي: 0,00 دج</div>
+    <script>
+      let s = 0;
+      document.querySelectorAll(".c").forEach((e) => {
+        e.style.transition = "all .4s";
+      });
+      setInterval(() => {
+        s = (s + 1) % 2;
+        document
+          .querySelectorAll(".c")
+          .forEach((e) => (e.style.transform = s ? "scale(1.02)" : "scale(1)"));
+      }, 900);
+    </script>
+  </body>
+</html>

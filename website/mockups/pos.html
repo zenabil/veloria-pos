@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>POS</title>
+    <style>
+      body {
+        background: #0f172a;
+        color: #e2e8f0;
+        font-family: system-ui, sans-serif;
+        margin: 0;
+        padding: 20px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+      }
+      .tile {
+        background: #334155;
+        border-radius: 10px;
+        padding: 16px;
+      }
+      .big {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Caisse 1 — Vente</h1>
+    <div class="grid">
+      <div class="tile">Farine 1 kg</div>
+      <div class="tile">Eau 1L</div>
+      <div class="tile">Sucre</div>
+      <div class="tile">Huile</div>
+    </div>
+    <div class="big">12 650,00 DA</div>
+    <p>Monnaie à rendre : 2 350,00 DA • ENCAISSER</p>
+    <script>
+      let i = 0;
+      function blink() {
+        document
+          .querySelectorAll(".tile")
+          .forEach((t) => (t.style.background = ["#334155", "#22c55e"][i % 2]));
+        i++;
+      }
+      setInterval(blink, 800);
+    </script>
+  </body>
+</html>

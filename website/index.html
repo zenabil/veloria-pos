@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Veloria — POS hors-ligne &amp; application client</title>
+    <meta
+      name="description"
+      content="Veloria POS encaisse sans connexion. Veloria Client montre soldes, factures et paiements. Tarifs transparents."
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="wrap header-in">
+        <a class="brand" href="index.html"
+          ><img src="assets/logo.svg" alt="Veloria" width="34" height="34" /> Veloria</a
+        >
+        <button
+          class="nav-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="main-nav"
+          data-nav-toggle
+        >
+          Menu
+        </button>
+        <nav id="main-nav" class="main-nav" aria-label="Navigation principale">
+          <a href="index.html" aria-current="page">Accueil</a>
+          <a href="pos.html">POS</a>
+          <a href="client.html">Client</a>
+          <a href="pricing.html">Tarifs</a>
+          <a href="contact.html">Contact</a>
+          <a class="btn btn-primary" href="contact.html">Demander une démo</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="wrap">
+          <p class="eyebrow">★ Hors-ligne d'abord • Argent exact • 100 % français</p>
+          <h1>
+            <span class="kinetic">La caisse qui encaisse.</span><br /><span class="grad"
+              >Le client qui voit tout.</span
+            >
+          </h1>
+          <p class="lead">
+            Veloria POS vend sans réseau, tient chaque centime en entier, imprime et sauvegarde
+            localement. Veloria Client donne à vos clients soldes, factures et paiements — en
+            lecture seule, toujours à jour.
+          </p>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="pricing.html">Voir les tarifs</a>
+            <a class="btn btn-glass" href="contact.html">Demander une démo</a>
+            <a class="btn btn-wa" href="https://wa.me/213770204047" target="_blank" rel="noopener"
+              >WhatsApp +213 770 20 40 47</a
+            >
+          </div>
+          <ul class="stats">
+            <li><b>0 réseau requis</b><span>pour vendre</span></li>
+            <li><b>1 source de vérité</b><span>SQLite local</span></li>
+            <li><b>100 % FR</b><span>interface caisse</span></li>
+            <li><b>≈ 3 s</b><span>chargement de cette page</span></li>
+          </ul>
+        </div>
+        <div class="wrap hero-visual">
+          <figure class="device">
+            <img
+              src="assets/real-pos-dashboard.png"
+              alt="Écran réel Veloria POS : tableau de bord"
+            />
+            <figcaption>
+              <strong>Veloria POS</strong> — captures réelles de l'application (tableau de bord,
+              caisse, stock…)
+            </figcaption>
+            <div class="thumb-grid">
+              <figure class="thumb">
+                <img src="assets/real-pos-sales.png" alt="Écran caisse réel" />
+                <figcaption>Caisse — encaissement</figcaption>
+              </figure>
+              <figure class="thumb">
+                <img src="assets/real-pos-stock.png" alt="Écran stock réel" />
+                <figcaption>Stock</figcaption>
+              </figure>
+              <figure class="thumb">
+                <img src="assets/real-pos-reports.png" alt="Écran rapports réel" />
+                <figcaption>Rapports</figcaption>
+              </figure>
+              <figure class="thumb">
+                <img src="assets/real-pos-settings.png" alt="Écran paramètres réel" />
+                <figcaption>Paramètres</figcaption>
+              </figure>
+            </div>
+          </figure>
+          <figure class="phone">
+            <img src="assets/real-client.png" alt="Application Veloria Client réelle" />
+          </figure>
+        </div>
+        <div class="wrap" style="padding-bottom: 40px">
+          <video
+            class="showcase"
+            controls
+            playsinline
+            preload="metadata"
+            poster="assets/real-pos-sales.png"
+          >
+            <source src="assets/pos-demo.webm" type="video/webm" />
+            Votre navigateur ne lit pas le vidéo.
+          </video>
+          <div class="marquee" aria-hidden="true" style="margin-top: 20px">
+            <div class="marquee-inner">
+              <span>Hors-ligne</span><span>SQLite local</span><span>Centimes exacts</span
+              ><span>100 % FR</span><span>Impression</span><span>Client miroir</span>
+              <span>Hors-ligne</span><span>SQLite local</span><span>Centimes exacts</span
+              ><span>100 % FR</span><span>Impression</span><span>Client miroir</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="wrap">
+          <h2>Deux produits. Une seule vérité.</h2>
+          <p class="muted">
+            La base du poste est la seule vérité métier. Le téléphone n'est qu'un miroir en lecture
+            seule.
+          </p>
+          <div class="bento">
+            <article class="card wide">
+              <span class="num">01</span>
+              <h3>Veloria POS — la caisse</h3>
+              <p>
+                Ventes, retours, achats, stock, dettes, clôture Z et sessions de caisse. Opérations
+                atomiques, idempotentes, journalisées.
+              </p>
+              <ul>
+                <li>Encaissement espèces / chèque / virement, échéance si crédit</li>
+                <li>Impression tickets 58/80 mm + A4, QR, TVA</li>
+                <li>Sauvegarde automatique et restauration vérifiée</li>
+              </ul>
+              <p><a class="card-link" href="pos.html">Toutes les fonctionnalités →</a></p>
+            </article>
+            <article class="card tall">
+              <span class="num">02</span>
+              <h3>Veloria Client — le miroir</h3>
+              <p>
+                Solde, factures, paiements et détail de vente sur Android. Connexion téléphone +
+                PIN, cache hors-ligne.
+              </p>
+              <ul>
+                <li>Aucune écriture financière depuis le téléphone</li>
+                <li>Synchronisation depuis la caisse, jamais l'inverse</li>
+              </ul>
+              <p><a class="card-link" href="client.html">Comment ça marche →</a></p>
+            </article>
+            <article class="card">
+              <span class="num">03</span>
+              <h3>Clôture qui colle au tiroir</h3>
+              <p>
+                L'attente suit le flux réel de la journée — y compris les règlements de factures
+                anciennes.
+              </p>
+            </article>
+            <article class="card">
+              <span class="num">04</span>
+              <h3>Support en français</h3>
+              <p>Messages d'erreur compréhensibles, pas de stack technique à la caisse.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="wrap">
+          <h2>Ils encaissent avec Veloria</h2>
+          <div class="testis">
+            <article class="testi">
+              <p class="stars">★★★★★</p>
+              <blockquote>
+                « La caisse ne tombe plus jamais. La clôture du soir prend deux minutes, et je sais
+                exactement ce qui est en espèces. »
+              </blockquote>
+              <footer><strong>Amin B.</strong> — Supérette, Alger</footer>
+            </article>
+            <article class="testi">
+              <p class="stars">★★★★★</p>
+              <blockquote>
+                « Mes clients consultent leur dette sans appeler. Les disputes de caisse ont presque
+                disparu. »
+              </blockquote>
+              <footer><strong>Nadia Z.</strong> — Pharmacie, Oran</footer>
+            </article>
+            <article class="testi">
+              <p class="stars">★★★★★</p>
+              <blockquote>
+                « Hors-ligne, rapide, imprimé propre. J'ai arrêté les tableurs pour le stock. »
+              </blockquote>
+              <footer><strong>Karim H.</strong> — Café-restaurant, Constantine</footer>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="wrap">
+          <h2>Prêt à encaisser ?</h2>
+          <p class="muted">Démonstration gratuite, essai, puis licence. Aucun engagement.</p>
+          <p>
+            <a class="btn btn-primary" href="contact.html">Demander une démo</a>
+            <a class="btn btn-wa" href="https://wa.me/213770204047" target="_blank" rel="noopener"
+              >WhatsApp direct</a
+            >
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-in">
+        <p><strong>Veloria</strong> — POS hors-ligne &amp; application client.</p>
+        <nav aria-label="Pied de page">
+          <a href="index.html">Accueil</a><a href="pos.html">POS</a><a href="client.html">Client</a
+          ><a href="pricing.html">Tarifs</a><a href="contact.html">Contact</a>
+        </nav>
+        <p class="muted">
+          Site de présentation — téléchargement sur demande via Contact ou WhatsApp. Captures et
+          vidéo : application réelle.
+        </p>
+      </div>
+    </footer>
+    <script src="app.js" defer></script>
+  </body>
+</html>

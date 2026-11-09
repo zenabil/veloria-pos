@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Veloria POS — Caisse hors-ligne</title>
+    <meta
+      name="description"
+      content="Veloria POS : ventes, retours, achats, stock, dettes, clôture Z, sessions de caisse, impression et sauvegarde."
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="wrap header-in">
+        <a class="brand" href="index.html"
+          ><img src="assets/logo.svg" alt="Veloria" width="34" height="34" /> Veloria</a
+        >
+        <button
+          class="nav-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="main-nav"
+          data-nav-toggle
+        >
+          Menu
+        </button>
+        <nav id="main-nav" class="main-nav" aria-label="Navigation principale">
+          <a href="index.html">Accueil</a>
+          <a href="pos.html" aria-current="page">POS</a>
+          <a href="client.html">Client</a>
+          <a href="pricing.html">Tarifs</a>
+          <a href="contact.html">Contact</a>
+          <a class="btn btn-primary" href="contact.html">Demander une démo</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="wrap">
+          <p class="eyebrow">Caisse desktop • Windows • Hors-ligne</p>
+          <h1>Veloria <span class="grad">POS</span></h1>
+          <p class="lead">
+            Encaissez, gérez stock et dettes, clôturez, imprimez — même sans connexion. Chaque
+            opération est une transaction unique : jamais de doublon, jamais de centime perdu.
+          </p>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="pricing.html">Voir les tarifs</a>
+            <a class="btn btn-glass" href="contact.html">Demander une démo</a>
+            <a class="btn btn-wa" href="https://wa.me/213770204047" target="_blank" rel="noopener"
+              >WhatsApp +213 770 20 40 47</a
+            >
+          </div>
+        </div>
+        <div class="wrap hero-visual">
+          <figure class="device">
+            <img src="assets/real-pos-sales.png" alt="Écran réel caisse Veloria POS" />
+            <figcaption>Caisse réelle — encaissement en une étape</figcaption>
+          </figure>
+          <div>
+            <video
+              class="showcase"
+              controls
+              playsinline
+              preload="metadata"
+              poster="assets/real-pos-sales.png"
+            >
+              <source src="assets/pos-demo.webm" type="video/webm" />
+            </video>
+            <p class="muted">Démonstration : vente et encaissement (vidéo réelle).</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="wrap">
+          <h2>Encaissement et clôture</h2>
+          <div class="bento">
+            <article class="card wide">
+              <span class="num">01</span>
+              <h3>Vente en une étape</h3>
+              <p>Montant, moyen et échéance sur le même écran. Paiement atomique + idempotent.</p>
+            </article>
+            <article class="card">
+              <span class="num">02</span>
+              <h3>Clôture Z juste</h3>
+              <p>L'attente suit le flux réel d'espèces — y compris les règlements anciens.</p>
+            </article>
+            <article class="card">
+              <span class="num">03</span>
+              <h3>Sessions par poste</h3>
+              <p>Fond, comptage, écart (`compté − attendu`).</p>
+            </article>
+            <article class="card">
+              <span class="num">04</span>
+              <h3>Retours tracés</h3>
+              <p>Remise en stock ou non, remboursement ou avoir imputé.</p>
+            </article>
+          </div>
+          <div class="thumb-grid">
+            <figure class="thumb">
+              <img src="assets/real-pos-dashboard.png" alt="" />
+              <figcaption>Tableau de bord</figcaption>
+            </figure>
+            <figure class="thumb">
+              <img src="assets/real-pos-stock.png" alt="" />
+              <figcaption>Stock</figcaption>
+            </figure>
+            <figure class="thumb">
+              <img src="assets/real-pos-reports.png" alt="" />
+              <figcaption>Rapports</figcaption>
+            </figure>
+            <figure class="thumb">
+              <img src="assets/real-pos-settings.png" alt="" />
+              <figcaption>Paramètres</figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="wrap split">
+          <div>
+            <h2>Stock, achats, dettes</h2>
+            <ul class="check">
+              <li>Réceptions, commandes, retours fournisseurs, FIFO.</li>
+              <li>Inventaires et alertes de réapprovisionnement.</li>
+              <li>Dettes clients ventilées FIFO, échéances et retards.</li>
+            </ul>
+          </div>
+          <div>
+            <h2>Fiabilité des données</h2>
+            <ul class="check">
+              <li><strong>SQLite local unique</strong> — pas de cloud métier.</li>
+              <li><strong>Centimes DZD</strong>, jamais de flottant.</li>
+              <li><strong>Sauvegarde auto</strong> 10 min → hebdo, restauration vérifiée.</li>
+              <li><strong>Miroir Android</strong> en lecture seule depuis la caisse.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-in">
+        <p><strong>Veloria</strong> — POS hors-ligne &amp; application client.</p>
+        <nav aria-label="Pied de page">
+          <a href="index.html">Accueil</a><a href="pos.html">POS</a><a href="client.html">Client</a
+          ><a href="pricing.html">Tarifs</a><a href="contact.html">Contact</a>
+        </nav>
+      </div>
+    </footer>
+    <script src="app.js" defer></script>
+  </body>
+</html>
