@@ -3,8 +3,10 @@
 > Point d entree unique. Les decisions structurantes vivent en `ADR-*.md`,
 > l avancement en `reports/PHASE_*.md`. Ne jamais ecrire de rapport a la racine.
 > Conventions : `AGENTS.md` + `docs/STRUCTURE.md` (carte maintenance).
+> Volumetrie vivante (migrations, canaux IPC, fichiers de test, ADR) :
+> `docs/METRICS.md` — generee et gardee par `npm run verify:docs` (ADR-178).
 
-## Decisions (ADR-001 a ADR-166 — tous saries, jamais supprimes)
+## Decisions (tous saries, jamais supprimes)
 
 - [ADR-001](./ADR-001-vite-renderer.md) Renderer Vite
 - [ADR-002](./ADR-002-native-versions.md) Versions natives
@@ -182,12 +184,15 @@
 - [ADR-174](./ADR-174-audit-integral-2026-11-03.md) Audit intégral 2026-11-03 : portes **prouvées mensongères** (loquet de migrations absent, CI rouge par construction, gardes vides sur 0 fichier, `secret-scan` aveugle à Supabase et à `owner/`) et défauts radicaux corrigés (E-36…E-58 : parseur d'argent, plafonds agrégats, `operationId` lié au contenu, file miroir, snapshot pré-reset, échéance d'impression, confinement de chemins, pont IPC FR, crash Owner) — avec la liste de ce qui a été **refusé** et des 7 restes-à-faire écrits noir sur blanc
 - [ADR-175](./ADR-175-diagnostic-cle-miroir.md) Diagnostic d'identité du miroir : `isMirrorAuthRejection` distingue un 401 de CLÉ (message `SERVICE_KEY_REFUSED`, file intacte) d'un 401 réseau, `classifyApiKey` + `assertServiceKeyUsable`/`assertAnonKeyPublic` interdisent une clé publiable en champ secret et une clé secrète dans le QR V2, et le cloud est mesuré conforme à `cloud/supabase/*.sql` (E-60)
 - [ADR-176](./ADR-176-contrat-client-sync-cors-et-orphelins.md) Contrat `client-sync` contre le cloud réel : CORS déployé (preflight `OPTIONS → 204` + en-têtes sur les erreurs — la build web ne pouvait pas se connecter, masquée par les relais locaux qui, eux, envoyaient les en-têtes), accès miroirs orphelins ayant coupé le client réel (index UNIQUE `client_access_active_phone_uq` + purge sur accord), `isMirrorPhoneConflict`/`MIRROR_PHONE_CONFLICT_MESSAGE` (E-61), boucle E2E réelle `test:e2e:cloud`, et `shop_key` reporté en slice complète
+- [ADR-177](./ADR-177-reparation-radicale-2026-11-09.md) Reparation radicale post-audit : flux de caisse unique (`sale_payments`), journal des remboursements (0060), sauvegarde qui ne mange plus sa source, sync « reserve avant l'envoi », idempotence explicite (0061), acces client historise (0062), FR strict
+- [ADR-178](./ADR-178-source-unique-des-metriques.md) Source unique des metriques : `docs/METRICS.md` genere + porte `verify:docs` (les compteurs documentes ne peuvent plus deriver du code)
 
 ## Ou ecrire quoi
 
 | Dossier                          | Contenu                                                                            |
 | -------------------------------- | ---------------------------------------------------------------------------------- |
 | `docs/ADR-*.md`                  | Decisions (ce fichier pointe, ne duplique pas)                                     |
+| `docs/METRICS.md`                | Volumetrie vivante (generee, gardee par `verify:docs`)                             |
 | `docs/reports/PHASE_*.md`        | Avancement canonique                                                               |
 | `docs/reports/maintenance/*.md`  | Maintenance poste (scripts et logs en `scripts/maintenance/`)                      |
 | `docs/licensing/`                | Detail licences (17 docs)                                                          |

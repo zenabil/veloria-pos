@@ -18,5 +18,9 @@ docs/archive/stitch/
 docs/archive/stitch_veloria_supervision_mobile/
 *.log
 *.tsbuildinfo
+# ADR-178 : fichier GÉNÉRÉ — la porte `verify:docs` est seule responsable de son
+# contenu et de sa mise en forme (Prettier et la porte ne doivent pas se
+# contrarier : le contenu est comparé de façon normalisée).
+docs/METRICS.md
 public/icons/
 resources/ocr/lang/

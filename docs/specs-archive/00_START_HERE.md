@@ -1,5 +1,17 @@
 # VELORIA PoS — From-Scratch Engineering Specification
 
+> ⚠️ **ARCHIVE HISTORIQUE — 2026-09-14 — NON CONTRACTUEL.**
+> Cette spécification est **figée depuis le 2026-09-14** : elle décrit le
+> produit _à cette date_. Le code a avancé depuis (modules, tables, pile
+> technique, migrant de 0001..00NN). **Elle n'est plus un contrat
+> d'exécution** : l'écart est mesuré (25 tables documentées contre 48
+> réelles ; unité `Bread` supprimée par ADR-109 ; pile imposée — Next.js,
+> Radix, Recharts — jamais adoptée).
+>
+> Pour l'état **vivant** du projet : le code, indexé par `docs/INDEX.md`
+> (ADR) et `docs/METRICS.md` (volumétrie, vérifiée par `npm run verify:docs`).
+> Voir `docs/ADR-178-source-unique-des-metriques.md` (décision et écart).
+
 **Application:** Veloria PoS  
 **Logical database name:** `veloria POS DB`  
 **Physical SQLite file:** `Veloria POS DB.sqlite`  
@@ -7,7 +19,7 @@
 **Primary language:** French  
 **Currency:** DZD  
 **Architecture:** Offline-first, SQLite-first, local single-store desktop  
-**Status:** Authoritative reconstruction specification
+**Status:** Historical reconstruction specification (frozen 2026-09-14 — archive, see banner above)
 
 ## Purpose
 

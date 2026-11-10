@@ -1,4 +1,4 @@
-// Veloria PoS — Coquille « Stitch » (barre latérale + 17 modules, notifications globales).
+// Veloria PoS — Coquille « Stitch » (barre latérale + 16 modules, notifications globales).
 // Interface en français uniquement, mode clavier d'abord.
 // PERF (requête 5) : caisse (module d'accueil) chargée d'emblée, les 16 autres
 // modules en lazy (chunks séparés, voir module-screens.ts) — premier affichage

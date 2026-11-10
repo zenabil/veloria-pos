@@ -28,13 +28,14 @@ src/shared/             ui/, types/ipc-*, errors/fr-map, money/parse,
                         formatters/, documents/, dates, company, settings, sound, export/csv
 src/domain/             Pur, framework-free (money, sales, customers, inventory,
                         suppliers, returns, proforma, closings, expenses,
-                        packaging (carton), barcode, units, ocr, …)
+                        packaging (carton), barcode, units, ocr, … — liste
+                        complète : docs/METRICS.md)
 src/application/        Use-cases fins (sales/create-sale, sales/packaging-lines,
                         customers/client-access)
 electron/               main/, ipc/{channels,validators,registry + handlers/*.repo.ts},
                         database/, preload/ (seul pont window.veloria),
                         licensing/, printing/, ocr/, backup/, sync/, security/
-database/migrations/    0001..0056 IMMUABLES — tout changement = NOUVELLE migration
+database/migrations/    IMMUABLES (plage exacte : docs/METRICS.md) — tout changement = NOUVELLE migration
                         + `npm run verify:migrations` vert
 ```
 
@@ -60,30 +61,38 @@ Règles dures (voir `AGENTS.md`) :
 
 ## 4. Docs (où écrire quoi)
 
-| Dossier                   | Quoi                                                                                                            |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `docs/ADR-*.md`           | Décisions d'ingénierie (001→153, séquentiel, jamais réécrit — une révision = un nouvel ADR qui pointe l'ancien) |
-| `docs/INDEX.md`           | Index des ADR + Où écrire quoi (pointe, ne duplique pas)                                                        |
-| `handoff.md` (racine)     | État courant + une section par session — la doc vivante du chantier                                             |
-| `docs/reports/PHASE_*.md` | Avancement par phase (canonique — la racine n'en contient plus)                                                 |
-| `docs/archive/`           | `root-legacy/` (anciens rapports racine) + `stitch/` (maquettes) — lecture seule                                |
-| `docs/licensing/`         | `CAPABILITIES.md`, `ACTIVATION.md`, … (détail licences)                                                         |
-| `docs/specs-archive/`     | Spec source of truth (figée)                                                                                    |
-| `docs/STRUCTURE.md`       | Ce fichier (carte maintenance)                                                                                  |
+| Dossier                   | Quoi                                                                                                                                       |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `docs/ADR-*.md`           | Décisions d'ingénierie (séquentiel, jamais réécrit — dernier ADR : cf. docs/METRICS.md — une révision = un nouvel ADR qui pointe l'ancien) |
+| `docs/INDEX.md`           | Index des ADR + Où écrire quoi (pointe, ne duplique pas)                                                                                   |
+| `docs/METRICS.md`         | **Volumétrie vivante** (migrations, canaux, tests, ADR) — section générée, gardée par `verify:docs`                                        |     |
+| `handoff.md` (racine)     | État courant + une section par session — la doc vivante du chantier                                                                        |
+| `docs/reports/PHASE_*.md` | Avancement par phase (canonique — la racine n'en contient plus)                                                                            |
+| `docs/archive/`           | `root-legacy/` (anciens rapports racine) + `stitch/` (maquettes) — lecture seule                                                           |
+| `docs/licensing/`         | `CAPABILITIES.md`, `ACTIVATION.md`, … (détail licences)                                                                                    |
+| `docs/specs-archive/`     | Spec source of truth (figée)                                                                                                               |
+| `docs/STRUCTURE.md`       | Ce fichier (carte maintenance)                                                                                                             |
 
 ## 5. Tests (portes vertes)
 
 ```
 tests/unit/         Règles domaine pures + contrats IPC + bridge-shape
 tests/integration/  Tranches atomiques SQLite réel (ventes, FIFO, carts, sync…)
-tests/database/     Migrations + invariants racine (0001..0056 rejouées)
+tests/database/     Migrations + invariants racine (toutes rejouées)
 tests/e2e/          Playwright + Electron réel, base vierge par test (1 worker)
 ```
 
 Commandes : `test`, `test:db`, `test:e2e`, `test:coverage` (seuils 80/75/88/80
 sur `src/domain` + `src/application`), `test:coverage:features` (cran
-interface), `verify:migrations`, `verify:domain`, `verify:perf`,
+interface), `verify:migrations`, `verify:domain`, `verify:docs`, `verify:perf`,
 `verify:fr`, `verify:encoding`, `license:scan`.
+
+Volumétrie (fichiers de test, canaux IPC, migrations, ADR) : **source unique**
+`docs/METRICS.md` — section générée par
+`node scripts/quality/verify-docs.mjs --write`, **gardée** par
+`npm run verify:docs` (porte rouge si un compteur du code bouge sans que la
+documentation suive). Règle : aucun compteur n'est recopié à la main ailleurs —
+les documents y renvoient.
 
 ## 6. Ajouter une fonctionnalité (checklist)
 
@@ -101,6 +110,15 @@ interface), `verify:migrations`, `verify:domain`, `verify:perf`,
 ## 7. Pièges connus (ne pas réintroduire)
 
 - Rapports à la racine → `docs/reports/` ou `docs/archive/` (ADR-058).
+- **Compteurs dans la documentation** : aucun nombre figé dans `README.md`,
+  `docs/STRUCTURE.md`, `docs/INDEX.md`. Tout indicateur vivant (migrations,
+  canaux IPC, fichiers de test, ADR) vit dans `docs/METRICS.md`, section
+  générée ; `npm run verify:docs` échoue si le code a bougé sans la doc
+  (ADR-178). `handoff.md` fait exception : c'est un journal, ses chiffres
+  passés sont des archives datées.
+- **Angle mort `knip`** : `config/knip.json` ne couvre pas `scripts/**` — un
+  script mort passe la porte. Vérifier à la main avant d'ajouter un script
+  (ou l'ajouter au périmètre `knip` dans le même commit).
 - Maquettes Stitch à la racine → `docs/archive/stitch/` (ADR-033/035/036/055).
 - `dist*/`, `release/`, `*.log` : artefacts ignorés, jamais committés
   (`npm run clean` + `clean:logs` pour purger le poste). Les `tsbuildinfo`
@@ -148,7 +166,7 @@ src/domain/               pur, framework-free (jamais react/electron/sqlite)
 src/shared/               ui/, formatters/, money/parse, errors/fr-map, …
 electron/                 main/, ipc/channels+validators+registry+handlers,
                           database/, preload/ (seul pont window.veloria)
-database/migrations/      0001..0056 IMMUABLES (+ verify-migrations vert)
+database/migrations/      0001..00NN IMMUABLES (+ verify-migrations vert)
 mobile/src + cloud/       satellites isolés (aucun import vers src/electron)
 ```
 

@@ -1,5 +1,10 @@
 # Veloria PoS — Markdown Specification Package
 
+> ⚠️ **Archive historique (figée le 2026-09-14)** — ce n'est plus la source de
+> vérité exécutable du projet (voir le bandeau de `00_START_HERE.md` et
+> `docs/ADR-178-source-unique-des-metriques.md`). L'état vivant est décrit par
+> le code, `docs/INDEX.md` (ADR) et `docs/METRICS.md` (volumétrie).
+
 This folder contains the complete from-scratch engineering documentation for Veloria PoS.
 
 ## Files

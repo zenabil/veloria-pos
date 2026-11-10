@@ -23,23 +23,33 @@ $env:VITE_DEV_SERVER_URL="http://localhost:5173"; npx electron .
 ## Qualité
 
 ```powershell
-npm run check              # format + lint + typecheck ×3 + typecheck mobile
-npm run verify             # migrations + domaine + fr + encoding + perf + licence
+npm run check              # format + lint + typecheck ×5 (root, electron, manager,
+                           # mobile, owner)
+npm run verify             # migrations + domaine + docs + fr + encoding + perf
+                           # + version + license:scan
 npm run knip               # code mort (config/knip.json)
-npm run test               # 169 fichiers / ~1 146 tests (domaine pur, contrats
-                           # IPC, intégration SQLite réel via node:sqlite)
+npm run test               # suite complète (domaine pur, contrats IPC,
+                           # intégration SQLite réel via node:sqlite)
 npm run test:db
 node scripts/database/integrity.js        # base réelle, lecture seule
 npm run typecheck:electron # main/preload (strict + noUncheckedIndexedAccess)
 npm run typecheck:manager  # License Manager (outil vendor)
+npm run verify:docs       # volumétrie : les compteurs documentés sont à jour ?
 ```
+
+**Volumétrie (source unique)** : `docs/METRICS.md` — générée par
+`node scripts/quality/verify-docs.mjs --write`, **vérifiée** par
+`npm run verify:docs` (porte rouge dès qu'un compteur du code bouge sans que
+la documentation suive). Aucun nombre n'est recopié à la main dans ce
+README.
 
 ## Tests E2E (Playwright + Electron réel)
 
 ```powershell
 npm run build              # renderer requis par l'app empaquetée en test
 npm run build:electron     # main/preload requis
-npm run test:e2e           # 24 specs / 54 tests, 1 worker (~30 min la suite)
+npm run test:e2e           # specs Playwright (volumétrie : docs/METRICS.md),
+                           # 1 worker (~30 min la suite)
 ```
 
 - **Piège de shell** : un shell qui exporte `ELECTRON_RUN_AS_NODE=1` (terminal
@@ -112,8 +122,11 @@ npm run license:scan       # garde-fou : aucun secret dans le POS
 
 ## Spécification
 
-`docs/specs-archive/` est la source of truth figée.
-Décisions d'ingénierie : `docs/ADR-*.md` (001→153, indexées dans `docs/INDEX.md`).
+`docs/specs-archive/` est une **spec historique figée (2026-09-14)** — ce n'est
+plus un contrat d'exécution : le code a avancé depuis (modules, tables, pile
+technique). La description **vivante** du projet est le code, indexée par
+`docs/INDEX.md` (ADR) et `docs/METRICS.md` (volumétrie).
+Décisions d'ingénierie : `docs/ADR-*.md`, indexées dans `docs/INDEX.md`.
 Avancement : `docs/reports/PHASE_X_REPORT.md` + `handoff.md` (continuité entre
 sessions — à lire en premier après `AGENTS.md`).
 Carte maintenance : `docs/STRUCTURE.md`. Archives : `docs/archive/` (`root-legacy/`, `stitch/`).

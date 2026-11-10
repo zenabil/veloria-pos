@@ -15,6 +15,7 @@
 
 ## 1) État courant
 
+- **Session 116 (2026-11-10)** : **audit documentaire doc↔code puis réparation RADICALE de la dérive (ADR-178)** — demande : « ادرس الان وثائق المشروع و قارنها عن ما وجدناه فعليا في الكود » puis « اصلح جذريا و تحقق ». Constat mesuré (code réel, pas documentation) : les documents « vivants » citaient des compteurs **figés** — README « 169 fichiers / ~1 146 tests » (réel : 193 fichiers / 1 417 cas), « typecheck ×3 » (réel ×5), « 24 specs E2E » (réel 26), « ADR-001→153 » (réel 177) ; STRUCTURE « 0001..0056 IMMUABLES » ×3 (réel 0001..0062) ; INDEX « ADR-001 a ADR-166 » sans ADR-177 ; handoff §6 « vitest (661) » ; §5 « En attente » listant des tâches **déjà livrées** (Lot 2 bis, `expo-constants`, ADR-120, vague W1). Cause racine : le compteur était **dupliqué à la main** dans N fichiers, sans mécanisme reliant la copie à la source. Réparation : **source unique** `docs/METRICS.md` (section générée) + **porte** `scripts/quality/verify-docs.mjs` (`npm run verify:docs`, **intégrée à `npm run verify`**) qui recalcule les compteurs depuis l'arbre, échoue si la section est périmée, échoue si un littéral obsolète réapparaît (liste de régression figée : `0056`, `169 fichiers`, `1 146 tests`, `typecheck ×3`, `ADR-001→153`, `661`, `181`, `125`…), et échoue si un document vivant ne renvoie pas vers METRICS. Dérive **démontrée** : la porte a rougi seule à la création d'ADR-178 (compteur ADR 177→178) — la preuve que la garde mord. `docs/specs-archive/` requalifié **archive historique 2026-09-14** (bandeau + README : n'est plus « source of truth », écart mesuré 25 tables documentées contre 48 réelles) ; ADR-177 indexé ; ADR-178 créé (décision + écart) ; `handoff.md` §5/§6 remis à jour (items livrés rayés, compteurs renvoyés à METRICS). Aucun code métier touché (une correction de commentaire : `App.tsx` « 17 modules » → 16). Portes : `verify:docs` vert · `verify:migrations` **62 migrations** vert · `verify:domain` vert (67 mutación IPC) · `verify:fr` 341 fichiers vert · `verify:encoding` 1 028 fichiers vert · `verify:perf` vert (commit vente 8 ms) · `tsc -b` vert · `eslint` vert · suite complète **193 fichiers / 1 417 cas, 0 échec** (243 s) · `format:check` vert. Détails : ADR-178 + `docs/METRICS.md`.
 - **Session 115 (2026-11-10)** : « ثبت الأفضل واعطني طريقة استخدام كل واحدة » — installation globale verifiee de 6 outils : bun 1.4.4, @biomejs/biome 2.6.6, typescript 7.0.2, vite 8.3.7, serve 14.2.7, playwright 1.65.0. Smoke reels : `bun -e` = 42, `tsc --ignoreConfig --strict --noEmit` OK (TS7 exige --ignoreConfig si tsconfig present + fichiers CLI), `biome format` imprime le diff. Livrable = guide interactif (visualization web-dev-toolbox) + synthese Arabic. Aucun changement au code du depot ; package.json du projet intact.
 - **Session 114 (2026-11-10)** : recherche GitHub « اقوى ادوات تطوير المواقع » — 42 outils mesurés via l'API publique (étoiles en direct, `gh` absent du poste). React a déménagé `facebook/react` → `react/react` (252 461, tête du classement). Catégories couvertes : frameworks, build/runtime, style, qualité, tests, UI, motion/3D, backend. Aucune modification de code ; livrable = synthèse Arabic + ce relevé.
 - **Session 113 (2026-11-09)** : site vitrine — bouton « scroll down » partagé (`website/app.js` + `website/styles.css`) : section suivante avec offset du header sticky, barre de progression, retour en haut en fin de page, masqué si la page ne défile pas, clavier/tactile/`prefers-reduced-motion`, scrollbar aux couleurs du site. Corrections visibles : fermeture `</video>` orpheline retirée (`index.html`), comparatif mobile dans un conteneur défilant (`pricing.html`), `[hidden]` respecté. Vérifié : `node --check` 0, Prettier 0, Playwright 6 pages × 2 viewports (1280×800, 390×844) — 0 erreur console, 0 overflow X, clic + espace, bas de page → retour haut, tableau mobile défilant sans overflow page.
@@ -359,47 +360,52 @@ Non supprimé : la correction exige `mobile/package-lock.json`
 
 ## 5) En attente (next actions)
 
-> **Priorité 2026-10-19 (§18)** : le plan de remédiation
-> `docs/reports/FULL_AUDIT_2026-10-19_PLAN.md` (11 vagues W0→W10) prime sur
-> les items ci-dessous, qui y sont repris (Q1→Q20). **Prochaine action
-> attendue : approbation du propriétaire sur (a) ADR-120, (b) Q5 (chantier
-> impression : commit ou stash), (c) la vague W1 (logique financière).**
+> **Mise à jour 2026-11-10 (session 116)** : la liste ci-dessous était
+> **périmée** — elle contenait des tâches **déjà livrées** (et annonçait
+> encore « vague W1 » comme prochaine action, alors que W1→W10 sont
+> exécutées et commitées). Les items livrés sont **rayés avec leur preuve** ;
+> seuls les items réellement ouverts subsistent.
+> Priorité courante : (a) `shop_key` sur le **miroir client** (ADR-176 §6 —
+> prérequis d'une purge automatique sûre), (b) `verify:licensing` hors
+> `verify` (non lançable hors poste), (c) repo distant + premier run CI
+> (299+ commits sans run), (d) E2E `installer.spec` (UAC).
 
-- [ ] **Lot 2 bis** : `templates.get` + `printer.get` + les 24 réexports morts
-      de `receipt-documents*` — **nécessite le commit du chantier impression**
-      d'abord (zone de chevauchement stricte). _(→ vague W6 du plan)_
-- [ ] **`announcements.save`** : décision produit — construire l'UI des
-      annonces magasin, ou retirer le canal + domaine + repo. _(→ Q1)_
-- [ ] **`expo-constants`** : dépendance `mobile` inutilisée (retrait soumis à
-      mise à jour du lockfile mobile). _(→ Q3)_
-- [x] ~~**`docs/INDEX.md`** : étendre au-delà de ADR-103 (118 + 119 à ajouter)~~
-      — **fait le 2026-10-19** : l'index était déjà complet jusqu'à ADR-119
-      (l'affirmation « jusqu'à 103 » de l'ancien §1 était fausse) ; ADR-120
-      et les 2 rapports d'audit y ont été ajoutés.
-- [ ] **Revue + tag** de l'arbre checkpointé (HEAD `fec3acf`, §11) —
-      proposition : tag local `v1.0.0-session-1018` après revue.
-- [ ] **Session admin** : `installer.spec` (UAC) — seul gate jamais vert.
-- [ ] **Relais + full-loop-client** : `node scripts/e2e-mirror-relay.mjs`
-      puis spec client (PHONE/PIN).
-- [ ] **Remote** : dépôt distant + push + CI (`.github/workflows/ci.yml`
-      prête) ; alternative `git bundle` USB.
-- [ ] **APK** : compte EAS + `eas.json` réel (placeholders refusés).
-- [ ] **Phase design restante** : D2 sticky Mobile ? non — reste D5
-      Mobile ? non. Reste : D15 soleil (contraste), D16 Mobile (compte),
-      D3 presets ? — revoir liste §D (propositions 25-36, D15/D16 mobiles
-      non faits).
+- [x] ~~**Lot 2 bis** : `templates.get` + `printer.get` + réexports morts de
+      `receipt-documents*`~~ — **livré** (ADR-153, session 62 : 2 canaux morts + 7 wrappers + 3 branches inatteignables retirés).
+- [x] ~~**`announcements.save`** : décision produit~~ — **livré** (ADR-166 :
+      UI annonces multi-médias + migration 0057 + bandeau APK ; canaux
+      `announcements.save/list/remove` enregistrés).
+- [x] ~~**`expo-constants`** : dépendance `mobile` inutilisée~~ — **livré**
+      (session 62, lot A).
+- [x] ~~**`docs/INDEX.md`** : étendre au-delà de ADR-103~~ — **fait le
+      2026-10-19** ; puis complété jusqu'à ADR-176, et **ADR-177 + ADR-178
+      indexés le 2026-11-10** (session 116).
+- [x] ~~**Vague W1** (logique financière) et **approbation ADR-120**~~ —
+      **exécutées et commitées** (plan W0→W10 terminé, cf. §1).
+- [ ] **`shop_key` sur le miroir client** (ADR-176 §6) — prérequis d'une
+      purge automatique sûre (sans lui, une seconde instance ou une base de
+      test effacerait les accès réels). Côté `owner_snapshots`, le `shop_key`
+      existe déjà (`cloud/supabase/owner.sql`).
+- [ ] **`verify:licensing`** hors de la chaîne `verify` : non lançable hors
+      poste (état local du Manager absent sur un runner).
+- [ ] **Revue + tag** de l'arbre checkpointé — proposition : tag local
+      `v1.0.0-session-1018` après revue.
+- [ ] **Session admin** : `installer.spec` (UAC) — seul gate E2E jamais vert.
+- [ ] **Remote** : dépôt distant + push + premier run CI
+      (`.github/workflows/ci.yml` prête) ; alternative `git bundle` USB.
 - [ ] **Propositions fonctionnelles 1-36** : vagues à prioriser
-      (irrigation directe : 15, 27, 14, 23).
+      (irrigation directe : 15, 27, 14, 23) — arbitrage propriétaire.
 
 ## 6) Commandes
 
 ```powershell
 npm run dev:electron          # dev (build electron + electron .)
-npm test                      # vitest (661)
+npm test                      # vitest (volumétrie : docs/METRICS.md)
 npm run test:e2e               # Playwright (electron.launch, workers:1, ~30 min total)
 npx playwright test tests/e2e/sale-flow.spec.ts   # fumée rapide ciblée (~3 min)
 node scripts/e2e-mirror-relay.mjs            # relais :8100 (prérequis full-loop)
-npm run verify:migrations && npm run verify:domain && npm run verify:perf
+npm run verify:migrations && npm run verify:domain && npm run verify:docs && npm run verify:perf
+npm run verify:docs:write     # régénère docs/METRICS.md (après un changement de compteur)
 npm run build && npm run build:electron      # TOUJOURS couplés (manifest, sinon e2e "tampered")
 npm run package:win && npm run package:manager  # OK sans admin SI Developer Mode (reg AllowDevelopmentWithoutDevLicense=1)
 npm run release:smoke && npm run release:checksums
@@ -6136,6 +6142,35 @@ suite complète rejouée en §107 (**192 fichiers / 1 412 cas**).
 automatique sûre, ADR-176 §6) ; Secret key à coller dans le POS installé du commerçant ;
 parité texte dépôt↔cloud de la fonction v4 ; passe « PIN erroné à l'écran » non bouclée faute
 d'appareil connecté.
+
+## 109) Session 2026-11-09 - Audit integral + reparation radicale (ADR-177)
+
+Plan: docs/REPAIR_PLAN_2026-11-09.md
+
+- A-01 lint retire (real-cloud-loop.spec.ts:46).
+- C-01/C-02/C-03: cloture Z + cash sessions lisent sale_payments; refunds par return_refund_movements (0060).
+- C-04: resultats cash-session stockes dans la transaction.
+- B-01/B-04: restore copie de travail + protectFiles rotation; storeOptional/delete deterministe.
+- B-03: list/status nom de base; B-02: autoSave refuse EXPIRED.
+- S-01..S-06: claim avant reseau, ownerInFlight, writeDocMeta fraiche, build dans try, accessRejected.
+- R-01/R-02: pas de retour silencieux UNIQUE; R-03: 0062 historique customer_access.
+- I-07: 0061 status pending/done; I-01/I-02: abort FR; I-03..I-06 fixes.
+- Migrations 0060/0061/0062, lock 62. verify-fr nettoye (commentaires FR).
+- Mesures: format 0, lint 0, typecheck x5 0, test 193/1417 0 echec, verify OK, knip 0, build 2.5s.
+- git indisponible sur ce poste: pas de commit possible (consigne regle 10 non executable ici).
+
+## 110) Session 2026-11-09 - Site vitrine FR (website/, theme clair marketing)
+
+Pages: index/pos/client/contact (FR), theme clair (teal #00696E), nav mobile, formulaire mailto, captures SVG.
+eslint allowDefaultProject + website/app.js (globals DOM). lint/format 0. contact@example.com a remplacer avant publication.
+
+## 111) Session 2026-11-09 - Rebuild site vitrine premium + Tarifs + captures reelles
+
+Recherche web (tendances 2026: minimal product-led, bento, mobile-first 83%, <3s, tiers transparents type Square). Rebuild complet website/styles.css + index/pos/client/contact + nouvelle pricing.html (3 formules + comparatif + FAQ). Captures: mockups/pos.html + mockups/client.html via serveur local 8099 + browser screenshot -> assets/shot-pos.png (43737) + shot-client.png (52370). lint/format 0. Prix a definir a ajuster. contact@example.com a remplacer.
+
+## 112) Session 2026-11-09 - Rebuild vitrine glass sombre + captures reelles + admin secret
+
+Rebuild complet (dark glassmorphism, 4 landing pages + pricing + admin). Email zenaguibilal2@gmail.com, WhatsApp +213770204047. Captures reelles: POS Electron 5 ecrans (real-pos-*.png), Client Expo web (real-client.png), videos Playwright pos-demo/client-demo.webm. Admin: code veloria-admin, inbox localStorage, liens telechargement geres. lint/format 0. Prix a definir a ajuster; code admin a changer.
 
 ## 113) Session 2026-11-09 - Scroll down partage sur le site vitrine
 

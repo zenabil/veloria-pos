@@ -49,6 +49,8 @@ export default tseslint.config(
             "scripts/licensing/verify-licensing.cjs",
             "scripts/quality/verify-perf.mjs",
             "scripts/quality/verify-fr-only.mjs",
+            // ADR-178 : porte « source unique des métriques » (docs/METRICS.md).
+            "scripts/quality/verify-docs.mjs",
             // W9 : porte d'encodage (U+FFFD) + config de couverture interface.
             "scripts/quality/verify-encoding.mjs",
             "vitest.features.config.ts",
@@ -65,11 +67,12 @@ export default tseslint.config(
             "mobile/index.js",
             "mobile/scripts/validate-env.mjs",
             "owner/index.js",
+            "website/app.js",
             "cloud/supabase/functions/client-sync/index.ts",
           ],
           // 24+ scripts JS hors tsconfig : le service plafonne à 8 par
           // défaut — rehaussé explicitement (lint plus lent, jamais faux).
-          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 35,
+          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 36,
         },
         tsconfigRootDir: import.meta.dirname,
       },
