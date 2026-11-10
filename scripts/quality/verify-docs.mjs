@@ -23,6 +23,12 @@
 //   4. `handoff.md` est un JOURNAL : les chiffres qu'il rappelle dans ses
 //      résumés de session sont des archives datées (vraies à leur date). La
 //      porte ne les juge donc PAS — sinon il faudrait réécrire l'histoire.
+//   5. COMPÉTENCES (`.opencode/**`) : standard Agent Skills — `name`
+//      conforme (`^[a-z0-9]+(-[a-z0-9]+)*$`) ET identique au dossier,
+//      `description` présente (1..1024 caractères), corps non vide, et
+//      AUCUN chiffre périmé : une compétence est lue à chaque tâche, un
+//      chiffre périmé y devient une INSTRUCTION fausse (« crée la migration
+//      0052 »).
 //
 // Sortie : 0 (vert) / 1 (rouge). Message FR. Aucun secret, aucun réseau.
 
@@ -34,6 +40,15 @@ const WRITE = process.argv.includes("--write");
 
 /** Fichiers « documents vivants » : leur contenu doit être à jour. */
 const LIVING_DOCS = ["README.md", "docs/STRUCTURE.md", "docs/INDEX.md"];
+
+/**
+ * Compétences OpenCode (standard Agent Skills) : le `name` doit être
+ * `^[a-z0-9]+(-[a-z0-9]+)*$` ET identique au nom du dossier qui contient
+ * `SKILL.md` ; la `description` est le seul texte lu avant activation
+ * (1..1024 caractères). Une compétence non conforme n'est pas « presque »
+ * conforme : l'agent ne la découvre pas comme prévu.
+ */
+const SKILL_NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 /**
  * Littéraux obsolètes interdits dans les documents vivants.
@@ -58,6 +73,44 @@ const FORBIDDEN_LITERALS = [
   {
     pattern: /typecheck ×3/,
     why: "le script check fait 5 typecheck (root, electron, manager, mobile, owner)",
+  },
+];
+
+/**
+ * Littéraux périmés interdits dans les COMPÉTENCES et `AGENTS.md` : ces
+ * fichiers sont relus par l'agent à chaque tâche — un chiffre périmé y
+ * devient une INSTRUCTION fausse (« crée la migration 0052 »).
+ */
+const FORBIDDEN_LITERALS_SKILLS = [
+  {
+    pattern: /prochain\s+numéro\s+apr[èe]s\s+`?0051/i,
+    why: "la dernière migration est 0062 (prochaine : 0063)",
+  },
+  { pattern: /ADR-135/, why: "index ADR périmé (cf. docs/METRICS.md)" },
+  {
+    // Piège : la forme PÉRIMÉE est le chemin non préfixé ; la forme correcte
+    // (`docs/reports/PHASE_X_REPORT.md`) est acceptée.
+    pattern: /(?<![a-z/])PHASE_X_REPORT\.md/,
+    why: "les rapports de phase vont dans docs/reports/ (ADR-058)",
+  },
+  { pattern: /169 fichiers/, why: "compteur de tests figé" },
+  { pattern: /1[\u202f ]?146 tests/i, why: "compteur de tests figé" },
+  { pattern: /typecheck ×3/, why: "le script check fait 5 typecheck" },
+  { pattern: /0001\.\.0056/, why: "plage de migrations figée" },
+  {
+    // Compteurs « vivants » recopiés dans une compétence : ils dérivent au
+    // premier ajout de migration / canal / test. La source unique est
+    // docs/METRICS.md.
+    pattern: /\b\d{2,4}\s+(?:fichiers|canaux|cas|migrations|tables|agents|compétences)\b/,
+    why: "compteur vivant recopié — renvoie à docs/METRICS.md",
+  },
+  {
+    pattern: /prochain\s*(?:numéro\s+de\s+migration|migration|ADR)?\s*[:=]?\s*`?0\d{3}/i,
+    why: "un « prochain numéro » figé se périme au premier ajout — déduis-le du dernier (docs/METRICS.md)",
+  },
+  {
+    pattern: /prochain\s*[:=]?\s*ADR-\d+/i,
+    why: "un « prochain ADR » figé se périme — déduis-le du dernier (docs/METRICS.md)",
   },
 ];
 
@@ -115,7 +168,7 @@ function computeMetrics() {
   const latestAdr = adrNumbers.length ? Math.max(...adrNumbers) : 0;
 
   // Canaux IPC
-  const channelsSrc = read("electron/ipc/channels.ts");
+  const channelsSrc = readSafe("electron/ipc/channels.ts");
   const declared = new Set(
     [...channelsSrc.matchAll(/^\s*"([a-zA-Z0-9._-]+)":\s*"([a-zA-Z0-9._-]+)",/gm)].map((m) => m[1]),
   ).size;
@@ -132,12 +185,12 @@ function computeMetrics() {
   const e2eSpecs = listFiles("tests/e2e", (n) => n.endsWith(".spec.ts"));
 
   // Modules de la coquille
-  const modulesSrc = read("src/app/shell/modules.ts");
+  const modulesSrc = readSafe("src/app/shell/modules.ts");
   const shellModules = new Set([...modulesSrc.matchAll(/\bid:\s*"([a-z0-9-]+)"/g)].map((m) => m[1]))
     .size;
 
   // Catalogue de licence (source unique : electron/licensing/catalog.ts)
-  const catalogSrc = read("electron/licensing/catalog.ts");
+  const catalogSrc = readSafe("electron/licensing/catalog.ts");
   const blockOf = (name) => {
     const m = catalogSrc.match(new RegExp(`export const ${name} = \\[([\\s\\S]*?)\\] as const;`));
     if (!m?.[1]) return [];
@@ -358,6 +411,126 @@ if (snapshotSize !== metrics.ipcChannelsDeclared - 1) {
     `Note : canaux déclarés ${metrics.ipcChannelsDeclared}, servis ${snapshotSize} ` +
       `(écart = canaux push-only, hors « handle »).`,
   );
+}
+
+/** 3.5 — COMPÉTENCES OpenCode : conformité au standard Agent Skills. */
+const SKILLS_DIR = ".opencode/skills";
+
+/** Extrait le frontmatter YAML d'un fichier Markdown (null s'il n'y en a pas). */
+function frontmatterOf(text) {
+  if (!text.startsWith("---")) return null;
+  const end = text.indexOf("\n---", 3);
+  if (end < 0) return null;
+  const raw = text.slice(text.indexOf("\n") + 1, end);
+  const out = {};
+  for (const line of raw.split("\n")) {
+    const m = /^\s*([A-Za-z0-9_.-]+)\s*:\s*(.*)$/.exec(line);
+    if (m) out[m[1]] = m[2].trim().replace(/^["']|["']$/g, "");
+  }
+  return out;
+}
+
+const skillDirs = fs.existsSync(path.join(root, SKILLS_DIR))
+  ? fs
+      .readdirSync(path.join(root, SKILLS_DIR), { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name)
+      .sort()
+  : [];
+
+if (skillDirs.length === 0) {
+  // `.opencode/` est GITIGNORÉ (outillage local, cf. .gitignore) : sur un runner
+  // CI ou une copie propre du dépôt, le dossier n'existe pas. La porte ne peut
+  // alors rien contrôler — elle le note et n'échoue pas. Les contrôles de
+  // compétences (et la table de routage) sont SAUTÉS dans ce cas.
+  notes.push(
+    `Aucune compétence locale (${SKILLS_DIR}/ absent — normal en CI : dossier gitignoré) : ` +
+      `contrôles de compétences sautés.`,
+  );
+}
+
+for (const dir of skillDirs) {
+  const rel = `${SKILLS_DIR}/${dir}/SKILL.md`;
+  const abs = path.join(root, rel);
+  if (!fs.existsSync(abs)) {
+    failures.push(`${rel} absent — une compétence doit contenir SKILL.md.`);
+    continue;
+  }
+  const text = fs.readFileSync(abs, "utf-8");
+  const fm = frontmatterOf(text);
+  if (!fm) {
+    failures.push(`${rel} : pas de frontmatter YAML (name + description obligatoires).`);
+    continue;
+  }
+  const name = fm["name"] ?? "";
+  if (!SKILL_NAME_RE.test(name)) {
+    failures.push(
+      `${rel} : name « ${name} » non conforme au standard Agent Skills ` +
+        `(^[a-z0-9]+(-[a-z0-9]+)*$).`,
+    );
+  }
+  if (name !== dir) {
+    failures.push(`${rel} : name « ${name} » ≠ nom du dossier « ${dir} » (standard Agent Skills).`);
+  }
+  const desc = fm["description"] ?? "";
+  if (desc.length < 1 || desc.length > 1024) {
+    failures.push(
+      `${rel} : description absente ou trop longue (${desc.length} caractères, max 1024).`,
+    );
+  }
+  const body = text.slice(text.indexOf("\n---", 3) + 4).trim();
+  if (body.split("\n").length < 15) {
+    failures.push(`${rel} : corps trop court (< 15 lignes) — compétence non exploitable.`);
+  }
+  for (const { pattern, why } of FORBIDDEN_LITERALS_SKILLS) {
+    const m = text.match(pattern);
+    if (m) {
+      failures.push(`${rel} : littéral périmé « ${m[0]} » — ${why}.`);
+    }
+  }
+}
+
+/** 3.6 — Agents, commandes et table de routage : cohérence. */
+for (const dir of [".opencode/agents", ".opencode/commands"]) {
+  for (const file of listFiles(dir, (n) => n.endsWith(".md"))) {
+    const text = readSafe(file);
+    const fm = frontmatterOf(text);
+    if (!fm) {
+      failures.push(`${file} : pas de frontmatter YAML (description obligatoire).`);
+      continue;
+    }
+    if (!fm["description"]) {
+      failures.push(`${file} : frontmatter sans « description ».`);
+    }
+    for (const { pattern, why } of FORBIDDEN_LITERALS_SKILLS) {
+      const m = text.match(pattern);
+      if (m) failures.push(`${file} : littéral périmé « ${m[0]} » — ${why}.`);
+    }
+  }
+}
+
+// Table de routage d'`AGENTS.md` : toute compétence citée doit EXISTER,
+// sinon l'agent est ROUTÉ vers une compétence absente (le bug inverse).
+// Contrôle conditionné à la présence locale de `.opencode/` (dossier gitignoré
+// : absent en CI, où ce contrôle n'a pas de sens).
+const agentsText = readSafe("AGENTS.md");
+if (skillDirs.length > 0) {
+  for (const m of agentsText.matchAll(/`(veloria-[a-z0-9-]+)`/g)) {
+    const ref = m[1];
+    if (!skillDirs.includes(ref)) {
+      failures.push(
+        `AGENTS.md route vers la compétence « ${ref} » qui n'existe pas dans ${SKILLS_DIR}/.`,
+      );
+    }
+  }
+}
+for (const { pattern, why } of FORBIDDEN_LITERALS_SKILLS) {
+  const m = agentsText.match(pattern);
+  if (m) failures.push(`AGENTS.md : littéral périmé « ${m[0]} » — ${why}.`);
+}
+
+if (skillDirs.length > 0) {
+  notes.push(`Compétences : ${skillDirs.length} conformes (${skillDirs.join(", ")}).`);
 }
 
 // ---------------------------------------------------------------------------

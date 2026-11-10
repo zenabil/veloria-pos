@@ -163,4 +163,80 @@ describe("porte verify:docs (ADR-178)", () => {
     expect(res.code).toBe(1);
     expect(res.out).toContain("docs/METRICS.md");
   });
+
+  it("rougit quand une compétence ne respecte pas le standard Agent Skills", () => {
+    const dir = path.join(root, "bad-skill");
+    buildTree(
+      dir,
+      [
+        "<!-- GENERATED:verify-docs:START -->",
+        "",
+        "| Indicateur | Valeur |",
+        "| --- | --- |",
+        "| Migrations SQL (numérotées, immuables) | 1 (0001..0001) |",
+        "| Tables réelles (hors `*_new` temporaires) | 1 |",
+        "| ADRs (décisions) | 1 (jusqu'à ADR-001) |",
+        "| Canaux IPC déclarés | 2 |",
+        "| Canaux IPC servis (snapshot gelé) | 1 |",
+        "| Fichiers de test (unit + integration + database) | 2 |",
+        "| Specs E2E (Playwright) | 1 |",
+        "| Modules de la coquille POS | 2 |",
+        "| Pages de licence | 2 |",
+        "| Features de licence | 1 |",
+        "| Dossiers du domaine (`src/domain`) | 0 |",
+        "",
+        "<!-- GENERATED:verify-docs:END -->",
+      ].join("\n"),
+    );
+    // Compétence au `name` non conforme (espaces + majuscules) : le standard
+    // Agent Skills exige `^[a-z0-9]+(-[a-z0-9]+)*$` ET le nom du dossier.
+    const skill = path.join(dir, ".opencode/skills/veloria-money/SKILL.md");
+    fs.mkdirSync(path.dirname(skill), { recursive: true });
+    fs.writeFileSync(
+      skill,
+      "---\nname: Veloria Money\ndescription: Compétence de test.\n---\n\n# Titre\n\n" +
+        "Ligne 1\nLigne 2\nLigne 3\nLigne 4\nLigne 5\nLigne 6\nLigne 7\nLigne 8\n" +
+        "Ligne 9\nLigne 10\nLigne 11\nLigne 12\nLigne 13\nLigne 14\nLigne 15\nLigne 16\n",
+      "utf-8",
+    );
+    const res = runGate(dir);
+    expect(res.code).toBe(1);
+    expect(res.out).toContain("non conforme au standard Agent Skills");
+  });
+
+  it("rougit quand une compétence contient un chiffre périmé", () => {
+    const dir = path.join(root, "stale-skill");
+    buildTree(
+      dir,
+      [
+        "<!-- GENERATED:verify-docs:START -->",
+        "",
+        "| Indicateur | Valeur |",
+        "| --- | --- |",
+        "| Migrations SQL (numérotées, immuables) | 1 (0001..0001) |",
+        "| Tables réelles (hors `*_new` temporaires) | 1 |",
+        "| ADRs (décisions) | 1 (jusqu'à ADR-001) |",
+        "| Canaux IPC déclarés | 2 |",
+        "| Canaux IPC servis (snapshot gelé) | 1 |",
+        "| Fichiers de test (unit + integration + database) | 2 |",
+        "| Specs E2E (Playwright) | 1 |",
+        "| Modules de la coquille POS | 2 |",
+        "| Pages de licence | 2 |",
+        "| Features de licence | 1 |",
+        "| Dossiers du domaine (`src/domain`) | 0 |",
+        "",
+        "<!-- GENERATED:verify-docs:END -->",
+      ].join("\n"),
+    );
+    const agent = path.join(dir, ".opencode/agents/qa.md");
+    fs.mkdirSync(path.dirname(agent), { recursive: true });
+    fs.writeFileSync(
+      agent,
+      "---\ndescription: Agent de test.\nmode: subagent\n---\n\nProchain numéro après ADR-135.\n",
+      "utf-8",
+    );
+    const res = runGate(dir);
+    expect(res.code).toBe(1);
+    expect(res.out).toContain("littéral périmé");
+  });
 });

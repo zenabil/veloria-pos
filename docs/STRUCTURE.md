@@ -94,6 +94,42 @@ Volumétrie (fichiers de test, canaux IPC, migrations, ADR) : **source unique**
 documentation suive). Règle : aucun compteur n'est recopié à la main ailleurs —
 les documents y renvoient.
 
+## 5 bis. Compétences projet (`.opencode/`) — la mémoire de l'agent
+
+Standard **Agent Skills** (OpenCode v2) : `.opencode/skills/<nom>/SKILL.md`,
+`name` = nom du dossier (`^[a-z0-9]+(-[a-z0-9]+)*$`), `description` ≤ 1024
+caractères (seul texte lu avant activation), corps < 5 000 jetons, détail
+approfondi dans `references/*.md` (divulgation progressive). ADR-179.
+
+| Compétence         | Domaine                                              | Agent de revue   |
+| ------------------ | ---------------------------------------------------- | ---------------- |
+| `veloria-db`       | schéma, migrations immuables, invariants SQL         | `db-guardian`    |
+| `veloria-slice`    | tranche verticale, fin de tâche                      | `qa`             |
+| `veloria-ui-fr`    | renderer, français, ergonomie, design system         | `ui-fr`          |
+| `veloria-money`    | centimes, arrondi, parité, audit                     | `money-guardian` |
+| `veloria-stock`    | FIFO, unités de base, carton, coût rendu             | `db-guardian`    |
+| `veloria-closing`  | Z, jour métier, sessions de caisse, zakat, liasse    | `qa`             |
+| `veloria-sync`     | miroir cloud, outbox, contrat Edge, accès client     | `sync-guardian`  |
+| `veloria-license`  | `.vlic` Ed25519, empreinte, manifeste, capabilities  | `qa`             |
+| `veloria-electron` | sécurité main, enveloppe IPC, sauvegarde, impression | `qa`             |
+| `veloria-gates`    | doctrine des portes non vacantes, inventaire         | `qa`             |
+
+Commandes : `/migration-new`, `/slice`, `/verify`, `/docs-metrics`,
+`/council`. Agents : `db-guardian`, `qa`, `ui-fr`, `money-guardian`,
+`sync-guardian`.
+
+Règles :
+
+- une compétence est une **instruction exécutable** : tout chiffre qu'elle
+  cite doit être vrai au jour de sa lecture (d'où l'interdiction des
+  compteurs périmés) ;
+- les compteurs « vivants » ne sont **pas** recopiés : on renvoie à
+  `docs/METRICS.md` ;
+- toute compétence **nouvelle ou modifiée** passe `npm run verify:docs`
+  (standard + liste noire + table de routage `AGENTS.md`) ;
+- la table de routage d'`AGENTS.md` (règles 13-14) doit nommer **des
+  compétences existantes** — la porte le vérifie.
+
 ## 6. Ajouter une fonctionnalité (checklist)
 
 1. `database/migrations/NNNN_<sujet>.sql` (nouveau numéro, jamais d'édit).

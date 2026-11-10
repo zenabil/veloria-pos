@@ -1,6 +1,20 @@
 {
   "$schema": "https://opencode.ai/config.json",
   // Veloria PoS — Offline-first retail POS (Windows, French, DZD).
+  // OmniRoute local gateway (http://localhost:20128): balanced routing applied
+  // to the existing Veloria agents. Models-only wiring (no MCP server added).
+  "model": "omniroute/auto/best-coding",
+  "agents": {
+    "build": { "model": "omniroute/auto/best-coding" },
+    "plan": { "model": "omniroute/auto/best-reasoning" },
+    "general": { "model": "omniroute/auto/best-chat" },
+    "explore": { "model": "omniroute/auto/best-fast" },
+    "db-guardian": { "model": "omniroute/auto/best-reasoning" },
+    "qa": { "model": "omniroute/auto/best-fast" },
+    "ui-fr": { "model": "omniroute/auto/best-coding" },
+    "money-guardian": { "model": "omniroute/auto/best-reasoning" },
+    "sync-guardian": { "model": "omniroute/auto/best-reasoning" },
+  },
   // Source of truth for agent rules: AGENTS.md (11 rules).
   "formatter": true,
   "permissions": [
@@ -22,6 +36,14 @@
   ],
   "mcp": {
     "servers": {
+      "omniroute": {
+        "type": "remote",
+        "url": "http://localhost:20128/api/mcp/stream",
+        "oauth": false,
+        "headers": {
+          "Authorization": "Bearer {env:OMNIROUTE_API_KEY}",
+        },
+      },
       "context7": {
         "type": "remote",
         "url": "https://mcp.context7.com/mcp",
