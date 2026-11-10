@@ -1,0 +1,106 @@
+/* ==========================================================================
+   3. En-tête
+   ========================================================================== */
+.site-header {
+  position: sticky;
+  top: 16px;
+  z-index: 60;
+  margin: 16px auto 0;
+  max-width: var(--max);
+  background: rgb(5 20 36 / 58%);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  box-shadow:
+    var(--shadow-md),
+    inset 0 1px 0 rgb(255 255 255 / 10%);
+  backdrop-filter: blur(22px) saturate(1.5);
+  -webkit-backdrop-filter: blur(22px) saturate(1.5);
+  overflow: hidden;
+}
+@supports not (backdrop-filter: blur(1px)) {
+  .site-header {
+    background: rgb(5 20 36 / 96%);
+  }
+}
+.header-in {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 64px;
+  padding: 0 10px 0 20px;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  font-size: 1.06rem;
+  letter-spacing: -0.02em;
+  color: #fff;
+  text-decoration: none;
+}
+.brand img {
+  filter: drop-shadow(0 4px 14px rgb(251 191 36 / 35%));
+}
+.main-nav {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.main-nav a {
+  position: relative;
+  padding: 9px 13px;
+  border-radius: var(--r-pill);
+  color: var(--text-2);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition:
+    color 0.22s var(--ease-soft),
+    background 0.22s var(--ease-soft);
+}
+.main-nav a:hover {
+  color: #fff;
+  background: var(--surface-2);
+}
+.main-nav a[aria-current="page"] {
+  color: #fff;
+}
+.main-nav a[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  left: 13px;
+  right: 13px;
+  bottom: 3px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--grad-gold);
+}
+.main-nav .btn {
+  margin-left: 8px;
+  padding: 10px 20px;
+  font-size: 0.93rem;
+}
+.nav-toggle {
+  display: none;
+  margin-left: auto;
+  border: 1px solid var(--line-2);
+  background: var(--surface-2);
+  color: #fff;
+  border-radius: var(--r-pill);
+  padding: 10px 16px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.scroll-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--grad-gold);
+  transform: scaleX(var(--progress, 0));
+  transform-origin: left center;
+}

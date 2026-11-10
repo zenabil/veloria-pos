@@ -18,6 +18,7 @@
 | `vitest.config.ts`, `vitest.features.config.ts`                             | Portes de test (unit/integration/database, écrans)                                               | Scénarios métier dans le config                         |
 | `.nvmrc`, `packageManager`, `engines`                                       | Node 22.12+ / npm 10.9+ (CI alignée ; Electron 45 embarque Node 24.22)                           | Version Node ad hoc dans un script                      |
 | `handoff.md`                                                                | Continuité entre sessions (§1 = état courant, une section par session)                           | Duplication de l'ADR (pointe, ne recopie pas)           |
+| `website/`                                                                  | Site vitrine : `src/partials` (composants HTML), `src/pages` (contenu), `src/data/site.json` (textes), `styles/` (couches CSS), `build.mjs` (build statique zéro dépendance). Sortie **générée** : `*.html` + `styles/main.css` | Éditer la sortie générée (jamais) — ADR-181 |
 
 ## 2. Runtime POS (le seul qui compte en prod)
 

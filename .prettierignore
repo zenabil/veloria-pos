@@ -24,3 +24,12 @@ docs/archive/stitch_veloria_supervision_mobile/
 docs/METRICS.md
 public/icons/
 resources/ocr/lang/
+
+# Sortie GÉNÉRÉE par `npm run site:build` : formatée par le build, pas par Prettier
+# (sinon le build --check verrait une derive et le site servi differerait des sources).
+website/index.html
+website/pos.html
+website/client.html
+website/pricing.html
+website/contact.html
+website/styles/main.css

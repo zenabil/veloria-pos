@@ -43,7 +43,7 @@ async function rest(pathAndQuery: string, key: string, init?: RequestInit): Prom
   };
   const extra = init?.headers;
   if (extra && !Array.isArray(extra) && !(extra instanceof Headers)) {
-    for (const [k, v] of Object.entries(extra as Record<string, string>)) headers[k] = v;
+    for (const [k, v] of Object.entries(extra)) headers[k] = v;
   }
   const res = await fetch(`${MIRROR_URL}${pathAndQuery}`, {
     ...init,

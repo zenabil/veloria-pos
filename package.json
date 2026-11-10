@@ -67,7 +67,9 @@
     "verify:perf": "node scripts/quality/verify-perf.mjs",
     "version:check": "node scripts/release/version.mjs check",
     "version:set": "node scripts/release/version.mjs set",
-    "verify:site": "node scripts/quality/verify-site.mjs"
+    "verify:site": "node scripts/quality/verify-site.mjs",
+    "site:build": "node website/build.mjs",
+    "site:check": "node website/build.mjs --check"
   },
   "dependencies": {
     "better-sqlite3": "13.0.3",

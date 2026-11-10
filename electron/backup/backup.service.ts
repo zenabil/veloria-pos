@@ -27,9 +27,21 @@ import { sha256File } from "../licensing/hash";
 import { IPC_CHANNELS } from "../ipc/channels";
 import * as V from "../ipc/validators";
 import { enforceRawChannelGates } from "../ipc/raw-guards";
-import { claimOptional, peekOptional, storeOptional } from "../ipc/handlers/idempotency";
+import {
+  claimOptional,
+  deleteIdempotencyKey,
+  hasPendingIdempotency,
+  peekOptional,
+  storeOptional,
+} from "../ipc/handlers/idempotency";
 import { prodLicenseDeps } from "../licensing/prod-deps";
 import { getLicenseStatus, requireLicensedFeature } from "../licensing/license-service";
+
+/** B-03 : le renderer n'envoie que le nom de base — le main résout. */
+function resolveBackupFile(nameOrPath: string): string {
+  const raw = String(nameOrPath);
+  return path.isAbsolute(raw) ? path.normalize(raw) : path.join(backupDir(), raw);
+}
 
 /**
  * Garde backup (§5/§11) : vérifiée dans le main sur le payload signé.
@@ -96,7 +108,10 @@ export function vacuumInto(file: string): void {
   getDb().exec(`VACUUM INTO '${esc}'`);
 }
 
-export function createBackup(manual: boolean): { file: string; checksum: string; size: number } {
+export function createBackup(
+  manual: boolean,
+  opts?: { protectFiles?: string[] },
+): { file: string; checksum: string; size: number } {
   checkpoint();
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   // M-10 COLLISION RESISTANCE: timestamp + 6-char random suffix — two backups
@@ -143,6 +158,9 @@ export function createBackup(manual: boolean): { file: string; checksum: string;
   } catch (err) {
     log("WARN", "backup", "retention.unreadable", { error: String(err) });
   }
+  const protectedNames = new Set(
+    (opts?.protectFiles ?? []).map((f) => path.basename(path.normalize(f))),
+  );
   const files = fs
     .readdirSync(backupDir())
     .filter((f) => f.endsWith(".vposdb"))
@@ -150,6 +168,10 @@ export function createBackup(manual: boolean): { file: string; checksum: string;
   while (files.length > keep) {
     const oldest = files.shift();
     if (oldest) {
+      // B-01 : un fichier en cours d'utilisation (source de restauration)
+      // n'est JAMAIS supprimé par la rotation — même si l'excédent dépasse la
+      // rétention. C'est l'invariant avant tout règlement de comptes.
+      if (protectedNames.has(path.basename(oldest))) continue;
       try {
         fs.unlinkSync(path.join(backupDir(), oldest));
         fs.unlinkSync(path.join(backupDir(), `${oldest}.json`));
@@ -219,8 +241,9 @@ export function snapshotClosedDbFile(): { file: string } {
  * (written atomically with the backup), NOT filesystem mtime — a Windows
  * clock rollback must never cause the newest backup to be pruned. Missing or
  * corrupt sidecar → falls back to mtime (fail-safe: listed, never hidden).
+ * Chemins complets (usage interne : export, statut, restauration).
  */
-export function listBackups(): { file: string; size: number; createdAt: string }[] {
+function listBackupFilesFull(): { file: string; size: number; createdAt: string }[] {
   const dir = backupDir();
   return fs
     .readdirSync(dir)
@@ -241,6 +264,20 @@ export function listBackups(): { file: string; size: number; createdAt: string }
       return { file: full, size: st.size, createdAt };
     })
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
+}
+
+/**
+ * B-03 : l'IPC (renderer) ne reçoit QUE le nom de base — jamais le chemin
+ * absolu de `userData`. La résolution absolue vit côté main (voir
+ * `resolveBackupFile`). L'interface publique est inchangée (champ `file` =
+ * nom de base pour l'affichage et la restauration).
+ */
+export function listBackups(): { file: string; size: number; createdAt: string }[] {
+  return listBackupFilesFull().map((e) => ({
+    file: path.basename(e.file),
+    size: e.size,
+    createdAt: e.createdAt,
+  }));
 }
 
 export type BackupFrequency =
@@ -426,7 +463,7 @@ export function stopAutoBackupTimer(): void {
 // — tout appelant direct hérite de la garde anti-traversal/système/symlink.
 export function exportBackupToFolder(folder: string): { path: string } {
   const safe = assertSafeUserFolder(folder);
-  const all = listBackups();
+  const all = listBackupFilesFull();
   const last = all[0];
   if (!last) throw new Error("Aucune sauvegarde à exporter : créez-en une d'abord.");
   const dir = path.normalize(safe);
@@ -541,6 +578,16 @@ export function registerBackupIpc(): void {
   ipcMain.handle(IPC_CHANNELS["backup.autoSave"], (_e, raw: unknown) => {
     const denied = guardBackup("automatic-backup");
     if (denied) return denied;
+    // B-02 : un poste expiré peut SAUVEGARDER mais jamais RECONFIGURER
+    // l'auto (contrat documenté en tête de module). Sinon la garde
+    // `automatic-backup` (qui autorise EXPIRED) laisserait passer.
+    if (getLicenseStatus(prodLicenseDeps()).state === "EXPIRED") {
+      return {
+        ok: false,
+        code: "LICENSE_REQUIRED",
+        message: "Licence expirée : importez une licence renouvelée.",
+      };
+    }
     try {
       const input = V.backupAutoSchema.parse(raw ?? {});
       const staffDenied = enforceRawChannelGates(IPC_CHANNELS["backup.autoSave"], input);
@@ -571,7 +618,7 @@ export function registerBackupIpc(): void {
       // sans session autorisée, même avec licence valide.
       const staffDenied = enforceRawChannelGates(IPC_CHANNELS["backup.restore"], input);
       if (staffDenied) return staffDenied;
-      const file = input.file;
+      const file = resolveBackupFile(input.file);
       if (!isAllowedDatabaseFile(file)) {
         return { ok: false, code: "VALIDATION_ERROR", message: "Fichier de sauvegarde invalide." };
       }
@@ -583,8 +630,13 @@ export function registerBackupIpc(): void {
       try {
         claimOptional(input.operationId, "backup.restore", new Date().toISOString());
       } catch (claimErr) {
+        // I-07 : distingue « déjà terminé » (résultat stocké à rejouer) de
+        // « vraiment en cours » (claim sans résultat).
+        const done = peekOptional<{ restored: boolean }>(input.operationId, "backup.restore");
+        if (done) return { ok: true, data: { restored: true as const } };
         log("WARN", "backup", "restore.duplicate_claim", {
           error: claimErr instanceof Error ? claimErr.message : String(claimErr),
+          pending: hasPendingIdempotency(input.operationId),
         });
         return {
           ok: false,
@@ -597,17 +649,51 @@ export function registerBackupIpc(): void {
       try {
         assertSafeUserFolder(path.dirname(path.normalize(file)));
       } catch {
+        deleteIdempotencyKey(input.operationId);
         return { ok: false, code: "VALIDATION_ERROR", message: "Fichier de sauvegarde invalide." };
       }
       if (!fs.existsSync(file)) {
+        deleteIdempotencyKey(input.operationId);
         return { ok: false, code: "VALIDATION_ERROR", message: "Fichier introuvable." };
       }
+      // B-01 : copie de travail AVANT tout snapshot — le fichier source
+      // (éventuellement dans backupDir) est à l'abri de la rotation de
+      // `createBackup`, et ses compagnons ne peuvent pas corrompre la copie.
+      let restoreWork: string | null = null;
+      try {
+        const uniq = crypto.randomBytes(6).toString("hex");
+        restoreWork = path.join(backupDir(), `.restore-work-${uniq}.sqlite`);
+        fs.copyFileSync(file, restoreWork);
+      } catch (err) {
+        deleteIdempotencyKey(input.operationId);
+        log("ERROR", "backup", "restore.work_copy_failed", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+        return {
+          ok: false,
+          code: "BACKUP_FAILED",
+          message: "Lecture de la sauvegarde impossible.",
+        };
+      }
+      const cleanupWork = (): void => {
+        if (!restoreWork) return;
+        for (const suffix of ["", "-wal", "-shm", "-journal"] as const) {
+          try {
+            const p = `${restoreWork}${suffix}`;
+            if (fs.existsSync(p)) fs.unlinkSync(p);
+          } catch {
+            /* best-effort */
+          }
+        }
+        restoreWork = null;
+      };
       // 1. Snapshot de sécurité de la base actuelle (rollback possible).
       //    Base non ouvrable (récupération) : VACUUM impossible → copie brute
       //    du fichier fermé, avec journalisation explicite (jamais silencieuse).
+      //    B-01 : le source est protégé de la rotation pendant le snapshot.
       let snapshot: { file: string };
       try {
-        snapshot = createBackup(false);
+        snapshot = createBackup(false, { protectFiles: [file, restoreWork] });
       } catch (snapshotErr) {
         log("WARN", "backup", "restore.snapshot_fallback", {
           error: snapshotErr instanceof Error ? snapshotErr.message : String(snapshotErr),
@@ -618,6 +704,7 @@ export function registerBackupIpc(): void {
           log("ERROR", "backup", "restore.snapshot_failed", {
             error: fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr),
           });
+          cleanupWork();
           return {
             ok: false,
             code: "BACKUP_FAILED",
@@ -625,12 +712,13 @@ export function registerBackupIpc(): void {
           };
         }
       }
-      // 2. Vérification complète du fichier candidat (connexion secondaire)
+      // 2. Vérification complète de la copie de travail (connexion secondaire)
       //    + compatibilité de schéma (spec 22 : jamais de downgrade silencieux).
       try {
-        const checked = verifyDbFileCopy(file);
+        const checked = verifyDbFileCopy(restoreWork);
         if (checked.schemaVersion > latestMigrationVersion()) {
           discardSnapshot(snapshot.file);
+          cleanupWork();
           return {
             ok: false,
             code: "VALIDATION_ERROR",
@@ -640,6 +728,7 @@ export function registerBackupIpc(): void {
         }
       } catch {
         discardSnapshot(snapshot.file);
+        cleanupWork();
         return {
           ok: false,
           code: "VALIDATION_ERROR",
@@ -647,13 +736,15 @@ export function registerBackupIpc(): void {
         };
       }
       // 3. Swap : fermer, remplacer, rouvrir, contrôler. Rollback si échec.
+      //    B-01 : l'échange part de la copie de travail (jamais du source
+      //    directement), donc la source survit à toutes les branches.
       const current = getDbPath();
       if (!fs.existsSync(current)) {
         throw new Error("Base actuelle introuvable : restauration impossible.");
       }
       checkpointAndClose();
       try {
-        fs.copyFileSync(file, current);
+        fs.copyFileSync(restoreWork, current);
         removeWalCompanions(current);
         openDatabase();
         const check = integrityCheck();
@@ -699,6 +790,7 @@ export function registerBackupIpc(): void {
           log("ERROR", "backup", "restore.reopen_failed", {
             error: reopenErr instanceof Error ? reopenErr.message : String(reopenErr),
           });
+          cleanupWork();
           return {
             ok: false,
             code: "DATABASE_UNAVAILABLE",
@@ -706,13 +798,18 @@ export function registerBackupIpc(): void {
               "La base n'a pas pu être rouverte après annulation. Redémarrez l'application ou réessayez depuis l'écran de récupération — aucune donnée n'a été écrasée.",
           };
         }
+        cleanupWork();
         return {
           ok: false,
           code: "BACKUP_FAILED",
           message: "Restauration annulée : la base actuelle a été conservée.",
         };
       }
+      cleanupWork();
       log("INFO", "backup", "restore.done", { file, snapshot: snapshot.file });
+      // B-04 : la clé devient une preuve terminale — un rejouement retrouve le
+      // résultat stocké (plus de faux « déjà en cours » après échec/validation).
+      storeOptional(input.operationId, { restored: true });
       return { ok: true, data: { restored: true, snapshot: snapshot.file } };
     } catch (err) {
       log("ERROR", "backup", "restore.failed", { error: String(err) });

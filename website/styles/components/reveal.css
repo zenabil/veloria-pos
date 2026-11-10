@@ -1,0 +1,18 @@
+/* ==========================================================================
+   17. Révélation au défilement
+   ========================================================================== */
+/* Révélation au défilement : UNIQUEMENT si le JS est actif (classe `js` posée
+   par le script inline en <head>). Sans JS — crawler, lecteur d'écran sans
+   script, impression — le contenu reste VISIBLE : on ne cache jamais
+   l'information par défaut. */
+.js [data-reveal] {
+  opacity: 0;
+  transform: translateY(30px);
+  transition:
+    opacity 0.75s var(--ease),
+    transform 0.75s var(--ease);
+}
+.js [data-reveal].in {
+  opacity: 1;
+  transform: none;
+}

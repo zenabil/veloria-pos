@@ -262,9 +262,13 @@ export function activateClientAccessAtomic(args: {
   const activationCode = newActivationCode();
   const tx = db.transaction(() => {
     claimIdempotency(args.operationId, "customers.accessActivate", args.now);
-    // Remplacement : une seule identité active par client (nouveau PIN/QR à
-    // chaque activation, compteur remis à zéro, révocation levée).
-    db.prepare(`DELETE FROM customer_access WHERE customer_id = ?`).run(args.customerId);
+    // R-03 : REMPLACEMENT sans effacement — l'ancien accès est RÉVOQUÉ
+    // (historique conservé pour traçage), jamais supprimé. L'unicité « un
+    // seul actif » est portée par l'index partiel (0062).
+    db.prepare(
+      `UPDATE customer_access SET revoked_at = COALESCE(revoked_at, ?), updated_at = ?
+       WHERE customer_id = ? AND revoked_at IS NULL`,
+    ).run(args.now, args.now, args.customerId);
     const phoneHash = sha256Hex(args.phone.trim());
     // Réutilisation de numéro : la fonction Edge cherche par CONDENSAT ; deux
     // clients ACTIFS sur le même numéro lui renverraient 2 lignes → échec
@@ -276,9 +280,9 @@ export function activateClientAccessAtomic(args: {
     // traçage SANS bloquer personne (SIM recyclée → nouveau client accepté ;
     // l'Edge lit la ligne active d'abord). Bloquer aussi les révoquées
     // condamnerait à jamais un numéro attribué une fois.
-    // Le DELETE ci-dessus a retiré les lignes du MÊME client : le replay
-    // idempotent (retry/double-clic) ne trouve donc jamais « un autre client »
-    // et s'en sort comme avant. Échec → rollback complet (DELETE annulée).
+    // La révocation ci-dessus retire la ligne active du MÊME client : le
+    // replay idempotent (retry/double-clic) ne trouve donc jamais « un autre
+    // client » et s'en sort comme avant. Échec → rollback (révocation annulée).
     const reused = db
       .prepare(
         `SELECT customer_id FROM customer_access WHERE phone_hash = ? AND customer_id <> ? AND revoked_at IS NULL`,
@@ -335,8 +339,10 @@ export function revokeClientAccessAtomic(args: {
   const tx = db.transaction(() => {
     claimIdempotency(args.operationId, "customers.accessRevoke", args.now);
     // Idempotent par valeur : déjà révoqué = no-op (jamais d'erreur au retry).
+    // R-03 : on ne touche que la ligne ACTIVE — l'historique révoqué garde
+    // son instant de révocation d'origine (traçabilité).
     db.prepare(
-      `UPDATE customer_access SET revoked_at = ?, updated_at = ? WHERE customer_id = ?`,
+      `UPDATE customer_access SET revoked_at = ?, updated_at = ? WHERE customer_id = ? AND revoked_at IS NULL`,
     ).run(args.now, args.now, args.customerId);
     const result = { revoked: true };
     storeIdempotencyResult(args.operationId, result);
@@ -367,9 +373,12 @@ export function getClientAccessStatus(customerId: number): {
   lockedUntil: string | null;
 } {
   const db = getDb();
+  // R-03 : l'historique peut contenir plusieurs lignes — la plus récente
+  // (max id) dit l'état présent (active par priorité, sinon dernière révoquée).
   const row = db
     .prepare(
-      `SELECT revoked_at, failed_attempts, locked_until FROM customer_access WHERE customer_id = ?`,
+      `SELECT revoked_at, failed_attempts, locked_until FROM customer_access
+       WHERE customer_id = ? ORDER BY id DESC LIMIT 1`,
     )
     .get(customerId) as
     { revoked_at: string | null; failed_attempts: number; locked_until: string | null } | undefined;

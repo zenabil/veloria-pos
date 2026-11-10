@@ -214,7 +214,7 @@ describe("ADR-173 : la file survit aux lignes condamnées", () => {
       { operationId: OP("push-1"), now: NOW },
       mirrorWithOneBadCustomer(),
     );
-    expect(result).toEqual({ pushed: 9, access: 1, failed: 6 });
+    expect(result).toEqual({ pushed: 9, access: 1, accessRejected: 0, failed: 6 });
     expect(statuses()).toEqual({ sent: 9, failed: 6 });
   });
 

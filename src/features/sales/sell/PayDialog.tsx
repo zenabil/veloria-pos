@@ -88,6 +88,16 @@ export function PayDialog({
     }
   }
 
+  function exactAmount(): void {
+    // I-05 : `minorToInputTotal` refuse un total hors bornes — sans try/catch
+    // l'exception se lève dans l'onClick (invisible à l'ErrorBoundary).
+    try {
+      setPaidText(minorToInputTotal(totals.totalMinor));
+    } catch {
+      notify("Montant maximal dépassé.", "err");
+    }
+  }
+
   function validate(): void {
     if (paidError !== "") {
       notify(paidError, "err");
@@ -141,7 +151,7 @@ export function PayDialog({
           <Button
             type="button"
             variant="secondary"
-            onClick={() => setPaidText(minorToInputTotal(totals.totalMinor))}
+            onClick={exactAmount}
             title="Montant exact du total"
             className="min-h-[44px]"
           >

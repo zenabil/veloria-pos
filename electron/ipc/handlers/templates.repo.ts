@@ -183,7 +183,9 @@ export function activateTemplateAtomic(args: {
       err instanceof Error &&
       /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
     ) {
-      return;
+      const retry = peekIdempotency<{ activated: boolean }>(args.operationId, "templates.activate");
+      if (retry) return;
+      throw new Error("Activation déjà en cours : réessayez dans un instant.", { cause: err });
     }
     throw err;
   }
@@ -213,7 +215,9 @@ export function deleteTemplateAtomic(args: { id: number; operationId: string; no
       err instanceof Error &&
       /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
     ) {
-      return;
+      const retry = peekIdempotency<{ deleted: boolean }>(args.operationId, "templates.delete");
+      if (retry) return;
+      throw new Error("Suppression déjà en cours : réessayez dans un instant.", { cause: err });
     }
     throw err;
   }
@@ -251,7 +255,11 @@ export function resetFactoryAtomic(args: {
       err instanceof Error &&
       /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
     ) {
-      return;
+      const retry = peekIdempotency<{ reset: boolean }>(args.operationId, "templates.reset");
+      if (retry) return;
+      throw new Error("Réinitialisation déjà en cours : réessayez dans un instant.", {
+        cause: err,
+      });
     }
     throw err;
   }

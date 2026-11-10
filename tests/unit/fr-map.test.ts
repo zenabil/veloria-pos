@@ -50,4 +50,12 @@ describe("frError (P1-7)", () => {
       "Miroir hors ligne.",
     );
   });
+  it("I-02 : l'abort du miroir (This operation was aborted) ne doit jamais s'afficher en anglais", () => {
+    expect(isTechnicalMessage("This operation was aborted")).toBe(true);
+    expect(frError(new Error("This operation was aborted"), "Connexion interrompue.")).toBe(
+      "Connexion interrompue.",
+    );
+    // Et le main (toUserMessage) le mappe aussi avant l'affichage persistant.
+    expect(isTechnicalMessage("Unknown fetch failure occurred")).toBe(true);
+  });
 });

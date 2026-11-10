@@ -300,7 +300,11 @@ export function buildHistoryQuery(
   }
   const q = f.query.trim();
   if (q) {
-    conds.push(`(ref LIKE ? ESCAPE '\\' OR label LIKE ? ESCAPE '\\' OR entity_name LIKE ?)`);
+    // I-06 : ESCAPE homogène sur le troisième terme aussi — sinon `%`/`_`
+    // échappés côté TS sont interprétés comme jokers SQL sur `entity_name`.
+    conds.push(
+      `(ref LIKE ? ESCAPE '\\' OR label LIKE ? ESCAPE '\\' OR entity_name LIKE ? ESCAPE '\\')`,
+    );
     const like = `%${q.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
     params.push(like, like, like);
   }

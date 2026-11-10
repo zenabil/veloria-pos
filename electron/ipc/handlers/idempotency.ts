@@ -43,16 +43,63 @@ export function peekIdempotency<T>(operationId: string, expectedOpType?: string)
 export function claimIdempotency(operationId: string, opType: string, now: string): void {
   const db = getDb();
   db.prepare(
-    `INSERT INTO idempotency_keys (operation_id, op_type, result_json, created_at) VALUES (?, ?, '{}', ?)`,
+    `INSERT INTO idempotency_keys (operation_id, op_type, result_json, created_at, status)
+     VALUES (?, ?, '{}', ?, 'pending')`,
   ).run(operationId, opType, now);
 }
 
 export function storeIdempotencyResult(operationId: string, result: unknown): void {
   const db = getDb();
-  db.prepare(`UPDATE idempotency_keys SET result_json = ? WHERE operation_id = ?`).run(
-    JSON.stringify(result ?? {}),
-    operationId,
-  );
+  db.prepare(
+    `UPDATE idempotency_keys SET result_json = ?, status = 'done' WHERE operation_id = ?`,
+  ).run(JSON.stringify(result ?? {}), operationId);
+}
+
+/**
+ * B-04 : libération explicite d'un claim qui ne produira jamais de résultat
+ * (validation déterministe échouée, pas un crash). Sans elle, la clé reste
+ * `pending` (`'{}'`) et tout rejouement lève UNIQUE → message trompeur
+ * « déjà en cours » alors que l'opération est déjà morte. Suppression
+ * best-effort et silencieuse : l'absence du claim n'est pas un échec.
+ */
+export function deleteIdempotencyKey(operationId: string | null | undefined): void {
+  if (typeof operationId !== "string" || operationId.trim().length === 0) return;
+  try {
+    getDb().prepare(`DELETE FROM idempotency_keys WHERE operation_id = ?`).run(operationId);
+  } catch (err) {
+    log("WARN", "idempotency", "claim.release_failed", {
+      operationId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+/**
+ * I-07 : distingue « en cours » (claim sans résultat) de « terminé »
+ * (résultat stocké). Les appelants peuvent, après un conflit UNIQUE, raconter
+ * à l'opérateur la vérité : opération en cours, pas réussie en silence.
+ */
+export function idempotencyStatus(operationId: string): "absent" | "pending" | "done" {
+  try {
+    const row = getDb()
+      .prepare(`SELECT result_json, status FROM idempotency_keys WHERE operation_id = ?`)
+      .get(operationId) as { result_json: string; status: string | null } | undefined;
+    if (!row) return "absent";
+    if (typeof row.status === "string" && row.status.length > 0)
+      return row.status === "done" ? "done" : "pending";
+    return row.result_json === "{}" ? "pending" : "done";
+  } catch {
+    return "absent";
+  }
+}
+
+/**
+ * I-07 : même opération réclamée deux fois sans résultat → l'appelant doit
+ * pouvoir, après un conflit UNIQUE, proposer un message FR honnête. Retourne
+ * vrai si le claim est « pending » (pas de résultat stocké).
+ */
+export function hasPendingIdempotency(operationId: string): boolean {
+  return idempotencyStatus(operationId) === "pending";
 }
 
 /**

@@ -1472,6 +1472,10 @@ export function recordReturnRefundAtomic(args: {
       db.prepare(
         `UPDATE returns SET amount_refunded_minor = amount_refunded_minor + ?, refund_method = ?, status = ?, updated_at = ? WHERE id = ?`,
       ).run(args.amountMinor, args.method, deriveReturnStatus(total, next), args.now, args.id);
+      // C-03 : mouvement de remboursement ecrit atomiquement (date reelle de sortie
+      db.prepare(
+        `INSERT INTO return_refund_movements (uuid, return_id, amount_minor, method, created_at) VALUES (?, ?, ?, ?, ?)`,
+      ).run(randomUUID(), args.id, args.amountMinor, args.method, args.now);
     } else {
       const r = db.prepare(`SELECT * FROM supplier_returns WHERE id = ?`).get(args.id) as
         Record<string, unknown> | undefined;
@@ -1509,7 +1513,13 @@ export function recordReturnRefundAtomic(args: {
       err instanceof Error &&
       /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
     ) {
-      return;
+      // R-01 : pas de retour silencieux - le rejouement rejoue le resultat, sinon
+      // erreur FR explicite au lieu d'un faux succes.
+      const retry = peekIdempotency<{ refunded: boolean }>(args.operationId, "returns.refund");
+      if (retry) return;
+      throw new Error("Remboursement déjà en cours d'enregistrement : réessayez dans un instant.", {
+        cause: err,
+      });
     }
     throw err;
   }
@@ -1715,7 +1725,11 @@ export function cancelReturnAtomic(args: {
       err instanceof Error &&
       /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
     ) {
-      return;
+      const retry = peekIdempotency<{ cancelled: boolean }>(args.operationId, "returns.cancel");
+      if (retry) return;
+      throw new Error("Annulation déjà en cours d'enregistrement : réessayez dans un instant.", {
+        cause: err,
+      });
     }
     throw err;
   }

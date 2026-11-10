@@ -240,8 +240,8 @@ describe("activateClientAccessAtomic : numéro réutilisé refusé à la source"
       now,
     });
     expect(first.activated).toBe(true);
-    // 2) Le MÊME client réactive avec son numéro → remplacement (comportement
-    //    existant conservé : la DELETE de ses propres lignes passe).
+    // 2) Le MÊME client réactive avec son numéro → remplacement (l'historique
+    //    est conservé : l'ancien accès devient révoqué, jamais supprimé — R-03).
     const again = activateClientAccessAtomic({
       operationId: "22222222-2222-4222-8222-222222222222",
       customerId: one,
@@ -251,7 +251,7 @@ describe("activateClientAccessAtomic : numéro réutilisé refusé à la source"
     });
     expect(again.activated).toBe(true);
     // 3) Un AUTRE client avec le MÊME numéro → refus explicite, transaction
-    //    annulée (la DELETE du client 1 est restaurée, son PIN reste le sien).
+    //    annulée (la révocation du client 1 est restaurée, son PIN reste le sien).
     expect(() =>
       activateClientAccessAtomic({
         operationId: "33333333-3333-4333-8333-333333333333",
@@ -263,28 +263,33 @@ describe("activateClientAccessAtomic : numéro réutilisé refusé à la source"
     ).toThrow("Ce numéro de téléphone est déjà activé pour un autre client.");
     const rows = db
       .prepare(
-        `SELECT customer_id, pin_hash, pin_salt, pin_algo FROM customer_access WHERE phone_hash = ?`,
+        `SELECT customer_id, pin_hash, pin_salt, pin_algo, revoked_at FROM customer_access WHERE phone_hash = ?`,
       )
       .all(sha256Hex("0550123456")) as {
       customer_id: number;
       pin_hash: string;
       pin_salt: string;
       pin_algo: string;
+      revoked_at: string | null;
     }[];
-    expect(rows).toHaveLength(1);
-    expect(rows[0]?.customer_id).toBe(one);
+    // R-03 : l'historique est conservé (1 actif + 1 révoqué). La dérivation
+    // PIN se fait sur la ligne ACTIVE uniquement.
+    expect(rows).toHaveLength(2);
+    const active = rows.filter((r) => r.revoked_at == null);
+    expect(active).toHaveLength(1);
+    expect(active[0]?.customer_id).toBe(one);
     // #39 : PIN durci — sel par client + PBKDF2 vérifiable, jamais SHA-256 nu.
-    expect(rows[0]?.pin_algo).toBe("pbkdf2-sha256-100k");
-    expect(typeof rows[0]?.pin_salt).toBe("string");
-    expect(rows[0]?.pin_salt).toHaveLength(32);
+    expect(active[0]?.pin_algo).toBe("pbkdf2-sha256-100k");
+    expect(typeof active[0]?.pin_salt).toBe("string");
+    expect(active[0]?.pin_salt).toHaveLength(32);
     const derived = pbkdf2Sync(
       "654321",
-      Buffer.from(rows[0]?.pin_salt ?? "", "hex"),
+      Buffer.from(active[0]?.pin_salt ?? "", "hex"),
       100_000,
       32,
       "sha256",
     ).toString("hex");
-    expect(rows[0]?.pin_hash).toBe(derived);
+    expect(active[0]?.pin_hash).toBe(derived);
     // 4) Replay idempotent du 1er operationId → résultat stocké, aucun doublon.
     expect(
       activateClientAccessAtomic({

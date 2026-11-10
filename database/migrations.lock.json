@@ -61,6 +61,9 @@
     "0056_carton_quotes_supplier_returns.sql": "0fb9401ae1636fffe6cf67627910f39023a8ba2aa84ec7a9349a33a4d27e915a",
     "0057_announcements_media_expiry.sql": "71e93738fcaeb3a5e99bb6cb33c8a7d70cb9df559128a27ad33e5f90401b2bd5",
     "0058_business_day_closing_lock.sql": "4a964f0ad36d5cf2d32bdcd9cff127278203a5792af33919afc2be67555617b4",
-    "0059_cash_sessions.sql": "381940b8ec4d10aa6362f846ace0129d17ba4c590c4046b60233263675bb9eb5"
+    "0059_cash_sessions.sql": "381940b8ec4d10aa6362f846ace0129d17ba4c590c4046b60233263675bb9eb5",
+    "0060_return_refund_movements.sql": "5d23217b5803e623ffc1698fa780b89683358eaa2d5195e57ea12f6a72c5b018",
+    "0061_idempotency_status.sql": "e51bdbe0e032c7b6ac882827b78d2da2aa0c748368352580c69e9b3f5f8f0dce",
+    "0062_client_access_history.sql": "818aede53116317ec19b0013a06fd5470bd26edff34b3d892ceb96646ade8e73"
   }
 }

@@ -349,20 +349,22 @@ describe("Liasse de supervision propriétaire (ADR-171)", () => {
     const audit = s.money.audit;
     expect(audit.activeRegisters).toBe(1);
     // Attente live de « Caisse 2 — matin » (ouverte 07:30Z) : fond 2 000 +
-    // encaissements autonomes de SA fenêtre (500 + 1 000). La dépense (06:00Z)
-    // et le remboursement (07:00Z) précèdent l'ouverture → hors tiroir.
-    expect(audit.fundsMinor).toBe(3500);
+    // encaissements EN ESPÈCES de SA fenêtre (500). Le chèque (1 000) ne
+    // remplit pas le tiroir (E-22) et ne compte donc pas dans l'attente.
+    // La dépense (06:00Z) et le remboursement (07:00Z) précèdent l'ouverture.
+    expect(audit.fundsMinor).toBe(2500);
     expect(s.money.sessions.length).toBe(1);
     const closed = need(s.money.sessions[0], "session fermée");
     expect(closed.status).toBe("closed");
-    // 5 000 + 10 200 (S1) + 1 500 − 1 200 − 5 000 = 10 500, figé à la fermeture.
-    expect(closed.expectedMinor).toBe(10500);
+    // 5 000 + 10 200 (S1) + 500 (espèces ; le chèque 1 000 ne remplit pas le
+    // tiroir, E-22) − 1 200 − 5 000 = 9 500, figé à la fermeture.
+    expect(closed.expectedMinor).toBe(9500);
     expect(closed.countedMinor).toBe(10700);
-    expect(closed.varianceMinor).toBe(200);
+    expect(closed.varianceMinor).toBe(1200);
     expect(closed.post).toBe("Caisse 1");
     expect(closed.operator).toBe("Karim Haddad");
     expect(closed.note).toBe("Surplus de 200 à clarifier");
-    expect(audit.varianceNetMinor).toBe(200);
+    expect(audit.varianceNetMinor).toBe(1200);
     // Une seule session fermée, non conforme → 0 % de conformité.
     expect(audit.conformityPercent).toBe(0);
     const active = need(s.money.activeSession, "session active");

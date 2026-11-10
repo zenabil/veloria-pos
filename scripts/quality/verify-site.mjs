@@ -76,6 +76,28 @@ try {
 }
 
 if (chromium) {
+  // Fraîcheur de la sortie générée : le site servi doit correspondre EXACTEMENT
+  // aux sources (partials + pages + couches CSS). Sans cette porte, une
+  // retouche faite dans `website/src/` ne se verrait jamais sur le site.
+  try {
+    const { execFileSync } = await import("node:child_process");
+    execFileSync(process.execPath, [path.join(root, "website/build.mjs"), "--check"], {
+      cwd: root,
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    notes.push("Sortie du site à jour (build --check).");
+  } catch (err) {
+    const e = err;
+    failures.push(
+      `Sortie du site PÉRIMÉE : \`npm run site:build\` à lancer. ${
+        String(e.stderr ?? e.stdout ?? e)
+          .trim()
+          .split("\n")[0]
+      }`,
+    );
+  }
+
   let browser = null;
   try {
     browser = await chromium.launch();

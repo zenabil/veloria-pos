@@ -232,19 +232,44 @@ export function createDailyClosingAtomic(args: {
     // E-35 : la journée clôturée est le jour MÉTIER — bornes UTC de la journée
     // d'Algiers (23:00Z la veille → 23:00Z le jour même), comparables aux
     // `created_at` ISO UTC stockés et indexables.
+    //
+    // C-01/C-02 (audit 2026-11-09) : source unique = `sale_payments` (grand livre des flux).
+    // `payment_date` date-seule = jour metier (jamais decalee) ; les premiers paiements
+    // stockes en instant ISO ont pour jour effectif le jour metier de `created_at`.
+    // `collections` = TOUS les flux d'especes du jour (sans vente ou vente d'un autre jour),
+    // pas seulement `sale_id IS NULL`. Les ventes sans reglement (legacy) restent couvertes
+    // par le repli `amount_paid - credit_applied` (NOT EXISTS, zero double comptage).
     const day = businessDayRangeUtc(args.businessDate);
-    const cash = db
+    const effPayDay = `(CASE WHEN length(sp.payment_date) = 10 THEN substr(sp.payment_date, 1, 10) ELSE date(sp.created_at, '+1 hour') END)`;
+    const totalPayments = db
       .prepare(
-        `SELECT COALESCE(SUM(amount_paid_minor - credit_applied_minor),0) AS p FROM sales
+        `SELECT COALESCE(SUM(sp.amount_minor), 0) AS p FROM sale_payments sp
+         LEFT JOIN sales s ON s.id = sp.sale_id
+         WHERE sp.method = 'cash'
+           AND ${effPayDay} = ?
+           AND (sp.sale_id IS NULL OR COALESCE(s.is_cancelled, 0) = 0)`,
+      )
+      .get(args.businessDate) as { p: number };
+    const cashSalesPayments = db
+      .prepare(
+        `SELECT COALESCE(SUM(sp.amount_minor), 0) AS p FROM sale_payments sp
+         JOIN sales s ON s.id = sp.sale_id
+         WHERE sp.method = 'cash'
+           AND ${effPayDay} = ?
+           AND s.created_at >= ? AND s.created_at < ?
+           AND s.is_cancelled = 0`,
+      )
+      .get(args.businessDate, day.from, day.toExclusive) as { p: number };
+    const cashSynthetic = db
+      .prepare(
+        `SELECT COALESCE(SUM(amount_paid_minor - credit_applied_minor), 0) AS p FROM sales
          WHERE created_at >= ? AND created_at < ? AND is_cancelled = 0
-           AND COALESCE(payment_method, 'cash') = 'cash'`,
+           AND COALESCE(payment_method, 'cash') = 'cash'
+           AND NOT EXISTS (SELECT 1 FROM sale_payments WHERE sale_id = sales.id)`,
       )
       .get(day.from, day.toExclusive) as { p: number };
-    const collections = db
-      .prepare(
-        `SELECT COALESCE(SUM(amount_minor),0) AS c FROM sale_payments WHERE ${calendarDaySql("payment_date")} = ? AND sale_id IS NULL`,
-      )
-      .get(args.businessDate) as { c: number };
+    const cash = { p: cashSalesPayments.p + cashSynthetic.p };
+    const collections = { c: totalPayments.p - cashSalesPayments.p };
     // Dépenses : seules les dépenses DÉCAISSÉES ('paid') diminuent le tiroir ;
     // une dépense 'pending' (non payée) ne sort pas d'argent de la caisse.
     const expenses = db
@@ -252,13 +277,24 @@ export function createDailyClosingAtomic(args: {
         `SELECT COALESCE(SUM(amount_minor),0) AS e FROM expenses WHERE expense_date = ? AND status = 'paid'`,
       )
       .get(args.businessDate) as { e: number };
-    // Remboursements : un retour ANNULÉ ne sort pas d'argent de la caisse.
-    const refunds = db
+    // Remboursements (C-03) : attribues a l'instant de sortie d'argent (journal
+    // `return_refund_movements` depuis 0060), pas a la creation du retour. Les retours
+    // anciens sans journal restent attribues selon `updated_at` (dernier remboursement).
+    const refundsMov = db
       .prepare(
-        `SELECT COALESCE(SUM(amount_refunded_minor),0) AS r FROM returns
-         WHERE created_at >= ? AND created_at < ? AND status != 'cancelled'`,
+        `SELECT COALESCE(SUM(m.amount_minor), 0) AS r FROM return_refund_movements m
+         JOIN returns rr ON rr.id = m.return_id
+         WHERE rr.status != 'cancelled' AND m.created_at >= ? AND m.created_at < ?`,
       )
       .get(day.from, day.toExclusive) as { r: number };
+    const refundsLegacy = db
+      .prepare(
+        `SELECT COALESCE(SUM(amount_refunded_minor), 0) AS r FROM returns
+         WHERE status != 'cancelled' AND updated_at >= ? AND updated_at < ?
+           AND NOT EXISTS (SELECT 1 FROM return_refund_movements WHERE return_id = returns.id)`,
+      )
+      .get(day.from, day.toExclusive) as { r: number };
+    const refunds = { r: refundsMov.r + refundsLegacy.r };
     // Paiements fournisseurs du jour (informatif : la formule de clôture du
     // domaine ne les soustrait pas — colonne conservée pour compatibilité).
     const supplierPayouts = db

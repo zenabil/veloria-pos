@@ -1,0 +1,99 @@
+/* ==========================================================================
+   2. Mise en page
+   ========================================================================== */
+.wrap {
+  width: 100%;
+  max-width: var(--max);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+/* Lien d'évitement : invisible au repos, visible au focus clavier (WCAG 2.4.1) */
+.skip-link {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translate(-50%, -140%);
+  z-index: 100;
+  padding: 12px 20px;
+  border-radius: 0 0 var(--r-md) var(--r-md);
+  background: var(--gold-400);
+  color: #1a1204;
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform 0.2s var(--ease);
+}
+.skip-link:focus {
+  transform: translate(-50%, 0);
+}
+.section {
+  padding-block: var(--section-y);
+  position: relative;
+}
+/* Sections sous la ligne de flottaison : peinture différée (LCP/CLS).
+   Volontairement DÉSACTIVÉE : `content-visibility: auto` fait painter une
+   section vide tant qu'elle n'est pas au viewport (capture pleine page
+   tronquée, navigation par ancre sautée, « Ctrl+F » en silence). Le site est
+   léger (5 pages, aucune police web, images en lazy) : le gain réel est
+   nul, le risque de rendu est réel. */
+.section-defer {
+  content-visibility: visible;
+}
+.section-head {
+  max-width: 62ch;
+  margin-bottom: clamp(28px, 4vw, 52px);
+}
+.section-head h2 {
+  margin: 0 0 14px;
+}
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold-300);
+  margin: 0 0 14px;
+}
+.kicker::before {
+  content: "";
+  width: 22px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--gold-400), transparent);
+}
+.muted {
+  color: var(--muted);
+}
+.lead {
+  font-size: clamp(1.05rem, 1rem + 0.45vw, 1.28rem);
+  color: var(--text-2);
+  max-width: 60ch;
+  text-wrap: pretty;
+}
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+  letter-spacing: -0.035em;
+  line-height: 1.06;
+}
+h2 {
+  font-size: clamp(1.85rem, 1.2rem + 2.6vw, 3.1rem);
+  font-weight: 800;
+}
+h3 {
+  font-size: clamp(1.1rem, 1rem + 0.4vw, 1.32rem);
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+/* Règle pointillée : séparateur « ticket » */
+.ledger-rule {
+  height: 1px;
+  border: 0;
+  margin: 0;
+  background-image: radial-gradient(circle, var(--line-2) 1px, transparent 1px);
+  background-size: 8px 1px;
+  background-repeat: repeat-x;
+}

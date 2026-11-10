@@ -1,0 +1,66 @@
+/* ==========================================================================
+   14. Appel à l'action « reçu »
+   ========================================================================== */
+.receipt-cta {
+  position: relative;
+  max-width: 560px;
+  margin-inline: auto;
+  background: var(--paper);
+  color: var(--paper-ink);
+  border-radius: 6px;
+  padding: 30px 30px 34px;
+  box-shadow: var(--shadow-lg);
+  font-family: var(--mono);
+}
+.receipt-cta::before,
+.receipt-cta::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 12px;
+  background: radial-gradient(circle at 8px 6px, var(--ink-950) 6px, transparent 6.5px) repeat-x
+    left / 16px 12px;
+}
+.receipt-cta::before {
+  top: -11px;
+}
+.receipt-cta::after {
+  bottom: -11px;
+}
+.receipt-cta .kicker {
+  color: #8a6a12;
+}
+.receipt-cta h2 {
+  margin: 0 0 12px;
+  color: var(--paper-ink);
+  font-family: var(--font);
+  letter-spacing: -0.035em;
+}
+.receipt-cta p {
+  color: #3c465c;
+  font-family: var(--font);
+}
+.receipt-cta .cta-row {
+  justify-content: center;
+  margin-bottom: 4px;
+}
+.receipt-cta .btn-glass {
+  background: transparent;
+  border-color: rgb(28 34 48 / 30%);
+  color: var(--paper-ink);
+}
+.receipt-cta .btn-glass:hover {
+  background: rgb(28 34 48 / 7%);
+}
+.receipt-cta .btn-primary {
+  color: #1a1204;
+}
+.receipt-line {
+  border-top: 1px dotted rgb(28 34 48 / 30%);
+  margin: 20px 0 0;
+  padding-top: 14px;
+  font-size: 0.78rem;
+  color: #6b7280;
+  text-align: center;
+}

@@ -1,0 +1,185 @@
+.hero-visual {
+  position: relative;
+  display: grid;
+  gap: 18px;
+}
+
+/* Cadre « application » (fenêtre desktop) */
+.app-frame {
+  position: relative;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line-2);
+  background: var(--grad-ink);
+  box-shadow:
+    var(--shadow-lg),
+    inset 0 1px 0 rgb(255 255 255 / 12%);
+  overflow: hidden;
+  transform-style: preserve-3d;
+}
+.app-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  background: rgb(255 255 255 / 3%);
+}
+.app-bar .dots {
+  display: flex;
+  gap: 6px;
+}
+.app-bar .dots i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--line-2);
+}
+.app-bar .title {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-left: 6px;
+}
+.app-frame .screen {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background: var(--ink-900);
+  overflow: hidden;
+}
+.app-frame .screen img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  opacity: 0;
+  transform: scale(1.015);
+  transition:
+    opacity 0.55s var(--ease),
+    transform 0.9s var(--ease);
+}
+.app-frame .screen img.is-on {
+  opacity: 1;
+  transform: none;
+}
+
+/* Onglets produit (tablist accessible) */
+.tabs {
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+.tabs button {
+  flex: 1 0 auto;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 650;
+  padding: 9px 15px;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    color 0.24s var(--ease-soft),
+    background 0.24s var(--ease-soft);
+}
+.tabs button:hover {
+  color: var(--text);
+}
+.tabs button[aria-selected="true"] {
+  color: #1a1204;
+  background: var(--grad-gold);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 45%);
+}
+
+/* Téléphone (miroir client) */
+.phone {
+  position: relative;
+  justify-self: end;
+  width: min(248px, 58%);
+  max-width: 100%;
+  border-radius: 38px;
+  padding: 8px;
+  background: linear-gradient(180deg, #12233c, #06111f);
+  border: 1px solid var(--line-2);
+  box-shadow: var(--shadow-lg);
+}
+.phone::after {
+  /* encoche */
+  content: "";
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 74px;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: rgb(255 255 255 / 12%);
+}
+.phone img {
+  display: block;
+  width: 100%;
+  border-radius: 30px;
+  background: var(--ink-950);
+}
+.phone figcaption {
+  position: absolute;
+  inset: auto 12px 14px;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  color: var(--gold-200);
+  background: rgb(3 8 15 / 78%);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  padding: 5px 11px;
+  text-align: center;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Bandeau de chiffres */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin: 34px 0 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--line);
+}
+.stats li {
+  background: rgb(5 20 36 / 62%);
+  padding: 16px 18px;
+}
+.stats b {
+  display: block;
+  font-family: var(--mono);
+  font-size: clamp(1.25rem, 1rem + 1vw, 1.75rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.stats span {
+  display: block;
+  font-size: 0.84rem;
+  color: var(--muted);
+  margin-top: 2px;
+}

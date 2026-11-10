@@ -42,6 +42,14 @@ export function registerSalesChannels(): void {
     const discountAmount = priced.reduce((a, p) => a + p.discount, 0);
     const chargedTotals = priced.map((p) => p.charged);
     const total = subtotal - discountAmount + input.deliveryFeeMinor;
+    // I-04 : garde explicite FR — sans elle, le CHECK SQL rejette en brut
+    // générique (« erreur inattendue ») au lieu d'expliquer le dépassement.
+    if (!Number.isSafeInteger(input.amountPaidMinor) || input.amountPaidMinor < 0) {
+      throw new Error("Montant payé invalide.");
+    }
+    if (input.amountPaidMinor > total) {
+      throw new Error("Le montant payé dépasse le total de la vente.");
+    }
     const remaining = total - input.amountPaidMinor;
     const status =
       total === 0

@@ -1,0 +1,94 @@
+{
+  "site": {
+    "name": "Veloria",
+    "tagline": "POS hors-ligne & application client",
+    "lang": "fr",
+    "email": "zenaguibilal2@gmail.com",
+    "whatsapp": "https://wa.me/213770204047",
+    "whatsappLabel": "+213 770 20 40 47"
+  },
+  "nav": [
+    { "id": "index", "label": "Accueil", "href": "index.html" },
+    { "id": "pos", "label": "POS", "href": "pos.html" },
+    { "id": "client", "label": "Client", "href": "client.html" },
+    { "id": "pricing", "label": "Tarifs", "href": "pricing.html" },
+    { "id": "contact", "label": "Contact", "href": "contact.html" }
+  ],
+  "pages": {
+    "index": {
+      "title": "Veloria — La caisse qui encaisse, même sans réseau",
+      "description": "Veloria POS encaisse hors-ligne, tient chaque centime en entier et clôture au centime près. Veloria Client montre à vos clients soldes, factures et paiements — en lecture seule.",
+      "body": "src/pages/index.html",
+      "cta": {
+        "kicker": "Prêt à encaisser ?",
+        "title": "Démonstration gratuite, essai, puis licence.",
+        "text": "On installe un poste, on encaisse une journée réelle, on compare la clôture au tiroir. Aucun engagement.",
+        "primaryLabel": "Demander une démo",
+        "primaryHref": "contact.html",
+        "secondaryLabel": "WhatsApp direct",
+        "secondaryHref": "https://wa.me/213770204047",
+        "foot": "MERCI — VELORIA · CASSEIRA — WINDOW"
+      }
+    },
+    "pos": {
+      "title": "Veloria POS — Caisse hors-ligne",
+      "description": "Veloria POS : ventes, retours, achats, stock, dettes, clôture Z, sessions de caisse, impression et sauvegarde.",
+      "body": "src/pages/pos.html",
+      "cta": {
+        "kicker": "Essayez",
+        "title": "Une journée de caisse, sur votre poste.",
+        "text": "On installe, on encaisse une vraie journée, on compare la clôture au tiroir.",
+        "primaryLabel": "Demander une démo",
+        "primaryHref": "contact.html",
+        "secondaryLabel": "Voir les tarifs",
+        "secondaryHref": "pricing.html",
+        "foot": "MERCI — VELORIA · CASSEIRA — WINDOW"
+      }
+    },
+    "client": {
+      "title": "Veloria Client — Soldes, factures et paiements",
+      "description": "Veloria Client : soldes, factures et paiements sur Android, en lecture seule. Connexion téléphone + PIN.",
+      "body": "src/pages/client.html",
+      "cta": {
+        "kicker": "Activer un accès",
+        "title": "Un client, un accès, un code.",
+        "text": "L'activation se fait en caisse, en trente secondes. Le client scanne, il est connecté.",
+        "primaryLabel": "Demander une démo",
+        "primaryHref": "contact.html",
+        "secondaryLabel": "Voir les tarifs",
+        "secondaryHref": "pricing.html",
+        "foot": "MERCI — VELORIA · CLIENT — ANDROIDE"
+      }
+    },
+    "pricing": {
+      "title": "Tarifs & licences — Veloria",
+      "description": "Tarifs transparents Veloria POS et Veloria Client : licence annuelle par poste, renouvellement, comparaison.",
+      "body": "src/pages/pricing.html",
+      "cta": {
+        "kicker": "Tarif exact",
+        "title": "Un prix juste pour votre poste.",
+        "text": "Dites-nous votre configuration (postes, imprimante, volume) — on répond avec un tarif écrit, sans surprise de renouvellement.",
+        "primaryLabel": "Demander un tarif",
+        "primaryHref": "contact.html",
+        "secondaryLabel": "WhatsApp direct",
+        "secondaryHref": "https://wa.me/213770204047",
+        "foot": "MERCI — VELORIA · LICENCE — PAR POSTE"
+      }
+    },
+    "contact": {
+      "title": "Contact & démonstration — Veloria",
+      "description": "Démonstration gratuite, tarif exact, support : écrivez-nous ou passez par WhatsApp.",
+      "body": "src/pages/contact.html",
+      "cta": {
+        "kicker": "Réponse",
+        "title": "Un message, une réponse, un poste.",
+        "text": "Pas de formulaire interminable : un nom, un e-mail, votre configuration. Le reste se joue en démonstration.",
+        "primaryLabel": "Demander une démo",
+        "primaryHref": "https://wa.me/213770204047",
+        "secondaryLabel": "Écrire un message",
+        "secondaryHref": "#message",
+        "foot": "MERCI — VELORIA · CONTACT — ALGER"
+      }
+    }
+  }
+}

@@ -1,0 +1,93 @@
+/* ==========================================================================
+   5. Héros
+   ========================================================================== */
+.hero {
+  padding: clamp(48px, 7vw, 96px) 0 clamp(40px, 6vw, 80px);
+  position: relative;
+}
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
+  gap: clamp(28px, 4vw, 64px);
+  align-items: center;
+}
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 15px 7px 12px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold-200);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.eyebrow .pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--mint-400);
+  box-shadow: 0 0 0 0 rgb(52 211 153 / 60%);
+  animation: pulse 2.4s var(--ease-soft) infinite;
+}
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgb(52 211 153 / 55%);
+  }
+  70% {
+    box-shadow: 0 0 0 9px rgb(52 211 153 / 0%);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(52 211 153 / 0%);
+  }
+}
+.hero h1 {
+  font-size: clamp(2.35rem, 1.35rem + 4.3vw, 4.35rem);
+  font-weight: 850;
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+  margin: 20px 0 18px;
+}
+.hero h1 .grad {
+  background: var(--grad-cool);
+  background-size: 100% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.rotator {
+  display: inline-block;
+  position: relative;
+  vertical-align: bottom;
+  text-align: left;
+  min-height: 1.04em;
+}
+.rotator span {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  transform: translateY(0.5em);
+  white-space: nowrap;
+  transition:
+    opacity 0.42s var(--ease),
+    transform 0.42s var(--ease);
+  background: var(--grad-gold);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.rotator span.is-on {
+  /* en flux : c'est le mot visible qui dimensionne la boîte */
+  position: relative;
+  opacity: 1;
+  transform: none;
+}
+.hero .lead {
+  margin: 0 0 4px;
+}

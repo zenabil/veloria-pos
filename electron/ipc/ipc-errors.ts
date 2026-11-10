@@ -112,6 +112,14 @@ export function toUserMessage(err: unknown): { code: string; message: string } {
         : "LICENSE_REQUIRED";
     return { code, message: msg };
   }
+  // I-02 : abort du miroir (AbortController, 20 s) — jamais anglais à l'écran,
+  // détail dans le log.
+  if (/operation was aborted|aborted|AbortError/i.test(msg)) {
+    return {
+      code: "UNKNOWN_ERROR",
+      message: "Connexion au miroir interrompue. Vérifiez la connexion.",
+    };
+  }
   // P1-7 : exceptions JS brutes (bugs : TypeError, chemins, stack) — jamais
   // de technique brut à l'utilisateur, repli FR générique + détail en log.
   if (
@@ -152,6 +160,18 @@ export function toUserMessage(err: unknown): { code: string; message: string } {
     )
   ) {
     return { code: "UNKNOWN_ERROR", message: "Une erreur inattendue est survenue. Réessayez." };
+  }
+  // I-01 : dernier rempart — une phrase anglaise non reconnue (moteur) ne
+  // doit jamais atteindre l'opérateur. Les messages métier FR contiennent un
+  // accent ou un vocabulaire français ; à défaut, repli générique.
+  if (!/[éèêàùüçâîô]/i.test(msg)) {
+    if (
+      /\b(the|this|was|were|has|have|had|from|with|without|failed|invalid|unknown|error|exception)\b/i.test(
+        msg,
+      )
+    ) {
+      return { code: "UNKNOWN_ERROR", message: "Une erreur inattendue est survenue. Réessayez." };
+    }
   }
   // Tous les messages métier du code sont déjà rédigés en français :
   // on les transmet tels quels (pas d'exception brute exposée).

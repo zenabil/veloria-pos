@@ -67,20 +67,36 @@ function sessionFlows(fromExclusive: { from: string; to: string }): {
   refundsMinor: number;
 } {
   const db = getDb();
-  const cash = db
+  // C-01/C-02 : source unique = `sale_payments` (flux d'especes), fenetre instantanee,
+  // sans double comptage. `collections` inclut les reglements de factures anciennes.
+  const totalPayments = db
+    .prepare(
+      `SELECT COALESCE(SUM(sp.amount_minor), 0) AS p FROM sale_payments sp
+       LEFT JOIN sales s ON s.id = sp.sale_id
+       WHERE sp.method = 'cash' AND sp.created_at >= ? AND sp.created_at < ?
+         AND (sp.sale_id IS NULL OR COALESCE(s.is_cancelled, 0) = 0)`,
+    )
+    .get(fromExclusive.from, fromExclusive.to) as { p: number };
+  const cashSalesPayments = db
+    .prepare(
+      `SELECT COALESCE(SUM(sp.amount_minor), 0) AS p FROM sale_payments sp
+       JOIN sales s ON s.id = sp.sale_id
+       WHERE sp.method = 'cash' AND sp.created_at >= ? AND sp.created_at < ?
+         AND s.created_at >= ? AND s.created_at < ? AND s.is_cancelled = 0`,
+    )
+    .get(fromExclusive.from, fromExclusive.to, fromExclusive.from, fromExclusive.to) as {
+    p: number;
+  };
+  const cashSynthetic = db
     .prepare(
       `SELECT COALESCE(SUM(amount_paid_minor - credit_applied_minor), 0) AS p FROM sales
        WHERE created_at >= ? AND created_at < ? AND is_cancelled = 0
-         AND COALESCE(payment_method, 'cash') = 'cash'`,
+         AND COALESCE(payment_method, 'cash') = 'cash'
+         AND NOT EXISTS (SELECT 1 FROM sale_payments WHERE sale_id = sales.id)`,
     )
     .get(fromExclusive.from, fromExclusive.to) as { p: number };
-  // Encaissements autonomes (dette réglée sans vente liée) : mêmes flux que le Z.
-  const collections = db
-    .prepare(
-      `SELECT COALESCE(SUM(amount_minor), 0) AS c FROM sale_payments
-       WHERE sale_id IS NULL AND created_at >= ? AND created_at < ?`,
-    )
-    .get(fromExclusive.from, fromExclusive.to) as { c: number };
+  const cash = { p: cashSalesPayments.p + cashSynthetic.p };
+  const collections = { c: totalPayments.p - cashSalesPayments.p };
   // Seules les dépenses DÉCAISSÉES sortent de l'argent du tiroir.
   const expenses = db
     .prepare(
@@ -88,13 +104,23 @@ function sessionFlows(fromExclusive: { from: string; to: string }): {
        WHERE status = 'paid' AND created_at >= ? AND created_at < ?`,
     )
     .get(fromExclusive.from, fromExclusive.to) as { e: number };
-  // Un retour annulé ne rembourse rien.
-  const refunds = db
+  // C-03 : remboursements a l'instant de sortie d'argent (journal 0060) ;
+  // anciens sans journal selon `updated_at`. Les annules ne sortent pas.
+  const refundsMov = db
     .prepare(
-      `SELECT COALESCE(SUM(amount_refunded_minor), 0) AS r FROM returns
-       WHERE status != 'cancelled' AND created_at >= ? AND created_at < ?`,
+      `SELECT COALESCE(SUM(m.amount_minor), 0) AS r FROM return_refund_movements m
+       JOIN returns rr ON rr.id = m.return_id
+       WHERE rr.status != 'cancelled' AND m.created_at >= ? AND m.created_at < ?`,
     )
     .get(fromExclusive.from, fromExclusive.to) as { r: number };
+  const refundsLegacy = db
+    .prepare(
+      `SELECT COALESCE(SUM(amount_refunded_minor), 0) AS r FROM returns
+       WHERE status != 'cancelled' AND updated_at >= ? AND updated_at < ?
+         AND NOT EXISTS (SELECT 1 FROM return_refund_movements WHERE return_id = returns.id)`,
+    )
+    .get(fromExclusive.from, fromExclusive.to) as { r: number };
+  const refunds = { r: refundsMov.r + refundsLegacy.r };
   return {
     cashSalesMinor: Number(cash.p),
     customerCollectionsMinor: Number(collections.c),
@@ -178,7 +204,7 @@ export function openCashSessionAtomic(args: {
   assertCashAmount(args.openingFloatMinor, "Fond d'ouverture");
   const fast = peekIdempotency<CashSessionRow>(args.operationId, "cash.open");
   if (fast && Object.keys(fast).length > 0) return fast;
-  const tx = db.transaction(() => {
+  const tx = db.transaction((): CashSessionRow => {
     claimIdempotency(args.operationId, "cash.open", args.now);
     const already = db
       .prepare(`SELECT id FROM cash_sessions WHERE status = 'open' AND post = ?`)
@@ -201,19 +227,28 @@ export function openCashSessionAtomic(args: {
       args.now,
       args.now,
     );
+    const maxRow = db.prepare(`SELECT MAX(id) AS id FROM cash_sessions`).get() as {
+      id: number | null;
+    };
+    const row =
+      (maxRow.id != null ? readSession(Number(maxRow.id)) : null) ?? readSessionByPost(post);
+    if (!row) throw new Error("Session de caisse introuvable.");
+    const result = decorate(row, args.now);
+    storeIdempotencyResult(args.operationId, result);
+    return result;
   });
-  tx();
-  const row = db
+  return tx();
+}
+
+function readSessionByPost(post: string): SessionRecord | null {
+  const row = getDb()
     .prepare(
       `SELECT id, uuid, post, label, staff_user_id, status, opening_float_minor,
          counted_minor, expected_minor, note, opened_at, closed_at
        FROM cash_sessions WHERE status = 'open' AND post = ? ORDER BY id DESC LIMIT 1`,
     )
     .get(post) as SessionRecord | undefined;
-  if (!row) throw new Error("Session de caisse introuvable.");
-  const result = decorate(row, args.now);
-  storeIdempotencyResult(args.operationId, result);
-  return result;
+  return row ?? null;
 }
 
 /** Comptage physique intermédiaire (la session reste ouverte). */
@@ -227,7 +262,7 @@ export function countCashSessionAtomic(args: {
   assertCashAmount(args.countedMinor, "Comptage");
   const fast = peekIdempotency<CashSessionRow>(args.operationId, "cash.count");
   if (fast && Object.keys(fast).length > 0) return fast;
-  const tx = db.transaction(() => {
+  const tx = db.transaction((): CashSessionRow => {
     claimIdempotency(args.operationId, "cash.count", args.now);
     const row = readSession(args.sessionId);
     if (!row) throw new Error("Session de caisse introuvable.");
@@ -237,13 +272,13 @@ export function countCashSessionAtomic(args: {
       args.now,
       args.sessionId,
     );
+    const after = readSession(args.sessionId);
+    if (!after) throw new Error("Session de caisse introuvable.");
+    const result = decorate(after, args.now);
+    storeIdempotencyResult(args.operationId, result);
+    return result;
   });
-  tx();
-  const after = readSession(args.sessionId);
-  if (!after) throw new Error("Session de caisse introuvable.");
-  const result = decorate(after, args.now);
-  storeIdempotencyResult(args.operationId, result);
-  return result;
+  return tx();
 }
 
 /**
@@ -261,7 +296,7 @@ export function closeCashSessionAtomic(args: {
   assertCashAmount(args.countedMinor, "Comptage");
   const fast = peekIdempotency<CashSessionRow>(args.operationId, "cash.close");
   if (fast && Object.keys(fast).length > 0) return fast;
-  const tx = db.transaction(() => {
+  const tx = db.transaction((): CashSessionRow => {
     claimIdempotency(args.operationId, "cash.close", args.now);
     const row = readSession(args.sessionId);
     if (!row) throw new Error("Session de caisse introuvable.");
@@ -277,13 +312,13 @@ export function closeCashSessionAtomic(args: {
            note = COALESCE(?, note), updated_at = ?
        WHERE id = ? AND status = 'open'`,
     ).run(args.now, expected, args.countedMinor, args.note, args.now, args.sessionId);
+    const after = readSession(args.sessionId);
+    if (!after) throw new Error("Session de caisse introuvable.");
+    const result = decorate(after, args.now);
+    storeIdempotencyResult(args.operationId, result);
+    return result;
   });
-  tx();
-  const after = readSession(args.sessionId);
-  if (!after) throw new Error("Session de caisse introuvable.");
-  const result = decorate(after, args.now);
-  storeIdempotencyResult(args.operationId, result);
-  return result;
+  return tx();
 }
 
 /** Sessions dont l'ouverture tombe sur une période de JOURS MÉTIER bornée. */

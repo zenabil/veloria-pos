@@ -1,192 +1,196 @@
 <!doctype html>
 <html lang="fr">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Veloria Client — Soldes, factures et paiements</title>
-    <meta
-      name="description"
-      content="Veloria Client : soldes, factures et paiements sur Android, en lecture seule. Connexion téléphone + PIN."
-    />
     <!-- Le CSS de révélation ne s'active qu'avec JS : sans JS, tout le contenu reste visible. -->
     <script>
       document.documentElement.classList.add("js");
     </script>
-    <link rel="stylesheet" href="styles.css" />
-    <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Veloria Client — Soldes, factures et paiements</title>
+<meta name="description" content="Veloria Client : soldes, factures et paiements sur Android, en lecture seule. Connexion téléphone + PIN." />
+<meta name="theme-color" content="#03080f" />
+<meta property="og:title" content="Veloria Client — Soldes, factures et paiements" />
+<meta property="og:description" content="Veloria Client : soldes, factures et paiements sur Android, en lecture seule. Connexion téléphone + PIN." />
+<meta property="og:type" content="website" />
+<link rel="stylesheet" href="styles/main.css" />
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
+
   </head>
   <body>
-    <a class="skip-link" href="#main">Aller au contenu</a>
-    <header class="site-header">
-      <div class="wrap header-in">
-        <a class="brand" href="index.html"
-          ><img src="assets/logo.svg" alt="Veloria" width="34" height="34" /> Veloria</a
-        >
-        <button
-          class="nav-toggle"
-          type="button"
-          aria-expanded="false"
-          aria-controls="main-nav"
-          data-nav-toggle
-        >
-          Menu
-        </button>
-        <nav id="main-nav" class="main-nav" aria-label="Navigation principale">
-          <a href="index.html">Accueil</a>
+<a class="skip-link" href="#main">Aller au contenu</a>
+
+<header class="site-header">
+  <div class="wrap header-in">
+    <a class="brand" href="index.html"
+      ><img src="assets/logo.svg" alt="" width="32" height="32" /> Veloria</a
+    >
+    <button
+      class="nav-toggle"
+      type="button"
+      aria-expanded="false"
+      aria-controls="main-nav"
+      data-nav-toggle
+    >
+      Menu
+    </button>
+    <nav id="main-nav" class="main-nav" aria-label="Navigation principale">
+                <a href="index.html">Accueil</a>
           <a href="pos.html">POS</a>
           <a href="client.html" aria-current="page">Client</a>
           <a href="pricing.html">Tarifs</a>
           <a href="contact.html">Contact</a>
-          <a class="btn btn-primary" href="contact.html">Demander une démo</a>
-        </nav>
-      </div>
-      <div class="scroll-progress" aria-hidden="true"></div>
-    </header>
+      <a class="btn btn-primary" href="contact.html">Demander une démo</a>
+    </nav>
+  </div>
+  <div class="scroll-progress" aria-hidden="true"></div>
+</header>
 
     <main id="main">
-      <section class="hero">
-        <div class="wrap hero-grid">
-          <div>
-            <p class="eyebrow" data-reveal>
-              <span class="pulse" aria-hidden="true"></span>
-              Android • Lecture seule • Synchronisée
-            </p>
-            <h1 data-reveal>Veloria <span class="grad">Client</span></h1>
-            <p class="lead" data-reveal>
-              Vos clients voient soldes, factures et paiements via téléphone + PIN — sans appeler le
-              comptoir. Cache hors-ligne, aucune écriture financière.
-            </p>
-            <div class="cta-row" data-reveal>
-              <a class="btn btn-primary" href="pricing.html">Voir les tarifs</a>
-              <a class="btn btn-wa" href="https://wa.me/213770204047" target="_blank" rel="noopener"
-                >WhatsApp direct</a
-              >
-            </div>
-            <ul class="trust-line" data-reveal>
-              <li>Aucun compte web à créer</li>
-              <li>Code à 6 chiffres, 5 échecs = 5 minutes</li>
-              <li>Accès révocable en caisse</li>
-            </ul>
-          </div>
-
-          <div class="hero-visual">
-            <figure class="phone" data-reveal>
-              <img
-                src="assets/real-client.png"
-                alt="Application Veloria Client réelle"
-                width="360"
-                height="760"
-                fetchpriority="high"
-                decoding="async"
-              />
-              <figcaption>Veloria Client — connexion</figcaption>
-            </figure>
-            <div data-reveal>
-              <video
-                class="showcase"
-                controls
-                playsinline
-                preload="metadata"
-                poster="assets/real-client.png"
-              >
-                <source src="assets/client-demo.webm" type="video/webm" />
-                Votre navigateur ne lit pas la vidéo.
-              </video>
-              <p class="muted">Démonstration : consultation des factures (vidéo réelle).</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="section section-defer">
-        <div class="wrap">
-          <div class="section-head" data-reveal>
-            <p class="kicker">Ce que le client y voit</p>
-            <h2>Son dossier, en trois écrans.</h2>
-          </div>
-          <div class="bento">
-            <article class="card half" data-reveal>
-              <span class="num">01</span>
-              <h3>Solde et factures</h3>
-              <p>Solde restant, factures impayées / partielles / payées, échéances.</p>
-            </article>
-            <article class="card half" data-reveal>
-              <span class="num">02</span>
-              <h3>Paiements</h3>
-              <p>Historique des encaissements et reste dû par facture.</p>
-            </article>
-            <article class="card full" data-reveal>
-              <span class="num">03</span>
-              <h3>Hors-ligne</h3>
-              <p>
-                Le dernier cliché reste consultable sans réseau. La caisse reste la seule source :
-                le téléphone ne réécrit jamais un montant.
-              </p>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <section class="section section-defer">
-        <div class="wrap split">
-          <div>
-            <div class="section-head" data-reveal>
-              <p class="kicker">Comment ça marche</p>
-              <h2>Quatre étapes, zéro friction.</h2>
-            </div>
-            <ol class="steps" data-reveal>
-              <li><strong>Activation en caisse :</strong> téléphone + PIN + QR.</li>
-              <li><strong>Connexion :</strong> aucun compte web.</li>
-              <li><strong>Synchronisation :</strong> la caisse pousse les clichés.</li>
-              <li><strong>Consultation :</strong> même hors-ligne. Révocable.</li>
-            </ol>
-          </div>
-          <div class="mini" data-reveal>
-            <h3>Sécurité sans friction</h3>
-            <ul class="check">
-              <li>Aucune écriture financière depuis le téléphone.</li>
-              <li>Réutilisation d'un numéro bloquée en caisse.</li>
-              <li>Révocation immédiate.</li>
-              <li>Comparaison de code en temps constant, sel par accès.</li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      <section class="section section-defer">
-        <div class="wrap">
-          <div class="receipt-cta" data-reveal>
-            <p class="kicker">Activer un accès</p>
-            <h2>Un client, un accès, un code.</h2>
-            <p class="lead" style="color: #3c465c; margin-inline: 0">
-              L'activation se fait en caisse, en trente secondes. Le client scanne, il est connecté.
-            </p>
-            <div class="cta-row">
-              <a class="btn btn-primary" href="contact.html">Demander une démo</a>
-              <a class="btn btn-glass" href="pricing.html">Voir les tarifs</a>
-            </div>
-            <p class="receipt-line">MERCI — VELORIA · CLIENT — ANDROIDE</p>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <footer class="site-footer">
-      <div class="wrap footer-in">
-        <p style="margin: 0">
-          <strong>Veloria</strong> — POS hors-ligne &amp; application client.<br />
-          <span class="muted">Interface 100 % française, support en Algérie.</span>
-        </p>
-        <nav aria-label="Pied de page">
-          <a href="index.html">Accueil</a><a href="pos.html">POS</a><a href="client.html">Client</a
-          ><a href="pricing.html">Tarifs</a><a href="contact.html">Contact</a>
-        </nav>
-        <p class="footer-note">
-          Site de présentation — téléchargement sur demande via Contact ou WhatsApp. Captures et
-          vidéo : application réelle, sans retouche.
-        </p>
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <p class="eyebrow" data-reveal>
+        <span class="pulse" aria-hidden="true"></span>
+        Android • Lecture seule • Synchronisée
+      </p>
+      <h1 data-reveal>Veloria <span class="grad">Client</span></h1>
+      <p class="lead" data-reveal>
+        Vos clients voient soldes, factures et paiements via téléphone + PIN — sans appeler le
+        comptoir. Cache hors-ligne, aucune écriture financière.
+      </p>
+      <div class="cta-row" data-reveal>
+        <a class="btn btn-primary" href="pricing.html">Voir les tarifs</a>
+        <a class="btn btn-wa" href="https://wa.me/213770204047" target="_blank" rel="noopener"
+          >WhatsApp direct</a
+        >
       </div>
-    </footer>
-    <script src="app.js" defer></script>
+      <ul class="trust-line" data-reveal>
+        <li>Aucun compte web à créer</li>
+        <li>Code à 6 chiffres, 5 échecs = 5 minutes</li>
+        <li>Accès révocable en caisse</li>
+      </ul>
+    </div>
+
+    <div class="hero-visual">
+      <figure class="phone" data-reveal>
+        <img
+          src="assets/real-client.png"
+          alt="Application Veloria Client réelle"
+          width="360"
+          height="760"
+          fetchpriority="high"
+          decoding="async"
+        />
+        <figcaption>Veloria Client — connexion</figcaption>
+      </figure>
+      <div data-reveal>
+        <video
+          class="showcase"
+          controls
+          playsinline
+          preload="metadata"
+          poster="assets/real-client.png"
+        >
+          <source src="assets/client-demo.webm" type="video/webm" />
+          Votre navigateur ne lit pas la vidéo.
+        </video>
+        <p class="muted">Démonstration : consultation des factures (vidéo réelle).</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section section-defer">
+  <div class="wrap">
+    <div class="section-head" data-reveal>
+      <p class="kicker">Ce que le client y voit</p>
+      <h2>Son dossier, en trois écrans.</h2>
+    </div>
+    <div class="bento">
+      <article class="card half" data-reveal>
+        <span class="num">01</span>
+        <h3>Solde et factures</h3>
+        <p>Solde restant, factures impayées / partielles / payées, échéances.</p>
+      </article>
+      <article class="card half" data-reveal>
+        <span class="num">02</span>
+        <h3>Paiements</h3>
+        <p>Historique des encaissements et reste dû par facture.</p>
+      </article>
+      <article class="card full" data-reveal>
+        <span class="num">03</span>
+        <h3>Hors-ligne</h3>
+        <p>
+          Le dernier cliché reste consultable sans réseau. La caisse reste la seule source : le
+          téléphone ne réécrit jamais un montant.
+        </p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="section section-defer">
+  <div class="wrap split">
+    <div>
+      <div class="section-head" data-reveal>
+        <p class="kicker">Comment ça marche</p>
+        <h2>Quatre étapes, zéro friction.</h2>
+      </div>
+      <ol class="steps" data-reveal>
+        <li><strong>Activation en caisse :</strong> téléphone + PIN + QR.</li>
+        <li><strong>Connexion :</strong> aucun compte web.</li>
+        <li><strong>Synchronisation :</strong> la caisse pousse les clichés.</li>
+        <li><strong>Consultation :</strong> même hors-ligne. Révocable.</li>
+      </ol>
+    </div>
+    <div class="mini" data-reveal>
+      <h3>Sécurité sans friction</h3>
+      <ul class="check">
+        <li>Aucune écriture financière depuis le téléphone.</li>
+        <li>Réutilisation d'un numéro bloquée en caisse.</li>
+        <li>Révocation immédiate.</li>
+        <li>Comparaison de code en temps constant, sel par accès.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="section section-defer">
+  <div class="wrap">
+    <div class="receipt-cta" data-reveal>
+      <p class="kicker">Activer un accès</p>
+      <h2>Un client, un accès, un code.</h2>
+      <p class="lead" style="color: #3c465c; margin-inline: 0">L'activation se fait en caisse, en trente secondes. Le client scanne, il est connecté.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="contact.html">Demander une démo</a>
+        <a class="btn btn-glass" href="pricing.html">Voir les tarifs</a>
+      </div>
+      <p class="receipt-line">MERCI — VELORIA · CLIENT — ANDROIDE</p>
+    </div>
+  </div>
+</section>
+
+
+    </main>
+<footer class="site-footer">
+  <div class="wrap footer-in">
+    <p style="margin: 0">
+      <strong>Veloria</strong> — POS hors-ligne &amp; application client.<br />
+      <span class="muted">Interface 100 % française, support en Algérie.</span>
+    </p>
+    <nav aria-label="Pied de page">          <a href="index.html">Accueil</a>
+          <a href="pos.html">POS</a>
+          <a href="client.html" aria-current="page">Client</a>
+          <a href="pricing.html">Tarifs</a>
+          <a href="contact.html">Contact</a></nav>
+    <p class="footer-note">
+      Site de présentation — téléchargement sur demande via Contact ou WhatsApp. Captures et vidéo :
+      application réelle, sans retouche.
+    </p>
+  </div>
+</footer>
+<script src="app.js" defer></script>
+
   </body>
 </html>

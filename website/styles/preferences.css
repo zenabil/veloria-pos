@@ -1,0 +1,51 @@
+/* ==========================================================================
+   19. Préférences utilisateur
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  [data-reveal] {
+    opacity: 1;
+    transform: none;
+  }
+  .marquee-inner,
+  .eyebrow .pulse,
+  .scroll-down-chevrons {
+    animation: none !important;
+  }
+  .rotator span {
+    transition: none;
+  }
+}
+@media (prefers-contrast: more) {
+  :root {
+    --surface: rgb(255 255 255 / 10%);
+    --surface-2: rgb(255 255 255 / 16%);
+    --line: rgb(255 255 255 / 30%);
+    --line-2: rgb(255 255 255 / 45%);
+    --muted: #cdd9e8;
+  }
+}
+@media print {
+  .site-header,
+  .scroll-down,
+  .marquee,
+  .tabs,
+  .app-frame,
+  .chapter-frame {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+    color: #000;
+  }
+}

@@ -1,0 +1,108 @@
+/* ==========================================================================
+   9. Grand livre Z (clôture)
+   ========================================================================== */
+.ledger {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr);
+  gap: clamp(24px, 4vw, 56px);
+  align-items: center;
+}
+.ledger-paper {
+  position: relative;
+  background: var(--paper);
+  color: var(--paper-ink);
+  border-radius: 6px;
+  padding: 26px 26px 30px;
+  box-shadow: var(--shadow-lg);
+  font-family: var(--mono);
+  font-size: 0.92rem;
+}
+.ledger-paper::before,
+.ledger-paper::after {
+  /* perforations du reçu */
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 12px;
+  background: radial-gradient(circle at 8px 6px, var(--ink-950) 6px, transparent 6.5px) repeat-x
+    left / 16px 12px;
+}
+.ledger-paper::before {
+  top: -11px;
+}
+.ledger-paper::after {
+  bottom: -11px;
+}
+.ledger-paper h3 {
+  margin: 0 0 4px;
+  font-family: var(--mono);
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+}
+.ledger-paper .meta {
+  color: #6b7280;
+  font-size: 0.76rem;
+  letter-spacing: 0.06em;
+  margin-bottom: 14px;
+}
+.ledger-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 7px 0;
+  border-bottom: 1px dotted rgb(28 34 48 / 28%);
+}
+.ledger-row .label {
+  color: #3c465c;
+}
+.ledger-row .amount {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+.ledger-row.neg .amount {
+  color: #b42318;
+}
+.ledger-total {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 14px;
+  margin-top: 6px;
+  border-top: 2px solid rgb(28 34 48 / 80%);
+  font-weight: 800;
+  font-size: 1.12rem;
+}
+.ledger-total .amount {
+  color: #0f5b3f;
+  font-variant-numeric: tabular-nums;
+}
+.ledger-note {
+  margin: 14px 0 0;
+  font-family: var(--font);
+  font-size: 0.92rem;
+  color: #3c465c;
+  border-left: 3px solid var(--gold-500);
+  padding-left: 12px;
+}
+.ledger-aside {
+  display: grid;
+  gap: 18px;
+}
+.ledger-aside .fact {
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 18px 20px;
+  background: var(--surface);
+}
+.ledger-aside .fact b {
+  display: block;
+  font-family: var(--mono);
+  color: var(--gold-200);
+  font-size: 1.05rem;
+  margin-bottom: 4px;
+}
+.ledger-aside .fact span {
+  color: var(--muted);
+  font-size: 0.94rem;
+}
