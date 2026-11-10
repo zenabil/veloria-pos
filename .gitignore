@@ -84,3 +84,6 @@ local.properties
 # est verrouillé en pleine build (sortie hors workspace puis copie).
 /release-manager-tmp/
 /release-mgr/
+
+# Captures du site vitrine : artefacts régénérés par `npm run verify:site` (docs/shots/site/).
+docs/shots/site/

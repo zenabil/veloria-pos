@@ -8,10 +8,15 @@
       name="description"
       content="Tarifs transparents Veloria POS et Veloria Client : licence annuelle par poste, renouvellement, comparaison."
     />
+    <!-- Le CSS de révélation ne s'active qu'avec JS : sans JS, tout le contenu reste visible. -->
+    <script>
+      document.documentElement.classList.add("js");
+    </script>
     <link rel="stylesheet" href="styles.css" />
     <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
   </head>
   <body>
+    <a class="skip-link" href="#main">Aller au contenu</a>
     <header class="site-header">
       <div class="wrap header-in">
         <a class="brand" href="index.html"
@@ -35,22 +40,38 @@
           <a class="btn btn-primary" href="contact.html">Demander une démo</a>
         </nav>
       </div>
+      <div class="scroll-progress" aria-hidden="true"></div>
     </header>
 
-    <main>
+    <main id="main">
       <section class="hero">
-        <div class="wrap">
-          <p class="eyebrow">Tarifs transparents • Sans commission cachée</p>
-          <h1>Des licences <span class="grad">simples</span>, au poste.</h1>
-          <p class="lead">
+        <div class="wrap" data-reveal>
+          <p class="eyebrow" data-reveal>
+            <span class="pulse" aria-hidden="true"></span>
+            Tarifs transparents • Sans commission cachée
+          </p>
+          <h1 data-reveal>Des licences <span class="grad">simples</span>, au poste.</h1>
+          <p class="lead" data-reveal>
             Un prix par poste et par an. Toutes les formules incluent le hors-ligne et le support en
             français. Client inclus avec chaque formule POS.
           </p>
+          <ul class="trust-line" data-reveal>
+            <li>Activation hors-ligne, aucun appel réseau</li>
+            <li>Renouvellement ou passage de formule sans réinstallation</li>
+          </ul>
         </div>
       </section>
 
-      <section class="section">
+      <section class="section section-defer">
         <div class="wrap">
+          <div class="section-head" data-reveal>
+            <p class="kicker">Formules</p>
+            <h2>Trois formules, un même socle.</h2>
+            <p class="lead">
+              Le hors-ligne, les centimes exacts, la clôture et le support en français sont dans
+              toutes les formules.
+            </p>
+          </div>
           <div class="pricing">
             <article class="tier">
               <h3>Essentiel</h3>
@@ -103,7 +124,10 @@
             publication.
           </p>
 
-          <h2>Comparatif détaillé</h2>
+          <div class="section-head" style="margin-top: 56px" data-reveal>
+            <p class="kicker">Comparatif</p>
+            <h2>Ce que contient chaque formule</h2>
+          </div>
           <div class="table-scroll">
             <table class="compare">
               <thead>
@@ -161,7 +185,7 @@
             </table>
           </div>
 
-          <div class="faq" style="margin-top: 28px">
+          <div class="faq" style="margin-top: 40px" data-reveal>
             <h2>Questions fréquentes</h2>
             <details>
               <summary>La licence est-elle par poste ou par magasin ?</summary>
@@ -180,24 +204,48 @@
               <p>Oui, sans réinstallation ni perte de données.</p>
             </details>
           </div>
+        </div>
+      </section>
 
-          <p style="margin-top: 24px">
-            <a class="btn btn-primary" href="contact.html">Demander une démo et un tarif exact</a>
-            <a class="btn btn-wa" href="https://wa.me/213770204047" target="_blank" rel="noopener"
-              >WhatsApp +213 770 20 40 47</a
-            >
-          </p>
+      <section class="section section-defer">
+        <div class="wrap">
+          <div class="receipt-cta" data-reveal>
+            <p class="kicker">Tarif exact</p>
+            <h2>Un prix juste pour votre poste.</h2>
+            <p class="lead" style="color: #3c465c; margin-inline: 0">
+              Dites-nous votre configuration (postes, imprimante, volume) — on répond avec un tarif
+              écrit, sans surprise de renouvellement.
+            </p>
+            <div class="cta-row">
+              <a class="btn btn-primary" href="contact.html">Demander un tarif</a>
+              <a
+                class="btn btn-glass"
+                href="https://wa.me/213770204047"
+                target="_blank"
+                rel="noopener"
+                >WhatsApp direct</a
+              >
+            </div>
+            <p class="receipt-line">MERCI — VELORIA · LICENCE — PAR POSTE</p>
+          </div>
         </div>
       </section>
     </main>
 
     <footer class="site-footer">
       <div class="wrap footer-in">
-        <p><strong>Veloria</strong> — POS hors-ligne &amp; application client.</p>
+        <p style="margin: 0">
+          <strong>Veloria</strong> — POS hors-ligne &amp; application client.<br />
+          <span class="muted">Interface 100 % française, support en Algérie.</span>
+        </p>
         <nav aria-label="Pied de page">
           <a href="index.html">Accueil</a><a href="pos.html">POS</a><a href="client.html">Client</a
           ><a href="pricing.html">Tarifs</a><a href="contact.html">Contact</a>
         </nav>
+        <p class="footer-note">
+          Site de présentation — téléchargement sur demande via Contact ou WhatsApp. Captures et
+          vidéo : application réelle, sans retouche.
+        </p>
       </div>
     </footer>
     <script src="app.js" defer></script>

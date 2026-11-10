@@ -187,6 +187,7 @@
 - [ADR-177](./ADR-177-reparation-radicale-2026-11-09.md) Reparation radicale post-audit : flux de caisse unique (`sale_payments`), journal des remboursements (0060), sauvegarde qui ne mange plus sa source, sync « reserve avant l'envoi », idempotence explicite (0061), acces client historise (0062), FR strict
 - [ADR-178](./ADR-178-source-unique-des-metriques.md) Source unique des metriques : `docs/METRICS.md` genere + porte `verify:docs` (les compteurs documentes ne peuvent plus deriver du code)
 - [ADR-179](./ADR-179-skills-veloria-spec-opencode.md) Competences Veloria : suite conforme au standard Agent Skills (10 competences, 5 agents, 5 commandes), 7 domaines critiques nouvellement couverts, et auto-verification par `verify:docs` (nom = dossier, description, zero chiffre perime, table de routage complete)
+- [ADR-180](./ADR-180-site-vitrine-terminal-dor.md) Site vitrine : design system « Terminal d'Or » (palette du produit reel, app-frame, onglets produit, scrollytelling, grand livre Z, CTA en reçu) + porte `verify:site` (console, debordement, structure, CLS, liens morts)
 
 ## Ou ecrire quoi
 

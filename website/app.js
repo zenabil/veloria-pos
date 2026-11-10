@@ -1,16 +1,34 @@
-/* global document, window, HTMLAnchorElement, HTMLFormElement, HTMLInputElement, HTMLSelectElement, HTMLTextAreaElement, IntersectionObserver, ResizeObserver, requestAnimationFrame, cancelAnimationFrame */
-// Veloria 2026 : navigation mobile + tilt 3D + scroll reveal + spotlight + formulaire + admin
+/* global document, window, HTMLElement, HTMLAnchorElement, HTMLFormElement, HTMLInputElement, HTMLSelectElement, HTMLTextAreaElement, IntersectionObserver, ResizeObserver, requestAnimationFrame, cancelAnimationFrame, performance, KeyboardEvent */
+// Veloria — « Terminal d'Or » : interactions du site vitrine.
+// Principes : 1) rien qui bloque le premier rendu ; 2) toute animation est
+// réversible via `prefers-reduced-motion` ; 3) le défilement n'est jamais
+// traité hors `requestAnimationFrame` ; 4) aucun réseau, aucun secret en
+// clair côté client (l'espace admin reste un prototype local, cf. README).
 document.addEventListener("DOMContentLoaded", () => {
-  const btn = document.querySelector("[data-nav-toggle]");
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const finePointer = window.matchMedia("(pointer: fine)");
+
+  // ——————————————————————————————————————————————— Navigation mobile
+  const navToggle = document.querySelector("[data-nav-toggle]");
   const nav = document.getElementById("main-nav");
-  if (btn && nav) {
-    btn.addEventListener("click", () => {
+  if (navToggle instanceof HTMLElement && nav instanceof HTMLElement) {
+    navToggle.addEventListener("click", () => {
       const open = nav.classList.toggle("open");
-      btn.setAttribute("aria-expanded", String(open));
+      navToggle.setAttribute("aria-expanded", String(open));
+    });
+    nav.addEventListener("click", (ev) => {
+      if (!(ev.target instanceof HTMLAnchorElement)) return;
+      if (window.innerWidth > 960) return;
+      nav.classList.remove("open");
+      navToggle.setAttribute("aria-expanded", "false");
     });
   }
 
-  // ——— Scroll down : section suivante, progression, retour en haut ———
+  // ——————————————————————————————————————————————— Progression & section suivante
+  const progressBar = document.querySelector(".scroll-progress");
+  const maxScroll = () => Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+  const scrollRatio = () => (maxScroll() ? Math.min(1, window.scrollY / maxScroll()) : 0);
+
   const scrollDown = document.createElement("button");
   scrollDown.type = "button";
   scrollDown.className = "scroll-down";
@@ -25,10 +43,8 @@ document.addEventListener("DOMContentLoaded", () => {
   `;
   document.body.appendChild(scrollDown);
 
-  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const header = document.querySelector(".site-header");
-  const headerOffset = () => (header ? header.getBoundingClientRect().height + 32 : 104);
-  const maxScroll = () => Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+  const headerOffset = () => (header ? header.getBoundingClientRect().height + 36 : 108);
   const atBottom = () => window.scrollY >= maxScroll() - 4;
   const scrollTargets = () =>
     Array.from(document.querySelectorAll("main h2, .site-footer"))
@@ -38,15 +54,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const updateScrollDown = () => {
     const max = maxScroll();
     scrollDown.hidden = max <= 8;
+    if (progressBar instanceof HTMLElement) {
+      progressBar.style.setProperty("--progress", String(scrollRatio()));
+    }
     if (scrollDown.hidden) return;
     const bottom = atBottom();
     const label = bottom ? "Retour en haut" : "Section suivante";
     scrollDown.classList.toggle("is-top", bottom);
-    scrollDown.style.setProperty(
-      "--scroll-progress",
-      String(max ? Math.min(1, window.scrollY / max) : 0),
-    );
-    scrollDown.querySelector(".scroll-down-label").textContent = label;
+    scrollDown.style.setProperty("--scroll-progress", String(scrollRatio()));
+    const labelEl = scrollDown.querySelector(".scroll-down-label");
+    if (labelEl) labelEl.textContent = label;
     scrollDown.setAttribute(
       "aria-label",
       bottom ? "Retour en haut de la page" : "Défiler vers la section suivante",
@@ -62,6 +79,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const next = scrollTargets().find((target) => target.top > window.scrollY + 4);
     window.scrollTo({ top: next ? next.top : maxScroll(), behavior });
   });
+
   let scrollTicking = false;
   const scheduleScrollUpdate = () => {
     if (scrollTicking) return;
@@ -69,6 +87,7 @@ document.addEventListener("DOMContentLoaded", () => {
     requestAnimationFrame(() => {
       scrollTicking = false;
       updateScrollDown();
+      revealVisible();
     });
   };
   document.addEventListener("scroll", scheduleScrollUpdate, { passive: true });
@@ -77,54 +96,174 @@ document.addEventListener("DOMContentLoaded", () => {
   if ("ResizeObserver" in window) new ResizeObserver(scheduleScrollUpdate).observe(document.body);
   updateScrollDown();
 
-  // ——— Scroll reveal (cinematic scrollytelling, stagger leger) ———
-  const reveals = document.querySelectorAll("[data-reveal]");
-  if ("IntersectionObserver" in window) {
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            e.target.classList.add("in");
-            io.unobserve(e.target);
-          }
-        });
-      },
-      { threshold: 0.12 },
-    );
-    reveals.forEach((el, i) => {
+  // ——————————————————————————————————————————————— Révélation au défilement
+  // Balayage déterministe (et non IntersectionObserver) : le contrôle est
+  // fait dans la boucle rAF du défilement, donc il fonctionne aussi bien en
+  // capture pleine page, en onglet en arrière-plan, ou avec un défilement
+  // instantané (le IO pouvait ne jamais déclencher : blocs restés invisibles).
+  const reveals = Array.from(document.querySelectorAll("[data-reveal]"));
+  reveals.forEach((el, i) => {
+    if (el instanceof HTMLElement) {
       el.style.transitionDelay = `${Math.min(i % 4, 3) * 70}ms`;
-      io.observe(el);
-    });
-  } else {
+    }
+  });
+  const revealVisible = () => {
+    const vh = window.innerHeight;
+    for (const el of reveals) {
+      if (el.classList.contains("in")) continue;
+      const r = el.getBoundingClientRect();
+      if (r.top < vh * 0.92 && r.bottom > 0) el.classList.add("in");
+    }
+  };
+  // Filet de sécurité : rien ne reste caché durablement, même si la page
+  // n'est jamais défilée (information jamais cachée par défaut).
+  window.setTimeout(() => {
     reveals.forEach((el) => el.classList.add("in"));
+  }, 1400);
+  revealVisible();
+
+  // ——————————————————————————————————————————————— Mot qui défile (héros)
+  const rotator = document.querySelector("[data-rotator]");
+  if (rotator instanceof HTMLElement && !reduceMotion.matches) {
+    const words = Array.from(rotator.querySelectorAll("span"));
+    if (words.length > 1) {
+      let index = 0;
+      words[0].classList.add("is-on");
+      const timer = setInterval(() => {
+        words[index].classList.remove("is-on");
+        index = (index + 1) % words.length;
+        words[index].classList.add("is-on");
+      }, 2600);
+      window.addEventListener("pagehide", () => clearInterval(timer), { once: true });
+    }
   }
 
-  // ——— Tilt 3D (un seul moment wow, physics-based) ———
-  const tilts = document.querySelectorAll(".device, .phone");
-  const finePointer = window.matchMedia?.("(pointer:fine)").matches;
-  if (finePointer) {
-    tilts.forEach((el) => {
+  // ——————————————————————————————————————————————— Compteurs animés
+  const animateNumber = (el) => {
+    const target = Number(el.dataset.count);
+    if (!Number.isFinite(target)) return;
+    const decimals = (el.dataset.countDecimals || "0").length;
+    const duration = 1100;
+    const start = performance.now();
+    const step = (now) => {
+      const p = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      el.textContent = (target * eased).toFixed(decimals);
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  };
+  const counters = document.querySelectorAll("[data-count]");
+  if (counters.length > 0) {
+    if ("IntersectionObserver" in window && !reduceMotion.matches) {
+      const cio = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (!entry.isIntersecting) return;
+            animateNumber(entry.target);
+            cio.unobserve(entry.target);
+          });
+        },
+        { threshold: 0.5 },
+      );
+      counters.forEach((el) => cio.observe(el));
+    } else {
+      counters.forEach((el) => {
+        const decimals = (el.dataset.countDecimals || "0").length;
+        const target = Number(el.dataset.count);
+        if (Number.isFinite(target)) el.textContent = target.toFixed(decimals);
+      });
+    }
+  }
+
+  // ——————————————————————————————————————————————— Onglets produit (tablist)
+  document.querySelectorAll("[data-tabs]").forEach((tabsRoot) => {
+    if (!(tabsRoot instanceof HTMLElement)) return;
+    const buttons = Array.from(tabsRoot.querySelectorAll("[role=tab]"));
+    const panel = document.querySelector(tabsRoot.dataset.tabs || "");
+    if (buttons.length === 0 || !(panel instanceof HTMLElement)) return;
+    const show = (index) => {
+      buttons.forEach((btn, i) => {
+        if (!(btn instanceof HTMLElement)) return;
+        btn.setAttribute("aria-selected", String(i === index));
+        btn.tabIndex = i === index ? 0 : -1;
+      });
+      const src = buttons[index]?.getAttribute("data-src");
+      panel.querySelectorAll("img").forEach((img) => {
+        img.classList.toggle("is-on", img.getAttribute("src") === src);
+      });
+    };
+    buttons.forEach((btn, i) => {
+      btn.addEventListener("click", () => show(i));
+      btn.addEventListener("keydown", (ev) => {
+        if (!(ev instanceof KeyboardEvent)) return;
+        const delta = ev.key === "ArrowRight" ? 1 : ev.key === "ArrowLeft" ? -1 : 0;
+        if (delta === 0) return;
+        ev.preventDefault();
+        const next = (i + delta + buttons.length) % buttons.length;
+        const target = buttons[next];
+        if (target instanceof HTMLElement) target.focus();
+        show(next);
+      });
+    });
+    show(0);
+  });
+
+  // ——————————————————————————————————————————————— Chapitres (scrollytelling)
+  const chapters = Array.from(document.querySelectorAll("[data-chapter]"));
+  if (chapters.length > 0) {
+    const frame = document.querySelector("[data-chapter-frame]");
+    const caption = document.querySelector("[data-chapter-caption]");
+    const frameImages = frame ? Array.from(frame.querySelectorAll("img")) : [];
+    const activate = (chapter) => {
+      chapters.forEach((c) => c.classList.toggle("is-active", c === chapter));
+      const src = chapter.getAttribute("data-chapter");
+      frameImages.forEach((img) => {
+        img.classList.toggle("is-on", img.getAttribute("src") === src);
+      });
+      if (caption instanceof HTMLElement) {
+        caption.textContent = chapter.getAttribute("data-chapter-label") || "";
+      }
+    };
+    if ("IntersectionObserver" in window) {
+      const cio = new IntersectionObserver(
+        (entries) => {
+          const visible = entries
+            .filter((e) => e.isIntersecting)
+            .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+          if (visible) activate(visible.target);
+        },
+        { threshold: [0.25, 0.5, 0.75], rootMargin: "-18% 0px -35% 0px" },
+      );
+      chapters.forEach((c) => cio.observe(c));
+    }
+    activate(chapters[0]);
+  }
+
+  // ——————————————————————————————————————————————— Inclinaison 3D (souris fine)
+  if (finePointer.matches && !reduceMotion.matches) {
+    document.querySelectorAll(".app-frame, .phone").forEach((el) => {
+      if (!(el instanceof HTMLElement)) return;
       let raf = null;
-      const onMove = (ev) => {
+      el.addEventListener("mousemove", (ev) => {
         const r = el.getBoundingClientRect();
         const x = (ev.clientX - r.left) / r.width - 0.5;
         const y = (ev.clientY - r.top) / r.height - 0.5;
         if (raf) cancelAnimationFrame(raf);
         raf = requestAnimationFrame(() => {
-          el.style.transform = `rotateY(${x * 8}deg) rotateX(${-y * 8}deg) translateZ(0)`;
+          el.style.transform = `rotateY(${x * 5}deg) rotateX(${-y * 5}deg)`;
         });
-      };
-      const onLeave = () => {
+      });
+      el.addEventListener("mouseleave", () => {
         if (raf) cancelAnimationFrame(raf);
-        el.style.transform = "rotateY(0deg) rotateX(0deg)";
-      };
-      el.addEventListener("mousemove", onMove);
-      el.addEventListener("mouseleave", onLeave);
+        el.style.transform = "";
+      });
     });
   }
 
-  // ——— Spotlight bento (position du curseur en CSS vars) ———
-  document.querySelectorAll(".bento .card, .testi").forEach((card) => {
+  // ——————————————————————————————————————————————— Projecteur (cartes)
+  document.querySelectorAll(".bento .card, .testi, .chapter").forEach((card) => {
+    if (!(card instanceof HTMLElement)) return;
     card.addEventListener("mousemove", (ev) => {
       const r = card.getBoundingClientRect();
       card.style.setProperty("--mx", `${((ev.clientX - r.left) / r.width) * 100}%`);
@@ -132,9 +271,26 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  // ——————————————————————————————————————————————— Boutons magnétiques
+  if (finePointer.matches && !reduceMotion.matches) {
+    document.querySelectorAll(".btn-primary").forEach((btn) => {
+      if (!(btn instanceof HTMLElement)) return;
+      btn.addEventListener("mousemove", (ev) => {
+        const r = btn.getBoundingClientRect();
+        const dx = (ev.clientX - (r.left + r.width / 2)) * 0.18;
+        const dy = (ev.clientY - (r.top + r.height / 2)) * 0.24;
+        btn.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px)`;
+      });
+      btn.addEventListener("mouseleave", () => {
+        btn.style.transform = "";
+      });
+    });
+  }
+
+  // ——————————————————————————————————————————————— Formulaire de contact
   const form = document.querySelector("[data-contact-form]");
   const err = document.querySelector("[data-form-error]");
-  if (form && form instanceof HTMLFormElement) {
+  if (form instanceof HTMLFormElement) {
     form.addEventListener("submit", (e) => {
       e.preventDefault();
       const name = form.elements.namedItem("name");

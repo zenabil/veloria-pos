@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
     <title>Admin — Veloria (accès restreint)</title>
+    <!-- Le CSS de révélation ne s'active qu'avec JS : sans JS, tout le contenu reste visible. -->
+    <script>
+      document.documentElement.classList.add("js");
+    </script>
     <link rel="stylesheet" href="styles.css" />
     <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
   </head>
@@ -22,9 +26,9 @@
 
     <main>
       <section class="section">
-        <div class="wrap">
+        <div class="wrap" data-reveal>
           <h2>Espace administration <span class="muted">(secret — non lié)</span></h2>
-          <div id="gate" class="form">
+          <div id="gate" class="form" data-reveal>
             <p class="muted">
               Cette page est réservée. Entrez le code d'accès pour voir les messages des clients et
               gérer les liens de téléchargement.
@@ -42,8 +46,8 @@
           </div>
 
           <div id="panel" hidden>
-            <div class="split">
-              <div class="inbox">
+            <div class="split" data-reveal>
+              <div class="inbox" data-reveal>
                 <h3>Messages clients</h3>
                 <div id="messages">
                   <p class="muted">
@@ -52,7 +56,7 @@
                   </p>
                 </div>
               </div>
-              <form class="form" id="links-form">
+              <form class="form" id="links-form" data-reveal>
                 <h3>Liens de téléchargement</h3>
                 <div class="field">
                   <label for="pos-link">Veloria POS (URL)</label>
@@ -73,7 +77,7 @@
                 </p>
               </form>
             </div>
-            <p style="margin-top: 16px">
+            <p style="margin-top: 16px" data-reveal>
               <button class="btn btn-glass" id="lock" type="button">Verrouiller</button>
             </p>
           </div>

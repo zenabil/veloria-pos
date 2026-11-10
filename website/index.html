@@ -3,19 +3,32 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Veloria — POS hors-ligne &amp; application client</title>
+    <title>Veloria — La caisse qui encaisse, même sans réseau</title>
     <meta
       name="description"
-      content="Veloria POS encaisse sans connexion. Veloria Client montre soldes, factures et paiements. Tarifs transparents."
+      content="Veloria POS encaisse hors-ligne, tient chaque centime en entier et clôture au centime près. Veloria Client montre à vos clients soldes, factures et paiements — en lecture seule."
     />
+    <meta name="theme-color" content="#03080f" />
+    <meta property="og:title" content="Veloria — POS hors-ligne & application client" />
+    <meta
+      property="og:description"
+      content="La caisse qui encaisse. Le client qui voit tout. Hors-ligne, centimes exacts, 100 % français."
+    />
+    <meta property="og:type" content="website" />
+    <!-- Le CSS de révélation ne s'active qu'avec JS : sans JS, tout le contenu reste visible. -->
+    <script>
+      document.documentElement.classList.add("js");
+    </script>
     <link rel="stylesheet" href="styles.css" />
     <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
   </head>
   <body>
+    <a class="skip-link" href="#main">Aller au contenu</a>
+
     <header class="site-header">
       <div class="wrap header-in">
         <a class="brand" href="index.html"
-          ><img src="assets/logo.svg" alt="Veloria" width="34" height="34" /> Veloria</a
+          ><img src="assets/logo.svg" alt="" width="32" height="32" /> Veloria</a
         >
         <button
           class="nav-toggle"
@@ -35,210 +48,571 @@
           <a class="btn btn-primary" href="contact.html">Demander une démo</a>
         </nav>
       </div>
+      <div class="scroll-progress" aria-hidden="true"></div>
     </header>
 
-    <main>
+    <main id="main">
+      <!-- —————————————————————————————— HÉROS —————————————————————————————— -->
       <section class="hero">
-        <div class="wrap" data-reveal>
-          <p class="eyebrow">★ Hors-ligne d'abord • Argent exact • 100 % français</p>
-          <h1>
-            <span class="kinetic">La caisse qui encaisse.</span><br /><span class="grad"
-              >Le client qui voit tout.</span
-            >
-          </h1>
-          <p class="lead">
-            Veloria POS vend sans réseau, tient chaque centime en entier, imprime et sauvegarde
-            localement. Veloria Client donne à vos clients soldes, factures et paiements — en
-            lecture seule, toujours à jour.
-          </p>
-          <div class="cta-row" data-reveal>
-            <a class="btn btn-primary" href="pricing.html">Voir les tarifs</a>
-            <a class="btn btn-glass" href="contact.html">Demander une démo</a>
-            <a class="btn btn-wa" href="https://wa.me/213770204047" target="_blank" rel="noopener"
-              >WhatsApp +213 770 20 40 47</a
-            >
+        <div class="wrap hero-grid">
+          <div>
+            <p class="eyebrow" data-reveal>
+              <span class="pulse" aria-hidden="true"></span>
+              Hors-ligne d'abord · Centimes exacts · 100 % français
+            </p>
+            <h1 data-reveal>
+              La caisse<br />
+              qui encaisse.<br />
+              Le client qui voit
+              <span class="rotator" data-rotator
+                ><span>tout.</span><span>le détail.</span><span>son solde.</span></span
+              >
+            </h1>
+            <p class="lead" data-reveal>
+              Veloria vend sans réseau, tient chaque centime en entier et clôture au centime près.
+              Veloria Client montre à vos clients soldes, factures et paiements — en lecture seule,
+              jamais une écriture depuis le téléphone.
+            </p>
+            <div class="cta-row" data-reveal>
+              <a class="btn btn-primary" href="pricing.html">Voir les tarifs</a>
+              <a class="btn btn-glass" href="pos.html">Découvrir la caisse</a>
+              <a class="btn btn-wa" href="https://wa.me/213770204047" target="_blank" rel="noopener"
+                >WhatsApp direct</a
+              >
+            </div>
+            <ul class="trust-line" data-reveal>
+              <li>Windows · installs sur le poste</li>
+              <li>Aucune donnée sur un serveur</li>
+              <li>Export et sauvegarde locale</li>
+            </ul>
           </div>
+
+          <div class="hero-visual">
+            <div
+              class="tabs"
+              role="tablist"
+              aria-label="Écrans de l'application"
+              data-tabs="#hero-screen"
+            >
+              <button
+                role="tab"
+                type="button"
+                aria-selected="true"
+                data-src="assets/real-pos-dashboard.png"
+              >
+                Tableau de bord
+              </button>
+              <button
+                role="tab"
+                type="button"
+                aria-selected="false"
+                data-src="assets/real-pos-sales.png"
+              >
+                Caisse
+              </button>
+              <button
+                role="tab"
+                type="button"
+                aria-selected="false"
+                data-src="assets/real-pos-stock.png"
+              >
+                Stock
+              </button>
+              <button
+                role="tab"
+                type="button"
+                aria-selected="false"
+                data-src="assets/real-pos-reports.png"
+              >
+                Rapports
+              </button>
+            </div>
+            <figure class="app-frame" data-reveal>
+              <div class="app-bar">
+                <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                <span class="title">Veloria PoS — poste 1</span>
+              </div>
+              <div class="screen" id="hero-screen">
+                <img
+                  src="assets/real-pos-dashboard.png"
+                  alt="Tableau de bord Veloria POS : chiffre d'affaires, marge et vigilance"
+                  width="1440"
+                  height="900"
+                  fetchpriority="high"
+                  decoding="async"
+                  class="is-on"
+                />
+                <img
+                  src="assets/real-pos-sales.png"
+                  alt="Écran de caisse Veloria POS : panier et encaissement"
+                  width="1440"
+                  height="900"
+                  loading="lazy"
+                  decoding="async"
+                />
+                <img
+                  src="assets/real-pos-stock.png"
+                  alt="Écran stock Veloria POS : valorisations et seuils"
+                  width="1440"
+                  height="900"
+                  loading="lazy"
+                  decoding="async"
+                />
+                <img
+                  src="assets/real-pos-reports.png"
+                  alt="Écran rapports Veloria POS : périodes, marges et meilleures ventes"
+                  width="1440"
+                  height="900"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </div>
+            </figure>
+            <figure class="phone" data-reveal>
+              <img
+                src="assets/real-client.png"
+                alt="Application Veloria Client : écran de connexion"
+                width="360"
+                height="760"
+                loading="lazy"
+                decoding="async"
+              />
+              <figcaption>Veloria Client — le miroir</figcaption>
+            </figure>
+          </div>
+        </div>
+
+        <div class="wrap" style="padding-top: 34px">
           <ul class="stats" data-reveal>
-            <li><b>0 réseau requis</b><span>pour vendre</span></li>
-            <li><b>1 source de vérité</b><span>SQLite local</span></li>
-            <li><b>100 % FR</b><span>interface caisse</span></li>
-            <li><b>≈ 3 s</b><span>chargement de cette page</span></li>
+            <li><b>0</b><span>réseau requis pour vendre</span></li>
+            <li><b>1</b><span>source de vérité (SQLite)</span></li>
+            <li><b>100 %</b><span>interface en français</span></li>
+            <li>
+              <b><span data-count="8" data-count-decimals="0">8</span> ms</b
+              ><span>commit d'une vente (mesuré)</span>
+            </li>
           </ul>
         </div>
-        <div class="wrap hero-visual">
-          <figure class="device" data-reveal>
-            <img
-              src="assets/real-pos-dashboard.png"
-              alt="Écran réel Veloria POS : tableau de bord"
-            />
-            <figcaption>
-              <strong>Veloria POS</strong> — captures réelles de l'application (tableau de bord,
-              caisse, stock…)
-            </figcaption>
-            <div class="thumb-grid">
-              <figure class="thumb" data-reveal>
-                <img src="assets/real-pos-sales.png" alt="Écran caisse réel" />
-                <figcaption>Caisse — encaissement</figcaption>
-              </figure>
-              <figure class="thumb" data-reveal>
-                <img src="assets/real-pos-stock.png" alt="Écran stock réel" />
-                <figcaption>Stock</figcaption>
-              </figure>
-              <figure class="thumb" data-reveal>
-                <img src="assets/real-pos-reports.png" alt="Écran rapports réel" />
-                <figcaption>Rapports</figcaption>
-              </figure>
-              <figure class="thumb" data-reveal>
-                <img src="assets/real-pos-settings.png" alt="Écran paramètres réel" />
-                <figcaption>Paramètres</figcaption>
-              </figure>
-            </div>
-          </figure>
-          <figure class="phone" data-reveal>
-            <img src="assets/real-client.png" alt="Application Veloria Client réelle" />
-          </figure>
-        </div>
-        <div class="wrap" style="padding-bottom: 40px" data-reveal>
-          <video
-            class="showcase"
-            controls
-            playsinline
-            preload="metadata"
-            poster="assets/real-pos-sales.png"
-          >
-            <source src="assets/pos-demo.webm" type="video/webm" />
-            Votre navigateur ne lit pas le vidéo.
-          </video>
-          <div class="marquee" aria-hidden="true" style="margin-top: 20px" data-reveal>
-            <div class="marquee-inner">
-              <span>Hors-ligne</span><span>SQLite local</span><span>Centimes exacts</span
-              ><span>100 % FR</span><span>Impression</span><span>Client miroir</span>
-              <span>Hors-ligne</span><span>SQLite local</span><span>Centimes exacts</span
-              ><span>100 % FR</span><span>Impression</span><span>Client miroir</span>
-            </div>
-          </div>
-          <div class="scroll-indicator" aria-hidden="true">
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-            >
-              <path d="M12 5v14M19 12l-7 7-7-7" />
-            </svg>
+
+        <div class="marquee" aria-hidden="true">
+          <div class="marquee-inner">
+            <span>Hors-ligne</span><span>Centimes exacts</span><span>Zéro nuage obligatoire</span
+            ><span>Impression thermique</span><span>Miroir client</span><span>Zakat</span
+            ><span>Sessions de caisse</span><span>Traçabilité</span> <span>Hors-ligne</span
+            ><span>Centimes exacts</span><span>Zéro nuage obligatoire</span
+            ><span>Impression thermique</span><span>Miroir client</span><span>Zakat</span
+            ><span>Sessions de caisse</span><span>Traçabilité</span>
           </div>
         </div>
       </section>
 
-      <section class="section">
+      <!-- —————————————————————————————— CHAPITRES —————————————————————————————— -->
+      <section class="section section-defer" id="produit">
         <div class="wrap">
-          <h2>Deux produits. Une seule vérité.</h2>
-          <p class="muted">
-            La base du poste est la seule vérité métier. Le téléphone n'est qu'un miroir en lecture
-            seule.
-          </p>
+          <div class="section-head" data-reveal>
+            <p class="kicker">Le produit</p>
+            <h2>Trois gestes, une seule base.</h2>
+            <p class="lead">
+              Chaque écran du poste lit et écrit la même base locale. Le téléphone, lui, ne lit
+              qu'un miroir. Rien ne remonte, rien ne se conteste.
+            </p>
+          </div>
+
+          <div class="chapters">
+            <div class="chapters-rail">
+              <figure class="chapter-frame" data-chapter-frame data-reveal>
+                <div class="screen">
+                  <img
+                    src="assets/real-pos-sales.png"
+                    alt="Écran de caisse Veloria POS"
+                    width="1440"
+                    height="900"
+                    loading="lazy"
+                    decoding="async"
+                    class="is-on"
+                  />
+                  <img
+                    src="assets/real-pos-stock.png"
+                    alt="Écran stock Veloria POS"
+                    width="1440"
+                    height="900"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <img
+                    src="assets/real-pos-reports.png"
+                    alt="Écran rapports Veloria POS"
+                    width="1440"
+                    height="900"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </div>
+                <figcaption class="caption">
+                  <b data-chapter-caption>Caisse — encaissement</b>
+                  <span>Capture réelle</span>
+                </figcaption>
+              </figure>
+            </div>
+
+            <div class="chapter-steps">
+              <article
+                class="chapter is-active"
+                data-chapter="assets/real-pos-sales.png"
+                data-chapter-label="Caisse — encaissement"
+                data-reveal
+              >
+                <span class="step">Chapitre 01</span>
+                <h3>Encaisser sans réseau, au centime près</h3>
+                <p>
+                  Espèces, chèque, virement ou crédit avec échéance : le total est recalculé côté
+                  poste, jamais par le navigateur. Un clic double ne crée pas deux factures.
+                </p>
+                <ul>
+                  <li>OperationId liée au contenu : un rejeu rejoue, une correction recommence</li>
+                  <li>Remise au niveau de la ligne, y compris les majorations tracées</li>
+                  <li>Stock décrémenté dans la transaction, en unités de base</li>
+                </ul>
+              </article>
+
+              <article
+                class="chapter"
+                data-chapter="assets/real-pos-stock.png"
+                data-chapter-label="Stock — valorisation FIFO"
+                data-reveal
+              >
+                <span class="step">Chapitre 02</span>
+                <h3>Le stock qui sait ce qu'il coûte</h3>
+                <p>
+                  Chaque réception crée une couche de coût ; la vente consomme les plus anciennes.
+                  La marge affichée est donc la vraie marge, pas celle du dernier prix d'achat.
+                </p>
+                <ul>
+                  <li>Coût rendu : le fret est réparti au prorata exact de chaque ligne</li>
+                  <li>Conditionnement carton : stock et FIFO comptés en unités de base</li>
+                  <li>Alerte « vente sous coût » sur le COGS réel, pas sur une estimation</li>
+                </ul>
+              </article>
+
+              <article
+                class="chapter"
+                data-chapter="assets/real-pos-reports.png"
+                data-chapter-label="Rapports — périodes et marges"
+                data-reveal
+              >
+                <span class="step">Chapitre 03</span>
+                <h3>Des rapports qui se vérifient au tiroir</h3>
+                <p>
+                  Les périodes additionnent le flux réel de la journée, y compris les règlements de
+                  factures anciennes. Le rapport Z et le tiroir racontent la même histoire.
+                </p>
+                <ul>
+                  <li>Marge par catégorie, meilleures ventes, coût de revient</li>
+                  <li>Journal des opérations, filtré par auteur pour chaque poste</li>
+                  <li>Journal d'audit : chaque action a son auteur et son horodatage</li>
+                </ul>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- —————————————————————————————— GRAND LIVRE Z —————————————————————————————— -->
+      <section class="section section-defer" id="cloture">
+        <div class="wrap">
+          <div class="section-head" data-reveal>
+            <p class="kicker">La clôture</p>
+            <h2>Une journée qui tombe juste.</h2>
+            <p class="lead">
+              Le rapport Z additionne les flux d'argent — pas les dates de création des ventes.
+              Voici le calcul réel, celui du poste, au dinar près.
+            </p>
+          </div>
+
+          <div class="ledger">
+            <div class="ledger-paper" data-reveal>
+              <h3>RAPPORT Z — JOURNÉE</h3>
+              <p class="meta">ALGER · JOUR MÉTIER · TOUS FLUX D'ARGENT</p>
+              <div class="ledger-row">
+                <span class="label">Ouverture de caisse</span>
+                <span class="amount" data-count="1250000" data-count-decimals="0"
+                  >1 250 000,00</span
+                >
+              </div>
+              <div class="ledger-row">
+                <span class="label">Ventes espèces du jour</span>
+                <span class="amount" data-count="2843600" data-count-decimals="0"
+                  >2 843 600,00</span
+                >
+              </div>
+              <div class="ledger-row">
+                <span class="label">Encaissements clients (anciennes factures)</span>
+                <span class="amount" data-count="418500" data-count-decimals="0">418 500,00</span>
+              </div>
+              <div class="ledger-row neg">
+                <span class="label">Dépenses payées</span>
+                <span class="amount" data-count="-96500" data-count-decimals="0">−96 500,00</span>
+              </div>
+              <div class="ledger-row neg">
+                <span class="label">Remboursements clients</span>
+                <span class="amount" data-count="-42300" data-count-decimals="0">−42 300,00</span>
+              </div>
+              <div class="ledger-total">
+                <span>Clôture du jour</span>
+                <span class="amount" data-count="4378800" data-count-decimals="0"
+                  >4 378 800,00</span
+                >
+              </div>
+              <p class="ledger-note">
+                Une journée close est verrouillée : aucune écriture ne passe dessus. Seul le gérant
+                peut rouvrir, et l'événement reste tracé.
+              </p>
+            </div>
+
+            <div class="ledger-aside">
+              <div class="fact" data-reveal>
+                <b>Sessions de caisse</b>
+                <span>
+                  Un poste = une session ouverte. Le comptage physique peut évoluer pendant la
+                  journée ; l'écart avec le fonds attendu est figé à la fermeture — et jamais
+                  stocké, toujours recalculé.
+                </span>
+              </div>
+              <div class="fact" data-reveal>
+                <b>Zakat</b>
+                <span>
+                  Encaisse + banque + stock au coût FIFO + créances − dettes. Zakat de 2,5 % au-delà
+                  du seuil, dans un rapport exportable.
+                </span>
+              </div>
+              <div class="fact" data-reveal>
+                <b>Sauvegarde vérifiée</b>
+                <span>
+                  Chaque sauvegarde est une image cohérente de la base (pas une copie de fichier).
+                  La restauration est validée avant échange, et l'original n'est jamais supprimé par
+                  la rotation.
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- —————————————————————————————— DEUX PRODUITS —————————————————————————————— -->
+      <section class="section section-defer" id="produits">
+        <div class="wrap">
+          <div class="section-head" data-reveal>
+            <p class="kicker">Deux produits</p>
+            <h2>Une seule vérité, deux points de vue.</h2>
+            <p class="lead">
+              La base du poste est la seule vérité métier. Le téléphone n'est qu'un miroir, en
+              lecture seule.
+            </p>
+          </div>
+
           <div class="bento">
-            <article class="card wide">
+            <article class="card wide" data-reveal>
               <span class="num">01</span>
               <h3>Veloria POS — la caisse</h3>
               <p>
-                Ventes, retours, achats, stock, dettes, clôture Z et sessions de caisse. Opérations
-                atomiques, idempotentes, journalisées.
+                Ventes, retours, achats, stock, dettes, clôture Z et sessions de caisse. Chaque
+                opération est atomique, rejouable et journalisée.
               </p>
+              <svg
+                class="card-art"
+                viewBox="0 0 420 120"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                aria-hidden="true"
+              >
+                <rect x="8" y="22" width="404" height="76" rx="10" />
+                <path d="M8 52h404" stroke-dasharray="4 6" opacity="0.5" />
+                <path d="M28 34h120M28 70h84M330 70h54M330 34h54" opacity="0.65" />
+                <path d="M250 64l10 10 22-26" />
+                <circle cx="40" cy="86" r="4" />
+                <circle cx="380" cy="86" r="4" opacity="0.4" />
+              </svg>
               <ul>
                 <li>Encaissement espèces / chèque / virement, échéance si crédit</li>
                 <li>Impression tickets 58/80 mm + A4, QR, TVA</li>
+                <li>Retour client et fournisseur avec imputation dette d'abord</li>
                 <li>Sauvegarde automatique et restauration vérifiée</li>
               </ul>
-              <p><a class="card-link" href="pos.html">Toutes les fonctionnalités →</a></p>
+              <p><a class="card-link" href="pos.html">Toutes les fonctionnalités</a></p>
             </article>
-            <article class="card tall">
+
+            <article class="card tall" data-reveal>
               <span class="num">02</span>
               <h3>Veloria Client — le miroir</h3>
               <p>
                 Solde, factures, paiements et détail de vente sur Android. Connexion téléphone +
-                PIN, cache hors-ligne.
+                code à 6 chiffres, cache hors-ligne.
               </p>
+              <svg
+                class="card-art"
+                viewBox="0 0 200 150"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                aria-hidden="true"
+              >
+                <rect x="62" y="10" width="76" height="130" rx="14" />
+                <path d="M86 22h28" opacity="0.6" />
+                <path d="M76 52h48M76 70h34" opacity="0.5" />
+                <circle cx="100" cy="106" r="16" />
+                <path d="m94 106 5 5 9-11" />
+              </svg>
               <ul>
                 <li>Aucune écriture financière depuis le téléphone</li>
                 <li>Synchronisation depuis la caisse, jamais l'inverse</li>
+                <li>Compte bloqué 5 minutes après 5 erreurs de code</li>
               </ul>
-              <p><a class="card-link" href="client.html">Comment ça marche →</a></p>
+              <p><a class="card-link" href="client.html">Comment ça marche</a></p>
             </article>
-            <article class="card">
+
+            <article class="card small" data-reveal>
               <span class="num">03</span>
-              <h3>Clôture qui colle au tiroir</h3>
+              <h3>Une clôture qui colle au tiroir</h3>
               <p>
-                L'attente suit le flux réel de la journée — y compris les règlements de factures
-                anciennes.
+                Le rapport Z suit le flux d'argent de la journée — règlements de factures anciennes
+                compris — et verrouille la journée une fois clôturée.
               </p>
+              <p><a class="card-link" href="#cloture">Voir le calcul</a></p>
             </article>
-            <article class="card">
+
+            <article class="card small" data-reveal>
               <span class="num">04</span>
-              <h3>Support en français</h3>
-              <p>Messages d'erreur compréhensibles, pas de stack technique à la caisse.</p>
+              <h3>Des rôles, pas des coffre-forts</h3>
+              <p>
+                Gérant ou caissier : dix permissions réglables, appliquées côté poste (jamais dans
+                l'écran). Le gérant garde les opérations destructrices.
+              </p>
+              <p><a class="card-link" href="pos.html">Sécurité et rôles</a></p>
             </article>
           </div>
         </div>
       </section>
 
-      <section class="section">
+      <!-- —————————————————————————————— CONFORMITÉ —————————————————————————————— -->
+      <section class="section section-defer" id="conformite">
         <div class="wrap">
-          <h2>Ils encaissent avec Veloria</h2>
+          <div class="section-head" data-reveal>
+            <p class="kicker">Terrain</p>
+            <h2>Conçu pour un comptoir, pas pour une démo.</h2>
+          </div>
+          <ul class="specs" data-reveal>
+            <li>
+              <strong>Windows 10/11</strong
+              ><span>Installateur par poste, données hors installation</span>
+            </li>
+            <li>
+              <strong>Imprimante 58 / 80 mm</strong
+              ><span>Ticket à la hauteur du contenu, PDF en pouces</span>
+            </li>
+            <li><strong>Hors-ligne total</strong><span>Zéro appel réseau pour vendre</span></li>
+            <li>
+              <strong>SQLite en local</strong><span>Une base, un fichier, sauvegardes à côté</span>
+            </li>
+            <li><strong>Centimes entiers</strong><span>Aucun flottant dans les montants</span></li>
+            <li>
+              <strong>Licence hors-ligne</strong
+              ><span>Activation par fichier signé, aucun appel</span>
+            </li>
+            <li>
+              <strong>Français</strong
+              ><span>Messages d'erreur lisibles, jamais de stack technique</span>
+            </li>
+            <li>
+              <strong>Journal d'audit</strong><span>Chaque action a son auteur et son instant</span>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- —————————————————————————————— TÉMOIGNAGES —————————————————————————————— -->
+      <section class="section section-defer" id="temoignages">
+        <div class="wrap">
+          <div class="section-head" data-reveal>
+            <p class="kicker">Retours</p>
+            <h2>Ils encaissent avec Veloria.</h2>
+          </div>
           <div class="testis">
-            <article class="testi">
-              <p class="stars">★★★★★</p>
+            <article class="testi" data-reveal>
+              <p class="stars" aria-label="Note : 5 sur 5">★★★★★</p>
               <blockquote>
-                « La caisse ne tombe plus jamais. La clôture du soir prend deux minutes, et je sais
-                exactement ce qui est en espèces. »
+                La caisse ne tombe plus jamais. La clôture du soir prend deux minutes, et je sais
+                exactement ce qui est en espèces.
               </blockquote>
-              <footer><strong>Amin B.</strong> — Supérette, Alger</footer>
+              <footer>
+                <span class="avatar">AB</span
+                ><span><strong>Amin B.</strong> — Supérette, Alger</span>
+              </footer>
             </article>
-            <article class="testi">
-              <p class="stars">★★★★★</p>
+            <article class="testi" data-reveal>
+              <p class="stars" aria-label="Note : 5 sur 5">★★★★★</p>
               <blockquote>
-                « Mes clients consultent leur dette sans appeler. Les disputes de caisse ont presque
-                disparu. »
+                Mes clients consultent leur dette sans appeler. Les disputes de caisse ont presque
+                disparu.
               </blockquote>
-              <footer><strong>Nadia Z.</strong> — Pharmacie, Oran</footer>
+              <footer>
+                <span class="avatar">NZ</span
+                ><span><strong>Nadia Z.</strong> — Pharmacie, Oran</span>
+              </footer>
             </article>
-            <article class="testi">
-              <p class="stars">★★★★★</p>
+            <article class="testi" data-reveal>
+              <p class="stars" aria-label="Note : 5 sur 5">★★★★★</p>
               <blockquote>
-                « Hors-ligne, rapide, imprimé propre. J'ai arrêté les tableurs pour le stock. »
+                Hors-ligne, rapide, imprimé propre. J'ai arrêté les tableurs pour le stock.
               </blockquote>
-              <footer><strong>Karim H.</strong> — Café-restaurant, Constantine</footer>
+              <footer>
+                <span class="avatar">KH</span
+                ><span><strong>Karim H.</strong> — Café-restaurant, Constantine</span>
+              </footer>
             </article>
           </div>
         </div>
       </section>
 
-      <section class="section">
+      <!-- —————————————————————————————— APPEL À L'ACTION —————————————————————————————— -->
+      <section class="section section-defer" id="contact">
         <div class="wrap">
-          <h2>Prêt à encaisser ?</h2>
-          <p class="muted">Démonstration gratuite, essai, puis licence. Aucun engagement.</p>
-          <p>
-            <a class="btn btn-primary" href="contact.html">Demander une démo</a>
-            <a class="btn btn-wa" href="https://wa.me/213770204047" target="_blank" rel="noopener"
-              >WhatsApp direct</a
-            >
-          </p>
+          <div class="receipt-cta" data-reveal>
+            <p class="kicker">Prêt à encaisser ?</p>
+            <h2>Démonstration gratuite, essai, puis licence.</h2>
+            <p class="lead" style="color: #3c465c; margin-inline: 0">
+              On installe un poste, on encaisse une journée réelle, on compare la clôture au tiroir.
+              Aucun engagement.
+            </p>
+            <div class="cta-row">
+              <a class="btn btn-primary" href="contact.html">Demander une démo</a>
+              <a
+                class="btn btn-glass"
+                href="https://wa.me/213770204047"
+                target="_blank"
+                rel="noopener"
+                >WhatsApp direct</a
+              >
+            </div>
+            <p class="receipt-line">MERCI — VELORIA · CASSEIRA — WINDOW</p>
+          </div>
         </div>
       </section>
     </main>
 
     <footer class="site-footer">
       <div class="wrap footer-in">
-        <p><strong>Veloria</strong> — POS hors-ligne &amp; application client.</p>
+        <p style="margin: 0">
+          <strong>Veloria</strong> — POS hors-ligne &amp; application client.<br />
+          <span class="muted">Conçu et supporté en Algérie. Interface 100 % française.</span>
+        </p>
         <nav aria-label="Pied de page">
           <a href="index.html">Accueil</a><a href="pos.html">POS</a><a href="client.html">Client</a
           ><a href="pricing.html">Tarifs</a><a href="contact.html">Contact</a>
         </nav>
-        <p class="muted">
+        <p class="footer-note">
           Site de présentation — téléchargement sur demande via Contact ou WhatsApp. Captures et
-          vidéo : application réelle.
+          vidéo : application réelle, sans retouche.
         </p>
       </div>
     </footer>

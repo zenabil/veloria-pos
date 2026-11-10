@@ -8,10 +8,15 @@
       name="description"
       content="Demander une démonstration, un tarif de licence ou du support."
     />
+    <!-- Le CSS de révélation ne s'active qu'avec JS : sans JS, tout le contenu reste visible. -->
+    <script>
+      document.documentElement.classList.add("js");
+    </script>
     <link rel="stylesheet" href="styles.css" />
     <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
   </head>
   <body>
+    <a class="skip-link" href="#main">Aller au contenu</a>
     <header class="site-header">
       <div class="wrap header-in">
         <a class="brand" href="index.html"
@@ -37,38 +42,52 @@
       </div>
     </header>
 
-    <main>
+    <main id="main">
       <section class="hero">
-        <div class="wrap">
-          <p class="eyebrow">Démonstration • Licence • Support</p>
-          <h1>Parlez-nous de <span class="grad">votre caisse.</span></h1>
-          <p class="lead">
+        <div class="wrap" data-reveal>
+          <p class="eyebrow" data-reveal>
+            <span class="pulse" aria-hidden="true"></span>
+            Démonstration • Licence • Support
+          </p>
+          <h1 data-reveal>Parlez-nous de <span class="grad">votre caisse.</span></h1>
+          <p class="lead" data-reveal>
             Démonstration gratuite, tarif exact, support : écrivez-nous ou passez par WhatsApp.
           </p>
-          <div class="cta-row">
-            <a class="btn btn-wa" href="https://wa.me/213770204047" target="_blank" rel="noopener"
+          <div class="cta-row" data-reveal>
+            <a
+              class="btn btn-primary"
+              href="https://wa.me/213770204047"
+              target="_blank"
+              rel="noopener"
               >WhatsApp +213 770 20 40 47</a
             >
             <a class="btn btn-glass" href="mailto:zenaguibilal2@gmail.com"
               >zenaguibilal2@gmail.com</a
             >
           </div>
+          <ul class="trust-line" data-reveal>
+            <li>Réponse sous 24 h en général</li>
+            <li>Essai sur votre propre matériel</li>
+          </ul>
         </div>
       </section>
 
-      <section class="section">
-        <div class="wrap split">
+      <section class="section section-defer">
+        <div class="wrap split" data-reveal>
           <form class="form" data-contact-form novalidate>
-            <h2>Écrire un message</h2>
-            <div class="field">
+            <div class="section-head" style="margin-bottom: 20px">
+              <p class="kicker">Message</p>
+              <h2 data-reveal>Écrire un message</h2>
+            </div>
+            <div class="field" data-reveal>
               <label for="name">Nom</label>
               <input id="name" name="name" type="text" autocomplete="name" required />
             </div>
-            <div class="field">
+            <div class="field" data-reveal>
               <label for="email">E-mail</label>
               <input id="email" name="email" type="email" autocomplete="email" required />
             </div>
-            <div class="field">
+            <div class="field" data-reveal>
               <label for="topic">Sujet</label>
               <select id="topic" name="topic" required>
                 <option value="demo">Demande de démonstration</option>
@@ -78,33 +97,33 @@
                 <option value="support">Support</option>
               </select>
             </div>
-            <div class="field">
+            <div class="field" data-reveal>
               <label for="message">Message</label>
               <textarea id="message" name="message" rows="6" required></textarea>
             </div>
             <p class="form-error" data-form-error role="alert" hidden></p>
-            <button class="btn btn-primary" type="submit">Envoyer</button>
-            <p class="muted">
+            <button class="btn btn-primary" type="submit" data-reveal>Envoyer</button>
+            <p class="muted" data-reveal>
               Votre messagerie s'ouvrira avec le message pré-rempli (aucune donnée stockée sur ce
               site).
             </p>
           </form>
-          <div class="mini">
-            <h3>FAQ rapide</h3>
-            <details>
+          <div class="mini" data-reveal>
+            <h3 data-reveal>FAQ rapide</h3>
+            <details data-reveal>
               <summary>La caisse marche-t-elle sans internet ?</summary>
               <p>Oui. Données SQLite locales ; le réseau ne sert qu'au miroir client.</p>
             </details>
-            <details>
+            <details data-reveal>
               <summary>Le client paie-t-il depuis son téléphone ?</summary>
               <p>Non — lecture seule. L'encaissement reste en caisse.</p>
             </details>
-            <details>
+            <details data-reveal>
               <summary>Comment obtenir le téléchargement ?</summary>
               <p>Écrivez-nous : nous fournissons l'installeur et la licence.</p>
             </details>
-            <h3>Contact direct</h3>
-            <p>
+            <h3 data-reveal>Contact direct</h3>
+            <p data-reveal>
               <a href="mailto:zenaguibilal2@gmail.com">zenaguibilal2@gmail.com</a><br />
               <a href="https://wa.me/213770204047" target="_blank" rel="noopener"
                 >WhatsApp +213 770 20 40 47</a
@@ -113,15 +132,36 @@
           </div>
         </div>
       </section>
+
+      <section class="section section-defer">
+        <div class="wrap">
+          <div class="receipt-cta" data-reveal>
+            <p class="kicker">Réponse</p>
+            <h2>Un message, une réponse, un poste.</h2>
+            <p class="lead" style="color: #3c465c; margin-inline: 0">
+              Pas de formulaire interminable : un nom, un e-mail, votre configuration. Le reste se
+              joue en démonstration.
+            </p>
+            <p class="receipt-line">MERCI — VELORIA · CONTACT — ALGER</p>
+          </div>
+        </div>
+      </section>
     </main>
 
     <footer class="site-footer">
       <div class="wrap footer-in">
-        <p><strong>Veloria</strong> — POS hors-ligne &amp; application client.</p>
+        <p style="margin: 0">
+          <strong>Veloria</strong> — POS hors-ligne &amp; application client.<br />
+          <span class="muted">Interface 100 % française, support en Algérie.</span>
+        </p>
         <nav aria-label="Pied de page">
           <a href="index.html">Accueil</a><a href="pos.html">POS</a><a href="client.html">Client</a
           ><a href="pricing.html">Tarifs</a><a href="contact.html">Contact</a>
         </nav>
+        <p class="footer-note">
+          Site de présentation — téléchargement sur demande via Contact ou WhatsApp. Captures et
+          vidéo : application réelle, sans retouche.
+        </p>
       </div>
     </footer>
     <script src="app.js" defer></script>

@@ -85,7 +85,7 @@ tests/e2e/          Playwright + Electron réel, base vierge par test (1 worker)
 Commandes : `test`, `test:db`, `test:e2e`, `test:coverage` (seuils 80/75/88/80
 sur `src/domain` + `src/application`), `test:coverage:features` (cran
 interface), `verify:migrations`, `verify:domain`, `verify:docs`, `verify:perf`,
-`verify:fr`, `verify:encoding`, `license:scan`.
+`verify:site`, `verify:fr`, `verify:encoding`, `license:scan`.
 
 Volumétrie (fichiers de test, canaux IPC, migrations, ADR) : **source unique**
 `docs/METRICS.md` — section générée par
@@ -93,6 +93,13 @@ Volumétrie (fichiers de test, canaux IPC, migrations, ADR) : **source unique**
 `npm run verify:docs` (porte rouge si un compteur du code bouge sans que la
 documentation suive). Règle : aucun compteur n'est recopié à la main ailleurs —
 les documents y renvoient.
+
+`verify:site` (ADR-180) sert `website/` en HTTP local et ouvre Chromium :
+elle refuse une page qui **rend** mal — erreur console, débordement
+horizontal, structure manquante (en-tête, nav, pied, `main#main`, lien
+d'évitement, un seul `h1`), image sans `width`/`height` (CLS), lien interne
+mort. Sans navigateur installé, la porte **saute** (elle ne bloque pas la CI).
+Captures régénérées dans `docs/shots/site/` (gitignoré).
 
 ## 5 bis. Compétences projet (`.opencode/`) — la mémoire de l'agent
 

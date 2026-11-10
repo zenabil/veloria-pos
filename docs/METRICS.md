@@ -22,7 +22,7 @@
 | --- | --- |
 | Migrations SQL (numérotées, immuables) | 62 (0001..0062) |
 | Tables réelles (hors `*_new` temporaires) | 48 |
-| ADRs (décisions) | 179 (jusqu'à ADR-179) |
+| ADRs (décisions) | 180 (jusqu'à ADR-180) |
 | Canaux IPC déclarés | 192 |
 | Canaux IPC servis (snapshot gelé) | 191 |
 | Fichiers de test (unit + integration + database) | 194 |
