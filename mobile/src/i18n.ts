@@ -219,6 +219,23 @@ const STRINGS = {
   },
   orderPickup: { ar: "الاستلام", fr: "Retrait" },
   orderPickupValue: { ar: "في المتجر", fr: "en boutique" },
+  // ADR-182 tranche D — commandes du client.
+  activity: { ar: "نشاطي", fr: "Activité" },
+  orders: { ar: "طلباتي", fr: "Mes commandes" },
+  orderNew: { ar: "أُرسلت", fr: "Envoyée" },
+  orderPreparing: { ar: "قيد التحضير", fr: "En préparation" },
+  orderReady: { ar: "جاهزة للاستلام", fr: "Prête pour le retrait" },
+  orderServed: { ar: "تم التسليم", fr: "Livrée" },
+  orderCancelled: { ar: "ملغاة", fr: "Annulée" },
+  orderShowAtCounter: {
+    ar: "أظهر هذه المرجع في الصندوق",
+    fr: "Montrez cette référence au comptoir",
+  },
+  noOrders: { ar: "لا طلبات بعد", fr: "Aucune commande" },
+  noOrdersHint: {
+    ar: "أرسل طلبك من تبويب المتجر — سيظهر هنا فور تسجيله من المحل",
+    fr: "Envoyez une commande depuis la Boutique — elle apparaîtra ici dès son enregistrement",
+  },
   sendOrderFailed: {
     ar: "تعذّر فتح واتساب — أرسل طلبك للمتجر مباشرة",
     fr: "Impossible d'ouvrir WhatsApp — contactez le magasin",

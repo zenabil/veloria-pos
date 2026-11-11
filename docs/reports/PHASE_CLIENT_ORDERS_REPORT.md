@@ -187,7 +187,7 @@ séparé, une branche par agent). `D` et `F` attendent `C`.
 | A — catalogue         | **livré** | 16 (contrat) + 5 (intégration)                     | `e4d416b`   |
 | B — panier + WhatsApp | **livré** | 17 (unitaire)                                      | session 121 |
 | C — commandes POS     | **livré** | 7 (base, parité domaine↔trigger) + 9 (intégration) | session 122 |
-| D — retour d'état     | à faire   | —                                                  | —           |
+| D — retour d'état     | **livré** | 4 (unitaire APK) + 1 (intégration)                 | session 123 |
 | E — mesure            | à faire   | —                                                  | —           |
 | F — transport auto    | à faire   | —                                                  | —           |
 
@@ -218,3 +218,20 @@ séparé, une branche par agent). `D` et `F` attendent `C`.
 6. **Le prix est RELU par le main à la création** : la commande captée par
    WhatsApp ne porte qu'un produit + une quantité ; un prix nul ou un produit
    archivé sont refusés en français.
+
+## 11. Ce que la tranche D a figé
+
+1. **Les commandes remontent dans le cliché EXISTANT** (`customer_snapshot`,
+   champ `orders`, 5 dernières) : **aucun nouveau `kind`**, le `CHECK`
+   immuable de `sync_outbox` n'est pas touché, et le client reçoit l'état de
+   sa réservation sans nouveau coût de synchronisation.
+2. **La référence affichée est celle du POS** (`CMD-…`) : c'est elle que le
+   client montre au comptoir. La référence locale de l'appareil (`W-xxxxxx`)
+   ne sort jamais de l'appareil.
+3. **Le regroupement « Activité »** (Factures | Paiements | Commandes) libère
+   une place dans la barre : c'est ce qui permet au **panier** d'être un
+   onglet à part entière. L'IA finale est donc : **الرئيسية · المتجر ·
+   السلة · النشاط · حسابي** (5 onglets).
+4. **Le client ne voit que l'ESTIMÉ** : la commande porte son total estimé ;
+   la vente portera le vrai montant. L'écart est visible côté commerçant
+   (prix du jour affiché dans la fiche commande).

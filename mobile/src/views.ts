@@ -78,6 +78,8 @@ export interface HomeData {
   /** Bandeau hero APK : jusqu'à 4 annonces actives non expirées. */
   announcements: HomeAnnouncement[];
   shop: { name: string; phone: string | null; address: string | null };
+  /** ADR-182 tranche D : commandes du client (champ `orders` du cliché). */
+  orders: ClientOrder[];
 }
 
 /**
@@ -184,6 +186,7 @@ export function toHome(payload: unknown): HomeData {
       phone: typeof shopRaw["phone"] === "string" ? shopRaw["phone"] : null,
       address: typeof shopRaw["address"] === "string" ? shopRaw["address"] : null,
     },
+    orders: toClientOrders(p["orders"]),
   };
 }
 
@@ -496,4 +499,73 @@ export function filterCatalog(
       item.name.toLowerCase().includes(q) || (item.categoryName ?? "").toLowerCase().includes(q)
     );
   });
+}
+
+// ============================================================================
+// ADR-182 tranche D — Commandes du client (champ `orders` du cliché).
+// ============================================================================
+
+/** Commande telle que l'application la consomme. */
+export interface ClientOrder {
+  id: number;
+  /** Référence officielle `CMD-AAAA-NNNNNN` (celle du POS, à montrer au comptoir). */
+  reference: string;
+  status: string;
+  /** Total ESTIMÉ au moment de la commande (la vente porte le vrai montant). */
+  totalMinor: number;
+  note: string | null;
+  cancelReason: string | null;
+  /** Vente liée (la commande a été servie) ou null. */
+  saleId: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Commandes du client → view-models. Une entrée CORROMPUE est écartée
+ * (fail-closed) : une commande sans référence ne peut pas être montrée au
+ * comptoir — mieux vaut ne pas l'afficher que d'afficher une référence fausse.
+ */
+export function toClientOrders(payload: unknown): ClientOrder[] {
+  const raw = (Array.isArray(payload) ? payload : []) as Record<string, unknown>[];
+  const out: ClientOrder[] = [];
+  for (const item of raw) {
+    if (item == null || typeof item !== "object") continue;
+    const r = item as Record<string, unknown>;
+    const reference = str(r["reference"]).trim();
+    if (reference === "" || reference.length > 32) continue;
+    const id = num(r["id"], -1);
+    if (id <= 0) continue;
+    out.push({
+      id,
+      reference,
+      status: str(r["status"]) || "nouvelle",
+      totalMinor: num(r["totalMinor"], 0),
+      note: typeof r["note"] === "string" ? r["note"] : null,
+      cancelReason: typeof r["cancelReason"] === "string" ? r["cancelReason"] : null,
+      saleId: r["saleId"] == null ? null : num(r["saleId"], 0),
+      createdAt: str(r["createdAt"]),
+      updatedAt: str(r["updatedAt"]),
+    });
+    if (out.length >= 20) break;
+  }
+  return out;
+}
+
+/** Libellé lisible d'un état de commande (ar/fr). */
+export function orderStatusLabel(status: string, lang: Lang): string {
+  switch (status) {
+    case "nouvelle":
+      return t(lang, "orderNew");
+    case "preparing":
+      return t(lang, "orderPreparing");
+    case "ready":
+      return t(lang, "orderReady");
+    case "served":
+      return t(lang, "orderServed");
+    case "cancelled":
+      return t(lang, "orderCancelled");
+    default:
+      return status;
+  }
 }

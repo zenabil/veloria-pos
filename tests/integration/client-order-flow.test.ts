@@ -44,6 +44,7 @@ vi.mock("../../electron/services/logger", () => ({
   getLogFile: () => "",
 }));
 
+import { buildSnapshotPayload } from "../../electron/ipc/handlers/client-access.repo";
 import {
   createClientOrderAtomic,
   getClientOrder,
@@ -306,5 +307,32 @@ describe("ADR-182 — commandes clients (cycle de vie)", () => {
         now: NOW,
       }),
     ).toThrow(/déjà liée/i);
+  });
+
+  it("le cliché customer_snapshot porte les commandes du client (ADR-182 D)", () => {
+    const created = createClientOrderAtomic({
+      operationId: OP("snapshot-1"),
+      customerId: ids.customerId,
+      lines: [{ productId: ids.productId, quantity: 1 }],
+      now: NOW,
+    });
+    const payload = JSON.parse(
+      buildSnapshotPayload(ids.customerId, "customer_snapshot", null, "2026-11", NOW),
+    ) as {
+      orders?: {
+        id: number;
+        reference: string;
+        status: string;
+        totalMinor: number;
+        saleId: number | null;
+      }[];
+    };
+    expect(Array.isArray(payload.orders)).toBe(true);
+    expect(payload.orders).toHaveLength(1);
+    expect(payload.orders?.[0]?.id).toBe(created.id);
+    expect(payload.orders?.[0]?.reference).toBe(created.reference);
+    expect(payload.orders?.[0]?.status).toBe("nouvelle");
+    expect(payload.orders?.[0]?.totalMinor).toBe(8_500);
+    expect(payload.orders?.[0]?.saleId).toBeNull();
   });
 });

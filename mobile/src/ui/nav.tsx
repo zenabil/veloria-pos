@@ -8,12 +8,12 @@ import { COLORS, RADIUS, SHADOW, SPACE, SIZES, TYPE } from "../tokens.ts";
 import { flow, Tap, type IconName } from "./kit.tsx";
 import type { Lang } from "../i18n.ts";
 
-export type TabId = "home" | "invoices" | "payments" | "shop" | "cart" | "account";
+export type TabId = "home" | "activity" | "shop" | "cart" | "account";
 
 const TAB_ICON: Record<TabId, IconName> = {
   home: "home",
-  invoices: "receipt",
-  payments: "wallet",
+  // ADR-182 tranche D : Factures | Paiements | Commandes dans un onglet.
+  activity: "receipt",
   // ADR-182 : catalogue du magasin (boutique).
   shop: "storefront-outline",
   // ADR-182 tranche B : panier (nombre d'articles en pastille).

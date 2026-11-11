@@ -479,6 +479,28 @@ export function buildSnapshotPayload(
         address: string | null;
       }
     | undefined;
+  // ADR-182 tranche D : les COMMANDES du client remontent dans le cliché
+  // `customer_snapshot` (champ `orders`, PAS un nouveau `kind` : le CHECK
+  // immuable de `sync_outbox` n'est pas touché). 5 dernières commandes : le
+  // client voit l'état de sa réservation (préparée / prête / servie / refusée)
+  // et la référence à montrer au comptoir.
+  const orders = db
+    .prepare(
+      `SELECT id, reference, status, total_minor, note, cancel_reason, sale_id, created_at, updated_at
+       FROM client_orders WHERE customer_id = ?
+       ORDER BY created_at DESC, id DESC LIMIT 5`,
+    )
+    .all(customerId) as {
+    id: number;
+    reference: string;
+    status: string;
+    total_minor: number;
+    note: string | null;
+    cancel_reason: string | null;
+    sale_id: number | null;
+    created_at: string;
+    updated_at: string;
+  }[];
 
   const base = {
     customer: {
@@ -503,6 +525,19 @@ export function buildSnapshotPayload(
       phone: company?.phone ?? null,
       address: company?.address ?? null,
     },
+    // ADR-182 tranche D : les commandes du client (état + référence à montrer
+    // au comptoir). 5 dernières : le client voit sa réservation évoluer.
+    orders: orders.map((o) => ({
+      id: Number(o.id),
+      reference: o.reference,
+      status: o.status,
+      totalMinor: Number(o.total_minor),
+      note: o.note,
+      cancelReason: o.cancel_reason,
+      saleId: o.sale_id == null ? null : Number(o.sale_id),
+      createdAt: o.created_at,
+      updatedAt: o.updated_at,
+    })),
   };
 
   // Factures actives : sommes/mois/Top calculés hors annulées ; la liste

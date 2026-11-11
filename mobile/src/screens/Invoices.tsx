@@ -43,6 +43,8 @@ export function InvoicesScreen(props: {
   hidden: boolean;
   onOpenDetail: (row: HomeInvoice) => void;
   onRefresh: () => Promise<void>;
+  /** Rendu sous un contrôle segmenté : l'en-tête d'encre est masqué. */
+  embedded?: boolean;
 }): React.JSX.Element {
   const l = props.lang;
   const dir = direction(l);
@@ -89,83 +91,84 @@ export function InvoicesScreen(props: {
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.contentBg }}>
       {/* En-tête : titre, compteur filtré, dette restante, recherche. */}
-      <View
-        style={{
-          backgroundColor: COLORS.headerBg,
-          paddingHorizontal: SPACE.lg,
-          paddingTop: SPACE.sm,
-          paddingBottom: SPACE.md,
-        }}
-      >
+      {props.embedded ? null : (
         <View
           style={{
-            flexDirection: flow(dir),
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: SPACE.sm,
+            backgroundColor: COLORS.headerBg,
+            paddingHorizontal: SPACE.lg,
+            paddingTop: SPACE.sm,
+            paddingBottom: SPACE.md,
           }}
         >
-          <Text
-            style={{ color: COLORS.white, fontWeight: "800", fontSize: 20, letterSpacing: 0.3 }}
-          >
-            {t(l, "invoices")}
-          </Text>
           <View
             style={{
               flexDirection: flow(dir),
               alignItems: "center",
-              gap: 4,
-              backgroundColor: COLORS.navySoft,
-              borderRadius: RADIUS.pill,
-              paddingHorizontal: 10,
-              paddingVertical: 4,
+              justifyContent: "space-between",
+              gap: SPACE.sm,
             }}
           >
-            <Icon name="documents-outline" size={12} color={COLORS.navyMuted} />
             <Text
+              style={{ color: COLORS.white, fontWeight: "800", fontSize: 20, letterSpacing: 0.3 }}
+            >
+              {t(l, "invoices")}
+            </Text>
+            <View
               style={{
-                color: COLORS.navyMuted,
-                fontWeight: "800",
-                fontSize: 12,
-                fontFamily: FONTS.mono,
+                flexDirection: flow(dir),
+                alignItems: "center",
+                gap: 4,
+                backgroundColor: COLORS.navySoft,
+                borderRadius: RADIUS.pill,
+                paddingHorizontal: 10,
+                paddingVertical: 4,
               }}
             >
-              {rows.length}
-            </Text>
+              <Icon name="documents-outline" size={12} color={COLORS.navyMuted} />
+              <Text
+                style={{
+                  color: COLORS.navyMuted,
+                  fontWeight: "800",
+                  fontSize: 12,
+                  fontFamily: FONTS.mono,
+                }}
+              >
+                {rows.length}
+              </Text>
+            </View>
+          </View>
+          <Text style={{ color: COLORS.navyMuted, fontSize: 11, marginTop: 2 }}>
+            {t(l, "debtRemaining")} · {amount(liveRemaining)}
+          </Text>
+          <View style={{ marginTop: SPACE.sm }}>
+            <Field
+              value={query}
+              onChangeText={(v) => {
+                setQuery(v);
+                setShown(SIZES.pageSize);
+              }}
+              placeholder={t(l, "searchInvoice")}
+              ariaLabel={t(l, "searchInvoice")}
+              lang={l}
+              icon="search-outline"
+              mono={false}
+              returnKeyType="search"
+              trailing={
+                query !== "" ? (
+                  <Tap
+                    onPress={() => setQuery("")}
+                    accessibilityLabel={t(l, "close")}
+                    hitSlop={16}
+                    style={{ padding: 12 }}
+                  >
+                    <Icon name="close-circle" size={20} color={COLORS.cardMuted} />
+                  </Tap>
+                ) : null
+              }
+            />
           </View>
         </View>
-        <Text style={{ color: COLORS.navyMuted, fontSize: 11, marginTop: 2 }}>
-          {t(l, "debtRemaining")} · {amount(liveRemaining)}
-        </Text>
-        <View style={{ marginTop: SPACE.sm }}>
-          <Field
-            value={query}
-            onChangeText={(v) => {
-              setQuery(v);
-              setShown(SIZES.pageSize);
-            }}
-            placeholder={t(l, "searchInvoice")}
-            ariaLabel={t(l, "searchInvoice")}
-            lang={l}
-            icon="search-outline"
-            mono={false}
-            returnKeyType="search"
-            trailing={
-              query !== "" ? (
-                <Tap
-                  onPress={() => setQuery("")}
-                  accessibilityLabel={t(l, "close")}
-                  hitSlop={16}
-                  style={{ padding: 12 }}
-                >
-                  <Icon name="close-circle" size={20} color={COLORS.cardMuted} />
-                </Tap>
-              ) : null
-            }
-          />
-        </View>
-      </View>
-
+      )}{" "}
       {/* Puces de filtre : 40 dp, marge d'écran conservée aux deux bords. */}
       <ScrollView
         ref={chipsRef}
@@ -190,7 +193,6 @@ export function InvoicesScreen(props: {
           />
         ))}
       </ScrollView>
-
       {rows.length === 0 ? (
         <View style={{ flex: 1, justifyContent: "center", paddingVertical: SPACE.xxl }}>
           <EmptyState

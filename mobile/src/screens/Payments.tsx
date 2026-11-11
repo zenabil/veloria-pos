@@ -35,6 +35,8 @@ export function PaymentsScreen(props: {
   shopName: string;
   hidden: boolean;
   onRefresh: () => Promise<void>;
+  /** Rendu sous un contrôle segmenté : l'en-tête d'encre est masqué. */
+  embedded?: boolean;
 }): React.JSX.Element {
   const l = props.lang;
   const dir = direction(l);
@@ -65,53 +67,54 @@ export function PaymentsScreen(props: {
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.contentBg }}>
-      <View
-        style={{
-          backgroundColor: COLORS.headerBg,
-          paddingHorizontal: SPACE.lg,
-          paddingTop: SPACE.sm,
-          paddingBottom: SPACE.md,
-        }}
-      >
+      {props.embedded ? null : (
         <View
           style={{
-            flexDirection: flow(dir),
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: SPACE.sm,
+            backgroundColor: COLORS.headerBg,
+            paddingHorizontal: SPACE.lg,
+            paddingTop: SPACE.sm,
+            paddingBottom: SPACE.md,
           }}
         >
-          <Text
-            style={{ color: COLORS.white, fontWeight: "800", fontSize: 20, letterSpacing: 0.3 }}
-          >
-            {t(l, "payments")}
-          </Text>
           <View
             style={{
               flexDirection: flow(dir),
               alignItems: "center",
-              gap: 4,
-              backgroundColor: COLORS.navySoft,
-              borderRadius: RADIUS.pill,
-              paddingHorizontal: 10,
-              paddingVertical: 4,
+              justifyContent: "space-between",
+              gap: SPACE.sm,
             }}
           >
-            <Icon name="wallet-outline" size={12} color={COLORS.navyMuted} />
             <Text
+              style={{ color: COLORS.white, fontWeight: "800", fontSize: 20, letterSpacing: 0.3 }}
+            >
+              {t(l, "payments")}
+            </Text>
+            <View
               style={{
-                color: COLORS.navyMuted,
-                fontWeight: "800",
-                fontSize: 12,
-                fontFamily: FONTS.mono,
+                flexDirection: flow(dir),
+                alignItems: "center",
+                gap: 4,
+                backgroundColor: COLORS.navySoft,
+                borderRadius: RADIUS.pill,
+                paddingHorizontal: 10,
+                paddingVertical: 4,
               }}
             >
-              {rows.length}
-            </Text>
+              <Icon name="wallet-outline" size={12} color={COLORS.navyMuted} />
+              <Text
+                style={{
+                  color: COLORS.navyMuted,
+                  fontWeight: "800",
+                  fontSize: 12,
+                  fontFamily: FONTS.mono,
+                }}
+              >
+                {rows.length}
+              </Text>
+            </View>
           </View>
         </View>
-      </View>
-
+      )}{" "}
       <ScrollView
         ref={monthsRef}
         horizontal
@@ -134,7 +137,6 @@ export function PaymentsScreen(props: {
           />
         ))}
       </ScrollView>
-
       {rows.length === 0 ? (
         <View style={{ flex: 1, justifyContent: "center", paddingVertical: SPACE.xxl }}>
           <EmptyState icon="wallet-outline" title={t(l, "noPayments")} hint={t(l, "emptyHint")} />
@@ -289,7 +291,6 @@ export function PaymentsScreen(props: {
           />
         </View>
       )}
-
       {/* Bottom-sheet reçu paiement */}
       {receipt ? (
         <ReceiptSheet

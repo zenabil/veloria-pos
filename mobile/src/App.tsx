@@ -43,6 +43,7 @@ import { buildShareText, toDetail, type InvoiceDetail } from "./views.ts";
 import type { CatalogProduct, HomeInvoice, HomePayment } from "./views.ts";
 import { BoutiqueScreen } from "./screens/Boutique.tsx";
 import { CartScreen } from "./screens/Cart.tsx";
+import { ActivityScreen, type Segment } from "./screens/Activity.tsx";
 import {
   addLine,
   cartCount,
@@ -58,9 +59,7 @@ import { IconBubble, flow, Tap } from "./ui/kit.tsx";
 import { RootErrorBoundary } from "./ui/error-boundary.tsx";
 import { LoginScreen } from "./screens/Login.tsx";
 import { HomeScreen } from "./screens/Home.tsx";
-import { InvoicesScreen } from "./screens/Invoices.tsx";
 import { InvoiceDetailScreen } from "./screens/InvoiceDetail.tsx";
-import { PaymentsScreen } from "./screens/Payments.tsx";
 import { AccountScreen } from "./screens/Account.tsx";
 
 type Tab = TabId;
@@ -82,6 +81,8 @@ export function App(): React.JSX.Element {
   const [cache, setCache] = useState<MirrorCache>(EMPTY_CACHE);
   const [rememberedPhone, setRememberedPhone] = useState("");
   const [tab, setTab] = useState<Tab>("home");
+  // ADR-182 tranche D : segment actif de l'onglet « Activité ».
+  const [activitySegment, setActivitySegment] = useState<Segment>("invoices");
   const [hidden, setHidden] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
@@ -630,8 +631,9 @@ export function App(): React.JSX.Element {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "home", label: t(lang, "home") },
-    { id: "invoices", label: t(lang, "invoices") },
-    { id: "payments", label: t(lang, "payments") },
+    // ADR-182 tranche D : un seul onglet « Activité » (factures, paiements,
+    // commandes) — le regroupement libère la place du panier.
+    { id: "activity", label: t(lang, "activity") },
     // ADR-182 : la boutique est un motif d'installation (motif d'ouverture
     // hebdomadaire). Elle reste un onglet de plein droit : c'est la seule
     // partie de l'app qui donne envie de revenir.
@@ -771,25 +773,25 @@ export function App(): React.JSX.Element {
             hidden={hidden}
             onToggleHidden={() => setHidden((h) => !h)}
             onRefresh={() => refresh()}
-            onOpenTab={(t2) => setTab(t2)}
+            onOpenTab={(t2) => {
+              setActivitySegment(t2 === "payments" ? "payments" : "invoices");
+              setTab("activity");
+            }}
             onOpenDetail={(row) => void openDetail(row)}
           />
-        ) : tab === "invoices" ? (
-          <InvoicesScreen
+        ) : tab === "activity" ? (
+          <ActivityScreen
             lang={lang}
-            rows={invoiceRows}
-            hidden={hidden}
-            onOpenDetail={(row) => void openDetail(row)}
-            onRefresh={() => refresh()}
-          />
-        ) : tab === "payments" ? (
-          <PaymentsScreen
-            lang={lang}
-            rows={paymentRows}
+            invoices={invoiceRows}
+            payments={paymentRows}
+            orders={home.orders}
             customerName={customerName}
             shopName={home.shop.name}
             hidden={hidden}
+            onOpenDetail={(row) => void openDetail(row)}
             onRefresh={() => refresh()}
+            segment={activitySegment}
+            onSegment={setActivitySegment}
           />
         ) : tab === "shop" ? (
           // ADR-182 : catalogue du magasin (boutique).
