@@ -188,7 +188,7 @@ séparé, une branche par agent). `D` et `F` attendent `C`.
 | B — panier + WhatsApp | **livré** | 17 (unitaire)                                      | session 121 |
 | C — commandes POS     | **livré** | 7 (base, parité domaine↔trigger) + 9 (intégration) | session 122 |
 | D — retour d'état     | **livré** | 4 (unitaire APK) + 1 (intégration)                 | session 123 |
-| E — mesure            | à faire   | —                                                  | —           |
+| E — mesure            | **livré** | 4 (unitaire)                                       | session 124 |
 | F — transport auto    | à faire   | —                                                  | —           |
 
 ## 10. Ce que la tranche C a figé (décisions prises pendant l'exécution)
@@ -235,3 +235,20 @@ séparé, une branche par agent). `D` et `F` attendent `C`.
 4. **Le client ne voit que l'ESTIMÉ** : la commande porte son total estimé ;
    la vente portera le vrai montant. L'écart est visible côté commerçant
    (prix du jour affiché dans la fiche commande).
+
+## 12. Ce que la tranche E a figé
+
+1. **Le compteur est écrit par le CLOUD, lu par le POS** : la fonction Edge
+   compte chaque appel **authentifié** (elle l'authentifie déjà) ⇒ **aucun
+   nouveau canal d'écriture** côté téléphone, aucun coût pour l'APK.
+2. **Le comptage ne peut jamais casser la synchronisation** : l'écriture du
+   compteur est best-effort (échec ⇒ log, pas d'erreur) — un client qui a une
+   dette ne perd jamais sa dette parce qu'un compteur a échoué.
+3. **L'agrégat est une VUE d'une ligne** (`client_activity_30d`) : le journal
+   journalier peut grossir (40 clients × 30 jours), le POS ne lit qu'une ligne.
+4. **Le compteur est une projection, pas une donnée métier** : ni nom, ni
+   téléphone, ni montant — seulement `customer_id`, `kind`, `at`.
+5. **Le chiffre est visible là où la décision se prend** : dans « Miroir
+   Android » (Paramètres), le commerçant voit « visites / clients actifs /
+   dernière visite » ⇒ c'est aussi son argument pour faire connaître
+   l'application.

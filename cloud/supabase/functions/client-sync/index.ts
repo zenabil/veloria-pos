@@ -209,6 +209,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 
   const pick = (kind: string): unknown => rows?.find((r) => r.kind === kind)?.payload ?? null;
+  // ADR-182 tranche E : COMPTEUR D'USAGE. La fonction Edge authentifie déjà
+  // l'appel : c'est le moment le plus sûr pour le tracer (un appel non
+  // authentifié n'est pas un usage). Best-effort : un échec d'écriture du
+  // compteur ne doit JAMAIS faire échouer la synchronisation d'un client qui
+  // a une dette.
+  try {
+    await supa.from("client_activity").insert({
+      customer_id: access.customer_id,
+      kind: saleId != null ? "invoice_detail" : "sync",
+      at: now.toISOString(),
+    });
+  } catch {
+    console.error("client-sync: compteur d'usage non ecrit");
+  }
   // ADR-182 : catalogue du magasin (table `store_catalog`, une COPIE par
   // magasin — pas un cliché par client). Il est lu APRÈS l'authentification :
   // la clé anon ne le lit JAMAIS directement.

@@ -71,6 +71,8 @@ interface Window {
       saveOwnerAccount(p: unknown): Promise<VeloriaOutcome>;
       /** ADR-182 : publication du catalogue client. */
       publishCatalog(p: unknown): Promise<VeloriaOutcome>;
+      /** ADR-182 tranche E : usage de l'application client (30 jours). */
+      getClientActivity(): Promise<VeloriaOutcome>;
     };
     /** ADR-182 : catalogue publié dans l'application client. */
     clientCatalog: {

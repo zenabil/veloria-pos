@@ -8,6 +8,7 @@
 import { IPC_CHANNELS } from "./channels";
 import * as V from "./validators";
 import * as ClientCatalog from "./handlers/client-catalog.repo";
+import { getClientActivityStats } from "../sync/sync.service";
 import { publishCatalogAtomic } from "../sync/sync.service";
 import { handle } from "./handle";
 
@@ -32,5 +33,9 @@ export function registerClientCatalogChannels(): void {
   // Publication vers le miroir (upsert `store_catalog` + version).
   handle(IPC_CHANNELS["sync.publishCatalog"], V.clientCatalogPublishSchema, (input) =>
     publishCatalogAtomic({ operationId: input.operationId, now: new Date().toISOString() }),
+  );
+  // ADR-182 tranche E : usage de l'application (lecture, best-effort).
+  handle(IPC_CHANNELS["sync.getClientActivity"], V.emptyPayloadSchema, () =>
+    getClientActivityStats(),
   );
 }

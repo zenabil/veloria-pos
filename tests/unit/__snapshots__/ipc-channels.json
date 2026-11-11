@@ -173,6 +173,7 @@
   "suppliers.stats",
   "suppliers.update",
   "sync.enqueue",
+  "sync.getClientActivity",
   "sync.getConfig",
   "sync.publishCatalog",
   "sync.pushNow",

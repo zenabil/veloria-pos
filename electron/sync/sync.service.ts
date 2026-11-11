@@ -1343,6 +1343,60 @@ async function publishCatalogOnce(
 }
 
 /**
+ * ADR-182 tranche E : usage de l'application client (30 derniers jours).
+ *
+ * LECTURE seule, best-effort : un miroir ancien (table ou vue absente) ne
+ * doit pas casser l'écran — on renvoie `null` et l'UI affiche « indisponible ».
+ * La clé de service est en lecture seule ici (aucune écriture).
+ */
+export interface ClientActivityStats {
+  /** Nombre d'appels authentifiés (visites + consultations). */
+  calls: number;
+  /** Nombre de clients distincts venus dans la période. */
+  customers: number;
+  /** Dernière visite (instant ISO) ou null. */
+  lastAt: string | null;
+}
+
+export async function getClientActivityStats(
+  transport?: Transport,
+): Promise<ClientActivityStats | null> {
+  const doc = readDoc();
+  if (!doc.enabled || doc.supabaseUrl === "" || doc.serviceKey === "") return null;
+  const send: Transport = transport ?? mirrorTransport;
+  const base = doc.supabaseUrl.replace(/\/+$/, "");
+  const res = await send(`${base}/rest/v1/client_activity_30d?select=calls,customers,last_at`, {
+    method: "GET",
+    headers: {
+      apikey: doc.serviceKey,
+      Authorization: `Bearer ${doc.serviceKey}`,
+    },
+    body: "",
+  });
+  if (!res.ok) {
+    log("WARN", "sync", "activity.http", { status: res.status });
+    return null;
+  }
+  const raw = await res.text().catch(() => "");
+  try {
+    const parsed = JSON.parse(raw) as {
+      calls?: number;
+      customers?: number;
+      last_at?: string | null;
+    }[];
+    const row = Array.isArray(parsed) ? parsed[0] : null;
+    if (!row) return null;
+    return {
+      calls: Number.isFinite(Number(row.calls)) ? Number(row.calls) : 0,
+      customers: Number.isFinite(Number(row.customers)) ? Number(row.customers) : 0,
+      lastAt: typeof row.last_at === "string" ? row.last_at : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Rafraîchit la file d'un client après vente/paiement (best-effort : jamais
  * d'exception vers la finance — tout échec est loggé et ignoré).
  */

@@ -71,6 +71,8 @@ const api = {
     saveOwnerAccount: (p: unknown) => invoke(IPC_CHANNELS["sync.saveOwnerAccount"], p),
     // ADR-182 : publication du catalogue client.
     publishCatalog: (p: unknown) => invoke(IPC_CHANNELS["sync.publishCatalog"], p),
+    // ADR-182 tranche E : usage de l'application (lecture).
+    getClientActivity: () => invoke(IPC_CHANNELS["sync.getClientActivity"]),
   },
   // ADR-182 : catalogue publié dans l'application client (réglages + aperçu).
   clientCatalog: {

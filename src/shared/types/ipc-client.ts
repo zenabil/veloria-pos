@@ -71,6 +71,8 @@ export const api = {
   announcementRemove: (p: unknown) => call((a) => a.announcements.remove(p)),
   /** ADR-182 : catalogue publié dans l'application client. */
   syncPublishCatalog: (p: unknown) => call((a) => a.sync.publishCatalog(p)),
+  /** ADR-182 tranche E : usage de l'application client (30 jours). */
+  syncGetClientActivity: () => call((a) => a.sync.getClientActivity()),
   clientCatalogGetSettings: () => call((a) => a.clientCatalog.getSettings()),
   clientCatalogPreview: () => call((a) => a.clientCatalog.preview()),
   clientCatalogSaveSettings: (p: unknown) => call((a) => a.clientCatalog.saveSettings(p)),

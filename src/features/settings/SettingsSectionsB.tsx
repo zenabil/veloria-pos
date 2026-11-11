@@ -10,6 +10,7 @@ import {
   Smartphone,
 } from "lucide-react";
 import { api } from "@shared/types/ipc-client.ts";
+import type { ClientActivity } from "@shared/types/ipc-contracts.ts";
 import { useLoadSeq } from "@shared/ui/use-load-seq.ts";
 import { strictOrNegTotal } from "@shared/money/parse.ts";
 import { minorToInputTotal } from "@domain/money/money.ts";
@@ -669,6 +670,8 @@ export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Ele
   const [ownerLiasso, setOwnerLiasso] = useState(false);
   const [ownerInterval, setOwnerInterval] = useState("60");
   const [view, setView] = useState<SyncView | null>(null);
+  // ADR-182 tranche E : usage de l'application client (30 derniers jours).
+  const [activity, setActivity] = useState<ClientActivity | null>(null);
   const { busy, run } = useBusyFlag();
 
   function refresh(): void {
@@ -690,6 +693,16 @@ export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Ele
 
   useEffect(() => {
     refresh();
+  }, []);
+
+  useEffect(() => {
+    refresh();
+    // ADR-182 tranche E : lecture de l'usage (best-effort : null si la
+    // table n'existe pas encore sur le miroir).
+    void api
+      .syncGetClientActivity()
+      .then((a) => setActivity((a ?? null) as ClientActivity | null))
+      .catch(() => setActivity(null));
   }, []);
 
   function save(): void {
@@ -862,6 +875,20 @@ export function ClientSyncSection({ notify }: { notify: Notify }): React.JSX.Ele
         {view?.lastError ? (
           <InfoRow label="Dernière erreur" value={frError(view.lastError, "Poussée impossible.")} />
         ) : null}
+      </dl>
+
+      {/* ADR-182 tranche E : l'objectif « plus d'utilisateurs » doit être
+          visible : le commerçant voit l'usage réel de son application. */}
+      <dl className="grid gap-2 rounded-lg border border-white/10 bg-black/25 p-3 sm:grid-cols-3">
+        <InfoRow label="Visites (30 j)" value={activity ? String(activity.calls) : "—"} />
+        <InfoRow
+          label="Clients actifs (30 j)"
+          value={activity ? String(activity.customers) : "—"}
+        />
+        <InfoRow
+          label="Dernière visite"
+          value={activity?.lastAt ? activity.lastAt.slice(0, 16).replace("T", " ") : "—"}
+        />
       </dl>
 
       <SettingsGroup title="Connexion">

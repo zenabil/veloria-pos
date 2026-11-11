@@ -192,6 +192,20 @@ export const syncOwnerPushResultSchema = z
  * coût d'achat : seulement le nom, le prix de vente en centimes, l'unité et
  * un indice de disponibilité.
  */
+/**
+ * ADR-182 tranche E : usage de l'application client sur 30 jours.
+ * Le compteur est écrit par la fonction Edge à chaque appel authentifié ;
+ * le POS le lit pour afficher l'effet réel de l'application.
+ */
+export const clientActivitySchema = z
+  .object({
+    calls: z.number().int().min(0),
+    customers: z.number().int().min(0),
+    lastAt: z.string().nullable(),
+  })
+  .loose();
+export type ClientActivity = z.infer<typeof clientActivitySchema>;
+
 /** Configuration de synchro (clé service toujours masquée). */ export const syncConfigViewSchema =
   z
     .object({
