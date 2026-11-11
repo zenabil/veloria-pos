@@ -24,20 +24,35 @@ import {
   clearCache,
   clearSession,
   loadCache,
+  loadCartLines,
   loadDetail,
   loadLastEndpoint,
   loadLastPhone,
+  loadSentOrders,
   loadSession,
   saveCache,
+  saveCartLines,
   saveDetail,
   saveLastEndpoint,
   saveLastPhone,
+  saveSentOrders,
   saveSession,
 } from "./cache.ts";
 import { num, toCatalog, toHome } from "./views.ts";
 import { buildShareText, toDetail, type InvoiceDetail } from "./views.ts";
-import type { HomeInvoice, HomePayment } from "./views.ts";
+import type { CatalogProduct, HomeInvoice, HomePayment } from "./views.ts";
 import { BoutiqueScreen } from "./screens/Boutique.tsx";
+import { CartScreen } from "./screens/Cart.tsx";
+import {
+  addLine,
+  cartCount,
+  cartTotalMinor,
+  removeLine,
+  setLineQuantity,
+  type CartLine,
+} from "./cart.ts";
+import { buildOrderMessage, localOrderReference, pushSentOrder, type SentOrder } from "./order.ts";
+import { haptic } from "./ui/kit.tsx";
 import { TabBar, type TabId } from "./ui/nav.tsx";
 import { IconBubble, flow, Tap } from "./ui/kit.tsx";
 import { RootErrorBoundary } from "./ui/error-boundary.tsx";
@@ -72,6 +87,11 @@ export function App(): React.JSX.Element {
   const [stale, setStale] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [notifOpen, setNotifOpen] = useState(false);
+  // ADR-182 : panier local + historique des commandes envoyées (état appareil).
+  const [cartLines, setCartLines] = useState<CartLine[]>([]);
+  const [cartNote, setCartNote] = useState("");
+  const [sentOrders, setSentOrders] = useState<SentOrder[]>([]);
+  const [sending, setSending] = useState(false);
   const [booted, setBooted] = useState(false);
   const [detailRow, setDetailRow] = useState<HomeInvoice | null>(null);
   const [detailData, setDetailData] = useState<InvoiceDetail | null>(null);
@@ -112,6 +132,12 @@ export function App(): React.JSX.Element {
           loadLastPhone(),
         ]);
         if (!alive) return;
+        // ADR-182 : le panier et l'historique des commandes envoyées sont un
+        // état LOCAL : ils survivent à la fermeture (commande hebdomadaire),
+        // indépendamment de la session (le panier n'appartient qu'à cet
+        // appareil).
+        setCartLines(loadCartLines());
+        setSentOrders(loadSentOrders());
         setRememberedPhone(lastPhone ?? sess?.phone ?? "");
         if (sess) {
           // Session V1 (sans endpoint gravé) + endpoint mémorisé : la
@@ -193,6 +219,96 @@ export function App(): React.JSX.Element {
     if (code === "REVOKED_ERROR") return t(l, "revokedError");
     if (code === "OFFLINE_ERROR") return t(l, "offlineError");
     return t(l, "serverError");
+  }
+
+  // ---------------------------------------------------------------------------
+  // ADR-182 tranche B — panier local + envoi de la commande par WhatsApp.
+  // ---------------------------------------------------------------------------
+
+  /** Ajoute un produit au panier (le prix est celui du catalogue, figé). */
+  function addToCart(product: CatalogProduct): void {
+    const next = addLine(cartLines, {
+      productId: product.id,
+      name: product.name,
+      unitCode: product.unitCode,
+      priceMinor: product.priceMinor,
+      quantity: 1,
+      available: product.available,
+    });
+    if (next.length === cartLines.length) return; // panier plein ou ligne refusée
+    setCartLines(next);
+    saveCartLines(next);
+    haptic();
+  }
+
+  function changeCartQty(productId: number, priceMinor: number, quantity: number): void {
+    const next =
+      quantity <= 0
+        ? removeLine(cartLines, productId)
+        : setLineQuantity(cartLines, productId, priceMinor, quantity);
+    setCartLines(next);
+    saveCartLines(next);
+  }
+
+  function removeFromCart(productId: number): void {
+    const next = removeLine(cartLines, productId);
+    setCartLines(next);
+    saveCartLines(next);
+  }
+
+  /**
+   * Envoie la commande au numéro du magasin par WhatsApp (ADR-182 §10).
+   * Aucun écrit dans le cloud : la commande est une DEMANDE, validée par le
+   * commerçant. Le panier est vidé APRÈS l'ouverture de WhatsApp (l'utilisateur
+   * peut encore annuler l'envoi dans WhatsApp) — mais l'historique conserve
+   * la commande, donc « renvoyer » reste possible.
+   */
+  async function sendOrder(order?: SentOrder): Promise<void> {
+    const lines = order ? order.lines : cartLines;
+    if (lines.length === 0) return;
+    const shopPhone = (home.shop.phone ?? "").replace(/\D/g, "");
+    if (shopPhone === "") {
+      setError(t(lang, "sendOrderFailed"));
+      return;
+    }
+    const reference = order ? order.reference : localOrderReference(Date.now() % 1_000_000);
+    const message = buildOrderMessage({
+      lang,
+      reference,
+      shopName: home.shop.name,
+      customerName,
+      customerPhone: session?.phone ?? "",
+      lines,
+      note: order ? order.note : cartNote,
+    });
+    const url = `https://wa.me/${shopPhone}?text=${encodeURIComponent(message)}`;
+    setSending(true);
+    try {
+      await Linking.openURL(url);
+      const record: SentOrder = {
+        reference,
+        sentAt: new Date().toISOString(),
+        count: cartCount(lines),
+        totalMinor: cartTotalMinor(lines),
+        lines,
+        note: order ? order.note : cartNote,
+      };
+      const nextHistory = pushSentOrder(sentOrders, record);
+      setSentOrders(nextHistory);
+      saveSentOrders(nextHistory);
+      if (!order) {
+        setCartLines([]);
+        saveCartLines([]);
+        setCartNote("");
+      }
+      haptic();
+    } catch {
+      // WhatsApp absent ou refus de l'utilisateur : message FR, rien n'est
+      // perdu (le panier reste intact).
+      setError(t(lang, "sendOrderFailed"));
+    } finally {
+      setSending(false);
+    }
   }
 
   function applyPayloads(data: {
@@ -520,6 +636,8 @@ export function App(): React.JSX.Element {
     // hebdomadaire). Elle reste un onglet de plein droit : c'est la seule
     // partie de l'app qui donne envie de revenir.
     { id: "shop", label: t(lang, "boutique") },
+    // ADR-182 tranche B : le panier (avec la pastille du nombre d'articles).
+    { id: "cart", label: t(lang, "cart") },
     { id: "account", label: t(lang, "account") },
   ];
 
@@ -680,7 +798,25 @@ export function App(): React.JSX.Element {
             products={catalogProducts}
             publishedAt={cache.catalogPublishedAt}
             offline={stale}
+            cartCount={cartCount(cartLines)}
+            onAdd={addToCart}
             onRefresh={() => refresh()}
+          />
+        ) : tab === "cart" ? (
+          // ADR-182 tranche B : panier local + envoi WhatsApp.
+          <CartScreen
+            lang={lang}
+            lines={cartLines}
+            note={cartNote}
+            hidden={hidden}
+            busy={sending}
+            sentOrders={sentOrders}
+            onChangeQty={changeCartQty}
+            onRemove={removeFromCart}
+            onNoteChange={setCartNote}
+            onSend={() => void sendOrder()}
+            onBrowse={() => setTab("shop")}
+            onResend={(order) => void sendOrder(order)}
           />
         ) : (
           <AccountScreen
@@ -871,7 +1007,13 @@ export function App(): React.JSX.Element {
       </Modal>
       {/* Dock flottant 4 onglets (masqué sur la page détail) */}
       {!detailRow ? (
-        <TabBar lang={lang} active={tab} tabs={tabs} onChange={(id) => setTab(id)} />
+        <TabBar
+          lang={lang}
+          active={tab}
+          tabs={tabs}
+          badge={{ cart: cartCount(cartLines) }}
+          onChange={(id) => setTab(id)}
+        />
       ) : null}
     </View>
   );

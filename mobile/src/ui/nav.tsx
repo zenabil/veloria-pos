@@ -8,7 +8,7 @@ import { COLORS, RADIUS, SHADOW, SPACE, SIZES, TYPE } from "../tokens.ts";
 import { flow, Tap, type IconName } from "./kit.tsx";
 import type { Lang } from "../i18n.ts";
 
-export type TabId = "home" | "invoices" | "payments" | "shop" | "account";
+export type TabId = "home" | "invoices" | "payments" | "shop" | "cart" | "account";
 
 const TAB_ICON: Record<TabId, IconName> = {
   home: "home",
@@ -16,6 +16,8 @@ const TAB_ICON: Record<TabId, IconName> = {
   payments: "wallet",
   // ADR-182 : catalogue du magasin (boutique).
   shop: "storefront-outline",
+  // ADR-182 tranche B : panier (nombre d'articles en pastille).
+  cart: "cart-outline",
   account: "person",
 };
 
@@ -24,6 +26,8 @@ export function TabBar(props: {
   lang: Lang;
   active: TabId;
   tabs: { id: TabId; label: string }[];
+  /** Pastille : nombre d'articles dans le panier (0 = pas de pastille). */
+  badge?: Partial<Record<TabId, number>>;
   onChange: (id: TabId) => void;
 }): React.JSX.Element {
   const dir = props.lang === "ar" ? "rtl" : "ltr";
@@ -74,11 +78,39 @@ export function TabBar(props: {
                 marginBottom: 2,
               }}
             />
-            <Icon
-              name={TAB_ICON[x.id]}
-              size={19}
-              color={active ? COLORS.headerBg : COLORS.cardMuted}
-            />
+            <View
+              style={{
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Icon
+                name={TAB_ICON[x.id]}
+                size={19}
+                color={active ? COLORS.headerBg : COLORS.cardMuted}
+              />
+              {/* Pastille du panier : le nombre d'articles (jamais le prix). */}
+              {props.badge?.[x.id] ? (
+                <View
+                  style={{
+                    position: "absolute",
+                    top: -4,
+                    right: -9,
+                    minWidth: 15,
+                    height: 15,
+                    paddingHorizontal: 3,
+                    borderRadius: RADIUS.pill,
+                    backgroundColor: COLORS.primary,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text style={{ color: COLORS.primaryText, fontSize: 9, fontWeight: "800" }}>
+                    {String(props.badge[x.id])}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
             <Text
               style={{
                 ...TYPE.micro,

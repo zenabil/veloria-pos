@@ -24,6 +24,9 @@ export function BoutiqueScreen(props: {
   publishedAt: string | null;
   /** Catalogue servi par le cache local (affichage « copie locale »). */
   offline: boolean;
+  /** Nombre d'articles déjà dans le panier (pour la pastille). */
+  cartCount: number;
+  onAdd: (product: CatalogProduct) => void;
   onRefresh: () => Promise<void>;
 }): React.JSX.Element {
   const l = props.lang;
@@ -250,13 +253,42 @@ export function BoutiqueScreen(props: {
                   </View>
                 </View>
                 {/* Prix en centimes DZD, formatage montant tabulaire. */}
-                <View style={{ alignItems: farEdge(rtl) === "left" ? "flex-start" : "flex-end" }}>
+                <View
+                  style={{
+                    alignItems: farEdge(rtl) === "left" ? "flex-start" : "flex-end",
+                    gap: SPACE.xs,
+                  }}
+                >
                   <Amount
                     text={formatMinor(p.priceMinor, l)}
                     size={15}
                     tone={COLORS.cardText}
                     align={farEdge(rtl)}
                   />
+                  {/* Ajout au panier : la seule action de la ligne (48 dp). */}
+                  <Tap
+                    onPress={() => props.onAdd(p)}
+                    disabled={!p.available}
+                    accessibilityLabel={`${t(l, "addToCart")} ${p.name}`}
+                    style={{
+                      minWidth: 40,
+                      height: 40,
+                      paddingHorizontal: SPACE.sm,
+                      borderRadius: RADIUS.button,
+                      flexDirection: flow(dir),
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 4,
+                      backgroundColor: p.available ? COLORS.primary : COLORS.toneBg,
+                      opacity: p.available ? 1 : 0.5,
+                    }}
+                  >
+                    <Icon
+                      name="add"
+                      size={16}
+                      color={p.available ? COLORS.primaryText : COLORS.cardMuted}
+                    />
+                  </Tap>
                 </View>
               </View>
             )}

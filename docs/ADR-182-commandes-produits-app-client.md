@@ -117,6 +117,22 @@ catalogue est le motif de retour de l'application, il doit être à un geste.
 La « bande de mouchettes » dans l'accueil (suggestions du commerçant) reste
 **une option** de la tranche B, pas un acquis.
 
+**Architecture finale des onglets (5, la règle « 5 max » est levée)** :
+
+```
+الرئيسية · المتجر · السلة · النشاط · حسابي
+   Accueil  Boutique  Panier  Activité  Compte
+```
+
+- « Panier » est **un onglet** (choix de l'opérateur) : le compteur de la
+  commande devient un geste direct, pas un détour. Il porte une **pastille**
+  (nombre d'articles) — l'onglet vide reste lisible.
+- « Activité » regroupe ce qui est arrivé au client en **trois segments** :
+  **Factures | Paiements | Commandes**. C'est ce regroupement qui libère la
+  place du panier (sans lui, il aurait fallu 6 onglets).
+- Le panier est **local à l'appareil** (ce n'est pas une donnée métier) : il
+  survit à la fermeture, ce qui sert la commande hebdomadaire.
+
 ### 6. Version du catalogue
 
 `catalog_version` = empreinte SHA-256 de la charge utile canonique du

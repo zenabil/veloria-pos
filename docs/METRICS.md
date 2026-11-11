@@ -25,7 +25,7 @@
 | ADRs (décisions) | 182 (jusqu'à ADR-182) |
 | Canaux IPC déclarés | 196 |
 | Canaux IPC servis (snapshot gelé) | 195 |
-| Fichiers de test (unit + integration + database) | 196 |
+| Fichiers de test (unit + integration + database) | 197 |
 | Specs E2E (Playwright) | 26 |
 | Modules de la coquille POS | 16 |
 | Pages de licence | 17 |

@@ -5,6 +5,8 @@
 import type * as SecureStoreT from "expo-secure-store";
 import type * as SQLiteT from "expo-sqlite";
 import { EMPTY_CACHE, type MirrorCache, type Session } from "./store.ts";
+import { CART_MAX_LINES, type CartLine } from "./cart.ts";
+import { SENT_ORDERS_MAX, type SentOrder } from "./order.ts";
 
 const SESSION_KEY = "veloria.session.v1";
 const KV_PREFIX = "kv.";
@@ -278,4 +280,80 @@ export function loadDetail(saleId: number): { detail: unknown; syncedAt: string 
 
 export function saveDetail(saleId: number, detail: unknown, syncedAt: string): void {
   writeKv(`detail:${saleId}`, JSON.stringify({ detail: detail ?? null, syncedAt }));
+}
+
+// ============================================================================
+// ADR-182 — Panier + historique des commandes envoyées (état LOCAL).
+// ============================================================================
+
+/**
+ * Le panier vit dans le même magasin KV que les clichés (expo-sqlite, repli
+ * mémoire) : il n'est PAS une donnée métier (la vérité reste au POS), c'est
+ * un état d'écran qui doit survivre à la fermeture de l'application (commande
+ * hebdomadaire).
+ */
+const CART_KEY = "cart";
+const SENT_ORDERS_KEY = "sentOrders";
+
+/** Panier lu du stockage local (jamais `null` : un panier vide est un panier). */
+export function loadCartLines(): CartLine[] {
+  const kv = readKv();
+  const raw = kv[CART_KEY];
+  if (raw == null) return [];
+  const parsed = parseJson(raw) as unknown;
+  if (!Array.isArray(parsed)) return [];
+  const out: CartLine[] = [];
+  for (const item of parsed) {
+    if (item == null || typeof item !== "object") continue;
+    const r = item as Record<string, unknown>;
+    const productId = Number(r["productId"]);
+    const priceMinor = Number(r["priceMinor"]);
+    const quantity = Number(r["quantity"]);
+    if (!Number.isInteger(productId) || productId <= 0) continue;
+    if (!Number.isInteger(priceMinor) || priceMinor < 0) continue;
+    if (!Number.isFinite(quantity) || quantity <= 0) continue;
+    out.push({
+      productId,
+      name: typeof r["name"] === "string" ? r["name"] : "",
+      unitCode: typeof r["unitCode"] === "string" ? r["unitCode"] : "PIECE",
+      priceMinor,
+      quantity,
+      available: r["available"] !== false,
+    });
+    if (out.length >= CART_MAX_LINES) break;
+  }
+  return out;
+}
+
+export function saveCartLines(lines: readonly CartLine[]): void {
+  writeKv(CART_KEY, JSON.stringify(lines));
+}
+
+/** Commandes déjà envoyées par cet appareil (historique local). */
+export function loadSentOrders(): SentOrder[] {
+  const kv = readKv();
+  const raw = kv[SENT_ORDERS_KEY];
+  if (raw == null) return [];
+  const parsed = parseJson(raw) as unknown;
+  if (!Array.isArray(parsed)) return [];
+  const out: SentOrder[] = [];
+  for (const item of parsed) {
+    if (item == null || typeof item !== "object") continue;
+    const r = item as Record<string, unknown>;
+    if (typeof r["reference"] !== "string" || r["reference"] === "") continue;
+    out.push({
+      reference: r["reference"],
+      sentAt: typeof r["sentAt"] === "string" ? r["sentAt"] : "",
+      count: Number.isFinite(Number(r["count"])) ? Number(r["count"]) : 0,
+      totalMinor: Number.isFinite(Number(r["totalMinor"])) ? Number(r["totalMinor"]) : 0,
+      lines: Array.isArray(r["lines"]) ? (r["lines"] as CartLine[]) : [],
+      note: typeof r["note"] === "string" ? r["note"] : "",
+    });
+    if (out.length >= SENT_ORDERS_MAX) break;
+  }
+  return out;
+}
+
+export function saveSentOrders(list: readonly SentOrder[]): void {
+  writeKv(SENT_ORDERS_KEY, JSON.stringify(list));
 }
