@@ -154,6 +154,55 @@ const snapshot = {
     { name: "قهوة فاميكو 250g", quantity: 10, lastPriceMinor: 32000 },
     { name: "حليب كانديا 1L", quantity: 24, lastPriceMinor: 14000 },
   ],
+  // ADR-182 tranche D : commandes du client (champ `orders` du cliché).
+  // Données de DÉMO : les états doivent être tous représentés pour que la
+  // capture montre la palette complète (préparée, prête, livrée, annulée).
+  orders: [
+    {
+      id: 301,
+      reference: "CMD-2026-00042",
+      status: "ready",
+      totalMinor: 232000,
+      note: "بعد الساعة 16:00",
+      cancelReason: null,
+      saleId: null,
+      createdAt: new Date(now.getTime() - 2 * 3_600_000).toISOString(),
+      updatedAt: new Date(now.getTime() - 40 * 60_000).toISOString(),
+    },
+    {
+      id: 297,
+      reference: "CMD-2026-00038",
+      status: "preparing",
+      totalMinor: 85000,
+      note: null,
+      cancelReason: null,
+      saleId: null,
+      createdAt: new Date(now.getTime() - 26 * 3_600_000).toISOString(),
+      updatedAt: new Date(now.getTime() - 25 * 3_600_000).toISOString(),
+    },
+    {
+      id: 288,
+      reference: "CMD-2026-00029",
+      status: "served",
+      totalMinor: 147000,
+      note: null,
+      cancelReason: null,
+      saleId: 142,
+      createdAt: new Date(now.getTime() - 5 * 86_400_000).toISOString(),
+      updatedAt: new Date(now.getTime() - 5 * 86_400_000 + 3_600_000).toISOString(),
+    },
+    {
+      id: 281,
+      reference: "CMD-2026-00022",
+      status: "cancelled",
+      totalMinor: 62000,
+      note: null,
+      cancelReason: "نفد المخزون",
+      saleId: null,
+      createdAt: new Date(now.getTime() - 8 * 86_400_000).toISOString(),
+      updatedAt: new Date(now.getTime() - 7 * 86_400_000).toISOString(),
+    },
+  ],
   announcement: "تخفيضات نهاية الأسبوع على المواد الغذائية - 15%",
   // ADR-166 : bandeau hero de l'APK. La 3e annonce est expirée : elle doit
   // être masquée côté client (même si le serveur de démo l'envoie).

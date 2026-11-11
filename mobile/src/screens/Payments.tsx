@@ -114,7 +114,7 @@ export function PaymentsScreen(props: {
             </View>
           </View>
         </View>
-      )}{" "}
+      )}
       <ScrollView
         ref={monthsRef}
         horizontal
@@ -126,7 +126,7 @@ export function PaymentsScreen(props: {
           paddingHorizontal: SPACE.lg,
           paddingVertical: SPACE.md,
         }}
-        style={{ flexGrow: 0 }}
+        style={{ flexGrow: 0, marginTop: 2 }}
       >
         {months.map((m) => (
           <Chip

@@ -90,6 +90,9 @@ export function App(): React.JSX.Element {
   const [notifOpen, setNotifOpen] = useState(false);
   // ADR-182 : panier local + historique des commandes envoyées (état appareil).
   const [cartLines, setCartLines] = useState<CartLine[]>([]);
+  // Miroir RÉFÉRENTIEL du panier : deux ajouts dans la même frame lisaient
+  // la closure périmée (le second écrasait le premier ⇒ article perdu).
+  const cartRef = useRef<CartLine[]>([]);
   const [cartNote, setCartNote] = useState("");
   const [sentOrders, setSentOrders] = useState<SentOrder[]>([]);
   const [sending, setSending] = useState(false);
@@ -137,7 +140,8 @@ export function App(): React.JSX.Element {
         // état LOCAL : ils survivent à la fermeture (commande hebdomadaire),
         // indépendamment de la session (le panier n'appartient qu'à cet
         // appareil).
-        setCartLines(loadCartLines());
+        cartRef.current = loadCartLines();
+        setCartLines(cartRef.current);
         setSentOrders(loadSentOrders());
         setRememberedPhone(lastPhone ?? sess?.phone ?? "");
         if (sess) {
@@ -228,7 +232,8 @@ export function App(): React.JSX.Element {
 
   /** Ajoute un produit au panier (le prix est celui du catalogue, figé). */
   function addToCart(product: CatalogProduct): void {
-    const next = addLine(cartLines, {
+    const current = cartRef.current;
+    const next = addLine(current, {
       productId: product.id,
       name: product.name,
       unitCode: product.unitCode,
@@ -236,23 +241,30 @@ export function App(): React.JSX.Element {
       quantity: 1,
       available: product.available,
     });
-    if (next.length === cartLines.length) return; // panier plein ou ligne refusée
+    if (next === current) return; // ligne refusée (panier plein, quantité nulle)
+    cartRef.current = next;
     setCartLines(next);
     saveCartLines(next);
     haptic();
   }
 
   function changeCartQty(productId: number, priceMinor: number, quantity: number): void {
+    const current = cartRef.current;
     const next =
       quantity <= 0
-        ? removeLine(cartLines, productId)
-        : setLineQuantity(cartLines, productId, priceMinor, quantity);
+        ? removeLine(current, productId)
+        : setLineQuantity(current, productId, priceMinor, quantity);
+    if (next === current) return;
+    cartRef.current = next;
     setCartLines(next);
     saveCartLines(next);
   }
 
   function removeFromCart(productId: number): void {
-    const next = removeLine(cartLines, productId);
+    const current = cartRef.current;
+    const next = removeLine(current, productId);
+    if (next === current) return;
+    cartRef.current = next;
     setCartLines(next);
     saveCartLines(next);
   }
@@ -326,6 +338,7 @@ export function App(): React.JSX.Element {
       setSentOrders(nextHistory);
       saveSentOrders(nextHistory);
       if (!order) {
+        cartRef.current = [];
         setCartLines([]);
         saveCartLines([]);
         setCartNote("");

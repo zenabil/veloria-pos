@@ -87,3 +87,6 @@ local.properties
 
 # Captures du site vitrine : artefacts régénérés par `npm run verify:site` (docs/shots/site/).
 docs/shots/site/
+
+# Artefacts de l'outil navigateur (MCP Playwright) : jamais dans le d�p�t.
+.playwright-mcp/

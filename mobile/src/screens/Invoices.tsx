@@ -168,7 +168,7 @@ export function InvoicesScreen(props: {
             />
           </View>
         </View>
-      )}{" "}
+      )}
       {/* Puces de filtre : 40 dp, marge d'écran conservée aux deux bords. */}
       <ScrollView
         ref={chipsRef}
@@ -181,7 +181,7 @@ export function InvoicesScreen(props: {
           paddingHorizontal: SPACE.lg,
           paddingVertical: SPACE.md,
         }}
-        style={{ flexGrow: 0 }}
+        style={{ flexGrow: 0, marginTop: 2 }}
       >
         {CHIPS.map((f) => (
           <Chip
