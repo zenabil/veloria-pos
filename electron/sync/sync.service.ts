@@ -22,6 +22,7 @@ import {
   isCatalogStale,
   recordCatalogPublished,
 } from "../ipc/handlers/client-catalog.repo";
+import { createClientOrderAtomic } from "../ipc/handlers/client-order.repo";
 import {
   SYNC_DEFAULTS,
   MirrorRejectionError,
@@ -1343,6 +1344,138 @@ async function publishCatalogOnce(
 }
 
 /**
+ * ADR-182 tranche F : tire les INTENTIONS de commande en attente et les
+ * transforme en commandes (`client_orders`, SQLite = master).
+ *
+ * L'intention est un transport : la commande créée est la seule vérité. Le
+ * `operationId` de l'intention sert d'`operationId` de création ⇒ un rejeur
+ * (tick suivant, redémarrage) ne crée jamais une seconde commande.
+ *
+ * Une intention refusée DÉFINITIVEMENT (produit archivé, client archivé,
+ * prix nul) est marquée `rejected` : sinon elle reviendrait à chaque tick,
+ * pour toujours. Une erreur transitoire la laisse `pending`.
+ */
+const ORDER_INTENT_REJECTED = [
+  "Client introuvable",
+  "Client archivé",
+  "Produit introuvable",
+  "n'est plus proposé à la vente",
+  "n'a pas de prix de vente valide",
+  "Quantité invalide",
+  "Trop de lignes pour une commande",
+  "Commande vide",
+];
+
+interface OrderIntentRow {
+  operation_id: string;
+  customer_id: number;
+  lines: { productId: number; quantity: number; unitCode: string }[];
+  total_minor: number;
+  note: string | null;
+}
+
+let orderPullInFlight = false;
+
+export async function pullOrderIntentsAtomic(
+  transport?: Transport,
+): Promise<{ taken: number; rejected: number }> {
+  if (orderPullInFlight) return { taken: 0, rejected: 0 };
+  orderPullInFlight = true;
+  try {
+    return await pullOrderIntentsOnce(transport);
+  } finally {
+    orderPullInFlight = false;
+  }
+}
+
+async function pullOrderIntentsOnce(
+  transport?: Transport,
+): Promise<{ taken: number; rejected: number }> {
+  const doc = readDoc();
+  if (!doc.enabled || doc.supabaseUrl === "" || doc.serviceKey === "") {
+    return { taken: 0, rejected: 0 };
+  }
+  const send: Transport = transport ?? mirrorTransport;
+  const base = doc.supabaseUrl.replace(/\/+$/, "");
+  const headers = {
+    apikey: doc.serviceKey,
+    Authorization: `Bearer ${doc.serviceKey}`,
+  };
+  let intents: OrderIntentRow[] = [];
+  try {
+    const res = await send(
+      `${base}/rest/v1/order_intents?select=operation_id,customer_id,lines,total_minor,note&status=eq.pending&order=created_at.asc&limit=50`,
+      { method: "GET", headers, body: "" },
+    );
+    if (!res.ok) {
+      log("WARN", "sync", "orders_pull.http", { status: res.status });
+      return { taken: 0, rejected: 0 };
+    }
+    const raw = await res.text().catch(() => "");
+    const parsed = JSON.parse(raw) as unknown;
+    intents = Array.isArray(parsed) ? (parsed as OrderIntentRow[]) : [];
+  } catch (err) {
+    log("WARN", "sync", "orders_pull.failed", { error: String(err) });
+    return { taken: 0, rejected: 0 };
+  }
+
+  let taken = 0;
+  let rejected = 0;
+  for (const intent of intents) {
+    try {
+      const created = createClientOrderAtomic({
+        operationId: intent.operation_id,
+        customerId: Number(intent.customer_id),
+        lines: (Array.isArray(intent.lines) ? intent.lines : []).map((l) => ({
+          productId: Number(l.productId),
+          quantity: Number(l.quantity),
+        })),
+        note: intent.note ?? null,
+        source: "app",
+        now: new Date().toISOString(),
+      });
+      await supaMarkIntent(send, base, headers, intent.operation_id, "taken", created.reference);
+      taken += 1;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (ORDER_INTENT_REJECTED.some((reason) => message.includes(reason))) {
+        await supaMarkIntent(send, base, headers, intent.operation_id, "rejected", null);
+        rejected += 1;
+        log("WARN", "sync", "orders_pull.rejected", { reason: message });
+      } else {
+        // Erreur transitoire : l'intention reste en attente.
+        log("WARN", "sync", "orders_pull.deferred", { error: message });
+      }
+    }
+  }
+  return { taken, rejected };
+}
+
+/** Marque une intention (prise ou refus) — mise à jour de transport. */
+async function supaMarkIntent(
+  send: Transport,
+  base: string,
+  headers: Record<string, string>,
+  operationId: string,
+  status: "taken" | "rejected",
+  reference: string | null,
+): Promise<void> {
+  try {
+    await send(`${base}/rest/v1/order_intents?operation_id=eq.${encodeURIComponent(operationId)}`, {
+      method: "PATCH",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status,
+        order_reference: reference,
+        updated_at: new Date().toISOString(),
+      }),
+    });
+  } catch (err) {
+    log("WARN", "sync", "orders_pull.mark_failed", { error: String(err) });
+  }
+}
+
+/**
  * ADR-182 tranche E : usage de l'application client (30 derniers jours).
  *
  * LECTURE seule, best-effort : un miroir ancien (table ou vue absente) ne
@@ -1536,6 +1669,14 @@ export function startSyncTimer(): void {
           /* déjà loggé dans le service */
         });
       }
+      // ADR-182 tranche F : les INTENTIONS de commande en attente sont tirées
+      // et transformées en commandes (SQLite = master). Best-effort : un échec
+      // ne remonte jamais et l'intention reste en attente (reprise au tick
+      // suivant) ; le `operationId` de l'intention évite tout doublon.
+      void pullOrderIntentsAtomic().catch(() => {
+        /* déjà loggé dans le service */
+      });
+
       // ADR-182 : republication AUTOMATIQUE du catalogue quand son empreinte
       // a changé (prix, activation, archivage, import). La comparaison se
       // fait sur l'EMPREINTE, pas sur un drapeau : aucun chemin d'écriture

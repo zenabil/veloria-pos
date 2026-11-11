@@ -189,7 +189,7 @@ séparé, une branche par agent). `D` et `F` attendent `C`.
 | C — commandes POS     | **livré** | 7 (base, parité domaine↔trigger) + 9 (intégration) | session 122 |
 | D — retour d'état     | **livré** | 4 (unitaire APK) + 1 (intégration)                 | session 123 |
 | E — mesure            | **livré** | 4 (unitaire)                                       | session 124 |
-| F — transport auto    | à faire   | —                                                  | —           |
+| F — transport auto    | **livré** | 4 (APK) + 2 (intégration)                          | session 125 |
 
 ## 10. Ce que la tranche C a figé (décisions prises pendant l'exécution)
 
@@ -252,3 +252,26 @@ séparé, une branche par agent). `D` et `F` attendent `C`.
    Android » (Paramètres), le commerçant voit « visites / clients actifs /
    dernière visite » ⇒ c'est aussi son argument pour faire connaître
    l'application.
+
+## 13. Ce que la tranche F a figé
+
+1. **Le téléphone n'écrit qu'une INTENTION** (`order_intents`), jamais une
+   commande ni une vente : le POS la transforme en commande (`client_orders`,
+   SQLite = master) et seule la VENTE porte un montant réel. Si le miroir est
+   effacé, l'intention disparaît — la **saisie manuelle reste le filet**.
+2. **L'authentification est celle de `client-sync`** (téléphone + PIN,
+   PBKDF2 100 000, sel par ligne, comparaison en temps constant, verrou
+   5 échecs / 5 min) : une seule implémentation de la règle, jamais deux.
+3. **`operationId` = clé d'idempotence** de bout en bout : l'intention
+   (UNIQUE côté cloud), la commande (`operation_id` UNIQUE côté SQLite). Un
+   rejeu du téléphone, un tick suivant du POS ou un redémarrage ne créeront
+   jamais deux commandes.
+4. **Le miroir d'abord, WhatsApp ensuite** : si le miroir est indisponible,
+   la commande passe quand même par WhatsApp — le commerce n'est jamais
+   bloqué par le réseau.
+5. **Un refus DEFINITIF est fermé, un refus transitoire est repris** : une
+   intention irrecevable (produit archivé, prix nul) est marquée `rejected`
+   (sinon elle reviendrait à chaque tick, pour toujours) ; une erreur
+   transitoire la laisse `pending`.
+6. **La commande est chiffrée au POS** : le prix de la commande est un ESTIMÉ ;
+   la vente porte le vrai montant.

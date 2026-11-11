@@ -17,7 +17,7 @@ import { Icon } from "./ui/Icon.tsx";
 import { COLORS, RADIUS, SHADOW, SIZES, SPACE, TYPE, tint } from "./tokens.ts";
 import { formatDateFr } from "./format.ts";
 import { t, type Lang } from "./i18n.ts";
-import { SyncError, fetchInvoiceDetail, syncNow } from "./api.ts";
+import { SyncError, fetchInvoiceDetail, sendOrderIntent, syncNow } from "./api.ts";
 import { ANON_KEY, SYNC_URL, isConfigured } from "./config.ts";
 import { EMPTY_CACHE, type MirrorCache, type Session } from "./store.ts";
 import {
@@ -285,6 +285,34 @@ export function App(): React.JSX.Element {
     const url = `https://wa.me/${shopPhone}?text=${encodeURIComponent(message)}`;
     setSending(true);
     try {
+      // ADR-182 tranche F : l'INTENTION part d'abord dans le miroir (c'est la
+      // trace de la commande ; le POS la transformera en commande). Best-effort :
+      // si le miroir est indisponible, la commande passe quand même par
+      // WhatsApp — le commerce n'est jamais bloqué par le réseau.
+      const remembered = session?.supabaseUrl ? null : await loadLastEndpoint();
+      const baseUrl = session?.supabaseUrl ?? remembered?.supabaseUrl ?? null;
+      const anonKey = session?.anonKey ?? remembered?.anonKey ?? null;
+      if (baseUrl && anonKey && session) {
+        try {
+          await sendOrderIntent({
+            baseUrl,
+            anonKey,
+            phone: session.phone,
+            pin: session.pin,
+            operationId: reference,
+            lines: lines.map((l) => ({
+              productId: l.productId,
+              quantity: l.quantity,
+              unitCode: l.unitCode,
+            })),
+            totalMinor: cartTotalMinor(lines),
+            note: order ? order.note : cartNote,
+            fetchImpl: fetch,
+          });
+        } catch {
+          // Échec silencieux côté réseau : WhatsApp prend le relais.
+        }
+      }
       await Linking.openURL(url);
       const record: SentOrder = {
         reference,

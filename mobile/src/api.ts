@@ -145,6 +145,99 @@ export interface DetailPayloads {
 }
 
 /**
+ * ADR-182 tranche F : envoi d'une INTENTION de commande au miroir.
+ *
+ * C'est la PREMIÈRE écriture depuis le téléphone : elle n'écrit qu'une
+ * DEMANDE (jamais une vente, jamais une dette) — le POS la transforme en
+ * commande et la vente naît au comptoir. L'authentification est celle de
+ * `client-sync` (téléphone + PIN).
+ *
+ * `operationId` : UUID fourni par l'appelant — un rejeu (réseau instable,
+ * double-clic) ne crée jamais une seconde intention.
+ */
+export interface OrderIntentLine {
+  productId: number;
+  quantity: number;
+  unitCode: string;
+}
+
+export async function sendOrderIntent(args: {
+  baseUrl: string;
+  anonKey: string;
+  phone: string;
+  pin: string;
+  operationId: string;
+  lines: OrderIntentLine[];
+  totalMinor: number;
+  note: string;
+  fetchImpl: FetchImpl;
+  timeoutMs?: number;
+}): Promise<{ accepted: boolean; duplicate: boolean }> {
+  const base = args.baseUrl.replace(/\/+$/, "");
+  const url = `${base}/functions/v1/client-order`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), args.timeoutMs ?? 10_000);
+  let res: {
+    ok: boolean;
+    status: number;
+    json: () => Promise<unknown>;
+    text: () => Promise<string>;
+  };
+  try {
+    res = await args.fetchImpl(url, {
+      method: "POST",
+      headers: syncHeaders(args.anonKey),
+      body: JSON.stringify({
+        phone: args.phone.trim(),
+        pin: args.pin,
+        operationId: args.operationId,
+        lines: args.lines,
+        totalMinor: args.totalMinor,
+        note: args.note,
+      }),
+      signal: controller.signal,
+    });
+  } catch {
+    clearTimeout(timeout);
+    throw new SyncError("OFFLINE_ERROR", "Commande non envoyée : hors connexion.");
+  } finally {
+    clearTimeout(timeout);
+  }
+  if (!res.ok) {
+    let code: SyncErrorCode = "SERVER_ERROR";
+    try {
+      const err = (await res.json()) as { code?: string };
+      if (
+        err.code === "AUTH_ERROR" ||
+        err.code === "LOCKED_ERROR" ||
+        err.code === "REVOKED_ERROR"
+      ) {
+        code = err.code;
+      }
+    } catch {
+      /* corps illisible : SERVER_ERROR */
+    }
+    const messages: Record<SyncErrorCode, string> = {
+      AUTH_ERROR: "Téléphone ou code incorrect.",
+      LOCKED_ERROR: "Compte verrouillé 5 minutes (5 échecs).",
+      REVOKED_ERROR: "Accès coupé. Contactez votre magasin.",
+      OFFLINE_ERROR: "Commande non envoyée : hors connexion.",
+      NOT_FOUND_ERROR: "Commande introuvable.",
+      SERVER_ERROR: "Commande non envoyée : réessayez.",
+    };
+    throw new SyncError(code, messages[code]);
+  }
+  const data = (await res.json()) as {
+    ok?: boolean;
+    data?: { accepted?: boolean; duplicate?: boolean };
+  };
+  if (!data || data.ok !== true || !data.data) {
+    throw new SyncError("SERVER_ERROR", "Réponse inattendue du miroir.");
+  }
+  return { accepted: data.data.accepted === true, duplicate: data.data.duplicate === true };
+}
+
+/**
  * Détail d'une facture à la demande (même endpoint, `saleId` en plus).
  * Le POS pousse les clichés `invoice_detail` ; le miroir renvoie le dernier
  * correspondant à la vente, sinon NOT_FOUND (demander au commerçant de

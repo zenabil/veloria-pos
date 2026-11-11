@@ -45,6 +45,7 @@ vi.mock("../../electron/services/logger", () => ({
 }));
 
 import { buildSnapshotPayload } from "../../electron/ipc/handlers/client-access.repo";
+import { pullOrderIntentsAtomic } from "../../electron/sync/sync.service";
 import {
   createClientOrderAtomic,
   getClientOrder,
@@ -334,5 +335,119 @@ describe("ADR-182 — commandes clients (cycle de vie)", () => {
     expect(payload.orders?.[0]?.status).toBe("nouvelle");
     expect(payload.orders?.[0]?.totalMinor).toBe(8_500);
     expect(payload.orders?.[0]?.saleId).toBeNull();
+  });
+
+  it("tire les intentions et les transforme en commandes (ADR-182 F)", async () => {
+    const db = repoDb.current;
+    if (!db) throw new Error("Base fermée.");
+    // Doc miroir configurée (le tirage refuse de partir sans elle).
+    db.prepare(
+      `INSERT INTO app_settings (key, value_json, updated_at) VALUES ('client_sync', ?, ?)
+       ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at`,
+    ).run(
+      JSON.stringify({
+        enabled: true,
+        supabaseUrl: "http://127.0.0.1:8100",
+        serviceKey: "k".repeat(40),
+        anonKey: "",
+        intervalMinutes: 15,
+        lastPushAt: null,
+        lastError: null,
+      }),
+      NOW,
+    );
+    const intents = [
+      {
+        operation_id: "11111111-1111-4111-8111-111111111111",
+        customer_id: ids.customerId,
+        lines: [{ productId: ids.productId, quantity: 2 }],
+        total_minor: 17_000,
+        note: "après 16 h",
+      },
+    ];
+    const marked: { status: string; reference: string | null }[] = [];
+    const result = await pullOrderIntentsAtomic(
+      (_url: string, init: { method: string; headers: Record<string, string>; body: string }) => {
+        if (init.method === "GET") {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            text: () => Promise.resolve(JSON.stringify(intents)),
+          });
+        }
+        const parsed = JSON.parse(init.body) as { status: string; order_reference: string | null };
+        marked.push({ status: parsed.status, reference: parsed.order_reference });
+        return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve("[]") });
+      },
+    );
+    expect(result.taken).toBe(1);
+    expect(result.rejected).toBe(0);
+    // La commande existe dans SQLite (le master) avec la référence CMD-…
+    const orders = db
+      .prepare(`SELECT id, reference, status, total_minor, note FROM client_orders`)
+      .all() as {
+      id: number;
+      reference: string;
+      status: string;
+      total_minor: number;
+      note: string;
+    }[];
+    expect(orders).toHaveLength(1);
+    expect(orders[0]?.reference).toMatch(/^CMD-\d{4}-\d{5}$/);
+    expect(orders[0]?.status).toBe("nouvelle");
+    expect(orders[0]?.total_minor).toBe(17_000);
+    expect(orders[0]?.note).toBe("après 16 h");
+    // L'intention est marquée prise, avec la référence de la commande.
+    expect(marked[0]?.status).toBe("taken");
+    expect(marked[0]?.reference).toBe(orders[0]?.reference);
+  });
+
+  it("refuse DÉFINITIVEMENT une intention irrecevable (produit archivé)", async () => {
+    const db = repoDb.current;
+    if (!db) throw new Error("Base fermée.");
+    db.prepare(
+      `INSERT INTO app_settings (key, value_json, updated_at) VALUES ('client_sync', ?, ?)
+       ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at`,
+    ).run(
+      JSON.stringify({
+        enabled: true,
+        supabaseUrl: "http://127.0.0.1:8100",
+        serviceKey: "k".repeat(40),
+        anonKey: "",
+        intervalMinutes: 15,
+        lastPushAt: null,
+        lastError: null,
+      }),
+      NOW,
+    );
+    // Le produit n'existe pas (produit supprimé) => refus définitif.
+    const marked: string[] = [];
+    const result = await pullOrderIntentsAtomic(
+      (_url: string, init: { method: string; headers: Record<string, string>; body: string }) => {
+        if (init.method === "GET") {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            text: () =>
+              Promise.resolve(
+                JSON.stringify([
+                  {
+                    operation_id: "22222222-2222-4222-8222-222222222222",
+                    customer_id: ids.customerId,
+                    lines: [{ productId: 999_999, quantity: 1 }],
+                    total_minor: 100,
+                    note: null,
+                  },
+                ]),
+              ),
+          });
+        }
+        marked.push((JSON.parse(init.body) as { status: string }).status);
+        return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve("[]") });
+      },
+    );
+    expect(result.taken).toBe(0);
+    expect(result.rejected).toBe(1);
+    expect(marked[0]).toBe("rejected");
   });
 });
