@@ -232,6 +232,12 @@ export function loadCache(): MirrorCache {
     snapshot: parseJson(kv["snapshot"]),
     invoices: parseJson(kv["invoices"]),
     payments: parseJson(kv["payments"]),
+    // ADR-182 : le catalogue est un CACHE à part entière : il survit à une
+    // synchronisation qui n'a rien remonté (miroir sans catalogue) au lieu de
+    // disparaître. Un catalogue absent ne doit pas effacer le précédent.
+    catalog: kv["catalog"] == null ? null : parseJson(kv["catalog"]),
+    catalogVersion: kv["catalogVersion"] ?? null,
+    catalogPublishedAt: kv["catalogPublishedAt"] ?? null,
     syncedAt: kv["syncedAt"] ?? null,
   };
 }
@@ -242,6 +248,12 @@ export function saveCache(c: MirrorCache): void {
   writeKv("invoices", JSON.stringify(c.invoices ?? null));
   writeKv("payments", JSON.stringify(c.payments ?? null));
   writeKv("syncedAt", c.syncedAt);
+  // ADR-182 : n'écrase le catalogue en cache QUE si le miroir en a renvoyé
+  // un (ou une version) — sinon le catalogue local survit à une synchro
+  // partielle (le miroir peut être en maintenance, l'app doit rester utile).
+  if (c.catalog != null) writeKv("catalog", JSON.stringify(c.catalog));
+  if (c.catalogVersion != null) writeKv("catalogVersion", c.catalogVersion);
+  if (c.catalogPublishedAt != null) writeKv("catalogPublishedAt", c.catalogPublishedAt);
 }
 
 export function clearCache(): void {

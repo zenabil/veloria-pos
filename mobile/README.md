@@ -1,10 +1,22 @@
 # Mobile — APK clients Veloria (V1, lecture seule, 0 $)
 
-5 onglets max : Accueil / Factures / Paiements / Compte-Magasin + ligne « À propos » (nom, version, support WhatsApp pro, sans photo).
+5 onglets : Accueil / Factures / Paiements / **Boutique** / Compte-Magasin +
+ligne « À propos » (nom, version, support WhatsApp pro, sans photo).
+
+> ADR-182 (2026-11-11) : la règle « 5 onglets max » est levée par l'opérateur.
+> L'application passe à **5 onglets** — la **Boutique** (catalogue du magasin
+> publié par le POS) est le motif d'installation et le motif de retour
+> hebdomadaire. Le catalogue est une **projection** : les prix viennent du
+> POS, la disponibilité est un indice, la commande se valide au comptoir
+> (aucune écriture financière depuis le téléphone).
 
 Règles verrouillées :
 
 - Lecture seule. Aucune écriture financière depuis le téléphone.
+- **Catalogue (ADR-182)** : lu dans la table miroir `store_catalog` (une copie
+  par magasin), mis en cache local (`expo-sqlite`) avec sa **version** — l'APK
+  ne re-télécharge que si l'empreinte a changé ; une entrée corrompue est
+  **écartée** (fail-closed), jamais affichée au prix faux.
 - Bilingue ar/fr dès le premier écran, bascule RTL/LTR complète (voir ADR-051).
 - Identité figée par les tests : encre `#051424`, primaire `#fbbf24`, cible
   tactile 48 dp, page de 20 (`tests/unit/mobile-foundation.test.ts`).

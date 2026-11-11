@@ -66,6 +66,11 @@ export const IPC_CHANNELS = {
   // ADR-166 : liste complète (Paramètres) + suppression idempotente.
   "announcements.list": "announcements.list",
   "announcements.remove": "announcements.remove",
+  // ADR-182 : catalogue publié dans l'application client + publication.
+  "clientCatalog.getSettings": "clientCatalog.getSettings",
+  "clientCatalog.preview": "clientCatalog.preview",
+  "clientCatalog.saveSettings": "clientCatalog.saveSettings",
+  "sync.publishCatalog": "sync.publishCatalog",
   // categories (filtre catalogue)
   "categories.list": "categories.list",
   "categories.create": "categories.create",

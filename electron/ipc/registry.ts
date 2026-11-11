@@ -6,6 +6,7 @@
 import { registerCoreIpc } from "./registry.core";
 import { registerLicenseIpc, registerRecoveryIpc } from "./registry.recovery";
 import { registerCatalogChannels } from "./registry.catalog";
+import { registerClientCatalogChannels } from "./registry.clientcatalog";
 import { registerSalesChannels } from "./registry.sales";
 import { registerCustomersChannels } from "./registry.customers";
 import { registerFinanceChannels } from "./registry.finance";
@@ -20,6 +21,7 @@ export function registerIpc(): void {
   registerCoreIpc();
   registerSystemChannels();
   registerCatalogChannels();
+  registerClientCatalogChannels();
   registerCustomersChannels();
   registerSalesChannels();
   registerFinanceChannels();

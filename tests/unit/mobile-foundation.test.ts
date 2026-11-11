@@ -115,7 +115,15 @@ describe("cache local", () => {
   it("repli mémoire : détail relisible, purge complète au logout (web/sans natif)", () => {
     // Sous vitest, expo-sqlite est absent → branche mémoire de cache.ts.
     clearCache();
-    saveCache({ snapshot: null, invoices: null, payments: null, syncedAt: "2026-09-29T10:00:00Z" });
+    saveCache({
+      snapshot: null,
+      invoices: null,
+      payments: null,
+      catalog: null,
+      catalogVersion: null,
+      catalogPublishedAt: null,
+      syncedAt: "2026-09-29T10:00:00Z",
+    });
     saveDetail(42, { sale: { id: 42, invoice_number: "FAC-1" } }, "2026-09-29T10:00:00Z");
     expect(loadCache().syncedAt).toBe("2026-09-29T10:00:00Z");
     expect(loadDetail(42)?.detail).toMatchObject({ sale: { id: 42 } });

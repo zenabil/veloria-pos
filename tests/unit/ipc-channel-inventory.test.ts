@@ -21,6 +21,8 @@ const SCANNED = [
   "electron/ipc/registry.core.ts",
   "electron/ipc/registry.recovery.ts",
   "electron/ipc/registry.catalog.ts",
+  // ADR-182 : catalogue publié dans l'application client.
+  "electron/ipc/registry.clientcatalog.ts",
   "electron/ipc/registry.sales.ts",
   "electron/ipc/registry.customers.ts",
   "electron/ipc/registry.finance.ts",

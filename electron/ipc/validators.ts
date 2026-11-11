@@ -3,6 +3,7 @@
 export * from "./validators.common";
 export * from "./validators.catalog";
 export * from "./validators.customers";
+export * from "./validators.clientcatalog";
 export * from "./validators.sales";
 export * from "./validators.documents";
 export * from "./validators.finance";

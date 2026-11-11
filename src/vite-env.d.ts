@@ -69,6 +69,14 @@ interface Window {
       getConfig(): Promise<VeloriaOutcome>;
       saveConfig(p: unknown): Promise<VeloriaOutcome>;
       saveOwnerAccount(p: unknown): Promise<VeloriaOutcome>;
+      /** ADR-182 : publication du catalogue client. */
+      publishCatalog(p: unknown): Promise<VeloriaOutcome>;
+    };
+    /** ADR-182 : catalogue publié dans l'application client. */
+    clientCatalog: {
+      getSettings(): Promise<VeloriaOutcome>;
+      preview(): Promise<VeloriaOutcome>;
+      saveSettings(p: unknown): Promise<VeloriaOutcome>;
     };
     announcements: {
       save(p: unknown): Promise<VeloriaOutcome>;

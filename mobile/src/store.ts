@@ -17,6 +17,12 @@ export interface MirrorCache {
   snapshot: unknown;
   invoices: unknown;
   payments: unknown;
+  /** ADR-182 : catalogue du magasin (copie locale, lisible hors ligne). */
+  catalog: unknown;
+  /** ADR-182 : version du catalogue en cache (comparee à celle du miroir). */
+  catalogVersion: string | null;
+  /** ADR-182 : date de publication du catalogue en cache. */
+  catalogPublishedAt: string | null;
   syncedAt: string | null;
 }
 
@@ -24,5 +30,8 @@ export const EMPTY_CACHE: MirrorCache = {
   snapshot: null,
   invoices: null,
   payments: null,
+  catalog: null,
+  catalogVersion: null,
+  catalogPublishedAt: null,
   syncedAt: null,
 };

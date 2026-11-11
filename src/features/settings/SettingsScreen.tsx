@@ -25,6 +25,7 @@ import {
   type SettingsSectionId,
   type SettingsSectionMeta,
 } from "./types.ts";
+import { ClientCatalogSection } from "./ClientCatalogSection.tsx";
 import {
   AnnouncementSection,
   CompanySection,
@@ -340,6 +341,10 @@ export function SettingsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
                 </CardAnchor>
                 <CardAnchor id="announcement">
                   <AnnouncementSection notify={notify} />
+                </CardAnchor>
+                {/* ADR-182 : catalogue publié dans l'application client. */}
+                <CardAnchor id="client-catalog">
+                  <ClientCatalogSection notify={notify} />
                 </CardAnchor>
               </>
             ) : null}

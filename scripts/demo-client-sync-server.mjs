@@ -19,6 +19,65 @@ const day = (offset) => {
   return d.toISOString().slice(0, 10);
 };
 
+/**
+ * ADR-182 — catalogue de DÉMONSTRATION (miroir de `store_catalog`).
+ * Mêmes COLONNES que la table réelle : le contrat de l'APK est donc
+ * vérifiable sans Supabase. Prix en centimes DZD.
+ */
+const catalog = [
+  {
+    product_id: 11,
+    name: "زيت زيتون 1 لتر",
+    category_id: 2,
+    category_name: "زيوت",
+    price_minor: 85000,
+    unit_code: "PIECE",
+    available: 1,
+    image_url: null,
+  },
+  {
+    product_id: 12,
+    name: "أرز 5 كغ",
+    category_id: 1,
+    category_name: "مواد غذائية",
+    price_minor: 62000,
+    unit_code: "PIECE",
+    available: 1,
+    image_url: null,
+  },
+  {
+    product_id: 13,
+    name: "سكر 1 كغ",
+    category_id: 1,
+    category_name: "مواد غذائية",
+    price_minor: 18000,
+    unit_code: "KG",
+    available: 1,
+    image_url: null,
+  },
+  {
+    product_id: 14,
+    name: "حليب كانديا 1 لتر",
+    category_id: 1,
+    category_name: "مواد غذائية",
+    price_minor: 11500,
+    unit_code: "PIECE",
+    available: 0,
+    image_url: null,
+  },
+  {
+    product_id: 15,
+    name: "قهوة فاميكو 250 غ",
+    category_id: 1,
+    category_name: "مواد غذائية",
+    price_minor: 9500,
+    unit_code: "PIECE",
+    available: 1,
+    image_url: null,
+  },
+];
+const catalogVersion = "demo0000000000000000000000000000000000000000000000000000000000000000";
+
 const snapshot = {
   customer: {
     first_name: "محمد",
@@ -334,7 +393,15 @@ const server = http.createServer((req, res) => {
     console.log(`[${stamp}] 200 OK phone=${maskPhone(phone)}`);
     send(res, 200, {
       ok: true,
-      data: { snapshot, invoices, payments, syncedAt: new Date().toISOString() },
+      data: {
+        snapshot,
+        invoices,
+        payments,
+        catalog,
+        catalogVersion,
+        catalogPublishedAt: now.toISOString(),
+        syncedAt: new Date().toISOString(),
+      },
     });
   });
 });

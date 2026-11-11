@@ -17,6 +17,12 @@ import { toUserMessage } from "../ipc/ipc-errors";
 import { businessMonthOf } from "../shared/business-day";
 import { enqueueSnapshotAtomic, hasActiveClientAccess } from "../ipc/handlers/client-access.repo";
 import {
+  buildCatalog,
+  getCatalogSettings,
+  isCatalogStale,
+  recordCatalogPublished,
+} from "../ipc/handlers/client-catalog.repo";
+import {
   SYNC_DEFAULTS,
   MirrorRejectionError,
   MIRROR_PHONE_CONFLICT_MESSAGE,
@@ -294,6 +300,26 @@ export async function saveOwnerAccountAtomic(args: {
       "Renseignez l'URL et la clé service du miroir avant de créer le compte propriétaire.",
     );
   }
+  // S-02 : le claim précède le réseau — une réémission ne peut pas rejouer
+  // PUT/POST (Auth) après perte de réponse. En cas de claim préexistant
+  // (crash après écriture locale), l'état local tranche sans rappeler.
+  const claimedNow = tryClaimBeforeSend(args.operationId, OWNER_ACCOUNT_CHANNEL, args.now);
+  if (!claimedNow) {
+    const retry = peekIdempotency<OwnerAccountResult>(args.operationId, OWNER_ACCOUNT_CHANNEL);
+    if (retry) return retry;
+    const local = readOwnerAccount();
+    if (local && local.email.toLowerCase() === email.toLowerCase()) {
+      return {
+        email,
+        userId: local.userId,
+        created: false,
+        updatedAt: local.updatedAt,
+      };
+    }
+    // Pending sans écriture locale = crash avant commit réseau : on converge
+    // (le chemin 409/422 + mise à jour rend l'opération idempotente) sans
+    // re-clamer.
+  }
   const existing = readOwnerAccount();
   let userId = existing?.userId ?? null;
   let created = false;
@@ -347,7 +373,8 @@ export async function saveOwnerAccountAtomic(args: {
 
   const finalUserId = userId;
   const tx = getDb().transaction(() => {
-    claimIdempotency(args.operationId, OWNER_ACCOUNT_CHANNEL, args.now);
+    // Claim déjà réservé avant le réseau (S-02) : la transaction finale ne
+    // fait que le solder (écriture locale + résultat).
     writeOwnerAccount({ email, userId: finalUserId, updatedAt: args.now });
     const result: OwnerAccountResult = {
       email,
@@ -423,17 +450,19 @@ function syncConfigOf(doc: SyncDoc): SyncConfig {
  * l'ancienne panne réseau — désormais fausse. Renvoie l'erreur à propager.
  */
 function noteConfigRejection(
-  doc: SyncDoc,
+  _doc: SyncDoc,
   now: string,
   err: Error,
   lane: "mirror" | "owner",
 ): Error {
   const message = toUserMessage(err).message;
   try {
+    // S-04 : on relit la doc FRAÎCHE avant d'écrire (jamais la copie
+    // d'entrée, potentiellement périmée par une config concurrente).
     writeDoc(
       lane === "owner"
-        ? { ...doc, lastOwnerError: message, lastOwnerAttemptAt: now }
-        : { ...doc, lastError: message, lastAttemptAt: now },
+        ? { ...readDoc(), lastOwnerError: message, lastOwnerAttemptAt: now }
+        : { ...readDoc(), lastError: message, lastAttemptAt: now },
       now,
     );
   } catch {
@@ -441,6 +470,45 @@ function noteConfigRejection(
   }
   log("ERROR", "sync", `push.config_rejected.${lane}`, { error: message });
   return new Error(message);
+}
+
+/**
+ * S-04 : mise à jour des métadonnées de la doc SANS écraser une config
+ * concurrente. Les chemins succès/échec réseau relisent toujours la doc
+ * avant d'écrire (le `doc` capturé avant le réseau est périmé par
+ * `saveSyncConfigAtomic` qui a pu passer entre-temps) — pas d'attente (une
+ * copie périmée n'écrase jamais les secrets/intervalles nouveaux).
+ */
+function writeDocMeta(patch: Partial<SyncDoc>, now: string): void {
+  try {
+    writeDoc({ ...readDoc(), ...patch }, now);
+  } catch {
+    /* meta best-effort */
+  }
+}
+
+function isIdempotencyUnique(err: unknown): boolean {
+  return (
+    err instanceof Error &&
+    /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
+  );
+}
+
+/**
+ * S-01/S-02 : réserve `operationId` AVANT l'appel réseau (hors transaction
+ * métier, sinon le verrou SQLite serait tenu pendant la requête HTTP).
+ * Retourne true si le claim est nouveau, false s'il existait déjà (le
+ * rejouement doit alors vérifier la parole locale avant de renvoyer).
+ */
+function tryClaimBeforeSend(operationId: string, channel: string, now: string): boolean {
+  const db = getDb();
+  try {
+    db.transaction(() => claimIdempotency(operationId, channel, now))();
+    return true;
+  } catch (err) {
+    if (isIdempotencyUnique(err)) return false;
+    throw err;
+  }
 }
 
 /**
@@ -563,7 +631,7 @@ const mirrorTransport: Transport = async (url, init) => {
 export async function pushNowAtomic(
   args: { operationId: string; now: string },
   transport?: Transport,
-): Promise<{ pushed: number; access: number; failed: number }> {
+): Promise<{ pushed: number; access: number; accessRejected: number; failed: number }> {
   if (mirrorInFlight) throw new Error("Poussée déjà en cours : réessayez dans un instant.");
   mirrorInFlight = true;
   try {
@@ -577,13 +645,15 @@ export async function pushNowAtomic(
 async function pushNowOnce(
   args: { operationId: string; now: string },
   transport?: Transport,
-): Promise<{ pushed: number; access: number; failed: number }> {
+): Promise<{ pushed: number; access: number; accessRejected: number; failed: number }> {
   const db = getDb();
-  const replay = peekIdempotency<{ pushed: number; access: number; failed: number }>(
-    args.operationId,
-    "sync.pushNow",
-  );
-  if (replay) return replay;
+  const replay = peekIdempotency<{
+    pushed: number;
+    access: number;
+    accessRejected?: number;
+    failed: number;
+  }>(args.operationId, "sync.pushNow");
+  if (replay) return { ...replay, accessRejected: replay.accessRejected ?? 0 };
   const doc = readDoc();
   let cfg: SyncConfig;
   try {
@@ -598,6 +668,22 @@ async function pushNowOnce(
   }
   if (!cfg.enabled)
     throw noteConfigRejection(doc, args.now, new Error(SYNC_DISABLED_MESSAGE), "mirror");
+  // Claim avant tout GET/POST réseau (une réémission avec le même UUID ne
+  // peut pas doubler les POST : le miroir fait `merge-duplicates`, donc la
+  // duplication serait bénigne, mais la réparation pousse unique l'est moins).
+  const claimedNowPush = tryClaimBeforeSend(args.operationId, "sync.pushNow", args.now);
+  if (!claimedNowPush) {
+    const retry = peekIdempotency<{
+      pushed: number;
+      access: number;
+      accessRejected?: number;
+      failed: number;
+    }>(args.operationId, "sync.pushNow");
+    if (retry) return { ...retry, accessRejected: retry.accessRejected ?? 0 };
+    // Pending sans résultat = une première tentative est en cours (ou a
+    // échoué avant le résultat) : le verrou `mirrorInFlight` en sérialise
+    // déjà les appels dans ce processus ; on converge normalement.
+  }
   const queuedRows = db
     .prepare(
       `SELECT operation_id, customer_id, kind, payload_json, created_at FROM sync_outbox WHERE status = 'pending' ORDER BY id ASC LIMIT 200`,
@@ -741,7 +827,12 @@ async function pushNowOnce(
       const batch = db
         .prepare(
           `SELECT customer_id, phone_hash, pin_hash, pin_salt, pin_algo, qr_secret_hash, revoked_at, failed_attempts, locked_until, updated_at
-           FROM customer_access WHERE customer_id > ? ORDER BY customer_id ASC LIMIT 500`,
+           FROM customer_access
+           WHERE customer_id > ? AND NOT EXISTS (
+             SELECT 1 FROM customer_access AS newer
+             WHERE newer.customer_id = customer_access.customer_id AND newer.id > customer_access.id
+           )
+           ORDER BY customer_id ASC LIMIT 500`,
         )
         .all(cursor) as AccessMirrorRow[];
       if (batch.length === 0) break;
@@ -758,13 +849,10 @@ async function pushNowOnce(
     // FIX-P1-03 : lastError affiché par l'UI → message FR garanti via la
     // source unique main (toUserMessage : technique → repli FR générique).
     const msg = toUserMessage(err).message;
-    try {
-      // E-43 : l'échec horodate aussi la TENTATIVE, sinon la cadence
-      // `intervalMinutes` est ignorée et le timer repart toutes les 60 s.
-      writeDoc({ ...doc, lastError: msg, lastAttemptAt: args.now }, args.now);
-    } catch {
-      /* meta best-effort */
-    }
+    // E-43 : l'échec horodate aussi la TENTATIVE, sinon la cadence
+    // `intervalMinutes` est ignorée et le timer repart toutes les 60 s.
+    // S-04 : doc fraîche (pas la copie d'entrée).
+    writeDocMeta({ lastError: msg, lastAttemptAt: args.now }, args.now);
     log("ERROR", "sync", "push.failed", { error: msg });
     throw err instanceof Error ? err : new Error(msg);
   }
@@ -772,7 +860,7 @@ async function pushNowOnce(
   const condemned = new Set([...rejectedIds, ...corruptedOperationIds]);
   const delivered = outboxRows.filter((r) => !condemned.has(r.operation_id));
   const tx = db.transaction(() => {
-    claimIdempotency(args.operationId, "sync.pushNow", args.now);
+    // Claim déjà réservé avant le réseau (S-01) : solder, pas re-clamer.
     for (const r of delivered) {
       db.prepare(`UPDATE sync_outbox SET status = 'sent', sent_at = ? WHERE operation_id = ?`).run(
         args.now,
@@ -788,23 +876,33 @@ async function pushNowOnce(
     }
     try {
       const condemnedCount = condemned.size;
+      const accessRejectedCount = rejectedAccess.length;
       writeDoc(
         {
-          ...doc,
+          ...readDoc(),
           lastPushAt: args.now,
           lastAttemptAt: args.now,
           lastError:
-            condemnedCount === 0
+            condemnedCount === 0 && accessRejectedCount === 0
               ? null
-              : `${condemnedCount} cliché(s) écarté(s) définitivement de la file : ${
-                  corruptedOperationIds.length > 0
-                    ? `${corruptedOperationIds.length} illisible(s) en local`
-                    : ""
-                }${corruptedOperationIds.length > 0 && rejectedIds.size > 0 ? " · " : ""}${
-                  rejectedIds.size > 0
-                    ? `${rejectedIds.size} refusé(s) par le miroir (données client incohérentes : accès correspondant absent)`
-                    : ""
-                }.`,
+              : [
+                  condemnedCount > 0
+                    ? `${condemnedCount} cliché(s) écarté(s) définitivement de la file : ${
+                        corruptedOperationIds.length > 0
+                          ? `${corruptedOperationIds.length} illisible(s) en local`
+                          : ""
+                      }${corruptedOperationIds.length > 0 && rejectedIds.size > 0 ? " · " : ""}${
+                        rejectedIds.size > 0
+                          ? `${rejectedIds.size} refusé(s) par le miroir (données client incohérentes : accès correspondant absent)`
+                          : ""
+                      }.`
+                    : "",
+                  accessRejectedCount > 0
+                    ? `${accessRejectedCount} accès écarté(s) par le miroir (rejouable au prochain tick).`
+                    : "",
+                ]
+                  .filter(Boolean)
+                  .join(" "),
         },
         args.now,
       );
@@ -814,6 +912,7 @@ async function pushNowOnce(
     const result = {
       pushed: delivered.length,
       access: accessCount,
+      accessRejected: rejectedAccess.length,
       failed: condemned.size,
     };
     storeIdempotencyResult(args.operationId, result);
@@ -826,11 +925,13 @@ async function pushNowOnce(
       err instanceof Error &&
       /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
     ) {
-      const retry = peekIdempotency<{ pushed: number; access: number; failed: number }>(
-        args.operationId,
-        "sync.pushNow",
-      );
-      if (retry) return retry;
+      const retry = peekIdempotency<{
+        pushed: number;
+        access: number;
+        accessRejected?: number;
+        failed: number;
+      }>(args.operationId, "sync.pushNow");
+      if (retry) return { ...retry, accessRejected: retry.accessRejected ?? 0 };
     }
     throw err;
   }
@@ -856,11 +957,27 @@ const OWNER_PUSH_CHANNEL = "sync.pushOwnerSnapshot";
 /** `shop_key` unique de la liasse (miroir de `cloud/supabase/owner.sql`). */
 const OWNER_SHOP_KEY = "veloria";
 
+/** S-03 : même verrou d'exclusion que le miroir — un clic manuel et le timer
+ * ne peuvent pas publier deux liasse en parallèle (append-only). */
+let ownerInFlight = false;
+
 export async function publishOwnerSnapshotAtomic(
   args: { operationId: string; now: string },
   transport?: Transport,
 ): Promise<OwnerPublishResult> {
-  const db = getDb();
+  if (ownerInFlight) throw new Error("Publication déjà en cours : réessayez dans un instant.");
+  ownerInFlight = true;
+  try {
+    return await publishOwnerSnapshotOnce(args, transport);
+  } finally {
+    ownerInFlight = false;
+  }
+}
+
+async function publishOwnerSnapshotOnce(
+  args: { operationId: string; now: string },
+  transport?: Transport,
+): Promise<OwnerPublishResult> {
   const replay = peekIdempotency<OwnerPublishResult>(args.operationId, OWNER_PUSH_CHANNEL);
   if (replay) return replay;
   const doc = readDoc();
@@ -899,10 +1016,42 @@ export async function publishOwnerSnapshotAtomic(
       "owner",
     );
   }
-  const snapshot = buildOwnerSnapshot(args.now);
-  const body = JSON.stringify([
-    { shop_key: OWNER_SHOP_KEY, payload: snapshot, generated_at: args.now },
-  ]);
+  // S-01 : claim AVANT l'appel réseau. Le POST est append-only (aucun upsert
+  // côté table) : sans claim préalable, un crash après le POST envoyait une
+  // seconde ligne au rejouement avec le même `operationId`.
+  const claimedNow = tryClaimBeforeSend(args.operationId, OWNER_PUSH_CHANNEL, args.now);
+  if (!claimedNow) {
+    const retry = peekIdempotency<OwnerPublishResult>(args.operationId, OWNER_PUSH_CHANNEL);
+    if (retry) return retry;
+    // Crash après le POST mais avant le résultat : la doc porte la preuve
+    // (`lastOwnerPushAt == now`). On rend le même résultat SANS réenvoyer.
+    if (readDoc().lastOwnerPushAt === args.now) {
+      // Corps reconstruit uniquement pour la taille (aucun envoi).
+      let chars = 0;
+      try {
+        const snapshot = buildOwnerSnapshot(args.now);
+        chars = JSON.stringify([
+          { shop_key: OWNER_SHOP_KEY, payload: snapshot, generated_at: args.now },
+        ]).length;
+      } catch {
+        chars = 0;
+      }
+      const result: OwnerPublishResult = {
+        published: true,
+        chars,
+        generatedAt: args.now,
+        lastOwnerPushAt: args.now,
+      };
+      storeIdempotencyResult(args.operationId, result);
+      return result;
+    }
+    // Pending sans preuve locale = tentative précédente échouée AVANT le
+    // succès réseau (sinon la doc ci-dessus le prouverait). On converge en
+    // poursuivant vers le POST sans re-clamer : la duplication exigerait
+    // que le POST précédent ait réussi ET que l'écriture de la doc ait été
+    // perdue — fenêtre étroite acceptée au bénéfice du retry légitime.
+    // (Le verrou `ownerInFlight` interdit déjà deux POST simultanés ici.)
+  }
   // E-45 : même transport gardé que la file client (échéance + pas de requête
   // suspendue) — la duplication d'un `fetch` nu était le même défaut.
   const send: Transport = transport ?? mirrorTransport;
@@ -912,7 +1061,15 @@ export async function publishOwnerSnapshotAtomic(
     "Content-Type": "application/json",
     Prefer: "return=representation",
   };
+  let body = "";
   try {
+    // S-05 : la construction de la liasse vit DANS le try — un échec ici
+    // horodate aussi la tentative (`lastOwnerError`/`lastOwnerAttemptAt`) au
+    // lieu de repartir toutes les 60 s en silence.
+    const snapshot = buildOwnerSnapshot(args.now);
+    body = JSON.stringify([
+      { shop_key: OWNER_SHOP_KEY, payload: snapshot, generated_at: args.now },
+    ]);
     const res = await send(ownerSnapshotsUrl(cfg.supabaseUrl), { method: "POST", headers, body });
     if (!res.ok) {
       // Règle 6 : le détail serveur brut reste au log, seul un message FR est
@@ -926,51 +1083,263 @@ export async function publishOwnerSnapshotAtomic(
     }
   } catch (err) {
     const msg = toUserMessage(err).message;
-    try {
-      // E-43 : cadence respectée aussi en échec (sinon 60 s de re-tentatives).
-      writeDoc({ ...doc, lastOwnerError: msg, lastOwnerAttemptAt: args.now }, args.now);
-    } catch {
-      /* meta best-effort */
-    }
+    // E-43 : cadence respectée aussi en échec (sinon 60 s de re-tentatives).
+    writeDocMeta({ lastOwnerError: msg, lastOwnerAttemptAt: args.now }, args.now);
     log("ERROR", "sync", "owner_push.failed", { error: msg });
     throw err instanceof Error ? err : new Error(msg);
   }
-  const tx = db.transaction(() => {
-    claimIdempotency(args.operationId, OWNER_PUSH_CHANNEL, args.now);
-    try {
-      writeDoc(
-        {
-          ...doc,
-          lastOwnerPushAt: args.now,
-          lastOwnerAttemptAt: args.now,
-          lastOwnerError: null,
-        },
-        args.now,
-      );
-    } catch {
-      /* meta best-effort */
-    }
-    const result: OwnerPublishResult = {
-      published: true,
-      chars: body.length,
-      generatedAt: args.now,
-      lastOwnerPushAt: args.now,
-    };
-    storeIdempotencyResult(args.operationId, result);
-    return result;
-  });
+  // Soudure : doc d'abord (la preuve locale précède le résultat), puis
+  // résultat. Une interruption entre les deux est couverte par le chemin
+  // `lastOwnerPushAt === now` ci-dessus au rejouement.
+  writeDocMeta(
+    { lastOwnerPushAt: args.now, lastOwnerAttemptAt: args.now, lastOwnerError: null },
+    args.now,
+  );
+  const result: OwnerPublishResult = {
+    published: true,
+    chars: body.length,
+    generatedAt: args.now,
+    lastOwnerPushAt: args.now,
+  };
+  storeIdempotencyResult(args.operationId, result);
+  return result;
+}
+
+/**
+ * ADR-182 : publication du catalogue client vers la table `store_catalog`.
+ *
+ * Le catalogue est une PROJECTION de SQLite (les prix restent dans
+ * `products`) : une seule COPIE par magasin, quel que soit le nombre de
+ * clients (contrairement à un cliché par client). Le retrait d'un produit
+ * se fait par FLAGUE (`is_published = 0`), jamais par `DELETE` : la
+ * réactivation est un simple upsert et l'historique reste lisible.
+ *
+ * Idempotence : l'upsert miroir porte `on_conflict=product_id` — un rejeu
+ * réécrit les mêmes lignes, il ne les duplique pas.
+ */
+export interface CatalogPublishResult {
+  published: boolean;
+  /** Nombre de produits publiés (hors retirés). */
+  productCount: number;
+  /** Nombre de produits retirés du catalogue (flagués). */
+  retiredCount: number;
+  /** Empreinte de version (SHA-256) du catalogue publié. */
+  version: string;
+  publishedAt: string;
+}
+
+const CATALOG_PUSH_CHANNEL = "sync.publishCatalog";
+
+/** Verrou d'exclusion : un clic manuel et le timer ne publient jamais deux
+ * catalogues en parallèle (le second verrait un miroir à moitié à jour). */
+let catalogInFlight = false;
+
+export async function publishCatalogAtomic(
+  args: { operationId: string; now: string },
+  transport?: Transport,
+): Promise<CatalogPublishResult> {
+  if (catalogInFlight) throw new Error("Publication déjà en cours : réessayez dans un instant.");
+  catalogInFlight = true;
   try {
-    return tx();
-  } catch (err) {
-    if (
-      err instanceof Error &&
-      /UNIQUE constraint failed: idempotency_keys\.operation_id/i.test(err.message)
-    ) {
-      const retry = peekIdempotency<OwnerPublishResult>(args.operationId, OWNER_PUSH_CHANNEL);
-      if (retry) return retry;
-    }
-    throw err;
+    return await publishCatalogOnce(args, transport);
+  } finally {
+    catalogInFlight = false;
   }
+}
+
+/** Ligne du miroir lue pour le calcul du retrait (colonnes de `store_catalog`).
+ * Les colonnes NOT NULL sont typées « nullable » : la lecture vient du réseau,
+ * une valeur illisible doit être neutralisée, pas propagée telle quelle. */
+interface MirrorCatalogRow {
+  product_id: number;
+  name: string | null;
+  category_id: number | null;
+  category_name: string | null;
+  price_minor: number | null;
+  unit_code: string | null;
+  available: number | null;
+  image_url: string | null;
+}
+
+async function publishCatalogOnce(
+  args: { operationId: string; now: string },
+  transport?: Transport,
+): Promise<CatalogPublishResult> {
+  const replay = peekIdempotency<CatalogPublishResult>(args.operationId, CATALOG_PUSH_CHANNEL);
+  if (replay) return replay;
+  const doc = readDoc();
+  if (!doc.enabled || doc.supabaseUrl === "" || doc.serviceKey === "") {
+    throw noteConfigRejection(
+      doc,
+      args.now,
+      new Error(
+        "Miroir non configuré : activez la synchronisation (Réglages → Miroir Android) avant de publier le catalogue.",
+      ),
+      "mirror",
+    );
+  }
+  if (!getCatalogSettings().enabled) {
+    throw noteConfigRejection(
+      doc,
+      args.now,
+      new Error(
+        "Catalogue client désactivé : activez-le (Réglages → Produits publiés dans l'application).",
+      ),
+      "mirror",
+    );
+  }
+  let cfg: SyncConfig;
+  try {
+    cfg = validateSyncConfig(syncConfigOf(doc));
+  } catch (err) {
+    throw noteConfigRejection(
+      doc,
+      args.now,
+      err instanceof Error ? err : new Error(String(err)),
+      "mirror",
+    );
+  }
+  // Claim AVANT tout appel réseau : une opération réseau n'est pas « à moitié
+  // faite » (ADR-177). Un rejeu rend le résultat stocké.
+  const claimed = tryClaimBeforeSend(args.operationId, CATALOG_PUSH_CHANNEL, args.now);
+  if (!claimed) {
+    const retry = peekIdempotency<CatalogPublishResult>(args.operationId, CATALOG_PUSH_CHANNEL);
+    if (retry) return retry;
+  }
+  const send: Transport = transport ?? mirrorTransport;
+  const authHeaders = {
+    apikey: cfg.serviceKey,
+    Authorization: `Bearer ${cfg.serviceKey}`,
+  };
+  const headers = {
+    ...authHeaders,
+    "Content-Type": "application/json",
+    Prefer: "resolution=merge-duplicates",
+  };
+  const base = cfg.supabaseUrl.replace(/\/+$/, "");
+  const build = buildCatalog(args.operationId, args.now);
+  let retiredCount = 0;
+  try {
+    // 1) État courant du miroir : ids publiés (source du calcul du retrait).
+    // Filtre `eq.1` : la colonne est un ENTIER (0/1), pas un booléen —
+    // `eq.true` serait rejeté par PostgREST (400) sur une colonne integer.
+    const currentRes = await send(
+      `${base}/rest/v1/store_catalog?select=product_id,name,category_id,category_name,price_minor,unit_code,available,image_url&is_published=eq.1`,
+      { method: "GET", headers: authHeaders, body: "" },
+    );
+    if (!currentRes.ok) {
+      const detail = await currentRes.text().catch(() => "");
+      log("ERROR", "sync", "catalog_push.read_http", {
+        status: currentRes.status,
+        detail: detail.slice(0, 500),
+      });
+      if (isMirrorAuthRejection(currentRes.status, detail)) {
+        throw new Error(SERVICE_KEY_REFUSED);
+      }
+      if (currentRes.status === 404) {
+        throw new Error(
+          "Miroir incomplet : la table « store_catalog » est absente du projet configuré.",
+        );
+      }
+      throw new Error(`Publication du catalogue impossible (HTTP ${currentRes.status}).`);
+    }
+    const rawCurrent = await currentRes.text().catch(() => "");
+    let current: MirrorCatalogRow[] = [];
+    try {
+      const parsed = JSON.parse(rawCurrent) as unknown;
+      if (!Array.isArray(parsed)) throw new Error("not-an-array");
+      current = parsed as MirrorCatalogRow[];
+    } catch {
+      // Fail-closed : sans l'état du miroir on ne sait pas QUOI retirer ;
+      // publier à l'aveugle laisserait des produits retirés en ligne.
+      log("ERROR", "sync", "catalog_payload.unreadable");
+      throw new Error("Catalogue illisible sur le miroir : publication interrompue.");
+    }
+    const newIds = new Set(build.rows.map((r) => r.product_id));
+    const retired = current.filter((r) => !newIds.has(Number(r.product_id)));
+    retiredCount = retired.length;
+    const payload = [
+      ...build.rows,
+      ...retired.map((r) => ({
+        product_id: Number(r.product_id),
+        name: String(r.name ?? "").slice(0, 120),
+        category_id: r.category_id == null ? null : Number(r.category_id),
+        category_name: r.category_name == null ? null : String(r.category_name),
+        price_minor: Number(r.price_minor ?? 0),
+        unit_code: String(r.unit_code ?? "PIECE").slice(0, 24),
+        available: Number(r.available ?? 0) === 1 ? 1 : 0,
+        image_url: r.image_url == null ? null : String(r.image_url).slice(0, 500),
+        is_published: 0,
+        batch_id: args.operationId,
+        published_at: args.now,
+      })),
+    ];
+    // 2) Upsert du catalogue (publiés + retirés).
+    if (payload.length > 0) {
+      const res = await send(`${base}/rest/v1/store_catalog?on_conflict=product_id`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const detail = await res.text().catch(() => "");
+        log("ERROR", "sync", "catalog_push.http", {
+          status: res.status,
+          detail: detail.slice(0, 500),
+        });
+        if (isMirrorAuthRejection(res.status, detail)) {
+          throw new Error(SERVICE_KEY_REFUSED);
+        }
+        if (res.status === 404) {
+          throw new Error(
+            "Miroir incomplet : la table « store_catalog » est absente du projet configuré.",
+          );
+        }
+        throw new Error(`Publication du catalogue impossible (HTTP ${res.status}).`);
+      }
+    }
+    // 3) Version du catalogue (l'APK ne re-télécharge que si elle change).
+    const metaRes = await send(`${base}/rest/v1/store_catalog_meta?on_conflict=id`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify([
+        {
+          id: 1,
+          version: build.version,
+          product_count: build.productCount,
+          published_at: args.now,
+        },
+      ]),
+    });
+    if (!metaRes.ok) {
+      const detail = await metaRes.text().catch(() => "");
+      log("ERROR", "sync", "catalog_push.meta_http", {
+        status: metaRes.status,
+        detail: detail.slice(0, 500),
+      });
+      throw new Error(`Publication du catalogue impossible (HTTP ${metaRes.status}).`);
+    }
+  } catch (err) {
+    const msg = toUserMessage(err).message;
+    log("ERROR", "sync", "catalog_push.failed", { error: msg });
+    throw err instanceof Error ? err : new Error(msg);
+  }
+  // Soudure : la version publiée est mémorisée APRÈS l'acquittement du
+  // miroir — sinon l'APK comparerait sa version à une version jamais posée.
+  recordCatalogPublished({
+    version: build.version,
+    productCount: build.productCount,
+    now: args.now,
+  });
+  const result: CatalogPublishResult = {
+    published: true,
+    productCount: build.productCount,
+    retiredCount,
+    version: build.version,
+    publishedAt: args.now,
+  };
+  storeIdempotencyResult(args.operationId, result);
+  return result;
 }
 
 /**
@@ -1110,6 +1479,16 @@ export function startSyncTimer(): void {
       // avoir sa liasse). Best-effort strict : un échec ne remonte jamais.
       if (isOwnerPushDue(cfg, doc.lastOwnerPushAt, nowMs, doc.lastOwnerAttemptAt)) {
         void publishOwnerSnapshotAtomic({ operationId: randomUUID(), now }).catch(() => {
+          /* déjà loggé dans le service */
+        });
+      }
+      // ADR-182 : republication AUTOMATIQUE du catalogue quand son empreinte
+      // a changé (prix, activation, archivage, import). La comparaison se
+      // fait sur l'EMPREINTE, pas sur un drapeau : aucun chemin d'écriture
+      // produit ne peut être oublié. Best-effort : un échec ne remonte jamais
+      // et sera repris au tick suivant.
+      if (doc.enabled && doc.supabaseUrl !== "" && doc.serviceKey !== "" && isCatalogStale()) {
+        void publishCatalogAtomic({ operationId: randomUUID(), now }).catch(() => {
           /* déjà loggé dans le service */
         });
       }

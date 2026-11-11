@@ -70,11 +70,13 @@ export default tseslint.config(
             "mobile/scripts/validate-env.mjs",
             "owner/index.js",
             "website/app.js",
+            // ADR-181 : build statique du site (composants + couches CSS).
+            "website/build.mjs",
             "cloud/supabase/functions/client-sync/index.ts",
           ],
           // 24+ scripts JS hors tsconfig : le service plafonne à 8 par
           // défaut — rehaussé explicitement (lint plus lent, jamais faux).
-          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 37,
+          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 38,
         },
         tsconfigRootDir: import.meta.dirname,
       },

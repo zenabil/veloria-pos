@@ -26,6 +26,12 @@ export interface SyncPayloads {
   snapshot: unknown;
   invoices: unknown;
   payments: unknown;
+  /** ADR-182 : catalogue du magasin (table `store_catalog`). */
+  catalog?: unknown;
+  /** ADR-182 : empreinte du catalogue — l'APK ne recharge que si elle change. */
+  catalogVersion?: string | null;
+  /** ADR-182 : date de publication du catalogue. */
+  catalogPublishedAt?: string | null;
   syncedAt: string;
 }
 

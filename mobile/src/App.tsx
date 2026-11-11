@@ -34,9 +34,10 @@ import {
   saveLastPhone,
   saveSession,
 } from "./cache.ts";
-import { num, toHome } from "./views.ts";
+import { num, toCatalog, toHome } from "./views.ts";
 import { buildShareText, toDetail, type InvoiceDetail } from "./views.ts";
 import type { HomeInvoice, HomePayment } from "./views.ts";
+import { BoutiqueScreen } from "./screens/Boutique.tsx";
 import { TabBar, type TabId } from "./ui/nav.tsx";
 import { IconBubble, flow, Tap } from "./ui/kit.tsx";
 import { RootErrorBoundary } from "./ui/error-boundary.tsx";
@@ -85,6 +86,9 @@ export function App(): React.JSX.Element {
   // Cadence choisie dans POS, portée par le cliché (5–1440 min, 15 par défaut).
   const home = toHome(cache.snapshot);
   const syncIntervalMinutes = home.syncIntervalMinutes;
+  // ADR-182 : catalogue (miroir → view-models). Mémoïsé : la liste est
+  // recalculée à chaque rendu de l'APK, pas à chaque tick de synchro.
+  const catalogProducts = toCatalog(cache.catalog);
 
   function nameOf(snapshot: unknown): string {
     const c = ((snapshot ?? {}) as Record<string, unknown>)["customer"] as
@@ -195,12 +199,22 @@ export function App(): React.JSX.Element {
     snapshot: unknown;
     invoices: unknown;
     payments: unknown;
+    catalog?: unknown;
+    catalogVersion?: string | null;
+    catalogPublishedAt?: string | null;
     syncedAt: string;
   }): void {
     const next = {
       snapshot: data.snapshot,
       invoices: data.invoices,
       payments: data.payments,
+      // ADR-182 : le catalogue est un CACHE à part entière. Si le miroir n'en
+      // renvoie pas (table absente, ancien relais), le catalogue EN CACHE est
+      // conservé — un catalogue ne disparaît pas parce qu'une synchro est
+      // partielle.
+      catalog: data.catalog ?? cache.catalog,
+      catalogVersion: data.catalogVersion ?? cache.catalogVersion,
+      catalogPublishedAt: data.catalogPublishedAt ?? cache.catalogPublishedAt,
       syncedAt: data.syncedAt,
     };
     setCache(next);
@@ -502,6 +516,10 @@ export function App(): React.JSX.Element {
     { id: "home", label: t(lang, "home") },
     { id: "invoices", label: t(lang, "invoices") },
     { id: "payments", label: t(lang, "payments") },
+    // ADR-182 : la boutique est un motif d'installation (motif d'ouverture
+    // hebdomadaire). Elle reste un onglet de plein droit : c'est la seule
+    // partie de l'app qui donne envie de revenir.
+    { id: "shop", label: t(lang, "boutique") },
     { id: "account", label: t(lang, "account") },
   ];
 
@@ -653,6 +671,15 @@ export function App(): React.JSX.Element {
             customerName={customerName}
             shopName={home.shop.name}
             hidden={hidden}
+            onRefresh={() => refresh()}
+          />
+        ) : tab === "shop" ? (
+          // ADR-182 : catalogue du magasin (boutique).
+          <BoutiqueScreen
+            lang={lang}
+            products={catalogProducts}
+            publishedAt={cache.catalogPublishedAt}
+            offline={stale}
             onRefresh={() => refresh()}
           />
         ) : (

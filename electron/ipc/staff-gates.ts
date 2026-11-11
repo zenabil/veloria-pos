@@ -147,6 +147,13 @@ const STAFF_CHANNEL_PERMISSION: Record<string, string> = {
   // l'écriture : c'est un contenu magasin, pas une lecture ouverte.
   [IPC_CHANNELS["announcements.list"]]: "settings",
   [IPC_CHANNELS["announcements.remove"]]: "settings",
+  // ADR-182 : catalogue publié dans l'application client. Publier des prix
+  // aux clients est une décision de configuration magasin : même porte que
+  // les annonces (le cashier n'ouvre pas la vitrine du magasin).
+  [IPC_CHANNELS["clientCatalog.getSettings"]]: "settings",
+  [IPC_CHANNELS["clientCatalog.preview"]]: "settings",
+  [IPC_CHANNELS["clientCatalog.saveSettings"]]: "settings",
+  [IPC_CHANNELS["sync.publishCatalog"]]: "settings",
   // R2 RADICAL (P0) : paramètres + calculs zakat = mutations gardées.
   [IPC_CHANNELS["zakat.saveParams"]]: "settings",
   [IPC_CHANNELS["zakat.save"]]: "settings",

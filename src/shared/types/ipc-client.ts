@@ -69,6 +69,11 @@ export const api = {
   /** ADR-165 : liste complète des annonces (Paramètres). */
   announcementList: () => call((a) => a.announcements.list()),
   announcementRemove: (p: unknown) => call((a) => a.announcements.remove(p)),
+  /** ADR-182 : catalogue publié dans l'application client. */
+  syncPublishCatalog: (p: unknown) => call((a) => a.sync.publishCatalog(p)),
+  clientCatalogGetSettings: () => call((a) => a.clientCatalog.getSettings()),
+  clientCatalogPreview: () => call((a) => a.clientCatalog.preview()),
+  clientCatalogSaveSettings: (p: unknown) => call((a) => a.clientCatalog.saveSettings(p)),
   supplierUpdate: (p: unknown) => call((a) => a.suppliers.update(p)),
   printerSave: (p: unknown) => call((a) => a.printer.save(p)),
   printerTest: () => call((a) => a.printer.test()),

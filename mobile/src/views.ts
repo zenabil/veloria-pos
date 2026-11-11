@@ -404,3 +404,96 @@ export function buildShareText(opts: {
   const date = opts.syncedAt ? opts.syncedAt.slice(0, 10) : "—";
   return `${t(opts.lang, "statementTitle")} ${opts.name} : ${t(opts.lang, "debtRemaining")} ${amount} (${t(opts.lang, "lastSync")} ${date})`;
 }
+
+// ============================================================================
+// ADR-182 — Catalogue client (table miroir `store_catalog`).
+// ============================================================================
+
+/** Produit du catalogue, tel que l'écran le consomme. */
+export interface CatalogProduct {
+  id: number;
+  name: string;
+  categoryId: number | null;
+  categoryName: string | null;
+  /** Prix de vente en centimes DZD (jamais un flottant). */
+  priceMinor: number;
+  unitCode: string;
+  /** Indice de disponibilité : la vérité est à la validation au comptoir. */
+  available: boolean;
+}
+
+/** Borne miroir : le POS ne publie jamais plus de 1000 produits. */
+export const CATALOG_MAX_PRODUCTS = 1000;
+
+/**
+ * Colonne du catalogue → view-model. Une entrée CORROMPUE est ÉCARTÉE
+ * (fail-closed, comme les annonces) : mieux vaut un produit absent qu'un
+ * produit au prix faux affiché à l'écran.
+ */
+export function toCatalogProduct(raw: unknown): CatalogProduct | null {
+  if (raw == null || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const name = str(r["name"]).trim();
+  if (name === "" || name.length > 120) return null;
+  const price = num(r["price_minor"], -1);
+  if (price < 0) return null;
+  const id = num(r["product_id"], -1);
+  if (id <= 0) return null;
+  const rawCategory = r["category_id"] == null ? null : num(r["category_id"], 0);
+  const categoryName = str(r["category_name"]).trim();
+  return {
+    id,
+    name,
+    categoryId: rawCategory != null && rawCategory > 0 ? rawCategory : null,
+    categoryName: categoryName === "" ? null : categoryName,
+    priceMinor: price,
+    unitCode: (str(r["unit_code"]).trim() || "PIECE").slice(0, 24),
+    available: num(r["available"], 0) === 1,
+  };
+}
+
+/**
+ * Catalogue du miroir → view-models. Tri alphabétique stable (le miroir
+ * trie déjà par nom, on re-trie ici pour être indépendant de l'ordre reçu).
+ */
+export function toCatalog(payload: unknown): CatalogProduct[] {
+  const raw = (Array.isArray(payload) ? payload : []) as Record<string, unknown>[];
+  const out: CatalogProduct[] = [];
+  for (const item of raw) {
+    const product = toCatalogProduct(item);
+    if (product) out.push(product);
+    if (out.length >= CATALOG_MAX_PRODUCTS) break;
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name, "ar"));
+}
+
+/** Catégories présentes dans le catalogue (pour les filtres de l'écran). */
+export function catalogCategories(
+  items: readonly CatalogProduct[],
+): { id: number; name: string }[] {
+  const seen = new Map<number, string>();
+  for (const item of items) {
+    if (item.categoryId == null) continue;
+    if (seen.has(item.categoryId)) continue;
+    seen.set(item.categoryId, item.categoryName ?? "");
+  }
+  return [...seen.entries()]
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name, "ar"));
+}
+
+/** Recherche du catalogue (nom ou catégorie), insensible à la casse. */
+export function filterCatalog(
+  items: readonly CatalogProduct[],
+  query: string,
+  categoryId: number | null,
+): CatalogProduct[] {
+  const q = query.trim().toLowerCase();
+  return items.filter((item) => {
+    if (categoryId != null && item.categoryId !== categoryId) return false;
+    if (q === "") return true;
+    return (
+      item.name.toLowerCase().includes(q) || (item.categoryName ?? "").toLowerCase().includes(q)
+    );
+  });
+}

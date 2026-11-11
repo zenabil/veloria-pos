@@ -53,15 +53,15 @@ Le site porte **les couleurs et le geste du produit réel** — encre `#051424`,
 or `#fbbf24` (couleurs de l'app POS), chiffres monospace, tickets perforés,
 cadre d'application.
 
-| Composant | Rôle |
-| --- | --- |
-| `.app-frame` | fenêtre « application » qui présente les captures réelles |
-| `.tabs` | `tablist` accessible (flèches ←/→) qui fait défiler les écrans |
-| `.chapters` + `.chapter-frame` | scrollytelling : cadre collant, image qui suit le chapitre |
-| `.ledger-paper` | le grand livre Z : la formule réelle de clôture, sur papier |
-| `.receipt-cta` | appel à l'action en forme de reçu perforé |
-| `.rotator` | mot tournant de l'héros (crossfade) |
-| `.stats` | bandeau de chiffres monospace, compteurs animés |
+| Composant                      | Rôle                                                           |
+| ------------------------------ | -------------------------------------------------------------- |
+| `.app-frame`                   | fenêtre « application » qui présente les captures réelles      |
+| `.tabs`                        | `tablist` accessible (flèches ←/→) qui fait défiler les écrans |
+| `.chapters` + `.chapter-frame` | scrollytelling : cadre collant, image qui suit le chapitre     |
+| `.ledger-paper`                | le grand livre Z : la formule réelle de clôture, sur papier    |
+| `.receipt-cta`                 | appel à l'action en forme de reçu perforé                      |
+| `.rotator`                     | mot tournant de l'héros (crossfade)                            |
+| `.stats`                       | bandeau de chiffres monospace, compteurs animés                |
 
 Règles de rendu :
 

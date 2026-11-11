@@ -69,6 +69,14 @@ const api = {
     getConfig: () => invoke(IPC_CHANNELS["sync.getConfig"]),
     saveConfig: (p: unknown) => invoke(IPC_CHANNELS["sync.saveConfig"], p),
     saveOwnerAccount: (p: unknown) => invoke(IPC_CHANNELS["sync.saveOwnerAccount"], p),
+    // ADR-182 : publication du catalogue client.
+    publishCatalog: (p: unknown) => invoke(IPC_CHANNELS["sync.publishCatalog"], p),
+  },
+  // ADR-182 : catalogue publié dans l'application client (réglages + aperçu).
+  clientCatalog: {
+    getSettings: () => invoke(IPC_CHANNELS["clientCatalog.getSettings"]),
+    preview: () => invoke(IPC_CHANNELS["clientCatalog.preview"]),
+    saveSettings: (p: unknown) => invoke(IPC_CHANNELS["clientCatalog.saveSettings"], p),
   },
   announcements: {
     save: (p: unknown) => invoke(IPC_CHANNELS["announcements.save"], p),

@@ -160,6 +160,21 @@ const STRINGS = {
   greeting: { ar: "السلام عليكم", fr: "Bonjour" },
   greetingEvening: { ar: "مساء الخير", fr: "Bonsoir" },
   topProducts: { ar: "أكثر ما اشتريته", fr: "Vos articles phares" },
+  // ADR-182 — catalogue client (boutique + panier).
+  // `boutique` ≠ `shop` : `shop` désigne le MAGASIN (fiche magasin), `boutique`
+  // le CATALOGUE que le client parcourt.
+  boutique: { ar: "المتجر", fr: "Boutique" },
+  searchProduct: { ar: "ابحث عن منتج…", fr: "Rechercher un produit…" },
+  noProducts: { ar: "لا منتجات منشورة بعد", fr: "Aucun produit publié" },
+  noProductsHint: {
+    ar: "اطلب من المحل نشر المنتجات في التطبيق",
+    fr: "Demandez au magasin de publier ses produits",
+  },
+  noResultsProducts: { ar: "لا منتج بهذا الاسم", fr: "Aucun produit de ce nom" },
+  catalogOffline: { ar: "نسخة محلية", fr: "Copie locale" },
+  catalogPublished: { ar: "نُشر في", fr: "Publié le" },
+  outOfStock: { ar: "غير متوفر حالياً", fr: "Indisponible" },
+  productsCount: { ar: "منتج", fr: "produits" },
   dateLabel: { ar: "التاريخ", fr: "Date" },
   phoneLabel: { ar: "رقم هاتفك المسجل عند التاجر", fr: "Votre téléphone enregistré au magasin" },
   pinLabel: { ar: "رمز العميل السري (PIN)", fr: "Code client (PIN)" },

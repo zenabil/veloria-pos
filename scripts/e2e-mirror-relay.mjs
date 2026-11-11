@@ -50,6 +50,14 @@ const payloads = new Map();
  * d'unicité côté `cloud/supabase/owner.sql`), la plus récente gagne au tri.
  */
 const ownerSnapshots = [];
+/**
+ * ADR-182 — catalogue client : une COPIE par magasin (table
+ * `store_catalog`). L'upsert est porté par `product_id` ; le retrait d'un
+ * produit se fait par le drapeau `is_published` (jamais par DELETE).
+ */
+const storeCatalog = new Map();
+/** ADR-182 — version publiée du catalogue (une ligne, `id = 1`). */
+const storeCatalogMeta = new Map();
 
 function send(res, status, obj) {
   const body = JSON.stringify(obj);
@@ -159,6 +167,11 @@ async function handleSync(body) {
         snapshot: latest("customer_snapshot"),
         invoices: latest("invoice_list"),
         payments: latest("payment_list"),
+        // ADR-182 : catalogue (PARITÉ avec l'Edge : liste des produits
+        // publiés + version ; catalogue vide si la table est absente).
+        catalog: [...storeCatalog.values()].filter((r) => Number(r.is_published) === 1),
+        catalogVersion: storeCatalogMeta.get(1)?.version ?? null,
+        catalogPublishedAt: storeCatalogMeta.get(1)?.published_at ?? null,
         syncedAt: new Date().toISOString(),
       },
     },
@@ -249,6 +262,74 @@ const server = http.createServer(async (req, res) => {
       const body = await readJson(req);
       const r = await handleSync(body);
       send(res, r.status, r.body);
+      return;
+    }
+    // ADR-182 — upsert du catalogue (une ligne par produit, clé
+    // `product_id`). Le retrait se fait par `is_published = 0` : le relais
+    // garde la ligne, exactement comme la table réelle.
+    if (
+      req.method === "POST" &&
+      req.url?.startsWith("/rest/v1/store_catalog") &&
+      !req.url?.startsWith("/rest/v1/store_catalog_meta")
+    ) {
+      const rows = await readJson(req);
+      for (const r of Array.isArray(rows) ? rows : [rows]) {
+        if (r?.product_id == null) continue;
+        storeCatalog.set(Number(r.product_id), { ...r, product_id: Number(r.product_id) });
+      }
+      send(res, 201, []);
+      return;
+    }
+    // ADR-182 — lecture du catalogue (miroir de la requête Edge : filtre
+    // `is_published=eq.1`, tri par nom). `store_catalog_meta` a son propre
+    // chemin : le `startsWith` du catalogue le capturerait sinon (les deux
+    // URLs partagent le préfixe `store_catalog`).
+    if (
+      req.method === "GET" &&
+      req.url?.startsWith("/rest/v1/store_catalog") &&
+      !req.url?.startsWith("/rest/v1/store_catalog_meta")
+    ) {
+      const params = new URL(req.url, "http://127.0.0.1").searchParams;
+      const cols = (params.get("select") ?? "").split(",").filter((c) => c !== "");
+      const published = params.get("is_published") ?? "";
+      const wantPublished =
+        published === "" || published === "eq.1" || published === "eq.true" ? true : false;
+      const rows = [...storeCatalog.values()]
+        .filter((r) => (wantPublished ? Number(r.is_published) === 1 : true))
+        .sort((a, b) => String(a.name ?? "").localeCompare(String(b.name ?? "")))
+        .map((r) =>
+          cols.length === 0
+            ? r
+            : Object.fromEntries(cols.filter((c) => c in r).map((c) => [c, r[c]])),
+        );
+      send(res, 200, rows);
+      return;
+    }
+    // ADR-182 — version du catalogue (une ligne, `id = 1`).
+    if (req.method === "POST" && req.url?.startsWith("/rest/v1/store_catalog_meta")) {
+      const rows = await readJson(req);
+      for (const r of Array.isArray(rows) ? rows : [rows]) {
+        if (r?.id == null) continue;
+        storeCatalogMeta.set(Number(r.id), { ...r, id: Number(r.id) });
+      }
+      send(res, 201, []);
+      return;
+    }
+    if (req.method === "GET" && req.url?.startsWith("/rest/v1/store_catalog_meta")) {
+      const params = new URL(req.url, "http://127.0.0.1").searchParams;
+      const cols = (params.get("select") ?? "").split(",").filter((c) => c !== "");
+      const row = storeCatalogMeta.get(1) ?? null;
+      if (!row) {
+        send(res, 200, []);
+        return;
+      }
+      send(
+        res,
+        200,
+        cols.length === 0
+          ? row
+          : Object.fromEntries(cols.filter((c) => c in row).map((c) => [c, row[c]])),
+      );
       return;
     }
     send(res, 404, { ok: false, code: "METHOD_ERROR", message: "Introuvable." });

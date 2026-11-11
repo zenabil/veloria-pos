@@ -209,6 +209,41 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 
   const pick = (kind: string): unknown => rows?.find((r) => r.kind === kind)?.payload ?? null;
+  // ADR-182 : catalogue du magasin (table `store_catalog`, une COPIE par
+  // magasin — pas un cliché par client). Il est lu APRÈS l'authentification :
+  // la clé anon ne le lit JAMAIS directement.
+  // FAIL-OPEN DÉLIBÉRÉ : si la table est absente (miroir non mis à jour) ou
+  // illisible, le catalogue est VIDE et la synchronisation des dettes, des
+  // factures et des paiements continue — un catalogue manquant ne doit pas
+  // rendre l'application client's inutilisable pour un client qui a une dette.
+  let catalog: unknown[] = [];
+  let catalogVersion: string | null = null;
+  let catalogPublishedAt: string | null = null;
+  try {
+    const { data: catalogRows, error: catalogError } = await supa
+      .from("store_catalog")
+      .select(
+        "product_id, name, category_id, category_name, price_minor, unit_code, available, image_url",
+      )
+      .eq("is_published", 1)
+      .order("name", { ascending: true })
+      .limit(1000);
+    if (catalogError) {
+      console.error("client-sync: lecture du catalogue impossible", catalogError.code);
+    } else {
+      catalog = catalogRows ?? [];
+      const { data: metaRows } = await supa
+        .from("store_catalog_meta")
+        .select("version, published_at")
+        .eq("id", 1)
+        .limit(1);
+      const meta = (metaRows ?? [])[0] as { version?: unknown; published_at?: unknown } | undefined;
+      catalogVersion = typeof meta?.version === "string" ? meta.version : null;
+      catalogPublishedAt = typeof meta?.published_at === "string" ? meta.published_at : null;
+    }
+  } catch {
+    console.error("client-sync: catalogue illisible");
+  }
   // Détail à la demande (page facture APK) : dernier cliché `invoice_detail`
   // dont `payload.sale.id` correspond. Filtre JSON côté PostgREST : aucune
   // fenêtre de balayage — une facture ancienne reste consultable tant que son
@@ -245,6 +280,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
         snapshot: pick("customer_snapshot"),
         invoices: pick("invoice_list"),
         payments: pick("payment_list"),
+        catalog,
+        catalogVersion,
+        catalogPublishedAt,
         syncedAt: now.toISOString(),
       },
     }),

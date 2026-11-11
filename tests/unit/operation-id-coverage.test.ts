@@ -23,6 +23,10 @@ const REQUIRED_NAMES: readonly string[] = [
   "cashSessionCountSchema",
   "cashSessionOpenSchema",
   "clientAccessActivateSchema",
+  // ADR-182 : catalogue client — réglages de publication et publication
+  // elle-même : deux écritures sortantes, `operationId` REQUIS (rejeu sûr).
+  "clientCatalogPublishSchema",
+  "clientCatalogSettingsSaveSchema",
   "closingCreateSchema",
   "closingReopenSchema",
   "customerCreateSchema",
@@ -112,7 +116,9 @@ const ALL_SCHEMA_NAMES: readonly string[] = Object.keys(V)
 // exigent `operationId`, `cashSessionListSchema` est une lecture sans jeton).
 // ADR-171 (2026-11-02) : 129 → 130 (`syncOwnerPushSchema` — publication de la
 // liasse de supervision propriétaire, mutation sortante `operationId` REQUIS).
-const FROZEN_SCHEMA_TOTAL = 130;
+// ADR-182 (2026-11-11) : 130 → 132 (catalogue client : `clientCatalogPublishSchema`
+// + `clientCatalogSettingsSaveSchema`, mutations sortantes `operationId` REQUIS).
+const FROZEN_SCHEMA_TOTAL = 132;
 
 function schemaOf(name: string): unknown {
   return (V as unknown as Record<string, unknown>)[name];

@@ -8,12 +8,14 @@ import { COLORS, RADIUS, SHADOW, SPACE, SIZES, TYPE } from "../tokens.ts";
 import { flow, Tap, type IconName } from "./kit.tsx";
 import type { Lang } from "../i18n.ts";
 
-export type TabId = "home" | "invoices" | "payments" | "account";
+export type TabId = "home" | "invoices" | "payments" | "shop" | "account";
 
 const TAB_ICON: Record<TabId, IconName> = {
   home: "home",
   invoices: "receipt",
   payments: "wallet",
+  // ADR-182 : catalogue du magasin (boutique).
+  shop: "storefront-outline",
   account: "person",
 };
 
