@@ -29,10 +29,6 @@ export interface CartLine {
   available: boolean;
 }
 
-export interface Cart {
-  lines: CartLine[];
-}
-
 /** Quantité valide : 3 décimales max, dans les bornes. */
 export function isValidQuantity(qty: number): boolean {
   if (!Number.isFinite(qty)) return false;
@@ -104,11 +100,6 @@ export function removeLine(lines: readonly CartLine[], productId: number): CartL
   return lines.filter((l) => l.productId !== productId);
 }
 
-/** Vide le panier. */
-export function clearCart(): CartLine[] {
-  return [];
-}
-
 /** Total estimé du panier (centimes DZD). */
 export function cartTotalMinor(lines: readonly CartLine[]): number {
   let total = 0;
@@ -130,11 +121,6 @@ export function cartCount(lines: readonly CartLine[]): number {
 /** Nombre de lignes distinctes. */
 export function cartLineCount(lines: readonly CartLine[]): number {
   return lines.length;
-}
-
-/** Panier vide ? */
-export function isCartEmpty(lines: readonly CartLine[]): boolean {
-  return lines.length === 0;
 }
 
 /**

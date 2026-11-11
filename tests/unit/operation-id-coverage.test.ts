@@ -27,6 +27,10 @@ const REQUIRED_NAMES: readonly string[] = [
   // elle-même : deux écritures sortantes, `operationId` REQUIS (rejeu sûr).
   "clientCatalogPublishSchema",
   "clientCatalogSettingsSaveSchema",
+  // ADR-182 : commandes clients — enregistrement et changement d'état sont
+  // deux écritures, `operationId` REQUIS (rejeu sûr).
+  "clientOrderCreateSchema",
+  "clientOrderSetStatusSchema",
   "closingCreateSchema",
   "closingReopenSchema",
   "customerCreateSchema",
@@ -118,7 +122,10 @@ const ALL_SCHEMA_NAMES: readonly string[] = Object.keys(V)
 // liasse de supervision propriétaire, mutation sortante `operationId` REQUIS).
 // ADR-182 (2026-11-11) : 130 → 132 (catalogue client : `clientCatalogPublishSchema`
 // + `clientCatalogSettingsSaveSchema`, mutations sortantes `operationId` REQUIS).
-const FROZEN_SCHEMA_TOTAL = 132;
+// ADR-182 (2026-11-11, tranche C) : 132 → 137 (commandes clients : 5 schémas
+// — `clientOrderCreateSchema` + `clientOrderSetStatusSchema` exigent
+// `operationId`, les trois autres sont des lectures ou des énumérations).
+const FROZEN_SCHEMA_TOTAL = 137;
 
 function schemaOf(name: string): unknown {
   return (V as unknown as Record<string, unknown>)[name];

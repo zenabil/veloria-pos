@@ -30,6 +30,12 @@ export interface CartTab {
    * l'empreinte diverge, une nouvelle opération naît.
    */
   saleOperationKey?: string | null;
+  /**
+   * ADR-182 : commande client à l'origine de ce panier (réservation et
+   * retrait). La VENTE encaissée lie la commande DANS SA TRANSACTION (pas de
+   * commande orpheline, pas de vente sans commande) ; `null` = vente libre.
+   */
+  clientOrderId?: number | null;
 }
 
 type TotalsPatch = Partial<Pick<CartTab, "amountPaidMinor" | "paymentMethod" | "deliveryFeeMinor">>;
@@ -41,6 +47,8 @@ export interface CartOpenDraft {
   customerId: number | null;
   customerLabel: string;
   deliveryFeeMinor: number;
+  /** ADR-182 : commande client servie par ce panier (réservation). */
+  clientOrderId?: number | null;
 }
 
 interface CartsStore {
@@ -154,6 +162,7 @@ export const useCartsStore = create<CartsStore>((set) => ({
                   deliveryFeeMinor: draft.deliveryFeeMinor,
                   saleOperationId: null,
                   saleOperationKey: null,
+                  clientOrderId: draft.clientOrderId ?? null,
                 }
               : t,
           ),
@@ -172,6 +181,7 @@ export const useCartsStore = create<CartsStore>((set) => ({
         deliveryFeeMinor: draft.deliveryFeeMinor,
         saleOperationId: null,
         saleOperationKey: null,
+        clientOrderId: draft.clientOrderId ?? null,
       };
       opened = true;
       return { tabs: [...s.tabs, tab], activeId: tab.id };

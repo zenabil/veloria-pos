@@ -12,6 +12,7 @@ export type ModuleId =
   | "returns"
   | "expenses"
   | "debts"
+  | "orders"
   | "reports"
   | "proformas"
   | "templates"

@@ -248,6 +248,7 @@ export function App(): React.JSX.Element {
     products: "stock",
     suppliers: "stock",
     customers: "debts",
+    orders: "sales",
     proformas: "sales",
     templates: "settings",
     zakat: "settings",

@@ -192,58 +192,6 @@ export const syncOwnerPushResultSchema = z
  * coût d'achat : seulement le nom, le prix de vente en centimes, l'unité et
  * un indice de disponibilité.
  */
-export const clientCatalogSettingsSchema = z
-  .object({
-    enabled: z.boolean(),
-    excludedCategoryIds: z.array(z.number().int().positive()),
-    lastPublishedAt: z.string().nullable(),
-    lastVersion: z.string().nullable(),
-    lastProductCount: z.number().int().min(0),
-    dirty: z.boolean(),
-  })
-  .loose();
-
-export const clientCatalogItemSchema = z
-  .object({
-    id: z.number().int().positive(),
-    name: z.string().min(1).max(120),
-    categoryId: z.number().int().positive().nullable(),
-    categoryName: z.string().nullable(),
-    priceMinor: z.number().int().min(0),
-    unitCode: z.string().min(1).max(24),
-    available: z.boolean(),
-  })
-  .loose();
-
-export const clientCatalogSkippedSchema = z
-  .object({
-    inactive: z.number().int().min(0),
-    excludedCategory: z.number().int().min(0),
-    invalidPrice: z.number().int().min(0),
-    priceOverCap: z.number().int().min(0),
-    invalidName: z.number().int().min(0),
-    overLimit: z.number().int().min(0),
-  })
-  .loose();
-
-export const clientCatalogPreviewSchema = z
-  .object({
-    items: z.array(clientCatalogItemSchema),
-    skipped: clientCatalogSkippedSchema,
-    settings: clientCatalogSettingsSchema,
-  })
-  .loose();
-
-export const clientCatalogPublishResultSchema = z
-  .object({
-    published: z.boolean(),
-    productCount: z.number().int().min(0),
-    retiredCount: z.number().int().min(0),
-    version: z.string().min(8).max(128),
-    publishedAt: z.string().min(10).max(40),
-  })
-  .loose();
-
 /** Configuration de synchro (clé service toujours masquée). */ export const syncConfigViewSchema =
   z
     .object({

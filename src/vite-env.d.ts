@@ -78,6 +78,13 @@ interface Window {
       preview(): Promise<VeloriaOutcome>;
       saveSettings(p: unknown): Promise<VeloriaOutcome>;
     };
+    /** ADR-182 : commandes clients (réservation et retrait). */
+    orders: {
+      list(p: unknown): Promise<VeloriaOutcome>;
+      get(p: unknown): Promise<VeloriaOutcome>;
+      create(p: unknown): Promise<VeloriaOutcome>;
+      setStatus(p: unknown): Promise<VeloriaOutcome>;
+    };
     announcements: {
       save(p: unknown): Promise<VeloriaOutcome>;
       /** ADR-165 : liste complète des annonces (Paramètres). */

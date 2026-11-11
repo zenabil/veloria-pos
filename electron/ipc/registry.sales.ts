@@ -92,6 +92,9 @@ export function registerSalesChannels(): void {
       })),
       lineTotals: chargedTotals,
       now,
+      // ADR-182 : commande client servie par cette vente (la liaison se fait
+      // DANS la transaction de la vente).
+      clientOrderId: input.clientOrderId ?? null,
       // Stock négatif interdit par la base (0037) : paramètre historique figé.
       allowNegativeStock: false,
       // R2 (0046) : la vente porte son auteur (filtrage tableau/historique/rapports).

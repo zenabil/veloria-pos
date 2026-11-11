@@ -64,6 +64,7 @@
     "0059_cash_sessions.sql": "381940b8ec4d10aa6362f846ace0129d17ba4c590c4046b60233263675bb9eb5",
     "0060_return_refund_movements.sql": "5d23217b5803e623ffc1698fa780b89683358eaa2d5195e57ea12f6a72c5b018",
     "0061_idempotency_status.sql": "e51bdbe0e032c7b6ac882827b78d2da2aa0c748368352580c69e9b3f5f8f0dce",
-    "0062_client_access_history.sql": "818aede53116317ec19b0013a06fd5470bd26edff34b3d892ceb96646ade8e73"
+    "0062_client_access_history.sql": "818aede53116317ec19b0013a06fd5470bd26edff34b3d892ceb96646ade8e73",
+    "0063_client_orders.sql": "9bbd15891bc148d466f7d2b52280372e373d6bc8f0704477fecae7517904e8b1"
   }
 }

@@ -40,6 +40,9 @@ const ExpensesScreen = lazy(() =>
 const DebtsScreen = lazy(() =>
   import("@features/debts/DebtsScreen.tsx").then((m) => ({ default: m.DebtsScreen })),
 );
+const OrdersScreen = lazy(() =>
+  import("@features/orders/OrdersScreen.tsx").then((m) => ({ default: m.OrdersScreen })),
+);
 const ReportsScreen = lazy(() =>
   import("@features/reports/ReportsScreen.tsx").then((m) => ({ default: m.ReportsScreen })),
 );
@@ -75,6 +78,7 @@ export const LAZY_SCREENS: Record<Exclude<ModuleId, "sell">, NotifyScreen> = {
   returns: ReturnsScreen,
   expenses: ExpensesScreen,
   debts: DebtsScreen,
+  orders: OrdersScreen,
   reports: ReportsScreen,
   proformas: ProformasScreen,
   templates: PrintTemplatesScreen,

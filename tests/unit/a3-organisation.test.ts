@@ -61,6 +61,10 @@ const ALLOWED: ReadonlySet<string> = new Set([
   // unidirectionnelle, zéro cycle possible.
   "reports>staff",
   "stock>suppliers",
+  // ADR-182 : orders>sales — l'ecran « Commandes » ouvre la CAISSE avec un
+  // panier pre-rempli (la vente lie la commande). `sales` n'importe jamais
+  // `orders` ⇒ arete unidirectionnelle, zero cycle.
+  "orders>sales",
 ]);
 
 describe("A3 organisation : graphe features acyclique + couches pures", () => {

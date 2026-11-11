@@ -71,6 +71,11 @@ export const IPC_CHANNELS = {
   "clientCatalog.preview": "clientCatalog.preview",
   "clientCatalog.saveSettings": "clientCatalog.saveSettings",
   "sync.publishCatalog": "sync.publishCatalog",
+  // ADR-182 : commandes clients (réservation et retrait).
+  "orders.list": "orders.list",
+  "orders.get": "orders.get",
+  "orders.create": "orders.create",
+  "orders.setStatus": "orders.setStatus",
   // categories (filtre catalogue)
   "categories.list": "categories.list",
   "categories.create": "categories.create",

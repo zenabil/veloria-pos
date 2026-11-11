@@ -78,6 +78,13 @@ const api = {
     preview: () => invoke(IPC_CHANNELS["clientCatalog.preview"]),
     saveSettings: (p: unknown) => invoke(IPC_CHANNELS["clientCatalog.saveSettings"], p),
   },
+  // ADR-182 : commandes clients (réservation et retrait).
+  orders: {
+    list: (p: unknown) => invoke(IPC_CHANNELS["orders.list"], p),
+    get: (p: unknown) => invoke(IPC_CHANNELS["orders.get"], p),
+    create: (p: unknown) => invoke(IPC_CHANNELS["orders.create"], p),
+    setStatus: (p: unknown) => invoke(IPC_CHANNELS["orders.setStatus"], p),
+  },
   announcements: {
     save: (p: unknown) => invoke(IPC_CHANNELS["announcements.save"], p),
     // ADR-165 : liste complète + suppression des annonces (Paramètres).

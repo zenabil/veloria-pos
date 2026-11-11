@@ -69,7 +69,10 @@ const notes = [];
 
 let chromium;
 try {
-  ({ chromium } = await import("playwright"));
+  // `@playwright/test` (déclaré dans package.json) expose le même `chromium`
+  // que le paquet `playwright` : on l'utilise pour ne pas dépendre d'un
+  // paquet non déclaré (knip : « unlisted dependency »).
+  ({ chromium } = await import("@playwright/test"));
 } catch {
   notes.push("Playwright absent — porte SITE sautée (aucun contrôle visuel possible).");
   chromium = null;

@@ -4,6 +4,7 @@
 import { randomUUID } from "node:crypto";
 import { getDb } from "../../database/sqlite.service";
 import { formatInvoiceNumber } from "./numbers";
+import { linkClientOrderToSaleInTransaction } from "./client-order.repo";
 import { debtStatusSql } from "./debt-status";
 import { businessDayOf } from "../../shared/business-day";
 import {
@@ -192,6 +193,12 @@ export interface CreateSaleInput {
   trustedPackagingSnapshot?: boolean;
   /** Auteur de la vente (session main, 0046) — NULL = historique pré-0046. */
   staffUserId?: number | null;
+  /**
+   * ADR-182 : commande client servie par cette vente (réservation et retrait).
+   * La liaison se fait DANS la transaction de la vente : une commande servie a
+   * sa vente, une vente de commande a sa commande — jamais l'un sans l'autre.
+   */
+  clientOrderId?: number | null;
 }
 
 export function allocateInvoiceNumber(prefix: string, now: string): string {
@@ -591,6 +598,18 @@ export function createSaleAtomic(input: CreateSaleInput): {
         input.now,
       );
     const saleId = Number(r.lastInsertRowid);
+    // 3 bis. ADR-182 : la commande client est LIÉE À LA VENTE, dans la MÊME
+    // transaction (une commande servie a sa vente ; une vente de commande a sa
+    // commande). Si la liaison échoue (commande d'un autre client, déjà liée),
+    // la transaction entière est annulée : pas de vente orpheline.
+    if (input.clientOrderId != null) {
+      linkClientOrderToSaleInTransaction({
+        orderId: input.clientOrderId,
+        saleId,
+        customerId: input.customerId,
+        now: input.now,
+      });
+    }
     // 4. items + FIFO consumption + stock movements + product qty
     // FIFO : chaque ligne consomme les couches les plus anciennes ; le coût
     // figé (cogs_minor) ne bougera plus jamais, même si les achats futurs

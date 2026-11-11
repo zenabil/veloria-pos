@@ -182,11 +182,39 @@ séparé, une branche par agent). `D` et `F` attendent `C`.
 
 ## 9. Compteurs de la phase (à jour à chaque tranche)
 
-| Tranche               | Statut    | Test                           | Preuve      |
-| --------------------- | --------- | ------------------------------ | ----------- |
-| A — catalogue         | **livré** | 16 (contrat) + 5 (intégration) | `e4d416b`   |
-| B — panier + WhatsApp | **livré** | 17 (unitaire)                  | session 121 |
-| C — commandes POS     | à faire   | —                              | —           |
-| D — retour d'état     | à faire   | —                              | —           |
-| E — mesure            | à faire   | —                              | —           |
-| F — transport auto    | à faire   | —                              | —           |
+| Tranche               | Statut    | Test                                               | Preuve      |
+| --------------------- | --------- | -------------------------------------------------- | ----------- |
+| A — catalogue         | **livré** | 16 (contrat) + 5 (intégration)                     | `e4d416b`   |
+| B — panier + WhatsApp | **livré** | 17 (unitaire)                                      | session 121 |
+| C — commandes POS     | **livré** | 7 (base, parité domaine↔trigger) + 9 (intégration) | session 122 |
+| D — retour d'état     | à faire   | —                                                  | —           |
+| E — mesure            | à faire   | —                                                  | —           |
+| F — transport auto    | à faire   | —                                                  | —           |
+
+## 10. Ce que la tranche C a figé (décisions prises pendant l'exécution)
+
+1. **La vente lie la commande DANS SA TRANSACTION.** `sales.create` porte un
+   `clientOrderId` optionnel ; le main écrit `client_orders.sale_id` et
+   `status='served'` avant le COMMIT de la vente. Conséquence : pas de vente
+   orpheline, pas de commande fantôme, et un échec de liaison **annule la
+   vente entière** (fail-closed).
+2. **L'état est verrouillé par la BASE, pas par l'UI.** Le trigger
+   `trg_client_orders_status_transition` refuse les transitions interdites ;
+   le domaine (`src/domain/order/client-order.ts`) et son jumeau main
+   déclarent la même matrice, et un test de base compare les **25 couples**
+   (état × état) entre le domaine et le trigger. Le commerçant ne voit donc
+   jamais une transition annoncée possible puis refusée.
+3. **« Servie » n'est atteignable que par la vente.** Le canal
+   `orders.setStatus` n'accepte que `preparing`, `ready`, `cancelled` :
+   l'encaissement reste le SEUL chemin qui livre une commande.
+4. **Le prix de la commande est un ESTIMÉ, celui de la vente est le réel.**
+   La commande fige le prix du jour de la demande ; l'écran affiche le
+   **prix du jour** (relu par jointure) et signale l'écart ; la caisse est
+   ouverte avec le prix du jour, et le caissier valide.
+5. **La réservation est SOUPLE.** `reserved_quantity` réduit le disponible
+   affiché ; elle ne touche ni les couches FIFO ni le stock physique (une
+   réservation n'est pas une consommation). Le moteur de stock est resté
+   intact.
+6. **Le prix est RELU par le main à la création** : la commande captée par
+   WhatsApp ne porte qu'un produit + une quantité ; un prix nul ou un produit
+   archivé sont refusés en français.

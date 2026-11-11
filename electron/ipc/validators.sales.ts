@@ -41,6 +41,9 @@ export const saleCreateSchema = z.object({
   amountPaidMinor: moneyTotal,
   paymentMethod: z.enum(["cash", "cheque", "transfer"]).nullable().optional(),
   dueDate: businessDate.nullable().optional(),
+  // ADR-182 : commande client servie par cette vente (réservation et retrait).
+  // La liaison se fait DANS la transaction de la vente ; `null` = vente libre.
+  clientOrderId: z.number().int().positive().nullable().optional(),
 });
 
 export const cartLineSchema = z.object({

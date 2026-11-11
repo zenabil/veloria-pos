@@ -74,6 +74,11 @@ export const api = {
   clientCatalogGetSettings: () => call((a) => a.clientCatalog.getSettings()),
   clientCatalogPreview: () => call((a) => a.clientCatalog.preview()),
   clientCatalogSaveSettings: (p: unknown) => call((a) => a.clientCatalog.saveSettings(p)),
+  /** ADR-182 : commandes clients (réservation et retrait). */
+  ordersList: (p: unknown) => call((a) => a.orders.list(p)),
+  ordersGet: (p: unknown) => call((a) => a.orders.get(p)),
+  ordersCreate: (p: unknown) => call((a) => a.orders.create(p)),
+  ordersSetStatus: (p: unknown) => call((a) => a.orders.setStatus(p)),
   supplierUpdate: (p: unknown) => call((a) => a.suppliers.update(p)),
   printerSave: (p: unknown) => call((a) => a.printer.save(p)),
   printerTest: () => call((a) => a.printer.test()),

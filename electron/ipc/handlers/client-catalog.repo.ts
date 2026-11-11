@@ -247,22 +247,8 @@ export function isCatalogStale(): boolean {
 }
 
 /**
- * Marque le catalogue « à republier ». Appelé après toute écriture produit
- * (prix, activation, archivage) : la republication est faite par le timer
- * de synchro, PAS dans la transaction produit (une transaction ne fait
- * jamais d'appel réseau).
+ * Mémorise la publication réussie (version + date + compteur).
  */
-export function markCatalogDirty(): void {
-  try {
-    const current = readSettings();
-    if (current.dirty) return;
-    writeSettings({ ...current, dirty: true }, new Date().toISOString());
-  } catch (err) {
-    log("WARN", "catalog", "dirty.failed", { error: String(err) });
-  }
-}
-
-/** Mémorise la publication réussie (version + date + compteur). */
 export function recordCatalogPublished(args: {
   version: string;
   productCount: number;

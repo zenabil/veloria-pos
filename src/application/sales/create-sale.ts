@@ -40,12 +40,21 @@ export interface SaleDraft {
   paymentMethod: "cash" | "cheque" | "transfer" | null;
   /** Idempotence (F-01) : UUID figé par l'appelant, rejoué tel quel au retry. */
   operationId: string;
+  /**
+   * ADR-182 : commande client servie par cette vente (réservation et retrait).
+   * Le main lie la commande DANS LA TRANSACTION DE LA VENTE : une commande
+   * servie a sa vente, une vente de commande a sa commande — jamais l'un
+   * sans l'autre. `null` = vente libre (le cas normal).
+   */
+  clientOrderId?: number | null;
 }
 
 interface SalePayload {
   operationId: string;
   customerId: number | null;
   limitOverrideApproved: boolean;
+  /** ADR-182 : commande client liée à cette vente (null = vente libre). */
+  clientOrderId: number | null;
   lines: {
     productId: number | null;
     productName: string;
@@ -99,6 +108,7 @@ export function buildSalePayload(draft: SaleDraft): SalePayload {
     operationId: draft.operationId,
     customerId: draft.customerId,
     limitOverrideApproved: draft.limitOverrideApproved ?? false,
+    clientOrderId: draft.clientOrderId ?? null,
     lines: expandSaleLines(draft.lines).map((l) => ({
       productId: l.productId,
       productName: l.productName,

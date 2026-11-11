@@ -53,6 +53,8 @@ export const FOOTER_HINTS: Record<ModuleId, FooterHint[]> = {
     { k: "F8", label: "Exporter" },
   ],
   proformas: [{ k: "F3", label: "Recherche" }],
+  // Commandes : pas de raccourci (saisie client + produits).
+  orders: [],
   templates: [],
   zakat: [],
   settings: [],

@@ -325,6 +325,9 @@ export async function finalizeSale(d: SellFlowDeps): Promise<void> {
             customerCreditLimitMinor: freshLimit ?? d.customerCreditLimit ?? null,
             limitOverrideApproved: d.limitOverride,
             dueDate,
+            // ADR-182 : commande client servie par cette vente (la vente lie
+            // la commande dans SA transaction — pas de commande orpheline).
+            clientOrderId: d.cart.clientOrderId ?? null,
             // Crédit sans versement : aucun moyen de paiement à imprimer.
             paymentMethod: appliedPaidMinor > 0 ? (d.cart.paymentMethod ?? d.defaultMethod) : null,
           }),

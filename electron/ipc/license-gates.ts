@@ -32,6 +32,9 @@ export const LICENSE_PROTECTED_CHANNELS: ReadonlySet<string> = new Set([
   // ADR-182 : publication du catalogue client = écriture sortante gardée.
   IPC_CHANNELS["clientCatalog.saveSettings"],
   IPC_CHANNELS["sync.publishCatalog"],
+  // ADR-182 : commandes clients — enregistrement et changement d'état.
+  IPC_CHANNELS["orders.create"],
+  IPC_CHANNELS["orders.setStatus"],
   IPC_CHANNELS["sync.pushNow"],
   IPC_CHANNELS["sync.pushOwnerSnapshot"],
   IPC_CHANNELS["sync.saveConfig"],
@@ -141,6 +144,11 @@ export const PAGE_GATED_CHANNELS: Readonly<Record<string, readonly string[]>> = 
   [IPC_CHANNELS["clientCatalog.preview"]]: ["customers", "products"],
   [IPC_CHANNELS["clientCatalog.saveSettings"]]: ["customers", "products"],
   [IPC_CHANNELS["sync.publishCatalog"]]: ["customers", "products"],
+  // ADR-182 : commandes clients (réservation et retrait au comptoir).
+  [IPC_CHANNELS["orders.list"]]: ["customers", "sales"],
+  [IPC_CHANNELS["orders.get"]]: ["customers", "sales"],
+  [IPC_CHANNELS["orders.create"]]: ["customers", "sales"],
+  [IPC_CHANNELS["orders.setStatus"]]: ["customers", "sales"],
   [IPC_CHANNELS["stock.overview"]]: ["stock"],
   [IPC_CHANNELS["stock.products"]]: ["stock"],
   [IPC_CHANNELS["stock.movements"]]: ["stock"],

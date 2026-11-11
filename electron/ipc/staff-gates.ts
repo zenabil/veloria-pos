@@ -154,6 +154,12 @@ const STAFF_CHANNEL_PERMISSION: Record<string, string> = {
   [IPC_CHANNELS["clientCatalog.preview"]]: "settings",
   [IPC_CHANNELS["clientCatalog.saveSettings"]]: "settings",
   [IPC_CHANNELS["sync.publishCatalog"]]: "settings",
+  // ADR-182 : commandes clients — la préparation et la livraison au comptoir
+  // sont du travail de vente (le caissier prépare, encaisse, lie la commande).
+  [IPC_CHANNELS["orders.list"]]: "sales",
+  [IPC_CHANNELS["orders.get"]]: "sales",
+  [IPC_CHANNELS["orders.create"]]: "sales",
+  [IPC_CHANNELS["orders.setStatus"]]: "sales",
   // R2 RADICAL (P0) : paramètres + calculs zakat = mutations gardées.
   [IPC_CHANNELS["zakat.saveParams"]]: "settings",
   [IPC_CHANNELS["zakat.save"]]: "settings",

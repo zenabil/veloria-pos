@@ -2,6 +2,7 @@
 // Icônes et libellés FR centralisés ; décision réelle côté main (§10).
 import {
   BarChart3,
+  ClipboardList,
   FileText,
   HandCoins,
   History,
@@ -37,6 +38,7 @@ export const MODULE_PAGES: Record<ModuleId, readonly string[]> = {
   returns: ["returns"],
   expenses: ["expenses"],
   debts: ["debts"],
+  orders: ["customers", "sales"],
   reports: ["reports"],
   proformas: ["proformas"],
   templates: ["settings", "invoices"],
@@ -116,6 +118,13 @@ export const MODULES: ModuleDef[] = [
     group: "Tiers",
   },
   { id: "debts", label: "Dettes", hint: "Créances et échéances", icon: HandCoins, group: "Tiers" },
+  {
+    id: "orders",
+    label: "Commandes",
+    hint: "Réservations clients à retirer",
+    icon: ClipboardList,
+    group: "Tiers",
+  },
   { id: "returns", label: "Retours", hint: "Clients et fournisseurs", icon: Undo2, group: "Tiers" },
   {
     id: "expenses",

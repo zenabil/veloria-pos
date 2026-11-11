@@ -20,17 +20,17 @@
 
 | Indicateur | Valeur |
 | --- | --- |
-| Migrations SQL (numérotées, immuables) | 62 (0001..0062) |
-| Tables réelles (hors `*_new` temporaires) | 48 |
+| Migrations SQL (numérotées, immuables) | 63 (0001..0063) |
+| Tables réelles (hors `*_new` temporaires) | 50 |
 | ADRs (décisions) | 182 (jusqu'à ADR-182) |
-| Canaux IPC déclarés | 196 |
-| Canaux IPC servis (snapshot gelé) | 195 |
-| Fichiers de test (unit + integration + database) | 197 |
+| Canaux IPC déclarés | 200 |
+| Canaux IPC servis (snapshot gelé) | 199 |
+| Fichiers de test (unit + integration + database) | 199 |
 | Specs E2E (Playwright) | 26 |
-| Modules de la coquille POS | 16 |
+| Modules de la coquille POS | 17 |
 | Pages de licence | 17 |
 | Features de licence | 14 |
-| Dossiers du domaine (`src/domain`) | 22 |
+| Dossiers du domaine (`src/domain`) | 23 |
 
 <details><summary>Listes (référence, non volatiles)</summary>
 
@@ -38,7 +38,7 @@
 
 **Features de licence (14)** : receipt-80mm, invoice-a4, automatic-backup, restore-backup, barcode-scanner, ocr, excel-export, pdf-export, debt-management, partial-payments, returns, proformas, advanced-reports, multi-printer.
 
-**Dossiers du domaine (22)** : backup, barcode, cash, closings, common, customer, expenses, import, inventory, invoice, money, ocr, packaging, pricing, print, product, proforma, returns, sales, suppliers, units, zakat.
+**Dossiers du domaine (23)** : backup, barcode, cash, closings, common, customer, expenses, import, inventory, invoice, money, ocr, order, packaging, pricing, print, product, proforma, returns, sales, suppliers, units, zakat.
 
 </details>
 <!-- GENERATED:verify-docs:END -->
