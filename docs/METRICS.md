@@ -16,16 +16,16 @@
 
 <!-- GENERATED:verify-docs:START -->
 
-<!-- Mesuré par `node scripts/quality/verify-docs.mjs --write` le 2026-11-11. -->
+<!-- Mesuré par `node scripts/quality/verify-docs.mjs --write` le 2026-11-13. -->
 
 | Indicateur | Valeur |
 | --- | --- |
-| Migrations SQL (numérotées, immuables) | 63 (0001..0063) |
+| Migrations SQL (numérotées, immuables) | 66 (0001..0066) |
 | Tables réelles (hors `*_new` temporaires) | 50 |
-| ADRs (décisions) | 182 (jusqu'à ADR-182) |
-| Canaux IPC déclarés | 201 |
-| Canaux IPC servis (snapshot gelé) | 200 |
-| Fichiers de test (unit + integration + database) | 202 |
+| ADRs (décisions) | 185 (jusqu'à ADR-185) |
+| Canaux IPC déclarés | 202 |
+| Canaux IPC servis (snapshot gelé) | 201 |
+| Fichiers de test (unit + integration + database) | 216 |
 | Specs E2E (Playwright) | 26 |
 | Modules de la coquille POS | 17 |
 | Pages de licence | 17 |
