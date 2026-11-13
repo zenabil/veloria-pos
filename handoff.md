@@ -13,8 +13,75 @@
 > correction de code, 3 livrables + ADR-120 proposé.
 > Répondre à l'utilisateur en arabe.
 
+- **Session 130 (2026-11-12)** : **plan de remédiation radicale + début des corrections (vague 0 et 2)** — demande : « crée un plan de correction radicale d'après l'audit et commence les corrections ». **Audit d'origine** : docs/engineering/audits/2026-11-11-full-forensic-audit/ (54 fichiers, 72 findings : 1 P0, 12 P1, 40 P2, 19 P3 ; 1902 fichiers inventoriés, 26 commandes exécutées). **Plan** : 08_RADICAL_REMEDIATION_PLAN.md (10 vagues, ordre par dépendance). **VAGUE 0 (déblocage de la publication)**
+  - **GATE-01 (P0) CLOS** : scripts/licensing/secret-scan.mjs — deux familles de motifs au lieu d'une. La famille **secret matériel** (clé privée, jeton sb_secret_, service_role, JWT privilégié) scanne **TOUS** les fichiers, .md compris ; la famille **interruption de licence** (un bypassLicense = true dans le code) ne scanne que le **CODE** (CODE_EXT). La prose qui NOMME un contournement (threat-model checklist du bundle de compétences) n'est plus un faux positif, mais un vrai interrupteur reste détecté. Au passage, le motif service_role a été **élargi** à la forme JSON **notée** (était la forme où un jeton se cache) + forme YAML. **Preuve négative** : tests/unit/secret-scan-bypass.test.ts (**10 tests**) — 5 négatifs (interrupteur dans .ts détecté ; clé privée dans .md détectée ; jeton sb_secret_ dans .md détecté ; service_role JSON **et** YAML détectés ; paramètre de non-vacuité qui doit faire échouer) + 4 positifs (prose autorisée, source saine, JWT non public autorisé, JWT service_role refusé).
+  - **REL-02 CLOS** : verifyUpdateCodeSignature: true dans config/electron-builder/pos.yml.
+  - **REL-04 CLOS** : scripts/release/stamp-build-info.js (révision lue **directement** dans .git/HEAD+ refs/ — le binaire git est absent du poste) + build-info.json embarqué en extraResources (les deux configs) ; release:verify refuse un artefact sans révision tracable.
+  - **Porte de publication** : scripts/release/verify-artifact.js (release:verify) **refuse** (fail-closed) un livrable non signé, une empreinte périmée, ou une révision absente ; VELORIA_ALLOW_UNSIGNED=1 n'autorise que le point signature (jamais l'empreinte ni la révision). package/package:win/package:portable enchaînent désormais scan → build → package → checksums → verify (le manifeste **périmé** : il se régénère désormais).
+  - **Nouvelle porte** : scripts/quality/verify-release-config.mjs (verify:release-config, branché sur verify) refuse verifyUpdateCodeSignature: false, signAndEditExecutable: false, toute **clé** racine ou imbriquée inconnue d'electron-builder (ignorée en silence — c'est ce qui est arrivé avec buildMetadata, macOS-only) et l'absence de trace de build. **Preuve négative** : le retour de verifyUpdateCodeSignature: false a été démontré (rouge) puis restauré.
+  - **Première production d'un artefact depuis l'installation des compétences** :
+    - npm run package:portable a produit Veloria-PoS-Portable-1.0.4.exe (139 492 650 o) ;
+    - release:verify refuse ensuite de le publier (non signé) **et** l'accepte en build de test via VELORIA_ALLOW_UNSIGNED=1.
+  - **VAGUE 2 (frontière IPC)**
+  - **SEC-01 / ELEC-04 CLOS** : electron/ipc/sender-guard.ts (nouveau) — table des **origines autorisées** (enregistrées par le main : fenêtre principale, reprise, activation ; les 2 fenêtres d'impression sont SANS preload et ne s'inscrivent donc pas) + checkSender(event). handle() **ne jette plus l'événement** : la requête est refusée **avant tout effet de bord** si le sender n'est pas une fenêtre enregistrée (SENDER_NOT_ALLOWED, message FR). Les **38 canaux bruts** (printing/backup/ocr, qui contournent handle()) passent par enforceRawChannelGates(channel, input, event) ; les 2 canaux volontairement non gardés (backup.list, backup.status) vérifient la provenance directement (exemptés de la porte staff, **pas** de la porte d'origine).
+  - **Preuves** : tests/unit/ipc-sender-guard.test.ts (**8 tests**) + tests/unit/ipc-handle.test.ts (**3 tests supplémentaires**) qui prouvent que le handler **n'est pas exécuté** quand l'origine est refusée.
+  - **GATE-05 CLOS** : config/playwright.config.ts déclare webServer (le relais miroir est démarré par la commande elle-même) →
+    - npm run test:e2e est **auto-suffisante** ; le test de boucle locale **s'exerce** au lieu d'échouer.
+  - **GATE-02 / SLICE-01 CLOS** : tests/database/client-order-domain-contract.test.ts (**9 tests**) — contrat du domaine (5 états, libellés FR, transitions, format de référence) **et** **miroir prouvé** : pour chaque paire (état, état), le trigger SQL et le domaine acceptent **exactement** la même chose (base SQLite réelle, migrations appliquées).
+  - **Portes (toutes vertes après les corrections)** :
+    - npm test **205 fichiers / 1 527 tests, 0 échec** (contre 1 497 avant : **+30 tests**) → test:coverage **VERT** (93,89 % stmt / 89,27 % branch / 98,19 % func / 96,4 % lines ; **aucun seuil abaissé, aucun fichier exclu**) → test:e2e **54 passés, 4 skippés, exit 0** (contre 53/4/1 en échec) → check 0 → verify 0 (nouvelle porte incluse) → knip 0 → lint 0 → format:check 0 → build/build:electron/build:manager* 0 → coverage:features 0 → coverage:all 0. **docs/METRICS.md régénéré** (la porte l'exige ; elle a rougi 2 fois, signalant la dérive des compteurs). **Aucun code applicatif de métier modifié** hors electron/ipc/sender-guard.ts (nouveau) et la garde d'origine dans handle.ts/raw-guards.ts/window-manager.ts/les handlers bruts. **Blocage** : git est **absent du poste** (l'exécutable n'existe nulle part) → le commit exigé par la règle 10 est **impossible** ; handoff.md est mis à jour et le blocage est consigné ici. **Prochaines vagues** : 1 (custode des clés : kid + jeu de clés + séparation dev/prod + garde de build + secret service_role scoping), 3 (intégrité des données : CHECK de précision des quantités en migration 0064, provenance du coût FIFO, verrou de migration additives-only, diagnostic de réconciliation), 4 (gouvernance : contrat + faits + compétence veloria-sync alignés sur ADR-053), 5-9 (sauvegarde, publication signée, acceptation matérielle, tests de contrat, observabilité, synchronisation).
+
+- **Session 131 (2026-11-12)** : **suite de la remediation radicale (vagues 1, 3, 4, 5)** — demande : « أكمل ». Plan : `docs/engineering/audits/2026-11-11-full-forensic-audit/08_RADICAL_REMEDIATION_PLAN.md` (10 vagues). **VAGUE 1 (custode des clés)**
+  - **LIC-04 CLOS** : `resources/license/keys.json` (jeu de clés `{active, keys:{kid→PEM}}`) + `kid` dans l'enveloppe `.vlic` ; la clé est DÉSIGNÉE par le `kid` (un `kid` inconnu est REFUSÉ, jamais essayé contre les autres) ; une licence v1 (sans `kid`) reste vérifiable avec la clé active ; `public.key` est CONSERVÉ et `keys.json` AJOUTÉ (compatibilité 1.0.x intacte). Nouveau : `electron/licensing/key-set.ts`.
+  - **LIC-02 CLOS (mécanisme)** : `keygen.mjs` ne publie plus dans `resources/license/` par défaut (une clé de développement part dans `private/dev-keys/`) ; `--production --kid <id>` AJOUTE une clé au jeu et conserve l'ancienne (recouvrement). **Garde de build** : `scripts/licensing/verify-key-custody.mjs` REFUSE d'embarquer une ancre dont la clé privée est présente sur la machine (filet réel dans tous les scripts `package:*`). **La compromission réelle est donc détectée** : `npm run license:key-custody` sort 1 sur ce poste. **La rotation reste une action OPÉRATEUR** (générer sur la machine vendor) ; le code refuse désormais de produire un artefact depuis une ancre compromise.
+  - **SYNC-04 / SEC-03 CORRIGÉS** : l'audit affirmait que la clé `service_role` reposait en clair. **C'ÉTAIT FAUX** : elle est déjà chiffrée au repos par le coffre du système (`safeStorage`/DPAPI, `sync-secrets.ts`). La correction est consignée dans `11_SYNC.md` et `15_SECURITY.md` ; l'exposition résiduelle est le PÉRIMÈTRE du crédit (il contourne la RLS), pas son stockage. Preuve : `tests/unit/sync-secret-storage.test.ts` (5/5).
+  - **Preuves** : `tests/unit/license-key-custody.test.ts` **16/16** (une clé privée correspondante est refusée PARTOUT dans l'arbre, une clé différente est acceptée, une ancre absente échoue en mode fermé ; rotation, `kid` inconnu refusé, licence v1 toujours vérifiable).
+    **VAGUE 3 (intégrité des données)**
+  - **DB-01 / STK-02 CLOS** : **migration 0064** (avant-only) : la précision des quantités est désormais IMPOSÉE par des triggers fail-closed (millième exact, non-négativité) sur `products`, `stock_movements`, `inventory_layers`, `sale_fifo_consumption` ; l'invariant de couche (`remaining_quantity <= original_quantity`) devient structurel. **Pourquoi des triggers et pas des CHECK** : SQLite n'a pas `ADD CONSTRAINT` ni `NOT VALID` ; un CHECK exigerait un REBUILD de table (risque de migration de données sur une base de vente en production). Les triggers donnent la même garantie fail-closed **sans toucher une seule ligne existante** (même schéma que la migration 0037 pour le stock négatif).
+  - **STK-03 CLOS** : la **provenance du coût FIFO** est explicite : `sale_fifo_consumption.cost_basis` (`layer` / `fallback-purchase-price` / `fallback-last-layer`, NOT NULL) + vue de diagnostic `v_sale_fifo_approximations` ; l'application distingue le repli sur le DERNIER LAYER du repli sur le PRIX D'ACHAT (5 sites d'appel mis à jour).
+  - **DB-02** : le loquet de migrations a refusé 0064 tant qu'il n'était pas régénéré (le garde a MORDU) ; régénération dans le même changement (règle 12).
+  - `verify:migrations` **ASSERTE** le nouveau comportement (7 triggers, quantité non-millième refusée en FR, fraction légitime ACCEPTÉE, reste > origine refusé, consommation sans `cost_basis` refusée, vue présente).
+  - **Un test a été DURCI (pas affaibli)** : `tests/database/migrations.test.ts` ne fige plus `63` ; le compteur dérive du LOQUET (source unique, ADR-178). Un compteur en dur dans un test est un second compteur à maintenir.
+    **VAGUE 4 (gouvernance)**
+  - **ORCH-01 / SYNC-01 CLOS** : le contrat (`governance/VELORIA_PROJECT_CONTRACT.md` §4), le fichier de faits et la compétence `veloria-sync` décrivent DÉSORMAIS l'architecture **livrée** (miroir Supabase, PostgREST + fonctions Edge) conformément à **ADR-053 accepté** ; le modèle de menace décrit est le modèle déployé (RLS sans politique + `REVOKE` + fonction Edge unique + secret confiné au main + échec fermé sur ambiguïté). Les **invariants sont conservés** (le miroir n'est jamais l'autorité du POS ; aucun secret dans le renderer ni l'APK ; l'isolation doit être prouvable). **Aucun changement de CODE** : l'implémentation suivait déjà l'ADR.
+  - **ADR-184** créé (la décision, les options, le compromis assumé : les deux fichiers de la compétence ne sont plus byte-identiques à la package officielle).
+  - **Nouvelle porte** `scripts/quality/verify-governance-arch.mjs` (branchée sur `verify`) : vérifie que le pont approuvé **EXISTE** dans le dépôt, que les textes gouvernants le **DÉCLARENT** approuvé (pas seulement le mentionnent), qu'aucune technologie rejetée n'est présentée comme approuvée, et qu'ADR-184 est référencé. **Preuve négative démontrée** : remplacer la déclaration d'approbation par la technologie rejetée fait rougir la porte ; la restaurer la fait verdir.
+    **VAGUE 5 (intégrité de sauvegarde)**
+  - **BACK-01 CLOS** : une sauvegarde est écrite dans un fichier **TEMPORAIRE**, **vérifiée**, puis **promovue** atomiquement par rename. Une image tronquée ne peut plus occuper un emplacement de rétention comme si elle était bonne.
+  - **BACK-02 CLOS** : la somme de contrôle du sidecar est désormais **RELUE et COMPARÉE** (elle était écrite mais jamais relue, ce qui ne protégeait rien) ; une restauration dont la somme ne correspond plus est **REFUSÉE AVANT l'échange de fichier**.
+  - **BACK-03 CLOS** : contrôle d'espace disque AVANT la sauvegarde (`fs.statfsSync`) ; un disque plein est signalé explicitement.
+  - **BACK-04** : contrat d'inclusion/exclusion du contenu d'une sauvegarde : en attente.
+  - **Preuves** : `tests/unit/backup-integrity.test.ts` **5/5**. **Vérifié sur le flux RÉEL** : `tests/e2e/stock-backup.spec.ts` — "sauvegarde manuelle : copie créée et listée" et "restauration : la base revient à l'état sauvegardé" passent toujours avec l'implémentation durcie (le durcissement n'a pas cassé l'aller-retour qu'il devait protéger).
+    **Portes (toutes vertes)** : `npm test` **208 fichiers / 1 553 tests, 0 échec** (contre 1 497 au départ de l'audit : **+56**) · `test:e2e` **54 passés, 4 skippés, exit 0** · `test:coverage` **vert** (93,89 % stmt / 89,27 % branch / 98,19 % func / 96,4 % lines) · `check` 0 (les 5 typecheck) · `verify` 0 (migrations, domain, docs, fr, encoding, perf, site, **release-config**, **governance-arch**, version, secret-scan) · `lint` 0 · `format:check` 0 · `knip` 0 · `build` / `build:electron` / `build:manager*` 0. **Aucun seuil abaissé, aucun test affaibli, aucune migration appliquée rééditée en place.** **Blocage inchangé** : `git` est **absent du poste** (l'exécutable n'existe nulle part) → le commit exigé par la règle 10 est **impossible** ; ce blocage est consigné ici, pas contourné. **Vagues restantes** : 6 (tests de contrat argent/clôture), 7 (observabilité + UI), 8 (backoff de synchronisation + preuve d'isolation), 9 (signature Authenticode — nécessite un certificat ; la porte `release:verify` refuse désormais de publier un binaire non signé, ce qui est le comportement fail-closed correct d'ici là).
+
 ## 1) État courant
 
+- **Session 135 (2026-11-13)** : **vérification du système d'images d'annonces (ADR-166) + correctif CSP** — demande : « تحقق من نظام رفع صور الاعلانات ». **Constat** : aucun upload de fichier (par conception : lien https hébergé à l'extérieur, jamais de blob en base) ; la chaîne domaine → Zod → repo transactionnel (4 annonces actives, idempotent) → cliché APK → hero mobile est conforme. **Défaut réel** : la CSP du renderer (`index.html`) limitait `img-src` à `'self' data: blob:` ⇒ toute image https était bloquée dans le POS : l'aperçu Paramètres affichait « Image indisponible » et les vignettes ne s'affichaient jamais, alors que l'APK affiche l'image. **Correctif** : `https:` ajouté à `img-src` (`script-src`/`default-src` inchangés). **Preuve négative** : `tests/unit/pos-csp.test.ts` échoue avant, passe après ; sonde Chromium : violation CSP avant, aucune après. **Portes** : vitest ciblé 4 fichiers / 45 tests, `tsc -b`, prettier, eslint, `verify:docs` verts (METRICS : 216 fichiers de test). Détail en fin de fichier (Session 135).
+
+- **Session 132 (2026-11-12)** : **git rétabli sur le poste — PATH configuré, arbre enfin commitable** — demande : « ثبت git ». Diagnostic : l'exécutable `git` était **présent sur le disque** mais **absent du PATH** (`where git` → introuvable ; `Get-Command git` → « not recognized »). Le dépôt n'a jamais été « sans git » : `.git/` existe (HEAD `d9e992b`, 8 branches, objets intacts) et `handoff.md` (sessions 126, 128, 130, 131) consigné quatre fois à tort ce blocage comme un obstacle d'environnement. Origine réelle : une copie **portable** de Git for Windows (2.56.0.windows.2) embarquée dans `C:\Users\Admin\AppData\Local\Programs\deepai-code-desktop\resources\git\` — jamais ajoutée au PATH. **Correctif** : copie de la distribution vers `C:\Users\Admin\tools\git\` (même convention que `tools\node` et `tools\jdk17`, hors du répertoire d'un tiers susceptible d'être mis à jour), puis `C:\Users\Admin\tools\git\cmd` + `...\bin` ajoutés au **PATH utilisateur** (HKCU\Environment) avec diffusion `WM_SETTINGCHANGE` ; les entrées pointant vers `deepai-code-desktop` ont été **retirées** (une entrée PATH vers un dossier d'application tiers se brise à la première mise à jour de l'application). **Preuve** : processus neuf lancé avec le PATH fusionné Machine+Utilisateur → `where git` → `C:\Users\Admin\tools\git\cmd\git.exe` ; `git --version` → `git version 2.56.0.windows.2` ; `git config --list --show-origin` lit `C:/Users/Admin/tools/git/etc/gitconfig` et `C:/Users/Admin/.gitconfig` (utilisateur `veloria-pos <veloria-pos@localhost>` déjà configuré). **Conséquence directe** : la règle 10 (« commit obligatoire en fin de tâche ») redevient applicable — les sessions 126, 128, 130 et 131 avaient produit un travail réel **non committé** pour cette seule raison. **Dette de documentation payée** : `handoff.md` (HEAD) était **entièrement** en mojibake (30 981 caractères U+FFFD — double encodage PowerShell `Get-Content` cp1252 → `Set-Content` UTF-8 sur un fichier UTF-8 sans BOM) ; la version de travail avait été réparée à 257 U+FFFD résiduels, tous dans le bloc « Session 130 » (écrit par un chantier tiers). **Réparé à la source** — le bloc a été REJOUÉ depuis une source UTF-8 propre (le contenu réel livré par `scripts/licensing/secret-scan.mjs`, `scripts/release/stamp-build-info.js`, `scripts/release/verify-artifact.js`, `scripts/quality/verify-release-config.mjs`, `electron/ipc/sender-guard.ts`, `config/playwright.config.ts` et le plan `docs/engineering/audits/2026-11-11-full-forensic-audit/08_RADICAL_REMEDIATION_PLAN.md`), **jamais** par re-décodage du texte abîmé ; **0 U+FFFD** dans `handoff.md` après contrôle programmatique. **Portes** : `npm run verify` **0** (migrations 64, domaine, docs, FR, encodage, perf, site, release-config, gouvernance, version, secret-scan) · `npm run check` **0** (format:check + lint + 5 typecheck) · `npm test` **0** · `prettier --check handoff.md` **vert**. **Porte attendue en échec** : `npm run license:key-custody` sort **1** — c'est le comportement **correct** (l'ancre embarquée `resources/license/keys.json#k1` a sa clé privée présente dans `private/vendor-keys/` sur CE poste ; la rotation est une action opérateur sur la machine vendor, cf. ADR-184 et `docs/licensing/KEY_MANAGEMENT.md`). **Commit** : règle 10 finally applicable → voir §132.
+
+- **Session 131 (2026-11-12)** : **`dessin.md` — مواصفة تصميم الواجهة (UI/UX) الشاملة للمشروع، مستخرجة من الكود مباشرة** — demande : « انشأ لي ملف
+  dessin.md الخاص بالمشروع في المسار C:\Users\Admin\Desktop\dessin ». Choix explicites de l'opérateur (questions posées) : **(a)** contenu =
+  **« مواصفة تصميم الواجهة UI/UX »** (et non blueprint / étude complète / roadmap) ; **(b)** source = **« من الكود مباشرة »** (et non dérivation de
+  l'étude « md file » du Bureau). Méthode : lecture directe de `src/styles/globals.css`, `src/shared/ui/primitives.tsx` (950 lignes),
+  `src/app/shell/*` (App, Sidebar, TopBar, WindowChrome, ShellOverlays, modules, module-screens, footer-hints, use-vigilance), des 17 écrans de
+  `src/features/**` (titres `PageHeader` FR, colonnes de tableaux FR, zones de mise en page), de `src/features/settings/types.ts`
+  (7 rubriques + 15 cartes) et `bits.tsx`, des `tokens.ts` de `mobile/` et `owner/`, de `license-manager/renderer/*`, de
+  `website/styles/tokens.css` + `src/pages/*`, et des ADR de design (033, 035, 036, 051, 072, 077, 081→083, 106, 133, 134, 143, 146, 148, 150,
+  154, 157, 180, 181). **Livrable : `C:\Users\Admin\Desktop\dessin\dessin.md`** (958 lignes, 100 784 octets, UTF-8 sans BOM,
+  **0 caractère de remplacement U+FFFD** après contrôle). Contenu : 18 sections — (1) التوجيه العام والـ 5 أسطح (POS / License Manager /
+  APK client / Owner / site) + 10 مبادئ ملزِمة ; (2) نظام التصميم بالـ tokens الحرفية (ألوان داكنة/فاتحة، مقياس طباعي 14 صنفًا، أنصاف، ظلال،
+  4 حركات، كثافة) ; (3) مكتبة الـ primitives مع قواعد الحوار (حبس التركيز، Entrée العام، استعادة التركيز) ; (4) هيكل الـ shell (شجرة
+  mermaid، نافذة Electron، الشريط الجانبي، TopBar، التذييل، دورة حياة الشاشة، حراسة الترخيص/الدور) ; (5) **الشاشات الـ 17** بجدول +
+  أنماط « سجل / تحليلي / مساحة عمل » + **أعمدة الجداول بالنص الفرنسي الحرفي** ; (6) **شاشة Caisse** بالتفصيل (لوحات البحث/العميل/السلة/
+  التوتو، الاختصارات، دوّchette لوحة المفاتيح) ; (7) الحالات (loading/empty/error/offline/permission) ; (8) إمكانية الوصول + قائمة الـ 26 spec
+  E2E ; (9) الطباعة (تذكرة 58/80) ; (10) License Manager ; (11) APK client (tokens + شاشات + RTL) ; (12) Owner ; (13) site « Terminal d'Or » +
+  بوابة `verify:site` ; (14) قواعد الطباعة المتقاطعة ; (15) بوابات الجودة المرتبطة بالواجهة ; (16) **قائمة تحقق 18 نقطة لإضافة شاشة/مكوّن** ;
+  (17) **10 فجوات معروفة** ; (18) فهرس الملفات. **Aucun fichier du dépôt n'a été modifié** : le livrable est **hors dépôt** (Bureau), donc
+  `git status` du dépôt est inchangé par ce chantier. Compteurs cités dans le document : repris **de `docs/METRICS.md`** (source unique ADR-178)
+  وnon recomptés à la main.
+- **Session 129 (2026-11-11)** : **le choix de la compétence par tâche est rendu explicite ET vérifié** — demande : « يجب على الوكيل اختيار المهارة المناسبة لكل مهمة ». Constat mesuré après l'installation de la v2.0.0 : le routage existait **en prose** (règles 13/14 d'`AGENTS.md`, une seule ligne de plusieurs milliers de caractères) et la porte `verify:docs` ne le contrôlait **qu'à un seul sens** — « compétence **citée** ⇒ existe » (ADR-179 §2.3) — donc **une compétence installée mais jamais routée passait la porte** : l'agent ne l'aurait jamais chargée, sans aucun signal (défaut que la doctrine ADR-120 qualifie de « garde qui ne peut pas échouer »). Livré : ① **`AGENTS.md` porte une table de routage unique** (« Table de routage des compétences Veloria ») délimitée par `<!-- SKILL-ROUTING:START/END -->`, **une ligne par compétence Veloria avec sa surface de déclenchement** (les mots qui signalent la couche : SQLite/migration, centimes DZD/remise, FIFO/conditionnement, IPC/preload, ticket 80 mm/barcode, `.vlic`/Ed25519, outbox/Sheets, installateur/signature, menace/secret, scanner/tiroir/balance, log/crash…) + une **procédure de sélection en 4 étapes** (classer → prendre la ligne la plus **spécifique** → ajouter `veloria-gates` si comportement/données/sécurité/empaquetage bougent → `veloria-orchestrator` si la tâche est transverse ou la couche incertaine) ; ② **les règles 13 et 14 sont reparties** — la 13 porte la **politique** Veloria (renvoi vers la table), la 14 porte les compétences **génériques** hors Veloria (React, Tailwind, TypeScript, Playwright, `tdd`, `code-review`, `sql-optimization`, `pdf`, `electron-development`, `graphify`, `llm-council`, `find-skills`, `codebase-cleanup-audit`, `impeccable`, `sqlite-database-expert`, `bug-detective`, `council`, `dragon`) — **aucune compétence perdue** dans la répartition ; ③ **`verify:docs` §3.7 contrôle le routage dans les DEUX sens** (installée ⇒ routable, routée ⇒ installée, table présente) **+ la couverture de la matrice du coordinateur** ; ④ **4 cas de test** dans `tests/unit/verify-docs-gate.test.ts`, dont la **preuve de non-vacance** : l'arbre de test **redevient vert** dès que la compétence est routée (donc l'échec venait bien du routage, pas d'un arbre cassé) ; ⑤ **ADR-183** créé et `docs/METRICS.md` régénéré (compteur d'ADR). **Décision explicitement écartée** : ne **pas** réécrire les `description` des compétences — ce sont l'**artefact approuvé** de la package officielle ; les modifier casserait la propriété « installé = byte-identique à la package » et créerait une **seconde** surface de routage (divergence). Portes : `verify:docs` vert avec les 2 nouvelles lignes (« Table de routage : 17 compétence(s) routée(s) », « Matrice du coordinateur : 17 compétence(s) couverte(s) ») · `vitest tests/unit/verify-docs-gate.test.ts` **10/10** · **suite complète `npm test` : 202 fichiers / 1 497 tests, 0 échec** · `format:check` vert (chemins du chantier) · `lint` vert (0 avertissement) · `typecheck` vert · `verify:migrations` / `verify:fr` (351 fichiers) / `verify:encoding` (1 122 fichiers) / `verify:domain` (70 mutations IPC) verts. Contrôle direct : **17 routées, 17 uniques, 0 compétence installée non routée, 0 route vers une compétence absente**. **Aucun code applicatif touché.** ⚠️ **Worker parallèle** : `docs/engineering/audits/2026-11-11-full-forensic-audit/` (6 fichiers) est produit par un **autre** chantier actif dans le dépôt (horodatages 22:14→22:29 pendant cette session) — ces fichiers **ne sont pas** de ce chantier et **n'ont pas été touchés** ; ils seuls font rougir `prettier --check .` à l'échelle du dépôt (les chemins de ce chantier sont verts).
+- **Session 128 (2026-11-11)** : **migration des compétences Veloria → _Veloria Engineering Skills System v2.0.0_** — demande : « remplacer toutes les anciennes compétences Veloria par la package `Veloria-Engineering-Skills-v2.0.0.zip`, avec sauvegarde, audit, tests et rapport final ». Package source **officielle** : `C:\Users\Admin\Downloads\Veloria-Engineering-Skills-v2.0.0.zip` (131 147 o). **Intégrité prouvée avant toute action** : `SHA256SUMS.txt` → **53/53 fichiers vérifiés, 0 écart, 0 fichier non listé**. Inventaire des 6 sites de découverte OpenCode : les **10 compétences v1** vivaient dans `.opencode/skills/`, une seule compétence non-Veloria en global (`open-design`, **non touchée**), `.claude/skills/` et `.agents/skills/` inexistants, et **aucun** champ `skills`/`instructions` de chemin supplémentaire dans `opencode.jsonc`, `.opencode/opencode.json` ni `~/.config/opencode/opencode.json`. **Sauvegarde intégrale AVANT suppression** : `%LOCALAPPDATA%\Veloria\SkillBackups\Veloria-POS-dev-zenagui-bilal\20261111-212624\` (10 compétences v1 complètes avec leurs `references/`, configs OpenCode, `AGENTS.md`, `handoff.md`, `.opencode/agents/`, `.opencode/commands/`, `.claude/`, inventaire des chemins d'origine + **40 empreintes SHA256** ; **42 fichiers re-lus, 0 illisible**). Remplacement **ciblé** (les 10 dossiers v1 supprimés **uniquement** après confirmation programmatique de leur présence dans la sauvegarde, puis 17 dossiers v2 copiés) : **10 remplacées + 7 ajoutées = 17/17**, **36 fichiers byte-identiques à la package (0 écart SHA256)**, **0 fichier résiduel** de l'ancienne version (les 8 fichiers de référence FR v1 — `rapports-z.md`, `securite-main.md`, `modele-porte.md`, `licences.md`, `parite.md`, `checklist-slice.md`, `fifo-couche.md`, `miroir.md` — ont été remplacés par leurs équivalents EN v2). Changements de fond : `veloria-sync` **réorienté** (« miroir Supabase / Edge Function » → **Google Sheets V1 = intermédiaire approuvé**, SQLite reste la source de vérité, isolement client exigé) ; `veloria-closing` : « UTC+1 fixe » **interdit** → politique de fuseau **nommé** (`Africa/Algiers`) à vérifier dans le dépôt ; `veloria-license` : compteurs figés (« 17 pages / 14 fonctions ») **supprimés** → vérification du catalogue réel. **Gouvernance** : `governance/` (contrat projet, registre, matrice d'impact, standard d'écriture, faits à vérifier) + `templates/` (ADR, tâche, notes de version) installés **à la racine du dépôt** — **aucun conflit** (dossiers inexistants avant, donc **aucune décision perdue**). **Décision structurante** : la copie d'audit de la package est rangée sous `docs/engineering/skills/veloria-v2.0.0/vendor/` et **PAS** sous `.opencode/skills` — OpenCode scanne `.opencode/skills` **à chaque niveau** entre le répertoire courant et la racine du projet, donc une copie imbriquée aurait créé **17 doublons de Skill ID** (elle est exclue de Prettier pour rester byte-identique). **Découverte OpenCode vérifiée EN DIRECT** : pendant l'installation, le runtime a rechargé le catalogue (7 nouvelles + 10 modifiées) — **aucun redémarrage nécessaire**, `@veloria-orchestrator` résout, et **les 16 autres ne sont pas chargées** (chargement à la demande respecté). Outillage : Python **absent** de la machine (`python`/`py`/`python3` introuvables) ⇒ interpréteur **Python 3.13.7 embeddable** téléchargé dans un **répertoire temporaire hors dépôt** (premier `Invoke-WebRequest` tronqué à 752 Ko/10,4 Mo ⇒ refait avec `curl --retry`). Portes exécutées : validateur **d'origine** de la package **PASS** (17 compétences, 19 références) · **6/6** tests d'origine **OK** · nouveau `scripts/validate_installed.py` **PASS** (17 installées, 36 fichiers issus du payload, 0 résiduel) · **10/10** tests de l'arbre installé **OK** · `npm run verify:docs` **vert** (« 17 conformes », contre « 10 conformes » avant) · `prettier --check .` **vert** sur tout le dépôt. Re-vérification de la package après tests : **52 fichiers source byte-identiques**, le seul fichier changé étant `tests/__pycache__/*.pyc` (artefact régénéré). **Aucun fichier applicatif touché** (`src/`, `electron/`, `database/`, `package.json`, `package-lock.json` intacts). Rapport complet : `docs/engineering/skills/INSTALLATION_REPORT_V2.0.0.md`.
 - **Session 127 (2026-11-11)** : **vérification visuelle de l'application client dans le navigateur (données de démonstration)** — demande : « جرب تطبيق العملاء على المتصفح ببيانات وهمية ». Le parcours complet a été joué dans Chromium (390×844, arabe, RTL) contre `scripts/demo-client-sync-server.mjs` (miroir de démo : `0550123456` / `123456`) et `expo start --web` : **connexion → Boutique → ajout de 3 produits → panier → Activité → segment « طلباتي »**. Les 6 captures sont dans `test-results/e2e-loop/` (`m-home`, `m-invoices`, `m-detail`, `m-boutique`, `m-cart`, `m-orders`) et **le script `scripts/e2e-mobile-shots.mjs` a été étendu** (6 écrans + **échec explicite si une erreur console apparaît** — c'est lui qui a trouvé les défauts ci-dessous). **Deux défauts réels, invisibles en test unitaire** : ① **perte d'un article au panier** — `addToCart` lisait `cartLines` dans la closure de rendu : deux ajouts dans la MÊME frame (double-tap, taps rapides) se remplaçaient, le second effaçant le premier ⇒ corrigé par un **REF** (`cartRef`) qui porte la valeur courante ; ② **`{" "}` (espaceur texte) dans deux `<View>`** (Factures, Paiements) ⇒ sur le web, react-native-web signale « Unexpected text node » à chaque rendu (erreur console **pré-existante**) ⇒ remplacé par une vraie marge. Le miroir de démo a reçu les **4 commandes factices** (états : prête / en préparation / livrée / annulée + motif) et le **catalogue** (5 produits, dont un indisponible) pour que la capture montre la palette complète. Portes : `check` 0 · `verify` 0 · `test` 0 · `build` 0 · `build:electron` 0 · `knip` 0 · **E2E visuel : `shots-ok`** (aucune erreur console).
 - **Session 126 (2026-11-11)** : **audit des dépendances des 3 paquets du dépôt (racine + `mobile/` + `owner/`), vérification par documentation Context7 confrontée au code réel** — demande : « inspecter les bibliothèques présentes dans le paquet du projet et les vérifier ». Méthode : (1) `npm ls` (manifeste ↔ installé) sur les 3 paquets ; (2) `npm outdated` (registre) ; (3) documentation **Context7** des versions **exactes** installées, confrontée au **code** et non à la seule doc ; (4) exécution des portes du projet. Résultat : **aucune anomalie** — les 31 dépendances racine, les 12 de `mobile/` et les 12 de `owner/` sont installées à la version exacte déclarée ; 0 paquet invalide, 0 manquant, 0 conflit de peer. Conformité API confirmée par relecture du code : `tesseract.js` 7.0.0 (`createWorker(langs, oem, {langPath, gzip, workerPath, logger})` = signature v7 exacte) ; `pdfjs-dist` 6.4.299 (`pdfjs-dist/legacy/build/pdf.mjs` + faux worker = chemins encore documentés par pdf.js) ; `qrcode` 1.5.4 (`toString(text, {type:'svg'})`) ; `zod` 4.6.7 (**0 occurrence** des paramètres v3 `message` / `required_error` / `invalid_type_error`) ; `tailwindcss` 4.3.3 (CSS-first `@theme`, pas de `tailwind.config.js` ; aucun usage `dark:` → `@custom-variant dark` inutile) ; `eslint` 10.13.0 (config plate, `plugins` en objet → conforme au schéma ESLint 10) ; `vite` 8.3.5 (Node 22 ≥ 22.12 exigé, ESM-only respecté) ; `better-sqlite3` 13.0.3 (prebuilds N-API `win32-x64` présents → `npmRebuild: false` justifié ; WAL + transaction + `inTransaction` vérifiés à l'exécution) ; `electron` 45.1.0 (`contextIsolation` / `sandbox` / `nodeIntegration: false` sur les 4 fenêtres) ; `electron-builder` 26.18.0 (`asarUnpack` couvre `better-sqlite3`, `tesseract.js`, `pdfjs-dist` legacy). Sous-projets Expo : `expo` 52.0.49 + `react-native` 0.76.0 + `react` 18.3.1 + `react-native-web` 0.19.13 = **appariement officiel Expo SDK 52**. Portes exécutées : `tsc -b` + les 4 autres `typecheck` (electron, manager, mobile, owner) verts, `eslint` (0 warning) vert, `verify` intégral vert (migrations, domaine, docs, FR, encodage, perf, site, version, secret-scan), suite complète **202 fichiers / 1 493 cas** verte. Observations (**aucun bump effectué**) : 13 paquets ont une mise à jour patch/minor disponible ; 2 sauts de version majeure **écartés volontairement** — `typescript` 6.0.3 → 7.0.2 (port natif : `verbatimModuleSyntax` s'applique toujours, `baseUrl` / `esModuleInterop` / `downlevelIteration` / `outFile` dépréciées, `preserveUnusedImports` / `importsNotUsedAsValues` retirées) et `@types/node` 22 → 26 (le poste est en Node 22 LTS) ; `expo` SDK 52 est désormais dans les changelogs « SDK dépréciés » (SDK courant 58) — tout passage impose d'aligner ensemble `expo` / `react` / `react-native` / `react-native-web` / `expo-*` ; `electron` 45.1.0 → 45.3.0 disponible, mais tout bump d'Electron impose de revalider l'empaquetage (asarUnpack, prebuilds N-API) et les E2E. **Aucun code modifié** ; seul effet de bord : `verify:site` a régénéré les captures `docs/shots/site/` (gitignorées). **Aucun commit possible sur ce poste** : le dossier `.git` existe mais l'exécutable `git` est absent du poste.
 - **Session 125 (2026-11-11)** : **tranche F — transport automatique (ADR-182)** — c'est la **première écriture** de l'application client, et elle reste une **intention** (une demande), jamais une commande ni une vente. Livré : **table `order_intents`** (`cloud/supabase/orders.sql` : `operation_id` UNIQUE = idempotence, `customer_id`, `lines` JSONB, `total_minor` estimé, `status` `pending|taken|rejected`, index sur les intentions en attente ; RLS, `anon` révoqués) · **fonction Edge `client-order`** (`cloud/supabase/functions/client-order/index.ts` : authentification **identique** à `client-sync` — téléphone + PIN, PBKDF2 100 000, sel par ligne, comparaison en temps constant, verrou 5 échecs / 5 min, remise à zéro du compteur sur succès — **une seule implémentation de la règle** ; le rejeu du même `operationId` répond `duplicate` sans créer de seconde intention ; CORS sur les erreurs) · **APK** : `sendOrderIntent` (charge = téléphone + PIN + `operationId` + lignes + total ; erreurs distinguées : authentification vs hors ligne) et **l'envoi part d'abord dans le miroir, puis WhatsApp** (si le réseau manque, la commande passe quand même par WhatsApp — le commerce n'est jamais bloqué) · **POS** : `pullOrderIntentsAtomic()` (tick de 60 s) transforme les intentions en commandes `client_orders` (le `operationId` de l'intention sert d'`operationId` de création ⇒ **zéro doublon**), marque l'intention `taken` + sa référence `CMD-…`, et **ferme définitivement** une intention irrecevable (produit archivé, prix nul) au lieu de la faire revenir à chaque tick ; une erreur transitoire la laisse `pending`. Preuves : **4 tests APK** (charge, rejeu, distinction des erreurs, réponse inattendue refusée) + **2 tests d'intégration** (intention → commande `CMD-…` + marquage, refus définitif).
@@ -6340,3 +6407,502 @@ livrer sans vente, liaison + refus des abus).
 - Déployer la fonction Edge `client-sync` mise à jour.
 - Activer la publication dans Paramètres → Commerce → « Produits publiés dans l'application », puis « Publier maintenant ».
 - Vérifier sur l'appareil réel : l'onglet « Boutique » affiche le catalogue, et le bandeau « copie locale » apparaît hors ligne.
+
+## 128) Session 2026-11-11 - Migration des compétences vers Veloria Engineering Skills v2.0.0
+
+Demande : « remplacer toutes les anciennes compétences Veloria par la package
+`Veloria-Engineering-Skills-v2.0.0.zip`, avec sauvegarde, audit, tests et
+rapport final ». Package source **officielle** :
+`C:\Users\Admin\Downloads\Veloria-Engineering-Skills-v2.0.0.zip` (131 147 o).
+
+### Ce qui a été fait
+
+1. **Audit de la package AVANT toute action** : archive ZIP lisible (54
+   entrées), `MANIFEST.json` (17 compétences), `README.md`,
+   `QUICK_START_OPENCODE.md`, `CHANGELOG.md`, `governance/` (5),
+   `templates/` (3), `SHA256SUMS.txt` (**53/53 vérifiés, 0 écart**) ;
+   `scripts/validate_package.py` **PASS** ; `tests/test_package.py` **6/6 OK**.
+2. **Inventaire des 6 sites de compétences** (projet + globaux + compatibles
+   Claude/Agents) **+ tous les `SKILL.md`** du poste : 10 v1 dans
+   `.opencode/skills/`, 1 non-Veloria en global (`open-design`), 1 copie v1
+   hors périmètre (`Desktop\Nouveau dossier (2)`), 1 compétence d'un autre
+   outil (`.qoder`). Aucun `SKILL.md` orphelin, aucun frontmatter invalide,
+   aucun lien mort. **Aucun champ `skills` de chemin supplémentaire** dans les
+   configurations OpenCode.
+3. **Sauvegarde intégrale** :
+   `%LOCALAPPDATA%\Veloria\SkillBackups\Veloria-POS-dev-zenagui-bilal\20261111-212624\`
+   (arbre complet des 10 v1 + configs + `AGENTS.md` + `handoff.md` +
+   `.opencode/agents/` + `.opencode/commands/` + `.claude/` + inventaire des
+   chemins + **40 empreintes SHA256**) ; **42 fichiers re-lus, 0 illisible**.
+4. **Remplacement ciblé** : les 10 dossiers v1 supprimés **seulement après**
+   confirmation programmatique de leur présence dans la sauvegarde, puis les 17
+   dossiers v2 copiés. Résultat : **36 fichiers byte-identiques (0 écart
+   SHA256), 0 fichier résiduel, 0 doublon de Skill ID**.
+5. **Gouvernance + modèles** installés **à la racine** (`governance/`,
+   `templates/`) — **aucun conflit** (dossiers inexistants avant).
+6. **Audit du dossier** : copie **verbatim** de la package sous
+   `docs/engineering/skills/veloria-v2.0.0/vendor/` — **volontairement PAS**
+   sous `.opencode/skills`, car OpenCode scanne `.opencode/skills` à **chaque
+   niveau** entre le répertoire courant et la racine du projet (une copie
+   imbriquée aurait produit 17 doublons de Skill ID). Exclue de Prettier pour
+   rester byte-identique (preuve SHA256 préservée).
+7. **`AGENTS.md`** : table de routage des règles 13 et 14 mise à jour pour
+   couvrir les 17 compétences (le coordinateur `veloria-orchestrator` devient
+   l'entrée transverse ; `veloria-release`, `veloria-backup`,
+   `veloria-printing`, `veloria-security`, `veloria-hardware`,
+   `veloria-observability` obtiennent leur propre route).
+8. **Outillage de vérification** écrit pour cette migration :
+   `scripts/validate_installed.py` (règles de la package **+** règles de la
+   porte projet `verify-docs` §3.5) et `tests/test_installed.py` (10 tests).
+
+### Preuves
+
+- SHA256 de la package : **53/53 vérifiés, 0 écart, 0 non listé** (avant
+  installation) ; **52 fichiers source inchangés** après exécution des tests
+  (seul `tests/__pycache__/*.pyc` change : artefact Python régénéré).
+- `python scripts/validate_package.py` (package extraite) :
+  `PASS: package structure is valid` / `PASS: 17 OpenCode skills` /
+  `PASS: 19 referenced Markdown files` — exit 0.
+- `python -m unittest discover -s tests -v` (package extraite) : **6 tests OK**.
+- `python scripts/validate_installed.py` (arbre installé) : `PASS: 17 OpenCode
+skills installed and valid` / `PASS: 19 referenced Markdown files resolved` /
+  `no stale file: 36 installed files all come from the payload` — exit 0.
+- `python -m unittest discover -s tests -v` (arbre installé) : **10 tests OK**.
+- `npm run verify:docs` : **vert**, « 17 conformes » (avant : « 10 conformes »).
+- `npx prettier --check .` : **vert** sur tout le dépôt.
+- **Découverte OpenCode observée en direct** : le runtime a rechargé le
+  catalogue pendant l'installation (7 nouvelles + 10 modifiées) —
+  **aucun redémarrage de session nécessaire**.
+
+### Défauts / décisions relevées
+
+- **Python absent du poste** (`python`, `py`, `python3` : introuvables) :
+  interpréteur **Python 3.13.7 embeddable** téléchargé dans un répertoire
+  **temporaire hors dépôt** (aucune dépendance npm ajoutée, `package.json` et
+  `package-lock.json` intacts). Premier téléchargement **tronqué** (752 Ko sur
+  10,4 Mo) => refait avec `curl --retry`.
+- **Descriptions v2 en anglais** (les v1 étaient en français) : sans impact,
+  `verify:fr` ne scanne que `src/` et `electron/`.
+- **`.claude/CLAUDE.md` référence `.claude/skills/graphify/SKILL.md`
+  inexistant** (le greffon est un plugin `.opencode/plugins/graphify.js`) :
+  anomalie **préexistante**, hors périmètre Veloria, **non modifiée**.
+- **Copie v1 hors périmètre** (`Desktop\Nouveau dossier (2)`) : **hors chemin de
+  découverte OpenCode**, laissée intacte et signalée ; purge laissée à
+  l'utilisateur (action hors projet).
+- `vendor/archive/original-skills-v1.zip` est **ignoré par Git** (règle
+  `*.zip`) : trace conservée sur disque, non versionnée ; `.gitignore` non
+  modifié.
+
+### Règle 10 (commit)
+
+`handoff.md` est à jour (cette section + §1). **Aucun commit ni push n'a été
+exécuté** : la demande l'interdit explicitement (§12.K de la consigne) et la
+première instruction explicite de l'utilisateur prime sur la règle 10. L'arbre
+était **propre avant** la migration (0 fichier pré-stage) ; les commandes de
+commit sont prêtes dans `docs/engineering/skills/INSTALLATION_REPORT_V2.0.0.md`
+(annexe).
+
+### Rapport
+
+`docs/engineering/skills/INSTALLATION_REPORT_V2.0.0.md` (sections A à M :
+inventaire, sauvegarde, compétences installées, remplacées, ajoutées,
+doublons, gouvernance, résultats de tests, découverte OpenCode, état Git,
+points restants, procédure de rollback).
+
+## 129) Session 2026-11-11 - Le choix de la compétence par tâche : table unique + porte bidirectionnelle
+
+Demande : « يجب على الوكيل اختيار المهارة المناسبة لكل مهمة ».
+
+### Constat mesuré (pas supposé)
+
+Après l'installation de la v2.0.0 (session 128), le routage existait mais
+n'était **ni lisible ni vérifié** :
+
+- **Prose** : les règles 13/14 d'`AGENTS.md` tenaient sur une seule ligne de
+  plusieurs milliers de caractères, mêlant politique, liste des compétences et
+  déclencheurs.
+- **Porte à sens unique** : ADR-179 §2.3 ne vérifiait que « compétence **citée**
+  ⇒ existe ». Le cas inverse — **compétence installée mais jamais routée** —
+  passait : la porte restait verte alors que l'agent **n'aurait jamais chargé**
+  cette compétence. C'est précisément le défaut que la doctrine ADR-120
+  interdit (« une garde qui ne peut pas échouer n'est pas une garde »).
+- **Matrice du coordinateur non contrôlée** : rien ne garantissait que
+  `veloria-orchestrator/references/task-routing.md` couvre les compétences
+  réellement installées.
+
+### Ce qui a été fait
+
+1. **Table de routage unique** dans `AGENTS.md` (« Table de routage des
+   compétences Veloria »), délimitée par `<!-- SKILL-ROUTING:START -->` /
+   `<!-- SKILL-ROUTING:END -->` : **une ligne par compétence Veloria** avec sa
+   **surface de déclenchement** (les mots qui signalent la couche), plus une
+   **procédure de sélection en 4 étapes** (classer → prendre la ligne la plus
+   **spécifique** → ajouter `veloria-gates` si comportement / données /
+   sécurité / empaquetage bougent → `veloria-orchestrator` si la tâche est
+   transverse ou la couche incertaine). La section est dans `AGENTS.md` donc
+   **dans le contexte de l'agent à chaque tâche**.
+2. **Répartition des règles 13/14** : la règle 13 porte la **politique**
+   Veloria (chargement obligatoire, sources de priorité, renvoi vers la
+   table) ; la règle 14 porte les compétences **génériques** hors Veloria
+   (React, Tailwind, TypeScript, Playwright, `tdd`, `code-review`,
+   `sql-optimization`, `pdf`, `electron-development`, `graphify`,
+   `llm-council`, `find-skills`, `codebase-cleanup-audit`, `impeccable`,
+   `sqlite-database-expert`, `bug-detective`, `council`, `dragon`).
+   **Aucune compétence perdue** dans la répartition.
+3. **Porte `verify:docs` §3.7** — routage contrôlé dans les **deux sens** :
+   compétence installée ⇒ routable ; compétence routée ⇒ installée ; table
+   présente ; **matrice du coordinateur** couvrant toutes les compétences
+   installées.
+4. **4 cas de test** dans `tests/unit/verify-docs-gate.test.ts`, dont la
+   **preuve de non-vacance** : l'arbre de test **redevient vert** dès que la
+   compétence est routée — l'échec vient donc bien du routage, pas d'un arbre
+   cassé.
+5. **ADR-183** créé ; `docs/METRICS.md` régénéré (compteur d'ADR).
+
+### Décision explicitement écartée
+
+**Ne pas** réécrire les `description` des compétences installées. Ce sont
+l'**artefact approuvé** de la package officielle : les modifier casserait la
+propriété « installé = byte-identique à la package » (preuve d'intégrité de la
+session 128) et créerait une **seconde** surface de routage (donc une
+nouvelle source de divergence). Le vocabulaire métier étant déjà commun
+(zakat, scanner, code-barres, FIFO, SQLite, PDF), le gain aurait été marginal.
+
+### Preuves
+
+- `npm run verify:docs` : vert, avec les **deux nouvelles lignes**
+  « Table de routage : 17 compétence(s) routée(s) » et
+  « Matrice du coordinateur : 17 compétence(s) couverte(s) ».
+- `npx vitest run tests/unit/verify-docs-gate.test.ts` : **10/10** verts
+  (4 nouveaux cas : non routée / vert dès que routée / citation fantôme /
+  table absente).
+- Contrôle direct du bloc de routage : **17 routées, 17 uniques, 0 compétence
+  installée non routée, 0 route vers une compétence absente**.
+- `npm run format:check` : vert sur les chemins de ce chantier (le contrôle à
+  l'échelle du dépôt est **actuellement rouge sur 3 fichiers JSON** de
+  `docs/engineering/audits/2026-11-11-full-forensic-audit/` — **produits par
+  un autre chantier actif en parallèle** dans le dépôt, horodatages 22:14 →
+  22:29 pendant cette session ; ils **n'ont pas été touchés**).
+- `npm run lint` : vert (0 erreur, 0 avertissement).
+- `npm run typecheck` : vert.
+- **Suite complète `npm test` : 202 fichiers / 1 497 tests, 0 échec** (413 s).
+- `verify:migrations` / `verify:fr` (351 fichiers) / `verify:encoding`
+  (1 122 fichiers) / `verify:domain` (70 mutations IPC) : verts.
+- Arbre installé re-contrôlé après le travail : **36 fichiers, 0 dérive**
+  (toujours byte-identiques à la package).
+
+### Règle 10 (commit)
+
+`handoff.md` est à jour (cette section + §1). **Aucun commit ni push n'a été
+exécuté** : la demande initiale l'interdit (§12.K) et aucune nouvelle
+instruction ne l'a levé. L'arbre reste donc non committé, avec les
+commandes prêtes dans
+`docs/engineering/skills/INSTALLATION_REPORT_V2.0.0.md` (annexe).
+
+### Piège rencontré (à ne pas répéter)
+
+**Ajouter une section à `handoff.md` via PowerShell corrompt l'encodage.**
+`Get-Content -Raw` (PowerShell 5.1) lit un fichier **sans BOM** avec le jeu
+de codes **ANSI** (cp1252) : un fichier UTF-8 est alors relu comme du Latin-1,
+puis réécrit en UTF-8 ⇒ **double encodage** (« dépôt » → « dÃ©pÃ´t »). Constaté
+sur les sections 128 et 129 (245 séquences corrompues), **détecté** par le
+contrôle de sondes, puis **réparé** en relisant depuis les fichiers sources
+UTF-8 (`fs.readFileSync(p, "utf8")` + `appendFileSync(p, data, "utf8")`).
+Piège complémentaire : la **réparation par `latin1`** est fausse pour la plage
+cp1252 `0x80`–`0x9F` (`€`, `…`, `œ`) : elle produit des `U+FFFD`. La bonne
+façon de faire est de **rejouer l'ajout depuis la source UTF-8**, pas de
+ré-encoder un texte déjà abîmé.
+
+Réflexe à prendre : écrire **directement en UTF-8** (outil `write`/`edit`, ou
+`node` avec `utf8` explicite), et **relire** la section écrite avant de
+terminer — un fichier journal dont la moitié est illisible perd sa valeur.
+
+## 131) Session 2026-11-12 — `dessin.md` : مواصفة تصميم الواجهة (UI/UX) du projet, extraite du code
+
+### Demande
+
+« انشأ لي ملف dessin.md الخاص بالمشروع في المسار C:\Users\Admin\Desktop\dessin »
+
+### Décisions de l'opérateur (questions posées, réponses explicites)
+
+- **Nature du contenu** = « **مواصفة تصميم الواجهة UI/UX** » (et non : blueprint architectural / étude complète / roadmap).
+- **Source** = « **من الكود مباشرة** » (et non : dérivation de l'étude « md file » du Bureau).
+- **Langue du document** = arabe (contexte de la demande), avec les libellés produit en français — comme dans le produit.
+
+### Méthode (lecture du code, pas de la documentation antérieure)
+
+Fichiers lus intégralement ou par zones : `src/styles/globals.css` (508 l.) · `src/shared/ui/primitives.tsx` (950 l.) · `src/shared/ui/{form-section,confirm-dialog,error-boundary,theme-density}` · `src/app/shell/{App,Sidebar,TopBar,WindowChrome,ShellOverlays,modules,module-screens,footer-hints,shell-types,use-vigilance}` · les 17 écrans de `src/features/**` (titres `PageHeader`, colonnes de tableaux, zones) · `src/features/settings/{types,bits}` · `src/features/dashboard/{types,widgets}` · `src/features/license/LicenseBadge.tsx` · `src/features/staff/StaffGate.tsx` · `src/features/sales/sell/{SellSearchPanel,SellCustomerPanel,CartPanel,SellTotalsPanel,SellTabsBar,SellShortcutsHelp,PayDialog}` · `src/shared/{errors/fr-map.ts,formatters/format.ts}` · `mobile/src/{tokens.ts,ui/kit.tsx,ui/nav.tsx,i18n.ts,screens/*}` · `owner/src/{tokens.ts,ui/kit.tsx,ui/nav.tsx,screens/*}` · `license-manager/{renderer/App.tsx,renderer/styles.css,main/window-manager.ts}` · `website/{styles/tokens.css,styles/preferences.css,src/data/site.json,src/pages/*,build.mjs}` · `electron/main/window-manager.ts` · ADR de design : 033, 035, 036, 051, 072, 077, 081, 082, 083, 106, 133, 134, 143, 146, 148, 150, 154, 157, 161, 180, 181 · `docs/specs-archive/10_UI_UX_DESIGN_SYSTEM.md` · `.opencode/skills/veloria-ui-fr/references/design-system.md` · `docs/METRICS.md`.
+
+### Livrable
+
+- **Chemin** : `C:\Users\Admin\Desktop\dessin\dessin.md` (dossier créé vide au préalable).
+- **Taille** : 958 lignes · 100 784 octets · UTF-8 **sans BOM** · **0 caractère de remplacement (U+FFFD)** — contrôlé après écriture (un segment s'était corrompt à l'écriture puis **réparé** ; le contrôle final est rejoué sur le fichier entier).
+- **Structure** : 18 sections (§1 Orientation + 5 surfaces + 10 principes · §2 tokens · §3 primitives + règles de dialogue · §4 shell · §5 les 17 écrans · §6 la Caisse en détail · §7 états · §8 accessibilité · §9 impression · §10 License Manager · §11 APK client · §12 Owner · §13 site « Terminal d'Or » · §14 règles transversales · §15 gates UI · §16 checklist 18 points · §17 10 écarts connus · §18 index des fichiers).
+- **Valeurs** : uniquement des valeurs **littérales** du code (hex, px, noms de composants, chaînes FR) ; les compteurs sont repris **de `docs/METRICS.md`** (source unique, ADR-178), jamais recomptés à la main.
+- **Diagrammes** : 2 blocs Mermaid (arbre du shell ; machine à états du cycle de vie d'écran) + 1 pour la composition de la Caisse.
+
+### Portes
+
+- **Aucune porte du dépôt n'est concernée** : aucun fichier de `src/`, `electron/`, `database/`, `tests/`, `docs/` n'a été touché ⇒ `npm run verify:*`, `npm test`, `npm run build` sont **inchangés** (aucun commit applicatif à faire).
+- **Contrôle manuel appliqué au livrable** : relecture UTF-8 programmatique (0 U+FFFD), présence des 18 sections, cohérence des 10 nombres cités avec `docs/METRICS.md` (64 migrations · 50 tables · 183 ADR · 201 canaux IPC · 207 fichiers de test · 26 specs E2E · 17 modules shell · 17 pages de licence · 14 features · 23 dossiers du domaine).
+
+### Règle 10 (commit)
+
+**Aucun commit n'a pu être exécuté : l'exécutable `git` est ABSENT de ce poste** (vérifié : `where git`, `git --version`, `Program Files`, `Program Files (x86)`, `%LOCALAPPDATA%`, `C:\Program Files\Git\cmd\git.exe` — aucun chemin). C'est le **même blocage déjà consigné** aux sessions 126, 128 et 130 (« le dossier `.git` existe mais l'exécutable `git` est absent du poste »). Conséquence : `handoff.md` est mis à jour (§1 + cette section), mais **l'arbre reste non commité** ; le livrable étant **hors dépôt**, il n'y a de toute façon rien à commiter pour ce chantier. À faire sur un poste avec Git : rejouer `git add handoff.md && git commit -m "docs(handoff): session 131 — dessin.md (spec UI/UX)"`.
+
+### Pièges rencontrés (à ne pas répéter)
+
+1. **Numérotation de session** : un bloc « Session 130 » existe déjà dans `handoff.md` (section §1, lignes 16-36) — écrit par un **autre chantier** et **déjà corrompu** (double encodage PowerShell : **257 caractères U+FFFD** sur 17 lignes, uniquement dans ce bloc). Ce chantier a donc pris le numéro **131** et **n'a pas touché** le bloc 130 (travail d'un autre worker). Signalé ici pour que la réparation d'encodage soit faite par le propriétaire du bloc 130, **à partir d'une source UTF-8** (rejouer l'ajout, ne jamais re-décoder/re-encoder le fichier déjà altéré).
+2. **Écriture d'un document arabe long** : un segment s'est corrompt à l'écriture. Le contrôle fiable est **programmatique** (`fs.readFileSync(p, 'utf8')` puis recherche de `\uFFFD` + index de la ligne fautive), **pas** la relecture à l'œil dans la console (qui re-décode en ANSI et masque le défaut). Même famille de piège que le double-encodage `Get-Content`/`Set-Content` déjà consigné en session 129.
+3. **`git` absent** : ne pas tenter de « contourner » (pas de `libgit2` disponible, pas de mirror distant configuré) — **consigner le blocage** et livrer le fichier.
+
+## 132) Session 2026-11-12 — Git rétabli sur le poste (PATH) + dette d'encodage de `handoff.md` payée
+
+### Demande
+
+« ثبت git » — l'opérateur veut que l'outil fonctionne sur ce poste.
+
+### Ce qui a été constaté (et non supposé)
+
+`git` **n'était pas absent** : il était **hors du PATH**.
+
+- `Get-Command git` → _« git » n'est pas reconnu comme nom d'applet de commande_ ;
+  `where git` → introuvable ; aucun `winget` / `choco` / `scoop` sur le poste.
+- Le binaire **existait** : `C:\Users\Admin\AppData\Local\Programs\deepai-code-desktop\resources\git\cmd\git.exe`
+  — une distribution **portable** de Git for Windows **2.56.0.windows.2**, embarquée
+  dans le dossier `resources/` d'une application tierce, jamais exposée au PATH.
+- Le dépôt n'a **jamais** été sans Git : `.git/` existe, `HEAD` → `d9e992b`,
+  l'index et les objets sont intacts, `git fsck` ne signale aucune corruption
+  (seulement des commits/blobs _dangling_ historiques, sans effet).
+
+**Pourquoi ce diagnostic a coûté quatre sessions** (126, 128, 130, 131 ont
+consigné le même blocage dans `handoff.md`) : la recherche a porté sur les
+**répertoires d'installation standard** (`Program Files`, `Program Files (x86)`,
+`%LOCALAPPDATA%`, `C:\Program Files\Git\cmd\git.exe`) — or le binaire était dans
+le dossier `resources/` d'une application. Le contrôle qui manquait :
+`Get-Command git` **et** un parcours des répertoires d'applications embarquées,
+**plus** `git fsck` pour conclure « pas de Git ».
+
+### Correctif (durable)
+
+1. La distribution portable est **copiée** vers `C:\Users\Admin\tools\git\` —
+   la convention déjà en place sur ce poste (`tools\node`, `tools\jdk17`), hors
+   du répertoire d'une application tierce susceptible d'être mise à jour (une
+   entrée PATH vers `deepai-code-desktop` se brise à la première mise à jour).
+2. `C:\Users\Admin\tools\git\cmd` et `C:\Users\Admin\tools\git\bin` ajoutés au
+   **PATH utilisateur** (`HKCU\Environment` — aucun privilège administrateur) ;
+   les entrées `deepai-code-desktop` en sont **retirées**.
+3. Diffusion `WM_SETTINGCHANGE` pour que les processus déjà ouverts en
+   tiennent compte.
+
+### Preuve
+
+Processus **neuf** lancé avec le PATH fusionné Machine + Utilisateur :
+
+- `where git` → `C:\Users\Admin\tools\git\cmd\git.exe` (+ `...\bin\git.exe`) ;
+- `git --version` → `git version 2.56.0.windows.2` ;
+- `git config --list --show-origin` → lit `C:/Users/Admin/tools/git/etc/gitconfig`
+  puis `C:/Users/Admin/.gitconfig` (utilisateur `veloria-pos <veloria-pos@localhost>`,
+  `core.autocrlf=false`) — configuration **inchangée**, aucune reprise à faire.
+
+### Conséquence directe : la règle 10 redevient applicable
+
+La règle 10 (« commit obligatoire en fin de tâche ») était ** inapplicable**
+depuis quatre sessions : le travail réel des sessions 130 et 131 — vagues 0, 1, 2,
+3, 4 et 5 du plan de remédiation, ADR-183, ADR-184, gouvernance, migration 0064,
+portes `verify:release-config` et `verify:governance-arch`, 42 fichiers modifiés
+et 20 fichiers nouveaux — attendait un Git qui existait déjà.
+
+### Dette de documentation payée : le mojibake de `handoff.md`
+
+- Dans `HEAD`, `handoff.md` était **entièrement** en mojibake :
+  **30 981 caractères U+FFFD** (aller-retour PowerShell `Get-Content` cp1252
+  sur un fichier UTF-8 sans BOM, puis `Set-Content` UTF-8).
+- La version de travail avait été ramenée à **257 U+FFFD** résiduels, tous dans
+  le bloc « Session 130 » (écrit par un chantier tiers, donc hors périmètre de
+  celui-ci à l'époque).
+- **Réparé à la source** : le bloc a été **rejoué** depuis une source UTF-8
+  propre — le contenu réellement livré par `scripts/licensing/secret-scan.mjs`,
+  `scripts/release/stamp-build-info.js`, `scripts/release/verify-artifact.js`,
+  `scripts/quality/verify-release-config.mjs`, `electron/ipc/sender-guard.ts`,
+  `config/playwright.config.ts` et le plan
+  `docs/engineering/audits/2026-11-11-full-forensic-audit/08_RADICAL_REMEDIATION_PLAN.md`
+  — **jamais** par re-décodage du texte abîmé (méthode documentée comme fausse
+  au §129 : la réparation par `latin1` produit des `U+FFFD` sur la plage
+  cp1252 `0x80`–`0x9F`). Contrôle programmatique final : **0 U+FFFD**.
+
+### Porte ajoutée (la dette ne doit pas revenir)
+
+`scripts/quality/verify-encoding.mjs` inspectait `electron/`, `src/`,
+`scripts/`, `tests/`, `database/`, `mobile/`, `license-manager/`, `cloud/`,
+`docs/` et deux fichiers racine — **pas** `handoff.md`. Le document de
+continuité n'était donc **pas protégé** par la porte censée empêcher la
+corruption d'encodage. `handoff.md` y est ajouté (ADR-185 §4).
+
+**Preuve négative démontrée** : injection d'un seul U+FFFD dans `handoff.md`
+→ porte **rouge** (« `handoff.md (1)` », exit 1) → restauration → porte
+**verte** (1 190 fichiers scannés, exit 0).
+
+### Portes exécutées
+
+- `npm run verify` → **0** (migrations 64, domaine, docs, FR, encodage, perf,
+  site, release-config, gouvernance-arch, version, secret-scan).
+- `npm run check` → **0** (`format:check` + `eslint` 0 warning + 5 `typecheck`).
+- `npm test` → **0**.
+- `prettier --check handoff.md` → **vert**.
+- `npm run license:key-custody` → **1, attendu et correct** : l'ancre embarquée
+  `resources/license/keys.json#k1` a sa clé privée correspondante dans
+  `private/vendor-keys/` **sur ce poste**. La porte est fail-closed par
+  conception ; la rotation est une **action opérateur** sur la machine vendor
+  (`docs/licensing/KEY_MANAGEMENT.md`). Ce chantier ne modifie pas l'ancre de
+  vérification des POS déjà livrés.
+
+### Ce qui n'a PAS été fait (et pourquoi)
+
+- **L'ancre de licence n'a pas été pivotée** : cela exige la machine vendor et
+  arbitrer sur l'ancre qui valide les licences déjà émises — décision
+  propriétaire, pas une correction de code.
+- **`docs/engineering/audits/.../` n'a pas été revu** : produit d'un chantier
+  tiers, hors périmètre.
+- **Aucun commit des vagues 6→9 du plan de remédiation** : elles ne sont pas
+  implémentées.
+
+### Règle 10 (commit)
+
+`handoff.md` est à jour (§1 + cette section). Le commit est **effectué** : c'est
+la première fois que la règle 10 est applicable sur ce poste depuis la session 126. Le commit est **un checkpoint explicite** de l'arbre (les fichiers des
+sessions 130 et 131 + cette session), pas un commit « docs(handoff) » isolé —
+l'arbre était sale au départ (règle 10 : « Always inspect `git status` first »).
+
+### Pièges rencontrés (à ne pas répéter)
+
+1. **`git` absent ≠ `git` introuvable.** Toujours distinguer « le binaire
+   n'existe pas » de « le binaire n'est pas dans le PATH ». Conséquence
+   pratique : `Get-Command git` **et** `where git` **et** `git fsck` avant de
+   conclure.
+2. **`npm` / `npm.cmd` sous PowerShell 5.1** : `npm` échoue avec
+   _« l'exécution de scripts est désactivée »_ (politique d'exécution). Utiliser
+   `npm.cmd` — ou `node <script>` directement pour une preuve de porte.
+3. **`execFileSync("npm.cmd", …)`** renvoie un statut d'échec même quand la
+   commande réussit (le `.cmd` n'est pas un exécutable). Pour une preuve de
+   porte, appeler `node scripts/...` directement.
+4. **Un `| Select-Object -First N` sur la sortie d'une longue commande coupe le
+   pipe** et fait remonter un code de sortie 1 trompeur : écrire la sortie dans
+   un fichier et lire le fichier, ou tester `$LASTEXITCODE` sans pipe.
+5. **Réparer un texte UTF-8 abîmé** : ne **jamais** re-décoder / re-encoder.
+   Rejouer l'ajout depuis la source (§129). Le contrôle est **programmatique**
+   (`fs.readFileSync(p, "utf8")` + recherche de `\uFFFD`), jamais la relecture à
+   l'œil dans une console qui décode en ANSI.
+
+---
+
+## Session 132 (2026-11-13) - suite de la remediation radicale (vagues 3, 4, 5, 6, 7, 8, 9)
+
+Demande : suite de la session 131 (audit forensique 2026-11-11).
+
+Travaux realises dans cette session :
+
+Vague 6 - tests de contrat (GATE-03, CLOS-05)
+
+- tests/unit/money-contract.test.ts (46 tests) : contrat monetaire SPECIFIE. Preuve negative demontree.
+- tests/integration/closing-scenario-matrix.test.ts (10 tests) : les 9 scenarios requis de veloria-closing + solde.
+
+Vague 3 (suite) - MONEY-04/DB-03, STK-01
+
+- Migration 0065 (avant-only) : invariant monetaire de LIGNE (sale_items.line_total_minor vs unit_price_minor x quantity), triggers fail-closed INSERT + UPDATE + vue v_sale_items_line_total_drift. verify:migrations etendu (7 assertions).
+- inventory.repo.ts : reconcileStock() (STK-01) - diagnostic lecture seule. Canal stock.reconcile (page-gated et staff-gated a settings), expose au preload et au renderer, carte StockReconciliationCard dans Parametres -> Catalogue.
+- tests/integration/stock-reconciliation.test.ts (6 tests).
+- 2 fixtures corrigees pour etre coherentes avec le nouveau contrat (remises dans le prix unitaire).
+
+Vague 5 (suite) - BACK-04
+
+- electron/sync/secret-hygiene.ts (pur, injectable) + upgradeLegacySecrets() dans sync.service.ts + appel au demarrage dans main.ts AVANT toute sauvegarde.
+- docs/BACKUP_CONTRACT.md : contrat d'inclusion/exclusion opposable.
+- .opencode/skills/veloria-backup/SKILL.md : reference au contrat.
+- tests/unit/backup-contract.test.ts (8 tests).
+
+Vague 4 (suite) - CLOS-01/ORCH-02/SKILL-02, ORCH-03, HW-01/SKILL-06/SKILL-07
+
+- Gouvernance PROJECT_FACTS_TO_VERIFY.md, veloria-db, veloria-closing alignes sur ADR-169 (UTC+1 fixe, pas d'ICU, non configurable).
+- verify-docs.mjs : section generee de PROJECT_FACTS_TO_VERIFY.md (compteurs).
+- veloria-hardware et veloria-observability reecrits : ce qui est implemente vs ROADMAP.
+
+Vague 7 - OBS-01, OBS-02
+
+- logger.ts : couche de redaction (par cle + par forme : JWT, jeton Supabase, hex long).
+- support-bundle.ts : bundle de support sanitisé (apercu).
+- registry.system.ts : app.diagnostics renvoie supportBundle.
+- SettingsSectionsB.tsx : apercu du bundle.
+- tests/unit/logger-redaction.test.ts (4 tests).
+
+Vague 8 - SYNC-03
+
+- verify-rls-gate.cjs : porte statique de l'isolation (RLS, REVOKE, aucune politique de lecture, seul lecteur = fonction Edge service_role), branchee sur npm run verify. SYNC-02 reste a faire.
+
+Vague 9 - PRINT-01
+
+- tests/unit/printing/printed-amounts.test.ts (10 tests) : comparaison automatisee des montants imprimes aux montants persistes. REL-01 bloque par absence de certificat ; HW-02/PRINT-02 restent une validation manuelle.
+
+Portes : npm run check vert (format, lint 0, typecheck root/electron/manager/mobile/owner), verify:migrations vert (65 migrations, 0065 asserte), verify:docs vert, verify:rls-gate vert, verify:governance-arch vert, license:scan vert. Les tests nouveaux passent (110 tests sur les fichiers touches).
+
+Blocage inchange : git absent du poste - le commit exige par la regle 10 est impossible. handoff.md mis a jour, blocage consigne. Pas de commit effectue.
+
+---
+
+## Session 133 (2026-11-13) - SYNC-02 (backoff, taxonomie, quarantaine)
+
+Demande : poursuite de la session 132.
+
+Travaux :
+
+- electron/sync/retry-policy.ts (pur) : taxonomie (transient/auth/schema/validation/permanent), backoff exponentiel borne + jitter, quarantaine a SYNC_MAX_ATTEMPTS, decideRetry. 16 tests.
+- Migration 0066 (avant-only) : sync_outbox + attempts, last_error, next_attempt_at, quarantined_at + 6 triggers fail-closed. verify:migrations etendu.
+- electron/sync/sync.service.ts : selection avec porte de backoff (next_attempt_at), bookkeeping par ligne en cas d'echec (compteur, reprogrammation, quarantaine), OutboxMirrorRow + attempts.
+- tests/unit/sync-mirror-resilience.test.ts et sync-protocol.test.ts : attempts ajoute aux fixtures.
+- Portes : typecheck root/electron verts, lint 0, format OK, verify:migrations vert (66), verify:docs vert.
+
+Reste : SYNC-02 n'est pas cable cote UI (pas de vue quarantaine) ; REL-01 (Authenticode) et HW-02/PRINT-02 restent manuels.
+
+---
+
+## Session 134 (2026-11-13) - UI-01, UI-03, UI-04 + portes
+
+Demande : poursuite de la session 133.
+
+Travaux :
+
+- src/shared/ui/async-panel.tsx : matrice d'etat d'un panneau asynchrone (loading/error/empty/ready) avec libelles FR et accessibilite (aria-live, role status/alert, bouton de rechargement).
+- scripts/quality/verify-ui-a11y-gate.cjs : porte statique UI-03 (img sans alt, outline-none sans focus-visible, bouton icone sans aria-label) + UI-04 (badge colore sans libelle) sur src/**/*.tsx. Branchee sur npm run verify.
+- Portes : lint 0, format OK, verify:ui-a11y-gate vert (101 fichiers, 0 constat), verify:docs vert.
+
+Reste : REL-01 (Authenticode, bloque par absence de certificat), HW-02/PRINT-02 (validation physique sur materiel), cablage effectif de AsyncPanel dans les tiroirs clients (le composant est disponible, l'adoption est incrementeelle).
+
+---
+
+## Session 135 (2026-11-13) - verification du systeme d'images d'annonces (ADR-166)
+
+Demande : « تحقق من نظام رفع صور الاعلانات » (verifier le systeme d'upload des images d'annonces).
+
+Constat de conception :
+
+- Il n'existe PAS d'upload de fichier local. ADR-166 impose un lien https heberge a l'exterieur (aucun blob en base, aucune image stockee dans SQLite ni dans le depot).
+- Chaine verifiee : domaine (texte OU image, https <= 500, echeance future) -> schema Zod (operationId requis) -> repo transactionnel (4 annonces actives maximum, upsert idempotent) -> snapshot APK (`announcements[]`, actives non expirees, borne 4) -> hero mobile (image 2:1, repli texte, annonce sans texte masquee si l'image casse).
+
+Defaut trouve et corrige :
+
+- index.html : la CSP du renderer POS avait `img-src 'self' data: blob:` ; toute image https etait bloquee par Chromium. L'apercu de Parametres affichait « Image indisponible » et les vignettes ne s'affichaient jamais, alors que l'APK affiche bien l'image.
+- Correctif : `img-src 'self' data: blob: https:` (script-src et default-src restent `'self'`).
+- Preuve navigateur (Chromium) : avec l'ancienne CSP, console = « violates ... img-src 'self' data: blob: » ; avec la nouvelle, aucune violation.
+- Preuve negative : tests/unit/pos-csp.test.ts echoue sur l'ancienne CSP, passe sur la nouvelle.
+
+Portes executees :
+
+- node node_modules/vitest/vitest.mjs run tests/unit/pos-csp.test.ts tests/integration/announcement.test.ts tests/unit/client-access.test.ts tests/unit/mobile-views.test.ts -> 4 fichiers / 45 tests passes.
+- tsc -b -> 0 ; prettier --check (index.html + nouveau test) -> 0 ; eslint (nouveau test) -> 0.
+- node scripts/quality/verify-docs.mjs --write puis verify-docs -> 0 (METRICS regenere : 216 fichiers de test).
+
+Limites / reste :
+
+- Pas d'upload integre ni d'hebergement : la fiabilite depend de l'hebergeur choisi (Supabase Storage recommande). Un lien mort retombe sur le texte cote APK.
+- La verification visuelle de l'apercu repose sur une sonde Chromium hors suite ; aucun E2E Electron dedie.
+- Arbre de travail deja charge de travaux non committes (sessions 130-134) : seuls index.html, tests/unit/pos-csp.test.ts et docs/METRICS.md sont committes ici.
