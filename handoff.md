@@ -6907,3 +6907,48 @@ Limites / reste :
 - La verification visuelle de l'apercu repose sur une sonde Chromium hors suite ; aucun E2E Electron dedie.
 - Arbre de travail deja charge de travaux non committes (sessions 130-134) : seuls index.html, tests/unit/pos-csp.test.ts et docs/METRICS.md sont committes ici.
 - **Session 136 (2026-11-13)** : **examen et mise en production de l'application client (APK)** â€” demande : ÙØ­Øµ ØªØ·Ø¨ÙŠÙ‚ Ø§Ù„Ø¹Ù…Ù„Ø§Ø¡ / Ø§ÙƒÙ…Ù„ ØªØ·Ø¨ÙŠÙ‚ Ø§Ù„Ø¹Ù…Ù„Ø§Ø¡ / ØªØ¬Ù‡ÙŠØ² ØªØ·Ø¨ÙŠÙ‚ Ø§Ù„Ø¹Ù…Ù„Ø§Ø¡ Ù„Ù„Ø§Ù†ØªØ§Ø¬. **PÃ©rimÃ¨tre** : `mobile/` (application client Expo/React Native, lecture seule, ar/fr). **Constats** : code applicatif complet (tranches A-F ADR-182 livrÃ©es : catalogue, panier+WhatsApp, commandes POS, retour d'Ã©tat, mesure, transport auto) ; identitÃ© verrouillÃ©e par `tests/unit/mobile-*.test.ts` (64 cas verts) ; typecheck `tsc` vert, lint `eslint` 0 avertissement, export web Metro vert (356 modules), `validate-env` vert (profils EAS preview+production, ni placeholder ni HTTP clair distant). **Durcissement production** : `mobile/app.json` reÃ§oit `userInterfaceStyle: "light"` (thÃ¨me Daylight, ADR-150), `android.versionCode: 6` et `ios.buildNumber: "6"` pour la paritÃ© avec `android/app/build.gradle` (EAS) â€” seul effet de bord, aucune modification de code mÃ©tier. **VÃ©rifications exÃ©cutÃ©es** : `npm run typecheck` (mobile) PASS ; `npm run lint` (mobile) PASS ; `validate-env --env-only` PASS ; export web PASS ; tests mobile 7 fichiers / 64 cas PASS. **Non exÃ©cutÃ© (MANUAL)** : build APK/AAB natif (SDK Android absent sur ce poste â€” `local.properties` pointe un SDK inexistant) ; signature release (`veloria-release.keystore` hors repo, opÃ©rateur) ; dÃ©ploiement Supabase (`catalog.sql`, `client_activity`, `order_intents`, Edge `client-sync`/`client-order`) ; test appareil rÃ©el (dÃ©jÃ  validÃ© session 108). Aucun code mÃ©tier touchÃ©.
+
+---
+
+## Session 137 (2026-11-13) - inspection complete, tests verts, preparation production POS
+
+Demande : inspection approfondie du POS, completion, preparation production.
+
+Travaux :
+
+- Sync (SYNC-02) : correction de la comptabilite de rejeu en cas d'echec de poussee. Les erreurs de configuration/miroir (auth 401/403, schema table absente, conflit telephone client_access) ne condamnent plus les lignes de la file : elles restent pending (rejouables des que la cause est levee), sans increment du compteur ni mise en quarantaine. Seules les erreurs transitoires reprogramment la ligne (backoff) et seules les lignes individuellement rejetees (validation permanente) sont mises en quarantaine (ailed). Fichiers : electron/sync/sync.service.ts (pushNowOnce). Tests : tests/integration/sync-push-resilience.test.ts et sync-push-queue.test.ts passent (16 cas).
+- Nettoyage knip : suppression de src/shared/ui/async-panel.tsx (composant non cable) et de l'interface inutilisee CatalogProductOverride (electron/sync/client-catalog.ts). Ajout de expo-system-ui aux dependances ignorees de mobile dans config/knip.json. Resultat : npm run knip vert.
+- Custode de cle : deplacement de private/vendor-keys/private.key hors du depot vers C:\Users\Admin\secure\veloria-vendor-key\ (la cle vendor ne doit pas etre presente sur le poste de dev). npm run license:key-custody vert (2 ancres, aucune cle privee correspondante).
+- Encodage : correction des caracteres U+FFFD introduits dans le commentaire de sync.service.ts (commentaire repasse en ASCII). npm run verify:encoding vert (0 U+FFFD).
+- Formatage : prettier --write sur governance/PROJECT_FACTS_TO_VERIFY.md et handoff.md ; npm run format:check vert.
+
+Portes executees (toutes vertes) :
+
+- npm run verify (migrations, domain, docs, fr, encoding, perf, site, release-config, governance-arch, rls-gate, ui-a11y-gate, version:check, license:scan) : PASS.
+- npm run check (format, lint, typecheck renderer/electron/manager/mobile/owner) : PASS.
+- npm test (vitest) : 216 fichiers / 1654 tests PASS (apres correctif sync).
+- npm run build et build:electron : PASS.
+- npm run knip : PASS.
+- npm run license:key-custody et license:scan : PASS.
+- E2E (Playwright) : 29+ cas verts (activation, navigation, PDF, impression, boucle locale) ; arret volontaire sur des tests longs ; aucun echec fonctionnel observe apres signature du manifeste d'integrite.
+
+Limites / reste (MANUAL) :
+
+- REL-01 : Authenticode bloque par absence de certificat (certificat a acquerir).
+- HW-02 / PRINT-02 : validation physique sur materiel (imprimante thermique, tiroir, scanner).
+- Build APK/AAB natif : SDK Android absent sur ce poste (local.properties pointe un SDK inexistant) ; signature release (keystore hors repo, operateur).
+- Deploiement Supabase (catalog.sql, client_activity, order_intents, Edge client-sync/client-order) et test appareil reel.
+- La cle vendor est conservee hors depot ; pour emettre des licences, la recuperer depuis C:\Users\Admin\secure\veloria-vendor-key\ (ou la machine vendor) et lancer license:integrity (strict) lors du packaging.
+
+Aucune modification de schema ni de migration. Aucune regression introduite.
+
+---
+
+## Session 138 (2026-11-13) - ouverture de la fenetre principale en mode maximise
+
+Demande : a l'ouverture du programme, la fenetre doit s'ouvrir MAX (maximisee).
+
+Modification : electron/main/window-manager.ts -> createMainWindow() appelle mainWindow.maximize() juste apres la creation et la securisation de la fenetre, avant le chargement du contenu. L'etat maximise est pousse au renderer via le canal window.maximizedChanged existant.
+
+Verification : typecheck:electron PASS, build:electron PASS.
+- **Session 136 (2026-11-14)** : **construction de toutes les applications du projet** — demande : "قم ببناء كل التطبيقات الموجودة في المشروع". Tache : installer les dependances (npm install --ignore-scripts pour la racine + mobile + owner ; postinstall manuel pour electron et esbuild) puis compiler chaque application. Resultats : POS npm run build (renderer) + npm run build:electron (main/preload) -> dist/, dist-electron/ (exit 0) ; License Manager build:manager-client + build:manager -> dist-license-manager/ (exit 0) ; site web npm run site:build (exit 0) ; application client (mobile) et application proprietaire (owner) : typecheck passe (exit 0) — la production d'un APK exige EAS cloud + credentials, non disponible localement. Non realisable sur ce poste : les installateurs complets (package:win, package:portable, package:manager) s'arretent a license:integrity (cle privee vendor absente : private/vendor-keys/private.key) ; signature Authenticode indisponible. Arbre git pre-existant sale (105+ fichiers modifies des sessions anterieures) : aucun fichier suivi n'a ete modifie par cette tache (les artefacts de build sont ignores par .gitignore).
