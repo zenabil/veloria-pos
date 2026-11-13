@@ -30,8 +30,10 @@
         }
       ]
     ],
+    "userInterfaceStyle": "light",
     "android": {
       "package": "dz.veloria.client",
+      "versionCode": 6,
       "permissions": ["CAMERA"],
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO",
@@ -45,6 +47,7 @@
       }
     },
     "ios": {
+      "buildNumber": "6",
       "infoPlist": {
         "NSCameraUsageDescription": "Scannez le QR d'activation de votre magasin. امسح رمز التفعيل الخاص بمحلك."
       }
