@@ -11,6 +11,7 @@
 
 import { IPC_CHANNELS } from "./channels";
 import { enforceStaffGates } from "./staff-gates";
+import { checkSender } from "./sender-guard";
 import { getCurrentStaffUser } from "./handlers/staff-session";
 import { mustChangeCode } from "./handlers/staff.repo";
 
@@ -30,8 +31,21 @@ const MUST_CHANGE_ALLOWLIST: ReadonlySet<string> = new Set([
   IPC_CHANNELS["staff.logout"],
 ]);
 
-export function enforceRawChannelGates(channel: string, input: unknown): RawDenied | null {
+export function enforceRawChannelGates(
+  channel: string,
+  input: unknown,
+  event?: { sender: Electron.WebContents | null },
+): RawDenied | null {
   try {
+    // SEC-01 / ELEC-04 : PROVENANCE, avant toute porte de rôle. Les canaux
+    // bruts ne passent pas par `handle()` : sans cette vérification, un
+    // renderer compromis pouvait appeler les 38 canaux d'impression, de
+    // sauvegarde et d'OCR sans jamais passer par le point de contrôle
+    // central. La requête est refusée AVANT tout effet de bord.
+    if (event) {
+      const denied = checkSender(event);
+      if (denied) return denied;
+    }
     enforceStaffGates(channel, input);
     // Verrou de changement de code (même règle que handle.ts:100-102).
     const session = getCurrentStaffUser();

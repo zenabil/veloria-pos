@@ -93,10 +93,10 @@ export function labelOptsOf(l: ReturnType<typeof labelsOf>): {
 
 export function registerReportsLabelsIpc(getMainWindow: () => BrowserWindow | null): void {
   // Rapport générique (tableaux de bord validés, reconstruits côté main).
-  ipcMain.handle(IPC_CHANNELS["printing.previewReport"], (_e, raw: unknown) => {
+  ipcMain.handle(IPC_CHANNELS["printing.previewReport"], (event, raw: unknown) => {
     const denied = guardPrint("advanced-reports", ["reports"]);
     if (denied) return denied;
-    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.previewReport"], raw);
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.previewReport"], raw, event);
     if (staffDenied) return staffDenied;
     try {
       const d = toReportData(reportPayloadSchema.parse(raw));
@@ -108,10 +108,10 @@ export function registerReportsLabelsIpc(getMainWindow: () => BrowserWindow | nu
     }
   });
 
-  ipcMain.handle(IPC_CHANNELS["printing.printReport"], async (_e, raw: unknown) => {
+  ipcMain.handle(IPC_CHANNELS["printing.printReport"], async (event, raw: unknown) => {
     const denied = guardPrint("advanced-reports", ["reports"]);
     if (denied) return denied;
-    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.printReport"], raw);
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.printReport"], raw, event);
     if (staffDenied) return staffDenied;
     if (!getMainWindow()) return unavailable("Fenêtre d'impression indisponible.");
     try {
@@ -126,10 +126,10 @@ export function registerReportsLabelsIpc(getMainWindow: () => BrowserWindow | nu
     }
   });
 
-  ipcMain.handle(IPC_CHANNELS["printing.previewLabels"], (_e, raw: unknown) => {
+  ipcMain.handle(IPC_CHANNELS["printing.previewLabels"], (event, raw: unknown) => {
     const denied = guardPrint("barcode-scanner", ["products"]);
     if (denied) return denied;
-    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.previewLabels"], raw);
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.previewLabels"], raw, event);
     if (staffDenied) return staffDenied;
     try {
       const l = labelsOf(raw);
@@ -146,10 +146,10 @@ export function registerReportsLabelsIpc(getMainWindow: () => BrowserWindow | nu
     }
   });
 
-  ipcMain.handle(IPC_CHANNELS["printing.printLabels"], async (_e, raw: unknown) => {
+  ipcMain.handle(IPC_CHANNELS["printing.printLabels"], async (event, raw: unknown) => {
     const denied = guardPrint("barcode-scanner", ["products"]);
     if (denied) return denied;
-    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.printLabels"], raw);
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.printLabels"], raw, event);
     if (staffDenied) return staffDenied;
     if (!getMainWindow()) return unavailable("Fenêtre d'impression indisponible.");
     try {

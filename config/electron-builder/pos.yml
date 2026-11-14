@@ -47,6 +47,13 @@ extraResources:
   # Données linguistiques Tesseract (fra+eng) : hors asar (lecture directe).
   - from: resources/ocr/lang
     to: ocr/lang
+  # Trace de build (REL-04) : version + révision source + horodatage, écrits
+  # par `npm run release:stamp-build-info` AVANT electron-builder. Sans elle,
+  # un rapport de support n'est pas traçable et `release:verify` échoue.
+  # (electron-builder 26 n'expose PAS de `buildMetadata` pour Windows — cette
+  #  clé est macOS-only ; le fichier embarqué est donc le mécanisme unique.)
+  - from: scripts/release/build-info.json
+    to: build-info.json
 asar: true
 # better-sqlite3 13 est N-API (prebuilds/win32-x64.node) : aucune
 # recompilation Electron nécessaire, donc aucun Visual Studio Build Tools.
@@ -66,7 +73,7 @@ win:
       arch: [x64]
   icon: public/icons/icon.ico
   legalTrademarks: Veloria
-  verifyUpdateCodeSignature: false
+  verifyUpdateCodeSignature: true
   # REVERTI (ADR-070, 2026-10-06) : le contournement TEMP-BUILD est terminé —
   # `signAndEditExecutable` doit rester à true (interdit d'expédier à false) ;
   # les builds release exigent le privilège symlink (fail-closed sinon).

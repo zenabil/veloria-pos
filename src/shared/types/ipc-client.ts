@@ -179,6 +179,8 @@ export const api = {
   stockIntakes: (p: unknown) => call((a) => a.stock.intakes(p)),
   stockIntakeDetail: (p: unknown) => call((a) => a.stock.intakeDetail(p)),
   stockIntakeCancel: (p: unknown) => call((a) => a.stock.intakeCancel(p)),
+  /** STK-01 : diagnostic de réconciliation du stock (lecture seule). */
+  stockReconcile: () => call((a) => a.stock.reconcile()),
   supplierSearch: (p: unknown) => call((a) => a.suppliers.search(p)),
   supplierCreate: (p: unknown) => call((a) => a.suppliers.create(p)),
   supplierDelete: (p: unknown) => call((a) => a.suppliers.remove(p)),

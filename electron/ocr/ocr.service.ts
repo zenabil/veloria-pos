@@ -102,7 +102,7 @@ export function registerOcrIpc(getMainWindow: () => BrowserWindow | null): void 
     /* meilleur effort */
   }
 
-  ipcMain.handle(IPC_CHANNELS["ocr.selectFile"], async (_e, raw: unknown) => {
+  ipcMain.handle(IPC_CHANNELS["ocr.selectFile"], async (event, raw: unknown) => {
     try {
       // Sélection = usage de la fonction OCR (garde main, jamais le renderer).
       requireLicensedMutation(prodLicenseDeps(), "ocr");
@@ -112,7 +112,7 @@ export function registerOcrIpc(getMainWindow: () => BrowserWindow | null): void 
     try {
       const input = ocrSelectFileSchema.parse(raw ?? {});
       // R1 RADICAL : import facture = permission stock (comme stock.intake).
-      const staffDenied = enforceRawChannelGates(IPC_CHANNELS["ocr.selectFile"], input);
+      const staffDenied = enforceRawChannelGates(IPC_CHANNELS["ocr.selectFile"], input, event);
       if (staffDenied) return staffDenied;
       const picked = pickInvoiceFile();
       if (picked === null) return { ok: true, data: { cancelled: true as const } };
@@ -145,7 +145,7 @@ export function registerOcrIpc(getMainWindow: () => BrowserWindow | null): void 
     }
   });
 
-  ipcMain.handle(IPC_CHANNELS["ocr.analyze"], async (_e, raw: unknown) => {
+  ipcMain.handle(IPC_CHANNELS["ocr.analyze"], async (event, raw: unknown) => {
     try {
       // Fonction sous licence « ocr » (vérifiée côté main, jamais le renderer).
       requireLicensedMutation(prodLicenseDeps(), "ocr");
@@ -160,7 +160,7 @@ export function registerOcrIpc(getMainWindow: () => BrowserWindow | null): void 
       return failed(err, "Demande d'analyse invalide.");
     }
     // R1 RADICAL : analyse CPU/WASM = permission stock.
-    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["ocr.analyze"], input);
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["ocr.analyze"], input, event);
     if (staffDenied) return staffDenied;
     const job: OcrJob = { terminate: null, cancelled: false };
     // Single-flight par document : une seconde analyse concurrente du même
@@ -244,7 +244,7 @@ export function registerOcrIpc(getMainWindow: () => BrowserWindow | null): void 
     }
   });
 
-  ipcMain.handle(IPC_CHANNELS["ocr.cancel"], (_e, raw: unknown) => {
+  ipcMain.handle(IPC_CHANNELS["ocr.cancel"], (event, raw: unknown) => {
     // EL-23: cohérence FEATURE_GATED ocr — annulation/nettoyage exigent la
     // même capability que select/analyze (fileId opaque + Zod en plus).
     try {
@@ -256,7 +256,7 @@ export function registerOcrIpc(getMainWindow: () => BrowserWindow | null): void 
       const input = ocrCancelSchema.parse(raw ?? {});
       // R1 RADICAL : cycle de vie du job = même permission que l'analyse
       // (un sans-permission ne peut ni lancer ni saboter le job d'autrui).
-      const staffDenied = enforceRawChannelGates(IPC_CHANNELS["ocr.cancel"], input);
+      const staffDenied = enforceRawChannelGates(IPC_CHANNELS["ocr.cancel"], input, event);
       if (staffDenied) return staffDenied;
       const job = jobs.get(input.fileId);
       if (!job) return { ok: true, data: { cancelled: false } };
@@ -269,7 +269,7 @@ export function registerOcrIpc(getMainWindow: () => BrowserWindow | null): void 
     }
   });
 
-  ipcMain.handle(IPC_CHANNELS["ocr.dispose"], (_e, raw: unknown) => {
+  ipcMain.handle(IPC_CHANNELS["ocr.dispose"], (event, raw: unknown) => {
     try {
       requireLicensedMutation(prodLicenseDeps(), "ocr");
     } catch (err) {
@@ -277,7 +277,7 @@ export function registerOcrIpc(getMainWindow: () => BrowserWindow | null): void 
     }
     try {
       const input = ocrDisposeSchema.parse(raw ?? {});
-      const staffDenied = enforceRawChannelGates(IPC_CHANNELS["ocr.dispose"], input);
+      const staffDenied = enforceRawChannelGates(IPC_CHANNELS["ocr.dispose"], input, event);
       if (staffDenied) return staffDenied;
       const job = jobs.get(input.fileId);
       if (job) {

@@ -15,6 +15,16 @@ export const clientCatalogSettingsSaveSchema = z.object({
   enabled: z.boolean(),
   /** Catégories retirées du catalogue client (borné : un shop n'en a pas 500). */
   excludedCategoryIds: z.array(z.number().int().positive()).max(200).default([]),
+  /** Surcharge par produit (publication + disponibilité). */
+  productOverrides: z
+    .record(
+      z.string().regex(/^\d+$/),
+      z.object({
+        published: z.boolean().nullable().optional(),
+        available: z.boolean().nullable().optional(),
+      }),
+    )
+    .optional(),
 });
 
 /** Publication immédiate du catalogue vers le miroir. */

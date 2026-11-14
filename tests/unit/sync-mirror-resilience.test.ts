@@ -19,6 +19,7 @@ const row = (operationId: string, payloadJson: string): OutboxMirrorRow => ({
   kind: "customer_snapshot",
   payload_json: payloadJson,
   created_at: "2026-11-03T08:00:00.000Z",
+  attempts: 0,
 });
 
 describe("partitionOutboxRows (E-41)", () => {

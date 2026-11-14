@@ -2030,6 +2030,304 @@ console.log("OK  0026 credit-revocation policy (refused with debt, allowed when 
   console.log("OK  0059 sessions de caisse (poste unique ouvert, forme, bornes)");
 }
 
+// 0064: précision des quantités (DB-01 / STK-02) et provenance FIFO (STK-03).
+{
+  // --- 1. Les déclencheurs de précision existent et sont au nombre attendu.
+  const trg64 = db
+    .prepare(
+      "SELECT COUNT(*) AS c FROM sqlite_master WHERE type='trigger' AND name IN (" +
+        "'trg_products_quantity_precision_ins','trg_products_quantity_precision_upd'," +
+        "'trg_stock_movements_quantity_precision','trg_inventory_layers_precision'," +
+        "'trg_inventory_layers_precision_upd','trg_sale_fifo_consumption_precision'," +
+        "'trg_sale_fifo_consumption_cost_basis')",
+    )
+    .get();
+  if (trg64.c !== 7) {
+    console.error(`FAIL: 0064 déclencheurs de précision/provenance manquants (${trg64.c}/7)`);
+    process.exit(1);
+  }
+
+  // --- 2. Une quantité NON multiple du millième est REFUSÉE (fail-closed).
+  db.prepare(
+    "INSERT INTO categories (uuid, name, created_at, updated_at) VALUES ('c64','Garde64','2026-01-01','2026-01-01')",
+  ).run();
+  const cat64 = db.prepare("SELECT id FROM categories WHERE uuid = 'c64'").get().id;
+  let badQtyRefused = false;
+  let badQtyMsg = "";
+  try {
+    db.prepare(
+      "INSERT INTO products (uuid, name, category_id, quantity, created_at, updated_at) VALUES ('p64bad','Produit 64',?,0.0001,'2026-01-01','2026-01-01')",
+    ).run(cat64);
+  } catch (e) {
+    badQtyRefused = true;
+    badQtyMsg = String(e.message);
+  }
+  if (!badQtyRefused || !/Quantit/.test(badQtyMsg)) {
+    console.error(`FAIL: 0064 quantité non-millième acceptée ou message non FR (${badQtyMsg})`);
+    process.exit(1);
+  }
+
+  // --- 3. Une quantité multiple du millième est ACCEPTÉE (pas de faux positif).
+  let goodQtyAccepted = true;
+  try {
+    db.prepare(
+      "INSERT INTO products (uuid, name, category_id, quantity, created_at, updated_at) VALUES ('p64ok','Produit 64',?,1.5,'2026-01-01','2026-01-01')",
+    ).run(cat64);
+  } catch {
+    goodQtyAccepted = false;
+  }
+  if (!goodQtyAccepted) {
+    console.error("FAIL: 0064 quantité millième LÉGITIME refusée (faux positif)");
+    process.exit(1);
+  }
+
+  // --- 4. L'invariant de COUCHE : le reste ne peut pas dépasser l'origine.
+  db.prepare(
+    "INSERT INTO inventory_layers (uuid, product_id, original_quantity, remaining_quantity, unit_cost_minor, reason, created_at) " +
+      "VALUES ('l64',(SELECT id FROM products WHERE uuid='p64ok'),10,10,100,'adjust','2026-01-01')",
+  ).run();
+  let layerOverflowRefused = false;
+  try {
+    db.prepare("UPDATE inventory_layers SET remaining_quantity = 11 WHERE uuid = 'l64'").run();
+  } catch {
+    layerOverflowRefused = true;
+  }
+  if (!layerOverflowRefused) {
+    console.error("FAIL: 0064 reste de couche > origine ACCEPTÉ");
+    process.exit(1);
+  }
+
+  // --- 5. La provenance du coût FIFO est OBLIGATOIRE et l'historique est marqué.
+  const cols64 = db.prepare("PRAGMA table_info(sale_fifo_consumption)").all();
+  if (!cols64.some((c) => c.name === "cost_basis")) {
+    console.error("FAIL: 0064 colonne sale_fifo_consumption.cost_basis absente");
+    process.exit(1);
+  }
+  // Vente + ligne de vente valides (FK sale_id / sale_item_id).
+  db.prepare(
+    "INSERT INTO sales (uuid, invoice_number, subtotal_minor, total_minor, amount_paid_minor, remaining_balance_minor, payment_status, created_at, updated_at) " +
+      "VALUES ('s64','FAC-64-TEST',0,0,0,0,'paid','2026-01-01','2026-01-01')",
+  ).run();
+  const sale64 = db.prepare("SELECT id FROM sales WHERE uuid='s64'").get().id;
+  db.prepare(
+    "INSERT INTO sale_items (sale_id, product_id, product_name_snapshot, unit_code, original_unit_price_minor, unit_price_minor, quantity, line_total_minor) " +
+      "VALUES (?,(SELECT id FROM products WHERE uuid='p64ok'),'Produit 64','PIECE',0,0,1,0)",
+  ).run(sale64);
+  const item64 = db.prepare("SELECT id FROM sale_items WHERE sale_id = ?").get(sale64).id;
+
+  let basisRefused = false;
+  try {
+    db.prepare(
+      "INSERT INTO sale_fifo_consumption (sale_id, sale_item_id, product_id, layer_id, quantity, unit_cost_minor, created_at) " +
+        "VALUES (?,?,(SELECT id FROM products WHERE uuid='p64ok'),NULL,1,100,'2026-01-01')",
+    ).run(sale64, item64);
+  } catch {
+    basisRefused = true;
+  }
+  if (!basisRefused) {
+    console.error("FAIL: 0064 consommation FIFO SANS cost_basis ACCEPTÉE");
+    process.exit(1);
+  }
+  // Une consommation de couche réelle porte 'layer'.
+  db.prepare(
+    "INSERT INTO sale_fifo_consumption (sale_id, sale_item_id, product_id, layer_id, quantity, unit_cost_minor, cost_basis, created_at) " +
+      "VALUES (?,?,(SELECT id FROM products WHERE uuid='p64ok'),(SELECT id FROM inventory_layers WHERE uuid='l64'),1,100,'layer','2026-01-01')",
+  ).run(sale64, item64);
+  const basisRow = db
+    .prepare("SELECT cost_basis FROM sale_fifo_consumption WHERE layer_id IS NOT NULL")
+    .get();
+  if (!basisRow || basisRow.cost_basis !== "layer") {
+    console.error("FAIL: 0064 cost_basis non renseigné pour une consommation de couche");
+    process.exit(1);
+  }
+  // La vue de diagnostic des approximations existe.
+  const v64 = db
+    .prepare(
+      "SELECT COUNT(*) AS c FROM sqlite_master WHERE type='view' AND name='v_sale_fifo_approximations'",
+    )
+    .get();
+  if (v64.c !== 1) {
+    console.error("FAIL: 0064 vue v_sale_fifo_approximations absente");
+    process.exit(1);
+  }
+  console.log(
+    "OK  0064 précision des quantités + provenance FIFO (triggers, invariant de couche, cost_basis)",
+  );
+}
+
+// 0065 : invariant monétaire de LIGNE (MONEY-04 / DB-03) — le montant facturé
+// d'une ligne doit correspondre à son prix unitaire × sa quantité.
+{
+  // --- 1. Les gardes et la vue de diagnostic existent.
+  const trg65 = db
+    .prepare(
+      "SELECT COUNT(*) AS c FROM sqlite_master WHERE type='trigger' AND name IN ('trg_sale_items_line_total_ins','trg_sale_items_line_total_upd')",
+    )
+    .get();
+  if (trg65.c !== 2) {
+    console.error(`FAIL: 0064/0065 gardes de ligne manquants (${trg65.c}/2)`);
+    process.exit(1);
+  }
+  const view65 = db
+    .prepare(
+      "SELECT COUNT(*) AS c FROM sqlite_master WHERE type='view' AND name='v_sale_items_line_total_drift'",
+    )
+    .get();
+  if (view65.c !== 1) {
+    console.error("FAIL: 0065 vue v_sale_items_line_total_drift absente");
+    process.exit(1);
+  }
+
+  // --- 2. Vente + ligne de référence (prix 5 000, quantité 1).
+  db.prepare(
+    "INSERT INTO sales (uuid, invoice_number, subtotal_minor, total_minor, amount_paid_minor, remaining_balance_minor, payment_status, created_at, updated_at) " +
+      "VALUES ('s65','FAC-65-TEST',5000,5000,5000,0,'paid','2026-01-01','2026-01-01')",
+  ).run();
+  const sale65 = db.prepare("SELECT id FROM sales WHERE uuid='s65'").get().id;
+
+  // --- 3. Un total INCOHÉRENT est REFUSÉ (message FR, fail-closed).
+  let driftRefused = false;
+  let driftMsg = "";
+  try {
+    db.prepare(
+      "INSERT INTO sale_items (sale_id, product_name_snapshot, unit_code, original_unit_price_minor, unit_price_minor, quantity, line_total_minor) " +
+        "VALUES (?, 'Ligne 65', 'PIECE', 5000, 5000, 1, 9000)",
+    ).run(sale65);
+  } catch (e) {
+    driftRefused = true;
+    driftMsg = String(e.message);
+  }
+  if (!driftRefused || !/incohérent/i.test(driftMsg)) {
+    console.error(`FAIL: 0065 montant de ligne incohérent ACCEPTÉ (${driftMsg})`);
+    process.exit(1);
+  }
+
+  // --- 4. Une ligne COHÉRENTE est ACCEPTÉE (pas de faux positif).
+  let coherentAccepted = true;
+  try {
+    db.prepare(
+      "INSERT INTO sale_items (sale_id, product_name_snapshot, unit_code, original_unit_price_minor, unit_price_minor, quantity, line_total_minor) " +
+        "VALUES (?, 'Ligne 65', 'PIECE', 5000, 5000, 1, 5000)",
+    ).run(sale65);
+  } catch {
+    coherentAccepted = false;
+  }
+  if (!coherentAccepted) {
+    console.error("FAIL: 0065 ligne cohérente REFUSÉE (faux positif)");
+    process.exit(1);
+  }
+
+  // --- 5. La TOLÉRANCE est celle de l'application : ceil(prix × 0,0005) + 1
+  //        centimes ⇒ 4 centimes pour un prix de 5 000 (2,5 → 3 → +1).
+  //        5 004 est accepté, 5 005 est refusé.
+  let tolOkAccepted = true;
+  try {
+    db.prepare(
+      "INSERT INTO sale_items (sale_id, product_name_snapshot, unit_code, original_unit_price_minor, unit_price_minor, quantity, line_total_minor) " +
+        "VALUES (?, 'Ligne 65 tol', 'PIECE', 5000, 5000, 1, 5004)",
+    ).run(sale65);
+  } catch {
+    tolOkAccepted = false;
+  }
+  if (!tolOkAccepted) {
+    console.error("FAIL: 0065 écart DANS la tolérance refusé (faux positif)");
+    process.exit(1);
+  }
+  let tolKoRefused = false;
+  try {
+    db.prepare(
+      "INSERT INTO sale_items (sale_id, product_name_snapshot, unit_code, original_unit_price_minor, unit_price_minor, quantity, line_total_minor) " +
+        "VALUES (?, 'Ligne 65 tol+', 'PIECE', 5000, 5000, 1, 5005)",
+    ).run(sale65);
+  } catch {
+    tolKoRefused = true;
+  }
+  if (!tolKoRefused) {
+    console.error("FAIL: 0065 écart HORS tolérance accepté");
+    process.exit(1);
+  }
+
+  // --- 6. La mise à jour d'une ligne cohérente vers une ligne incohérente
+  //        est refusée aussi (le garde couvre INSERT et UPDATE).
+  const item65 = db
+    .prepare("SELECT id FROM sale_items WHERE sale_id = ? AND line_total_minor = 5000")
+    .get(sale65).id;
+  let updRefused = false;
+  try {
+    db.prepare("UPDATE sale_items SET line_total_minor = 9999 WHERE id = ?").run(item65);
+  } catch {
+    updRefused = true;
+  }
+  if (!updRefused) {
+    console.error("FAIL: 0065 UPDATE vers un montant incohérent accepté");
+    process.exit(1);
+  }
+
+  // --- 7. La vue de diagnostic est VIDE sur une base saine.
+  const drift65 = db.prepare("SELECT COUNT(*) AS c FROM v_sale_items_line_total_drift").get();
+  if (Number(drift65.c) !== 0) {
+    console.error(`FAIL: 0065 vue de dérive non vide sur une base saine (${drift65.c})`);
+    process.exit(1);
+  }
+
+  console.log(
+    "OK  0065 invariant monétaire de ligne (gardes INSERT/UPDATE, tolérance exacte, vue de dérive)",
+  );
+}
+
+// 0066 : compteur de tentative, backoff et quarantaine de la file miroir.
+{
+  const cols66 = db
+    .prepare("PRAGMA table_info(sync_outbox)")
+    .all()
+    .map((c) => c.name);
+  for (const col of ["attempts", "last_error", "next_attempt_at", "quarantined_at"]) {
+    if (!cols66.includes(col)) {
+      console.error(`FAIL: 0066 sync_outbox.${col} missing`);
+      process.exit(1);
+    }
+  }
+  const trg66 = db
+    .prepare(
+      "SELECT COUNT(*) AS c FROM sqlite_master WHERE type='trigger' AND name IN (" +
+        "'trg_sync_outbox_attempts_nonneg_ins','trg_sync_outbox_attempts_nonneg_upd'," +
+        "'trg_sync_outbox_quarantine_not_pending_ins','trg_sync_outbox_quarantine_not_pending_upd'," +
+        "'trg_sync_outbox_next_attempt_iso_ins','trg_sync_outbox_next_attempt_iso_upd')",
+    )
+    .get();
+  if (trg66.c !== 6) {
+    console.error(`FAIL: 0066 triggers manquants (${trg66.c}/6)`);
+    process.exit(1);
+  }
+  // Quarantaine refuse de rester pending.
+  let quarantinedPendingRefused = false;
+  try {
+    db.prepare(
+      "INSERT INTO sync_outbox (operation_id, kind, payload_json, status, created_at, quarantined_at) VALUES ('q66','customer_snapshot','{}','pending','2026-01-01','2026-01-01T00:00:00.000Z')",
+    ).run();
+  } catch {
+    quarantinedPendingRefused = true;
+  }
+  if (!quarantinedPendingRefused) {
+    console.error("FAIL: 0066 ligne quarantaine en pending acceptee");
+    process.exit(1);
+  }
+  // Compteur negatif refuse.
+  let negAttemptsRefused = false;
+  try {
+    db.prepare(
+      "INSERT INTO sync_outbox (operation_id, kind, payload_json, status, created_at, attempts) VALUES ('n66','customer_snapshot','{}','pending','2026-01-01',-1)",
+    ).run();
+  } catch {
+    negAttemptsRefused = true;
+  }
+  if (!negAttemptsRefused) {
+    console.error("FAIL: 0066 compteur de tentative negatif accepte");
+    process.exit(1);
+  }
+  console.log("OK  0066 compteur/backoff/quarantaine de la file miroir (6 triggers)");
+}
+
 // Integrity
 const ic = db.prepare("PRAGMA integrity_check").get();
 const fk = db.prepare("PRAGMA foreign_key_check").all();

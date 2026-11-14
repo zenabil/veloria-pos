@@ -53,6 +53,19 @@ export interface SignedLicense {
   payload: LicensePayload;
   /** base64url(Ed25519 signature) */
   signature: string;
+  /**
+   * Identifiant de la clé de vérification (LIC-04).
+   *
+   * ABSENT sur les licences v1 (émises avant l'introduction du jeu de
+   * clés) : la vérification retombe alors sur la clé active. Cette
+   * backward-compatibilité est VOLONTAIRE — une licence v1 déjà émise doit
+   * rester vérifiable.
+   *
+   * L'identifiant ne sert PAS à choisir « la clé qui convient » : il
+   * DÉSIGNE la clé. Une licence dont le `kid` est inconnu est REFUSÉE
+   * (fail-closed), jamais essayée contre les autres clés du jeu.
+   */
+  kid?: string;
 }
 
 export type LicenseState =
@@ -154,8 +167,24 @@ export function decodeVlic(raw: string): SignedLicense {
   const p = (parsed ?? {}) as Record<string, unknown>;
   const payload = p["payload"] as Record<string, unknown> | undefined;
   if (!payload || typeof p["signature"] !== "string") throw new Error("CORRUPTED_STATE");
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- l'intermédiaire `unknown` est requis : l'assertion directe Record→LicensePayload est refusée par TS, et le payload vient d'un JSON adverse non typé.
-  return { payload: payload as unknown as LicensePayload, signature: p["signature"] as string };
+  // `kid` OPTIONNEL (licences v1) mais s'il est présent il doit être une
+  // chaîne non vide : un `kid` d'un autre type est un envoi malformé
+  // (CORRUPTED_STATE), pas une licence sans identifiant.
+  const rawKid = p["kid"];
+  if (rawKid !== undefined && rawKid !== null) {
+    if (typeof rawKid !== "string" || rawKid.length === 0 || rawKid.length > 64) {
+      throw new Error("CORRUPTED_STATE");
+    }
+  }
+  // L'intermédiaire `unknown` est requis : le payload vient d'un JSON ADVERSE
+  // non typé (une licence peut être forgée) — la validation structurelle
+  // (`assertPayloadShape`) est le vrai garde, pas le typage.
+  const typedPayload = payload as unknown as LicensePayload;
+  return {
+    payload: typedPayload,
+    signature: p["signature"],
+    ...(typeof rawKid === "string" ? { kid: rawKid } : {}),
+  };
 }
 
 /** Contrôles structurels du payload (avant toute crypto). */
@@ -280,6 +309,14 @@ export interface VerificationInput {
   expectedProductId: string;
   actualHardwareFingerprint: string;
   nowMs: number;
+  /**
+   * Clé de vérification RÉSOLUE (LIC-04). Quand elle est fournie, c'est
+   * ELLE qui vérifie la signature — jamais `publicKeyPem` : c'est
+   * l'appelant (le service) qui choisit la bonne clé du jeu, selon le
+   * `kid` de l'enveloppe. Quand elle est absente, on retombe sur
+   * `publicKeyPem` (comportement historique, licences v1 et tests).
+   */
+  verificationKeyPem?: string | null;
 }
 
 /**
@@ -290,6 +327,7 @@ export interface VerificationInput {
  */
 export function verifyLicenseChain(input: VerificationInput): LicenseState {
   const { signed, publicKeyPem, expectedProductId, actualHardwareFingerprint, nowMs } = input;
+  const keyPem = input.verificationKeyPem ?? publicKeyPem;
   try {
     assertPayloadShape(signed.payload);
   } catch (err) {
@@ -298,7 +336,7 @@ export function verifyLicenseChain(input: VerificationInput): LicenseState {
       : "CORRUPTED_STATE";
   }
   try {
-    verifyPayloadSignature(signed.payload, signed.signature, publicKeyPem);
+    verifyPayloadSignature(signed.payload, signed.signature, keyPem);
   } catch (err) {
     return err instanceof Error && err.message === "LICENSE_KEY_UNAVAILABLE"
       ? "CORRUPTED_STATE"

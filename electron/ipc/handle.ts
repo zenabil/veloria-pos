@@ -20,6 +20,7 @@ import {
 import { ok, toUserMessage } from "./ipc-errors";
 import { enforceCreditGates } from "./credit-gates";
 import { enforceStaffGates } from "./staff-gates";
+import { checkSender } from "./sender-guard";
 import { getCurrentStaffUser, touchStaffSession } from "./handlers/staff-session";
 import { mustChangeCode } from "./handlers/staff.repo";
 import { IPC_CHANNELS } from "./channels";
@@ -41,7 +42,7 @@ export function handle<TInput>(
   schema: { parse(v: unknown): TInput } | null,
   fn: (input: TInput) => unknown,
 ): void {
-  ipcMain.handle(channel, async (_event, raw: unknown) => {
+  ipcMain.handle(channel, async (event, raw: unknown) => {
     // M-2 CLARITY: this is a LOG-CORRELATION id per IPC request, never a
     // business operationId — business idempotency always uses the
     // caller-owned `input.operationId` (see handlers). Named distinctly so no
@@ -49,6 +50,15 @@ export function handle<TInput>(
     const requestId = randomUUID();
     const started = Date.now();
     try {
+      // SEC-01 / ELEC-04 — PROVENANCE de la requête. L'événement n'est plus
+      // jeté : le sender DOIT être une fenêtre enregistrée de l'application.
+      // Une requête provenant d'une autre origine est refusée AVANT tout
+      // effet de bord (aucune écriture, aucun handler exécuté) — le wrapper
+      // expose 201 canaux à tout renderer, donc cette vérification est la
+      // frontière qui distingue « l'application » de « un script qui s'y est
+      //.glissé ».
+      const senderDenied = checkSender(event);
+      if (senderDenied) return senderDenied;
       const deps = prodLicenseDeps();
       // Garde licence (main uniquement) : les canaux protégés exigent une
       // licence active. Dev non packagé : journalisé, non bloquant.

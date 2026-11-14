@@ -143,7 +143,7 @@ function sell(
         "UPDATE inventory_layers SET remaining_quantity = remaining_quantity - ? WHERE id = ?",
       ).run(take, l.id);
       db.prepare(
-        "INSERT INTO sale_fifo_consumption (sale_id, sale_item_id, product_id, layer_id, quantity, unit_cost_minor, created_at) VALUES (?, ?, ?, ?, ?, ?, '2026-09-03')",
+        "INSERT INTO sale_fifo_consumption (sale_id, sale_item_id, product_id, layer_id, quantity, unit_cost_minor, cost_basis, created_at) VALUES (?, ?, ?, ?, ?, ?, 'layer', '2026-09-03')",
       ).run(saleId, itemId, pid, l.id, take, l.c);
       cogs += Math.round(Number(l.c) * take);
       need = Math.round((need - take) * 1000) / 1000;
@@ -151,7 +151,7 @@ function sell(
     if (need > 0) {
       if (!oversell) throw new Error("Stock FIFO insuffisant.");
       db.prepare(
-        "INSERT INTO sale_fifo_consumption (sale_id, sale_item_id, product_id, layer_id, quantity, unit_cost_minor, created_at) VALUES (?, ?, ?, NULL, ?, ?, '2026-09-03')",
+        "INSERT INTO sale_fifo_consumption (sale_id, sale_item_id, product_id, layer_id, quantity, unit_cost_minor, cost_basis, created_at) VALUES (?, ?, ?, NULL, ?, ?, 'fallback-purchase-price', '2026-09-03')",
       ).run(saleId, itemId, pid, need, fallback);
       cogs += Math.round(fallback * need);
     }

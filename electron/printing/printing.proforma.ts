@@ -13,10 +13,14 @@ import { buildProformaA4Html } from "./receipt-documents";
 
 export function registerProformaIpc(getMainWindow: () => BrowserWindow | null): void {
   // Aperçu devis A4 (seul format autorisé) avant impression.
-  ipcMain.handle(IPC_CHANNELS["printing.previewProforma"], (_e, raw: unknown) => {
+  ipcMain.handle(IPC_CHANNELS["printing.previewProforma"], (event, raw: unknown) => {
     const denied = guardPrint("proformas", ["proformas"]);
     if (denied) return denied;
-    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.previewProforma"], raw);
+    const staffDenied = enforceRawChannelGates(
+      IPC_CHANNELS["printing.previewProforma"],
+      raw,
+      event,
+    );
     if (staffDenied) return staffDenied;
     try {
       const d = proformaWithSettings(raw);
@@ -31,10 +35,14 @@ export function registerProformaIpc(getMainWindow: () => BrowserWindow | null): 
     }
   });
 
-  ipcMain.handle(IPC_CHANNELS["printing.printProformaA4"], async (_e, raw: unknown) => {
+  ipcMain.handle(IPC_CHANNELS["printing.printProformaA4"], async (event, raw: unknown) => {
     const denied = guardPrint("invoice-a4", ["proformas"]);
     if (denied) return denied;
-    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.printProformaA4"], raw);
+    const staffDenied = enforceRawChannelGates(
+      IPC_CHANNELS["printing.printProformaA4"],
+      raw,
+      event,
+    );
     if (staffDenied) return staffDenied;
     if (!getMainWindow()) return unavailable("Fenêtre d'impression indisponible.");
     try {

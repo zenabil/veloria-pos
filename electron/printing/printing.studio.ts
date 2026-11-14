@@ -28,11 +28,11 @@ function labelFormatOf(paper: string): LabelFormat {
 }
 
 export function registerStudioIpc(getMainWindow: () => BrowserWindow | null): void {
-  ipcMain.handle(IPC_CHANNELS["templates.preview"], (_e, raw: unknown) => {
+  ipcMain.handle(IPC_CHANNELS["templates.preview"], (event, raw: unknown) => {
     try {
       const input = templatePreviewSchema.parse(raw ?? {});
       // R1 RADICAL : studio = permission settings (comme templates.save).
-      const staffDenied = enforceRawChannelGates(IPC_CHANNELS["templates.preview"], input);
+      const staffDenied = enforceRawChannelGates(IPC_CHANNELS["templates.preview"], input, event);
       if (staffDenied) return staffDenied;
       const settings = mergeTemplateMirror(input.docType, input.settings);
       const html = renderTemplateSample(input.docType, settings);
@@ -46,10 +46,10 @@ export function registerStudioIpc(getMainWindow: () => BrowserWindow | null): vo
     }
   });
 
-  ipcMain.handle(IPC_CHANNELS["templates.testPrint"], async (_e, raw: unknown) => {
+  ipcMain.handle(IPC_CHANNELS["templates.testPrint"], async (event, raw: unknown) => {
     const denied = guardPrint("receipt-80mm", ["sales"]);
     if (denied) return denied;
-    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["templates.testPrint"], raw);
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["templates.testPrint"], raw, event);
     if (staffDenied) return staffDenied;
     if (!getMainWindow()) return unavailable("Fenêtre d'impression indisponible.");
     try {

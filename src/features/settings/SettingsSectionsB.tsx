@@ -1058,6 +1058,8 @@ export function DatabaseSection({ notify }: { notify: Notify }): React.JSX.Eleme
   } | null>(null);
   const [sqliteVersion, setSqliteVersion] = useState<string | null>(null);
   const [size, setSize] = useState<number | null>(null);
+  const [supportBundle, setSupportBundle] = useState<string | null>(null);
+  const [bundleOpen, setBundleOpen] = useState(false);
   const { busy, run } = useBusyFlag();
   const confirmAsync = useConfirm();
 
@@ -1069,13 +1071,19 @@ export function DatabaseSection({ notify }: { notify: Notify }): React.JSX.Eleme
     api
       .appDiagnostics()
       .then((d) => {
-        const diag = d as { dbSize: number; schemaVersion: number; integrity: string };
+        const diag = d as {
+          dbSize: number;
+          schemaVersion: number;
+          integrity: string;
+          supportBundle?: unknown;
+        };
         setSize(diag.dbSize);
         setHealth({
           integrity: diag.integrity,
           foreignKeyViolations: [],
           schemaVersion: diag.schemaVersion,
         });
+        if (typeof diag.supportBundle === "string") setSupportBundle(diag.supportBundle);
       })
       .catch(() => undefined);
     api
@@ -1206,6 +1214,26 @@ export function DatabaseSection({ notify }: { notify: Notify }): React.JSX.Eleme
           Optimiser = VACUUM + ANALYZE (compacte, ne supprime rien). Déplacer = copie vérifiée puis
           bascule.
         </p>
+      </SettingsGroup>
+
+      <SettingsGroup title="Support" hint="Diagnostic sanitisé">
+        <p className="text-xs text-slate-500">
+          Aperçu du bundle de support : version, santé de la base, schéma, fin de journal rédacté.
+          Aucune donnée métier ni secret n'y figure. Le gérant le copie puis le transmet au support.
+        </p>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => setBundleOpen((v) => !v)}
+          disabled={!supportBundle}
+        >
+          {bundleOpen ? "Masquer l'aperçu" : "Aperçu du bundle"}
+        </Button>
+        {bundleOpen && supportBundle ? (
+          <pre className="mt-3 max-h-64 overflow-auto rounded-lg border border-white/10 bg-black/40 p-3 text-[11px] text-slate-300">
+            {supportBundle}
+          </pre>
+        ) : null}
       </SettingsGroup>
 
       <SettingsGroup title="Zone dangereuse" hint="Action irréversible">

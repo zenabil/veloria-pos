@@ -123,6 +123,8 @@ const api = {
     intakes: (p: unknown) => invoke(IPC_CHANNELS["stock.intakes"], p),
     intakeDetail: (p: unknown) => invoke(IPC_CHANNELS["stock.intakeDetail"], p),
     intakeCancel: (p: unknown) => invoke(IPC_CHANNELS["stock.intakeCancel"], p),
+    // STK-01 : diagnostic de réconciliation du stock (lecture seule).
+    reconcile: () => invoke(IPC_CHANNELS["stock.reconcile"]),
   },
   suppliers: {
     search: (p: unknown) => invoke(IPC_CHANNELS["suppliers.search"], p),

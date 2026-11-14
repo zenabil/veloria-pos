@@ -18,9 +18,9 @@ import { execFileSync } from "node:child_process";
 const GATE = path.resolve(__dirname, "../../scripts/quality/verify-docs.mjs");
 
 /** Exécute la porte dans `cwd` et renvoie { code, out }. */
-function runGate(cwd: string): { code: number; out: string } {
+function runGate(cwd: string, args: string[] = []): { code: number; out: string } {
   try {
-    const out = execFileSync(process.execPath, [GATE], {
+    const out = execFileSync(process.execPath, [GATE, ...args], {
       cwd,
       encoding: "utf-8",
       stdio: ["ignore", "pipe", "pipe"],
@@ -30,6 +30,73 @@ function runGate(cwd: string): { code: number; out: string } {
     const e = err as { status?: number; stdout?: string; stderr?: string };
     return { code: e.status ?? 1, out: `${e.stdout ?? ""}${e.stderr ?? ""}` };
   }
+}
+
+/**
+ * Bloc de volumétrie d'un arbre de test minimal (une migration, un ADR, deux
+ * canaux dont un servi, deux modules de coquille, deux pages + une feature de
+ * licence, deux fichiers de test, une spec E2E, zéro dossier de domaine).
+ */
+const METRICS_BLOCK = [
+  "<!-- GENERATED:verify-docs:START -->",
+  "",
+  "| Indicateur | Valeur |",
+  "| --- | --- |",
+  "| Migrations SQL (numérotées, immuables) | 1 (0001..0001) |",
+  "| Tables réelles (hors `*_new` temporaires) | 1 |",
+  "| ADRs (décisions) | 1 (jusqu'à ADR-001) |",
+  "| Canaux IPC déclarés | 2 |",
+  "| Canaux IPC servis (snapshot gelé) | 1 |",
+  "| Fichiers de test (unit + integration + database) | 2 |",
+  "| Specs E2E (Playwright) | 1 |",
+  "| Modules de la coquille POS | 2 |",
+  "| Pages de licence | 2 |",
+  "| Features de licence | 1 |",
+  "| Dossiers du domaine (`src/domain`) | 0 |",
+  "",
+  "<!-- GENERATED:verify-docs:END -->",
+].join("\n");
+
+/** Installe une compétence CONFORME au standard Agent Skills dans l'arbre. */
+function writeSkill(root: string, id: string): void {
+  const skill = path.join(root, ".opencode/skills", id, "SKILL.md");
+  fs.mkdirSync(path.dirname(skill), { recursive: true });
+  fs.writeFileSync(
+    skill,
+    `---\nname: ${id}\ndescription: "Compétence de test pour la porte de routage."\n---\n\n` +
+      `# ${id}\n\n` +
+      "Ligne 1\nLigne 2\nLigne 3\nLigne 4\nLigne 5\nLigne 6\nLigne 7\nLigne 8\n" +
+      "Ligne 9\nLigne 10\nLigne 11\nLigne 12\nLigne 13\nLigne 14\nLigne 15\nLigne 16\n",
+    "utf-8",
+  );
+}
+
+/** Écrit un `AGENTS.md` porteur d'une table de routage (déclencheurs factices). */
+function writeAgents(root: string, routedIds: string[]): void {
+  const rows = routedIds.map((id) => `| \`${id}\` | déclencheur de test |`).join("\n");
+  fs.writeFileSync(
+    path.join(root, "AGENTS.md"),
+    "# AGENTS.md de test\n\n" +
+      "<!-- SKILL-ROUTING:START -->\n\n" +
+      "| Compétence | Déclencheur |\n| --- | --- |\n" +
+      `${rows}\n\n` +
+      "<!-- SKILL-ROUTING:END -->\n",
+    "utf-8",
+  );
+}
+
+/**
+ * Arbre de test du routage : volumétrie générée par la porte elle-même
+ * (`--write`, donc jamais dérivée à la main), une compétence installée et un
+ * `AGENTS.md` porteur — ou non — de la table de routage.
+ */
+function buildRoutingTree(root: string, skillId: string, routedIds: string[] | null): void {
+  buildTree(root, METRICS_BLOCK);
+  // La porte régénère la volumétrie : l'arbre est alors vert SAUF pour le
+  // routage — le test rouge porte donc sur le routage, rien d'autre.
+  runGate(root, ["--write"]);
+  writeSkill(root, skillId);
+  if (routedIds !== null) writeAgents(root, routedIds);
 }
 
 /**
@@ -238,5 +305,54 @@ describe("porte verify:docs (ADR-178)", () => {
     const res = runGate(dir);
     expect(res.code).toBe(1);
     expect(res.out).toContain("littéral périmé");
+  });
+
+  /* -------------------------------------------------------------------
+   * ROUTAGE (3.7) — « l'agent choisit la compétence adaptée à la tâche ».
+   *
+   * Ces tests vérifient que le routage est contrôlé dans les DEUX sens :
+   *   - une compétence INSTALLÉE doit être ROUTABLE (sinon l'agent ne la
+   *     chargera jamais) ;
+   *   - une compétence ROUTÉE doit être INSTALLÉE (sinon l'agent vise le
+   *     vide) ;
+   *   - la table de routage doit EXISTER.
+   * Et — surtout — que la garde n'est PAS vacante : dès que la compétence
+   * est routée, l'erreur disparaît et l'arbre redevient vert.
+   * ----------------------------------------------------------------- */
+  it("rougit quand une compétence installée n'est pas routable", () => {
+    const dir = path.join(root, "unroutable-skill");
+    // Installée : `veloria-money`. Routée : seulement `veloria-gates`.
+    buildRoutingTree(dir, "veloria-money", ["`veloria-gates`"]);
+    const res = runGate(dir);
+    expect(res.code).toBe(1);
+    expect(res.out).toContain("absente de la table de routage");
+    expect(res.out).toContain("veloria-money");
+  });
+
+  it("redevient vert dès que la compétence installée est routée (garde non vacante)", () => {
+    const dir = path.join(root, "routable-skill");
+    buildRoutingTree(dir, "veloria-money", ["`veloria-money`"]);
+    const res = runGate(dir);
+    expect(res.out).not.toContain("absente de la table de routage");
+    expect(res.code, res.out).toBe(0);
+    expect(res.out).toContain("DOCS VERIFIED");
+  });
+
+  it("rougit quand la table de routage cite une compétence inexistante", () => {
+    const dir = path.join(root, "ghost-skill");
+    // Faute de frappe : la compétence routée n'existe pas sur le disque.
+    buildRoutingTree(dir, "veloria-money", ["`veloria-money`", "`veloria-licence`"]);
+    const res = runGate(dir);
+    expect(res.code).toBe(1);
+    expect(res.out).toContain("la table de routage cite");
+    expect(res.out).toContain("veloria-licence");
+  });
+
+  it("rougit quand la table de routage est absente", () => {
+    const dir = path.join(root, "no-routing-table");
+    buildRoutingTree(dir, "veloria-money", null);
+    const res = runGate(dir);
+    expect(res.code).toBe(1);
+    expect(res.out).toContain("table de routage des compétences absente");
   });
 });

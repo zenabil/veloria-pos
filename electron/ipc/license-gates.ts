@@ -158,6 +158,9 @@ export const PAGE_GATED_CHANNELS: Readonly<Record<string, readonly string[]>> = 
   [IPC_CHANNELS["stock.intakes"]]: ["stock"],
   [IPC_CHANNELS["stock.intakeDetail"]]: ["stock"],
   [IPC_CHANNELS["stock.intakeCancel"]]: ["stock"],
+  // STK-01 : diagnostic de réconciliation du stock — il expose le COST
+  // interne (couches FIFO) : page « settings » uniquement, pas « stock ».
+  [IPC_CHANNELS["stock.reconcile"]]: ["settings"],
   [IPC_CHANNELS["suppliers.search"]]: ["suppliers"],
   [IPC_CHANNELS["suppliers.create"]]: ["suppliers"],
   [IPC_CHANNELS["suppliers.update"]]: ["suppliers"],

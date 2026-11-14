@@ -31,6 +31,7 @@ interface CatalogItem {
 interface CatalogSettings {
   enabled: boolean;
   excludedCategoryIds: number[];
+  productOverrides?: Record<string, { published?: boolean | null; available?: boolean | null }>;
   lastPublishedAt: string | null;
   lastVersion: string | null;
   lastProductCount: number;
@@ -44,6 +45,7 @@ interface CatalogSkipped {
   priceOverCap: number;
   invalidName: number;
   overLimit: number;
+  merchantExcluded: number;
 }
 
 interface CatalogPreview {
@@ -55,6 +57,14 @@ interface CatalogPreview {
 interface CategoryRow {
   id: number;
   name: string;
+}
+
+interface ProductRow {
+  id: number;
+  name: string;
+  category_id: number | null;
+  category_name: string | null;
+  is_active: number;
 }
 
 function formatWhen(iso: string | null): string {
@@ -71,6 +81,7 @@ function formatWhen(iso: string | null): string {
 export function ClientCatalogSection({ notify }: { notify: Notify }): React.JSX.Element {
   const [preview, setPreview] = useState<CatalogPreview | null>(null);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
+  const [products, setProducts] = useState<ProductRow[]>([]);
   const [loading, setLoading] = useState(true);
   const { busy, run } = useBusyFlag();
   const alive = useRef(true);
@@ -83,6 +94,21 @@ export function ClientCatalogSection({ notify }: { notify: Notify }): React.JSX.
       if (!alive.current || seq !== loadSeq.current) return;
       setPreview((p ?? null) as CatalogPreview | null);
       setCategories(Array.isArray(cats) ? (cats as CategoryRow[]) : []);
+      // Charger tous les produits (pagination) pour le contrôle par produit.
+      const all: ProductRow[] = [];
+      let page = 1;
+      while (page <= 20) {
+        const r = (await api.productSearch({ query: "", page, pageSize: 100 })) as {
+          rows?: ProductRow[];
+          total?: number;
+        } | null;
+        const rows = r?.rows ?? [];
+        all.push(...rows);
+        if (rows.length < 100 || all.length >= (r?.total ?? all.length)) break;
+        page += 1;
+      }
+      if (seq !== loadSeq.current) return;
+      setProducts(all);
     } catch (e) {
       if (!alive.current || seq !== loadSeq.current) return;
       notify(frError(e, "Catalogue indisponible."), "err");
@@ -101,14 +127,27 @@ export function ClientCatalogSection({ notify }: { notify: Notify }): React.JSX.
 
   const settings = preview?.settings ?? null;
   const excluded = new Set(settings?.excludedCategoryIds ?? []);
+  const overrides = settings?.productOverrides ?? {};
 
-  function saveSettings(enabled: boolean, excludedIds: number[]): void {
+  function currentOverrides(): Record<
+    string,
+    { published?: boolean | null; available?: boolean | null }
+  > {
+    return { ...(settings?.productOverrides ?? {}) };
+  }
+
+  function saveSettings(
+    enabled: boolean,
+    excludedIds: number[],
+    nextOverrides?: Record<string, { published?: boolean | null; available?: boolean | null }>,
+  ): void {
     void run(async () => {
       try {
         await api.clientCatalogSaveSettings({
           operationId: newOperationId(),
           enabled,
           excludedCategoryIds: excludedIds,
+          productOverrides: nextOverrides ?? currentOverrides(),
         });
         notify(
           enabled
@@ -137,6 +176,22 @@ export function ClientCatalogSection({ notify }: { notify: Notify }): React.JSX.
     });
   }
 
+  function updateProductOverride(
+    productId: number,
+    patch: { published?: boolean | null; available?: boolean | null },
+  ): void {
+    const key = String(productId);
+    const next = { ...currentOverrides() };
+    const prev = next[key] ?? {};
+    const merged = { ...prev, ...patch };
+    if (merged.published == null && merged.available == null) {
+      const rest = Object.fromEntries(Object.entries(next).filter(([k]) => k !== key));
+      saveSettings(settings?.enabled ?? false, [...excluded], rest);
+      return;
+    }
+    next[key] = merged;
+    saveSettings(settings?.enabled ?? false, [...excluded], next);
+  }
   const skipped = preview?.skipped;
   const skippedTotal = skipped
     ? skipped.inactive +
@@ -144,7 +199,8 @@ export function ClientCatalogSection({ notify }: { notify: Notify }): React.JSX.
       skipped.invalidPrice +
       skipped.priceOverCap +
       skipped.invalidName +
-      skipped.overLimit
+      skipped.overLimit +
+      skipped.merchantExcluded
     : 0;
 
   return (
@@ -207,6 +263,72 @@ export function ClientCatalogSection({ notify }: { notify: Notify }): React.JSX.
           </div>
         ) : null}
 
+        {products.length > 0 ? (
+          <details className="rounded-lg border border-white/10 bg-black/25 p-3">
+            <summary className="cursor-pointer text-sm font-semibold text-slate-200">
+              Contrôle par produit ({products.length})
+            </summary>
+            <div className="mt-2 max-h-72 space-y-1 overflow-auto">
+              {products.map((prod) => {
+                const ov = overrides[String(prod.id)] ?? {};
+                const pubVal =
+                  ov.published === true ? "yes" : ov.published === false ? "no" : "auto";
+                const availVal =
+                  ov.available === true ? "yes" : ov.available === false ? "no" : "auto";
+                return (
+                  <div
+                    key={prod.id}
+                    className="flex flex-wrap items-center gap-2 border-b border-white/5 py-1.5 text-sm"
+                  >
+                    <span className="min-w-0 flex-1 truncate text-slate-200">
+                      {prod.name}
+                      {prod.is_active !== 1 ? (
+                        <span className="text-amber-300"> · archivé</span>
+                      ) : null}
+                    </span>
+                    <label className="flex items-center gap-1 text-xs text-slate-400">
+                      Publier
+                      <select
+                        className="rounded border border-white/10 bg-black/40 px-1 py-0.5 text-xs text-slate-200"
+                        value={pubVal}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          updateProductOverride(prod.id, {
+                            published: v === "auto" ? null : v === "yes",
+                          });
+                        }}
+                        aria-label={`Publication ${prod.name}`}
+                      >
+                        <option value="auto">Auto</option>
+                        <option value="yes">Oui</option>
+                        <option value="no">Non</option>
+                      </select>
+                    </label>
+                    <label className="flex items-center gap-1 text-xs text-slate-400">
+                      Disponible
+                      <select
+                        className="rounded border border-white/10 bg-black/40 px-1 py-0.5 text-xs text-slate-200"
+                        value={availVal}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          updateProductOverride(prod.id, {
+                            available: v === "auto" ? null : v === "yes",
+                          });
+                        }}
+                        aria-label={`Disponibilité ${prod.name}`}
+                      >
+                        <option value="auto">Auto</option>
+                        <option value="yes">Oui</option>
+                        <option value="no">Non</option>
+                      </select>
+                    </label>
+                  </div>
+                );
+              })}
+            </div>
+          </details>
+        ) : null}
+
         <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
@@ -226,7 +348,7 @@ export function ClientCatalogSection({ notify }: { notify: Notify }): React.JSX.
           <p className="text-xs text-amber-300">
             {skippedTotal} produit(s) ne sont pas publiés
             {skipped
-              ? ` (${skipped.inactive} archivé(s), ${skipped.excludedCategory} de catégorie exclue, ${skipped.invalidPrice} sans prix)`
+              ? ` (${skipped.inactive} archivé(s), ${skipped.excludedCategory} de catégorie exclue, ${skipped.invalidPrice} sans prix, ${skipped.merchantExcluded} exclus par le commerçant)`
               : ""}
             .
           </p>

@@ -121,6 +121,7 @@ describe("Garde transaction FIFO (fail-closed)", () => {
         now: "2026-09-02T10:00:00.000Z",
         oversell: false,
         fallbackUnitCostMinor: 100,
+        fallbackBasis: "fallback-purchase-price",
       });
       expect(consumptions.length).toBe(1);
       restoreToLayers([{ layerId, quantity: 2 }]);

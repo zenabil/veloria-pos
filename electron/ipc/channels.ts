@@ -91,6 +91,8 @@ export const IPC_CHANNELS = {
   "stock.intakes": "stock.intakes",
   "stock.intakeDetail": "stock.intakeDetail",
   "stock.intakeCancel": "stock.intakeCancel",
+  // STK-01 : diagnostic de réconciliation du stock (lecture seule).
+  "stock.reconcile": "stock.reconcile",
   // suppliers (Phase 6)
   "suppliers.search": "suppliers.search",
   "suppliers.create": "suppliers.create",

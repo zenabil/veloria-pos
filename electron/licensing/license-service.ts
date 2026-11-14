@@ -50,6 +50,15 @@ export interface LicenseServiceDeps {
   integrityAppRoot?: string;
   nowMs: () => number;
   getPublicKeyPem: () => string;
+  /**
+   * LIC-04 : résout la clé de vérification à partir du `kid` de l'enveloppe.
+   * Optionnelle — absente, le service retombe sur `getPublicKeyPem()` (v1).
+   */
+  resolveVerificationKey?: (kid: string | undefined) => {
+    pem: string | null;
+    kid: string | null;
+    reason: string;
+  };
   getFingerprint: () => string;
   formatShort: (fingerprint: string) => string;
   loadState: (backend: SecureStoreBackend) => PersistedLicenseState | null;
@@ -224,6 +233,20 @@ export function getLicenseStatus(deps: LicenseServiceDeps): LicenseStatus {
   } catch {
     return { ...unauthenticated(short), state: "CORRUPTED_STATE" };
   }
+  // LIC-04 : la clé qui VÉRIFIE est choisie par le `kid` de l'enveloppe
+  // dans le jeu de clés ; `key` (clé unique historique) reste le repli
+  // pour les licences v1 (sans `kid`) et pour les installations qui
+  // n'ont pas encore de `keys.json` embarqué.
+  const keyResolution = deps.resolveVerificationKey
+    ? deps.resolveVerificationKey(stored.envelope.kid)
+    : { pem: key, kid: null, reason: "OK" as const };
+  if (!keyResolution.pem) {
+    deps.log("WARN", "license.key_unavailable", {
+      reason: keyResolution.reason,
+      kid: stored.envelope.kid ?? null,
+    });
+    return { ...unauthenticated(short), state: "CORRUPTED_STATE" };
+  }
   const now = deps.nowMs();
   // Horloge AVANT les dates : une horloge reculée rend tout contrôle de
   // validité temporelle mensonger (rollback détecté, données préservées).
@@ -245,6 +268,7 @@ export function getLicenseStatus(deps: LicenseServiceDeps): LicenseStatus {
     chain = verifyLicenseChain({
       signed: stored.envelope,
       publicKeyPem: key,
+      verificationKeyPem: keyResolution.pem,
       expectedProductId: LICENSE_PRODUCT_ID,
       actualHardwareFingerprint: fp,
       nowMs: now,

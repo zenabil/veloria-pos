@@ -4,6 +4,7 @@ import { app, BrowserWindow, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { IPC_CHANNELS } from "../ipc/channels";
+import { registerAppWindow, unregisterAppWindow } from "../ipc/sender-guard";
 import { isExternalNavigationAllowed, isSafeExternalUrl } from "../security/security";
 import { log } from "../services/logger";
 
@@ -151,6 +152,13 @@ export function createMainWindow(): BrowserWindow {
   // P1: politique unifiée (permissions + navigation/redirect + popups).
   secureWindow(mainWindow);
 
+  // Ouverture en mode maximise : la fenetre s'affiche directement agrandie.
+  try {
+    mainWindow.maximize();
+  } catch {
+    /* ignore */
+  }
+
   const devUrl = process.env["VITE_DEV_SERVER_URL"];
   // M1 RADICAL : contenu distant UNIQUEMENT hors packaged. En prod packagée,
   // une variable d'env résiduelle/malveillante ne doit JAMAIS charger un
@@ -166,8 +174,13 @@ export function createMainWindow(): BrowserWindow {
   }
 
   mainWindow.on("closed", () => {
+    unregisterAppWindow(mainWindow);
     mainWindow = null;
   });
+  // SEC-01 : cette fenêtre est une ORIGINE IPC AUTORISÉE. Sans
+  // l'enregistrement, toute requête émise par le renderer principal
+  // serait refusée — l'enregistrement EST la définition de « l'application ».
+  registerAppWindow(mainWindow);
   return mainWindow;
 }
 
@@ -206,8 +219,12 @@ export function showRecoveryWindow(html: string): BrowserWindow {
   secureWindow(recoveryWindow);
 
   recoveryWindow.on("closed", () => {
+    unregisterAppWindow(recoveryWindow);
     recoveryWindow = null;
   });
+  // SEC-01 : la fenêtre de reprise porte le preload (elle appelle
+  // recovery.retry / recovery.exit) : c'est donc une origine autorisée.
+  registerAppWindow(recoveryWindow);
   return recoveryWindow;
 }
 
@@ -250,8 +267,12 @@ export function showLicenseWindow(html: string): BrowserWindow {
   // P1: même politique que la fenêtre principale.
   secureWindow(licenseWindow);
   licenseWindow.on("closed", () => {
+    unregisterAppWindow(licenseWindow);
     licenseWindow = null;
   });
+  // SEC-01 : la fenêtre d'activation porte le preload (elle appelle
+  // license.* et recovery.exit) : origine autorisée elle aussi.
+  registerAppWindow(licenseWindow);
   try {
     licenseWindow.webContents.session.setPermissionRequestHandler((_wc, _p, cb) => cb(false));
   } catch {

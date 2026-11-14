@@ -130,6 +130,13 @@ export const SETTINGS_CARDS: SettingsCardMeta[] = [
     keywords: "produit unité défaut création stock seuil minimum inventaire négatif",
   },
   {
+    id: "stock-reconciliation",
+    section: "catalogue",
+    title: "Cohérence du stock",
+    description: "Rapproche la quantité du produit, les couches FIFO et le journal des mouvements",
+    keywords: "stock cohérence écart fifo couches diagnostic réconciliation inventaire contrôle",
+  },
+  {
     id: "invoice",
     section: "documents",
     title: "Facturation",

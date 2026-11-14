@@ -248,6 +248,8 @@ function computeMetrics() {
 
 const START = "<!-- GENERATED:verify-docs:START -->";
 const END = "<!-- GENERATED:verify-docs:END -->";
+const FACTS_START = "<!-- GENERATED:verify-docs:FACTS-START -->";
+const FACTS_END = "<!-- GENERATED:verify-docs:FACTS-END -->";
 
 function renderMetrics(m) {
   const rows = [
@@ -363,6 +365,79 @@ if (!fs.existsSync(metricsPath)) {
   }
 }
 
+/** Rendu de la section generee de governance/PROJECT_FACTS_TO_VERIFY.md. */
+function renderProjectFacts(m) {
+  const rows = [
+    [
+      "Migrations SQL (immuables)",
+      `${m.migrations} (jusqu'a ${String(m.latestMigration).padStart(4, "0")})`,
+    ],
+    ["ADRs (decisions)", `${m.adrs} (jusqu'a ADR-${String(m.latestAdr).padStart(3, "0")})`],
+    ["Canaux IPC declares", `${m.ipcChannelsDeclared}`],
+    ["Canaux IPC servis (snapshot)", `${m.ipcChannelsHandled}`],
+    ["Fichiers de test (unit + integration + database)", `${m.testFiles}`],
+    ["Specs E2E (Playwright)", `${m.e2eSpecs}`],
+    ["Tables reelles (hors *_new temporaires)", `${m.dbTables}`],
+    ["Pages de licence", `${m.licensePages}`],
+    ["Features de licence", `${m.licenseFeatures}`],
+  ];
+  const lines = [
+    FACTS_START,
+    "",
+    `<!-- Mesure par \`node scripts/quality/verify-docs.mjs --write\` le ${new Date().toISOString().slice(0, 10)}. -->`,
+    "",
+    "| Indicateur | Valeur |",
+    "| --- | --- |",
+    ...rows.map(([k, v]) => `| ${k} | ${v} |`),
+    "",
+    FACTS_END,
+  ];
+  return lines.join("\n");
+}
+/** 3.1b — PROJECT_FACTS_TO_VERIFY.md : section generee a jour. */
+const factsPath = path.join(root, "governance/PROJECT_FACTS_TO_VERIFY.md");
+const expectedFactsBlock = renderProjectFacts(metrics);
+if (!fs.existsSync(factsPath)) {
+  // Arbre partiel (tests de la porte, fixtures) : on ne force pas la
+  // présence du fichier. Le dépôt réel le possède et est contrôlé ci-dessous.
+} else {
+  const current = fs.readFileSync(factsPath, "utf-8");
+  const hasMarkers = current.includes(FACTS_START) && current.includes(FACTS_END);
+  if (!hasMarkers) {
+    failures.push("governance/PROJECT_FACTS_TO_VERIFY.md sans marqueurs de section generee.");
+  } else {
+    const currentBlock = current.slice(
+      current.indexOf(FACTS_START),
+      current.indexOf(FACTS_END) + FACTS_END.length,
+    );
+    const normalize = (s) =>
+      s
+        .replace(/<!-- Mesure par[\s\S]*?-->/, "")
+        .replace(/-{2,}/g, "--")
+        .split("\n")
+        .map((l) => l.replace(/\s+/g, " ").trim())
+        .filter((l) => l.length > 0)
+        .join("\n");
+    if (normalize(currentBlock) !== normalize(expectedFactsBlock)) {
+      if (WRITE) {
+        fs.writeFileSync(
+          factsPath,
+          current.slice(0, current.indexOf(FACTS_START)) +
+            expectedFactsBlock +
+            current.slice(current.indexOf(FACTS_END) + FACTS_END.length),
+          "utf-8",
+        );
+        notes.push("governance/PROJECT_FACTS_TO_VERIFY.md regenere (compteurs mis a jour).");
+      } else {
+        failures.push(
+          "governance/PROJECT_FACTS_TO_VERIFY.md obsolete : compteurs perimes. Regenere : `node scripts/quality/verify-docs.mjs --write`.",
+        );
+      }
+    } else {
+      notes.push("governance/PROJECT_FACTS_TO_VERIFY.md a jour.");
+    }
+  }
+}
 /** 3.2 — Aucun littéral obsolète dans les documents vivants. */
 for (const rel of LIVING_DOCS) {
   const abs = path.join(root, rel);
@@ -522,6 +597,85 @@ if (skillDirs.length > 0) {
         `AGENTS.md route vers la compétence « ${ref} » qui n'existe pas dans ${SKILLS_DIR}/.`,
       );
     }
+  }
+
+  /* ---------------------------------------------------------------------
+   * 3.7 — ROUTAGE BIDIRECTIONNEL.
+   *
+   * Raison (ADR-120 : « une garde qui ne peut pas échouer n'est pas une
+   * garde ») : le contrôle 3.6 n verifies que le sens « citée ⇒ existe ».
+   * Il laisse passer la régression de routage la plus probable : une
+   * compétence INSTALLÉE mais jamais ROUTÉE — l'agent ne la chargera
+   * jamais, et la porte reste verte. Le routage est donc vérifié dans les
+   * DEUX sens :
+   *   - installée ⇒ routable (sinon l'agent l'ignore) ;
+   *   - routée ⇒ installée (sinon l'agent vise le vide).
+   * La matrice du coordinateur doit, elle aussi, couvrir toutes les
+   * compétences installées : c'est elle que l'orchestrateur consulte pour
+   * router, une compétence absente de la matrice n'est jamais routée.
+   * ------------------------------------------------------------------- */
+  const ROUTING_START = "<!-- SKILL-ROUTING:START -->";
+  const ROUTING_END = "<!-- SKILL-ROUTING:END -->";
+
+  /** Bloc de routage d'`AGENTS.md` (null si les marqueurs sont absents). */
+  function routingBlockOf(text) {
+    const s = text.indexOf(ROUTING_START);
+    const e = text.indexOf(ROUTING_END);
+    if (s < 0 || e < 0 || e < s) return null;
+    return text.slice(s + ROUTING_START.length, e);
+  }
+
+  const veloriaDirs = skillDirs.filter((d) => d.startsWith("veloria-"));
+  const routingBlock = routingBlockOf(agentsText);
+
+  if (routingBlock === null) {
+    failures.push(
+      "AGENTS.md : table de routage des compétences absente " +
+        `(marqueurs ${ROUTING_START} / ${ROUTING_END} introuvables) — ` +
+        "l'agent n'a aucun moyen de choisir la compétence adaptée.",
+    );
+  } else {
+    const routed = new Set([...routingBlock.matchAll(/`(veloria-[a-z0-9-]+)`/g)].map((m) => m[1]));
+    for (const d of veloriaDirs) {
+      if (!routed.has(d)) {
+        failures.push(
+          `AGENTS.md : compétence installée « ${d} » absente de la table de routage — ` +
+            "elle ne sera jamais chargée par l'agent.",
+        );
+      }
+    }
+    for (const r of routed) {
+      if (!skillDirs.includes(r)) {
+        failures.push(
+          `AGENTS.md : la table de routage cite « ${r} » qui n'existe pas dans ${SKILLS_DIR}/.`,
+        );
+      }
+    }
+    notes.push(`Table de routage : ${routed.size} compétence(s) routée(s).`);
+  }
+
+  // Matrice de routage du coordinateur : couverture de TOUTES les compétences.
+  const matrixPath = path.join(
+    root,
+    SKILLS_DIR,
+    "veloria-orchestrator",
+    "references",
+    "task-routing.md",
+  );
+  if (fs.existsSync(matrixPath)) {
+    const matrixText = fs.readFileSync(matrixPath, "utf-8");
+    const uncovered = veloriaDirs.filter((d) => !matrixText.includes(d));
+    if (uncovered.length > 0) {
+      failures.push(
+        "Matrice de routage du coordinateur " +
+          `(${SKILLS_DIR}/veloria-orchestrator/references/task-routing.md) : ` +
+          `compétence(s) non couverte(s) — ${uncovered.join(", ")}.`,
+      );
+    } else {
+      notes.push(`Matrice du coordinateur : ${veloriaDirs.length} compétence(s) couverte(s).`);
+    }
+  } else {
+    notes.push("Matrice de routage du coordinateur absente — contrôle de couverture sauté.");
   }
 }
 for (const { pattern, why } of FORBIDDEN_LITERALS_SKILLS) {

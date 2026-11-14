@@ -1575,6 +1575,7 @@ export function cancelReturnAtomic(args: {
             now: args.now,
             oversell: false,
             fallbackUnitCostMinor: 0,
+            fallbackBasis: "fallback-purchase-price",
           });
           db.prepare(
             `INSERT INTO stock_movements (uuid, product_id, movement_type, quantity_delta, quantity_after, related_entity_type, related_entity_id, reason, reference, created_at)

@@ -1,0 +1,3379 @@
+{
+  "migrations": 63,
+  "tables": 57,
+  "tableList": [
+    {
+      "name": "schema_migrations",
+      "file": "0001_initial_schema.sql",
+      "line": 8,
+      "cols": 3
+    },
+    {
+      "name": "app_meta",
+      "file": "0001_initial_schema.sql",
+      "line": 14,
+      "cols": 2
+    },
+    {
+      "name": "app_settings",
+      "file": "0001_initial_schema.sql",
+      "line": 19,
+      "cols": 3
+    },
+    {
+      "name": "number_sequences",
+      "file": "0001_initial_schema.sql",
+      "line": 25,
+      "cols": 4
+    },
+    {
+      "name": "company_profile",
+      "file": "0001_initial_schema.sql",
+      "line": 33,
+      "cols": 19
+    },
+    {
+      "name": "categories",
+      "file": "0001_initial_schema.sql",
+      "line": 56,
+      "cols": 6
+    },
+    {
+      "name": "suppliers",
+      "file": "0001_initial_schema.sql",
+      "line": 65,
+      "cols": 12
+    },
+    {
+      "name": "products",
+      "file": "0001_initial_schema.sql",
+      "line": 80,
+      "cols": 16
+    },
+    {
+      "name": "product_barcodes",
+      "file": "0001_initial_schema.sql",
+      "line": 99,
+      "cols": 5
+    },
+    {
+      "name": "customers",
+      "file": "0001_initial_schema.sql",
+      "line": 108,
+      "cols": 18
+    },
+    {
+      "name": "sales",
+      "file": "0001_initial_schema.sql",
+      "line": 130,
+      "cols": 20
+    },
+    {
+      "name": "sale_items",
+      "file": "0001_initial_schema.sql",
+      "line": 156,
+      "cols": 9
+    },
+    {
+      "name": "sale_payments",
+      "file": "0001_initial_schema.sql",
+      "line": 168,
+      "cols": 10
+    },
+    {
+      "name": "stock_movements",
+      "file": "0001_initial_schema.sql",
+      "line": 182,
+      "cols": 12
+    },
+    {
+      "name": "stock_intakes",
+      "file": "0001_initial_schema.sql",
+      "line": 197,
+      "cols": 12
+    },
+    {
+      "name": "stock_intake_items",
+      "file": "0001_initial_schema.sql",
+      "line": 212,
+      "cols": 8
+    },
+    {
+      "name": "returns",
+      "file": "0001_initial_schema.sql",
+      "line": 224,
+      "cols": 12
+    },
+    {
+      "name": "return_items",
+      "file": "0001_initial_schema.sql",
+      "line": 239,
+      "cols": 9
+    },
+    {
+      "name": "expenses",
+      "file": "0001_initial_schema.sql",
+      "line": 252,
+      "cols": 9
+    },
+    {
+      "name": "supplier_payments",
+      "file": "0001_initial_schema.sql",
+      "line": 265,
+      "cols": 9
+    },
+    {
+      "name": "proforma_invoices",
+      "file": "0001_initial_schema.sql",
+      "line": 278,
+      "cols": 14
+    },
+    {
+      "name": "proforma_items",
+      "file": "0001_initial_schema.sql",
+      "line": 295,
+      "cols": 7
+    },
+    {
+      "name": "bread_orders",
+      "file": "0001_initial_schema.sql",
+      "line": 306,
+      "cols": 23
+    },
+    {
+      "name": "audit_log",
+      "file": "0001_initial_schema.sql",
+      "line": 334,
+      "cols": 8
+    },
+    {
+      "name": "daily_closings",
+      "file": "0001_initial_schema.sql",
+      "line": 345,
+      "cols": 12
+    },
+    {
+      "name": "sale_payments_new",
+      "file": "0004_sale_payments_nullable.sql",
+      "line": 14,
+      "cols": 10
+    },
+    {
+      "name": "supplier_returns",
+      "file": "0010_supplier_returns.sql",
+      "line": 20,
+      "cols": 14
+    },
+    {
+      "name": "supplier_return_items",
+      "file": "0010_supplier_returns.sql",
+      "line": 39,
+      "cols": 11
+    },
+    {
+      "name": "zakat_calculations",
+      "file": "0012_bread_proforma_zakat.sql",
+      "line": 21,
+      "cols": 17
+    },
+    {
+      "name": "product_suppliers",
+      "file": "0015_product_suppliers.sql",
+      "line": 7,
+      "cols": 3
+    },
+    {
+      "name": "inventory_layers",
+      "file": "0018_fifo_cost_layers.sql",
+      "line": 12,
+      "cols": 11
+    },
+    {
+      "name": "sale_fifo_consumption",
+      "file": "0018_fifo_cost_layers.sql",
+      "line": 26,
+      "cols": 8
+    },
+    {
+      "name": "idempotency_keys",
+      "file": "0021_idempotency_keys.sql",
+      "line": 9,
+      "cols": 4
+    },
+    {
+      "name": "returns_new",
+      "file": "0025_return_numbers_not_null.sql",
+      "line": 22,
+      "cols": 15
+    },
+    {
+      "name": "supplier_returns_new",
+      "file": "0025_return_numbers_not_null.sql",
+      "line": 57,
+      "cols": 15
+    },
+    {
+      "name": "purchase_orders",
+      "file": "0029_purchase_orders.sql",
+      "line": 7,
+      "cols": 12
+    },
+    {
+      "name": "purchase_order_items",
+      "file": "0029_purchase_orders.sql",
+      "line": 23,
+      "cols": 9
+    },
+    {
+      "name": "cart_drafts",
+      "file": "0030_cart_drafts.sql",
+      "line": 8,
+      "cols": 8
+    },
+    {
+      "name": "customer_access",
+      "file": "0032_client_access_sync.sql",
+      "line": 9,
+      "cols": 10
+    },
+    {
+      "name": "sync_outbox",
+      "file": "0032_client_access_sync.sql",
+      "line": 26,
+      "cols": 7
+    },
+    {
+      "name": "announcements",
+      "file": "0032_client_access_sync.sql",
+      "line": 39,
+      "cols": 4
+    },
+    {
+      "name": "print_templates",
+      "file": "0036_print_templates.sql",
+      "line": 5,
+      "cols": 8
+    },
+    {
+      "name": "customer_access_new",
+      "file": "0038_outbox_access_restrict.sql",
+      "line": 13,
+      "cols": 22
+    },
+    {
+      "name": "sync_outbox_new",
+      "file": "0038_outbox_access_restrict.sql",
+      "line": 43,
+      "cols": 8
+    },
+    {
+      "name": "expenses_new",
+      "file": "0040_explicit_restrict.sql",
+      "line": 23,
+      "cols": 15
+    },
+    {
+      "name": "sale_fifo_consumption_new",
+      "file": "0040_explicit_restrict.sql",
+      "line": 61,
+      "cols": 8
+    },
+    {
+      "name": "staff_users",
+      "file": "0041_staff_roles.sql",
+      "line": 10,
+      "cols": 15
+    },
+    {
+      "name": "staff_user_permissions",
+      "file": "0041_staff_roles.sql",
+      "line": 33,
+      "cols": 2
+    },
+    {
+      "name": "staff_recovery",
+      "file": "0042_staff_recovery.sql",
+      "line": 7,
+      "cols": 8
+    },
+    {
+      "name": "sales_0051",
+      "file": "0051_sales_signed_discount.sql",
+      "line": 65,
+      "cols": 22
+    },
+    {
+      "name": "product_packagings",
+      "file": "0054_product_packagings.sql",
+      "line": 9,
+      "cols": 10
+    },
+    {
+      "name": "customer_credit_allocations",
+      "file": "0055_return_credit_allocations.sql",
+      "line": 39,
+      "cols": 7
+    },
+    {
+      "name": "announcements_v2",
+      "file": "0057_announcements_media_expiry.sql",
+      "line": 18,
+      "cols": 8
+    },
+    {
+      "name": "cash_sessions",
+      "file": "0059_cash_sessions.sql",
+      "line": 36,
+      "cols": 14
+    },
+    {
+      "name": "return_refund_movements",
+      "file": "0060_return_refund_movements.sql",
+      "line": 22,
+      "cols": 6
+    },
+    {
+      "name": "client_orders",
+      "file": "0063_client_orders.sql",
+      "line": 40,
+      "cols": 13
+    },
+    {
+      "name": "client_order_lines",
+      "file": "0063_client_orders.sql",
+      "line": 69,
+      "cols": 10
+    }
+  ],
+  "fks": 0,
+  "fkList": [],
+  "uniques": 0,
+  "uniqueList": [],
+  "checks": 217,
+  "checkList": [
+    {
+      "raw": "next_value INTEGER NOT NULL CHECK (next_value > 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 28
+    },
+    {
+      "raw": "id INTEGER PRIMARY KEY CHECK (id = 1),",
+      "file": "0001_initial_schema.sql",
+      "line": 34
+    },
+    {
+      "raw": "is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0,1)),",
+      "file": "0001_initial_schema.sql",
+      "line": 60
+    },
+    {
+      "raw": "purchase_price_minor INTEGER NOT NULL DEFAULT 0 CHECK (purchase_price_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 86
+    },
+    {
+      "raw": "selling_price_minor INTEGER NOT NULL DEFAULT 0 CHECK (selling_price_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 87
+    },
+    {
+      "raw": "min_stock_level NUMERIC NOT NULL DEFAULT 0 CHECK (min_stock_level >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 89
+    },
+    {
+      "raw": "stock_status TEXT NOT NULL DEFAULT 'in_stock' CHECK (stock_status IN ('in_stock','low_stock','out_of_stock')),",
+      "file": "0001_initial_schema.sql",
+      "line": 92
+    },
+    {
+      "raw": "is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0,1)),",
+      "file": "0001_initial_schema.sql",
+      "line": 93
+    },
+    {
+      "raw": "is_primary INTEGER NOT NULL DEFAULT 0 CHECK (is_primary IN (0,1)),",
+      "file": "0001_initial_schema.sql",
+      "line": 103
+    },
+    {
+      "raw": "settlement_day INTEGER CHECK (settlement_day IS NULL OR (settlement_day >= 1 AND settlement_day <= 31)),",
+      "file": "0001_initial_schema.sql",
+      "line": 116
+    },
+    {
+      "raw": "credit_limit_minor INTEGER NOT NULL DEFAULT 0 CHECK (credit_limit_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 117
+    },
+    {
+      "raw": "debt_status TEXT NOT NULL DEFAULT 'none' CHECK (debt_status IN ('none','due','overdue','over_limit')),",
+      "file": "0001_initial_schema.sql",
+      "line": 120
+    },
+    {
+      "raw": "is_over_limit INTEGER NOT NULL DEFAULT 0 CHECK (is_over_limit IN (0,1)),",
+      "file": "0001_initial_schema.sql",
+      "line": 121
+    },
+    {
+      "raw": "is_bread_client INTEGER NOT NULL DEFAULT 0 CHECK (is_bread_client IN (0,1)),",
+      "file": "0001_initial_schema.sql",
+      "line": 122
+    },
+    {
+      "raw": "subtotal_minor INTEGER NOT NULL CHECK (subtotal_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 135
+    },
+    {
+      "raw": "discount_type TEXT CHECK (discount_type IS NULL OR discount_type IN ('none','percent','amount')),",
+      "file": "0001_initial_schema.sql",
+      "line": 136
+    },
+    {
+      "raw": "discount_value_minor INTEGER NOT NULL DEFAULT 0 CHECK (discount_value_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 137
+    },
+    {
+      "raw": "discount_amount_minor INTEGER NOT NULL DEFAULT 0 CHECK (discount_amount_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 138
+    },
+    {
+      "raw": "delivery_fee_minor INTEGER NOT NULL DEFAULT 0 CHECK (delivery_fee_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 139
+    },
+    {
+      "raw": "total_minor INTEGER NOT NULL CHECK (total_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 140
+    },
+    {
+      "raw": "amount_paid_minor INTEGER NOT NULL DEFAULT 0 CHECK (amount_paid_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 141
+    },
+    {
+      "raw": "remaining_balance_minor INTEGER NOT NULL DEFAULT 0 CHECK (remaining_balance_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 142
+    },
+    {
+      "raw": "payment_status TEXT NOT NULL CHECK (payment_status IN ('paid','partial','unpaid')),",
+      "file": "0001_initial_schema.sql",
+      "line": 143
+    },
+    {
+      "raw": "payment_method TEXT CHECK (payment_method IS NULL OR payment_method IN ('cash','cheque','transfer')),",
+      "file": "0001_initial_schema.sql",
+      "line": 144
+    },
+    {
+      "raw": "is_cancelled INTEGER NOT NULL DEFAULT 0 CHECK (is_cancelled IN (0,1)),",
+      "file": "0001_initial_schema.sql",
+      "line": 147
+    },
+    {
+      "raw": "CHECK (amount_paid_minor <= total_minor),",
+      "file": "0001_initial_schema.sql",
+      "line": 151
+    },
+    {
+      "raw": "CHECK (remaining_balance_minor = total_minor - amount_paid_minor),",
+      "file": "0001_initial_schema.sql",
+      "line": 152
+    },
+    {
+      "raw": "CHECK (total_minor = subtotal_minor - discount_amount_minor + delivery_fee_minor)",
+      "file": "0001_initial_schema.sql",
+      "line": 153
+    },
+    {
+      "raw": "unit_price_minor INTEGER NOT NULL CHECK (unit_price_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 162
+    },
+    {
+      "raw": "purchase_price_minor INTEGER NOT NULL DEFAULT 0 CHECK (purchase_price_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 163
+    },
+    {
+      "raw": "quantity NUMERIC NOT NULL CHECK (quantity > 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 164
+    },
+    {
+      "raw": "line_total_minor INTEGER NOT NULL CHECK (line_total_minor >= 0)",
+      "file": "0001_initial_schema.sql",
+      "line": 165
+    },
+    {
+      "raw": "amount_minor INTEGER NOT NULL CHECK (amount_minor > 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 173
+    },
+    {
+      "raw": "method TEXT NOT NULL CHECK (method IN ('cash','cheque','transfer')),",
+      "file": "0001_initial_schema.sql",
+      "line": 174
+    },
+    {
+      "raw": "movement_type TEXT NOT NULL CHECK (movement_type IN ('sale_out','sale_cancel_in','intake_in','adjust_in','adjust_out','return_in','damage_out')),",
+      "file": "0001_initial_schema.sql",
+      "line": 186
+    },
+    {
+      "raw": "unit_cost_minor INTEGER CHECK (unit_cost_minor IS NULL OR unit_cost_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 189
+    },
+    {
+      "raw": "subtotal_minor INTEGER NOT NULL CHECK (subtotal_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 203
+    },
+    {
+      "raw": "shipping_cost_minor INTEGER NOT NULL DEFAULT 0 CHECK (shipping_cost_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 204
+    },
+    {
+      "raw": "total_minor INTEGER NOT NULL CHECK (total_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 205
+    },
+    {
+      "raw": "status TEXT NOT NULL DEFAULT 'committed' CHECK (status IN ('draft','committed','cancelled')),",
+      "file": "0001_initial_schema.sql",
+      "line": 206
+    },
+    {
+      "raw": "quantity_received NUMERIC NOT NULL CHECK (quantity_received > 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 217
+    },
+    {
+      "raw": "quantity_damaged NUMERIC NOT NULL DEFAULT 0 CHECK (quantity_damaged >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 218
+    },
+    {
+      "raw": "purchase_price_minor INTEGER NOT NULL CHECK (purchase_price_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 219
+    },
+    {
+      "raw": "landing_cost_minor INTEGER NOT NULL CHECK (landing_cost_minor >= 0)",
+      "file": "0001_initial_schema.sql",
+      "line": 220
+    },
+    {
+      "raw": "total_return_value_minor INTEGER NOT NULL CHECK (total_return_value_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 230
+    },
+    {
+      "raw": "amount_refunded_minor INTEGER NOT NULL DEFAULT 0 CHECK (amount_refunded_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 231
+    },
+    {
+      "raw": "credit_to_customer_minor INTEGER NOT NULL DEFAULT 0 CHECK (credit_to_customer_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 232
+    },
+    {
+      "raw": "quantity NUMERIC NOT NULL CHECK (quantity > 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 244
+    },
+    {
+      "raw": "unit_price_minor INTEGER NOT NULL CHECK (unit_price_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 245
+    },
+    {
+      "raw": "restocked INTEGER NOT NULL DEFAULT 1 CHECK (restocked IN (0,1)),",
+      "file": "0001_initial_schema.sql",
+      "line": 247
+    },
+    {
+      "raw": "line_total_minor INTEGER NOT NULL CHECK (line_total_minor >= 0)",
+      "file": "0001_initial_schema.sql",
+      "line": 248
+    },
+    {
+      "raw": "amount_minor INTEGER NOT NULL CHECK (amount_minor > 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 257
+    },
+    {
+      "raw": "amount_minor INTEGER NOT NULL CHECK (amount_minor > 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 269
+    },
+    {
+      "raw": "method TEXT NOT NULL CHECK (method IN ('cash','cheque','transfer')),",
+      "file": "0001_initial_schema.sql",
+      "line": 270
+    },
+    {
+      "raw": "subtotal_minor INTEGER NOT NULL CHECK (subtotal_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 283
+    },
+    {
+      "raw": "discount_amount_minor INTEGER NOT NULL DEFAULT 0 CHECK (discount_amount_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 284
+    },
+    {
+      "raw": "delivery_fee_minor INTEGER NOT NULL DEFAULT 0 CHECK (delivery_fee_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 285
+    },
+    {
+      "raw": "total_minor INTEGER NOT NULL CHECK (total_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 286
+    },
+    {
+      "raw": "status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','sent','converted','cancelled')),",
+      "file": "0001_initial_schema.sql",
+      "line": 287
+    },
+    {
+      "raw": "unit_price_minor INTEGER NOT NULL CHECK (unit_price_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 300
+    },
+    {
+      "raw": "quantity NUMERIC NOT NULL CHECK (quantity > 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 301
+    },
+    {
+      "raw": "line_total_minor INTEGER NOT NULL CHECK (line_total_minor >= 0)",
+      "file": "0001_initial_schema.sql",
+      "line": 302
+    },
+    {
+      "raw": "quantity NUMERIC NOT NULL CHECK (quantity > 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 315
+    },
+    {
+      "raw": "unit_price_minor INTEGER NOT NULL CHECK (unit_price_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 316
+    },
+    {
+      "raw": "total_amount_minor INTEGER NOT NULL CHECK (total_amount_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 317
+    },
+    {
+      "raw": "amount_paid_minor INTEGER NOT NULL DEFAULT 0 CHECK (amount_paid_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 318
+    },
+    {
+      "raw": "remaining_amount_minor INTEGER NOT NULL DEFAULT 0 CHECK (remaining_amount_minor >= 0),",
+      "file": "0001_initial_schema.sql",
+      "line": 319
+    },
+    {
+      "raw": "payment_status TEXT NOT NULL CHECK (payment_status IN ('paid','partial','unpaid')),",
+      "file": "0001_initial_schema.sql",
+      "line": 320
+    },
+    {
+      "raw": "pickup_status TEXT NOT NULL DEFAULT 'pending' CHECK (pickup_status IN ('pending','ready','delivered','cancelled')),",
+      "file": "0001_initial_schema.sql",
+      "line": 321
+    },
+    {
+      "raw": "is_delivered INTEGER NOT NULL DEFAULT 0 CHECK (is_delivered IN (0,1)),",
+      "file": "0001_initial_schema.sql",
+      "line": 322
+    },
+    {
+      "raw": "is_paid INTEGER NOT NULL DEFAULT 0 CHECK (is_paid IN (0,1)),",
+      "file": "0001_initial_schema.sql",
+      "line": 323
+    },
+    {
+      "raw": "transferred_to_customer_account INTEGER NOT NULL DEFAULT 0 CHECK (transferred_to_customer_account IN (0,1)),",
+      "file": "0001_initial_schema.sql",
+      "line": 325
+    },
+    {
+      "raw": "CHECK (amount_paid_minor <= total_amount_minor)",
+      "file": "0001_initial_schema.sql",
+      "line": 330
+    },
+    {
+      "raw": "amount_minor INTEGER NOT NULL CHECK (amount_minor > 0),",
+      "file": "0004_sale_payments_nullable.sql",
+      "line": 19
+    },
+    {
+      "raw": "method TEXT NOT NULL CHECK (method IN ('cash','cheque','transfer')),",
+      "file": "0004_sale_payments_nullable.sql",
+      "line": 20
+    },
+    {
+      "raw": "ALTER TABLE customers ADD COLUMN credit_allowed INTEGER NOT NULL DEFAULT 0 CHECK (credit_allowed IN (0,1));",
+      "file": "0007_credit_allowed.sql",
+      "line": 7
+    },
+    {
+      "raw": "ALTER TABLE suppliers ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0,1));",
+      "file": "0008_suppliers_enrichment.sql",
+      "line": 9
+    },
+    {
+      "raw": "ALTER TABLE products ADD COLUMN max_stock_level NUMERIC NOT NULL DEFAULT 0 CHECK (max_stock_level >= 0);",
+      "file": "0009_stock_page.sql",
+      "line": 5
+    },
+    {
+      "raw": "CHECK (status IN ('validated','partially_refunded','refunded','cancelled'));",
+      "file": "0010_supplier_returns.sql",
+      "line": 7
+    },
+    {
+      "raw": "CHECK (refund_method IS NULL OR refund_method IN ('cash','cheque','transfer'));",
+      "file": "0010_supplier_returns.sql",
+      "line": 9
+    },
+    {
+      "raw": "CHECK (condition IN ('good','defective'));",
+      "file": "0010_supplier_returns.sql",
+      "line": 16
+    },
+    {
+      "raw": "total_return_value_minor INTEGER NOT NULL CHECK (total_return_value_minor >= 0),",
+      "file": "0010_supplier_returns.sql",
+      "line": 27
+    },
+    {
+      "raw": "amount_recovered_minor INTEGER NOT NULL DEFAULT 0 CHECK (amount_recovered_minor >= 0),",
+      "file": "0010_supplier_returns.sql",
+      "line": 28
+    },
+    {
+      "raw": "recovery_method TEXT CHECK (recovery_method IS NULL OR recovery_method IN ('cash','cheque','transfer')),",
+      "file": "0010_supplier_returns.sql",
+      "line": 29
+    },
+    {
+      "raw": "CHECK (status IN ('validated','partially_refunded','refunded','cancelled')),",
+      "file": "0010_supplier_returns.sql",
+      "line": 33
+    },
+    {
+      "raw": "CHECK (amount_recovered_minor <= total_return_value_minor)",
+      "file": "0010_supplier_returns.sql",
+      "line": 36
+    },
+    {
+      "raw": "quantity NUMERIC NOT NULL CHECK (quantity > 0),",
+      "file": "0010_supplier_returns.sql",
+      "line": 44
+    },
+    {
+      "raw": "unit_price_minor INTEGER NOT NULL CHECK (unit_price_minor >= 0),",
+      "file": "0010_supplier_returns.sql",
+      "line": 45
+    },
+    {
+      "raw": "purchase_price_minor INTEGER NOT NULL DEFAULT 0 CHECK (purchase_price_minor >= 0),",
+      "file": "0010_supplier_returns.sql",
+      "line": 46
+    },
+    {
+      "raw": "line_total_minor INTEGER NOT NULL CHECK (line_total_minor >= 0),",
+      "file": "0010_supplier_returns.sql",
+      "line": 47
+    },
+    {
+      "raw": "condition TEXT NOT NULL DEFAULT 'good' CHECK (condition IN ('good','defective')),",
+      "file": "0010_supplier_returns.sql",
+      "line": 48
+    },
+    {
+      "raw": "CHECK (payment_method IS NULL OR payment_method IN ('cash','cheque','transfer'));",
+      "file": "0011_expenses_enrichment.sql",
+      "line": 6
+    },
+    {
+      "raw": "CHECK (status IN ('paid','pending'));",
+      "file": "0011_expenses_enrichment.sql",
+      "line": 8
+    },
+    {
+      "raw": "CHECK (payment_method IS NULL OR payment_method IN ('cash','cheque','transfer'));",
+      "file": "0012_bread_proforma_zakat.sql",
+      "line": 6
+    },
+    {
+      "raw": "CHECK (order_status IN ('new','confirmed','preparing','ready','delivered','cancelled'));",
+      "file": "0012_bread_proforma_zakat.sql",
+      "line": 8
+    },
+    {
+      "raw": "cash_minor INTEGER NOT NULL DEFAULT 0 CHECK (cash_minor >= 0),",
+      "file": "0012_bread_proforma_zakat.sql",
+      "line": 26
+    },
+    {
+      "raw": "bank_minor INTEGER NOT NULL DEFAULT 0 CHECK (bank_minor >= 0),",
+      "file": "0012_bread_proforma_zakat.sql",
+      "line": 27
+    },
+    {
+      "raw": "stock_minor INTEGER NOT NULL DEFAULT 0 CHECK (stock_minor >= 0),",
+      "file": "0012_bread_proforma_zakat.sql",
+      "line": 28
+    },
+    {
+      "raw": "receivables_minor INTEGER NOT NULL DEFAULT 0 CHECK (receivables_minor >= 0),",
+      "file": "0012_bread_proforma_zakat.sql",
+      "line": 29
+    },
+    {
+      "raw": "other_minor INTEGER NOT NULL DEFAULT 0 CHECK (other_minor >= 0),",
+      "file": "0012_bread_proforma_zakat.sql",
+      "line": 30
+    },
+    {
+      "raw": "liabilities_minor INTEGER NOT NULL DEFAULT 0 CHECK (liabilities_minor >= 0),",
+      "file": "0012_bread_proforma_zakat.sql",
+      "line": 31
+    },
+    {
+      "raw": "nisab_minor INTEGER NOT NULL DEFAULT 0 CHECK (nisab_minor >= 0),",
+      "file": "0012_bread_proforma_zakat.sql",
+      "line": 33
+    },
+    {
+      "raw": "rate_percent NUMERIC NOT NULL CHECK (rate_percent > 0),",
+      "file": "0012_bread_proforma_zakat.sql",
+      "line": 34
+    },
+    {
+      "raw": "zakat_minor INTEGER NOT NULL DEFAULT 0 CHECK (zakat_minor >= 0),",
+      "file": "0012_bread_proforma_zakat.sql",
+      "line": 35
+    },
+    {
+      "raw": "status TEXT NOT NULL DEFAULT 'calculated' CHECK (status IN ('calculated','paid')),",
+      "file": "0012_bread_proforma_zakat.sql",
+      "line": 36
+    },
+    {
+      "raw": "ALTER TABLE bread_orders ADD COLUMN is_recurring INTEGER NOT NULL DEFAULT 0 CHECK (is_recurring IN (0,1));",
+      "file": "0016_bread_recurring.sql",
+      "line": 5
+    },
+    {
+      "raw": "original_quantity NUMERIC NOT NULL CHECK (original_quantity > 0),",
+      "file": "0018_fifo_cost_layers.sql",
+      "line": 18
+    },
+    {
+      "raw": "remaining_quantity NUMERIC NOT NULL CHECK (remaining_quantity >= 0),",
+      "file": "0018_fifo_cost_layers.sql",
+      "line": 19
+    },
+    {
+      "raw": "unit_cost_minor INTEGER NOT NULL CHECK (unit_cost_minor >= 0),",
+      "file": "0018_fifo_cost_layers.sql",
+      "line": 20
+    },
+    {
+      "raw": "reason TEXT NOT NULL DEFAULT 'intake' CHECK (reason IN ('opening','intake','product_create','import','adjust','inventory','return_restore','legacy','oversell')),",
+      "file": "0018_fifo_cost_layers.sql",
+      "line": 22
+    },
+    {
+      "raw": "quantity NUMERIC NOT NULL CHECK (quantity > 0),",
+      "file": "0018_fifo_cost_layers.sql",
+      "line": 32
+    },
+    {
+      "raw": "unit_cost_minor INTEGER NOT NULL CHECK (unit_cost_minor >= 0),",
+      "file": "0018_fifo_cost_layers.sql",
+      "line": 33
+    },
+    {
+      "raw": "ALTER TABLE sale_items ADD COLUMN cogs_minor INTEGER NOT NULL DEFAULT 0 CHECK (cogs_minor >= 0);",
+      "file": "0018_fifo_cost_layers.sql",
+      "line": 37
+    },
+    {
+      "raw": "total_return_value_minor INTEGER NOT NULL CHECK (total_return_value_minor >= 0),",
+      "file": "0025_return_numbers_not_null.sql",
+      "line": 28
+    },
+    {
+      "raw": "amount_refunded_minor INTEGER NOT NULL DEFAULT 0 CHECK (amount_refunded_minor >= 0),",
+      "file": "0025_return_numbers_not_null.sql",
+      "line": 29
+    },
+    {
+      "raw": "credit_to_customer_minor INTEGER NOT NULL DEFAULT 0 CHECK (credit_to_customer_minor >= 0),",
+      "file": "0025_return_numbers_not_null.sql",
+      "line": 30
+    },
+    {
+      "raw": "status TEXT NOT NULL DEFAULT 'validated' CHECK (status IN ('validated','partially_refunded','refunded','cancelled')),",
+      "file": "0025_return_numbers_not_null.sql",
+      "line": 36
+    },
+    {
+      "raw": "refund_method TEXT CHECK (refund_method IS NULL OR refund_method IN ('cash','cheque','transfer'))",
+      "file": "0025_return_numbers_not_null.sql",
+      "line": 37
+    },
+    {
+      "raw": "total_return_value_minor INTEGER NOT NULL CHECK (total_return_value_minor >= 0),",
+      "file": "0025_return_numbers_not_null.sql",
+      "line": 64
+    },
+    {
+      "raw": "amount_recovered_minor INTEGER NOT NULL DEFAULT 0 CHECK (amount_recovered_minor >= 0),",
+      "file": "0025_return_numbers_not_null.sql",
+      "line": 65
+    },
+    {
+      "raw": "recovery_method TEXT CHECK (recovery_method IS NULL OR recovery_method IN ('cash','cheque','transfer')),",
+      "file": "0025_return_numbers_not_null.sql",
+      "line": 66
+    },
+    {
+      "raw": "status TEXT NOT NULL DEFAULT 'validated' CHECK (status IN ('validated','partially_refunded','refunded','cancelled')),",
+      "file": "0025_return_numbers_not_null.sql",
+      "line": 69
+    },
+    {
+      "raw": "CHECK (amount_recovered_minor <= total_return_value_minor)",
+      "file": "0025_return_numbers_not_null.sql",
+      "line": 73
+    },
+    {
+      "raw": "CHECK (status IN ('draft', 'ordered', 'partially_received', 'received', 'cancelled')),",
+      "file": "0029_purchase_orders.sql",
+      "line": 13
+    },
+    {
+      "raw": "subtotal_minor INTEGER NOT NULL DEFAULT 0 CHECK (subtotal_minor >= 0),",
+      "file": "0029_purchase_orders.sql",
+      "line": 14
+    },
+    {
+      "raw": "total_minor INTEGER NOT NULL DEFAULT 0 CHECK (total_minor >= 0),",
+      "file": "0029_purchase_orders.sql",
+      "line": 15
+    },
+    {
+      "raw": "quantity_ordered NUMERIC NOT NULL CHECK (quantity_ordered > 0),",
+      "file": "0029_purchase_orders.sql",
+      "line": 29
+    },
+    {
+      "raw": "quantity_received NUMERIC NOT NULL DEFAULT 0 CHECK (quantity_received >= 0),",
+      "file": "0029_purchase_orders.sql",
+      "line": 30
+    },
+    {
+      "raw": "unit_cost_minor INTEGER NOT NULL CHECK (unit_cost_minor >= 0),",
+      "file": "0029_purchase_orders.sql",
+      "line": 31
+    },
+    {
+      "raw": "line_total_minor INTEGER NOT NULL CHECK (line_total_minor >= 0)",
+      "file": "0029_purchase_orders.sql",
+      "line": 32
+    },
+    {
+      "raw": "amount_paid_minor INTEGER NOT NULL DEFAULT 0 CHECK (amount_paid_minor >= 0),",
+      "file": "0030_cart_drafts.sql",
+      "line": 14
+    },
+    {
+      "raw": "payment_method TEXT CHECK (payment_method IS NULL OR payment_method IN ('cash', 'cheque', 'transfer')),",
+      "file": "0030_cart_drafts.sql",
+      "line": 15
+    },
+    {
+      "raw": "failed_attempts INTEGER NOT NULL DEFAULT 0 CHECK (failed_attempts >= 0),",
+      "file": "0032_client_access_sync.sql",
+      "line": 16
+    },
+    {
+      "raw": "kind TEXT NOT NULL CHECK (kind IN ('customer_snapshot','invoice_list','invoice_detail','payment_list','announcement','access_revocation')),",
+      "file": "0032_client_access_sync.sql",
+      "line": 29
+    },
+    {
+      "raw": "status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','sent','failed')),",
+      "file": "0032_client_access_sync.sql",
+      "line": 31
+    },
+    {
+      "raw": "text TEXT NOT NULL CHECK (length(text) >= 1 AND length(text) <= 120),",
+      "file": "0032_client_access_sync.sql",
+      "line": 41
+    },
+    {
+      "raw": "is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),",
+      "file": "0032_client_access_sync.sql",
+      "line": 42
+    },
+    {
+      "raw": "name TEXT NOT NULL CHECK (length(name) BETWEEN 2 AND 100),",
+      "file": "0036_print_templates.sql",
+      "line": 12
+    },
+    {
+      "raw": "version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),",
+      "file": "0036_print_templates.sql",
+      "line": 14
+    },
+    {
+      "raw": "is_factory INTEGER NOT NULL DEFAULT 0 CHECK (is_factory IN (0, 1)),",
+      "file": "0036_print_templates.sql",
+      "line": 15
+    },
+    {
+      "raw": "is_active INTEGER NOT NULL DEFAULT 0 CHECK (is_active IN (0, 1)),",
+      "file": "0036_print_templates.sql",
+      "line": 16
+    },
+    {
+      "raw": "-- la règle CHECK(products.quantity >= 0) est donc appliquée par triggers de",
+      "file": "0037_products_quantity_nonneg.sql",
+      "line": 7
+    },
+    {
+      "raw": "failed_attempts INTEGER NOT NULL DEFAULT 0 CHECK (failed_attempts >= 0),",
+      "file": "0038_outbox_access_restrict.sql",
+      "line": 20
+    },
+    {
+      "raw": "kind TEXT NOT NULL CHECK (kind IN ('customer_snapshot','invoice_list','invoice_detail','payment_list','announcement','access_revocation')),",
+      "file": "0038_outbox_access_restrict.sql",
+      "line": 46
+    },
+    {
+      "raw": "status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','sent','failed')),",
+      "file": "0038_outbox_access_restrict.sql",
+      "line": 48
+    },
+    {
+      "raw": "amount_minor INTEGER NOT NULL CHECK (amount_minor > 0),",
+      "file": "0040_explicit_restrict.sql",
+      "line": 28
+    },
+    {
+      "raw": "CHECK (payment_method IS NULL OR payment_method IN ('cash','cheque','transfer')),",
+      "file": "0040_explicit_restrict.sql",
+      "line": 35
+    },
+    {
+      "raw": "CHECK (status IN ('paid','pending')),",
+      "file": "0040_explicit_restrict.sql",
+      "line": 37
+    },
+    {
+      "raw": "quantity NUMERIC NOT NULL CHECK (quantity > 0),",
+      "file": "0040_explicit_restrict.sql",
+      "line": 67
+    },
+    {
+      "raw": "unit_cost_minor INTEGER NOT NULL CHECK (unit_cost_minor >= 0),",
+      "file": "0040_explicit_restrict.sql",
+      "line": 68
+    },
+    {
+      "raw": "role TEXT NOT NULL CHECK (role IN ('manager','user')),",
+      "file": "0041_staff_roles.sql",
+      "line": 15
+    },
+    {
+      "raw": "CHECK (code_algo IN ('pbkdf2-sha256-100k','legacy-admin')),",
+      "file": "0041_staff_roles.sql",
+      "line": 19
+    },
+    {
+      "raw": "must_change_code INTEGER NOT NULL DEFAULT 0 CHECK (must_change_code IN (0,1)),",
+      "file": "0041_staff_roles.sql",
+      "line": 20
+    },
+    {
+      "raw": "is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0,1)),",
+      "file": "0041_staff_roles.sql",
+      "line": 21
+    },
+    {
+      "raw": "CHECK (failed_attempts >= 0 AND failed_attempts <= 100),",
+      "file": "0041_staff_roles.sql",
+      "line": 23
+    },
+    {
+      "raw": "CHECK (length(trim(username)) >= 3 AND length(username) <= 32),",
+      "file": "0041_staff_roles.sql",
+      "line": 28
+    },
+    {
+      "raw": "CHECK (length(trim(display_name)) >= 1 AND length(display_name) <= 64)",
+      "file": "0041_staff_roles.sql",
+      "line": 29
+    },
+    {
+      "raw": "id INTEGER PRIMARY KEY CHECK (id = 1),",
+      "file": "0042_staff_recovery.sql",
+      "line": 8
+    },
+    {
+      "raw": "CHECK (code_algo IN ('pbkdf2-sha256-100k')),",
+      "file": "0042_staff_recovery.sql",
+      "line": 12
+    },
+    {
+      "raw": "CHECK (failed_attempts >= 0 AND failed_attempts <= 100),",
+      "file": "0042_staff_recovery.sql",
+      "line": 14
+    },
+    {
+      "raw": "ALTER TABLE cart_drafts ADD COLUMN delivery_fee_minor INTEGER NOT NULL DEFAULT 0 CHECK (delivery_fee_minor >= 0);",
+      "file": "0044_cart_drafts_delivery.sql",
+      "line": 7
+    },
+    {
+      "raw": "ALTER TABLE sales ADD COLUMN credit_limit_override INTEGER NOT NULL DEFAULT 0 CHECK (credit_limit_override IN (0,1));",
+      "file": "0045_sale_credit_override.sql",
+      "line": 9
+    },
+    {
+      "raw": "subtotal_minor INTEGER NOT NULL CHECK (subtotal_minor >= 0),",
+      "file": "0051_sales_signed_discount.sql",
+      "line": 70
+    },
+    {
+      "raw": "discount_type TEXT CHECK (discount_type IS NULL OR discount_type IN ('none','percent','amount')),",
+      "file": "0051_sales_signed_discount.sql",
+      "line": 71
+    },
+    {
+      "raw": "discount_value_minor INTEGER NOT NULL DEFAULT 0 CHECK (discount_value_minor >= 0),",
+      "file": "0051_sales_signed_discount.sql",
+      "line": 72
+    },
+    {
+      "raw": "discount_amount_minor INTEGER NOT NULL DEFAULT 0 CHECK (discount_amount_minor >= -100000000000),",
+      "file": "0051_sales_signed_discount.sql",
+      "line": 76
+    },
+    {
+      "raw": "delivery_fee_minor INTEGER NOT NULL DEFAULT 0 CHECK (delivery_fee_minor >= 0),",
+      "file": "0051_sales_signed_discount.sql",
+      "line": 77
+    },
+    {
+      "raw": "total_minor INTEGER NOT NULL CHECK (total_minor >= 0),",
+      "file": "0051_sales_signed_discount.sql",
+      "line": 78
+    },
+    {
+      "raw": "amount_paid_minor INTEGER NOT NULL DEFAULT 0 CHECK (amount_paid_minor >= 0),",
+      "file": "0051_sales_signed_discount.sql",
+      "line": 79
+    },
+    {
+      "raw": "remaining_balance_minor INTEGER NOT NULL DEFAULT 0 CHECK (remaining_balance_minor >= 0),",
+      "file": "0051_sales_signed_discount.sql",
+      "line": 80
+    },
+    {
+      "raw": "payment_status TEXT NOT NULL CHECK (payment_status IN ('paid','partial','unpaid')),",
+      "file": "0051_sales_signed_discount.sql",
+      "line": 81
+    },
+    {
+      "raw": "payment_method TEXT CHECK (payment_method IS NULL OR payment_method IN ('cash','cheque','transfer')),",
+      "file": "0051_sales_signed_discount.sql",
+      "line": 82
+    },
+    {
+      "raw": "is_cancelled INTEGER NOT NULL DEFAULT 0 CHECK (is_cancelled IN (0,1)),",
+      "file": "0051_sales_signed_discount.sql",
+      "line": 85
+    },
+    {
+      "raw": "credit_limit_override INTEGER NOT NULL DEFAULT 0 CHECK (credit_limit_override IN (0,1)),",
+      "file": "0051_sales_signed_discount.sql",
+      "line": 89
+    },
+    {
+      "raw": "CHECK (amount_paid_minor <= total_minor),",
+      "file": "0051_sales_signed_discount.sql",
+      "line": 91
+    },
+    {
+      "raw": "CHECK (remaining_balance_minor = total_minor - amount_paid_minor),",
+      "file": "0051_sales_signed_discount.sql",
+      "line": 92
+    },
+    {
+      "raw": "CHECK (total_minor = subtotal_minor - discount_amount_minor + delivery_fee_minor)",
+      "file": "0051_sales_signed_discount.sql",
+      "line": 93
+    },
+    {
+      "raw": "ALTER TABLE return_items ADD COLUMN cogs_minor INTEGER NOT NULL DEFAULT 0 CHECK (cogs_minor >= 0);",
+      "file": "0052_dashboard_category_snapshots.sql",
+      "line": 23
+    },
+    {
+      "raw": "factor INTEGER NOT NULL CHECK (factor > 1),",
+      "file": "0054_product_packagings.sql",
+      "line": 13
+    },
+    {
+      "raw": "selling_price_minor INTEGER NOT NULL CHECK (selling_price_minor >= 0),",
+      "file": "0054_product_packagings.sql",
+      "line": 14
+    },
+    {
+      "raw": "purchase_price_minor INTEGER NOT NULL DEFAULT 0 CHECK (purchase_price_minor >= 0),",
+      "file": "0054_product_packagings.sql",
+      "line": 15
+    },
+    {
+      "raw": "auto_carton_pricing INTEGER NOT NULL DEFAULT 1 CHECK (auto_carton_pricing IN (0,1)),",
+      "file": "0054_product_packagings.sql",
+      "line": 16
+    },
+    {
+      "raw": "is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0,1)),",
+      "file": "0054_product_packagings.sql",
+      "line": 17
+    },
+    {
+      "raw": "ALTER TABLE sale_items ADD COLUMN unit_factor INTEGER NOT NULL DEFAULT 1 CHECK (unit_factor > 0);",
+      "file": "0054_product_packagings.sql",
+      "line": 31
+    },
+    {
+      "raw": "ALTER TABLE stock_intake_items ADD COLUMN unit_factor INTEGER NOT NULL DEFAULT 1 CHECK (unit_factor > 0);",
+      "file": "0054_product_packagings.sql",
+      "line": 34
+    },
+    {
+      "raw": "ALTER TABLE return_items ADD COLUMN unit_factor INTEGER NOT NULL DEFAULT 1 CHECK (unit_factor > 0);",
+      "file": "0054_product_packagings.sql",
+      "line": 37
+    },
+    {
+      "raw": "CHECK (credit_applied_minor >= 0);",
+      "file": "0055_return_credit_allocations.sql",
+      "line": 17
+    },
+    {
+      "raw": "amount_minor INTEGER NOT NULL CHECK (amount_minor > 0),",
+      "file": "0055_return_credit_allocations.sql",
+      "line": 47
+    },
+    {
+      "raw": "ALTER TABLE proforma_items ADD COLUMN unit_factor INTEGER NOT NULL DEFAULT 1 CHECK (unit_factor > 0);",
+      "file": "0056_carton_quotes_supplier_returns.sql",
+      "line": 20
+    },
+    {
+      "raw": "CHECK (quantity_stock >= 0);",
+      "file": "0056_carton_quotes_supplier_returns.sql",
+      "line": 34
+    },
+    {
+      "raw": "CHECK (quantity_damaged >= 0);",
+      "file": "0056_carton_quotes_supplier_returns.sql",
+      "line": 36
+    },
+    {
+      "raw": "is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),",
+      "file": "0057_announcements_media_expiry.sql",
+      "line": 22
+    },
+    {
+      "raw": "sort INTEGER NOT NULL DEFAULT 0 CHECK (sort >= 0),",
+      "file": "0057_announcements_media_expiry.sql",
+      "line": 24
+    },
+    {
+      "raw": "CHECK (text IS NOT NULL OR image_url IS NOT NULL),",
+      "file": "0057_announcements_media_expiry.sql",
+      "line": 27
+    },
+    {
+      "raw": "CHECK (text IS NULL OR (length(text) >= 1 AND length(text) <= 120)),",
+      "file": "0057_announcements_media_expiry.sql",
+      "line": 28
+    },
+    {
+      "raw": "CHECK (image_url IS NULL OR (length(image_url) <= 500 AND image_url LIKE 'https://%'))",
+      "file": "0057_announcements_media_expiry.sql",
+      "line": 29
+    },
+    {
+      "raw": "post TEXT NOT NULL CHECK (length(post) >= 1 AND length(post) <= 40),",
+      "file": "0059_cash_sessions.sql",
+      "line": 39
+    },
+    {
+      "raw": "label TEXT NOT NULL CHECK (length(label) >= 1 AND length(label) <= 60),",
+      "file": "0059_cash_sessions.sql",
+      "line": 40
+    },
+    {
+      "raw": "status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'closed')),",
+      "file": "0059_cash_sessions.sql",
+      "line": 42
+    },
+    {
+      "raw": "opening_float_minor INTEGER NOT NULL DEFAULT 0 CHECK (opening_float_minor >= 0),",
+      "file": "0059_cash_sessions.sql",
+      "line": 43
+    },
+    {
+      "raw": "counted_minor INTEGER NULL CHECK (counted_minor IS NULL OR counted_minor >= 0),",
+      "file": "0059_cash_sessions.sql",
+      "line": 44
+    },
+    {
+      "raw": "note TEXT NULL CHECK (note IS NULL OR length(note) <= 500),",
+      "file": "0059_cash_sessions.sql",
+      "line": 46
+    },
+    {
+      "raw": "amount_minor INTEGER NOT NULL CHECK (amount_minor > 0),",
+      "file": "0060_return_refund_movements.sql",
+      "line": 26
+    },
+    {
+      "raw": "CHECK (status IN ('pending', 'done'));",
+      "file": "0061_idempotency_status.sql",
+      "line": 16
+    },
+    {
+      "raw": "failed_attempts INTEGER NOT NULL DEFAULT 0 CHECK (failed_attempts >= 0),",
+      "file": "0062_client_access_history.sql",
+      "line": 32
+    },
+    {
+      "raw": "reference TEXT NOT NULL UNIQUE CHECK (length(reference) BETWEEN 8 AND 32),",
+      "file": "0063_client_orders.sql",
+      "line": 44
+    },
+    {
+      "raw": "CHECK (status IN ('nouvelle', 'preparing', 'ready', 'served', 'cancelled')),",
+      "file": "0063_client_orders.sql",
+      "line": 47
+    },
+    {
+      "raw": "total_minor INTEGER NOT NULL CHECK (total_minor >= 0),",
+      "file": "0063_client_orders.sql",
+      "line": 49
+    },
+    {
+      "raw": "source TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('manual', 'app', 'auto')),",
+      "file": "0063_client_orders.sql",
+      "line": 52
+    },
+    {
+      "raw": "note TEXT CHECK (note IS NULL OR length(note) <= 300),",
+      "file": "0063_client_orders.sql",
+      "line": 53
+    },
+    {
+      "raw": "cancel_reason TEXT CHECK (cancel_reason IS NULL OR length(cancel_reason) <= 200),",
+      "file": "0063_client_orders.sql",
+      "line": 54
+    },
+    {
+      "raw": "CHECK (length(product_name_snapshot) >= 1 AND length(product_name_snapshot) <= 200),",
+      "file": "0063_client_orders.sql",
+      "line": 76
+    },
+    {
+      "raw": "unit_code TEXT NOT NULL DEFAULT 'PIECE' CHECK (length(unit_code) BETWEEN 1 AND 24),",
+      "file": "0063_client_orders.sql",
+      "line": 77
+    },
+    {
+      "raw": "quantity NUMERIC NOT NULL CHECK (quantity > 0),",
+      "file": "0063_client_orders.sql",
+      "line": 78
+    },
+    {
+      "raw": "unit_price_minor INTEGER NOT NULL CHECK (unit_price_minor >= 0),",
+      "file": "0063_client_orders.sql",
+      "line": 79
+    },
+    {
+      "raw": "line_total_minor INTEGER NOT NULL CHECK (line_total_minor >= 0),",
+      "file": "0063_client_orders.sql",
+      "line": 80
+    },
+    {
+      "raw": "reserved_quantity NUMERIC NOT NULL DEFAULT 0 CHECK (reserved_quantity >= 0),",
+      "file": "0063_client_orders.sql",
+      "line": 83
+    }
+  ],
+  "triggers": 77,
+  "triggerList": [
+    {
+      "name": "trg_sales_no_negative_total",
+      "file": "0003_financial_constraints.sql",
+      "line": 29,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_sales_no_negative_total BEFORE UPDATE ON sales WHEN NEW.total_minor < 0 OR NEW.amount_paid_minor > NEW.total_minor BEGIN SELECT RAISE(ABORT, 'SALE_ARITHMETIC_VIOLATION'); END;"
+    },
+    {
+      "name": "trg_sales_credit_allowed",
+      "file": "0007_credit_allowed.sql",
+      "line": 9,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_sales_credit_allowed BEFORE INSERT ON sales WHEN NEW.remaining_balance_minor > 0 BEGIN SELECT CASE WHEN NEW.customer_id IS NULL THEN RAISE(ABORT, 'Vente à crédit : choisissez un client autorisé au crédit.')"
+    },
+    {
+      "name": "trg_sales_credit_allowed_update",
+      "file": "0023_root_invariants.sql",
+      "line": 14,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_sales_credit_allowed_update BEFORE UPDATE OF remaining_balance_minor, customer_id ON sales WHEN NEW.remaining_balance_minor > 0 BEGIN SELECT CASE WHEN NEW.customer_id IS NULL THEN RAISE(ABORT, 'Vente à crédit : choisissez un client autorisé au crédit.')"
+    },
+    {
+      "name": "trg_layers_remaining_insert",
+      "file": "0023_root_invariants.sql",
+      "line": 25,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_layers_remaining_insert BEFORE INSERT ON inventory_layers WHEN NEW.remaining_quantity < 0 OR NEW.remaining_quantity > NEW.original_quantity BEGIN SELECT RAISE(ABORT, 'Couche FIFO incohérente : 0 <= remaining <= original.'); END;"
+    },
+    {
+      "name": "trg_layers_remaining_update",
+      "file": "0023_root_invariants.sql",
+      "line": 32,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_layers_remaining_update BEFORE UPDATE OF remaining_quantity ON inventory_layers WHEN NEW.remaining_quantity < 0 OR NEW.remaining_quantity > NEW.original_quantity BEGIN SELECT RAISE(ABORT, 'Couche FIFO incohérente : 0 <= remaining <= original.'); END;"
+    },
+    {
+      "name": "trg_customers_outstanding_nonneg",
+      "file": "0023_root_invariants.sql",
+      "line": 40,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_customers_outstanding_nonneg BEFORE UPDATE OF outstanding_balance_minor ON customers WHEN NEW.outstanding_balance_minor < 0 BEGIN SELECT RAISE(ABORT, 'Solde client incohérent : règlement supérieur à la dette.'); END;"
+    },
+    {
+      "name": "trg_suppliers_outstanding_nonneg",
+      "file": "0023_root_invariants.sql",
+      "line": 47,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_suppliers_outstanding_nonneg BEFORE UPDATE OF outstanding_balance_minor ON suppliers WHEN NEW.outstanding_balance_minor < 0 BEGIN SELECT RAISE(ABORT, 'Solde fournisseur incohérent : règlement supérieur à la dette.'); END;"
+    },
+    {
+      "name": "trg_returns_number_required",
+      "file": "0023_root_invariants.sql",
+      "line": 55,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_returns_number_required BEFORE INSERT ON returns WHEN NEW.return_number IS NULL BEGIN SELECT RAISE(ABORT, 'Numéro de retour requis.'); END;"
+    },
+    {
+      "name": "trg_supplier_returns_number_required",
+      "file": "0023_root_invariants.sql",
+      "line": 62,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_supplier_returns_number_required BEFORE INSERT ON supplier_returns WHEN NEW.return_number IS NULL BEGIN SELECT RAISE(ABORT, 'Numéro de retour fournisseur requis.'); END;"
+    },
+    {
+      "name": "trg_suppliers_code_required",
+      "file": "0023_root_invariants.sql",
+      "line": 69,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_suppliers_code_required BEFORE INSERT ON suppliers WHEN NEW.code IS NULL BEGIN SELECT RAISE(ABORT, 'Code fournisseur requis.'); END;"
+    },
+    {
+      "name": "trg_returns_number_notnull_ins",
+      "file": "0025_return_numbers_not_null.sql",
+      "line": 94,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_returns_number_notnull_ins BEFORE INSERT ON returns WHEN NEW.return_number IS NULL BEGIN SELECT RAISE(ABORT, 'Numéro de retour requis.'); END;"
+    },
+    {
+      "name": "trg_returns_number_notnull_upd",
+      "file": "0025_return_numbers_not_null.sql",
+      "line": 101,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_returns_number_notnull_upd BEFORE UPDATE OF return_number ON returns WHEN NEW.return_number IS NULL BEGIN SELECT RAISE(ABORT, 'Numéro de retour requis.'); END;"
+    },
+    {
+      "name": "trg_supplier_returns_number_notnull_ins",
+      "file": "0025_return_numbers_not_null.sql",
+      "line": 108,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_supplier_returns_number_notnull_ins BEFORE INSERT ON supplier_returns WHEN NEW.return_number IS NULL BEGIN SELECT RAISE(ABORT, 'Numéro de retour fournisseur requis.'); END;"
+    },
+    {
+      "name": "trg_supplier_returns_number_notnull_upd",
+      "file": "0025_return_numbers_not_null.sql",
+      "line": 115,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_supplier_returns_number_notnull_upd BEFORE UPDATE OF return_number ON supplier_returns WHEN NEW.return_number IS NULL BEGIN SELECT RAISE(ABORT, 'Numéro de retour fournisseur requis.'); END;"
+    },
+    {
+      "name": "trg_sales_no_negative_total_ins",
+      "file": "0026_defensive_invariants.sql",
+      "line": 17,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_sales_no_negative_total_ins BEFORE INSERT ON sales WHEN NEW.total_minor < 0 OR NEW.amount_paid_minor > NEW.total_minor BEGIN SELECT RAISE(ABORT, 'SALE_ARITHMETIC_VIOLATION'); END;"
+    },
+    {
+      "name": "trg_customers_outstanding_nonneg_ins",
+      "file": "0026_defensive_invariants.sql",
+      "line": 25,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_customers_outstanding_nonneg_ins BEFORE INSERT ON customers WHEN NEW.outstanding_balance_minor < 0 BEGIN SELECT RAISE(ABORT, 'Solde client incohérent : solde initial négatif interdit.'); END;"
+    },
+    {
+      "name": "trg_suppliers_outstanding_nonneg_ins",
+      "file": "0026_defensive_invariants.sql",
+      "line": 32,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_suppliers_outstanding_nonneg_ins BEFORE INSERT ON suppliers WHEN NEW.outstanding_balance_minor < 0 BEGIN SELECT RAISE(ABORT, 'Solde fournisseur incohérent : solde initial négatif interdit.'); END;"
+    },
+    {
+      "name": "trg_customers_credit_revoke_guard",
+      "file": "0026_defensive_invariants.sql",
+      "line": 40,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_customers_credit_revoke_guard BEFORE UPDATE OF credit_allowed ON customers WHEN OLD.credit_allowed = 1 AND NEW.credit_allowed = 0 AND OLD.outstanding_balance_minor > 0 BEGIN SELECT RAISE(ABORT, 'Crédit : solde impayé — encaissez le dû avant de retirer l''autorisation.'); END;"
+    },
+    {
+      "name": "trg_sale_items_discount_nonneg_ins",
+      "file": "0031_defensive_sale_item_discount.sql",
+      "line": 16,
+      "raw": "CREATE TRIGGER trg_sale_items_discount_nonneg_ins BEFORE INSERT ON sale_items FOR EACH ROW WHEN NEW.discount_minor IS NOT NULL AND NEW.discount_minor < 0 BEGIN SELECT RAISE(ABORT, 'Remise de ligne invalide (negative).');"
+    },
+    {
+      "name": "trg_sale_items_discount_nonneg_upd",
+      "file": "0031_defensive_sale_item_discount.sql",
+      "line": 24,
+      "raw": "CREATE TRIGGER trg_sale_items_discount_nonneg_upd BEFORE UPDATE OF discount_minor ON sale_items FOR EACH ROW WHEN NEW.discount_minor IS NOT NULL AND NEW.discount_minor < 0 BEGIN SELECT RAISE(ABORT, 'Remise de ligne invalide (negative).');"
+    },
+    {
+      "name": "trg_sale_items_original_nonneg_ins",
+      "file": "0031_defensive_sale_item_discount.sql",
+      "line": 33,
+      "raw": "CREATE TRIGGER trg_sale_items_original_nonneg_ins BEFORE INSERT ON sale_items FOR EACH ROW WHEN NEW.original_unit_price_minor IS NOT NULL AND NEW.original_unit_price_minor < 0 BEGIN SELECT RAISE(ABORT, 'Prix origine de ligne invalide (negatif).');"
+    },
+    {
+      "name": "trg_sale_items_original_nonneg_upd",
+      "file": "0031_defensive_sale_item_discount.sql",
+      "line": 41,
+      "raw": "CREATE TRIGGER trg_sale_items_original_nonneg_upd BEFORE UPDATE OF original_unit_price_minor ON sale_items FOR EACH ROW WHEN NEW.original_unit_price_minor IS NOT NULL AND NEW.original_unit_price_minor < 0 BEGIN SELECT RAISE(ABORT, 'Prix origine de ligne invalide (negatif).');"
+    },
+    {
+      "name": "trg_sale_items_discount_bound_ins",
+      "file": "0031_defensive_sale_item_discount.sql",
+      "line": 51,
+      "raw": "CREATE TRIGGER trg_sale_items_discount_bound_ins BEFORE INSERT ON sale_items FOR EACH ROW WHEN NEW.discount_minor IS NOT NULL AND NEW.original_unit_price_minor IS NOT NULL AND NEW.quantity IS NOT NULL"
+    },
+    {
+      "name": "trg_sale_items_discount_bound_upd",
+      "file": "0031_defensive_sale_item_discount.sql",
+      "line": 62,
+      "raw": "CREATE TRIGGER trg_sale_items_discount_bound_upd BEFORE UPDATE OF discount_minor, original_unit_price_minor, quantity ON sale_items FOR EACH ROW WHEN NEW.discount_minor IS NOT NULL AND NEW.original_unit_price_minor IS NOT NULL AND NEW.quantity IS NOT NULL"
+    },
+    {
+      "name": "trg_products_quantity_nonneg_ins",
+      "file": "0037_products_quantity_nonneg.sql",
+      "line": 15,
+      "raw": "CREATE TRIGGER trg_products_quantity_nonneg_ins BEFORE INSERT ON products FOR EACH ROW WHEN NEW.quantity < 0 BEGIN SELECT RAISE(ABORT, 'Quantité produit invalide (négative interdite).');"
+    },
+    {
+      "name": "trg_products_quantity_nonneg_upd",
+      "file": "0037_products_quantity_nonneg.sql",
+      "line": 23,
+      "raw": "CREATE TRIGGER trg_products_quantity_nonneg_upd BEFORE UPDATE OF quantity ON products FOR EACH ROW WHEN NEW.quantity < 0 BEGIN SELECT RAISE(ABORT, 'Quantité produit invalide (négative interdite).');"
+    },
+    {
+      "name": "trg_categories_no_delete_with_products",
+      "file": "0040_explicit_restrict.sql",
+      "line": 89,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_categories_no_delete_with_products BEFORE DELETE ON categories WHEN EXISTS (SELECT 1 FROM products WHERE products.category_id = OLD.id) BEGIN SELECT RAISE(ABORT, 'Suppression impossible : des produits utilisent cette catégorie.'); END;"
+    },
+    {
+      "name": "trg_suppliers_no_delete_with_products",
+      "file": "0040_explicit_restrict.sql",
+      "line": 96,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_suppliers_no_delete_with_products BEFORE DELETE ON suppliers WHEN EXISTS (SELECT 1 FROM products WHERE products.supplier_id = OLD.id) BEGIN SELECT RAISE(ABORT, 'Suppression impossible : des produits sont liés à ce fournisseur.'); END;"
+    },
+    {
+      "name": "trg_customers_no_delete_with_sales",
+      "file": "0040_explicit_restrict.sql",
+      "line": 103,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_customers_no_delete_with_sales BEFORE DELETE ON customers WHEN EXISTS (SELECT 1 FROM sales WHERE sales.customer_id = OLD.id) BEGIN SELECT RAISE(ABORT, 'Suppression impossible : des ventes sont liées à ce client.'); END;"
+    },
+    {
+      "name": "trg_products_no_delete_with_items",
+      "file": "0040_explicit_restrict.sql",
+      "line": 110,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_products_no_delete_with_items BEFORE DELETE ON products WHEN EXISTS (SELECT 1 FROM sale_items WHERE sale_items.product_id = OLD.id) BEGIN SELECT RAISE(ABORT, 'Suppression impossible : ce produit figure dans des ventes.'); END;"
+    },
+    {
+      "name": "trg_products_no_delete_with_layers",
+      "file": "0040_explicit_restrict.sql",
+      "line": 117,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_products_no_delete_with_layers BEFORE DELETE ON products WHEN EXISTS (SELECT 1 FROM inventory_layers WHERE inventory_layers.product_id = OLD.id) BEGIN SELECT RAISE(ABORT, 'Suppression impossible : ce produit a des couches de stock.'); END;"
+    },
+    {
+      "name": "trg_stock_intakes_no_delete_with_layers",
+      "file": "0040_explicit_restrict.sql",
+      "line": 124,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_stock_intakes_no_delete_with_layers BEFORE DELETE ON stock_intakes WHEN EXISTS (SELECT 1 FROM inventory_layers WHERE inventory_layers.stock_intake_id = OLD.id) BEGIN SELECT RAISE(ABORT, 'Suppression impossible : cette réception a des couches de stock.'); END;"
+    },
+    {
+      "name": "trg_stock_intake_items_no_delete_with_layers",
+      "file": "0040_explicit_restrict.sql",
+      "line": 131,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_stock_intake_items_no_delete_with_layers BEFORE DELETE ON stock_intake_items WHEN EXISTS (SELECT 1 FROM inventory_layers WHERE inventory_layers.stock_intake_item_id = OLD.id) BEGIN SELECT RAISE(ABORT, 'Suppression impossible : cette ligne de réception a des couches de stock.'); END;"
+    },
+    {
+      "name": "trg_staff_no_delete_last_manager",
+      "file": "0041_staff_roles.sql",
+      "line": 51,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_staff_no_delete_last_manager BEFORE DELETE ON staff_users WHEN OLD.role = 'manager' AND OLD.is_active = 1 AND (SELECT COUNT(*) FROM staff_users WHERE role = 'manager' AND is_active = 1 AND id <> OLD.id) = 0 BEGIN"
+    },
+    {
+      "name": "trg_staff_no_demise_last_manager",
+      "file": "0041_staff_roles.sql",
+      "line": 60,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_staff_no_demise_last_manager BEFORE UPDATE OF role, is_active ON staff_users WHEN (OLD.role = 'manager' AND OLD.is_active = 1) AND (NEW.role <> 'manager' OR NEW.is_active <> 1) AND (SELECT COUNT(*) FROM staff_users WHERE role = 'manager' AND is_active = 1 AND id <> OLD.id) = 0"
+    },
+    {
+      "name": "trg_customer_access_pin_algo_ins",
+      "file": "0043_pin_algo_guard.sql",
+      "line": 15,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_customer_access_pin_algo_ins BEFORE INSERT ON customer_access WHEN NEW.pin_algo NOT IN ('sha256', 'pbkdf2-sha256-100k') BEGIN SELECT RAISE(ABORT, 'PIN invalide : algorithme non pris en charge.'); END;"
+    },
+    {
+      "name": "trg_customer_access_pin_algo_upd",
+      "file": "0043_pin_algo_guard.sql",
+      "line": 22,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_customer_access_pin_algo_upd BEFORE UPDATE OF pin_algo ON customer_access WHEN NEW.pin_algo NOT IN ('sha256', 'pbkdf2-sha256-100k') BEGIN SELECT RAISE(ABORT, 'PIN invalide : algorithme non pris en charge.'); END;"
+    },
+    {
+      "name": "trg_sales_closed_day_ins",
+      "file": "0048_closing_period_lock.sql",
+      "line": 32,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_sales_closed_day_ins BEFORE INSERT ON sales WHEN substr(NEW.created_at, 1, 10) <> '' AND EXISTS ( SELECT 1 FROM daily_closings dc WHERE dc.business_date = substr(NEW.created_at, 1, 10) )"
+    },
+    {
+      "name": "trg_sales_closed_day_upd",
+      "file": "0048_closing_period_lock.sql",
+      "line": 42,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_sales_closed_day_upd BEFORE UPDATE OF subtotal_minor, discount_value_minor, discount_amount_minor, delivery_fee_minor, total_minor, amount_paid_minor, remaining_balance_minor, payment_status, payment_method ON sales WHEN substr(NEW.created_at, 1, 10) <> ''"
+    },
+    {
+      "name": "trg_sales_closed_day_del",
+      "file": "0048_closing_period_lock.sql",
+      "line": 55,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_sales_closed_day_del BEFORE DELETE ON sales WHEN substr(OLD.created_at, 1, 10) <> '' AND EXISTS ( SELECT 1 FROM daily_closings dc WHERE dc.business_date = substr(OLD.created_at, 1, 10) )"
+    },
+    {
+      "name": "trg_sale_payments_closed_day_ins",
+      "file": "0048_closing_period_lock.sql",
+      "line": 66,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_sale_payments_closed_day_ins BEFORE INSERT ON sale_payments WHEN substr(NEW.payment_date, 1, 10) <> '' AND EXISTS ( SELECT 1 FROM daily_closings dc WHERE dc.business_date = substr(NEW.payment_date, 1, 10) )"
+    },
+    {
+      "name": "trg_sale_payments_closed_day_upd",
+      "file": "0048_closing_period_lock.sql",
+      "line": 76,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_sale_payments_closed_day_upd BEFORE UPDATE OF amount_minor, method, payment_date ON sale_payments WHEN substr(NEW.payment_date, 1, 10) <> '' AND EXISTS ( SELECT 1 FROM daily_closings dc WHERE dc.business_date = substr(NEW.payment_date, 1, 10) )"
+    },
+    {
+      "name": "trg_sale_payments_closed_day_del",
+      "file": "0048_closing_period_lock.sql",
+      "line": 86,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_sale_payments_closed_day_del BEFORE DELETE ON sale_payments WHEN substr(OLD.payment_date, 1, 10) <> '' AND EXISTS ( SELECT 1 FROM daily_closings dc WHERE dc.business_date = substr(OLD.payment_date, 1, 10) )"
+    },
+    {
+      "name": "trg_expenses_closed_day_ins",
+      "file": "0048_closing_period_lock.sql",
+      "line": 97,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_expenses_closed_day_ins BEFORE INSERT ON expenses WHEN substr(NEW.expense_date, 1, 10) <> '' AND EXISTS ( SELECT 1 FROM daily_closings dc WHERE dc.business_date = substr(NEW.expense_date, 1, 10) )"
+    },
+    {
+      "name": "trg_expenses_closed_day_upd",
+      "file": "0048_closing_period_lock.sql",
+      "line": 107,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_expenses_closed_day_upd BEFORE UPDATE OF amount_minor, status, expense_date, payment_method ON expenses WHEN substr(NEW.expense_date, 1, 10) <> '' AND EXISTS ( SELECT 1 FROM daily_closings dc WHERE dc.business_date = substr(NEW.expense_date, 1, 10) )"
+    },
+    {
+      "name": "trg_expenses_closed_day_del",
+      "file": "0048_closing_period_lock.sql",
+      "line": 117,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_expenses_closed_day_del BEFORE DELETE ON expenses WHEN substr(OLD.expense_date, 1, 10) <> '' AND EXISTS ( SELECT 1 FROM daily_closings dc WHERE dc.business_date = substr(OLD.expense_date, 1, 10) )"
+    },
+    {
+      "name": "trg_returns_closed_day_ins",
+      "file": "0048_closing_period_lock.sql",
+      "line": 128,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_returns_closed_day_ins BEFORE INSERT ON returns WHEN substr(NEW.created_at, 1, 10) <> '' AND EXISTS ( SELECT 1 FROM daily_closings dc WHERE dc.business_date = substr(NEW.created_at, 1, 10) )"
+    },
+    {
+      "name": "trg_returns_closed_day_upd",
+      "file": "0048_closing_period_lock.sql",
+      "line": 138,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_returns_closed_day_upd BEFORE UPDATE OF amount_refunded_minor, credit_to_customer_minor, total_return_value_minor, status ON returns WHEN substr(NEW.created_at, 1, 10) <> '' AND EXISTS ("
+    },
+    {
+      "name": "trg_returns_closed_day_del",
+      "file": "0048_closing_period_lock.sql",
+      "line": 150,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_returns_closed_day_del BEFORE DELETE ON returns WHEN substr(OLD.created_at, 1, 10) <> '' AND EXISTS ( SELECT 1 FROM daily_closings dc WHERE dc.business_date = substr(OLD.created_at, 1, 10) )"
+    },
+    {
+      "name": "trg_supplier_payments_closed_day_ins",
+      "file": "0048_closing_period_lock.sql",
+      "line": 161,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_supplier_payments_closed_day_ins BEFORE INSERT ON supplier_payments WHEN substr(NEW.payment_date, 1, 10) <> '' AND EXISTS ( SELECT 1 FROM daily_closings dc WHERE dc.business_date = substr(NEW.payment_date, 1, 10) )"
+    },
+    {
+      "name": "trg_supplier_payments_closed_day_upd",
+      "file": "0048_closing_period_lock.sql",
+      "line": 171,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_supplier_payments_closed_day_upd BEFORE UPDATE OF amount_minor, method, payment_date ON supplier_payments WHEN substr(NEW.payment_date, 1, 10) <> '' AND EXISTS ( SELECT 1 FROM daily_closings dc WHERE dc.business_date = substr(NEW.payment_date, 1, 10) )"
+    },
+    {
+      "name": "trg_supplier_payments_closed_day_del",
+      "file": "0048_closing_period_lock.sql",
+      "line": 181,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_supplier_payments_closed_day_del BEFORE DELETE ON supplier_payments WHEN substr(OLD.payment_date, 1, 10) <> '' AND EXISTS ( SELECT 1 FROM daily_closings dc WHERE dc.business_date = substr(OLD.payment_date, 1, 10) )"
+    },
+    {
+      "name": "trg_customers_phone_unique_ins",
+      "file": "0049_customers_phone_unique.sql",
+      "line": 29,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_customers_phone_unique_ins BEFORE INSERT ON customers WHEN NEW.phone IS NOT NULL AND TRIM(NEW.phone) <> '' AND EXISTS ( SELECT 1 FROM customers c"
+    },
+    {
+      "name": "trg_customers_phone_unique_upd",
+      "file": "0049_customers_phone_unique.sql",
+      "line": 48,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_customers_phone_unique_upd BEFORE UPDATE OF phone ON customers WHEN NEW.phone IS NOT NULL AND TRIM(NEW.phone) <> '' AND EXISTS ( SELECT 1 FROM customers c"
+    },
+    {
+      "name": "trg_sales_no_negative_total",
+      "file": "0051_sales_signed_discount.sql",
+      "line": 127,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_sales_no_negative_total BEFORE UPDATE ON sales WHEN NEW.total_minor < 0 OR NEW.amount_paid_minor > NEW.total_minor BEGIN SELECT RAISE(ABORT, 'SALE_ARITHMETIC_VIOLATION'); END;"
+    },
+    {
+      "name": "trg_sales_credit_allowed",
+      "file": "0051_sales_signed_discount.sql",
+      "line": 134,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_sales_credit_allowed BEFORE INSERT ON sales WHEN NEW.remaining_balance_minor > 0 BEGIN SELECT CASE WHEN NEW.customer_id IS NULL THEN RAISE(ABORT, 'Vente à crédit : choisissez un client autorisé au crédit.')"
+    },
+    {
+      "name": "trg_sales_credit_allowed_update",
+      "file": "0051_sales_signed_discount.sql",
+      "line": 144,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_sales_credit_allowed_update BEFORE UPDATE OF remaining_balance_minor, customer_id ON sales WHEN NEW.remaining_balance_minor > 0 BEGIN SELECT CASE WHEN NEW.customer_id IS NULL THEN RAISE(ABORT, 'Vente à crédit : choisissez un client autorisé au crédit.')"
+    },
+    {
+      "name": "trg_sales_no_negative_total_ins",
+      "file": "0051_sales_signed_discount.sql",
+      "line": 154,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_sales_no_negative_total_ins BEFORE INSERT ON sales WHEN NEW.total_minor < 0 OR NEW.amount_paid_minor > NEW.total_minor BEGIN SELECT RAISE(ABORT, 'SALE_ARITHMETIC_VIOLATION'); END;"
+    },
+    {
+      "name": "trg_sales_closed_day_ins",
+      "file": "0051_sales_signed_discount.sql",
+      "line": 161,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_sales_closed_day_ins BEFORE INSERT ON sales WHEN substr(NEW.created_at, 1, 10) <> '' AND EXISTS ( SELECT 1 FROM daily_closings dc WHERE dc.business_date = substr(NEW.created_at, 1, 10) )"
+    },
+    {
+      "name": "trg_sales_closed_day_upd",
+      "file": "0051_sales_signed_discount.sql",
+      "line": 171,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_sales_closed_day_upd BEFORE UPDATE OF subtotal_minor, discount_value_minor, discount_amount_minor, delivery_fee_minor, total_minor, amount_paid_minor, remaining_balance_minor, payment_status, payment_method ON sales WHEN substr(NEW.created_at, 1, 10) <> ''"
+    },
+    {
+      "name": "trg_sales_closed_day_del",
+      "file": "0051_sales_signed_discount.sql",
+      "line": 184,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_sales_closed_day_del BEFORE DELETE ON sales WHEN substr(OLD.created_at, 1, 10) <> '' AND EXISTS ( SELECT 1 FROM daily_closings dc WHERE dc.business_date = substr(OLD.created_at, 1, 10) )"
+    },
+    {
+      "name": "trg_customers_no_delete_with_sales",
+      "file": "0051_sales_signed_discount.sql",
+      "line": 217,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_customers_no_delete_with_sales BEFORE DELETE ON customers WHEN EXISTS (SELECT 1 FROM sales WHERE sales.customer_id = OLD.id) BEGIN SELECT RAISE(ABORT, 'Suppression impossible : des ventes sont liées à ce client.'); END;"
+    },
+    {
+      "name": "trg_sale_items_discount_floor_ins",
+      "file": "0051_sales_signed_discount.sql",
+      "line": 231,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_sale_items_discount_floor_ins BEFORE INSERT ON sale_items FOR EACH ROW WHEN NEW.discount_minor IS NOT NULL AND NEW.discount_minor < -100000000000 BEGIN"
+    },
+    {
+      "name": "trg_sale_items_discount_floor_upd",
+      "file": "0051_sales_signed_discount.sql",
+      "line": 240,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_sale_items_discount_floor_upd BEFORE UPDATE OF discount_minor ON sale_items FOR EACH ROW WHEN NEW.discount_minor IS NOT NULL AND NEW.discount_minor < -100000000000 BEGIN"
+    },
+    {
+      "name": "trg_sales_credit_applied_bounds_ins",
+      "file": "0055_return_credit_allocations.sql",
+      "line": 19,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_sales_credit_applied_bounds_ins BEFORE INSERT ON sales WHEN NEW.credit_applied_minor < 0 OR NEW.credit_applied_minor > NEW.amount_paid_minor BEGIN SELECT RAISE(ABORT, 'Crédit imputé incohérent : 0 <= crédit <= montant payé.'); END;"
+    },
+    {
+      "name": "trg_sales_credit_applied_bounds_upd",
+      "file": "0055_return_credit_allocations.sql",
+      "line": 26,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_sales_credit_applied_bounds_upd BEFORE UPDATE OF amount_paid_minor, credit_applied_minor ON sales WHEN NEW.credit_applied_minor < 0 OR NEW.credit_applied_minor > NEW.amount_paid_minor BEGIN SELECT RAISE(ABORT, 'Crédit imputé incohérent : 0 <= crédit <= montant payé.'); END;"
+    },
+    {
+      "name": "trg_credit_alloc_party_ins",
+      "file": "0055_return_credit_allocations.sql",
+      "line": 56,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_credit_alloc_party_ins BEFORE INSERT ON customer_credit_allocations WHEN NEW.customer_id IS NULL OR (SELECT customer_id FROM returns WHERE id = NEW.return_id) IS NOT NEW.customer_id OR ( NEW.sale_id IS NOT NULL"
+    },
+    {
+      "name": "trg_credit_alloc_total_ins",
+      "file": "0055_return_credit_allocations.sql",
+      "line": 68,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_credit_alloc_total_ins BEFORE INSERT ON customer_credit_allocations WHEN ( SELECT COALESCE(SUM(amount_minor), 0) FROM customer_credit_allocations WHERE return_id = NEW.return_id"
+    },
+    {
+      "name": "trg_sales_closed_day_ins",
+      "file": "0058_business_day_closing_lock.sql",
+      "line": 34,
+      "raw": "CREATE TRIGGER trg_sales_closed_day_ins BEFORE INSERT ON sales WHEN date(NEW.created_at, '+1 hour') <> '' AND EXISTS ( SELECT 1 FROM daily_closings dc WHERE dc.business_date = date(NEW.created_at, '+1 hour') )"
+    },
+    {
+      "name": "trg_sales_closed_day_upd",
+      "file": "0058_business_day_closing_lock.sql",
+      "line": 45,
+      "raw": "CREATE TRIGGER trg_sales_closed_day_upd BEFORE UPDATE OF subtotal_minor, discount_value_minor, discount_amount_minor, delivery_fee_minor, total_minor, amount_paid_minor, remaining_balance_minor, payment_status, payment_method ON sales WHEN date(NEW.created_at, '+1 hour') <> ''"
+    },
+    {
+      "name": "trg_sales_closed_day_del",
+      "file": "0058_business_day_closing_lock.sql",
+      "line": 59,
+      "raw": "CREATE TRIGGER trg_sales_closed_day_del BEFORE DELETE ON sales WHEN date(OLD.created_at, '+1 hour') <> '' AND EXISTS ( SELECT 1 FROM daily_closings dc WHERE dc.business_date = date(OLD.created_at, '+1 hour') )"
+    },
+    {
+      "name": "trg_returns_closed_day_ins",
+      "file": "0058_business_day_closing_lock.sql",
+      "line": 71,
+      "raw": "CREATE TRIGGER trg_returns_closed_day_ins BEFORE INSERT ON returns WHEN date(NEW.created_at, '+1 hour') <> '' AND EXISTS ( SELECT 1 FROM daily_closings dc WHERE dc.business_date = date(NEW.created_at, '+1 hour') )"
+    },
+    {
+      "name": "trg_returns_closed_day_upd",
+      "file": "0058_business_day_closing_lock.sql",
+      "line": 82,
+      "raw": "CREATE TRIGGER trg_returns_closed_day_upd BEFORE UPDATE OF amount_refunded_minor, credit_to_customer_minor, total_return_value_minor, status ON returns WHEN date(NEW.created_at, '+1 hour') <> '' AND EXISTS ("
+    },
+    {
+      "name": "trg_returns_closed_day_del",
+      "file": "0058_business_day_closing_lock.sql",
+      "line": 95,
+      "raw": "CREATE TRIGGER trg_returns_closed_day_del BEFORE DELETE ON returns WHEN date(OLD.created_at, '+1 hour') <> '' AND EXISTS ( SELECT 1 FROM daily_closings dc WHERE dc.business_date = date(OLD.created_at, '+1 hour') )"
+    },
+    {
+      "name": "trg_customer_access_pin_algo_ins",
+      "file": "0062_client_access_history.sql",
+      "line": 61,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_customer_access_pin_algo_ins BEFORE INSERT ON customer_access WHEN NEW.pin_algo NOT IN ('sha256', 'pbkdf2-sha256-100k') BEGIN SELECT RAISE(ABORT, 'PIN invalide : algorithme non pris en charge.'); END;"
+    },
+    {
+      "name": "trg_customer_access_pin_algo_upd",
+      "file": "0062_client_access_history.sql",
+      "line": 68,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_customer_access_pin_algo_upd BEFORE UPDATE OF pin_algo ON customer_access WHEN NEW.pin_algo NOT IN ('sha256', 'pbkdf2-sha256-100k') BEGIN SELECT RAISE(ABORT, 'PIN invalide : algorithme non pris en charge.'); END;"
+    },
+    {
+      "name": "trg_client_orders_status_transition",
+      "file": "0063_client_orders.sql",
+      "line": 104,
+      "raw": "CREATE TRIGGER IF NOT EXISTS trg_client_orders_status_transition BEFORE UPDATE OF status ON client_orders FOR EACH ROW WHEN NOT ( OLD.status = NEW.status OR (OLD.status = 'nouvelle' AND NEW.status IN ('preparing', 'ready', 'served', 'cancelled'))"
+    }
+  ],
+  "indexes": 166,
+  "indexList": [
+    {
+      "name": "idx_products_name",
+      "unique": false,
+      "file": "0002_catalog_indexes.sql",
+      "line": 3,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);"
+    },
+    {
+      "name": "idx_products_category",
+      "unique": false,
+      "file": "0002_catalog_indexes.sql",
+      "line": 4,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);"
+    },
+    {
+      "name": "idx_products_price",
+      "unique": false,
+      "file": "0002_catalog_indexes.sql",
+      "line": 5,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_products_price ON products(selling_price_minor);"
+    },
+    {
+      "name": "idx_products_active",
+      "unique": false,
+      "file": "0002_catalog_indexes.sql",
+      "line": 6,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_products_active ON products(is_active);"
+    },
+    {
+      "name": "idx_barcodes_barcode",
+      "unique": false,
+      "file": "0002_catalog_indexes.sql",
+      "line": 7,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_barcodes_barcode ON product_barcodes(barcode);"
+    },
+    {
+      "name": "idx_barcodes_product",
+      "unique": false,
+      "file": "0002_catalog_indexes.sql",
+      "line": 8,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_barcodes_product ON product_barcodes(product_id);"
+    },
+    {
+      "name": "idx_customers_search",
+      "unique": false,
+      "file": "0002_catalog_indexes.sql",
+      "line": 10,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_customers_search ON customers(search_name);"
+    },
+    {
+      "name": "idx_customers_phone",
+      "unique": false,
+      "file": "0002_catalog_indexes.sql",
+      "line": 11,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);"
+    },
+    {
+      "name": "idx_customers_balance",
+      "unique": false,
+      "file": "0002_catalog_indexes.sql",
+      "line": 12,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_customers_balance ON customers(outstanding_balance_minor);"
+    },
+    {
+      "name": "idx_sales_invoice",
+      "unique": false,
+      "file": "0002_catalog_indexes.sql",
+      "line": 14,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sales_invoice ON sales(invoice_number);"
+    },
+    {
+      "name": "idx_sales_customer_created",
+      "unique": false,
+      "file": "0002_catalog_indexes.sql",
+      "line": 15,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sales_customer_created ON sales(customer_id, created_at);"
+    },
+    {
+      "name": "idx_sales_created",
+      "unique": false,
+      "file": "0002_catalog_indexes.sql",
+      "line": 16,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sales_created ON sales(created_at);"
+    },
+    {
+      "name": "idx_sales_payment_status",
+      "unique": false,
+      "file": "0002_catalog_indexes.sql",
+      "line": 17,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sales_payment_status ON sales(payment_status);"
+    },
+    {
+      "name": "idx_sale_items_sale",
+      "unique": false,
+      "file": "0002_catalog_indexes.sql",
+      "line": 18,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sale_items_sale ON sale_items(sale_id);"
+    },
+    {
+      "name": "idx_sale_items_product",
+      "unique": false,
+      "file": "0002_catalog_indexes.sql",
+      "line": 19,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sale_items_product ON sale_items(product_id);"
+    },
+    {
+      "name": "idx_sale_payments_sale",
+      "unique": false,
+      "file": "0002_catalog_indexes.sql",
+      "line": 20,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sale_payments_sale ON sale_payments(sale_id);"
+    },
+    {
+      "name": "idx_sale_payments_customer_date",
+      "unique": false,
+      "file": "0002_catalog_indexes.sql",
+      "line": 21,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sale_payments_customer_date ON sale_payments(customer_id, payment_date);"
+    },
+    {
+      "name": "idx_stock_movements_product_date",
+      "unique": false,
+      "file": "0002_catalog_indexes.sql",
+      "line": 23,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_stock_movements_product_date ON stock_movements(product_id, created_at);"
+    },
+    {
+      "name": "idx_stock_intakes_supplier_date",
+      "unique": false,
+      "file": "0002_catalog_indexes.sql",
+      "line": 24,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_stock_intakes_supplier_date ON stock_intakes(supplier_id, invoice_date);"
+    },
+    {
+      "name": "idx_returns_original_sale",
+      "unique": false,
+      "file": "0002_catalog_indexes.sql",
+      "line": 25,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_returns_original_sale ON returns(original_sale_id);"
+    },
+    {
+      "name": "idx_expenses_date",
+      "unique": false,
+      "file": "0002_catalog_indexes.sql",
+      "line": 26,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(expense_date);"
+    },
+    {
+      "name": "idx_supplier_payments_supplier_date",
+      "unique": false,
+      "file": "0002_catalog_indexes.sql",
+      "line": 27,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_supplier_payments_supplier_date ON supplier_payments(supplier_id, payment_date);"
+    },
+    {
+      "name": "idx_bread_customer_pickup",
+      "unique": false,
+      "file": "0002_catalog_indexes.sql",
+      "line": 28,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_bread_customer_pickup ON bread_orders(customer_id, pickup_date);"
+    },
+    {
+      "name": "idx_audit_entity",
+      "unique": false,
+      "file": "0002_catalog_indexes.sql",
+      "line": 29,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_log(entity_type, entity_id, created_at);"
+    },
+    {
+      "name": "idx_sales_operation",
+      "unique": false,
+      "file": "0002_catalog_indexes.sql",
+      "line": 30,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sales_operation ON sales(operation_id);"
+    },
+    {
+      "name": "idx_sale_payments_sale",
+      "unique": false,
+      "file": "0004_sale_payments_nullable.sql",
+      "line": 37,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sale_payments_sale ON sale_payments(sale_id);"
+    },
+    {
+      "name": "idx_sale_payments_customer_date",
+      "unique": false,
+      "file": "0004_sale_payments_nullable.sql",
+      "line": 38,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sale_payments_customer_date ON sale_payments(customer_id, payment_date);"
+    },
+    {
+      "name": "idx_proformas_customer_created",
+      "unique": false,
+      "file": "0005_phase6_9_indexes.sql",
+      "line": 11,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_proformas_customer_created"
+    },
+    {
+      "name": "idx_proformas_status",
+      "unique": false,
+      "file": "0005_phase6_9_indexes.sql",
+      "line": 13,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_proformas_status ON proforma_invoices(status);"
+    },
+    {
+      "name": "idx_proforma_items_proforma",
+      "unique": false,
+      "file": "0005_phase6_9_indexes.sql",
+      "line": 14,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_proforma_items_proforma ON proforma_items(proforma_id);"
+    },
+    {
+      "name": "idx_proforma_items_product",
+      "unique": false,
+      "file": "0005_phase6_9_indexes.sql",
+      "line": 15,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_proforma_items_product ON proforma_items(product_id);"
+    },
+    {
+      "name": "idx_bread_pickup_date",
+      "unique": false,
+      "file": "0005_phase6_9_indexes.sql",
+      "line": 18,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_bread_pickup_date ON bread_orders(pickup_date);"
+    },
+    {
+      "name": "idx_bread_pickup_status",
+      "unique": false,
+      "file": "0005_phase6_9_indexes.sql",
+      "line": 19,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_bread_pickup_status ON bread_orders(pickup_status);"
+    },
+    {
+      "name": "idx_bread_payment_status",
+      "unique": false,
+      "file": "0005_phase6_9_indexes.sql",
+      "line": 20,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_bread_payment_status ON bread_orders(payment_status);"
+    },
+    {
+      "name": "idx_closings_date",
+      "unique": false,
+      "file": "0005_phase6_9_indexes.sql",
+      "line": 23,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_closings_date ON daily_closings(business_date);"
+    },
+    {
+      "name": "idx_customers_debt_status",
+      "unique": false,
+      "file": "0005_phase6_9_indexes.sql",
+      "line": 26,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_customers_debt_status ON customers(debt_status);"
+    },
+    {
+      "name": "idx_sales_due",
+      "unique": false,
+      "file": "0005_phase6_9_indexes.sql",
+      "line": 27,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sales_due ON sales(due_date);"
+    },
+    {
+      "name": "idx_products_stock_status",
+      "unique": false,
+      "file": "0005_phase6_9_indexes.sql",
+      "line": 30,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_products_stock_status ON products(stock_status);"
+    },
+    {
+      "name": "idx_products_supplier",
+      "unique": false,
+      "file": "0005_phase6_9_indexes.sql",
+      "line": 31,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_products_supplier ON products(supplier_id);"
+    },
+    {
+      "name": "idx_stock_intake_items_intake",
+      "unique": false,
+      "file": "0005_phase6_9_indexes.sql",
+      "line": 32,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_stock_intake_items_intake ON stock_intake_items(stock_intake_id);"
+    },
+    {
+      "name": "idx_stock_intake_items_product",
+      "unique": false,
+      "file": "0005_phase6_9_indexes.sql",
+      "line": 33,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_stock_intake_items_product ON stock_intake_items(product_id);"
+    },
+    {
+      "name": "idx_suppliers_name",
+      "unique": false,
+      "file": "0005_phase6_9_indexes.sql",
+      "line": 34,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_suppliers_name ON suppliers(name);"
+    },
+    {
+      "name": "idx_audit_created",
+      "unique": false,
+      "file": "0005_phase6_9_indexes.sql",
+      "line": 37,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at);"
+    },
+    {
+      "name": "idx_expenses_category",
+      "unique": false,
+      "file": "0005_phase6_9_indexes.sql",
+      "line": 40,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category);"
+    },
+    {
+      "name": "idx_suppliers_code",
+      "unique": true,
+      "file": "0008_suppliers_enrichment.sql",
+      "line": 13,
+      "raw": "CREATE UNIQUE INDEX IF NOT EXISTS idx_suppliers_code ON suppliers(code);"
+    },
+    {
+      "name": "idx_suppliers_active",
+      "unique": false,
+      "file": "0008_suppliers_enrichment.sql",
+      "line": 14,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_suppliers_active ON suppliers(is_active);"
+    },
+    {
+      "name": "idx_movements_product_created",
+      "unique": false,
+      "file": "0009_stock_page.sql",
+      "line": 8,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_movements_product_created ON stock_movements(product_id, created_at);"
+    },
+    {
+      "name": "idx_movements_type",
+      "unique": false,
+      "file": "0009_stock_page.sql",
+      "line": 9,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_movements_type ON stock_movements(movement_type);"
+    },
+    {
+      "name": "idx_returns_number",
+      "unique": true,
+      "file": "0010_supplier_returns.sql",
+      "line": 13,
+      "raw": "CREATE UNIQUE INDEX IF NOT EXISTS idx_returns_number ON returns(return_number);"
+    },
+    {
+      "name": "idx_supplier_returns_supplier",
+      "unique": false,
+      "file": "0010_supplier_returns.sql",
+      "line": 53,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_supplier_returns_supplier ON supplier_returns(supplier_id);"
+    },
+    {
+      "name": "idx_supplier_returns_intake",
+      "unique": false,
+      "file": "0010_supplier_returns.sql",
+      "line": 54,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_supplier_returns_intake ON supplier_returns(stock_intake_id);"
+    },
+    {
+      "name": "idx_expenses_date",
+      "unique": false,
+      "file": "0011_expenses_enrichment.sql",
+      "line": 12,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(expense_date);"
+    },
+    {
+      "name": "idx_expenses_status",
+      "unique": false,
+      "file": "0011_expenses_enrichment.sql",
+      "line": 13,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_expenses_status ON expenses(status);"
+    },
+    {
+      "name": "idx_expenses_supplier",
+      "unique": false,
+      "file": "0011_expenses_enrichment.sql",
+      "line": 14,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_expenses_supplier ON expenses(supplier_id);"
+    },
+    {
+      "name": "idx_bread_status",
+      "unique": false,
+      "file": "0012_bread_proforma_zakat.sql",
+      "line": 41,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_bread_status ON bread_orders(order_status);"
+    },
+    {
+      "name": "idx_bread_pickup",
+      "unique": false,
+      "file": "0012_bread_proforma_zakat.sql",
+      "line": 42,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_bread_pickup ON bread_orders(pickup_date);"
+    },
+    {
+      "name": "idx_return_items_return",
+      "unique": false,
+      "file": "0014_return_items_indexes.sql",
+      "line": 6,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_return_items_return ON return_items(return_id);"
+    },
+    {
+      "name": "idx_supplier_return_items_return",
+      "unique": false,
+      "file": "0014_return_items_indexes.sql",
+      "line": 7,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_supplier_return_items_return"
+    },
+    {
+      "name": "idx_product_suppliers_supplier",
+      "unique": false,
+      "file": "0015_product_suppliers.sql",
+      "line": 14,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_product_suppliers_supplier ON product_suppliers(supplier_id);"
+    },
+    {
+      "name": "idx_bread_recurring",
+      "unique": false,
+      "file": "0016_bread_recurring.sql",
+      "line": 10,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_bread_recurring ON bread_orders(is_recurring);"
+    },
+    {
+      "name": "idx_stock_intakes_operation",
+      "unique": true,
+      "file": "0017_stock_intake_operation.sql",
+      "line": 9,
+      "raw": "CREATE UNIQUE INDEX IF NOT EXISTS idx_stock_intakes_operation ON stock_intakes(operation_id);"
+    },
+    {
+      "name": "idx_layers_product",
+      "unique": false,
+      "file": "0018_fifo_cost_layers.sql",
+      "line": 39,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_layers_product ON inventory_layers(product_id, id);"
+    },
+    {
+      "name": "idx_layers_intake",
+      "unique": false,
+      "file": "0018_fifo_cost_layers.sql",
+      "line": 40,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_layers_intake ON inventory_layers(stock_intake_id, product_id);"
+    },
+    {
+      "name": "idx_consumption_sale",
+      "unique": false,
+      "file": "0018_fifo_cost_layers.sql",
+      "line": 41,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_consumption_sale ON sale_fifo_consumption(sale_id);"
+    },
+    {
+      "name": "idx_consumption_layer",
+      "unique": false,
+      "file": "0018_fifo_cost_layers.sql",
+      "line": 42,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_consumption_layer ON sale_fifo_consumption(layer_id);"
+    },
+    {
+      "name": "idx_consumption_item",
+      "unique": false,
+      "file": "0018_fifo_cost_layers.sql",
+      "line": 43,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_consumption_item ON sale_fifo_consumption(sale_item_id);"
+    },
+    {
+      "name": "idx_consumption_product",
+      "unique": false,
+      "file": "0019_lookup_indexes.sql",
+      "line": 6,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_consumption_product ON sale_fifo_consumption(product_id);"
+    },
+    {
+      "name": "idx_returns_customer",
+      "unique": false,
+      "file": "0019_lookup_indexes.sql",
+      "line": 7,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_returns_customer ON returns(customer_id);"
+    },
+    {
+      "name": "idx_return_items_product",
+      "unique": false,
+      "file": "0019_lookup_indexes.sql",
+      "line": 8,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_return_items_product ON return_items(product_id);"
+    },
+    {
+      "name": "idx_supplier_return_items_product",
+      "unique": false,
+      "file": "0019_lookup_indexes.sql",
+      "line": 9,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_supplier_return_items_product ON supplier_return_items(product_id);"
+    },
+    {
+      "name": "idx_bread_sale",
+      "unique": false,
+      "file": "0019_lookup_indexes.sql",
+      "line": 10,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_bread_sale ON bread_orders(sale_id);"
+    },
+    {
+      "name": "idx_proformas_converted_sale",
+      "unique": false,
+      "file": "0019_lookup_indexes.sql",
+      "line": 11,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_proformas_converted_sale ON proforma_invoices(converted_sale_id);"
+    },
+    {
+      "name": "idx_sale_payments_operation",
+      "unique": true,
+      "file": "0020_payment_operation_ids.sql",
+      "line": 10,
+      "raw": "CREATE UNIQUE INDEX IF NOT EXISTS idx_sale_payments_operation ON sale_payments(operation_id);"
+    },
+    {
+      "name": "idx_supplier_payments_operation",
+      "unique": true,
+      "file": "0020_payment_operation_ids.sql",
+      "line": 11,
+      "raw": "CREATE UNIQUE INDEX IF NOT EXISTS idx_supplier_payments_operation ON supplier_payments(operation_id);"
+    },
+    {
+      "name": "idx_idempotency_keys_type",
+      "unique": false,
+      "file": "0021_idempotency_keys.sql",
+      "line": 15,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_idempotency_keys_type ON idempotency_keys(op_type);"
+    },
+    {
+      "name": "idx_products_operation",
+      "unique": true,
+      "file": "0022_create_operation_ids.sql",
+      "line": 15,
+      "raw": "CREATE UNIQUE INDEX IF NOT EXISTS idx_products_operation ON products(operation_id);"
+    },
+    {
+      "name": "idx_customers_operation",
+      "unique": true,
+      "file": "0022_create_operation_ids.sql",
+      "line": 16,
+      "raw": "CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_operation ON customers(operation_id);"
+    },
+    {
+      "name": "idx_suppliers_operation",
+      "unique": true,
+      "file": "0022_create_operation_ids.sql",
+      "line": 17,
+      "raw": "CREATE UNIQUE INDEX IF NOT EXISTS idx_suppliers_operation ON suppliers(operation_id);"
+    },
+    {
+      "name": "idx_expenses_operation",
+      "unique": true,
+      "file": "0022_create_operation_ids.sql",
+      "line": 18,
+      "raw": "CREATE UNIQUE INDEX IF NOT EXISTS idx_expenses_operation ON expenses(operation_id);"
+    },
+    {
+      "name": "idx_returns_number",
+      "unique": true,
+      "file": "0025_return_numbers_not_null.sql",
+      "line": 53,
+      "raw": "CREATE UNIQUE INDEX IF NOT EXISTS idx_returns_number ON returns(return_number);"
+    },
+    {
+      "name": "idx_returns_customer",
+      "unique": false,
+      "file": "0025_return_numbers_not_null.sql",
+      "line": 54,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_returns_customer ON returns(customer_id);"
+    },
+    {
+      "name": "idx_supplier_returns_supplier",
+      "unique": false,
+      "file": "0025_return_numbers_not_null.sql",
+      "line": 89,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_supplier_returns_supplier ON supplier_returns(supplier_id);"
+    },
+    {
+      "name": "idx_supplier_returns_intake",
+      "unique": false,
+      "file": "0025_return_numbers_not_null.sql",
+      "line": 90,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_supplier_returns_intake ON supplier_returns(stock_intake_id);"
+    },
+    {
+      "name": "idx_returns_original_sale",
+      "unique": false,
+      "file": "0028_restore_returns_sale_index.sql",
+      "line": 13,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_returns_original_sale ON returns(original_sale_id);"
+    },
+    {
+      "name": "idx_po_supplier",
+      "unique": false,
+      "file": "0029_purchase_orders.sql",
+      "line": 35,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_po_supplier ON purchase_orders(supplier_id);"
+    },
+    {
+      "name": "idx_po_status",
+      "unique": false,
+      "file": "0029_purchase_orders.sql",
+      "line": 36,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_po_status ON purchase_orders(status);"
+    },
+    {
+      "name": "idx_poi_po",
+      "unique": false,
+      "file": "0029_purchase_orders.sql",
+      "line": 37,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_poi_po ON purchase_order_items(po_id);"
+    },
+    {
+      "name": "idx_customer_access_customer",
+      "unique": false,
+      "file": "0032_client_access_sync.sql",
+      "line": 22,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_customer_access_customer ON customer_access(customer_id);"
+    },
+    {
+      "name": "idx_sync_outbox_status_created",
+      "unique": false,
+      "file": "0032_client_access_sync.sql",
+      "line": 36,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sync_outbox_status_created ON sync_outbox(status, created_at);"
+    },
+    {
+      "name": "idx_sync_outbox_customer_status",
+      "unique": false,
+      "file": "0033_sync_outbox_customer.sql",
+      "line": 10,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sync_outbox_customer_status ON sync_outbox(customer_id, status);"
+    },
+    {
+      "name": "IF",
+      "unique": true,
+      "file": "0034_client_access_phone_unique.sql",
+      "line": 20,
+      "raw": "-- CREATE UNIQUE INDEX IF NOT EXISTS. 0001..0033 immuables."
+    },
+    {
+      "name": "idx_customer_access_phone_hash_active",
+      "unique": true,
+      "file": "0034_client_access_phone_unique.sql",
+      "line": 34,
+      "raw": "CREATE UNIQUE INDEX IF NOT EXISTS idx_customer_access_phone_hash_active"
+    },
+    {
+      "name": "uq_templates_active",
+      "unique": true,
+      "file": "0036_print_templates.sql",
+      "line": 21,
+      "raw": "CREATE UNIQUE INDEX uq_templates_active ON print_templates (doc_type) WHERE is_active = 1;"
+    },
+    {
+      "name": "idx_customer_access_customer",
+      "unique": false,
+      "file": "0038_outbox_access_restrict.sql",
+      "line": 37,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_customer_access_customer ON customer_access(customer_id);"
+    },
+    {
+      "name": "idx_customer_access_phone_hash_active",
+      "unique": true,
+      "file": "0038_outbox_access_restrict.sql",
+      "line": 38,
+      "raw": "CREATE UNIQUE INDEX IF NOT EXISTS idx_customer_access_phone_hash_active"
+    },
+    {
+      "name": "idx_sync_outbox_status_created",
+      "unique": false,
+      "file": "0038_outbox_access_restrict.sql",
+      "line": 63,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sync_outbox_status_created ON sync_outbox(status, created_at);"
+    },
+    {
+      "name": "idx_sync_outbox_customer_status",
+      "unique": false,
+      "file": "0038_outbox_access_restrict.sql",
+      "line": 64,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sync_outbox_customer_status ON sync_outbox(customer_id, status);"
+    },
+    {
+      "name": "idx_expenses_date",
+      "unique": false,
+      "file": "0040_explicit_restrict.sql",
+      "line": 54,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(expense_date);"
+    },
+    {
+      "name": "idx_expenses_category",
+      "unique": false,
+      "file": "0040_explicit_restrict.sql",
+      "line": 55,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category);"
+    },
+    {
+      "name": "idx_expenses_status",
+      "unique": false,
+      "file": "0040_explicit_restrict.sql",
+      "line": 56,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_expenses_status ON expenses(status);"
+    },
+    {
+      "name": "idx_expenses_supplier",
+      "unique": false,
+      "file": "0040_explicit_restrict.sql",
+      "line": 57,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_expenses_supplier ON expenses(supplier_id);"
+    },
+    {
+      "name": "idx_expenses_operation",
+      "unique": true,
+      "file": "0040_explicit_restrict.sql",
+      "line": 58,
+      "raw": "CREATE UNIQUE INDEX IF NOT EXISTS idx_expenses_operation ON expenses(operation_id);"
+    },
+    {
+      "name": "idx_consumption_sale",
+      "unique": false,
+      "file": "0040_explicit_restrict.sql",
+      "line": 81,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_consumption_sale ON sale_fifo_consumption(sale_id);"
+    },
+    {
+      "name": "idx_consumption_layer",
+      "unique": false,
+      "file": "0040_explicit_restrict.sql",
+      "line": 82,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_consumption_layer ON sale_fifo_consumption(layer_id);"
+    },
+    {
+      "name": "idx_consumption_item",
+      "unique": false,
+      "file": "0040_explicit_restrict.sql",
+      "line": 83,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_consumption_item ON sale_fifo_consumption(sale_item_id);"
+    },
+    {
+      "name": "idx_consumption_product",
+      "unique": false,
+      "file": "0040_explicit_restrict.sql",
+      "line": 84,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_consumption_product ON sale_fifo_consumption(product_id);"
+    },
+    {
+      "name": "idx_staff_permissions_user",
+      "unique": false,
+      "file": "0041_staff_roles.sql",
+      "line": 41,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_staff_permissions_user"
+    },
+    {
+      "name": "idx_audit_actor",
+      "unique": false,
+      "file": "0041_staff_roles.sql",
+      "line": 48,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_audit_actor ON audit_log(actor_user_id);"
+    },
+    {
+      "name": "idx_sales_staff",
+      "unique": false,
+      "file": "0046_staff_attribution.sql",
+      "line": 17,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sales_staff ON sales(staff_user_id);"
+    },
+    {
+      "name": "idx_sale_payments_staff",
+      "unique": false,
+      "file": "0046_staff_attribution.sql",
+      "line": 21,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sale_payments_staff ON sale_payments(staff_user_id);"
+    },
+    {
+      "name": "idx_supplier_payments_staff",
+      "unique": false,
+      "file": "0046_staff_attribution.sql",
+      "line": 26,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_supplier_payments_staff ON supplier_payments(staff_user_id);"
+    },
+    {
+      "name": "idx_expenses_staff",
+      "unique": false,
+      "file": "0046_staff_attribution.sql",
+      "line": 31,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_expenses_staff ON expenses(staff_user_id);"
+    },
+    {
+      "name": "idx_returns_staff",
+      "unique": false,
+      "file": "0046_staff_attribution.sql",
+      "line": 36,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_returns_staff ON returns(staff_user_id);"
+    },
+    {
+      "name": "idx_stock_intakes_staff",
+      "unique": false,
+      "file": "0046_staff_attribution.sql",
+      "line": 41,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_stock_intakes_staff ON stock_intakes(staff_user_id);"
+    },
+    {
+      "name": "idx_stock_movements_staff",
+      "unique": false,
+      "file": "0046_staff_attribution.sql",
+      "line": 45,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_stock_movements_staff ON stock_movements(staff_user_id);"
+    },
+    {
+      "name": "idx_customers_search_norm",
+      "unique": false,
+      "file": "0047_customer_search_norm.sql",
+      "line": 17,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_customers_search_norm ON customers(search_norm);"
+    },
+    {
+      "name": "idx_customers_phone_digits",
+      "unique": false,
+      "file": "0050_perf_indexes.sql",
+      "line": 29,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_customers_phone_digits ON customers(phone_digits);"
+    },
+    {
+      "name": "idx_sales_open_debt",
+      "unique": false,
+      "file": "0050_perf_indexes.sql",
+      "line": 32,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sales_open_debt"
+    },
+    {
+      "name": "idx_suppliers_debt",
+      "unique": false,
+      "file": "0050_perf_indexes.sql",
+      "line": 34,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_suppliers_debt"
+    },
+    {
+      "name": "idx_customers_settle",
+      "unique": false,
+      "file": "0050_perf_indexes.sql",
+      "line": 36,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_customers_settle"
+    },
+    {
+      "name": "idx_stock_intakes_supplier_status",
+      "unique": false,
+      "file": "0050_perf_indexes.sql",
+      "line": 38,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_stock_intakes_supplier_status"
+    },
+    {
+      "name": "idx_sale_payments_created",
+      "unique": false,
+      "file": "0050_perf_indexes.sql",
+      "line": 42,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sale_payments_created ON sale_payments(created_at);"
+    },
+    {
+      "name": "idx_supplier_payments_created",
+      "unique": false,
+      "file": "0050_perf_indexes.sql",
+      "line": 43,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_supplier_payments_created ON supplier_payments(created_at);"
+    },
+    {
+      "name": "idx_stock_intakes_created",
+      "unique": false,
+      "file": "0050_perf_indexes.sql",
+      "line": 44,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_stock_intakes_created ON stock_intakes(created_at);"
+    },
+    {
+      "name": "idx_stock_movements_created",
+      "unique": false,
+      "file": "0050_perf_indexes.sql",
+      "line": 45,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_stock_movements_created ON stock_movements(created_at);"
+    },
+    {
+      "name": "idx_products_name_nocase",
+      "unique": false,
+      "file": "0050_perf_indexes.sql",
+      "line": 48,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_products_name_nocase ON products(name COLLATE NOCASE);"
+    },
+    {
+      "name": "idx_sales_invoice",
+      "unique": false,
+      "file": "0051_sales_signed_discount.sql",
+      "line": 117,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sales_invoice ON sales(invoice_number);"
+    },
+    {
+      "name": "idx_sales_customer_created",
+      "unique": false,
+      "file": "0051_sales_signed_discount.sql",
+      "line": 118,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sales_customer_created ON sales(customer_id, created_at);"
+    },
+    {
+      "name": "idx_sales_created",
+      "unique": false,
+      "file": "0051_sales_signed_discount.sql",
+      "line": 119,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sales_created ON sales(created_at);"
+    },
+    {
+      "name": "idx_sales_payment_status",
+      "unique": false,
+      "file": "0051_sales_signed_discount.sql",
+      "line": 120,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sales_payment_status ON sales(payment_status);"
+    },
+    {
+      "name": "idx_sales_operation",
+      "unique": false,
+      "file": "0051_sales_signed_discount.sql",
+      "line": 121,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sales_operation ON sales(operation_id);"
+    },
+    {
+      "name": "idx_sales_due",
+      "unique": false,
+      "file": "0051_sales_signed_discount.sql",
+      "line": 122,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sales_due ON sales(due_date);"
+    },
+    {
+      "name": "idx_sales_staff",
+      "unique": false,
+      "file": "0051_sales_signed_discount.sql",
+      "line": 123,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sales_staff ON sales(staff_user_id);"
+    },
+    {
+      "name": "idx_sales_open_debt",
+      "unique": false,
+      "file": "0051_sales_signed_discount.sql",
+      "line": 124,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sales_open_debt ON sales(is_cancelled, remaining_balance_minor);"
+    },
+    {
+      "name": "idx_sale_items_category",
+      "unique": false,
+      "file": "0052_dashboard_category_snapshots.sql",
+      "line": 43,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sale_items_category ON sale_items(category_id, sale_id);"
+    },
+    {
+      "name": "idx_return_items_return",
+      "unique": false,
+      "file": "0052_dashboard_category_snapshots.sql",
+      "line": 44,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_return_items_return ON return_items(return_id);"
+    },
+    {
+      "name": "idx_return_items_category",
+      "unique": false,
+      "file": "0052_dashboard_category_snapshots.sql",
+      "line": 45,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_return_items_category ON return_items(category_id, return_id);"
+    },
+    {
+      "name": "idx_sales_staff_created",
+      "unique": false,
+      "file": "0052_dashboard_category_snapshots.sql",
+      "line": 46,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sales_staff_created ON sales(staff_user_id, created_at);"
+    },
+    {
+      "name": "idx_sale_payments_date_staff",
+      "unique": false,
+      "file": "0052_dashboard_category_snapshots.sql",
+      "line": 47,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sale_payments_date_staff ON sale_payments(payment_date, staff_user_id);"
+    },
+    {
+      "name": "idx_supplier_payments_date_staff",
+      "unique": false,
+      "file": "0052_dashboard_category_snapshots.sql",
+      "line": 48,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_supplier_payments_date_staff ON supplier_payments(payment_date, staff_user_id);"
+    },
+    {
+      "name": "idx_expenses_date_staff",
+      "unique": false,
+      "file": "0052_dashboard_category_snapshots.sql",
+      "line": 49,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_expenses_date_staff ON expenses(expense_date, staff_user_id);"
+    },
+    {
+      "name": "idx_returns_created_status",
+      "unique": false,
+      "file": "0052_dashboard_category_snapshots.sql",
+      "line": 50,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_returns_created_status ON returns(created_at, status);"
+    },
+    {
+      "name": "idx_returns_staff_created",
+      "unique": false,
+      "file": "0052_dashboard_category_snapshots.sql",
+      "line": 51,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_returns_staff_created ON returns(staff_user_id, created_at);"
+    },
+    {
+      "name": "idx_supplier_returns_created_status",
+      "unique": false,
+      "file": "0052_dashboard_category_snapshots.sql",
+      "line": 52,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_supplier_returns_created_status ON supplier_returns(created_at, status);"
+    },
+    {
+      "name": "idx_supplier_returns_staff_created",
+      "unique": false,
+      "file": "0052_dashboard_category_snapshots.sql",
+      "line": 53,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_supplier_returns_staff_created ON supplier_returns(staff_user_id, created_at);"
+    },
+    {
+      "name": "ux_packaging_active",
+      "unique": true,
+      "file": "0054_product_packagings.sql",
+      "line": 24,
+      "raw": "CREATE UNIQUE INDEX IF NOT EXISTS ux_packaging_active"
+    },
+    {
+      "name": "idx_packagings_product",
+      "unique": false,
+      "file": "0054_product_packagings.sql",
+      "line": 27,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_packagings_product"
+    },
+    {
+      "name": "idx_sale_items_packaging",
+      "unique": false,
+      "file": "0054_product_packagings.sql",
+      "line": 63,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_sale_items_packaging"
+    },
+    {
+      "name": "idx_stock_intake_items_packaging",
+      "unique": false,
+      "file": "0054_product_packagings.sql",
+      "line": 65,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_stock_intake_items_packaging"
+    },
+    {
+      "name": "idx_return_items_sale_item",
+      "unique": false,
+      "file": "0055_return_credit_allocations.sql",
+      "line": 35,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_return_items_sale_item"
+    },
+    {
+      "name": "idx_credit_alloc_customer",
+      "unique": false,
+      "file": "0055_return_credit_allocations.sql",
+      "line": 51,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_credit_alloc_customer"
+    },
+    {
+      "name": "idx_credit_alloc_return",
+      "unique": false,
+      "file": "0055_return_credit_allocations.sql",
+      "line": 53,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_credit_alloc_return"
+    },
+    {
+      "name": "idx_proforma_items_packaging",
+      "unique": false,
+      "file": "0056_carton_quotes_supplier_returns.sql",
+      "line": 28,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_proforma_items_packaging"
+    },
+    {
+      "name": "idx_layers_intake_product_remaining",
+      "unique": false,
+      "file": "0056_carton_quotes_supplier_returns.sql",
+      "line": 42,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_layers_intake_product_remaining"
+    },
+    {
+      "name": "idx_announcements_active_sort",
+      "unique": false,
+      "file": "0057_announcements_media_expiry.sql",
+      "line": 39,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_announcements_active_sort ON announcements(is_active, sort);"
+    },
+    {
+      "name": "idx_cash_sessions_open_post",
+      "unique": true,
+      "file": "0059_cash_sessions.sql",
+      "line": 63,
+      "raw": "CREATE UNIQUE INDEX IF NOT EXISTS idx_cash_sessions_open_post"
+    },
+    {
+      "name": "idx_cash_sessions_opened_at",
+      "unique": false,
+      "file": "0059_cash_sessions.sql",
+      "line": 68,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_cash_sessions_opened_at"
+    },
+    {
+      "name": "idx_return_refunds_return",
+      "unique": false,
+      "file": "0060_return_refund_movements.sql",
+      "line": 31,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_return_refunds_return"
+    },
+    {
+      "name": "idx_return_refunds_created_at",
+      "unique": false,
+      "file": "0060_return_refund_movements.sql",
+      "line": 33,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_return_refunds_created_at"
+    },
+    {
+      "name": "idx_idempotency_keys_status",
+      "unique": false,
+      "file": "0061_idempotency_status.sql",
+      "line": 21,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_idempotency_keys_status ON idempotency_keys(status);"
+    },
+    {
+      "name": "idx_customer_access_customer",
+      "unique": false,
+      "file": "0062_client_access_history.sql",
+      "line": 49,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_customer_access_customer ON customer_access(customer_id);"
+    },
+    {
+      "name": "idx_customer_access_customer_active",
+      "unique": true,
+      "file": "0062_client_access_history.sql",
+      "line": 52,
+      "raw": "CREATE UNIQUE INDEX IF NOT EXISTS idx_customer_access_customer_active"
+    },
+    {
+      "name": "idx_customer_access_phone_hash_active",
+      "unique": true,
+      "file": "0062_client_access_history.sql",
+      "line": 56,
+      "raw": "CREATE UNIQUE INDEX IF NOT EXISTS idx_customer_access_phone_hash_active"
+    },
+    {
+      "name": "idx_client_orders_status_created",
+      "unique": false,
+      "file": "0063_client_orders.sql",
+      "line": 88,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_client_orders_status_created"
+    },
+    {
+      "name": "idx_client_orders_customer",
+      "unique": false,
+      "file": "0063_client_orders.sql",
+      "line": 90,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_client_orders_customer"
+    },
+    {
+      "name": "idx_client_order_lines_order",
+      "unique": false,
+      "file": "0063_client_orders.sql",
+      "line": 92,
+      "raw": "CREATE INDEX IF NOT EXISTS idx_client_order_lines_order"
+    }
+  ],
+  "views": 7,
+  "viewList": [
+    {
+      "name": "v_customer_balance_check",
+      "file": "0003_financial_constraints.sql",
+      "line": 5
+    },
+    {
+      "name": "v_daily_sales",
+      "file": "0003_financial_constraints.sql",
+      "line": 16
+    },
+    {
+      "name": "v_customer_balance_check",
+      "file": "0004_sale_payments_nullable.sql",
+      "line": 42
+    },
+    {
+      "name": "v_customer_balance_check",
+      "file": "0051_sales_signed_discount.sql",
+      "line": 195
+    },
+    {
+      "name": "v_daily_sales",
+      "file": "0051_sales_signed_discount.sql",
+      "line": 205
+    },
+    {
+      "name": "v_customer_balance_check",
+      "file": "0055_return_credit_allocations.sql",
+      "line": 83
+    },
+    {
+      "name": "v_daily_sales",
+      "file": "0055_return_credit_allocations.sql",
+      "line": 95
+    }
+  ],
+  "moneyColumns": 99,
+  "nonIntegerMoney": [
+    {
+      "table": "customers",
+      "name": "debt_status",
+      "type": "TEXT",
+      "notNull": true,
+      "default": "'none'",
+      "line": 120,
+      "file": "0001_initial_schema.sql"
+    },
+    {
+      "table": "sales",
+      "name": "discount_type",
+      "type": "TEXT",
+      "notNull": false,
+      "line": 136,
+      "file": "0001_initial_schema.sql"
+    },
+    {
+      "table": "sales_0051",
+      "name": "discount_type",
+      "type": "TEXT",
+      "notNull": false,
+      "line": 71,
+      "file": "0051_sales_signed_discount.sql"
+    }
+  ],
+  "qtyColumns": 29,
+  "qtyList": [
+    {
+      "table": "products",
+      "name": "quantity",
+      "type": "NUMERIC",
+      "notNull": true,
+      "default": "0",
+      "line": 88,
+      "file": "0001_initial_schema.sql"
+    },
+    {
+      "table": "products",
+      "name": "min_stock_level",
+      "type": "NUMERIC",
+      "notNull": true,
+      "default": "0",
+      "line": 89,
+      "file": "0001_initial_schema.sql"
+    },
+    {
+      "table": "products",
+      "name": "stock_status",
+      "type": "TEXT",
+      "notNull": true,
+      "default": "'in_stock'",
+      "line": 92,
+      "file": "0001_initial_schema.sql"
+    },
+    {
+      "table": "sale_items",
+      "name": "quantity",
+      "type": "NUMERIC",
+      "notNull": true,
+      "line": 164,
+      "file": "0001_initial_schema.sql"
+    },
+    {
+      "table": "stock_movements",
+      "name": "quantity_delta",
+      "type": "NUMERIC",
+      "notNull": true,
+      "line": 187,
+      "file": "0001_initial_schema.sql"
+    },
+    {
+      "table": "stock_movements",
+      "name": "quantity_after",
+      "type": "NUMERIC",
+      "notNull": true,
+      "line": 188,
+      "file": "0001_initial_schema.sql"
+    },
+    {
+      "table": "stock_intake_items",
+      "name": "stock_intake_id",
+      "type": "INTEGER",
+      "notNull": true,
+      "line": 214,
+      "file": "0001_initial_schema.sql"
+    },
+    {
+      "table": "stock_intake_items",
+      "name": "quantity_received",
+      "type": "NUMERIC",
+      "notNull": true,
+      "line": 217,
+      "file": "0001_initial_schema.sql"
+    },
+    {
+      "table": "stock_intake_items",
+      "name": "quantity_damaged",
+      "type": "NUMERIC",
+      "notNull": true,
+      "default": "0",
+      "line": 218,
+      "file": "0001_initial_schema.sql"
+    },
+    {
+      "table": "return_items",
+      "name": "quantity",
+      "type": "NUMERIC",
+      "notNull": true,
+      "line": 244,
+      "file": "0001_initial_schema.sql"
+    },
+    {
+      "table": "return_items",
+      "name": "restocked",
+      "type": "INTEGER",
+      "notNull": true,
+      "default": "1",
+      "line": 247,
+      "file": "0001_initial_schema.sql"
+    },
+    {
+      "table": "proforma_items",
+      "name": "quantity",
+      "type": "NUMERIC",
+      "notNull": true,
+      "line": 301,
+      "file": "0001_initial_schema.sql"
+    },
+    {
+      "table": "bread_orders",
+      "name": "quantity",
+      "type": "NUMERIC",
+      "notNull": true,
+      "line": 315,
+      "file": "0001_initial_schema.sql"
+    },
+    {
+      "table": "supplier_returns",
+      "name": "stock_intake_id",
+      "type": "INTEGER",
+      "notNull": true,
+      "line": 24,
+      "file": "0010_supplier_returns.sql"
+    },
+    {
+      "table": "supplier_return_items",
+      "name": "quantity",
+      "type": "NUMERIC",
+      "notNull": true,
+      "line": 44,
+      "file": "0010_supplier_returns.sql"
+    },
+    {
+      "table": "supplier_return_items",
+      "name": "stock_before",
+      "type": "NUMERIC",
+      "notNull": false,
+      "line": 49,
+      "file": "0010_supplier_returns.sql"
+    },
+    {
+      "table": "supplier_return_items",
+      "name": "stock_after",
+      "type": "NUMERIC",
+      "notNull": false,
+      "line": 50,
+      "file": "0010_supplier_returns.sql"
+    },
+    {
+      "table": "zakat_calculations",
+      "name": "stock_minor",
+      "type": "INTEGER",
+      "notNull": true,
+      "default": "0",
+      "line": 28,
+      "file": "0012_bread_proforma_zakat.sql"
+    },
+    {
+      "table": "inventory_layers",
+      "name": "stock_intake_id",
+      "type": "INTEGER",
+      "notNull": false,
+      "line": 16,
+      "file": "0018_fifo_cost_layers.sql"
+    },
+    {
+      "table": "inventory_layers",
+      "name": "stock_intake_item_id",
+      "type": "INTEGER",
+      "notNull": false,
+      "line": 17,
+      "file": "0018_fifo_cost_layers.sql"
+    },
+    {
+      "table": "inventory_layers",
+      "name": "original_quantity",
+      "type": "NUMERIC",
+      "notNull": true,
+      "line": 18,
+      "file": "0018_fifo_cost_layers.sql"
+    },
+    {
+      "table": "inventory_layers",
+      "name": "remaining_quantity",
+      "type": "NUMERIC",
+      "notNull": true,
+      "line": 19,
+      "file": "0018_fifo_cost_layers.sql"
+    },
+    {
+      "table": "sale_fifo_consumption",
+      "name": "quantity",
+      "type": "NUMERIC",
+      "notNull": true,
+      "line": 32,
+      "file": "0018_fifo_cost_layers.sql"
+    },
+    {
+      "table": "supplier_returns_new",
+      "name": "stock_intake_id",
+      "type": "INTEGER",
+      "notNull": true,
+      "line": 61,
+      "file": "0025_return_numbers_not_null.sql"
+    },
+    {
+      "table": "purchase_order_items",
+      "name": "quantity_ordered",
+      "type": "NUMERIC",
+      "notNull": true,
+      "line": 29,
+      "file": "0029_purchase_orders.sql"
+    },
+    {
+      "table": "purchase_order_items",
+      "name": "quantity_received",
+      "type": "NUMERIC",
+      "notNull": true,
+      "default": "0",
+      "line": 30,
+      "file": "0029_purchase_orders.sql"
+    },
+    {
+      "table": "sale_fifo_consumption_new",
+      "name": "quantity",
+      "type": "NUMERIC",
+      "notNull": true,
+      "line": 67,
+      "file": "0040_explicit_restrict.sql"
+    },
+    {
+      "table": "client_order_lines",
+      "name": "quantity",
+      "type": "NUMERIC",
+      "notNull": true,
+      "line": 78,
+      "file": "0063_client_orders.sql"
+    },
+    {
+      "table": "client_order_lines",
+      "name": "reserved_quantity",
+      "type": "NUMERIC",
+      "notNull": true,
+      "default": "0",
+      "line": 83,
+      "file": "0063_client_orders.sql"
+    }
+  ]
+}

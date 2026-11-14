@@ -685,15 +685,18 @@ export function createSaleAtomic(input: CreateSaleInput): {
       if (line.productId != null) {
         // Survente autorisée : la part sans couche utilise le dernier coût connu
         // (dernière couche, sinon snapshot produit) — coût explicite, jamais vide.
-        const fallback =
-          latestUnitCost(line.productId) ??
-          Math.max(0, Math.round(line.purchasePriceMinor / factor));
+        // STK-03 : la PROVENANCE est tracée — un repli sur le dernier layer
+        // connu n'est pas la même chose qu'un repli sur le prix d'achat du
+        // produit, et l'historique de marge doit pouvoir les distinguer.
+        const lastLayerCost = latestUnitCost(line.productId);
+        const fallback = lastLayerCost ?? Math.max(0, Math.round(line.purchasePriceMinor / factor));
         const { cogsMinor } = consumeLayers({
           productId: line.productId,
           qty: baseQty,
           now: input.now,
           oversell: false,
           fallbackUnitCostMinor: fallback,
+          fallbackBasis: lastLayerCost === null ? "fallback-purchase-price" : "fallback-last-layer",
           record: { saleId, saleItemId },
         });
         // Sous-coût : comparé au COGS FIFO RÉEL de la ligne (le dernier prix

@@ -19,6 +19,7 @@ import { getConfiguredDbPath, LOGICAL_DB_NAME } from "../database/database-path.
 import { backupStatus } from "../backup/backup.service";
 import { getSelectedPrinterName } from "../printing/printing.service";
 import { getLogFile } from "../services/logger";
+import { buildSupportBundle } from "../services/support-bundle";
 import { getMainWindow } from "../main/window-manager";
 import { pickLogo } from "../services/file-ui";
 import { getLicenseStatus, requireLicensedMutation } from "../licensing/license-service";
@@ -227,6 +228,26 @@ export function registerSystemChannels(): void {
       lastBackup: backups.lastAt ?? "aucune",
       printer: getSelectedPrinterName() ?? "défaut système",
       logFolder: getLogFile() || "indisponible",
+      // OBS-02 : bundle de support (aperçu). Le gérant voit son contenu AVANT
+      // de le copier/exporter — jamais de données métier ni de secret.
+      supportBundle: buildSupportBundle({
+        appVersion: app.getVersion(),
+        schemaVersion,
+        integrity: check.integrity,
+        foreignKeyViolations: Array.isArray(check.foreignKeys) ? check.foreignKeys.length : 0,
+        dbSize,
+        sqliteVersion: (() => {
+          try {
+            const row = getDb().prepare("SELECT sqlite_version() AS v").get() as {
+              v?: unknown;
+            } | null;
+            return row && typeof row.v === "string" ? row.v : null;
+          } catch {
+            return null;
+          }
+        })(),
+        logFile: getLogFile(),
+      }),
     };
   });
 

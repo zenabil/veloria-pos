@@ -26,6 +26,7 @@ export function registerClientCatalogChannels(): void {
     ClientCatalog.saveCatalogSettingsAtomic({
       enabled: input.enabled,
       excludedCategoryIds: input.excludedCategoryIds,
+      productOverrides: input.productOverrides,
       operationId: input.operationId,
       now: new Date().toISOString(),
     }),

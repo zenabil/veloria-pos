@@ -50,6 +50,8 @@ import {
   type SyncConfigView,
 } from "./sync.protocol";
 import { buildOwnerSnapshot } from "./owner-snapshot";
+import { reencryptLegacySecrets } from "./secret-hygiene";
+import { classifySyncFailure, decideRetry, type SyncFailureKind } from "./retry-policy";
 import {
   decodeSecretWith,
   encodeSecret,
@@ -64,6 +66,41 @@ const OWNER_ACCOUNT_CHANNEL = "sync.saveOwnerAccount";
 const SERVICE_KEY_REFUSED =
   "Clé de service refusée par Supabase : ressaisissez-la (Réglages → Miroir Android).";
 const SYNC_DISABLED_MESSAGE = "Synchronisation désactivée : activez-la d'abord.";
+
+/**
+ * SYNC-02 : raison de quarantaine (FR) d'une ligne définitivement écartée.
+ * La ligne n'est pas supprimée : elle reste consultable comme état d'audit.
+ */
+const QUARANTINE_REASON_FR =
+  "Ligne isolée : refus définitif du miroir (données incohérentes) ou budget de tentatives épuisé.";
+
+/**
+ * SYNC-02 : classe l'échec d'une poussée dans la taxonomie
+ * (transient / auth / schema / validation / permanent).
+ */
+function classifyPushFailure(err: unknown): SyncFailureKind {
+  if (err instanceof MirrorRejectionError) {
+    return classifySyncFailure(err.status, err.detail);
+  }
+  const msg = err instanceof Error ? err.message : "";
+  if (msg === SERVICE_KEY_REFUSED) return "auth";
+  if (msg.startsWith("Miroir incomplet")) return "schema";
+  if (msg === MIRROR_PHONE_CONFLICT_MESSAGE) return "validation";
+  return "transient";
+}
+
+/**
+ * SYNC-02 : jitter DÉTERMINISTE par ligne (dérivé de l'operation_id). Deux
+ * lignes rejetées par la même panne ne repartent donc pas au même instant, et
+ * le comportement reste REPRODUCTIBLE (un test rejoue le même résultat).
+ */
+function jitterFactor(operationId: string): number {
+  let hash = 0;
+  for (let i = 0; i < operationId.length; i += 1) {
+    hash = (hash * 31 + operationId.charCodeAt(i)) >>> 0;
+  }
+  return (hash % 1000) / 1000;
+}
 
 interface OwnerAccountDoc {
   email: string;
@@ -221,6 +258,49 @@ function writeOwnerAccount(doc: OwnerAccountDoc): void {
       `INSERT INTO app_settings (key, value_json, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at`,
     )
     .run(OWNER_ACCOUNT_KEY, JSON.stringify(doc), doc.updatedAt);
+}
+
+/**
+ * BACK-04 : HYGIÈNE DES SECRETS AU DÉMARRAGE.
+ *
+ * Une installation antérieure au chiffrement DPAPI peut encore avoir un
+ * secret de synchronisation LEGACY en clair dans `app_settings`. Ce secret
+ * serait alors recopié tel quel dans CHAQUE sauvegarde (une sauvegarde est une
+ * copie complète de la base). Ce passage ré-encode ces secrets sous forme
+ * chiffrée, une fois, AVANT toute sauvegarde automatique.
+ *
+ * best-effort : un échec n'empêche JAMAIS l'application de démarrer (le
+ * secret reste lisible en clair, comme avant — c'est le comportement
+ * historique, pas une panne).
+ */
+export function upgradeLegacySecrets(): { upgraded: number; failed: boolean } {
+  try {
+    const result = reencryptLegacySecrets({
+      read: () =>
+        getDb().prepare(`SELECT value_json FROM app_settings WHERE key = ?`).get(SETTINGS_KEY) as
+          { value_json: string } | undefined,
+      write: (valueJson: string, now: string) => {
+        getDb()
+          .prepare(`UPDATE app_settings SET value_json = ?, updated_at = ? WHERE key = ?`)
+          .run(valueJson, now, SETTINGS_KEY);
+      },
+      backend: secrets(),
+      now: () => new Date().toISOString(),
+    });
+    if (result.upgraded > 0) {
+      log("INFO", "sync", "secrets.reencrypted", { upgraded: result.upgraded });
+    }
+    if (result.failed) {
+      log("WARN", "sync", "secrets.reencrypt_unavailable", {});
+    }
+    if (result.unreadable) {
+      log("WARN", "sync", "secrets.doc_unreadable", {});
+    }
+    return { upgraded: result.upgraded, failed: result.failed };
+  } catch (err) {
+    log("WARN", "sync", "secrets.reencrypt_failed", { error: String(err) });
+    return { upgraded: 0, failed: true };
+  }
 }
 
 interface AdminResponse {
@@ -687,9 +767,14 @@ async function pushNowOnce(
   }
   const queuedRows = db
     .prepare(
-      `SELECT operation_id, customer_id, kind, payload_json, created_at FROM sync_outbox WHERE status = 'pending' ORDER BY id ASC LIMIT 200`,
+      // SYNC-02 : une ligne en attente de BACKOFF n'est pas sélectionnée
+      // (elle repart au plus tôt à son `next_attempt_at`). Sans cette porte,
+      // une panne réseau rejouait la file entière toutes les 60 s.
+      `SELECT operation_id, customer_id, kind, payload_json, created_at, attempts FROM sync_outbox
+       WHERE status = 'pending' AND (next_attempt_at IS NULL OR next_attempt_at <= ?)
+       ORDER BY id ASC LIMIT 200`,
     )
-    .all() as OutboxMirrorRow[];
+    .all(args.now) as OutboxMirrorRow[];
   // E-41 : une ligne localement corrompue est écartée, elle ne gèle plus la
   // file (avant : `buildMirrorRequests` levait, la poussée entière mourait, la
   // même ligne était re-sélectionnée au tick suivant — pour toujours).
@@ -756,7 +841,7 @@ async function pushNowOnce(
     } catch (err) {
       if (!(err instanceof MirrorRejectionError)) throw err;
       // E-42 : rejet de TABLE = configuration, pas une ligne coupable. On
-      // stoppe net (file inchangée, donc rejouable) au lieu de condamner les
+      // stoppe net (file inchangée, donc rejouable) au lieu de condamneer les
       // 200 clichés un par un — perte silencieuse et définitive sinon.
       if (classifyMirrorRejection(err.status, err.detail) === "table") {
         throw new Error(
@@ -794,7 +879,7 @@ async function pushNowOnce(
     } catch (err) {
       if (!(err instanceof MirrorRejectionError)) throw err;
       // E-61 : conflit d'accès = état du MIROIR, pas ligne coupable. La
-      // bissection n'aboutirait qu'à condamner un accès après l'autre, et la
+      // bissection n'aboutirait qu'à condamneer un accès après l'autre, et la
       // poussée repartirait chaque tick sur le même 409 sans rien dire.
       if (isMirrorPhoneConflict(err.status, err.detail)) {
         throw new Error(MIRROR_PHONE_CONFLICT_MESSAGE, { cause: err });
@@ -850,6 +935,68 @@ async function pushNowOnce(
     // FIX-P1-03 : lastError affiché par l'UI → message FR garanti via la
     // source unique main (toUserMessage : technique → repli FR générique).
     const msg = toUserMessage(err).message;
+    // SYNC-02 : le rejeu est DÉCIDÉ PAR LIGNE (taxonomie + backoff +
+    // quarantaine), jamais « tout ou rien ». Une panne réseau transitoire
+    // reprogramme les lignes au lieu de les rejouer à chaque tick ; un refus
+    // définitif les isole immédiatement ; une ligne qui épuise son budget passe
+    // en quarantaine (état d'audit) au lieu de bloquer la file.
+    const kind = classifyPushFailure(err);
+    const rejectedNow = new Set(rejected);
+    try {
+      const bookkeep = db.transaction(() => {
+        for (const row of outboxRows) {
+          const permanent = rejectedNow.has(row.operation_id);
+          // Les erreurs de CONFIGURATION/MIROIR (auth, schema, conflit
+          // telephone) n'atteignent pas la ligne : aucune ligne n'est
+          // condamnee, et on ne touche ni au compteur ni au statut (les
+          // lignes restent `pending`, rejouables des que la cause est
+          // leve). Seules les erreurs TRANSIENTES reprogramment la ligne
+          // (backoff), et seules les lignes INDIVIDUELLEMENT rejetes sont
+          // mises en quarantaine (`failed`).
+          if (!permanent && kind !== "transient") {
+            continue;
+          }
+          const decision = permanent
+            ? {
+                attempts: row.attempts + 1,
+                quarantined: true,
+                nextAttemptAt: null,
+                kind: "validation" as const,
+              }
+            : decideRetry({
+                attempts: row.attempts,
+                kind,
+                nowIso: args.now,
+                jitter: jitterFactor(row.operation_id),
+              });
+          db.prepare(
+            `UPDATE sync_outbox
+             SET attempts = ?,
+                 last_error = ?,
+                 next_attempt_at = ?,
+                 status = CASE WHEN ? = 1 THEN 'failed' ELSE status END,
+                 quarantined_at = CASE WHEN ? = 1 THEN COALESCE(quarantined_at, ?) ELSE quarantined_at END
+             WHERE operation_id = ?`,
+          ).run(
+            decision.attempts,
+            msg,
+            decision.nextAttemptAt,
+            decision.quarantined ? 1 : 0,
+            decision.quarantined ? 1 : 0,
+            args.now,
+            row.operation_id,
+          );
+        }
+      });
+      bookkeep();
+      log("WARN", "sync", "push.retry_scheduled", {
+        kind,
+        rows: outboxRows.length,
+        quarantined: outboxRows.filter((r) => rejectedNow.has(r.operation_id)).length,
+      });
+    } catch (bookErr) {
+      log("ERROR", "sync", "push.retry_bookkeeping_failed", { error: String(bookErr) });
+    }
     // E-43 : l'échec horodate aussi la TENTATIVE, sinon la cadence
     // `intervalMinutes` est ignorée et le timer repart toutes les 60 s.
     // S-04 : doc fraîche (pas la copie d'entrée).
@@ -863,17 +1010,24 @@ async function pushNowOnce(
   const tx = db.transaction(() => {
     // Claim déjà réservé avant le réseau (S-01) : solder, pas re-clamer.
     for (const r of delivered) {
-      db.prepare(`UPDATE sync_outbox SET status = 'sent', sent_at = ? WHERE operation_id = ?`).run(
-        args.now,
-        r.operation_id,
-      );
+      db.prepare(
+        `UPDATE sync_outbox SET status = 'sent', sent_at = ?, next_attempt_at = NULL, last_error = NULL WHERE operation_id = ?`,
+      ).run(args.now, r.operation_id);
     }
     // ADR-173 : une ligne écartée ne reste pas `pending` (elle repartirait
     // éternellement au prochain tick) — `failed` est un état d'audit.
+    // SYNC-02 : elle est en outre QUARANTAINE (rejet définitif : la rejouer
+    // ne changera rien), avec sa raison en français.
     for (const operationId of condemned) {
-      db.prepare(`UPDATE sync_outbox SET status = 'failed' WHERE operation_id = ?`).run(
-        operationId,
-      );
+      db.prepare(
+        `UPDATE sync_outbox
+         SET status = 'failed',
+             attempts = attempts + 1,
+             quarantined_at = COALESCE(quarantined_at, ?),
+             next_attempt_at = NULL,
+             last_error = COALESCE(last_error, ?)
+         WHERE operation_id = ?`,
+      ).run(args.now, QUARANTINE_REASON_FR, operationId);
     }
     try {
       const condemnedCount = condemned.size;

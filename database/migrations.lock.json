@@ -65,6 +65,9 @@
     "0060_return_refund_movements.sql": "5d23217b5803e623ffc1698fa780b89683358eaa2d5195e57ea12f6a72c5b018",
     "0061_idempotency_status.sql": "e51bdbe0e032c7b6ac882827b78d2da2aa0c748368352580c69e9b3f5f8f0dce",
     "0062_client_access_history.sql": "818aede53116317ec19b0013a06fd5470bd26edff34b3d892ceb96646ade8e73",
-    "0063_client_orders.sql": "9bbd15891bc148d466f7d2b52280372e373d6bc8f0704477fecae7517904e8b1"
+    "0063_client_orders.sql": "9bbd15891bc148d466f7d2b52280372e373d6bc8f0704477fecae7517904e8b1",
+    "0064_quantity_precision_and_fifo_basis.sql": "3bd62aa43d17138f9aa79159a927a470bcaf08a8dc3344ec4c4ac3b39abfb814",
+    "0065_sale_item_line_total_invariant.sql": "8908403e5757b0685c261ac79d2e31da95724cd72fded36521cd6e6ef680c5c1",
+    "0066_sync_outbox_retry_policy.sql": "f975ce43003da52f42a256b2253243b2745646e82f98460895b8fc8cd0c00f77"
   }
 }

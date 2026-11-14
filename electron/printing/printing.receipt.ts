@@ -32,7 +32,11 @@ export function registerReceiptIpc(getMainWindow: () => BrowserWindow | null): v
       // RADICAL-FIX: charge vide validée comme tous les canaux (AGENTS.md §3).
       const input = emptyPayloadSchema.parse(raw ?? {});
       // R1 RADICAL : lecture matériel = permission settings (écran paramètres).
-      const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.listPrinters"], input);
+      const staffDenied = enforceRawChannelGates(
+        IPC_CHANNELS["printing.listPrinters"],
+        input,
+        event,
+      );
       if (staffDenied) return staffDenied;
       const contents = event.sender;
       const printers = await contents.getPrintersAsync();
@@ -52,10 +56,10 @@ export function registerReceiptIpc(getMainWindow: () => BrowserWindow | null): v
     }
   });
 
-  ipcMain.handle(IPC_CHANNELS["printing.printReceipt"], async (_e, raw: unknown) => {
+  ipcMain.handle(IPC_CHANNELS["printing.printReceipt"], async (event, raw: unknown) => {
     const denied = guardPrint("receipt-80mm", ["sales"]);
     if (denied) return denied;
-    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.printReceipt"], raw);
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.printReceipt"], raw, event);
     if (staffDenied) return staffDenied;
     if (!getMainWindow()) return unavailable("Fenêtre d'impression indisponible.");
     try {
@@ -80,10 +84,10 @@ export function registerReceiptIpc(getMainWindow: () => BrowserWindow | null): v
 
   // Aperçu avant impression (source unique : builders main, pas de doublon renderer).
   // Ticket uniquement : la vente ne sort jamais en A4 (politique opération → format).
-  ipcMain.handle(IPC_CHANNELS["printing.preview"], (_e, raw: unknown) => {
+  ipcMain.handle(IPC_CHANNELS["printing.preview"], (event, raw: unknown) => {
     const denied = guardPrint("receipt-80mm", ["sales"]);
     if (denied) return denied;
-    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.preview"], raw);
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.preview"], raw, event);
     if (staffDenied) return staffDenied;
     try {
       const t = applyTemplateToReceipt("ticket", enrichReceipt(raw));
@@ -103,7 +107,7 @@ export function registerReceiptIpc(getMainWindow: () => BrowserWindow | null): v
     }
   });
 
-  ipcMain.handle(IPC_CHANNELS["printer.save"], (_e, raw: unknown) => {
+  ipcMain.handle(IPC_CHANNELS["printer.save"], (event, raw: unknown) => {
     // EL-22: écriture de configuration — même garde que settings.save
     // (poste non activé/expiré ne persiste pas l'imprimante).
     try {
@@ -116,7 +120,7 @@ export function registerReceiptIpc(getMainWindow: () => BrowserWindow | null): v
     try {
       const input = printerSaveSchema.parse(raw ?? {});
       // R1 RADICAL : écriture matériel = permission settings (comme settings.save).
-      const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printer.save"], input);
+      const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printer.save"], input, event);
       if (staffDenied) return staffDenied;
       saveSelectedPrinterName(input.name, new Date().toISOString(), input.operationId ?? null);
       return { ok: true, data: { saved: true } };
@@ -130,10 +134,10 @@ export function registerReceiptIpc(getMainWindow: () => BrowserWindow | null): v
   // Page de test (contenu démo fixe, aucune donnée métier).
   // EL-21: impression physique → même garde que printReceipt (pas d'appel
   // sans receipt-80mm + page sales).
-  ipcMain.handle(IPC_CHANNELS["printing.testPage"], async (_e, raw: unknown) => {
+  ipcMain.handle(IPC_CHANNELS["printing.testPage"], async (event, raw: unknown) => {
     const denied = guardPrint("receipt-80mm", ["sales"]);
     if (denied) return denied;
-    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.testPage"], raw);
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.testPage"], raw, event);
     if (staffDenied) return staffDenied;
     if (!getMainWindow()) return unavailable("Fenêtre d'impression indisponible.");
     try {

@@ -1,0 +1,7 @@
+{
+  "schema": 1,
+  "active": "k1",
+  "keys": {
+    "k1": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAbt1MZ86NIURuaHqsfZ6rZ7bOTZbpTFqsi2JHWPYqlKs=\n-----END PUBLIC KEY-----\n"
+  }
+}

@@ -120,6 +120,8 @@ interface Window {
       intakes(p: unknown): Promise<VeloriaOutcome>;
       intakeDetail(p: unknown): Promise<VeloriaOutcome>;
       intakeCancel(p: unknown): Promise<VeloriaOutcome>;
+      /** STK-01 : diagnostic de réconciliation du stock (lecture seule). */
+      reconcile(): Promise<VeloriaOutcome>;
     };
     suppliers: {
       search(p: unknown): Promise<VeloriaOutcome>;

@@ -163,6 +163,7 @@
   "stock.movements",
   "stock.overview",
   "stock.products",
+  "stock.reconcile",
   "suppliers.create",
   "suppliers.delete",
   "suppliers.deleteMany",

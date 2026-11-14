@@ -376,6 +376,8 @@ export interface OutboxMirrorRow {
   kind: string;
   payload_json: string;
   created_at: string;
+  /** SYNC-02 : nombre de tentatives déjà effectuées (backoff + quarantaine). */
+  attempts: number;
 }
 
 export interface MirrorRequest {

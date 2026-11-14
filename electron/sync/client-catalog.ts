@@ -40,6 +40,10 @@ export interface CatalogSourceProduct {
   quantity: number;
   stockStatus: string;
   isActive: boolean;
+  /** Surcharge commerçant : publication (null = automatique). */
+  clientPublishedOverride?: boolean | null;
+  /** Surcharge commerçant : disponibilité (null = dérivée du stock). */
+  clientAvailableOverride?: boolean | null;
 }
 
 /** Ligne prête à publier (colonnes de `store_catalog`). */
@@ -71,6 +75,8 @@ export interface CatalogSkipped {
   invalidName: number;
   /** Dépassement du plafond de produits publiés. */
   overLimit: number;
+  /** Exclu explicitement par le commerçant (surcharge). */
+  merchantExcluded: number;
 }
 
 export interface CatalogSelection {
@@ -86,6 +92,7 @@ function emptySkipped(): CatalogSkipped {
     priceOverCap: 0,
     invalidName: 0,
     overLimit: 0,
+    merchantExcluded: 0,
   };
 }
 
@@ -104,13 +111,26 @@ export function selectPublishedProducts(
   const skipped = emptySkipped();
   const selected: CatalogSourceProduct[] = [];
   for (const p of products) {
-    if (!p.isActive) {
-      skipped.inactive += 1;
+    const publishedOverride =
+      p.clientPublishedOverride === true
+        ? true
+        : p.clientPublishedOverride === false
+          ? false
+          : null;
+    if (publishedOverride === false) {
+      skipped.merchantExcluded += 1;
       continue;
     }
-    if (p.categoryId != null && excluded.has(p.categoryId)) {
-      skipped.excludedCategory += 1;
-      continue;
+    const forced = publishedOverride === true;
+    if (!forced) {
+      if (!p.isActive) {
+        skipped.inactive += 1;
+        continue;
+      }
+      if (p.categoryId != null && excluded.has(p.categoryId)) {
+        skipped.excludedCategory += 1;
+        continue;
+      }
     }
     if (!Number.isInteger(p.sellingPriceMinor) || p.sellingPriceMinor <= 0) {
       skipped.invalidPrice += 1;
@@ -140,6 +160,9 @@ export function selectPublishedProducts(
  * la quantité (millièmes) est la seconde garde.
  */
 export function isAvailable(product: CatalogSourceProduct): boolean {
+  const override = product.clientAvailableOverride;
+  if (override === true) return true;
+  if (override === false) return false;
   if (product.stockStatus === "out_of_stock") return false;
   return Number.isFinite(product.quantity) && product.quantity > 0;
 }

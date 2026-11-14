@@ -66,6 +66,171 @@ export function getStockOverview(): {
   };
 }
 
+// ---------------------------------------------------------------------------
+// STK-01 : DIAGNOSTIC de réconciliation du stock (lecture seule).
+//
+// La compétence `veloria-stock` exige (règle FIFO 7) : « Reconcile aggregate
+// layer quantity to product quantity and report any unexplained difference ».
+// L'audit a constaté que ce diagnostic N'EXISTAIT PAS : une dérive entre le
+// stock affiché par le produit, les couches FIFO et le grand livre des
+// mouvements était invisible depuis l'intérieur du produit.
+//
+// Ce diagnostic rapproche TROIS sources indépendantes, par produit :
+//   1. `products.quantity`          — l'agrégat affiché au caissier ;
+//   2. `SUM(inventory_layers.remaining_quantity)` — les couches FIFO ;
+//   3. le grand livre des mouvements — quantité d'ouverture reconstituée
+//      (avant le PREMIER mouvement) + Σ des deltas.
+//
+// La quantité d'ouverture est RECONSTITUÉE, pas supposée : le premier
+// mouvement porte `quantity_after` (l'état après) et `quantity_delta` (l'écart)
+// ⇒ l'état d'avant vaut `quantity_after − quantity_delta`. C'est la seule
+// reconstruction honnête : un produit créé avec un stock initial n'a pas de
+// mouvement d'entrée dans l'historique, et inventer ce zéro rendrait la
+// réconciliation fausse.
+//
+// LECTURE SEULE : aucune écriture, aucun verrou, aucune transaction.
+// ---------------------------------------------------------------------------
+
+export interface StockReconciliationRow {
+  productId: number;
+  name: string;
+  unitCode: string;
+  /** Quantité affichée par la fiche produit. */
+  productQuantity: number;
+  /** Quantité totale restant dans les couches FIFO. */
+  layerQuantity: number;
+  /** Dernière quantité recorded par le grand livre des mouvements. */
+  ledgerQuantity: number | null;
+  /** Quantité reconstituée : ouverture + Σ deltas des mouvements. */
+  movementQuantity: number | null;
+  /** productQuantity − layerQuantity (0 = conforme). */
+  layerDrift: number;
+  /** productQuantity − ledgerQuantity (0 = conforme, null = aucun mouvement). */
+  ledgerDrift: number | null;
+  status: "ok" | "layer-drift" | "ledger-drift";
+}
+
+export interface StockReconciliationReport {
+  generatedAt: string;
+  summary: {
+    products: number;
+    ok: number;
+    drifted: number;
+    layerDrifted: number;
+    ledgerDrifted: number;
+    /** true si la liste des dérives a été tronquée (garde de volume). */
+    truncated: boolean;
+  };
+  /** Uniquement les produits en écart — c'est un diagnostic, pas un export. */
+  rows: StockReconciliationRow[];
+}
+
+/** Arrondi au millième (l'unité de quantité du domaine). */
+function roundQty(value: number): number {
+  return Math.round(value * 1000) / 1000;
+}
+
+export function reconcileStock(opts?: { limit?: number }): StockReconciliationReport {
+  const db = getDb();
+  const limit = Math.min(Math.max(opts?.limit ?? 200, 1), 1000);
+  const rows = db
+    .prepare(
+      `WITH layer AS (
+         SELECT product_id, SUM(remaining_quantity) AS q FROM inventory_layers GROUP BY product_id
+       ), mov AS (
+         SELECT product_id, SUM(quantity_delta) AS net, COUNT(*) AS n,
+                MIN(id) AS first_id, MAX(id) AS last_id
+         FROM stock_movements GROUP BY product_id
+       ), first_mov AS (
+         SELECT id, product_id, quantity_after - quantity_delta AS opening
+         FROM stock_movements
+       ), last_mov AS (
+         SELECT id, product_id, quantity_after AS last_after FROM stock_movements
+       )
+       SELECT p.id AS product_id, p.name, p.unit_code,
+              p.quantity AS product_quantity,
+              COALESCE(layer.q, 0) AS layer_quantity,
+              last_mov.last_after AS ledger_quantity,
+              CASE WHEN mov.n > 0 THEN first_mov.opening + mov.net ELSE NULL END AS movement_quantity
+       FROM products p
+       LEFT JOIN layer ON layer.product_id = p.id
+       LEFT JOIN mov ON mov.product_id = p.id
+       LEFT JOIN first_mov ON first_mov.id = mov.first_id
+       LEFT JOIN last_mov ON last_mov.id = mov.last_id
+       ORDER BY p.name COLLATE NOCASE ASC, p.id ASC`,
+    )
+    .all() as Array<{
+    product_id: number;
+    name: string;
+    unit_code: string;
+    product_quantity: number;
+    layer_quantity: number;
+    ledger_quantity: number | null;
+    movement_quantity: number | null;
+  }>;
+
+  let ok = 0;
+  let layerDrifted = 0;
+  let ledgerDrifted = 0;
+  const drifted: StockReconciliationRow[] = [];
+  for (const r of rows) {
+    const productQuantity = roundQty(Number(r.product_quantity));
+    const layerQuantity = roundQty(Number(r.layer_quantity));
+    const ledgerQuantity = r.ledger_quantity == null ? null : roundQty(Number(r.ledger_quantity));
+    const movementQuantity =
+      r.movement_quantity == null ? null : roundQty(Number(r.movement_quantity));
+    // La quantité reconstituée doit être CONSISTENTE avec le dernier
+    // mouvement : c'est le même stock vu par deux chemins. Un écart entre les
+    // deux signale un journal incomplet (mouvement manquant) — on le signale
+    // comme une dérive de grand livre, jamais comme un faux positif.
+    const layerDrift = roundQty(productQuantity - layerQuantity);
+    const ledgerDrift = ledgerQuantity == null ? null : roundQty(productQuantity - ledgerQuantity);
+    const movementDrift =
+      movementQuantity == null ? null : roundQty(productQuantity - movementQuantity);
+    // Le grand livre se lit par DEUX chemins (le dernier `quantity_after` et
+    // la reconstitution ouverture + Σ deltas) : s'ils divergent entre eux,
+    // c'est le journal qui est incomplet → on retient le plus grand écart.
+    const ledgerDrifts: number[] = [];
+    if (ledgerDrift != null) ledgerDrifts.push(Math.abs(ledgerDrift));
+    if (movementDrift != null) ledgerDrifts.push(Math.abs(movementDrift));
+    const effectiveLedgerDrift = ledgerDrifts.length > 0 ? Math.max(...ledgerDrifts) : null;
+    const layerBad = layerDrift !== 0;
+    const ledgerBad = effectiveLedgerDrift != null && effectiveLedgerDrift !== 0;
+    if (!layerBad && !ledgerBad) {
+      ok += 1;
+      continue;
+    }
+    if (layerBad) layerDrifted += 1;
+    if (ledgerBad) ledgerDrifted += 1;
+    if (drifted.length < limit) {
+      drifted.push({
+        productId: Number(r.product_id),
+        name: String(r.name),
+        unitCode: String(r.unit_code),
+        productQuantity,
+        layerQuantity,
+        ledgerQuantity,
+        movementQuantity,
+        layerDrift,
+        ledgerDrift: effectiveLedgerDrift,
+        status: layerBad ? "layer-drift" : "ledger-drift",
+      });
+    }
+  }
+  return {
+    generatedAt: new Date().toISOString(),
+    summary: {
+      products: rows.length,
+      ok,
+      drifted: layerDrifted + ledgerDrifted,
+      layerDrifted,
+      ledgerDrifted,
+      truncated: layerDrifted + ledgerDrifted > drifted.length,
+    },
+    rows: drifted,
+  };
+}
+
 export function adjustStockAtomic(args: {
   productId: number;
   newQuantity: number;
@@ -113,6 +278,7 @@ export function adjustStockAtomic(args: {
         now: args.now,
         oversell: false,
         fallbackUnitCostMinor: 0,
+        fallbackBasis: "fallback-purchase-price",
       });
     }
     db.prepare(
@@ -1068,6 +1234,7 @@ export function applyInventoryAtomic(args: {
           now: args.now,
           oversell: false,
           fallbackUnitCostMinor: 0,
+          fallbackBasis: "fallback-purchase-price",
         });
       }
       const movement: "adjust_in" | "adjust_out" = delta > 0 ? "adjust_in" : "adjust_out";

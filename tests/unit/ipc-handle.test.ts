@@ -66,13 +66,46 @@ vi.mock("../../electron/ipc/handlers/staff.repo", () => ({
 import { handle } from "../../electron/ipc/handle";
 import { IPC_CHANNELS } from "../../electron/ipc/channels";
 import { schemaRequiresOperationId } from "../../electron/ipc/validators.common";
+import { registerAppWindow, __resetTrustedSendersForTests } from "../../electron/ipc/sender-guard";
 
 type Outcome = { ok: boolean; code?: string; data?: unknown; message?: string };
+
+/**
+ * SEC-01 : la garde de PROVENANCE est désormais dans le tuyau `handle()`.
+ * Ces tests doivent donc exercer le cas RÉEL : la requête provient d'une
+ * fenêtre enregistrée de l'application. Le cas « origine non autorisée »
+ * est couvert séparément (voir « refus de provenance » ci-dessous) et par
+ * tests/unit/ipc-sender-guard.test.ts.
+ */
+const TRUSTED_SENDER_ID = 4242;
+const FORGED_SENDER_ID = 9999;
+
+function registerTrustedSender(): void {
+  registerAppWindow({
+    isDestroyed: () => false,
+    webContents: { id: TRUSTED_SENDER_ID },
+  } as never);
+}
+
+function trustedEvent(): { sender: { id: number } } {
+  return { sender: { id: TRUSTED_SENDER_ID } };
+}
+
+function forgedEvent(): { sender: { id: number } } {
+  return { sender: { id: FORGED_SENDER_ID } };
+}
 
 async function call(channel: string, raw: unknown): Promise<Outcome> {
   const fn = captured.registry.get(channel);
   if (!fn) throw new Error(`Canal non enregistré : ${channel}`);
-  return (await fn({}, raw)) as Outcome;
+  return (await fn(trustedEvent(), raw)) as Outcome;
+}
+
+/** Appel avec une origine NON autorisée (compromission du renderer). */
+async function callForged(channel: string, raw: unknown): Promise<Outcome> {
+  const fn = captured.registry.get(channel);
+  if (!fn) throw new Error(`Canal non enregistré : ${channel}`);
+  return (await fn(forgedEvent(), raw)) as Outcome;
 }
 
 // Canaux réellement gates, choisis pour tester LES GATES et non les permissions.
@@ -86,6 +119,39 @@ beforeEach(() => {
   staffHolder.touchCount = 0;
   licenceHolder.refusePages = false;
   licenceHolder.refuseFeatures = false;
+  __resetTrustedSendersForTests();
+  registerTrustedSender();
+});
+
+describe("handle — provenance de la requête (SEC-01)", () => {
+  it("REFUSE une requête dont l'origine n'est PAS une fenêtre de l'application", async () => {
+    let executed = false;
+    handle("t.forged", null, () => {
+      executed = true;
+      return "不该到达";
+    });
+    const out = await callForged("t.forged", {});
+    expect(out.ok).toBe(false);
+    expect(out.code).toBe("SENDER_NOT_ALLOWED");
+    expect(out.message).toBe("Action non autorisée.");
+    // La preuve décisive : le handler n'a JAMAIS été exécuté — donc aucun
+    // effet de bord (aucune écriture, aucune mutation).
+    expect(executed).toBe(false);
+  });
+
+  it("REFUSE une requête sans origine (sender absent)", async () => {
+    handle("t.none", null, () => 1);
+    const fn = captured.registry.get("t.none");
+    if (!fn) throw new Error("Canal non enregistré");
+    const out = (await fn({ sender: null }, {})) as Outcome;
+    expect(out.ok).toBe(false);
+    expect(out.code).toBe("SENDER_NOT_ALLOWED");
+  });
+
+  it("ACCEPTE une requête provenant d'une fenêtre enregistrée", async () => {
+    handle("t.trusted", null, () => "ok");
+    expect(await call("t.trusted", {})).toEqual({ ok: true, data: "ok" });
+  });
 });
 
 describe("handle — tuyau général", () => {

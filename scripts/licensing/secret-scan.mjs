@@ -89,10 +89,42 @@ const TEXT_EXT = new Set([
 // Motifs assemblés par concaténation : le token complet n'apparaît jamais en
 // littéral ici (le scanner ne se détecte pas lui-même) mais matche en cible.
 // BL-05: variantes insensibles à la casse + séparateurs -/_ + dotenv/import.meta.
+//
+// DEUX FAMILLES, DEUX PÉRIMÈTRES (radical-fix GATE-01, 2026-11-11) :
+//   1. SECRET_PATTERNS  — FUITE DE MATÉRIEL (clé privée, jeton de service,
+//      rôle JWT privilégié). SCANNÉS PARTOUT, y compris `.md`/`.txt` : une clé
+//      planquée dans de la documentation reste une fuite.
+//   2. BYPASS_CODE_PATTERNS — INTERRUPTION PROGRAMMATIQUE (un interrupteur
+//      d'activation dans le code). SCANNÉS DANS LE CODE SEULEMENT.
+//      Un interrupteur est une CONSTRUCTION DE CODE ; de la prose qui nomme un
+//      interrupteur (une question d'abus dans un threat-model, un ADR) n'en
+//      est pas un. C'est exactement le motif qui faisait échouer le scan sur
+//      les références de sécurité en anglais du bundle Veloria Engineering
+//      Skills v2.0.0 — du contenu légitime, pas un contournement.
+//      La famille reste ACTIVE sur les `.ts`/`.tsx`/`.js`… : un vrai
+//      interrupteur en code source reste détecté (preuve négative dans
+//      tests/unit/secret-scan-bypass.test.ts).
+// NOTE : ce fichier est lui-même scanné. Aucun motif ne doit y apparaître en
+// littéral (les motifs sont assemblés par concaténation, ET les commentaires
+// ci-dessous évitent d'écrire la séquence interdite en clair).
 const SECRET_PATTERNS = [
   new RegExp(`-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE ${"KE" + "Y"}-----`),
   new RegExp(`-----BEGIN ENCRYPTED PRIVATE ${"KE" + "Y"}-----`),
   new RegExp("PuTTY-User-" + "Key-File"),
+  // E-54 — classe de fuite RÉELLE de ce projet (miroir Supabase) : la clé de
+  // service et les jetons d'API plateforme. Motifs assemblés par concaténation
+  // pour que le scanner ne se signale pas lui-même.
+  new RegExp(`["']sb_${"sec" + "ret"}[_A-Za-z0-9-]{8,}`),
+  // `service_role` + sa valeur : la clé peut être NOTÉE (`"service_role": "…"`,
+  // forme JSON — le plus courant pour un secret de configuration) ou NU
+  // (`service_role: "…"`, YAML / TS). L'ancienne forme exigeait l'absence de
+  // guillemet après le nom et ne voyait donc PAS la forme JSON — l'endroit
+  // exact où un jeton se cache. Les deux formes sont désormais couvertes.
+  new RegExp(`${"service" + "_role"}["']?\\s*[:=]\\s*["'][A-Za-z0-9_-]{20,}`),
+];
+
+/** Motifs d'interruption LICENCE : détection de CODE, pas de PROSE. */
+const BYPASS_CODE_PATTERNS = [
   new RegExp("BYPASS" + "[-_]?" + "LICENSE", "i"),
   new RegExp("SKIP" + "[-_]?" + "ACTIVATION", "i"),
   new RegExp("DISABLE" + "[-_]?" + "LICENSE", "i"),
@@ -100,12 +132,34 @@ const SECRET_PATTERNS = [
   new RegExp("DEV" + "_MODE_" + "UNLOCK", "i"),
   new RegExp("DEBUG" + "[-_]?" + "LICENSE", "i"),
   new RegExp("SKIP" + "[-_]?" + "LICENSE" + "[-_]?" + "CHECK", "i"),
-  // E-54 — classe de fuite RÉELLE de ce projet (miroir Supabase) : la clé de
-  // service et les jetons d'API plateforme. Motifs assemblés par concaténation
-  // pour que le scanner ne se signale pas lui-même.
-  new RegExp(`["']sb_${"sec" + "ret"}[_A-Za-z0-9-]{8,}`),
-  new RegExp(`${"service" + "_role"}\\s*[:=]\\s*["'][A-Za-z0-9_-]{20,}`),
 ];
+
+/**
+ * Extensions où une interruption programmatique est un DÉFAUT de sécurité.
+ * Un `.md`/`.txt` n'en fait PAS partie : c'est de la documentation (contrats,
+ * ADR, threat-model checklists) qui peut légitimement nommer un contournement
+ * pour l'interdire. Les Secrets (famille 1) y restent détectés.
+ */
+const CODE_EXT = new Set([
+  ".ts",
+  ".tsx",
+  ".js",
+  ".mjs",
+  ".cjs",
+  ".json",
+  ".html",
+  ".css",
+  ".yml",
+  ".yaml",
+  ".sql",
+  ".ps1",
+  ".log",
+  ".key",
+  ".pem",
+  ".vlic",
+  ".sqlite",
+  ".vposdb",
+]);
 
 /**
  * E-54 — un JWT `eyJ…` n'est PAS un secret en soi : la clé `anon` de Supabase
@@ -143,8 +197,17 @@ const BYPASS_ENV = [
   /process\.env\[["'](?:BYPASS|SKIP|DEBUG)[A-Z_]*LICENSE/i,
   /process\.env\.(?:BYPASS|SKIP|DEBUG)[A-Z_]*LICENSE/i,
   /import\.meta\.env\.(?:BYPASS|SKIP|DEBUG)[A-Z_]*LICENSE/i,
-  /\b(?:bypass|disable|skip)[-_ ]?licen[sc]e\b/i,
 ];
+
+/**
+ * Motif « prose » d'interruption : il est tolérant à l'espace (donc il matche
+ * de la PROSE anglaise), donc il ne peut pas être appliqué à la documentation :
+ * le bundle Veloria Engineering Skills contient une question d'abus qui nomme
+ * un contournement de licence — c'est une consigne de revue, pas un
+ * contournement. Il reste appliqué au CODE (voir CODE_EXT) — où un vrai
+ * interrupteur doit être trouvé.
+ */
+const BYPASS_PROSE = /\b(?:bypass|disable|skip)[-_ ]?licen[sc]e\b/i;
 
 function walk(dir, out) {
   let entries = [];
@@ -197,8 +260,19 @@ for (const f of files) {
     continue;
   }
   const rel = path.relative(root, f);
-  for (const re of [...SECRET_PATTERNS, ...BYPASS_ENV]) {
+  // Famille 1 — fuite de matériel : PARTOUT (.md/.txt compris).
+  for (const re of SECRET_PATTERNS) {
     if (re.test(text)) FAIL.push(`${rel} :: ${re}`);
+  }
+  // Famille 2 — interruption programmatique : CODE SEULEMENT.
+  // (La prose qui nomme un contournement — un threat-model checklist, un ADR —
+  //  n'est pas un défaut de sécurité.)
+  const isCode = CODE_EXT.has(path.extname(f).toLowerCase());
+  if (isCode) {
+    for (const re of [...BYPASS_CODE_PATTERNS, ...BYPASS_ENV]) {
+      if (re.test(text)) FAIL.push(`${rel} :: ${re}`);
+    }
+    if (BYPASS_PROSE.test(text)) FAIL.push(`${rel} :: ${BYPASS_PROSE}`);
   }
   // E-54 — rôles JWT privilégiés (le jeton `anon` public n'est PAS une faute).
   for (const hit of privilegedJwtHits(text)) FAIL.push(`${rel} :: ${hit}`);

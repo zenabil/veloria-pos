@@ -27,6 +27,7 @@ import { sha256File } from "../licensing/hash";
 import { IPC_CHANNELS } from "../ipc/channels";
 import * as V from "../ipc/validators";
 import { enforceRawChannelGates } from "../ipc/raw-guards";
+import { checkSender } from "../ipc/sender-guard";
 import {
   claimOptional,
   deleteIdempotencyKey,
@@ -121,8 +122,72 @@ export function createBackup(
     backupDir(),
     `veloria-${stamp}-${uniq}${manual ? "-manuel" : "-auto"}.vposdb`,
   );
-  // VACUUM INTO is transactional & WAL-safe.
-  vacuumInto(file);
+
+  // BACK-03 : ESPACE DISQUE. Une sauvegarde qui échoue faute de place doit
+  // le dire CLAIREMENT, pas laisser une image tronquée prendre la place d'une
+  // bonne sauvegarde. L'estimation est volontairement GENEROUSE (la base
+  // vivante + une marge) : mieux vaut une sauvegarde refusée à tort qu'une
+  // sauvegarde tronquée.
+  const liveSize = (() => {
+    try {
+      return fs.statSync(getDbPath()).size;
+    } catch {
+      return 0;
+    }
+  })();
+  const requiredBytes = Math.ceil(liveSize * 1.2) + 16 * 1024 * 1024;
+  const freeBytes = (() => {
+    try {
+      // Node expose l'espace libre via fs.statfs (disponible depuis Node 18).
+      const st = fs.statfsSync(backupDir());
+      return Number(st.bavail) * Number(st.bsize);
+    } catch {
+      return null; // information indisponible : on ne bloque pas
+    }
+  })();
+  if (freeBytes !== null && freeBytes < requiredBytes) {
+    log("WARN", "backup", "insufficient_space", {
+      free_bytes: freeBytes,
+      required_bytes: requiredBytes,
+    });
+    throw new Error(
+      "Espace disque insuffisant pour la sauvegarde : libérez de l'espace puis réessayez.",
+    );
+  }
+
+  // BACK-01 : ÉCRIRE PUIS VÉRIFIER PUIS PROMOUVOIR.
+  // `VACUUM INTO` est cohérent et WAL-safe, mais il écrivait DIRECTEMENT au
+  // nom final : une écriture interrompue (disque plein, arrêt du processus)
+  // laissait un fichier PARTIEL à la place d'une sauvegarde valide, et la
+  // rétention le comptait comme bonne.
+  // On écrit donc dans un fichier TEMPORAIRE, on le VÉRIFIE (ouverture
+  // SQLite + integrity_check + foreign_key_check), et on ne promeut au nom
+  // final qu'après validation.
+  const pending = path.join(backupDir(), `.pending-${stamp}-${uniq}.vposdb`);
+  try {
+    // VACUUM INTO is transactional & WAL-safe.
+    vacuumInto(pending);
+    // Vérification AVANT promotion : le fichier temporaire doit être une base
+    // Veloria saine (verifyDbFileCopy = ouverture read-only + integrity_check
+    // + foreign_key_check + lecture de la version de schéma).
+    verifyDbFileCopy(pending);
+  } catch (err) {
+    // Nettoyage de l'image partielle : elle ne doit NI rester sur disque NI
+    // entrer dans l'anneau de rétention.
+    try {
+      fs.unlinkSync(pending);
+    } catch {
+      /* rien à nettoyer */
+    }
+    log("ERROR", "backup", "backup.verification_failed", { error: String(err) });
+    throw new Error(
+      "Sauvegarde non valide (fichier incomplet ou corrompu) : aucune sauvegarde n'a été créée.",
+      { cause: err },
+    );
+  }
+  // Promotion atomique : le renommage est atomique sur le même volume.
+  fs.renameSync(pending, file);
+
   const stat = fs.statSync(file);
   const checksum = sha256File(file);
   let schemaVersion = 0;
@@ -252,16 +317,24 @@ function listBackupFilesFull(): { file: string; size: number; createdAt: string 
       const full = path.join(dir, f);
       const st = fs.statSync(full);
       let createdAt = st.mtime.toISOString();
+      // BACK-02 : le sidecar porte la somme de contrôle ; on la VÉRIFIE. Une
+      // somme écrite mais jamais relue ne protège rien : elle constate l'état
+      // au moment de l'écriture, pas l'intégrité de ce qui est sur le disque
+      // maintenant (bit rot, copie partielle, disque plein pendant l'écriture).
+      let checksumOk: boolean | null = null;
       try {
         const raw = fs.readFileSync(`${full}.json`, "utf-8");
-        const meta = JSON.parse(raw) as { createdAt?: unknown };
+        const meta = JSON.parse(raw) as { createdAt?: unknown; checksum?: unknown };
         if (typeof meta.createdAt === "string" && Number.isFinite(Date.parse(meta.createdAt))) {
           createdAt = meta.createdAt;
         }
+        if (typeof meta.checksum === "string" && meta.checksum.length === 64) {
+          checksumOk = sha256File(full) === meta.checksum.toLowerCase();
+        }
       } catch {
-        /* missing/corrupt sidecar: mtime fallback, entry stays visible */
+        /* sidecar manquant/corrompu : mtime en repli, l'entrée reste visible */
       }
-      return { file: full, size: st.size, createdAt };
+      return { file: full, size: st.size, createdAt, checksumOk };
     })
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
 }
@@ -507,14 +580,14 @@ function discardSnapshot(snapshotFile: string): void {
 }
 
 export function registerBackupIpc(): void {
-  ipcMain.handle(IPC_CHANNELS["backup.create"], (_e, raw: unknown) => {
+  ipcMain.handle(IPC_CHANNELS["backup.create"], (event, raw: unknown) => {
     const denied = guardBackup("automatic-backup");
     if (denied) return denied;
     try {
       // RADICAL-FIX P0: charge vide validée depuis le payload réel (contrat explicite).
       const input = V.emptyPayloadSchema.parse(raw ?? {});
       // R1 RADICAL : même décision staff que handle() (permission settings).
-      const staffDenied = enforceRawChannelGates(IPC_CHANNELS["backup.create"], input);
+      const staffDenied = enforceRawChannelGates(IPC_CHANNELS["backup.create"], input, event);
       if (staffDenied) return staffDenied;
       return { ok: true, data: createBackup(true) };
     } catch (err) {
@@ -526,7 +599,13 @@ export function registerBackupIpc(): void {
       };
     }
   });
-  ipcMain.handle(IPC_CHANNELS["backup.list"], (_e, raw: unknown) => {
+  ipcMain.handle(IPC_CHANNELS["backup.list"], (event, raw: unknown) => {
+    // SEC-01 : exempté de la porte STAFF (lecture non sensible, voir
+    // RAW_UNGUARDED_CHANNELS) mais PAS de la porte de PROVENANCE : la
+    // lecture de la liste des sauvegardes restereserved aux fenêtres de
+    // l'application.
+    const senderDenied = checkSender(event);
+    if (senderDenied) return senderDenied;
     try {
       V.emptyPayloadSchema.parse(raw ?? {});
     } catch (err) {
@@ -535,7 +614,12 @@ export function registerBackupIpc(): void {
     }
     return { ok: true, data: listBackups() };
   });
-  ipcMain.handle(IPC_CHANNELS["backup.status"], (_e, raw: unknown) => {
+  ipcMain.handle(IPC_CHANNELS["backup.status"], (event, raw: unknown) => {
+    // SEC-01 : idem `backup.list` — lue AVANT session (bandeau de
+    // notifications), donc sans porte staff, mais la provenance reste
+    // vérifiée.
+    const senderDenied = checkSender(event);
+    if (senderDenied) return senderDenied;
     try {
       V.emptyPayloadSchema.parse(raw ?? {});
     } catch (err) {
@@ -549,13 +633,13 @@ export function registerBackupIpc(): void {
       return { ok: false, code: "BACKUP_FAILED", message: "Statut indisponible." };
     }
   });
-  ipcMain.handle(IPC_CHANNELS["backup.export"], (_e, raw: unknown) => {
+  ipcMain.handle(IPC_CHANNELS["backup.export"], (event, raw: unknown) => {
     const denied = guardBackup("automatic-backup");
     if (denied) return denied;
     try {
       const input = V.backupExportSchema.parse(raw ?? {});
       // R1 RADICAL : garde staff avant tout accès disque.
-      const staffDenied = enforceRawChannelGates(IPC_CHANNELS["backup.export"], input);
+      const staffDenied = enforceRawChannelGates(IPC_CHANNELS["backup.export"], input, event);
       if (staffDenied) return staffDenied;
       // EL-35: validation racine centralisée (absolu + anti-système + symlink).
       let safe: string;
@@ -575,7 +659,7 @@ export function registerBackupIpc(): void {
       };
     }
   });
-  ipcMain.handle(IPC_CHANNELS["backup.autoSave"], (_e, raw: unknown) => {
+  ipcMain.handle(IPC_CHANNELS["backup.autoSave"], (event, raw: unknown) => {
     const denied = guardBackup("automatic-backup");
     if (denied) return denied;
     // B-02 : un poste expiré peut SAUVEGARDER mais jamais RECONFIGURER
@@ -590,7 +674,7 @@ export function registerBackupIpc(): void {
     }
     try {
       const input = V.backupAutoSchema.parse(raw ?? {});
-      const staffDenied = enforceRawChannelGates(IPC_CHANNELS["backup.autoSave"], input);
+      const staffDenied = enforceRawChannelGates(IPC_CHANNELS["backup.autoSave"], input, event);
       if (staffDenied) return staffDenied;
       saveBackupAuto(
         {
@@ -609,14 +693,14 @@ export function registerBackupIpc(): void {
       return { ok: false, code: "BACKUP_FAILED", message: "Enregistrement impossible." };
     }
   });
-  ipcMain.handle(IPC_CHANNELS["backup.restore"], (_e, raw: unknown) => {
+  ipcMain.handle(IPC_CHANNELS["backup.restore"], (event, raw: unknown) => {
     const denied = guardBackup("restore-backup");
     if (denied) return denied;
     try {
       const input = V.backupRestoreSchema.parse(raw ?? {});
       // R1 RADICAL : garde staff (permission settings) — jamais de restore
       // sans session autorisée, même avec licence valide.
-      const staffDenied = enforceRawChannelGates(IPC_CHANNELS["backup.restore"], input);
+      const staffDenied = enforceRawChannelGates(IPC_CHANNELS["backup.restore"], input, event);
       if (staffDenied) return staffDenied;
       const file = resolveBackupFile(input.file);
       if (!isAllowedDatabaseFile(file)) {
@@ -713,8 +797,34 @@ export function registerBackupIpc(): void {
         }
       }
       // 2. Vérification complète de la copie de travail (connexion secondaire)
-      //    + compatibilité de schéma (spec 22 : jamais de downgrade silencieux).
+      //    + compatibilité de schéma (spec 22 : jamais de downgrade silencieux)
+      //    + SOMME DE CONTRÔLE (BACK-02) : le sidecar décrit l'image telle
+      //    qu'elle était à l'écriture. Si la somme ne correspond plus, le
+      //    fichier a été modifié ou corrompu depuis — on REFUSE de le
+      //    restaurer, avant même le swap (une restauration « réussie » sur une
+      //    corrompue laisserait un état incohérent qu'on ne découvrirait
+      //    qu'au contrôle du jour suivant).
       try {
+        const sidecarPath = `${file}.json`;
+        if (fs.existsSync(sidecarPath)) {
+          const meta = JSON.parse(fs.readFileSync(sidecarPath, "utf-8")) as {
+            checksum?: unknown;
+          };
+          if (typeof meta.checksum === "string" && meta.checksum.length === 64) {
+            const actual = sha256File(restoreWork);
+            if (actual !== meta.checksum.toLowerCase()) {
+              discardSnapshot(snapshot.file);
+              cleanupWork();
+              log("ERROR", "backup", "restore.checksum_mismatch", { file });
+              return {
+                ok: false,
+                code: "VALIDATION_ERROR",
+                message:
+                  "Cette sauvegarde est corrompue (empreinte non conforme) : restauration refusée.",
+              };
+            }
+          }
+        }
         const checked = verifyDbFileCopy(restoreWork);
         if (checked.schemaVersion > latestMigrationVersion()) {
           discardSnapshot(snapshot.file);

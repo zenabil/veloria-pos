@@ -10,6 +10,13 @@
 // Exclusion documentée : `docs/reports/FULL_AUDIT_2026-10-19.md` cite les
 // séquences corrompues telles quelles (preuve du constat O-01) — c'est un
 // archipel, pas du code.
+//
+// ADR-185 : `handoff.md` est ajouté aux fichiers racine inspectés. C'est le
+// DOCUMENT DE CONTINUITÉ du projet : un document illisible n'est pas un
+// document de continuité. Il avait échappé à la porte (30 981 caractères
+// U+FFFD dans la version commitée, dus à un aller-retour PowerShell
+// `Get-Content` cp1252 → `Set-Content` UTF-8), faute d'être dans le
+// périmètre. La porte est désormais une garantie RÉELLE et non partielle.
 import fs from "node:fs";
 import path from "node:path";
 
@@ -28,7 +35,7 @@ const SCAN_DIRS = [
   "docs",
 ];
 /** Fichiers racine inspectés. */
-const SCAN_FILES = ["index.html", ".gitignore"];
+const SCAN_FILES = ["index.html", ".gitignore", "handoff.md"];
 /** Extensions inspectées (binaire ignoré). */
 const EXTENSIONS = new Set([
   ".ts",

@@ -28,10 +28,18 @@ describe("SQLite migrations + integrity", () => {
       .readdirSync(migDir)
       .filter((f) => f.endsWith(".sql"))
       .sort();
-    // RADICAL-FIX: contiguïté exacte 0001→0062 (tout trou = drift refusé par verify-migrations).
-    expect(files.length).toBe(63);
+    // RADICAL-FIX: contiguïté exacte 0001→dernier (tout trou = drift refusé par verify-migrations).
+    // Le COMPTEUR est dérivé du LOQUET (source unique, ADR-178), pas figé ici :
+    // un compteur en dur dans un test est un second compteur à maintenir, donc
+    // une dérive garantie à chaque nouvelle migration.
+    const lock = JSON.parse(
+      fs.readFileSync(path.join(process.cwd(), "database", "migrations.lock.json"), "utf-8"),
+    ) as { files: Record<string, string> };
+    const lockedNames = Object.keys(lock.files).sort();
+    expect(files.length).toBe(lockedNames.length);
     expect(files[0]).toMatch(/^0001_/);
-    expect(files[files.length - 1]).toMatch(/^0063_/);
+    // La dernière migration est celle du loquet : la comparaison suit le schéma.
+    expect(files[files.length - 1]).toBe(lockedNames[lockedNames.length - 1]);
     db.exec(
       "CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL, checksum TEXT NOT NULL);",
     );
@@ -90,7 +98,10 @@ describe("SQLite migrations + integrity", () => {
       .readdirSync(migDir)
       .filter((x) => x.endsWith(".sql"))
       .sort();
-    expect(files.length).toBe(63);
+    const lock64 = JSON.parse(
+      fs.readFileSync(path.join(process.cwd(), "database", "migrations.lock.json"), "utf-8"),
+    ) as { files: Record<string, string> };
+    expect(files.length).toBe(Object.keys(lock64.files).length);
     const read = (f: string): string => fs.readFileSync(path.join(migDir, f), "utf-8");
     for (const f of files.filter((f) => !f.startsWith("0004"))) db.exec(read(f));
     // Seed: one credit-authorized customer + one sale + one sale-linked payment.

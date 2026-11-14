@@ -198,6 +198,7 @@ describe("buildMirrorRequests", () => {
         kind: "customer_snapshot",
         payload_json: '{"a":1}',
         created_at: "2026-09-29",
+        attempts: 0,
       },
     ]);
     expect(reqs).toHaveLength(2);
@@ -217,6 +218,7 @@ describe("buildMirrorRequests", () => {
             kind: "customer_snapshot",
             payload_json: "{cassé",
             created_at: "2026-09-29",
+            attempts: 0,
           },
         ],
       ),

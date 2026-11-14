@@ -142,7 +142,19 @@ describe("Retours 0055 — dette d'abord", () => {
 
   function seedSale(opts: {
     customerId: number | null;
-    lines: { productId: number | null; quantity: number; unitPrice: number; lineTotal: number }[];
+    // `unitPrice` = prix FACTURÉ unitaire (celui que l'application écrit :
+    // la remise vit dans le prix unitaire, P0-7). `originalUnitPrice` =
+    // prix catalogue de référence ; `discountMinor` = remise de ligne.
+    // `lineTotal` doit toujours valoir arrondi(unitPrice × quantity) : c'est
+    // l'invariant que la migration 0065 impose désormais à la BASE.
+    lines: {
+      productId: number | null;
+      quantity: number;
+      unitPrice: number;
+      lineTotal: number;
+      originalUnitPrice?: number;
+      discountMinor?: number;
+    }[];
     paid: number;
     createdAt?: string;
     invoice?: string;
@@ -170,8 +182,16 @@ describe("Retours 0055 — dette d'abord", () => {
     for (const line of opts.lines) {
       db.prepare(
         `INSERT INTO sale_items (sale_id, product_id, product_name_snapshot, unit_code, original_unit_price_minor, unit_price_minor, purchase_price_minor, quantity, line_total_minor, discount_minor, unit_factor)
-         VALUES (?, ?, 'Article', 'PIECE', ?, ?, 3000, ?, ?, 0, 1)`,
-      ).run(saleId, line.productId, line.unitPrice, line.unitPrice, line.quantity, line.lineTotal);
+         VALUES (?, ?, 'Article', 'PIECE', ?, ?, 3000, ?, ?, ?, 1)`,
+      ).run(
+        saleId,
+        line.productId,
+        line.originalUnitPrice ?? line.unitPrice,
+        line.unitPrice,
+        line.quantity,
+        line.lineTotal,
+        line.discountMinor ?? 0,
+      );
     }
     return saleId;
   }
@@ -371,7 +391,17 @@ describe("Retours 0055 — dette d'abord", () => {
   it("utilise la valeur NETTE de la ligne après remise", () => {
     const saleId = seedSale({
       customerId: null,
-      lines: [{ productId, quantity: 2, unitPrice: 5000, lineTotal: 9000 }],
+      lines: [
+        {
+          productId,
+          quantity: 2,
+          // Ligne REMISÉE : 5 000 → 4 500 l'unité, total facturé 9 000.
+          unitPrice: 4500,
+          originalUnitPrice: 5000,
+          discountMinor: 1000,
+          lineTotal: 9000,
+        },
+      ],
       paid: 9000,
     });
     const res = createReturn({
@@ -468,7 +498,15 @@ describe("Retours 0055 — dette d'abord", () => {
       paid: 0,
       lines: [
         { productId, quantity: 2, unitPrice: 5000, lineTotal: 10000 },
-        { productId, quantity: 2, unitPrice: 5000, lineTotal: 6000 },
+        {
+          productId,
+          quantity: 2,
+          // Seconde ligne du MÊME produit, remisée : 5 000 → 3 000 l'unité.
+          unitPrice: 3000,
+          originalUnitPrice: 5000,
+          discountMinor: 4000,
+          lineTotal: 6000,
+        },
       ],
     });
     const res = createReturn({

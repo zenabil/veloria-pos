@@ -1,0 +1,670 @@
+{
+  "productSearchSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.catalog.ts"
+  },
+  "barcodeSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.catalog.ts"
+  },
+  "productCreateSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.catalog.ts"
+  },
+  "productUpdateSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.catalog.ts"
+  },
+  "productsImportSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.catalog.ts"
+  },
+  "categoryCreateSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.catalog.ts"
+  },
+  "productSuppliersSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.catalog.ts"
+  },
+  "packagingListSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.catalog.ts"
+  },
+  "packagingSaveSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.catalog.ts"
+  },
+  "packagingDeleteSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.catalog.ts"
+  },
+  "productsMatchBatchSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.catalog.ts"
+  },
+  "clientCatalogSettingsSaveSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.clientcatalog.ts"
+  },
+  "clientCatalogPublishSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.clientcatalog.ts"
+  },
+  "clientOrderStatusSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.clientorder.ts"
+  },
+  "clientOrderCreateSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.clientorder.ts"
+  },
+  "clientOrderSetStatusSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.clientorder.ts"
+  },
+  "clientOrderListSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.clientorder.ts"
+  },
+  "clientOrderIdSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.clientorder.ts"
+  },
+  "businessDate": {
+    "zod": true,
+    "file": "electron/ipc/validators.common.ts"
+  },
+  "quantity": {
+    "zod": true,
+    "file": "electron/ipc/validators.common.ts"
+  },
+  "moneyMinor": {
+    "zod": true,
+    "file": "electron/ipc/validators.common.ts"
+  },
+  "moneyMinorPositive": {
+    "zod": true,
+    "file": "electron/ipc/validators.common.ts"
+  },
+  "moneyTotal": {
+    "zod": true,
+    "file": "electron/ipc/validators.common.ts"
+  },
+  "moneyTotalPositive": {
+    "zod": true,
+    "file": "electron/ipc/validators.common.ts"
+  },
+  "moneyMinorSigned": {
+    "zod": true,
+    "file": "electron/ipc/validators.common.ts"
+  },
+  "optionalOperationId": {
+    "zod": true,
+    "file": "electron/ipc/validators.common.ts"
+  },
+  "quantityNonNegative": {
+    "zod": true,
+    "file": "electron/ipc/validators.common.ts"
+  },
+  "emptyPayloadSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.common.ts"
+  },
+  "paginationSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.common.ts"
+  },
+  "idSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.common.ts"
+  },
+  "idempotentIdSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.common.ts"
+  },
+  "customerCreateSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.customers.ts"
+  },
+  "customerUpdateSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.customers.ts"
+  },
+  "customerDebtFilterSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.customers.ts"
+  },
+  "customersImportSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.customers.ts"
+  },
+  "customerSortSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.customers.ts"
+  },
+  "archivedOnlySchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.customers.ts"
+  },
+  "clientAccessActivateSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.customers.ts"
+  },
+  "clientAccessQrSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.customers.ts"
+  },
+  "syncEnqueueSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.customers.ts"
+  },
+  "announcementSaveSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.customers.ts"
+  },
+  "syncConfigSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.customers.ts"
+  },
+  "syncPushNowSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.customers.ts"
+  },
+  "syncOwnerPushSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.customers.ts"
+  },
+  "ownerAccountSaveSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.customers.ts"
+  },
+  "returnCreateSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.documents.ts"
+  },
+  "returnListSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.documents.ts"
+  },
+  "returnTargetSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.documents.ts"
+  },
+  "returnRefundSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.documents.ts"
+  },
+  "returnCancelSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.documents.ts"
+  },
+  "proformaCreateSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.documents.ts"
+  },
+  "proformaStatusSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.documents.ts"
+  },
+  "proformaConvertSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.documents.ts"
+  },
+  "proformaListSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.documents.ts"
+  },
+  "proformaUpdateSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.documents.ts"
+  },
+  "recordPaymentSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.finance.ts"
+  },
+  "expenseCreateSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.finance.ts"
+  },
+  "expenseListSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.finance.ts"
+  },
+  "historyListSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.finance.ts"
+  },
+  "historyDetailSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.finance.ts"
+  },
+  "historyStatsSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.finance.ts"
+  },
+  "reportSummarySchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.finance.ts"
+  },
+  "dashboardSummarySchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.finance.ts"
+  },
+  "reportPayloadSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.finance.ts"
+  },
+  "debtsListSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.finance.ts"
+  },
+  "debtTargetSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.finance.ts"
+  },
+  "saleDueDateSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.finance.ts"
+  },
+  "closingCreateSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.finance.ts"
+  },
+  "zakatParamsSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.finance.ts"
+  },
+  "zakatCalculationSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.finance.ts"
+  },
+  "closingsListSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.finance.ts"
+  },
+  "closingReopenSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.finance.ts"
+  },
+  "cashSessionOpenSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.finance.ts"
+  },
+  "cashSessionCountSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.finance.ts"
+  },
+  "cashSessionCloseSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.finance.ts"
+  },
+  "cashSessionListSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.finance.ts"
+  },
+  "companyUpdateSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.finance.ts"
+  },
+  "expenseUpdateSchema": {
+    "zod": false,
+    "file": "electron/ipc/validators.finance.ts"
+  },
+  "expenseDeleteSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.finance.ts"
+  },
+  "printLineSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.print.ts"
+  },
+  "printerSaveSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.print.ts"
+  },
+  "backupAutoSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.print.ts"
+  },
+  "backupExportSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.print.ts"
+  },
+  "backupRestoreSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.print.ts"
+  },
+  "recoveryActionSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.print.ts"
+  },
+  "licenseActionSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.print.ts"
+  },
+  "windowActionSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.print.ts"
+  },
+  "printPayloadSchema": {
+    "zod": false,
+    "file": "electron/ipc/validators.print.ts"
+  },
+  "pdfFilePathSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.print.ts"
+  },
+  "paymentTicketSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.print.ts"
+  },
+  "labelItemSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.print.ts"
+  },
+  "labelFormatSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.print.ts"
+  },
+  "labelsPayloadSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.print.ts"
+  },
+  "deliveryPayloadSchema": {
+    "zod": false,
+    "file": "electron/ipc/validators.print.ts"
+  },
+  "returnSlipPayloadSchema": {
+    "zod": false,
+    "file": "electron/ipc/validators.print.ts"
+  },
+  "purchaseOrderDocPayloadSchema": {
+    "zod": false,
+    "file": "electron/ipc/validators.print.ts"
+  },
+  "saleItemSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.sales.ts"
+  },
+  "saleCreateSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.sales.ts"
+  },
+  "cartLineSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.sales.ts"
+  },
+  "cartsSaveSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.sales.ts"
+  },
+  "settingsGetSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.settings.ts"
+  },
+  "inventorySettingsSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.settings.ts"
+  },
+  "salesSettingsSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.settings.ts"
+  },
+  "invoiceSettingsSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.settings.ts"
+  },
+  "printingSettingsSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.settings.ts"
+  },
+  "productsSettingsSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.settings.ts"
+  },
+  "customersSettingsSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.settings.ts"
+  },
+  "suppliersSettingsSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.settings.ts"
+  },
+  "soundSettingsSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.settings.ts"
+  },
+  "settingsSaveSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.settings.ts"
+  },
+  "relocateSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.settings.ts"
+  },
+  "databaseResetSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.settings.ts"
+  },
+  "staffLoginSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.staff.ts"
+  },
+  "staffCreateSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.staff.ts"
+  },
+  "staffChangeCodeSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.staff.ts"
+  },
+  "staffSetPermissionsSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.staff.ts"
+  },
+  "staffSetActiveSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.staff.ts"
+  },
+  "staffRecoverSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.staff.ts"
+  },
+  "staffRegenRecoverySchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.staff.ts"
+  },
+  "stockAdjustSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.stock.ts"
+  },
+  "stockProductsSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.stock.ts"
+  },
+  "stockMovementsSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.stock.ts"
+  },
+  "inventoryApplySchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.stock.ts"
+  },
+  "stockIntakeSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.stock.ts"
+  },
+  "supplierSearchSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.stock.ts"
+  },
+  "supplierCreateSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.stock.ts"
+  },
+  "supplierUpdateSchema": {
+    "zod": false,
+    "file": "electron/ipc/validators.stock.ts"
+  },
+  "supplierDeleteManySchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.stock.ts"
+  },
+  "supplierPaySchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.stock.ts"
+  },
+  "purchaseLineSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.stock.ts"
+  },
+  "purchaseCreateSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.stock.ts"
+  },
+  "purchaseListSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.stock.ts"
+  },
+  "purchaseReceiveSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.stock.ts"
+  },
+  "ocrSelectFileSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.stock.ts"
+  },
+  "ocrAnalyzeSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.stock.ts"
+  },
+  "ocrCancelSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.stock.ts"
+  },
+  "ocrDisposeSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.stock.ts"
+  },
+  "templateDocTypeSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.templates.ts"
+  },
+  "templatePaperSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.templates.ts"
+  },
+  "templateSettingsSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.templates.ts"
+  },
+  "templateSaveSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.templates.ts"
+  },
+  "templateActivateSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.templates.ts"
+  },
+  "templateRemoveSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.templates.ts"
+  },
+  "templateResetSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.templates.ts"
+  },
+  "templatePreviewSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.templates.ts"
+  },
+  "templateTestPrintSchema": {
+    "zod": true,
+    "file": "electron/ipc/validators.templates.ts"
+  },
+  "m": {
+    "zod": false,
+    "file": "electron/ipc/validators.common.ts"
+  },
+  "y": {
+    "zod": false,
+    "file": "electron/ipc/validators.common.ts"
+  },
+  "month": {
+    "zod": false,
+    "file": "electron/ipc/validators.common.ts"
+  },
+  "day": {
+    "zod": false,
+    "file": "electron/ipc/validators.common.ts"
+  },
+  "leap": {
+    "zod": false,
+    "file": "electron/ipc/validators.common.ts"
+  },
+  "dim": {
+    "zod": false,
+    "file": "electron/ipc/validators.common.ts"
+  },
+  "shape": {
+    "zod": false,
+    "file": "electron/ipc/validators.common.ts"
+  },
+  "operationId": {
+    "zod": false,
+    "file": "electron/ipc/validators.common.ts"
+  },
+  "printPayloadBase": {
+    "zod": true,
+    "file": "electron/ipc/validators.print.ts"
+  },
+  "l": {
+    "zod": false,
+    "file": "electron/ipc/validators.print.ts"
+  },
+  "expected": {
+    "zod": true,
+    "file": "electron/ipc/validators.print.ts"
+  },
+  "tolerance": {
+    "zod": true,
+    "file": "electron/ipc/validators.print.ts"
+  },
+  "sum": {
+    "zod": false,
+    "file": "electron/ipc/validators.print.ts"
+  },
+  "chargedSum": {
+    "zod": false,
+    "file": "electron/ipc/validators.print.ts"
+  },
+  "expectedTotal": {
+    "zod": false,
+    "file": "electron/ipc/validators.print.ts"
+  },
+  "rate": {
+    "zod": false,
+    "file": "electron/ipc/validators.print.ts"
+  },
+  "stampExpected": {
+    "zod": false,
+    "file": "electron/ipc/validators.print.ts"
+  },
+  "printBase": {
+    "zod": false,
+    "file": "electron/ipc/validators.print.ts"
+  },
+  "DEFAULT_SOUND_VOLUME": {
+    "zod": false,
+    "file": "electron/ipc/validators.settings.ts"
+  },
+  "seen": {
+    "zod": false,
+    "file": "electron/ipc/validators.stock.ts"
+  },
+  "id": {
+    "zod": false,
+    "file": "electron/ipc/validators.stock.ts"
+  }
+}

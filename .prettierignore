@@ -25,6 +25,12 @@ docs/METRICS.md
 public/icons/
 resources/ocr/lang/
 
+# Audit de la package Veloria Engineering Skills v2.0.0 : COPIE VENDOR VERBATIM.
+# Ces fichiers doivent rester byte-identiques à la package d'origine (leur
+# SHA256 est comparé à `vendor/SHA256SUMS.txt`) : Prettier ne doit pas les
+# reformater, sinon la preuve d'intégrité est perdue.
+docs/engineering/skills/veloria-v2.0.0/vendor/
+
 # Sortie GÉNÉRÉE par `npm run site:build` : formatée par le build, pas par Prettier
 # (sinon le build --check verrait une derive et le site servi differerait des sources).
 website/index.html

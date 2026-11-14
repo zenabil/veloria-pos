@@ -4,11 +4,21 @@
 
 import { log } from "../services/logger";
 import { formatFingerprintShort, getHardwareFingerprint } from "./fingerprint";
-import { getEmbeddedPublicKey } from "./public-key";
+import { getEmbeddedKeySet, getEmbeddedPublicKey } from "./public-key";
+import { resolveVerificationKey } from "./key-set";
 import { loadSecureState, saveSecureState, safeStorageBackend } from "./secure-state";
 import { loadAnchorFromDb, saveAnchorToDb } from "./license-anchor";
 import { verifyIntegrityManifest } from "./integrity";
 import type { LicenseServiceDeps } from "./license-service";
+
+/** Clé historique lue sans lever (le repli de la résolution). */
+function safeEmbeddedLegacyPem(): string | null {
+  try {
+    return getEmbeddedPublicKey();
+  } catch {
+    return null;
+  }
+}
 
 export function prodLicenseDeps(appRootOverride?: string): LicenseServiceDeps {
   const backend = safeStorageBackend();
@@ -34,6 +44,12 @@ export function prodLicenseDeps(appRootOverride?: string): LicenseServiceDeps {
     integrityAppRoot: appRootOverride,
     nowMs: () => Date.now(),
     getPublicKeyPem: () => getEmbeddedPublicKey(),
+    // LIC-04 : la clé qui vérifie est DÉSIGNÉE par le `kid` de l'enveloppe
+    // dans le jeu de clés. Sans `kid` (licence v1), la clé active est
+    // employée ; un `kid` inconnu est REFUSÉ (jamais « essayé » contre les
+    // autres clés).
+    resolveVerificationKey: (kid) =>
+      resolveVerificationKey(kid, getEmbeddedKeySet(), safeEmbeddedLegacyPem()),
     getFingerprint: () => getHardwareFingerprint().fingerprint,
     formatShort: (f: string) => formatFingerprintShort(f),
     loadState: (b) => loadSecureState(b),

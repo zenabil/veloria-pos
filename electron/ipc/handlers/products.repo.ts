@@ -386,6 +386,7 @@ export function updateProduct(input: {
         now: input.now,
         oversell: false,
         fallbackUnitCostMinor: 0,
+        fallbackBasis: "fallback-purchase-price",
       });
     }
     // E-26 : la MOUVEMENT DE STOCK est journalisé comme les 11 autres chemins

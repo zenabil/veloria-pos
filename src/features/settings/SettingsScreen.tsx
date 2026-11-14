@@ -26,6 +26,7 @@ import {
   type SettingsSectionMeta,
 } from "./types.ts";
 import { ClientCatalogSection } from "./ClientCatalogSection.tsx";
+import { StockReconciliationCard } from "./StockReconciliationCard.tsx";
 import {
   AnnouncementSection,
   CompanySection,
@@ -349,9 +350,15 @@ export function SettingsScreen({ notify }: { notify: Notify }): React.JSX.Elemen
               </>
             ) : null}
             {section === "catalogue" ? (
-              <CardAnchor id="products">
-                <ProductsSection notify={notify} />
-              </CardAnchor>
+              <>
+                <CardAnchor id="products">
+                  <ProductsSection notify={notify} />
+                </CardAnchor>
+                {/* STK-01 : diagnostic de réconciliation du stock. */}
+                <CardAnchor id="stock-reconciliation">
+                  <StockReconciliationCard notify={notify} />
+                </CardAnchor>
+              </>
             ) : null}
             {section === "documents" ? (
               <>

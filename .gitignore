@@ -16,6 +16,11 @@ dist-license-manager-renderer/
 out/
 *.log
 logs/
+# Trace de build GÉNÉRÉE (REL-04) : écrite à chaque build par
+# `npm run release:stamp-build-info`, embarquée dans l'artefact via
+# extraResources. Un clone/CI la régénère — elle ne doit JAMAIS être commitée
+# (elle est datée et propre à une machine de build).
+scripts/release/build-info.json
 
 # Electron / native
 *.node
@@ -88,5 +93,5 @@ local.properties
 # Captures du site vitrine : artefacts régénérés par `npm run verify:site` (docs/shots/site/).
 docs/shots/site/
 
-# Artefacts de l'outil navigateur (MCP Playwright) : jamais dans le d�p�t.
+# Artefacts de l'outil navigateur (MCP Playwright) : jamais dans le d�p�t.
 .playwright-mcp/

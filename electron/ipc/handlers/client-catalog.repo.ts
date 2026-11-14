@@ -36,6 +36,8 @@ export interface CatalogSettings {
   enabled: boolean;
   /** Catégories retirées du catalogue client (identifiants `categories.id`). */
   excludedCategoryIds: number[];
+  /** Surcharge par produit : publication et disponibilité (null = automatique). */
+  productOverrides: Record<string, { published?: boolean | null; available?: boolean | null }>;
   /** Dernière publication réussie (instant ISO) ou null. */
   lastPublishedAt: string | null;
   /** Version du dernier catalogue publié. */
@@ -49,6 +51,7 @@ export interface CatalogSettings {
 const DEFAULT_SETTINGS: CatalogSettings = {
   enabled: false,
   excludedCategoryIds: [],
+  productOverrides: {},
   lastPublishedAt: null,
   lastVersion: null,
   lastProductCount: 0,
@@ -67,9 +70,30 @@ function readSettings(): CatalogSettings {
           (n): n is number => typeof n === "number" && Number.isInteger(n) && n > 0,
         )
       : [];
+    const rawOverrides =
+      parsed.productOverrides && typeof parsed.productOverrides === "object"
+        ? (parsed.productOverrides as Record<string, unknown>)
+        : {};
+    const productOverrides: CatalogSettings["productOverrides"] = {};
+    for (const [k, v] of Object.entries(rawOverrides)) {
+      if (!/^\d+$/.test(k)) continue;
+      if (!v || typeof v !== "object") continue;
+      const o = v as { published?: unknown; available?: unknown };
+      const entry: { published?: boolean | null; available?: boolean | null } = {};
+      if (o.published === true || o.published === false || o.published === null) {
+        entry.published = o.published;
+      }
+      if (o.available === true || o.available === false || o.available === null) {
+        entry.available = o.available;
+      }
+      if (entry.published !== undefined || entry.available !== undefined) {
+        productOverrides[k] = entry;
+      }
+    }
     return {
       enabled: parsed.enabled === true,
       excludedCategoryIds: [...new Set(excluded)],
+      productOverrides,
       lastPublishedAt: typeof parsed.lastPublishedAt === "string" ? parsed.lastPublishedAt : null,
       lastVersion: typeof parsed.lastVersion === "string" ? parsed.lastVersion : null,
       lastProductCount:
@@ -105,6 +129,7 @@ export function getCatalogSettings(): CatalogSettings {
 export function saveCatalogSettingsAtomic(args: {
   enabled: boolean;
   excludedCategoryIds: number[];
+  productOverrides?: Record<string, { published?: boolean | null; available?: boolean | null }>;
   operationId: string;
   now: string;
 }): CatalogSettings {
@@ -113,10 +138,12 @@ export function saveCatalogSettingsAtomic(args: {
   const db = getDb();
   const current = readSettings();
   const excluded = [...new Set(args.excludedCategoryIds)].sort((a, b) => a - b);
+  const overrides = args.productOverrides ?? current.productOverrides;
   const next: CatalogSettings = {
     ...current,
     enabled: args.enabled,
     excludedCategoryIds: excluded,
+    productOverrides: overrides,
     // Un changement de réglage invalide la publication précédente : le
     // catalogue affiché ne serait plus celui qui est en ligne.
     dirty: true,
@@ -200,10 +227,12 @@ export interface CatalogBuild {
 /** Catalogue effectif = ce que l'APK verra (mêmes règles que la publication). */
 export function buildCatalog(batchId: string, publishedAt: string): CatalogBuild {
   const settings = readSettings();
-  const { selected, skipped } = selectPublishedProducts(
-    readCatalogSource(),
-    settings.excludedCategoryIds,
-  );
+  const source = readCatalogSource().map((p) => ({
+    ...p,
+    clientPublishedOverride: settings.productOverrides[String(p.id)]?.published ?? null,
+    clientAvailableOverride: settings.productOverrides[String(p.id)]?.available ?? null,
+  }));
+  const { selected, skipped } = selectPublishedProducts(source, settings.excludedCategoryIds);
   const rows = catalogRows(selected, { batchId, publishedAt });
   return {
     rows,
@@ -222,10 +251,12 @@ export interface CatalogPreview {
 /** Vue « produits publiés dans l'application » (écran POS). */
 export function listCatalogPreview(): CatalogPreview {
   const settings = readSettings();
-  const { selected, skipped } = selectPublishedProducts(
-    readCatalogSource(),
-    settings.excludedCategoryIds,
-  );
+  const source = readCatalogSource().map((p) => ({
+    ...p,
+    clientPublishedOverride: settings.productOverrides[String(p.id)]?.published ?? null,
+    clientAvailableOverride: settings.productOverrides[String(p.id)]?.available ?? null,
+  }));
+  const { selected, skipped } = selectPublishedProducts(source, settings.excludedCategoryIds);
   const rows = catalogRows(selected, { batchId: "preview", publishedAt: "" });
   return { items: toPreviewItems(rows), skipped, settings };
 }

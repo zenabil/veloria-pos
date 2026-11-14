@@ -88,10 +88,14 @@ function logisticsOf(
 }
 
 export function registerLogisticsIpc(getMainWindow: () => BrowserWindow | null): void {
-  ipcMain.handle(IPC_CHANNELS["printing.previewDelivery"], (_e, raw: unknown) => {
+  ipcMain.handle(IPC_CHANNELS["printing.previewDelivery"], (event, raw: unknown) => {
     const denied = guardPrint("invoice-a4", ["sales", "invoices"]);
     if (denied) return denied;
-    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.previewDelivery"], raw);
+    const staffDenied = enforceRawChannelGates(
+      IPC_CHANNELS["printing.previewDelivery"],
+      raw,
+      event,
+    );
     if (staffDenied) return staffDenied;
     try {
       const d = logisticsOf(raw, "delivery");
@@ -114,10 +118,10 @@ export function registerLogisticsIpc(getMainWindow: () => BrowserWindow | null):
     }
   });
 
-  ipcMain.handle(IPC_CHANNELS["printing.printDelivery"], async (_e, raw: unknown) => {
+  ipcMain.handle(IPC_CHANNELS["printing.printDelivery"], async (event, raw: unknown) => {
     const denied = guardPrint("invoice-a4", ["sales", "invoices"]);
     if (denied) return denied;
-    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.printDelivery"], raw);
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.printDelivery"], raw, event);
     if (staffDenied) return staffDenied;
     if (!getMainWindow()) return unavailable("Fenêtre d'impression indisponible.");
     try {
@@ -138,10 +142,14 @@ export function registerLogisticsIpc(getMainWindow: () => BrowserWindow | null):
     }
   });
 
-  ipcMain.handle(IPC_CHANNELS["printing.previewReturnSlip"], (_e, raw: unknown) => {
+  ipcMain.handle(IPC_CHANNELS["printing.previewReturnSlip"], (event, raw: unknown) => {
     const denied = guardPrint("receipt-80mm", ["returns"]);
     if (denied) return denied;
-    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.previewReturnSlip"], raw);
+    const staffDenied = enforceRawChannelGates(
+      IPC_CHANNELS["printing.previewReturnSlip"],
+      raw,
+      event,
+    );
     if (staffDenied) return staffDenied;
     try {
       const d = logisticsOf(raw, "return");
@@ -160,10 +168,14 @@ export function registerLogisticsIpc(getMainWindow: () => BrowserWindow | null):
     }
   });
 
-  ipcMain.handle(IPC_CHANNELS["printing.printReturnSlip"], async (_e, raw: unknown) => {
+  ipcMain.handle(IPC_CHANNELS["printing.printReturnSlip"], async (event, raw: unknown) => {
     const denied = guardPrint("receipt-80mm", ["returns"]);
     if (denied) return denied;
-    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.printReturnSlip"], raw);
+    const staffDenied = enforceRawChannelGates(
+      IPC_CHANNELS["printing.printReturnSlip"],
+      raw,
+      event,
+    );
     if (staffDenied) return staffDenied;
     if (!getMainWindow()) return unavailable("Fenêtre d'impression indisponible.");
     try {
@@ -189,10 +201,10 @@ export function registerLogisticsIpc(getMainWindow: () => BrowserWindow | null):
     }
   });
 
-  ipcMain.handle(IPC_CHANNELS["printing.previewPO"], (_e, raw: unknown) => {
+  ipcMain.handle(IPC_CHANNELS["printing.previewPO"], (event, raw: unknown) => {
     const denied = guardPrint("invoice-a4", ["suppliers"]);
     if (denied) return denied;
-    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.previewPO"], raw);
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.previewPO"], raw, event);
     if (staffDenied) return staffDenied;
     try {
       const d = logisticsOf(raw, "po");
@@ -211,10 +223,10 @@ export function registerLogisticsIpc(getMainWindow: () => BrowserWindow | null):
     }
   });
 
-  ipcMain.handle(IPC_CHANNELS["printing.printPO"], async (_e, raw: unknown) => {
+  ipcMain.handle(IPC_CHANNELS["printing.printPO"], async (event, raw: unknown) => {
     const denied = guardPrint("invoice-a4", ["suppliers"]);
     if (denied) return denied;
-    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.printPO"], raw);
+    const staffDenied = enforceRawChannelGates(IPC_CHANNELS["printing.printPO"], raw, event);
     if (staffDenied) return staffDenied;
     if (!getMainWindow()) return unavailable("Fenêtre d'impression indisponible.");
     try {

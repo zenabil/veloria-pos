@@ -34,6 +34,9 @@ const STAFF_CHANNEL_PERMISSION: Record<string, string> = {
   [IPC_CHANNELS["stock.intakes"]]: "stock",
   [IPC_CHANNELS["stock.intakeDetail"]]: "stock",
   [IPC_CHANNELS["stock.intakeCancel"]]: "stock",
+  // STK-01 : diagnostic de réconciliation — permission `settings` (il expose
+  // le coût interne des couches FIFO : ce n'est pas une lecture de caisse).
+  [IPC_CHANNELS["stock.reconcile"]]: "settings",
   // Dettes et encaissements clients
   [IPC_CHANNELS["debts.list"]]: "debts",
   [IPC_CHANNELS["debts.detail"]]: "debts",

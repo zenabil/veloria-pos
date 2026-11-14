@@ -89,6 +89,9 @@ export function registerStockChannels(): void {
       staffUserId: getCurrentStaffUser(),
     }),
   );
+  // STK-01 : diagnostic de réconciliation (lecture seule) — rapproche la
+  // quantité produit, les couches FIFO et le grand livre des mouvements.
+  handle(IPC_CHANNELS["stock.reconcile"], V.emptyPayloadSchema, () => Inventory.reconcileStock());
 
   // ---- Phase 6 : fournisseurs ----
   handle(IPC_CHANNELS["suppliers.search"], V.supplierSearchSchema, (input) =>

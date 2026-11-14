@@ -33,7 +33,7 @@ import {
   registerBackupIpc,
   startAutoBackupTimer,
 } from "../backup/backup.service";
-import { startSyncTimer } from "../sync/sync.service";
+import { startSyncTimer, upgradeLegacySecrets } from "../sync/sync.service";
 import { initLogger, log } from "../services/logger";
 import { resolveStartup, type DatabaseOpenInfo, type StartupFailure } from "./startup-flow";
 import { buildRecoveryHtml } from "./recovery-view";
@@ -216,6 +216,13 @@ function runAutoBackupIfDue(): void {
 /** Coquille applicative : uniquement sur base prête (décision resolveStartup). */
 function enterMainMode(info: DatabaseOpenInfo): void {
   log("INFO", "app", "database.ready", { ...info });
+  // BACK-04 : hygiène des secrets AVANT toute sauvegarde (une sauvegarde est
+  // une copie de la base : un secret legacy en clair y serait recopié).
+  try {
+    upgradeLegacySecrets();
+  } catch {
+    /* best effort : jamais bloquant au démarrage */
+  }
   registerBusinessOnce();
   registerBackupOnce();
   registerPrintingOnce();

@@ -24,6 +24,8 @@ export default tseslint.config(
       "docs/archive/stitch_veloria_supervision_mobile/**",
       // Outillage vivant non committé (.gitignore) : hors périmètre lint.
       ".opencode/**",
+      "scripts/quality/verify-rls-gate.cjs",
+      "scripts/quality/verify-ui-a11y-gate.cjs",
     ],
   },
   js.configs.recommended,
@@ -39,6 +41,7 @@ export default tseslint.config(
             "scripts/database/probe-writable.cjs",
             "scripts/database/relocate-local.cjs",
             "scripts/licensing/secret-scan.mjs",
+            "scripts/licensing/verify-key-custody.mjs",
             "scripts/licensing/sign-integrity.mjs",
             "scripts/licensing/sign-manager-integrity.mjs",
             "scripts/licensing/keygen.mjs",
@@ -55,12 +58,17 @@ export default tseslint.config(
             "scripts/quality/verify-site.mjs",
             // W9 : porte d'encodage (U+FFFD) + config de couverture interface.
             "scripts/quality/verify-encoding.mjs",
+            "scripts/quality/verify-release-config.mjs",
+            "scripts/quality/verify-governance-arch.mjs",
+
             "vitest.features.config.ts",
             // Porte de mesure de couverture de TOUTE la couche logique.
             "vitest.coverage-all.config.ts",
             "scripts/release/checksums.js",
             "scripts/release/smoke.js",
             "scripts/release/stamp-electron-pkg.js",
+            "scripts/release/stamp-build-info.js",
+            "scripts/release/verify-artifact.js",
             "scripts/release/version.mjs",
             // Outils E2E/APK (hors tsconfig racine, toolchain Expo/Deno séparée).
             "scripts/demo-client-sync-server.mjs",

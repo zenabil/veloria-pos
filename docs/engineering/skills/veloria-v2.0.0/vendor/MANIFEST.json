@@ -1,0 +1,11 @@
+{
+  "package": "Veloria Engineering Skills System",
+  "version": "2.0.0",
+  "format": "OpenCode Agent Skills (SKILL.md)",
+  "skill_count": 17,
+  "specialist_skill_count": 16,
+  "orchestrator_skill": "veloria-orchestrator",
+  "source_archive": "archive/original-skills-v1.zip",
+  "generated_on": "2026-11-11",
+  "note": "Package structure validated; application repository not audited in this task."
+}

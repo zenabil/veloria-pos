@@ -21,6 +21,9 @@ extraResources:
   # l'asar, donc exposée via resourcesPath (résolue dans window-manager).
   - from: public/icons
     to: icons
+  # Trace de build (REL-04) : version + révision source, comme le POS.
+  - from: scripts/release/build-info.json
+    to: build-info.json
 asar: true
 # better-sqlite3 13 est N-API : binaire précompilé compatible Electron,
 # aucune recompilation requise (ADR-155).

@@ -23,7 +23,7 @@
       "project": ["src/**/*.{ts,tsx}"],
       "ignoreExportsUsedInFile": true,
       "ignoreBinaries": ["eas"],
-      "ignoreDependencies": ["expo-updates"]
+      "ignoreDependencies": ["expo-updates", "expo-system-ui"]
     },
     "owner": {
       "entry": ["src/App.tsx"],

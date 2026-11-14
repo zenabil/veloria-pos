@@ -64,6 +64,51 @@ jobs:
       - run: npm run build:manager-client
       - run: npm run build:manager
 
+  # Empaquetage réel (REL-03) : le runtime PACKAGÉ doit être vérifié, pas
+  # seulement le build depuis les sources. Cible `portable` : elle n'exige ni
+  # UAC ni installation, donc elle tourne dans un CI non interactif.
+  # La porte `release:verify` REFUSE de publier un binaire non signé ou dont
+  # l'empreinte ne correspond pas au manifeste (REL-01/REL-02) — sauf pour un
+  # build de TEST interne, explicitement signalé par VELORIA_ALLOW_UNSIGNED.
+  packaging:
+    needs: quality
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      VELORIA_ALLOW_UNSIGNED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Empaquetage portable (POS)
+        shell: pwsh
+        run: |
+          $env:VELORIA_ALLOW_UNSIGNED = "1"
+          npm run package:portable
+      - name: Empreinte + trace de build
+        shell: pwsh
+        run: |
+          # La trace de build doit être présente ET horodatée par ce build.
+          $info = Get-Content "release\win-unpacked\resources\build-info.json" | ConvertFrom-Json
+          if (-not $info.commit -or $info.commit.Length -lt 7) {
+            Write-Error "build-info.json sans révision source exploitable"
+            exit 1
+          }
+          Write-Output "OK  build-info : version=$($info.version) commit=$($info.commit)"
+      - name: Artefacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: veloria-pos-portable
+          path: |
+            release/Veloria-PoS-Portable-*.exe
+            release/*.sha256
+            release/SHA256SUMS.txt
+          if-no-files-found: error
+
   # E2E sur l'application RÉELLE (Electron + base isolée). Les scénarios de
   # licence exigent la clé privée vendor : sans le secret, `skipIfNoVendorKey`
   # saute ces specs — le job reste vert mais le journal le dit. Volontairement

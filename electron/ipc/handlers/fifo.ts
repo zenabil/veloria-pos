@@ -33,6 +33,16 @@ export interface FifoConsumption {
   quantity: number;
   unitCostMinor: number;
   costMinor: number;
+  /**
+   * Provenance du coût (STK-03, migration 0064) :
+   *  - 'layer'                  : consommation issue d'une couche RÉELLE ;
+   *  - 'fallback-purchase-price' : aucune couche disponible, coût estimé
+   *                                depuis le prix d'achat du produit ;
+   *  - 'fallback-last-layer'     : aucune couche, coût du dernier layer connu.
+   * La colonne est NOT NULL en base : un coût APPROCHÉ est désormais
+   * identifiable, ce qui rend l'historique de marge honnête.
+   */
+  costBasis: "layer" | "fallback-purchase-price" | "fallback-last-layer";
 }
 
 /** Layers with stock left, oldest-first (FIFO order). */
@@ -133,6 +143,12 @@ export function consumeLayers(args: {
   now: string;
   oversell: boolean;
   fallbackUnitCostMinor: number;
+  /**
+   * Provenance du coût de REPLI (STK-03) : l'appelant dit d'où vient le
+   * coût estimé lorsqu'aucune couche n'est disponible. "layer" est
+   * impossible ici (par définition, aucune couche n'a été consommée).
+   */
+  fallbackBasis: "fallback-purchase-price" | "fallback-last-layer";
   record?: { saleId: number; saleItemId: number };
 }): { cogsMinor: number; consumptions: FifoConsumption[] } {
   assertCallerTransaction();
@@ -161,6 +177,7 @@ export function consumeLayers(args: {
       quantity: qty,
       unitCostMinor: Number(layer.unitCostMinor),
       costMinor: cost,
+      costBasis: "layer",
     });
     cogs += cost;
     needTh -= takeTh;
@@ -174,14 +191,19 @@ export function consumeLayers(args: {
       quantity: qty,
       unitCostMinor: args.fallbackUnitCostMinor,
       costMinor: cost,
+      // STK-03 : la provenance est EXPLICITE. Le repli vient soit du prix
+      // d'achat du produit, soit du dernier layer connu (selon ce que
+      // l'appelant a fourni) — l'historique de marge peut ainsi distinguer
+      // un coût EXACT d'un coût APPROCHÉ.
+      costBasis: args.fallbackBasis,
     });
     cogs += cost;
   }
   if (args.record) {
     for (const c of consumptions) {
       db.prepare(
-        `INSERT INTO sale_fifo_consumption (sale_id, sale_item_id, product_id, layer_id, quantity, unit_cost_minor, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO sale_fifo_consumption (sale_id, sale_item_id, product_id, layer_id, quantity, unit_cost_minor, cost_basis, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         args.record.saleId,
         args.record.saleItemId,
@@ -189,6 +211,7 @@ export function consumeLayers(args: {
         c.layerId,
         c.quantity,
         c.unitCostMinor,
+        c.costBasis,
         args.now,
       );
     }
