@@ -91,9 +91,10 @@ alignement avec `package.json`.
 - `electron/services/update-feed.ts` : contrat du manifeste (validation
   pure, comparaison de versions, liste blanche d'origines, `fetch` injectable).
 - `electron/services/update-check.ts` : service (cache, silence, ouverture de
-  la page de release) — l'URL du manifeste est **vide par défaut** : la
-  détection est **désactivée** tant que le dépôt de distribution n'existe
-  pas (fail-closed).
+  la page de release) — l'URL du manifeste est celle du dépôt de
+  distribution (`DEFAULT_UPDATE_MANIFEST_URL`), surchargeable par
+  `VELORIA_UPDATE_MANIFEST_URL` ; **vide ⇒ détection désactivée**
+  (fail-closed).
 - `scripts/release/update-manifest.mjs` : fabrication du manifeste
   (`npm run release:manifest`) — **hors** de la chaîne `package:win`, pour
   qu'un build local ou une CI sans dépôt distant reste possible.
@@ -105,9 +106,10 @@ alignement avec `package.json`.
 
 - Le propriétaire est **informé sans être interrompu** : l'écran de caisse
   n'affiche jamais d'alerte de mise à jour.
-- La détection est **invisible** tant que le dépôt GitHub de distribution
-  n'existe pas (URL vide) : le comportement en production reste celui
-  d'aujourd'hui jusqu'à l'activation (voir §Procédure d'activation).
+- La détection reste **silencieuse** quand le flux est inaccessible (hors
+  ligne, release absente) : le comportement en production reste celui
+  d'aujourd'hui tant qu'aucune version plus récente n'est publiée
+  (voir §Procédure d'activation).
 - Le canal de distribution retenu (GitHub Releases) sert aussi de source
   unique des empreintes : `SHA256SUMS.txt` et le manifeste portent les mêmes
   SHA-256.
@@ -134,18 +136,30 @@ alignement avec `package.json`.
 
 ## Procédure d'activation
 
-1. Créer le dépôt GitHub de distribution (public) et le pousser comme remote.
-2. Publier une release contenant : l'installateur, le portable, l'APK,
-   `SHA256SUMS.txt` et `update-manifest.json` (produit par
-   `npm run release:manifest` avec `VELORIA_RELEASE_BASE_URL` pointant sur la
-   page de la release).
-3. Renseigner l'URL du manifeste :
-   - POS : `DEFAULT_UPDATE_MANIFEST_URL` dans
-     `electron/services/update-check.ts` (ou la variable
-     `VELORIA_UPDATE_MANIFEST_URL` au lancement) ;
-   - client Android : `EXPO_PUBLIC_UPDATE_MANIFEST_URL` au build EAS.
-4. Vérifier sur un poste de test : annonce affichée, ouverture de la page,
-   installation manuelle, données conservées.
+Dépôt de distribution : **`github.com/zenabil/veloria-pos`** (public). Le
+flux lu par les deux applications est
+`https://github.com/zenabil/veloria-pos/releases/latest/download/update-manifest.json`.
+
+1. ~~Créer le dépôt GitHub de distribution (public) et le pousser comme
+   remote.~~ **FAIT** — dépôt créé, branche `main` poussée, clé de
+   déploiement (deploy key) SSH **limitée à ce dépôt** utilisée pour le
+   push (aucun jeton d'accès personnel n'est créé).
+2. ~~Renseigner l'URL du manifeste.~~ **FAIT** — POS :
+   `DEFAULT_UPDATE_MANIFEST_URL` (`electron/services/update-check.ts`) ;
+   client Android : `EXPO_PUBLIC_UPDATE_MANIFEST_URL` au build EAS.
+3. ~~Publier une release.~~ **FAIT** — le workflow `.github/workflows/release.yml`
+   (tag `v*`) exécute les portes de qualité, `package:win:ci`, fabrique le
+   manifeste (`npm run release:manifest`) et publie les livrables. Sur un
+   runner public, la clé privée vendor est absente : le manifeste d'intégrité
+   est donc re-signé en mode **opportuniste** (`--if-key-present`) au lieu
+   d'échouer en mode strict — c'est `package:win:ci`, variante CI de
+   `package:win` (qui reste strict, fail-closed, pour un build vendor).
+4. **RESTE À FAIRE** : vérifier sur un poste de test (POS packagé) et sur un
+   téléphone (APK installé) que l'annonce apparaît et que l'installation
+   manuelle par-dessus une version existante conserve les données ; mesurer
+   la vitesse de téléchargement depuis l'Algérie ; **ajouter l'APK signé à la
+   release** (il n'est pas construit par la CI : EAS ou Gradle local) puis
+   régénérer le manifeste pour que le client APK dispose de son lien direct.
 
 ## Vérification
 

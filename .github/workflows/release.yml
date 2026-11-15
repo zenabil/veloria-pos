@@ -53,6 +53,13 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci
+      # `npm run check` typecheck aussi les deux apps Expo : sans leurs
+      # dépendances, `expo/tsconfig.base` est introuvable et le job échoue
+      # avant même de regarder le code (même raison que dans `ci.yml`).
+      - run: npm ci
+        working-directory: mobile
+      - run: npm ci
+        working-directory: owner
       - name: Portes de qualité
         run: npm run check
       - name: Suite de tests
@@ -60,7 +67,10 @@ jobs:
       - name: Portes documentaires / migrations / release
         run: npm run verify
       - name: Empaquetage Windows (installateur + portable)
-        run: npm run package:win
+        # Variante CI : la clé privée vendor n'est pas sur un runner public,
+        # donc le manifeste d'intégrité est re-signé en mode OPPORTUNISTE
+        # (`--if-key-present`) au lieu d'échouer en mode strict (fail-closed).
+        run: npm run package:win:ci
       - name: Manifeste de mise à jour
         run: npm run release:manifest
       - name: Publication de la release

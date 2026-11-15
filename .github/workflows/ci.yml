@@ -88,7 +88,10 @@ jobs:
         shell: pwsh
         run: |
           $env:VELORIA_ALLOW_UNSIGNED = "1"
-          npm run package:portable
+          # Variante CI : pas de clé privée vendor sur un runner ⇒ manifeste
+          # d'intégrité re-signé en mode opportuniste (`--if-key-present`)
+          # au lieu d'échouer en mode strict.
+          npm run package:portable:ci
       - name: Empreinte + trace de build
         shell: pwsh
         run: |

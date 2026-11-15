@@ -23,6 +23,7 @@ import {
   openUpdatePage,
   resetUpdateCache,
 } from "../../electron/services/update-check.ts";
+import { isAllowedFeedUrl } from "../../electron/services/update-feed.ts";
 
 const MANIFEST_URL = "https://github.com/owner/repo/releases/latest/download/update-manifest.json";
 
@@ -46,6 +47,8 @@ describe("détection de mise à jour (ADR-186)", () => {
   });
 
   it("sans flux configuré : détection désactivée, AUCUN réseau sollicité", async () => {
+    // URL forcée à vide = détection désactivée (fail-closed).
+    process.env["VELORIA_UPDATE_MANIFEST_URL"] = "";
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
     const status = await getUpdateStatus();
@@ -56,9 +59,12 @@ describe("détection de mise à jour (ADR-186)", () => {
     vi.unstubAllGlobals();
   });
 
-  it("URL par défaut vide tant que le dépôt de distribution n'existe pas", () => {
-    expect(DEFAULT_UPDATE_MANIFEST_URL).toBe("");
-    expect(getUpdateManifestUrl()).toBeNull();
+  it("URL par défaut : le flux de release du dépôt de distribution (https)", () => {
+    expect(DEFAULT_UPDATE_MANIFEST_URL).toBe(
+      "https://github.com/zenabil/veloria-pos/releases/latest/download/update-manifest.json",
+    );
+    expect(isAllowedFeedUrl(DEFAULT_UPDATE_MANIFEST_URL)).toBe(true);
+    expect(getUpdateManifestUrl()).toBe(DEFAULT_UPDATE_MANIFEST_URL);
   });
 
   it("refuse une origine hors liste blanche", () => {

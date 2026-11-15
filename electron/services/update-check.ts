@@ -27,11 +27,19 @@ import {
 export const UPDATE_MANIFEST_URL_ENV = "VELORIA_UPDATE_MANIFEST_URL";
 
 /**
- * URL par défaut du manifeste. Vide = détection désactivée.
- * À renseigner quand le dépôt GitHub de distribution existe (ADR-186, §8).
+ * URL par défaut du manifeste.
+ *
  * Format : `https://github.com/<owner>/<repo>/releases/latest/download/update-manifest.json`
+ * — URL FIXE : elle suit la dernière release publiée sans API GitHub (60
+ * requêtes/h par IP : un parc de clients Android la saturerait).
+ *
+ * Elle est VIDE tant qu'aucun dépôt de distribution n'existe : la détection
+ * est alors désactivée (fail-closed, aucun appel réseau inutile). La
+ * variable d'environnement `VELORIA_UPDATE_MANIFEST_URL` permet de la
+ * surcharger (tests, déploiementspilotes).
  */
-export const DEFAULT_UPDATE_MANIFEST_URL = "";
+export const DEFAULT_UPDATE_MANIFEST_URL =
+  "https://github.com/zenabil/veloria-pos/releases/latest/download/update-manifest.json";
 
 /** Durée de validité d'une lecture (pas de fetch à chaque affichage). */
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;

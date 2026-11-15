@@ -39,6 +39,8 @@
     "package": "npm run license:scan && npm run license:key-custody && npm run release:stamp-build-info && npm run build && npm run build:electron && npm run license:integrity && electron-builder --config config/electron-builder/pos.yml && npm run release:checksums && npm run release:verify",
     "package:win": "npm run license:scan && npm run license:key-custody && npm run release:stamp-build-info && npm run build && npm run build:electron && npm run license:integrity && electron-builder --win --config config/electron-builder/pos.yml && npm run release:checksums && npm run release:verify",
     "package:portable": "npm run license:scan && npm run license:key-custody && npm run release:stamp-build-info && npm run build && npm run build:electron && npm run license:integrity && electron-builder --win portable --config config/electron-builder/pos.yml && npm run release:checksums && npm run release:verify",
+    "package:win:ci": "npm run license:scan && npm run release:stamp-build-info && npm run build && npm run build:electron && node scripts/licensing/sign-integrity.mjs --if-key-present && electron-builder --win --config config/electron-builder/pos.yml && npm run release:checksums && npm run release:verify",
+    "package:portable:ci": "npm run license:scan && npm run release:stamp-build-info && npm run build && npm run build:electron && node scripts/licensing/sign-integrity.mjs --if-key-present && electron-builder --win portable --config config/electron-builder/pos.yml && npm run release:checksums && npm run release:verify",
     "release:smoke": "node scripts/release/smoke.js",
     "release:checksums": "node scripts/release/checksums.js",
     "release:manifest": "node scripts/release/update-manifest.mjs",
