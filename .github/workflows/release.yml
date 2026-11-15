@@ -52,7 +52,16 @@ jobs:
           node-version-file: ".nvmrc"
           cache: npm
           cache-dependency-path: package-lock.json
-      - run: npm ci
+      - run: npm ci --ignore-scripts
+      # Les scripts d'installation sont désactivés VOLONTAIREMENT :
+      # `better-sqlite3` possède un `binding.gyp` → npm y lance `node-gyp
+      # rebuild` → échec sur un runner SANS Visual Studio (« Could not find any
+      # Visual Studio installation »). Or son binaire N-API est DÉJÀ dans le
+      # paquet (`prebuilds/win32-x64.node`, ADR-155) : aucune compilation n'est
+      # nécessaire. On rejoue à la main le seul script utile au build : celui
+      # d'Electron (téléchargement du binaire runtime).
+      - run: node node_modules/electron/install.js
+      - run: node node_modules/esbuild/install.js
       # `npm run check` typecheck aussi les deux apps Expo : sans leurs
       # dépendances, `expo/tsconfig.base` est introuvable et le job échoue
       # avant même de regarder le code (même raison que dans `ci.yml`).

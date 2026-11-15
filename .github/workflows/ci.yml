@@ -40,7 +40,13 @@ jobs:
             package-lock.json
             mobile/package-lock.json
             owner/package-lock.json
-      - run: npm ci
+      - run: npm ci --ignore-scripts
+      # `better-sqlite3` a un `binding.gyp` → npm y lance `node-gyp rebuild` →
+      # échec sur un runner sans Visual Studio. Son binaire N-API est DÉJÀ dans
+      # le paquet (`prebuilds/win32-x64.node`, ADR-155) : on désactive les
+      # scripts et on rejoue à la main celui d'Electron (binaire runtime).
+      - run: node node_modules/electron/install.js
+      - run: node node_modules/esbuild/install.js
       # Les deux apps Expo sont typecheckées par `npm run check` : sans leurs
       # dépendances, `expo/tsconfig.base` est introuvable et le job échoue
       # avant même de regarder le code.

@@ -27,7 +27,10 @@ function makeWorkspace(): string {
   fs.mkdirSync(path.join(root, "release"), { recursive: true });
   fs.writeFileSync(path.join(root, "release", "Veloria-PoS-Setup-1.0.5.exe"), "setup");
   fs.writeFileSync(path.join(root, "release", "Veloria-PoS-Portable-1.0.5.exe"), "portable");
-  fs.writeFileSync(path.join(root, "release", "veloria-client-1.0.5.apk"), "apk");
+  // L'APK vit dans un sous-dossier (`release/apk/`) : le manifeste doit le
+  // publier sous son NOM SEUL (les assets d'une release GitHub sont plats).
+  fs.mkdirSync(path.join(root, "release", "apk"), { recursive: true });
+  fs.writeFileSync(path.join(root, "release", "apk", "Veloria-Client-1.0.5.apk"), "apk");
   return root;
 }
 
@@ -78,6 +81,10 @@ describe("manifeste de mise à jour (scripts/release/update-manifest.mjs)", () =
     expect(manifest.androidVersionCode).toBe(7);
     expect(manifest.releasePage).toBe(RELEASE_PAGE);
     expect(Object.keys(manifest.assets).sort()).toEqual(["apk", "winPortable", "winSetup"]);
+    expect(manifest.assets["apk"]?.name).toBe("Veloria-Client-1.0.5.apk");
+    expect(manifest.assets["apk"]?.downloadUrl).toContain(
+      "/releases/download/v1.0.5/Veloria-Client-1.0.5.apk",
+    );
     for (const asset of Object.values(manifest.assets)) {
       expect(asset.sha256).toMatch(/^[0-9a-f]{64}$/);
       expect(asset.size).toBeGreaterThan(0);
@@ -88,12 +95,23 @@ describe("manifeste de mise à jour (scripts/release/update-manifest.mjs)", () =
 
   it("refuse de publier un manifeste sans livrable (rien à annoncer)", () => {
     const root = makeWorkspace();
-    for (const f of fs.readdirSync(path.join(root, "release"))) {
-      fs.rmSync(path.join(root, "release", f));
+    for (const f of fs.readdirSync(path.join(root, "release"), { recursive: true })) {
+      fs.rmSync(path.join(root, "release", f), { recursive: true, force: true });
     }
     const res = run(root, { VELORIA_RELEASE_BASE_URL: RELEASE_PAGE });
     expect(res.status).not.toBe(0);
     expect(res.stdout).toContain("livrable");
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("l'APK du PROPRIÉTAIRE n'est jamais publié comme APK du client", () => {
+    const root = makeWorkspace();
+    fs.writeFileSync(path.join(root, "release", "apk", "Veloria-Owner-1.0.5-release.apk"), "owner");
+    expect(run(root, { VELORIA_RELEASE_BASE_URL: RELEASE_PAGE }).status).toBe(0);
+    const manifest = JSON.parse(
+      fs.readFileSync(path.join(root, "release", "update-manifest.json"), "utf8"),
+    ) as { assets: Record<string, { name: string }> };
+    expect(manifest.assets["apk"]?.name).toBe("Veloria-Client-1.0.5.apk");
     fs.rmSync(root, { recursive: true, force: true });
   });
 

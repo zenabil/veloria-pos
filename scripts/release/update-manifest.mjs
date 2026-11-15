@@ -32,7 +32,11 @@ const BASE_URL_ENV = "VELORIA_RELEASE_BASE_URL";
 const ASSET_PATTERNS = [
   ["winSetup", /^Veloria-PoS-Setup-.*\.exe$/i],
   ["winPortable", /^Veloria-PoS-Portable-.*\.exe$/i],
-  ["apk", /\.apk$/i],
+  // APK du CLIENT (Veloria Client). L'APK du PROPRIÉTAIRE est un produit
+  // distinct, avec son propre cycle de distribution : il ne doit JAMAIS être
+  // confondu avec celui du client (mesuré : le tri alphabétique choisissait
+  // « Veloria-Owner-…apk » comme APK du client).
+  ["apk", /^Veloria-Client-.*\.apk$/i],
 ];
 
 /** Sépare la page de release (…/releases/tag/vX) de l'URL de téléchargement. */
@@ -40,14 +44,38 @@ export function downloadUrlFor(releasePage, assetName) {
   return `${releasePage.replace(/\/tag\//, "/download/")}/${encodeURIComponent(assetName)}`;
 }
 
+/** Chemins RELATIFS à `release/` (POSIX), récursifs (les APK vivent dans
+ *  `release/apk/`) — les dossiers techniques sont ignorés. */
+export function listFilesRecursively(root, base = "") {
+  const out = [];
+  let entries;
+  try {
+    entries = fs.readdirSync(path.join(root, base), { withFileTypes: true });
+  } catch {
+    return out;
+  }
+  for (const entry of entries) {
+    const rel = base ? `${base}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      if (entry.name === "win-unpacked" || entry.name === "win-unpacked.tmp") continue;
+      out.push(...listFilesRecursively(root, rel));
+    } else {
+      out.push(rel);
+    }
+  }
+  return out;
+}
+
 /**
  * Associe chaque livrable à sa clé de manifeste.
- * `files` : noms de fichiers présents dans `release/`.
+ * `files` : chemins RELATIFS à `release/` (POSIX), ex. `apk/client.apk`.
+ * Le `name` publié est le NOM DU FICHIER seul (les assets d'une release
+ * GitHub sont plats) ; le chemin relatif sert à retrouver le fichier.
  */
 export function detectAssets(files) {
   const assets = {};
   for (const [key, pattern] of ASSET_PATTERNS) {
-    const match = files.filter((f) => pattern.test(f)).sort();
+    const match = files.filter((f) => pattern.test(path.posix.basename(f))).sort();
     if (match.length > 0) assets[key] = match[match.length - 1];
   }
   return assets;
@@ -74,9 +102,10 @@ export function buildUpdateManifest({
   }
   manifest.releasePage = releasePage;
   manifest.assets = {};
-  for (const [key, name] of Object.entries(assets)) {
-    const abs = path.join(RELEASE_DIR, name);
+  for (const [key, relativePath] of Object.entries(assets)) {
+    const abs = path.join(RELEASE_DIR, relativePath);
     const buffer = fs.readFileSync(abs);
+    const name = path.posix.basename(relativePath);
     manifest.assets[key] = {
       name,
       sha256: crypto.createHash("sha256").update(buffer).digest("hex"),
@@ -130,7 +159,7 @@ export function main() {
     console.error("FAIL  dossier release/ absent — lancez d'abord `npm run package:win`.");
     process.exit(1);
   }
-  const files = fs.readdirSync(RELEASE_DIR);
+  const files = listFilesRecursively(RELEASE_DIR);
   const assets = detectAssets(files);
   if (Object.keys(assets).length === 0) {
     console.error("FAIL  aucun livrable (.exe/.apk) dans release/ — packagez d'abord.");
