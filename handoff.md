@@ -7108,3 +7108,48 @@ parcours récursif, publication sous le nom seul) + test dédié.
 le construit pas : EAS ou Gradle local) puis régénérer le manifeste ; mesurer
 la vitesse de téléchargement depuis l'Algérie ; certificat Authenticode
 (~100 $/an) pour la porte du mode silencieux.
+### Session 140 (suite) — ce que le PREMIER run de CI a révélé
+
+La CI du projet n'avait **jamais tourné** (299 commits sans un run, pas de
+remote). Les quatre premiers runs du workflow `release` ont donc été des
+**runs de diagnostic**, et ont exposé des défauts réels (pas des bugs de
+config) :
+
+| Run | Durée      | Cause de l'échec                                                                                                                 | Nature                                                                    |
+| --- | ---------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| #1  | 1 min 46 s | `npm ci` → `node-gyp rebuild` sur `better-sqlite3` (pas de Visual Studio sur le runner)                                          | Environnement                                                             |
+| #2  | 3 min 08 s | ESLint : `no-unsafe-*` sur des types non résolus                                                                                 | **Défaut CI** (types des références de projet absents sur checkout froid) |
+| #3  | 4 min 04 s | `tsc -b` : `readdirSync({recursive:true})` typé `string \| Buffer`                                                               | **Défaut de code** (le mien)                                              |
+| #4  | 1 h 24 min | 10 erreurs : `build.gradle` gitignoré manquant, tests de dates dépendants du fuseau machine, 3 fichiers d'intégration en timeout | **Défauts de tests**                                                      |
+
+Total : 5 défauts corrigés, chacun reproduit **localement** avant correction :
+
+1. `npm ci --ignore-scripts` + rejeu manuel `electron/install.js` et
+   `esbuild/install.js` (le binaire N-API de `better-sqlite3` est déjà dans
+   le paquet — aucune compilation nécessaire).
+2. `npm run build:electron` **avant** la porte `check` (les déclarations du
+   projet référencé `electron` sont nécessaires au lint type-aware).
+3. `readdirSync(..., { recursive: true })` : le type `(string | Buffer)[]` est
+   restreint explicitement.
+4. `version-alignment.test.ts` : `mobile/android/` est gitignoré ⇒ les
+   contrôles Gradle sont **sautés** quand le fichier est absent (le reste
+   du contrat reste vérifié), comme le fait déjà `version.mjs`.
+5. Tests de dates (`mobile-foundation`, `owner-foundation`) : instants
+   **explicites en UTC** ⇒ l'affichage en heure d'Alger (UTC+1) ne dépend
+   plus du fuseau de la machine ; timeouts vitest 60 s → **180 s** (le rejeu
+   des 66 migrations par fichier d'intégration dépasse 60 s sur 2 vCPU) ;
+   `TZ=Africa/Algiers` dans les workflows (fuseau du magasin, ADR-169).
+
+**Preuve** : suite complète **verte avec `TZ=UTC`** (220 fichiers / 1 691
+tests) — c'est exactement la condition du runner (UTC), et elle passe.
+
+Enseignements :
+
+- `--no-isolate` (que la config注释 évoque comme plus rapide) **casse** la
+  suite (176 échecs : fuite de mocks entre fichiers) → à ne pas utiliser.
+- Le runner `windows-latest` public = **2 vCPU** : vitest y tourne avec un
+  seul worker ⇒ la suite y prend ~80 min. Le job de release a donc une
+  limite de 240 min.
+- Un workflow qui n'a jamais tourné est un workflow **inconnu** : chaque
+  premier run doit être lu comme un diagnostic, pas comme un échec « à
+  rejouer à l'aveugle ».
