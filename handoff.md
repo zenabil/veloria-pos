@@ -7035,7 +7035,8 @@ Note d'outillage (découverte pendant cette session) : `npm run verify:docs:writ
 rouge) — lancer `prettier --write governance/PROJECT_FACTS_TO_VERIFY.md docs/METRICS.md`
 après chaque régénération de métriques. La porte `verify:docs` reste verte (elle normalise
 les espaces) : c'est bien la porte de format qui mord.
-***
+
+---
 
 ## Session 140 (2026-11-15) - publication : dépôt GitHub, flux de mise à jour activé, release v1.0.4
 
