@@ -56,6 +56,8 @@
 
 ## 1) État courant
 
+- **Session 139 (2026-11-15)** : **détection automatique de mise à jour, application pilotée par le propriétaire (ADR-186)** — demande : « ما رأيك في github لرفع التحديثات » puis « أريد أن تكون التحديثات تلقائية » puis « ابدأ التنفيذ ». Décisions du propriétaire : mise à jour **automatique**, mais **l'application n'installe jamais rien** ; annonce au propriétaire (écran « À propos ») ; APK : vérification GitHub + téléchargement ; **pas de certificat** pour l'instant. Aucun code de mise à jour n'existait avant cette session (`publish: []`, aucun `electron-updater`, aucun dépôt distant). Livré : manifeste JSON en lecture seule (URL fixe `releases/latest/download`, liste blanche d'origines, **jamais l'API GitHub**), service de détection silencieux (cache 6 h, échec = log seul), carte « Mise à jour disponible » + ouverture de la page de release (le renderer ne fournit **aucune URL**), bandeau équivalent côté APK, `scripts/release/update-manifest.mjs` + `npm run release:manifest` (hors chaîne `package:win` : un build local/CI sans dépôt reste possible), workflow `.github/workflows/release.yml` (tag `v*` → portes qualité → `package:win` → manifeste → publication). **Décision de version** : la version du bundle client devient la constante `APP_VERSION` (`mobile/src/App.tsx`), source unique consommée par l'écran Compte **et** par la détection ; `version:set` la remplace, `version-alignment.test.ts` le vérifie. **Preuves** : 4 nouveaux fichiers de test (contrat du manifeste, service avec Electron simulé, client APK, fabrication du manifeste en process réel) ; `npm test` 220 fichiers / 1 689 tests verts ; `verify` vert (dont `verify:docs` après régénération de `docs/METRICS.md` : ADR 186, 204 canaux déclarés, 220 fichiers de test) ; `test:coverage:all` vert (53,35 % stmt / 52,72 % branch / 46,21 % func / 55,47 % lines — planchers non abaissés) ; lint 0 ; les 5 typecheck 0 ; `build` + `build:electron` 0. **Écart assumé vs plan** : la clé `publish` d'electron-builder reste **vide** (pas de dépôt ⇒ pas d'`owner/repo` à écrire : écrire un dépôt factice produirait un `app-update.yml` mensonger) et `electron-updater` n'est **pas** ajouté (sa porte = certificat de signature). **Reste à faire côté opérateur** : créer le dépôt GitHub de distribution (public) + remote ; renseigner l'URL du manifeste (POS : `DEFAULT_UPDATE_MANIFEST_URL` dans `electron/services/update-check.ts`, ou `VELORIA_UPDATE_MANIFEST_URL` ; APK : `EXPO_PUBLIC_UPDATE_MANIFEST_URL` au build EAS) ; publier une première release (tag `v*`) ; mesurer la vitesse de téléchargement depuis l'Algérie ; certificat Authenticode (~100 $/an, Azure non disponible pour l'Algérie) pour la porte du mode silencieux.
+
 - **Session 135 (2026-11-13)** : **vérification du système d'images d'annonces (ADR-166) + correctif CSP** — demande : « تحقق من نظام رفع صور الاعلانات ». **Constat** : aucun upload de fichier (par conception : lien https hébergé à l'extérieur, jamais de blob en base) ; la chaîne domaine → Zod → repo transactionnel (4 annonces actives, idempotent) → cliché APK → hero mobile est conforme. **Défaut réel** : la CSP du renderer (`index.html`) limitait `img-src` à `'self' data: blob:` ⇒ toute image https était bloquée dans le POS : l'aperçu Paramètres affichait « Image indisponible » et les vignettes ne s'affichaient jamais, alors que l'APK affiche l'image. **Correctif** : `https:` ajouté à `img-src` (`script-src`/`default-src` inchangés). **Preuve négative** : `tests/unit/pos-csp.test.ts` échoue avant, passe après ; sonde Chromium : violation CSP avant, aucune après. **Portes** : vitest ciblé 4 fichiers / 45 tests, `tsc -b`, prettier, eslint, `verify:docs` verts (METRICS : 216 fichiers de test). Détail en fin de fichier (Session 135).
 
 - **Session 132 (2026-11-12)** : **git rétabli sur le poste — PATH configuré, arbre enfin commitable** — demande : « ثبت git ». Diagnostic : l'exécutable `git` était **présent sur le disque** mais **absent du PATH** (`where git` → introuvable ; `Get-Command git` → « not recognized »). Le dépôt n'a jamais été « sans git » : `.git/` existe (HEAD `d9e992b`, 8 branches, objets intacts) et `handoff.md` (sessions 126, 128, 130, 131) consigné quatre fois à tort ce blocage comme un obstacle d'environnement. Origine réelle : une copie **portable** de Git for Windows (2.56.0.windows.2) embarquée dans `C:\Users\Admin\AppData\Local\Programs\deepai-code-desktop\resources\git\` — jamais ajoutée au PATH. **Correctif** : copie de la distribution vers `C:\Users\Admin\tools\git\` (même convention que `tools\node` et `tools\jdk17`, hors du répertoire d'un tiers susceptible d'être mis à jour), puis `C:\Users\Admin\tools\git\cmd` + `...\bin` ajoutés au **PATH utilisateur** (HKCU\Environment) avec diffusion `WM_SETTINGCHANGE` ; les entrées pointant vers `deepai-code-desktop` ont été **retirées** (une entrée PATH vers un dossier d'application tiers se brise à la première mise à jour de l'application). **Preuve** : processus neuf lancé avec le PATH fusionné Machine+Utilisateur → `where git` → `C:\Users\Admin\tools\git\cmd\git.exe` ; `git --version` → `git version 2.56.0.windows.2` ; `git config --list --show-origin` lit `C:/Users/Admin/tools/git/etc/gitconfig` et `C:/Users/Admin/.gitconfig` (utilisateur `veloria-pos <veloria-pos@localhost>` déjà configuré). **Conséquence directe** : la règle 10 (« commit obligatoire en fin de tâche ») redevient applicable — les sessions 126, 128, 130 et 131 avaient produit un travail réel **non committé** pour cette seule raison. **Dette de documentation payée** : `handoff.md` (HEAD) était **entièrement** en mojibake (30 981 caractères U+FFFD — double encodage PowerShell `Get-Content` cp1252 → `Set-Content` UTF-8 sur un fichier UTF-8 sans BOM) ; la version de travail avait été réparée à 257 U+FFFD résiduels, tous dans le bloc « Session 130 » (écrit par un chantier tiers). **Réparé à la source** — le bloc a été REJOUÉ depuis une source UTF-8 propre (le contenu réel livré par `scripts/licensing/secret-scan.mjs`, `scripts/release/stamp-build-info.js`, `scripts/release/verify-artifact.js`, `scripts/quality/verify-release-config.mjs`, `electron/ipc/sender-guard.ts`, `config/playwright.config.ts` et le plan `docs/engineering/audits/2026-11-11-full-forensic-audit/08_RADICAL_REMEDIATION_PLAN.md`), **jamais** par re-décodage du texte abîmé ; **0 U+FFFD** dans `handoff.md` après contrôle programmatique. **Portes** : `npm run verify` **0** (migrations 64, domaine, docs, FR, encodage, perf, site, release-config, gouvernance, version, secret-scan) · `npm run check` **0** (format:check + lint + 5 typecheck) · `npm test` **0** · `prettier --check handoff.md` **vert**. **Porte attendue en échec** : `npm run license:key-custody` sort **1** — c'est le comportement **correct** (l'ancre embarquée `resources/license/keys.json#k1` a sa clé privée présente dans `private/vendor-keys/` sur CE poste ; la rotation est une action opérateur sur la machine vendor, cf. ADR-184 et `docs/licensing/KEY_MANAGEMENT.md`). **Commit** : règle 10 finally applicable → voir §132.
@@ -6964,3 +6966,72 @@ Verification : typecheck:electron PASS, build:electron PASS.
     - **Android** : `release/apk/Veloria-Client-1.0.4-debug.apk` (35 Mo) et `Veloria-Client-1.0.4-release.apk` (21,6 Mo) — `dz.veloria.client`, versionCode 6, versionName 1.0.4, minSdk 24, targetSdk 34, compileSdk 35, ABI `armeabi-v7a` + `arm64-v8a` ; `Veloria-Owner-1.0.4-debug.apk` (29,8 Mo) et `Veloria-Owner-1.0.4-release.apk` (17,3 Mo) — `dz.veloria.owner`, versionCode 2. Les 2 **release** sont signés avec le keystore Veloria (CN=Veloria, OU=Mobile, O=Veloria, L=Algiers, C=DZ ; SHA-256 `c190b12a6c5c98979510b6f694208b1f20288bab31a5c1884b73e9412c16a29f`) ; debug signés avec la clé de debug Android.
   - **Pièges d'outillage rencontrés (mémorisés)** : (1) `mobile/android/.gradle` se corrompt (`Could not read workspace metadata … metadata.bin`) après une interruption ⇒ `node -e "fs.rmSync('…/.gradle',{recursive:true,force:true})"` puis rebuild ; (2) `gradlew` doit être lancé **détaché** (`Start-Process cmd.exe /c … > log 2>&1`) car la limite de 900 s du shell tuait le client **et** le daemon Gradle, annulant 20 à 45 min de compilation ; (3) `Remove-Item -Recurse` échoue sur les chemins longs Windows ⇒ passer par `node fs.rmSync`.
   - **Aucun fichier suivi par git modifié par cette tâche** : `mobile/android/` et `owner/android/` sont **gitignorés** (projets Expo générés par `expo prebuild`) ; les artefacts de build sont ignorés (`dist/`, `dist-electron/`, `release/`) ; seul `handoff.md` est committé. L'arbre conserve les **104 fichiers modifiés non committés** des sessions antérieures (hors périmètre de cette tâche).
+
+---
+
+## Session 139 (2026-11-15) - détection automatique de mise à jour, pilotée par le propriétaire (ADR-186)
+
+Demande : « ما رأيك في github لرفع التحديثات الخاصة ب windows installer و نسخ apk » puis
+« أريد أن تكون التحديثات تلقائية » puis « اعمد خطة تنفيذ قوية » puis « ابدأ التنفيذ ».
+
+Décisions du propriétaire (2026-11-14/15) : mise à jour **automatique**, **sans** que
+l'application n'installe jamais rien ; annonce au propriétaire (écran « À propos ») ;
+application manuelle (page de release ouverte dans le navigateur) ; APK : vérification
+GitHub + téléchargement ; **pas de certificat** de signature pour l'instant.
+
+État de départ vérifié : aucun code de mise à jour (`publish: []`, aucun `electron-updater`,
+aucun `autoUpdater`), aucun dépôt GitHub distant, ADR-023 et ADR-161 §4 interdisant
+l'exécution automatique.
+
+Réalisé :
+
+- **ADR-186** (`docs/ADR-186-detection-mise-a-jour-pilotee-proprietaire.md`) : la décision,
+  le contrat du manifeste, les limites (ni exécution automatique, ni signature), les
+  alternatives écartées et la procédure d'activation. `docs/INDEX.md` et
+  `docs/reports/RELEASE_NOTES.md` mis à jour.
+- **Contrat du manifeste** (`electron/services/update-feed.ts`, pur) : validation stricte,
+  comparaison de versions exacte (1.0.10 > 1.0.9), liste blanche d'origines
+  (github.com / raw.githubusercontent.com / objects.githubusercontent.com ; boucle locale
+  uniquement hors paqueté), `fetch` injectable, échec ⇒ `null` (silencieux).
+- **Service de détection** (`electron/services/update-check.ts`) : cache 6 h, lecture au
+  démarrage + toutes les 12 h, journalisation sans secret, ouverture de la page de release
+  filtrée par la liste blanche, **URL vide par défaut ⇒ détection désactivée** (fail-closed
+  tant que le dépôt de distribution n'existe pas).
+- **Pont** : canaux `system.updateStatus` et `system.openUpdatePage` (entrée vide ; le
+  renderer ne fournit **aucune** URL), preload, types du bridge, client IPC, snapshot des
+  canaux servis.
+- **Interface POS** : carte « Mise à jour disponible » dans « À propos » (version installée,
+  version disponible, notes, bouton « Ouvrir la page de la version »), français uniquement,
+  aucun impact sur l'écran de caisse.
+- **Client Android** : `mobile/src/update.ts` (même manifeste, comparaison de version),
+  bandeau arabe/français avec ouverture du lien de téléchargement, `UPDATE_MANIFEST_URL`
+  dans `mobile/src/config.ts` (`EXPO_PUBLIC_UPDATE_MANIFEST_URL`).
+- **Version** : la version du bundle client devient la constante `APP_VERSION`
+  (`mobile/src/App.tsx`) — source unique pour l'écran Compte **et** la détection ;
+  `scripts/release/version.mjs` et `tests/unit/version-alignment.test.ts` alignés.
+- **Release** : `scripts/release/update-manifest.mjs` + `npm run release:manifest`
+  (hors chaîne `package:win`), `.github/workflows/release.yml` (tag `v*` → portes qualité →
+  `package:win` → manifeste → publication de la release).
+
+Preuves : `tests/unit/update-feed.test.ts`, `tests/unit/update-check.test.ts` (Electron
+simulé), `tests/unit/mobile-update.test.ts`, `tests/unit/release-update-manifest.test.ts`
+(process réel) ; `npm test` 220 fichiers / 1 689 tests verts ; `verify` vert (dont
+`verify:docs` après régénération de `docs/METRICS.md` : ADR 186, 204 canaux déclarés,
+220 fichiers de test) ; `test:coverage:all` vert (53,35 / 52,72 / 46,21 / 55,47 — aucun
+plancher abaissé) ; lint 0 ; les 5 typecheck 0 ; `build` + `build:electron` 0.
+
+Écarts assumés vs plan : la clé `publish` d'electron-builder reste **vide** (sans dépôt, pas
+d'`owner/repo` à écrire — un dépôt factice produirait un `app-update.yml` mensonger) ;
+`electron-updater` n'est **pas** ajouté (sa porte est le certificat de signature).
+
+Reste à faire côté opérateur : créer le dépôt GitHub de distribution (public) + remote ;
+renseigner l'URL du manifeste (POS : `DEFAULT_UPDATE_MANIFEST_URL` ou
+`VELORIA_UPDATE_MANIFEST_URL` ; APK : `EXPO_PUBLIC_UPDATE_MANIFEST_URL`) ; publier une
+première release (tag `v*`) ; mesurer la vitesse de téléchargement depuis l'Algérie ;
+certificat Authenticode (~100 $/an) pour la porte du mode silencieux.
+
+Note d'outillage (découverte pendant cette session) : `npm run verify:docs:write` réécrit
+`governance/PROJECT_FACTS_TO_VERIFY.md` dans un format que Prettier refuse (`format:check`
+rouge) — lancer `prettier --write governance/PROJECT_FACTS_TO_VERIFY.md docs/METRICS.md`
+après chaque régénération de métriques. La porte `verify:docs` reste verte (elle normalise
+les espaces) : c'est bien la porte de format qui mord.
