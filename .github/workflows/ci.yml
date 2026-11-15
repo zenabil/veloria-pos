@@ -55,6 +55,15 @@ jobs:
       - run: npm ci
         working-directory: owner
       - run: node -e "const Database=require('better-sqlite3');const db=new Database(':memory:');db.prepare('SELECT 1 AS x').get();db.close();console.log('OK better-sqlite3 N-API')"
+      # TYPES POUR ESLint : le projet `electron` est une RÉFÉRENCE de projet
+      # (`disableSourceOfProjectReferenceRedirect`) → les imports de
+      # `electron/**` depuis `tests/` se résolvent vers les DÉCLARATIONS
+      # émises (`dist-electron/*.d.ts`). Sur un checkout froid, ce build est
+      # INDISPENSABLE : sinon le programme TypeScript est incomplet, les
+      # règles type-aware (`no-unsafe-*`) tombent sur des types non résolus et
+      # le lint échoue sur du code correct.
+      - name: Build TypeScript (déclarations du projet electron)
+        run: npm run build:electron
       - run: npm run check
       - run: npm run knip
       - run: npm test
