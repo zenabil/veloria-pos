@@ -11,7 +11,14 @@ const json = (rel: string): Record<string, unknown> =>
   JSON.parse(read(rel)) as Record<string, unknown>;
 
 const VERSION = String(json("package.json")["version"]);
-const GRADLE = read("mobile/android/app/build.gradle");
+// `mobile/android/` est GITIGNORÉ (projet Expo généré) : le fichier Gradle
+// n'existe que sur le poste vendor. Un checkout propre (CI, clone) ne l'a
+// pas → les contrôles Gradle sont SAUTÉS (comme le fait déjà
+// `scripts/release/version.mjs`), et les contrôles qui n'en dépendent pas
+// (package.json, app.json, App.tsx) restent exécutés.
+const GRADLE_REL = "mobile/android/app/build.gradle";
+const GRADLE_EXISTS = fs.existsSync(path.join(process.cwd(), GRADLE_REL));
+const GRADLE = GRADLE_EXISTS ? read(GRADLE_REL) : "";
 const APP_TSX = read("mobile/src/App.tsx");
 
 function gradleValue(pattern: RegExp): string {
@@ -31,23 +38,29 @@ describe("version unifiée de la suite", () => {
     expect(lock.packages?.[""]?.version).toBe(VERSION);
   });
 
-  it("client Android : package, app.json, Gradle et écran Compte alignés", () => {
+  it("client Android : package, app.json et écran Compte alignés", () => {
     expect(json("mobile/package.json")["version"]).toBe(VERSION);
     expect(json("mobile/package-lock.json")["version"]).toBe(VERSION);
     const app = json("mobile/app.json") as { expo?: { version?: string } };
     expect(app.expo?.version).toBe(VERSION);
-    expect(gradleValue(/versionName\s+"([^"]+)"/)).toBe(VERSION);
     // ADR-186 : source UNIQUE de la version dans le bundle client = la
     // constante `APP_VERSION` (remplacée par `version:set`), celle que la
     // détection de mise à jour compare à la version publiée.
     expect(APP_TSX).toContain(`const APP_VERSION = "${VERSION}"`);
   });
 
-  it("versionCode Android strictement positif (mise à jour acceptée)", () => {
-    const code = Number(gradleValue(/versionCode\s+(\d+)/));
-    expect(Number.isInteger(code)).toBe(true);
-    expect(code).toBeGreaterThan(0);
+  it.skipIf(!GRADLE_EXISTS)("client Android : Gradle aligné (fichier non versionné)", () => {
+    expect(gradleValue(/versionName\s+"([^"]+)"/)).toBe(VERSION);
   });
+
+  it.skipIf(!GRADLE_EXISTS)(
+    "versionCode Android strictement positif (mise à jour acceptée)",
+    () => {
+      const code = Number(gradleValue(/versionCode\s+(\d+)/));
+      expect(Number.isInteger(code)).toBe(true);
+      expect(code).toBeGreaterThan(0);
+    },
+  );
 });
 
 describe("contrat de mise à jour des installateurs", () => {

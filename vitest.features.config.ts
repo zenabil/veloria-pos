@@ -55,7 +55,7 @@ export default defineConfig({
         perFile: false,
       },
     },
-    testTimeout: 60000,
-    hookTimeout: 60000,
+    testTimeout: 180000,
+    hookTimeout: 180000,
   },
 });

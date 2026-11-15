@@ -78,7 +78,10 @@ describe("formateurs", () => {
   });
   it("horodatage ISO → JJ/MM HH:MM (heure locale), invalide → —", () => {
     expect(formatDateTimeFr("nope")).toBe("—");
-    const d = new Date(2026, 9, 30, 15, 21);
+    // Instant EXPLICITE (UTC) : l'affichage se fait en heure d'Alger
+    // (UTC+1) et le résultat NE DOIT PAS dépendre du fuseau de la machine
+    // (le runner CI est en UTC, le poste vendor en UTC+1).
+    const d = new Date("2026-10-30T14:21:00.000Z");
     expect(formatDateTimeFr(d.toISOString())).toBe("30/10 15:21");
   });
   it("chiffres arabes/persans → ASCII (clavier arabe)", () => {

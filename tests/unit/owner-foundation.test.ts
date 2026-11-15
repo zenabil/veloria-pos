@@ -252,7 +252,10 @@ describe("formateurs français", () => {
   it("dates longues/courtes/heures (calendrier réel)", () => {
     expect(formatDateLongFr("2026-10-30T00:00:00")).toBe("Vendredi 30 octobre 2026");
     expect(formatDateShortFr("2026-10-30T00:00:00")).toBe("Ven. 30 oct.");
-    expect(formatTime("2026-10-30T17:42:00")).toBe("17:42");
+    // Instant EXPLICITE (UTC) : l'affichage se fait en heure d'Alger
+    // (UTC+1) et le résultat NE DOIT PAS dépendre du fuseau de la machine
+    // (le runner CI est en UTC, le poste vendor en UTC+1).
+    expect(formatTime("2026-10-30T16:42:00.000Z")).toBe("17:42");
     expect(formatDateLongFr("nope")).toBe("—");
   });
   it("fraîcheur : minutes, heures, date de repli", () => {

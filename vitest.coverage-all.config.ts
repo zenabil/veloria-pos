@@ -78,7 +78,7 @@ export default defineConfig({
         lines: 54,
       },
     },
-    testTimeout: 60000,
-    hookTimeout: 60000,
+    testTimeout: 180000,
+    hookTimeout: 180000,
   },
 });

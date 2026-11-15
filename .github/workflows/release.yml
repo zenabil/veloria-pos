@@ -37,8 +37,15 @@ concurrency:
 jobs:
   release:
     runs-on: windows-latest
-    timeout-minutes: 120
+    # La suite complète (220 fichiers, 1 690 tests) prend ~80 min sur un
+    # runner à 2 vCPU (le rejeu des migrations SQL par fichier domine) :
+    # la marge est large pour ne jamais tuer un build sain.
+    timeout-minutes: 240
     env:
+      # FUSEAU DU MAGASIN : le produit affiche et calcule en Africa/Algiers
+      # (UTC+1 fixe, ADR-169). Le runner GitHub est en UTC → les tests de
+      # dates seraient décalés d'une heure.
+      TZ: Africa/Algiers
       # URL de la release courante : base des liens de téléchargement du
       # manifeste (`/releases/download/<tag>/<fichier>`).
       VELORIA_RELEASE_BASE_URL: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}

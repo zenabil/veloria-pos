@@ -47,11 +47,15 @@ export default defineConfig({
     // `test:coverage` instrumente TOUT le code (v8) ⇒ les tests
     // d'intégration lourds (client-loop, repair-hardening) dépassent 15 s et
     // échouaient en faux négatif. 60 s : la porte coverage est déterministe.
-    testTimeout: 60000,
+    // 180 s : sur un runner GitHub à 2 vCPU, le rejeu des 66 migrations SQL
+    // par fichier d'intégration dépasse 60 s (mesuré : « Hook timed out in
+    // 60000ms » sur `packaging-slice`, `fifo-layers`, `atomic-slices`).
+    testTimeout: 180000,
     // I-05 (W4) : `hookTimeout` par défaut (10 s) était trop court : chaque
     // `beforeEach` de tests/database|integration rejoue TOUTES les migrations
-    // (49 fichiers SQL) ⇒ 12 « Hook timed out » quand la suite tournait en
-    // parallèle d'autres outils lourds. 60 s : la porte devient déterministe.
-    hookTimeout: 60000,
+    // (66 fichiers SQL) ⇒ 12 « Hook timed out » quand la suite tournait en
+    // parallèle d'autres outils lourds. 180 s : la porte devient déterministe
+    // même sur un runner CI à 2 vCPU (où ce rejeu dépasse 60 s).
+    hookTimeout: 180000,
   },
 });

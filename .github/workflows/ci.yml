@@ -29,7 +29,11 @@ permissions:
 jobs:
   quality:
     runs-on: windows-latest
-    timeout-minutes: 90
+    timeout-minutes: 180
+    env:
+      # FUSEAU DU MAGASIN : le produit calcule et affiche en Africa/Algiers
+      # (UTC+1 fixe, ADR-169) ; le runner GitHub est en UTC.
+      TZ: Africa/Algiers
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
