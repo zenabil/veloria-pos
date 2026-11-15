@@ -1501,8 +1501,39 @@ export function ZakatSettingsSection({ notify }: { notify: Notify }): React.JSX.
 // À propos : versions, développeur, dossiers.
 // ---------------------------------------------------------------------------
 
+/** État de mise à jour renvoyé par le processus principal (ADR-186). */
+interface UpdateStatusView {
+  enabled: boolean;
+  available: boolean;
+  currentVersion: string;
+  latestVersion?: string;
+  notes?: string;
+  failed: boolean;
+}
+
+/**
+ * Lecture défensive de la charge utile : une réponse inattendue ne doit
+ * JAMAIS faire tomber l'écran « À propos » (veloria-ui-fr).
+ */
+function readUpdateStatus(raw: unknown): UpdateStatusView | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const o = raw as Record<string, unknown>;
+  if (typeof o["available"] !== "boolean") return null;
+  const latest = o["latestVersion"];
+  const notes = o["notes"];
+  return {
+    enabled: o["enabled"] === true,
+    available: o["available"],
+    currentVersion: typeof o["currentVersion"] === "string" ? o["currentVersion"] : "",
+    ...(typeof latest === "string" ? { latestVersion: latest } : {}),
+    ...(typeof notes === "string" ? { notes } : {}),
+    failed: o["failed"] === true,
+  };
+}
+
 export function AboutSection({ notify }: { notify: Notify }): React.JSX.Element {
   const [diag, setDiag] = useState<Record<string, string | number> | null>(null);
+  const [update, setUpdate] = useState<UpdateStatusView | null>(null);
   const { busy, run } = useBusyFlag();
   // A-28 : la fiche entreprise est la source des coordonnées affichées.
   const { company } = useCompany();
@@ -1513,6 +1544,31 @@ export function AboutSection({ notify }: { notify: Notify }): React.JSX.Element 
       .then((d) => setDiag(d as Record<string, string | number>))
       .catch(() => undefined);
   }, []);
+
+  // ADR-186 : état de mise à jour. SILENCIEUX — hors ligne, manifeste
+  // illisible ou canal absent : aucune carte, aucun message d'erreur.
+  useEffect(() => {
+    api
+      .systemUpdateStatus()
+      .then((raw) => setUpdate(readUpdateStatus(raw)))
+      .catch(() => undefined);
+  }, []);
+
+  function openUpdatePage(): void {
+    void run(async () => {
+      try {
+        const r = (await api.systemOpenUpdatePage()) as {
+          opened: boolean;
+          message?: string;
+        } | null;
+        if (r && !r.opened) {
+          notify(r.message ?? "Mise à jour indisponible.", "err");
+        }
+      } catch (e) {
+        notify(frError(e, "Ouverture impossible."), "err");
+      }
+    });
+  }
 
   function openData(): void {
     void run(async () => {
@@ -1563,6 +1619,30 @@ export function AboutSection({ notify }: { notify: Notify }): React.JSX.Element 
           <InfoRow label="Licence" value={licenseInfoLabel(diag?.["license"])} />
         </dl>
       </SettingsGroup>
+
+      {/* ADR-186 : annonce d'une version plus récente. L'application
+          n'installe JAMAIS rien — elle ouvre la page de la version dans le
+          navigateur du système, la décision reste celle du propriétaire. */}
+      {update?.available ? (
+        <SettingsGroup title="Mise à jour disponible">
+          <div className="rounded-lg border border-amber-400/25 bg-amber-400/[0.06] p-3">
+            <dl className="grid gap-2 sm:grid-cols-2">
+              <InfoRow label="Version installée" value={update.currentVersion} mono />
+              <InfoRow label="Version disponible" value={update.latestVersion ?? "—"} mono strong />
+            </dl>
+            {update.notes ? <p className="mt-2 text-xs text-slate-300">{update.notes}</p> : null}
+            <p className="mt-2 text-xs text-slate-400">
+              Le téléchargement et l'installation restent votre décision : Veloria n'installe jamais
+              rien à votre place. Le bouton ouvre la page de la version dans votre navigateur.
+            </p>
+            <div className="mt-3 flex justify-end">
+              <Button variant="secondary" disabled={busy} onClick={openUpdatePage}>
+                Ouvrir la page de la version
+              </Button>
+            </div>
+          </div>
+        </SettingsGroup>
+      ) : null}
 
       <SettingsGroup title="Contact & support">
         <dl className="grid gap-2 rounded-lg border border-amber-400/25 bg-amber-400/[0.06] p-3 sm:grid-cols-2">

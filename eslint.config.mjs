@@ -70,6 +70,8 @@ export default tseslint.config(
             "scripts/release/stamp-build-info.js",
             "scripts/release/verify-artifact.js",
             "scripts/release/version.mjs",
+            // ADR-186 : fabrication du manifeste de mise à jour.
+            "scripts/release/update-manifest.mjs",
             // Outils E2E/APK (hors tsconfig racine, toolchain Expo/Deno séparée).
             "scripts/demo-client-sync-server.mjs",
             "scripts/e2e-mirror-relay.mjs",
@@ -84,7 +86,7 @@ export default tseslint.config(
           ],
           // 24+ scripts JS hors tsconfig : le service plafonne à 8 par
           // défaut — rehaussé explicitement (lint plus lent, jamais faux).
-          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 38,
+          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 39,
         },
         tsconfigRootDir: import.meta.dirname,
       },

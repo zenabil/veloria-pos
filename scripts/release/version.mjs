@@ -56,8 +56,11 @@ function versionNameOf(gradle) {
 }
 
 function appVersionLiteralOf(source) {
-  const m = /appVersion="([^"]*)"/.exec(source);
-  if (!m) fail("appVersion introuvable dans mobile/src/App.tsx");
+  // ADR-186 : la version du bundle client est la CONSTANTE `APP_VERSION`
+  // (source unique : l'écran Compte et la détection de mise à jour lisent la
+  // même valeur). Elle remplace l'ancien littéral `appVersion="…"` en JSX.
+  const m = /const APP_VERSION = "([^"]*)"/.exec(source);
+  if (!m) fail("const APP_VERSION introuvable dans mobile/src/App.tsx");
   return m[1];
 }
 
@@ -210,7 +213,7 @@ function set(newVersion, explicitCode) {
   if (fs.existsSync(MOBILE_APP_TSX)) {
     const appTsx = fs
       .readFileSync(MOBILE_APP_TSX, "utf-8")
-      .replace(/appVersion="[^"]*"/, `appVersion="${newVersion}"`);
+      .replace(/const APP_VERSION = "[^"]*"/, `const APP_VERSION = "${newVersion}"`);
     fs.writeFileSync(MOBILE_APP_TSX, appTsx);
   }
 

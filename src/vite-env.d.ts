@@ -26,6 +26,10 @@ interface Window {
       selectFolder(): Promise<VeloriaOutcome>;
       selectLogo(): Promise<VeloriaOutcome>;
       openLogsFolder(): Promise<VeloriaOutcome>;
+      /** ADR-186 : état de mise à jour (version plus récente ou non). */
+      updateStatus(): Promise<VeloriaOutcome>;
+      /** ADR-186 : ouvre la page de release dans le navigateur du système. */
+      openUpdatePage(): Promise<VeloriaOutcome>;
     };
     products: {
       search(p: unknown): Promise<VeloriaOutcome>;

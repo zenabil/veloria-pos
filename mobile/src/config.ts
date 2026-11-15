@@ -31,6 +31,17 @@ export const ANON_KEY: string = process.env.EXPO_PUBLIC_ANON_KEY ?? "";
  */
 export const isConfigured: boolean = SYNC_URL !== "" && ANON_KEY !== "";
 
+/**
+ * Manifeste de mise à jour (ADR-186) : asset `update-manifest.json` publié
+ * avec la release et lu à une URL FIXE. Vide = détection désactivée (build non
+ * configuré) : l'application fonctionne normalement, sans bandeau.
+ *
+ * HTTPS exigé : ce manifeste porte les versions ET les liens de
+ * téléchargement — le client ne s'installe JAMAIS tout seul (Android
+ * l'interdit : l'installation d'un APK downloaded exige une confirmation).
+ */
+export const UPDATE_MANIFEST_URL: string = process.env.EXPO_PUBLIC_UPDATE_MANIFEST_URL ?? "";
+
 // RADICAL (#29) : garde-fou d'exécution — un bundle avec placeholder ou HTTP
 // clair distant DOIT échouer FORT au démarrage (jamais de PIN envoyé dans le
 // vide/en clair). Seuls https://, le miroir démo local (:8099) et le relais

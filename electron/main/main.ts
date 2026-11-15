@@ -34,6 +34,7 @@ import {
   startAutoBackupTimer,
 } from "../backup/backup.service";
 import { startSyncTimer, upgradeLegacySecrets } from "../sync/sync.service";
+import { startUpdateWatcher } from "../services/update-check";
 import { initLogger, log } from "../services/logger";
 import { resolveStartup, type DatabaseOpenInfo, type StartupFailure } from "./startup-flow";
 import { buildRecoveryHtml } from "./recovery-view";
@@ -210,6 +211,14 @@ function runAutoBackupIfDue(): void {
     startSyncTimer();
   } catch (err) {
     log("WARN", "sync", "sync.timer_failed", { error: String(err) });
+  }
+  // ADR-186 : détection automatique d'une version plus récente. Lecture seule
+  // et silencieuse (jamais de message à la caisse, jamais d'installation) :
+  // elle tourne en arrière-plan, comme la sauvegarde automatique.
+  try {
+    startUpdateWatcher();
+  } catch (err) {
+    log("WARN", "update", "update.watcher_failed", { error: String(err) });
   }
 }
 

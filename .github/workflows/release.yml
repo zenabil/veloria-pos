@@ -1,0 +1,80 @@
+# Veloria PoS — Publication automatique d'une release (ADR-186).
+#
+# Le manifeste de mise à jour est lu par le POS et par le client Android à
+# une URL FIXE (`…/releases/latest/download/update-manifest.json`) : la
+# release GitHub EST le canal de distribution. D'où ce workflow, déclenché
+# par un tag `v*` :
+#   1. les portes de qualité du projet tournent (check, tests, verify) ;
+#   2. l'installateur Windows est construit (`package:win`) ;
+#   3. le manifeste de mise à jour est fabriqué (`release:manifest`) ;
+#   4. les livrables sont publiés dans la release du tag.
+#
+# L'APK n'est PAS construit ici : il passe par EAS (compte EAS, secrets
+# hors dépôt). Procédure : `npm run build:apk` (mobile/) puis deposit de
+# l'APK dans `release/` AVANT de lancer ce workflow — `release:manifest`
+# l'inclut alors automatiquement dans le manifeste.
+#
+# SIGNATURE : aucun certificat Authenticode n'est disponible à ce jour
+# (ADR-023 / ADR-186). Les binaires sont donc publiés NON SIGNÉS, et
+# SmartScreen peut demander confirmation à l'installation — comportement
+# documenté. `VELORIA_ALLOW_UNSIGNED` est levé explicitement : dès qu'un
+# certificat existe, il faut le passer en secret et RETIRER cette variable.
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    env:
+      # URL de la release courante : base des liens de téléchargement du
+      # manifeste (`/releases/download/<tag>/<fichier>`).
+      VELORIA_RELEASE_BASE_URL: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}
+      # BINAIRES NON SIGNÉS (pas de certificat Authenticode) : à retirer dès
+      # que la signature de code est en place.
+      VELORIA_ALLOW_UNSIGNED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Portes de qualité
+        run: npm run check
+      - name: Suite de tests
+        run: npm test
+      - name: Portes documentaires / migrations / release
+        run: npm run verify
+      - name: Empaquetage Windows (installateur + portable)
+        run: npm run package:win
+      - name: Manifeste de mise à jour
+        run: npm run release:manifest
+      - name: Publication de la release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/Veloria-PoS-Setup-*.exe
+            release/Veloria-PoS-Portable-*.exe
+            release/SHA256SUMS.txt
+            release/update-manifest.json
+          fail_on_unmatched_files: true
+      - name: Métadonnées electron-updater (si présentes)
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/latest.yml
+          fail_on_unmatched_files: false

@@ -37,7 +37,10 @@ describe("version unifiée de la suite", () => {
     const app = json("mobile/app.json") as { expo?: { version?: string } };
     expect(app.expo?.version).toBe(VERSION);
     expect(gradleValue(/versionName\s+"([^"]+)"/)).toBe(VERSION);
-    expect(APP_TSX).toContain(`appVersion="${VERSION}"`);
+    // ADR-186 : source UNIQUE de la version dans le bundle client = la
+    // constante `APP_VERSION` (remplacée par `version:set`), celle que la
+    // détection de mise à jour compare à la version publiée.
+    expect(APP_TSX).toContain(`const APP_VERSION = "${VERSION}"`);
   });
 
   it("versionCode Android strictement positif (mise à jour acceptée)", () => {

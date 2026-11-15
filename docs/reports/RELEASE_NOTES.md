@@ -9,10 +9,13 @@ Base : `Veloria POS DB.sqlite` (schéma v20 — migrations 0001 à 0020),
 (VACUUM INTO), restauration avec snapshot, déplacement vérifié.
 Tickets 80mm + factures A4.
 
-Mises à jour : réinstallation complète (sans mise à jour automatique —
-décision assumée, voir `docs/ADR-023-offline-release.md`). Vérifier
-`SHA256SUMS.txt` avant installation. Sans signature de code :
-Windows SmartScreen peut demander confirmation — c'est attendu.
+Mises à jour : réinstallation complète (l'application n'installe jamais rien
+toute seule — elle annonce une version plus récente dans « À propos » et
+ouvre la page de la release dans le navigateur ; voir
+`docs/ADR-186-detection-mise-a-jour-pilotee-proprietaire.md`). Avant
+installation, vérifier `SHA256SUMS.txt`. Sans signature de code :
+Windows SmartScreen peut demander confirmation — c'est attendu
+(décision assumée, voir `docs/ADR-023-offline-release.md`).
 
 Licences par client (voir `docs/licensing/CAPABILITIES.md`, ADR-026) :
 le Manager émet des `.vlic` différenciés — 17 pages et 14 fonctions

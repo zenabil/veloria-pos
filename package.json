@@ -41,6 +41,7 @@
     "package:portable": "npm run license:scan && npm run license:key-custody && npm run release:stamp-build-info && npm run build && npm run build:electron && npm run license:integrity && electron-builder --win portable --config config/electron-builder/pos.yml && npm run release:checksums && npm run release:verify",
     "release:smoke": "node scripts/release/smoke.js",
     "release:checksums": "node scripts/release/checksums.js",
+    "release:manifest": "node scripts/release/update-manifest.mjs",
     "release:stamp-build-info": "node scripts/release/stamp-build-info.js",
     "release:verify": "node scripts/release/verify-artifact.js",
     "db:integrity": "node scripts/database/integrity.js",

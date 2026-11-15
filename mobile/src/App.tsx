@@ -19,6 +19,7 @@ import { formatDateFr } from "./format.ts";
 import { t, type Lang } from "./i18n.ts";
 import { SyncError, fetchInvoiceDetail, sendOrderIntent, syncNow } from "./api.ts";
 import { ANON_KEY, SYNC_URL, isConfigured } from "./config.ts";
+import { checkClientUpdate, type ClientUpdateInfo } from "./update.ts";
 import { EMPTY_CACHE, type MirrorCache, type Session } from "./store.ts";
 import {
   clearCache,
@@ -64,6 +65,15 @@ import { AccountScreen } from "./screens/Account.tsx";
 
 type Tab = TabId;
 
+/**
+ * Version de la suite (ADR-161 : version unique POS + Manager + Client).
+ * SOURCE UNIQUE pour le bundle client : `scripts/release/version.mjs`
+ * remplace ce LITTÉRAL à chaque `version:set`, et l'alignement est vérifié
+ * par `tests/unit/version-alignment.test.ts`. L'ADR-186 s'en sert pour
+ * comparer la version publiée à la version installée.
+ */
+const APP_VERSION = "1.0.4";
+
 function asRows(payload: unknown, key: string): Record<string, unknown>[] {
   const p = (payload ?? {}) as Record<string, unknown>;
   const v = p[key];
@@ -85,6 +95,8 @@ export function App(): React.JSX.Element {
   const [activitySegment, setActivitySegment] = useState<Segment>("invoices");
   const [hidden, setHidden] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // ADR-186 : version plus récente publiée (null = rien à annoncer).
+  const [update, setUpdate] = useState<ClientUpdateInfo | null>(null);
   const [stale, setStale] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [notifOpen, setNotifOpen] = useState(false);
@@ -198,6 +210,21 @@ export function App(): React.JSX.Element {
     };
     void saveSession(s);
   }, [lang, hidden, session, booted, cache.syncedAt]);
+
+  // ADR-186 : détection d'une version plus récente. SILENCIEUSE (hors ligne
+  // ou manifeste illisible => rien). Le client ne s'installe JAMAIS seul :
+  // Android l'interdit — l'app propose le téléchargement, l'utilisateur décide.
+  useEffect(() => {
+    let alive = true;
+    void checkClientUpdate({ currentVersion: APP_VERSION })
+      .then((info) => {
+        if (alive) setUpdate(info);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // Retour matériel Android : ferme la couche superposée (détail d'abord,
   // puis panneau) au lieu de quitter l'appli ; sinon on laisse la sortie au
@@ -775,6 +802,7 @@ export function App(): React.JSX.Element {
           </Tap>
         </View>
       </View>
+      {update ? <UpdateBanner lang={lang} info={update} /> : null}
       <View style={{ flex: 1 }}>
         {detailRow ? (
           <InvoiceDetailScreen
@@ -871,7 +899,7 @@ export function App(): React.JSX.Element {
             shopPhone={home.shop.phone ?? ""}
             shopAddress={home.shop.address}
             announcement={home.announcement}
-            appVersion="1.0.4"
+            appVersion={APP_VERSION}
             developer="Veloria"
             supportPhone={home.shop.phone ?? ""}
             debtMinor={home.debtMinor}
@@ -1094,6 +1122,55 @@ function NotConfiguredBanner(props: { lang: Lang }): React.JSX.Element {
           {t(l, "notConfiguredHint")}
         </Text>
       </View>
+    </View>
+  );
+}
+
+/**
+ * ADR-186 : bandeau « version plus récente ».
+ * Il PROPOSE le téléchargement (lien ouvert dans le navigateur) : Android
+ * interdit l'installation silencieuse d'un APK downloaded hors magasin —
+ * l'installation reste donc un geste explicite de l'utilisateur.
+ */
+function UpdateBanner(props: { lang: Lang; info: ClientUpdateInfo }): React.JSX.Element {
+  const l = props.lang;
+  const hint = t(l, "updateAvailableHint").replace("{version}", props.info.version);
+  return (
+    <View
+      accessibilityLiveRegion="polite"
+      style={{
+        flexDirection: flow(l === "ar" ? "rtl" : "ltr"),
+        alignItems: "center",
+        gap: SPACE.sm,
+        backgroundColor: COLORS.navySoft,
+        borderBottomWidth: 1,
+        borderColor: tint(COLORS.primary, "33"),
+        padding: SPACE.md,
+      }}
+    >
+      <Icon name="download-outline" size={18} color={COLORS.primary} />
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text style={{ color: COLORS.headerText, fontWeight: "800", fontSize: 13 }}>
+          {t(l, "updateAvailableTitle")}
+        </Text>
+        <Text style={{ color: COLORS.navyMuted, fontSize: 11, lineHeight: 15 }}>{hint}</Text>
+      </View>
+      <Tap
+        onPress={() => {
+          void Linking.openURL(props.info.url).catch(() => undefined);
+        }}
+        accessibilityLabel={t(l, "updateAvailableCta")}
+        style={{
+          paddingHorizontal: SPACE.sm,
+          paddingVertical: 6,
+          borderRadius: RADIUS.inner,
+          backgroundColor: COLORS.primary,
+        }}
+      >
+        <Text style={{ color: COLORS.primaryText, fontWeight: "800", fontSize: 11 }}>
+          {t(l, "updateAvailableCta")}
+        </Text>
+      </Tap>
     </View>
   );
 }

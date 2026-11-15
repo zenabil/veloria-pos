@@ -9,6 +9,11 @@ export const IPC_CHANNELS = {
   "system.openDataFolder": "system.openDataFolder",
   "system.selectFolder": "system.selectFolder",
   "system.selectLogo": "system.selectLogo",
+  // ADR-186 : détection automatique d'une version plus récente (lecture seule,
+  // annonce au propriétaire). L'application n'installe JAMAIS : elle ouvre la
+  // page de release dans le navigateur du système.
+  "system.updateStatus": "system.updateStatus",
+  "system.openUpdatePage": "system.openUpdatePage",
   // database
   "database.health": "database.health",
   "database.location": "database.location",

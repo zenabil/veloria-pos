@@ -190,6 +190,7 @@
 - [ADR-180](./ADR-180-site-vitrine-terminal-dor.md) Site vitrine : design system « Terminal d'Or » (palette du produit reel, app-frame, onglets produit, scrollytelling, grand livre Z, CTA en reçu) + porte `verify:site` (console, debordement, structure, CLS, liens morts)
 - [ADR-181](./ADR-181-site-vitrine-organisation-composants.md) Site vitrine reorganisationne en composants (partials HTML + couches CSS + build statique zero dependance + porte de fraicheur du site servi)
 - [ADR-182](./ADR-182-commandes-produits-app-client.md) Commandes de produits depuis l'application client : catalogue publie (table `store_catalog`, une copie par magasin), boutique APK, reservation et retrait en magasin sans paiement electronique, retour d'etat via `customer_snapshot`, mesure d'usage
+- [ADR-186](./ADR-186-detection-mise-a-jour-pilotee-proprietaire.md) Detection automatique de mise a jour, application pilotee par le proprietaire : manifeste JSON en lecture seule (URL fixe, liste blanche d'origines, silence hors ligne), annonce dans « A propos » + ouverture de la page de release, POS et client Android, aucune execution automatique ni signature (ADR-023 et ADR-161 §4 inchanges sur ce point)
 
 ## Ou ecrire quoi
 

@@ -26,6 +26,9 @@ const api = {
     selectFolder: () => invoke(IPC_CHANNELS["system.selectFolder"]),
     selectLogo: () => invoke(IPC_CHANNELS["system.selectLogo"]),
     openLogsFolder: () => invoke(IPC_CHANNELS["system.openLogsFolder"]),
+    // ADR-186 : état de mise à jour + ouverture de la page de release.
+    updateStatus: () => invoke(IPC_CHANNELS["system.updateStatus"]),
+    openUpdatePage: () => invoke(IPC_CHANNELS["system.openUpdatePage"]),
   },
   products: {
     search: (p: unknown) => invoke(IPC_CHANNELS["products.search"], p),

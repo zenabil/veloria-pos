@@ -49,15 +49,15 @@ Particularly important:
 
 <!-- GENERATED:verify-docs:FACTS-START -->
 
-<!-- Mesure par `node scripts/quality/verify-docs.mjs --write` le 2026-11-13. -->
+<!-- Mesure par `node scripts/quality/verify-docs.mjs --write` le 2026-11-15. -->
 
 | Indicateur                                       | Valeur                |
 | ------------------------------------------------ | --------------------- |
 | Migrations SQL (immuables)                       | 66 (jusqu'a 0066)     |
-| ADRs (decisions)                                 | 185 (jusqu'a ADR-185) |
-| Canaux IPC declares                              | 202                   |
-| Canaux IPC servis (snapshot)                     | 201                   |
-| Fichiers de test (unit + integration + database) | 216                   |
+| ADRs (decisions)                                 | 186 (jusqu'a ADR-186) |
+| Canaux IPC declares                              | 204                   |
+| Canaux IPC servis (snapshot)                     | 203                   |
+| Fichiers de test (unit + integration + database) | 220                   |
 | Specs E2E (Playwright)                           | 26                    |
 | Tables reelles (hors *_new temporaires)          | 50                    |
 | Pages de licence                                 | 17                    |

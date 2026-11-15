@@ -20,6 +20,7 @@ import { backupStatus } from "../backup/backup.service";
 import { getSelectedPrinterName } from "../printing/printing.service";
 import { getLogFile } from "../services/logger";
 import { buildSupportBundle } from "../services/support-bundle";
+import { getUpdateStatus, openUpdatePage } from "../services/update-check";
 import { getMainWindow } from "../main/window-manager";
 import { pickLogo } from "../services/file-ui";
 import { getLicenseStatus, requireLicensedMutation } from "../licensing/license-service";
@@ -289,4 +290,11 @@ export function registerSystemChannels(): void {
   handle(IPC_CHANNELS["products.import"], V.productsImportSchema, (input) =>
     Imports.importProductsAtomic(input.rows, new Date().toISOString(), input.operationId),
   );
+
+  // ---- ADR-186 : détection d'une version plus récente (LECTURE SEULE) ----
+  // Le renderer ne fournit AUCUNE URL : la page de release vient du manifeste
+  // lu par le processus principal (allow-list https dans `update-check.ts`).
+  // L'application n'installe jamais rien — elle ouvre le navigateur système.
+  handle(IPC_CHANNELS["system.updateStatus"], V.emptyPayloadSchema, async () => getUpdateStatus());
+  handle(IPC_CHANNELS["system.openUpdatePage"], V.emptyPayloadSchema, async () => openUpdatePage());
 }

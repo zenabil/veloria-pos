@@ -131,6 +131,10 @@ export const api = {
   systemSelectFolder: () => call((a) => a.system.selectFolder()),
   systemSelectLogo: () => call((a) => a.system.selectLogo()),
   systemOpenLogsFolder: () => call((a) => a.system.openLogsFolder()),
+  /** ADR-186 : état de mise à jour (silencieux si hors ligne). */
+  systemUpdateStatus: () => call((a) => a.system.updateStatus()),
+  /** ADR-186 : ouvre la page de release dans le navigateur du système. */
+  systemOpenUpdatePage: () => call((a) => a.system.openUpdatePage()),
   appDiagnostics: () => call((a) => a.app.diagnostics()),
   appRestart: () => call((a) => a.app.restart()),
   windowMinimize: () => call((a) => a.window.minimize()),

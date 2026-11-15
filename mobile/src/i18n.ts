@@ -270,6 +270,20 @@ const STRINGS = {
     ar: "امسح رمز المتجر (QR) للاتصال، أو أدخل EXPO_PUBLIC_SYNC_URL وEXPO_PUBLIC_ANON_KEY عند البناء ثم أعد بناء التطبيق.",
     fr: "Scannez le QR du magasin pour vous connecter, ou renseignez EXPO_PUBLIC_SYNC_URL / EXPO_PUBLIC_ANON_KEY au moment du build, puis reconstruisez l'application.",
   },
+  // ADR-186 : version plus récente publiée. Le client ne s'installe JAMAIS
+  // tout seul (Android l'interdit) : il propose le téléchargement.
+  updateAvailableTitle: {
+    ar: "نسخة جديدة متوفرة",
+    fr: "Nouvelle version disponible",
+  },
+  updateAvailableHint: {
+    ar: "الإصدار {version} متوفر. نزّله وثبّته من المتصفح.",
+    fr: "La version {version} est disponible. Téléchargez-la et installez-la depuis le navigateur.",
+  },
+  updateAvailableCta: {
+    ar: "تحميل النسخة",
+    fr: "Télécharger la version",
+  },
 } as const;
 
 export type StringKey = keyof typeof STRINGS;
