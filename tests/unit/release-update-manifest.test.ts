@@ -95,7 +95,10 @@ describe("manifeste de mise à jour (scripts/release/update-manifest.mjs)", () =
 
   it("refuse de publier un manifeste sans livrable (rien à annoncer)", () => {
     const root = makeWorkspace();
-    for (const f of fs.readdirSync(path.join(root, "release"), { recursive: true })) {
+    // `readdirSync(..., { recursive: true })` est typé `(string | Buffer)[]` :
+    // on restreint à des chaînes (le dossier ne contient que des fichiers).
+    const entries = fs.readdirSync(path.join(root, "release"), { recursive: true }) as string[];
+    for (const f of entries) {
       fs.rmSync(path.join(root, "release", f), { recursive: true, force: true });
     }
     const res = run(root, { VELORIA_RELEASE_BASE_URL: RELEASE_PAGE });
