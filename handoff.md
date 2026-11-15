@@ -7035,3 +7035,75 @@ Note d'outillage (découverte pendant cette session) : `npm run verify:docs:writ
 rouge) — lancer `prettier --write governance/PROJECT_FACTS_TO_VERIFY.md docs/METRICS.md`
 après chaque régénération de métriques. La porte `verify:docs` reste verte (elle normalise
 les espaces) : c'est bien la porte de format qui mord.
+***
+
+## Session 140 (2026-11-15) - publication : dépôt GitHub, flux de mise à jour activé, release v1.0.4
+
+Demande : « افتح المتصفح · انشئ مستودع github عامة · اكمل كل الخطوات ».
+
+**Compte GitHub** : `zenabil` (c'est le vrai identifiant du compte connecté ; le
+menu affichait une autre graphie — les URLs `/zenagui/...` renvoient 404).
+
+**Dépôt créé** : `https://github.com/zenabil/veloria-pos` — **public**, sans
+README ni .gitignore générés (le dépôt a déjà les siens).
+
+**Authentification du push — aucun secret créé** : pas de `gh`, pas de GCM, pas
+de clé SSH préexistante, aucune donnée dans le gestionnaire d'identifiants
+Windows. Un **PAT « fine-grained » aurait exigé la confirmation par mot de
+passe** → écarté. retenue : une **clé de déploiement SSH** (`ssh-keygen
+ed25519`, sans passphrase, `~/.ssh/veloria_pos_github`) ajoutée dans
+`Settings → Deploy keys` avec **écriture**, donc **limitée à ce seul dépôt**
+(elle ne donne aucun accès au compte). Push par `GIT_SSH_COMMAND` +
+`ssh://git@github.com/zenabil/veloria-pos.git`.
+
+**Audit avant publication** (l'historique entier a été inspecté) : aucune clé
+privée, aucun `.vlic`, aucun keystore, aucun fichier sensible n'a JAMAIS été
+ajouté à l'arbre ni dans les 1 557 objets du dépôt ; seuls `resources/license/public.key`
+et des fichiers de code qui parlent de « secret » sont suivis. `private/`, `*.keystore`,
+`*.vlic`, `*.sqlite`, `release/` sont gitignorés ✓.
+
+**Publié** : branche `main` (= HEAD) + `master` (tronçon historique, ancêtre
+de HEAD) + tag `v1.0.4`.
+
+**Flux de mise à jour activé** : `DEFAULT_UPDATE_MANIFEST_URL` =
+`https://github.com/zenabil/veloria-pos/releases/latest/download/update-manifest.json`
+(l'URL vide reste « détection désactivée », fail-closed).
+
+**Trois défauts réels de la CI, trouvés et corrigés** (la CI n'avait JAMAIS
+tourné : « 299 commits sans un seul run ») :
+
+1. **`npm ci` échouait sur le runner** : `better-sqlite3` possède un
+   `binding.gyp` → npm y lance `node-gyp rebuild` → « Could not find any
+   Visual Studio installation ». Or son binaire N-API est **déjà dans le
+   paquet** (`prebuilds/win32-x64.node`, ADR-155) : aucune compilation n'est
+   nécessaire. Correctif : `npm ci --ignore-scripts` puis rejeu manuel des
+   deux scripts utiles (`node node_modules/electron/install.js`,
+   `node node_modules/esbuild/install.js`).
+2. **Le lint échouait sur du code correct** : le projet `electron` est une
+   _référence de projet_ (`disableSourceOfProjectReferenceRedirect`) → les
+   imports `electron/**` depuis `tests/` se résolvent vers `dist-electron/*.d.ts`.
+   Sur un checkout froid, ce fichier n'existe pas → le programme TypeScript
+   est incomplet → les règles type-aware (`no-unsafe-*`) tirent à côté.
+   Correctif : `npm run build:electron` **avant** la porte `check`.
+   _Preuve locale_ : renommer `dist-electron` reproduit exactement les
+   200+ erreurs du runner ; le renommer restaure un lint vert.
+3. **`npm run check` typecheck les deux apps Expo** : sans leurs dépendances,
+   `expo/tsconfig.base` est introuvable → le job échoue avant le code. Les
+   workflows installent donc `mobile/` et `owner/`.
+
+**Variantes CI du packaging** : `package:win:ci` / `package:portable:ci`
+re-signent le manifeste d'intégrité en mode **opportuniste**
+(`--if-key-present`) : un runner public n'a pas la clé privée vendor, et le
+mode strict doit rester réservé au build vendor (`package:win`,
+`package:portable` inchangés — fail-closed).
+
+**Autre défaut trouvé dans le manifeste** : le tri alphabétique choisissait
+`Veloria-Owner-*.apk` (application **propriétaire**, produit distinct) comme
+APK du **client** ; et les APK vivaient dans `release/apk/`, invisible pour
+une lecture non récursive. Corrigé (motif `^Veloria-Client-.*\.apk$`,
+parcours récursif, publication sous le nom seul) + test dédié.
+
+**Reste à faire** : déposer l'**APK client signé** dans la release (la CI ne
+le construit pas : EAS ou Gradle local) puis régénérer le manifeste ; mesurer
+la vitesse de téléchargement depuis l'Algérie ; certificat Authenticode
+(~100 $/an) pour la porte du mode silencieux.
