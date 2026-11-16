@@ -7108,6 +7108,7 @@ parcours récursif, publication sous le nom seul) + test dédié.
 le construit pas : EAS ou Gradle local) puis régénérer le manifeste ; mesurer
 la vitesse de téléchargement depuis l'Algérie ; certificat Authenticode
 (~100 $/an) pour la porte du mode silencieux.
+
 ### Session 140 (suite) — ce que le PREMIER run de CI a révélé
 
 La CI du projet n'avait **jamais tourné** (299 commits sans un run, pas de
