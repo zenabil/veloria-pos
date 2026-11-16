@@ -7154,3 +7154,50 @@ Enseignements :
 - Un workflow qui n'a jamais tourné est un workflow **inconnu** : chaque
   premier run doit être lu comme un diagnostic, pas comme un échec « à
   rejouer à l'aveugle ».
+
+---
+
+## Session 141 (2026-11-16) - publication de la première release + vérification du flux de mise à jour
+
+Demande : « اكمل ».
+
+**Release publiée** : `https://github.com/zenabil/veloria-pos/releases/tag/v1.0.4` (titre
+« Veloria PoS 1.0.4 »), tag `v1.0.4` sur le commit `33fcaa7`.
+
+**Assets publiés (6)** : `SHA256SUMS.txt`, `update-manifest.json`, `Veloria-Client-1.0.4-release.apk`
+(21,6 Mo, signé avec le keystore Veloria), `Veloria-PoS-Setup-1.0.4.exe` (153,9 Mo).
+Le portable n'a pas pu être téléversé (téléversement bloqué après ~40 min) — à ajouter
+manuellement si nécessaire (le lien `winPortable` du manifeste pointera dessus).
+
+**Vérification du flux de mise à jour** :
+
+- `https://github.com/zenabil/veloria-pos/releases/latest/download/update-manifest.json`
+  répond **200**, retourne un JSON valide : `suiteVersion = "1.0.4"`,
+  `apk.downloadUrl` = `…/releases/download/v1.0.4/Veloria-Client-1.0.4-release.apk`,
+  et le **SHA-256 du manifeste publié correspond exactement** à celui du fichier local
+  (`2a0ffa3a1ba7f313cd86f791e1f9aa4c5f7b493a8a55d73a49f70050ff5b9dc7`).
+- Le manifeste est donc **actif** : tout POS installé (1.0.4) le récupérera et
+  annoncera « mise à jour disponible » dès la publication d'une version plus récente
+  (ex. `version:set 1.0.5` → tag `v1.0.5` → workflow `release`).
+- Le client Android (1.0.4, versionCode 6) compare la même version et reste muet
+  (correct : rien de plus récent).
+
+**Ce qui est donc achevé** :
+
+- Détection automatique + annonce au propriétaire (POS et APK) ✓
+- Publication d'une release publique + manifeste actif ✓
+- Aucune exécution automatique, aucune signature (ADR-023 / ADR-161 §4 inchangés) ✓
+- Boîte à outils complète : `npm run release:manifest`, `.github/workflows/release.yml`,
+  `package:win:ci`/`package:portable:ci` ✓
+
+**Reste (opérateur, hors de ma portée)** :
+
+- Mesurer la vitesse de téléchargement depuis l'Algérie ; si lente, CDN devant
+  GitHub (le SHA et la vérification restent identiques).
+- Téléverser le portable manquant et, si besoin, régénérer le manifeste
+  (`npm run release:manifest`) puis le remplacer dans la release.
+- Certificat Authenticode (~100 $/an, Azure non disponible pour l'Algérie) pour
+  ouvrir la porte du mode silencieux (`electron-updater`, `quitAndInstall`) et lever
+  le warning SmartScreen.
+- Optimiser la suite de tests sur 2 vCPU (elle y prend ~80 min) — ex. runner
+  plus puissant, ou découpage de `npm test` en jobs parallèles.
