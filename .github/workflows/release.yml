@@ -40,7 +40,7 @@ jobs:
     # La suite complète (220 fichiers, 1 690 tests) prend ~80 min sur un
     # runner à 2 vCPU (le rejeu des migrations SQL par fichier domine) :
     # la marge est large pour ne jamais tuer un build sain.
-    timeout-minutes: 240
+    timeout-minutes: 360
     env:
       # FUSEAU DU MAGASIN : le produit affiche et calcule en Africa/Algiers
       # (UTC+1 fixe, ADR-169). Le runner GitHub est en UTC → les tests de

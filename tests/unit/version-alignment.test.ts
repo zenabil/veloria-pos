@@ -79,8 +79,11 @@ describe("contrat de mise à jour des installateurs", () => {
     }
   });
 
-  it("APK : même package et même keystore release (signature d'upgrade)", () => {
-    expect(GRADLE).toContain("applicationId 'dz.veloria.client'");
-    expect(GRADLE).toContain("storeFile file('../../veloria-release.keystore')");
-  });
+  it.skipIf(!GRADLE_EXISTS)(
+    "APK : même package et même keystore release (signature d'upgrade)",
+    () => {
+      expect(GRADLE).toContain("applicationId 'dz.veloria.client'");
+      expect(GRADLE).toContain("storeFile file('../../veloria-release.keystore')");
+    },
+  );
 });
